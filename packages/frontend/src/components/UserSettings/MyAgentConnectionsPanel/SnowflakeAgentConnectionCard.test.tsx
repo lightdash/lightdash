@@ -10,9 +10,16 @@ import {
     QueryClientProvider,
     useMutation,
 } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    cleanup,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { credential } from './fixtures';
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 
@@ -39,12 +46,16 @@ vi.mock(
     }),
 );
 
-const renderCard = (credentials: UserWarehouseCredentials[] = []) => {
+const renderCard = (
+    credentials: UserWarehouseCredentials[] = [],
+    snowflakeConfigured = true,
+) => {
     const client = new QueryClient({
         defaultOptions: { mutations: { retry: false } },
     });
     return render(
         <SnowflakeAgentConnectionCard
+            snowflakeConfigured={snowflakeConfigured}
             credential={
                 credentials.find(
                     ({ purpose }) =>
@@ -67,6 +78,47 @@ describe('SnowflakeAgentConnectionCard', () => {
         vi.clearAllMocks();
         login.mockResolvedValue();
         deleteCredentials.mockResolvedValue();
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.useRealTimers();
+    });
+
+    it.each([{ credentials: [] }, { credentials: [credential] }])(
+        'shows unavailable setup without actions for credentials %j',
+        ({ credentials }) => {
+            renderCard(credentials, false);
+            expect(screen.getByText('Not available')).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.',
+                ),
+            ).toBeInTheDocument();
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your AI questions/),
+            ).not.toBeInTheDocument();
+            expect(login).not.toHaveBeenCalled();
+        },
+    );
+
+    it('expires while the card stays open without changing props', () => {
+        vi.useFakeTimers();
+        renderCard([{ ...credential, expiresAt: new Date(Date.now() + 1000) }]);
+        expect(
+            screen.getByRole('button', { name: 'Disconnect' }),
+        ).toBeEnabled();
+        act(() => {
+            vi.advanceTimersByTime(1001);
+        });
+        expect(screen.getByText('Expired')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(
+            screen.queryByRole('button', { name: 'Disconnect' }),
+        ).not.toBeInTheDocument();
     });
 
     it.each([
@@ -187,7 +239,12 @@ describe('SnowflakeAgentConnectionCard', () => {
         const { rerender } = renderCard();
         fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
         await screen.findByRole('alert');
-        rerender(<SnowflakeAgentConnectionCard credential={credential} />);
+        rerender(
+            <SnowflakeAgentConnectionCard
+                credential={credential}
+                snowflakeConfigured
+            />,
+        );
         expect(screen.getByText('Failing')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Connect agent' }),
@@ -196,6 +253,22 @@ describe('SnowflakeAgentConnectionCard', () => {
             screen.queryByRole('button', { name: 'Disconnect' }),
         ).not.toBeInTheDocument();
         expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
+    });
+
+    it('hides a previous login failure when setup becomes unavailable', async () => {
+        login.mockRejectedValueOnce(new Error('Snowflake sign-in was denied'));
+        const { rerender } = renderCard();
+        fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
+        await screen.findByRole('alert');
+        rerender(
+            <SnowflakeAgentConnectionCard
+                credential={credential}
+                snowflakeConfigured={false}
+            />,
+        );
+        expect(screen.getByText('Not available')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('requires confirmation in the existing modal before signing out', async () => {

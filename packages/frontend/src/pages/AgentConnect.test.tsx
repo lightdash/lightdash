@@ -149,8 +149,8 @@ describe('AgentConnect', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'My agent connections' }),
-        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
+            screen.getByRole('link', { name: 'My warehouse connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
         expect(mocks.assign).not.toHaveBeenCalled();
     });
 
@@ -163,6 +163,9 @@ describe('AgentConnect', () => {
                     'This agent connection link is missing a valid project.',
                 ),
             ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'My agent connections' }),
+            ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
             expect(mocks.assign).not.toHaveBeenCalled();
         },
     );

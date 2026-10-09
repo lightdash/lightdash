@@ -13,13 +13,11 @@ export const shouldShowMyAgentConnections = (
 export const getAgentConnectionVisibility = (
     rules: OrganizationAgentIdentityRule[],
     projects: OrganizationProject[],
-    snowflakeConfigured: boolean,
 ) => {
     const hasWarehouse = (warehouseType: WarehouseTypes) =>
         projects.some((project) => project.warehouseType === warehouseType);
     return {
         showSnowflake:
-            snowflakeConfigured &&
             hasWarehouse(WarehouseTypes.SNOWFLAKE) &&
             rules.some(
                 ({ warehouseType, source }) =>
