@@ -1,10 +1,10 @@
 import {
-    isFilterLockedOnTab,
-    isWithValueFilter,
     type DashboardFilterRule,
     type DashboardFilters,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import omit from 'lodash/omit';
+import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 
 export type ControlsSidebarSnapshot = {
     dashboardFilters: DashboardFilters;
@@ -54,25 +54,65 @@ export const isFilterRuleDirty = (
         findFilterRule(current, filterId),
     );
 
-// Locks or unlocks the filter on one tab; lockKey is the tab uuid, or the
-// dashboard uuid when the dashboard has no tabs
-export const toggleFilterLockOnTab = (
-    rule: DashboardFilterRule,
-    lockKey: string,
-    hasTabs: boolean,
-): DashboardFilterRule => {
-    const existing = rule.lockedTabUuids ?? [];
-    const next = isFilterLockedOnTab(rule, lockKey, hasTabs)
-        ? existing.filter((uuid) => uuid !== lockKey)
-        : [...existing, lockKey];
-    return { ...rule, lockedTabUuids: next.length > 0 ? next : undefined };
+// Undoes one rule: back to what the snapshot holds, where it was if it has
+// left the filters since, or out when the snapshot does not hold it
+export const restoreFilterRule = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    filterId: string,
+): DashboardFilters => {
+    const saved = findFilterRule(snapshot, filterId);
+    if (saved === null) return removeFilterRule(filters, filterId);
+    if (findFilterRule(filters, filterId) !== null)
+        return replaceFilterRule(filters, saved);
+    const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
+    const index = snapshot[group].indexOf(saved);
+    return {
+        ...filters,
+        [group]: [
+            ...filters[group].slice(0, index),
+            saved,
+            ...filters[group].slice(index),
+        ],
+    };
 };
 
-/** An enabled rule whose operator needs a value but has none. */
+// Undoes the editor's writes to other rules. A rule that is not in the
+// snapshot, or that is gone, is left as it is
+export const restoreFilterRules = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    filterIds: string[],
+): DashboardFilters =>
+    filterIds
+        .map((filterId) => findFilterRule(snapshot, filterId))
+        .filter((saved): saved is DashboardFilterRule => saved !== null)
+        .reduce(replaceFilterRule, filters);
+
+// What the dashboard's "changed" flag is once the editor is done
+export const haveFiltersChangedSince = (
+    snapshot: ControlsSidebarSnapshot,
+    filters: DashboardFilters,
+): boolean =>
+    snapshot.haveFiltersChanged || !isEqual(snapshot.dashboardFilters, filters);
+
+// An emptied label leaves the key as it was found, so the rule equals what it
+// was: a saved rule comes from JSON, which has no undefined, so it has no key
+export const withFilterRuleLabel = (
+    rule: DashboardFilterRule,
+    text: string,
+    hadLabelKey: boolean,
+): DashboardFilterRule => {
+    const label = text.trim();
+    if (label !== '') return { ...rule, label };
+    return hadLabelKey
+        ? { ...rule, label: undefined }
+        : (omit(rule, 'label') as DashboardFilterRule);
+};
+
+/** A default that is switched on but has no value the shipped form accepts. */
 export const isDefaultValueIncomplete = (rule: DashboardFilterRule) =>
-    !rule.disabled &&
-    isWithValueFilter(rule.operator) &&
-    (rule.values ?? []).length === 0;
+    !rule.disabled && !hasFilterValueSet(rule);
 
 // A control with no field cannot be kept; a label is optional
 export const canKeepFilterRule = (rule: DashboardFilterRule): boolean =>

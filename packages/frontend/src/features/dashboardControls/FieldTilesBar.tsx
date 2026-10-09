@@ -2,7 +2,11 @@ import { Button, Divider, Group, Paper, Text } from '@mantine/core';
 import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
-import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
+import {
+    selectActiveTabUuid,
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { joinLabels, pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields } from './peers';
@@ -72,6 +76,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         everyTabScope,
         replacedLabels,
         otherTabsUnfiltered,
+        canAct,
         addToUnfiltered,
         switchFromOthers,
         clear,
@@ -173,6 +178,8 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="subtle"
                             color="gray"
+                            // Loading: what a tile offers is not known yet
+                            disabled={!canAct}
                             aria-label={
                                 hasTabs
                                     ? `Clear ${label} from this tab`
@@ -215,11 +222,14 @@ export const FieldTilesBar: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     const fieldId =
         editingRule !== null &&
         highlightedFieldId !== null &&
-        (getFilterFields(editingRule).includes(highlightedFieldId) ||
+        (getFilterFields(editingRule, dashboardTiles).includes(
+            highlightedFieldId,
+        ) ||
             waitingFieldIds.includes(highlightedFieldId))
             ? highlightedFieldId
             : null;

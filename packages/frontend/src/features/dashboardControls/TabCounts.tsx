@@ -7,9 +7,11 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
-import { getTabCounts, getTabCountsForField } from './peers';
+import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
+import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
 import classes from './TabCounts.module.css';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
+import { toDashboardFilterableField } from './useFilterRuleField';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -18,13 +20,16 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const { editingRule, isPlaceholder, activeFieldId } = useControlsSidebar();
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
+    // Dimensions and metrics: a filter can be on either
+    const fieldsMap = useFilterableItemsMap();
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
     const tabUuids = useMemo(
@@ -69,14 +74,16 @@ export const TabCounts: FC = () => {
         sqlColumnsByTile,
     ]);
 
-    const getFilterSubject = (): string => {
-        if (activeFieldId === null) return 'this filter';
-        const activeField = fieldsMap[activeFieldId];
-        return activeField ? activeField.label : activeFieldId;
-    };
-    const subject = getFilterSubject();
-
     if (!isEnabled) return null;
+
+    // A SQL column goes by its own name, never by a field's
+    const subject =
+        activeFieldId === null
+            ? 'this filter'
+            : isSqlColumnRow(editingRule, activeFieldId)
+              ? activeFieldId
+              : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
+                activeFieldId);
 
     return (
         <>
