@@ -1,3 +1,10 @@
+# [2.500.0](https://github.com/lightdash/lightdash/compare/2.499.0...2.500.0) (2026-10-09)
+
+
+### Features
+
+* **ai:** run BigQuery agents as an AI service account through per-warehouse identity rules ([#30702](https://github.com/lightdash/lightdash/issues/30702)) ([67dfcf7](https://github.com/lightdash/lightdash/commit/67dfcf772870e235f4b795b3aec2d884005d2e96))
+
 # [2.499.0](https://github.com/lightdash/lightdash/compare/2.498.0...2.499.0) (2026-10-09)
 
 
