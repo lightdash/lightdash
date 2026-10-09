@@ -313,6 +313,7 @@ describe.each([false, true])(
                         harness.stopAgentStream.mock.calls.length,
                 ).toBe(1);
                 expect(harness.finalBlocks).not.toHaveBeenCalled();
+                expect(harness.updateModelResponse).not.toHaveBeenCalled();
                 expect(
                     JSON.stringify(harness.postMessage.mock.calls),
                 ).not.toContain('Model answer');

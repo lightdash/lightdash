@@ -3057,6 +3057,29 @@ describe('per-type execution identity resolution', () => {
         },
     );
 
+    test('keeps the refusal when the project name lookup fails', async () => {
+        const { service, organizationRules, projects } = setup();
+        projects.getSummary.mockRejectedValue(new Error('database down'));
+        organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        await expect(
+            service.resolvePlan({
+                ...args,
+                projectUuid: 'refused-project',
+                connection: bigquery,
+            }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                settingsUrl:
+                    '/generalSettings/projectManagement/refused-project/agentIdentity',
+                message:
+                    "Agents can't query this project right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.",
+            },
+        });
+    });
+
     test('keeps principal failures on organization agent settings', async () => {
         const { service, provider } = setup();
         provider.mint.mockRejectedValue(

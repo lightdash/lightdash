@@ -1170,10 +1170,13 @@ export class AiAccessService extends BaseService {
             error.refusal.reason ===
                 AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID
         ) {
-            const project = await this.projectModel.getSummary(projectUuid);
+            const projectName = await this.projectModel
+                .getSummary(projectUuid)
+                .then((project) => project.name)
+                .catch(() => null);
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 message: getAiAccessRefusalMessage(error.refusal.reason, {
-                    projectName: project.name,
+                    projectName,
                 }),
                 settingsUrl: getProjectAgentIdentitySettingsPath(projectUuid),
                 inheritedFromProjectUuid: error.inheritedFromProjectUuid,

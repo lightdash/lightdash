@@ -17696,10 +17696,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 } else {
                     await this.deliverSlackAnswerMessages(delivery);
                 }
-                await this.aiAgentModel.updateModelResponse({
-                    promptUuid: slackPrompt.promptUuid,
-                    response: refusalMessage,
-                });
                 return false;
             }
 
