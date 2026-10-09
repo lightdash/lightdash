@@ -1,3 +1,10 @@
+# [2.530.0](https://github.com/lightdash/lightdash/compare/2.529.0...2.530.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** refusals link to the project Agent identity page, Slack posts one clear refusal ([#30850](https://github.com/lightdash/lightdash/issues/30850)) ([d22151f](https://github.com/lightdash/lightdash/commit/d22151f94ec19db0e058c41d952edb6b22d4debe))
+
 # [2.529.0](https://github.com/lightdash/lightdash/compare/2.528.0...2.529.0) (2026-10-09)
 
 
