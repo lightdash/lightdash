@@ -138,6 +138,7 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import {
     aiExecutionPlanMock,
@@ -1669,6 +1670,7 @@ describe('AsyncQueryService', () => {
                         ],
                         { kind: 'query', surface: QuerySurface.APP },
                         expect.any(Function),
+                        QueryExecutionContext.COMPOSE_SQL_RUNNER,
                     );
                 },
             );
@@ -2450,6 +2452,109 @@ describe('AsyncQueryService', () => {
                 scope: null,
             });
         });
+
+        test.each([
+            {
+                enabled: true,
+                context: QueryExecutionContext.AI,
+                actor: {
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                },
+            },
+            {
+                enabled: true,
+                context: QueryExecutionContext.AI,
+                actor: {
+                    surface: AgentActorSurface.SLACK_AGENT,
+                    clientId: 'A123',
+                },
+            },
+            {
+                enabled: false,
+                context: QueryExecutionContext.AI,
+                actor: {
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                },
+            },
+            { enabled: true, context: QueryExecutionContext.API, actor: null },
+        ])(
+            'external query keeps its surface and adds no identity read with flag $enabled and context $context: $actor',
+            async ({ enabled, context, actor }) => {
+                const createExecutionWarehouseClient = vi.fn(
+                    () => warehouseClientMock,
+                );
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        featureFlagModel: {
+                            get: vi.fn(async ({ featureFlagId }) => ({
+                                id: featureFlagId,
+                                enabled:
+                                    featureFlagId === FeatureFlags.AgentIdentity
+                                        ? enabled
+                                        : true,
+                            })),
+                        } as unknown as FeatureFlagModel,
+                        composeEngineClient: {
+                            createExecutionWarehouseClient,
+                        } as unknown as ComposeEngineClient,
+                        externalSourceTableResolver: vi.fn(async () => ({
+                            external_source_table_uuid: 'table-uuid',
+                            external_source_scope: null,
+                            external_source_created_by_user_uuid: null,
+                            version: 3,
+                            locator: {
+                                storage: 's3',
+                                format: 'parquet',
+                                uri: 's3://mock_preagg_bucket/external-sources/file.parquet',
+                            },
+                            columns: {
+                                one: {
+                                    reference: 'one',
+                                    type: DimensionType.NUMBER,
+                                },
+                            },
+                        })),
+                    } as never,
+                );
+                vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                    undefined,
+                );
+
+                const submit = () =>
+                    service.executeAsyncExternalSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        context,
+                        querySurface: QuerySurface.APP,
+                        sql: 'SELECT one FROM attachment',
+                        tables: { attachment: 'table-uuid' },
+                    });
+
+                await (actor
+                    ? agentExecutionContext.run(actor, submit)
+                    : submit());
+                const created = vi.mocked(service.queryHistoryModel.create).mock
+                    .calls[0][1];
+                expect(created.requestParameters.queryUsage?.querySurface).toBe(
+                    QuerySurface.APP,
+                );
+                expect(created).not.toHaveProperty('agentIdentity');
+                const identityLookups = vi
+                    .mocked(service.featureFlagModel.get)
+                    .mock.calls.filter(
+                        ([args]) =>
+                            args.featureFlagId === FeatureFlags.AgentIdentity,
+                    );
+                expect(identityLookups).toHaveLength(0);
+                expect(createExecutionWarehouseClient).toHaveBeenCalledWith({
+                    storage: 'externalSources',
+                    scope: null,
+                });
+            },
+        );
 
         test('refuses a merge naming the missing results storage instead of downgrading it', async () => {
             const service = getMockedAsyncQueryService(withoutResultsStorage, {
@@ -8204,6 +8309,111 @@ describe('AsyncQueryService', () => {
         );
         expect(markErrored).not.toHaveBeenCalled();
     });
+
+    test.each([
+        { submittedEnabled: true, enabled: false },
+        { submittedEnabled: true, enabled: true },
+        { submittedEnabled: false, enabled: true },
+        { submittedEnabled: false, enabled: false },
+    ])(
+        'gates stored identity tags from submit=$submittedEnabled to execution=$enabled',
+        async ({ submittedEnabled, enabled }) => {
+            const context = QueryExecutionContext.AI;
+            const agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: sessionAccount.user.id },
+                surface: AgentActorSurface.MCP,
+                clientId: 'oauth-client',
+            });
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            Object.assign(service, {
+                aiAccessService: { recordQuery: vi.fn() },
+            });
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'resolveWarehouseCredentials',
+            ).mockResolvedValue({
+                credentialKind: WarehouseCredentialKind.SHARED,
+                warehouseCredentials: warehouseCredentialsMock,
+                warehouseConnectionUuid: null,
+                connectionRoute: {
+                    route: 'single',
+                    originalWarehouseConnectionUuid: null,
+                },
+                aiPlan: enabled
+                    ? { ...markedPersonPlanMock, agentIdentity }
+                    : null,
+            });
+            const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
+            vi.spyOn(
+                service.warehouseClientFactory,
+                'acquireUnscoped',
+            ).mockResolvedValue({
+                warehouseClient: {
+                    ...warehouseClientMock,
+                    executeAsyncQuery: execute,
+                },
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: 0,
+            });
+            const markErrored = vi
+                .spyOn(service as AnyType, 'markAsyncQueryErrored')
+                .mockResolvedValue(undefined);
+            await service.runAsyncWarehouseQuery({
+                agentIdentity: submittedEnabled ? agentIdentity : null,
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isPreviewProject: false,
+                isRegisteredUser: true,
+                onboardingFlow: 'legacy',
+                projectUuid,
+                query: 'SELECT 1',
+                fieldsMap: {},
+                usedParameters: null,
+                queryTags: {
+                    ...service.getUserQueryTags(sessionAccount),
+                    query_context: context,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'audited-query',
+                cacheKey: 'cache',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+            expect(execute).toHaveBeenCalledOnce();
+            const { tags } = execute.mock.calls[0][0];
+            expect(tags).toHaveProperty('agent', 'true');
+            if (enabled) {
+                expect(tags).toMatchObject({
+                    agent_surface: 'mcp',
+                    agent_client: 'oauth-client',
+                });
+            } else {
+                expect(tags).not.toHaveProperty('agent_surface');
+                expect(tags).not.toHaveProperty('agent_client');
+                expect(
+                    service.queryHistoryModel.recordAiSignInCredential,
+                ).not.toHaveBeenCalled();
+            }
+            expect(
+                service.warehouseClientFactory.acquireUnscoped,
+            ).toHaveBeenCalledWith(
+                projectUuid,
+                warehouseCredentialsMock,
+                expect.objectContaining({
+                    agentSession: true,
+                }),
+                undefined,
+                sessionAccount.organization.organizationUuid,
+                expect.objectContaining({
+                    cacheEnabled: true,
+                    wrapConstructionErrors: false,
+                }),
+            );
+            expect(markErrored).not.toHaveBeenCalled();
+        },
+    );
 
     test.each(
         [aiExecutionPlanMock, aiServiceAccountPlanMock].flatMap(

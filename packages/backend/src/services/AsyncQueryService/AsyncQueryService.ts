@@ -3815,6 +3815,7 @@ export class AsyncQueryService extends ProjectService {
         let queryStartTime = Date.now();
         let projectCredentials: CreateWarehouseCredentials | null = null;
         let aiQueryTags: Record<string, string> = {};
+        let executionAgentIdentity: AgentIdentityClaim | null = null;
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
@@ -3878,6 +3879,10 @@ export class AsyncQueryService extends ProjectService {
                             credentialUuid,
                         );
                     }
+                    executionAgentIdentity = aiPlan
+                        ? (agentIdentity ?? aiPlan.agentIdentity ?? null)
+                        : null;
+                    aiQueryTags = aiPlan?.audit.queryTags ?? {};
                     if (aiPlan) {
                         this.aiAccessService.recordQuery({
                             queryUuid,
@@ -3887,7 +3892,6 @@ export class AsyncQueryService extends ProjectService {
                             plan: aiPlan,
                             context: queryTags.query_context,
                         });
-                        aiQueryTags = aiPlan.audit.queryTags;
                     }
                     warehouseConnectionUuid =
                         connection.warehouseConnectionUuid;
@@ -4025,7 +4029,7 @@ export class AsyncQueryService extends ProjectService {
                                     ...aiQueryTags,
                                     query_uuid: queryUuid,
                                 },
-                                agentIdentity ?? null,
+                                executionAgentIdentity,
                             ),
                             write: resultsStream
                                 ? (rows) => {
@@ -8644,6 +8648,7 @@ export class AsyncQueryService extends ProjectService {
                     querySurface ?? null,
                 );
             },
+            context,
         );
         return agentIdentity;
     }
@@ -9481,6 +9486,7 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         sql,
         context,
+        querySurface,
         limit,
         tables,
         parameters,
@@ -9670,6 +9676,9 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration: null,
                 originalColumns: {},
             },
+            undefined,
+            undefined,
+            querySurface,
         );
         this.prometheusMetrics?.trackQueryStateTransition(
             'new',

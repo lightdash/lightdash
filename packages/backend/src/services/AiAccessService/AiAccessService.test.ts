@@ -3104,6 +3104,110 @@ describe('bounded stored result lineage', () => {
         return { ...built, rows, batch };
     };
 
+    test.each(
+        [
+            {
+                surface: QuerySurface.MCP,
+                actor: {
+                    surface: AgentActorSurface.MCP,
+                    clientId: 'oauth-client',
+                },
+            },
+            {
+                surface: QuerySurface.API,
+                actor: {
+                    surface: AgentActorSurface.AI_SUMMARY,
+                    clientId: 'lightdash-ai-summary',
+                },
+            },
+            {
+                surface: QuerySurface.APP,
+                actor: {
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                },
+            },
+        ].flatMap((scenario) =>
+            ['sign_in', 'stale_root', 'stale_source'].map((refusalPath) => ({
+                ...scenario,
+                refusalPath,
+            })),
+        ),
+    )(
+        'attributes $refusalPath compose refusals to the current $actor.surface actor',
+        async ({ surface, actor, refusalPath }) => {
+            const {
+                service,
+                rows,
+                provider,
+                projects,
+                analytics,
+                flags,
+                connections,
+            } = buildGraph({ root: ['source'], source: [] });
+            projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                snowflake,
+            );
+            if (refusalPath === 'sign_in') {
+                provider.mint.mockRejectedValue(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    ),
+                );
+            } else if (refusalPath === 'stale_source') {
+                rows.root.warehouseConnectionUuid = 'root-connection';
+                connections.getCredentials.mockResolvedValue(connection);
+                rows.source.requestParameters = {
+                    sql: 'SELECT 1',
+                    aiSignInCredentialUuid: 'agent-credential',
+                };
+            }
+            rows.source.agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'source-user' },
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-chat',
+            });
+            const submittingAccount = {
+                ...account,
+                authentication: {
+                    type: 'oauth' as const,
+                    clientId: 'oauth-client',
+                    source: 'test-token',
+                    token: 'test-token',
+                    scopes: [],
+                },
+            };
+            const submit = () =>
+                service.assertCanReadResultsForQueries(
+                    submittingAccount,
+                    'project',
+                    [{ queryHistory: rows.root, agentProducedOnly: false }],
+                    { kind: 'query', surface },
+                    undefined,
+                    QueryExecutionContext.AI,
+                );
+            const result =
+                actor.surface === AgentActorSurface.AI_SUMMARY
+                    ? agentExecutionContext.run(actor, submit)
+                    : submit();
+            await expect(result).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        refusalPath === 'sign_in'
+                            ? AiAccessRefusalReason.NEEDS_SIGN_IN
+                            : AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'query.refused',
+                    properties: expect.objectContaining({ actor }),
+                }),
+            );
+            expect(flags.get).toHaveBeenCalledOnce();
+        },
+    );
+
     test('keeps each source identity separate on a mixed-actor compose and stored read', async () => {
         const { service, rows, batch } = buildGraph({
             root: ['chat', 'mcp'],

@@ -19,6 +19,16 @@ type QueryAgentActor = { surface: AgentActorSurface; clientId: string | null };
 
 export const agentExecutionContext = new AsyncLocalStorage<QueryAgentActor>();
 
+export const fillScopedSlackAppId = (appId: string | null): void => {
+    const actor = agentExecutionContext.getStore();
+    if (
+        actor?.surface === AgentActorSurface.SLACK_AGENT &&
+        actor.clientId === null
+    ) {
+        actor.clientId = appId;
+    }
+};
+
 export const resolveQueryAgentActor = ({
     context,
     querySurface,

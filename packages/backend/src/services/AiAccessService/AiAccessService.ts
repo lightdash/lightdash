@@ -64,6 +64,7 @@ import { BaseService } from '../BaseService';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
+    getAccountAgentIdentityFacts,
     getAgentActor,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { resolveQueryAgentActor } from './agentExecutionContext';
@@ -1074,6 +1075,7 @@ export class AiAccessService extends BaseService {
         }[],
         evaluation: AiAccessEvaluation = { kind: 'result_read' },
         onIdentityEnabled?: () => void,
+        queryContext: QueryExecutionContext | null = null,
     ): Promise<Map<string, AiExecutionPlan | null>> {
         const uniqueRoots = [
             ...new Map(
@@ -1109,6 +1111,17 @@ export class AiAccessService extends BaseService {
             return new Map();
         }
 
+        const agentActor =
+            evaluation.kind === 'query'
+                ? resolveQueryAgentActor({
+                      context:
+                          queryContext ??
+                          QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                      querySurface: evaluation.surface,
+                      oauthClientId:
+                          getAccountAgentIdentityFacts(account).oauthClientId,
+                  })
+                : null;
         onIdentityEnabled?.();
         const maxNodes = 500;
         const maxDepth = 50;
@@ -1259,6 +1272,7 @@ export class AiAccessService extends BaseService {
                         );
                         return this.resolveEnabledPlan({
                             evaluation,
+                            agentActor,
                             projectUuid,
                             organizationUuid,
                             warehouseConnectionUuid,
@@ -1285,6 +1299,7 @@ export class AiAccessService extends BaseService {
                     this.trackQueryRefusal(
                         {
                             evaluation,
+                            agentActor,
                             organizationUuid,
                             projectUuid,
                             warehouseConnectionUuid,
@@ -1326,6 +1341,7 @@ export class AiAccessService extends BaseService {
                 this.trackQueryRefusal(
                     {
                         evaluation,
+                        agentActor,
                         organizationUuid,
                         projectUuid,
                         warehouseConnectionUuid:

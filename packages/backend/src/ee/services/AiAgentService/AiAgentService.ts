@@ -291,7 +291,10 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
-import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    fillScopedSlackAppId,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -4365,7 +4368,7 @@ export class AiAgentService extends BaseService {
             );
         }
         if (isNativeSqlApprovalToolCall(toolName, context.toolArgs)) {
-            await this.resumeSlackSqlApproval(context.promptUuid);
+            await this.resumeSlackSqlApproval(context.promptUuid, null);
         }
 
         return { decision };
@@ -4446,11 +4449,15 @@ export class AiAgentService extends BaseService {
         return recorded;
     }
 
-    private async resumeSlackSqlApproval(promptUuid: string): Promise<void> {
+    private async resumeSlackSqlApproval(
+        promptUuid: string,
+        slackAppId: string | null,
+    ): Promise<void> {
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (!prompt) return;
 
         await this.schedulerClient.slackAiPrompt({
+            slackAppId,
             slackPromptUuid: prompt.promptUuid,
             userUuid: prompt.createdByUserUuid,
             projectUuid: prompt.projectUuid,
@@ -14926,6 +14933,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
+            fillScopedSlackAppId(slackSettings?.appId ?? null);
             hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
             slackLinksOnly = !!slackSettings?.aiLinksOnly;
         }
@@ -18400,6 +18408,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (isNative && recorded) {
                     await this.resumeSlackSqlApproval(
                         approvalContext.promptUuid,
+                        body.api_app_id ?? null,
                     );
                 }
 
