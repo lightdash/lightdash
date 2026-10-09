@@ -11,10 +11,14 @@ import {
     getTileField,
     canTileTakeFilter,
 } from './peers';
-import { isDefaultValueIncomplete } from './sidebarState';
+import { isDefaultValueIncomplete, withFilterRuleLabel } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
-import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
+import {
+    focusLabelInput,
+    useFocusLabelOnMount,
+    useLabelDraft,
+} from './useLabelDraft';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 type FilterEditorProps = {
@@ -39,8 +43,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const close = useControlsSidebarSelector((c) => c.close);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
     useFocusLabelOnMount();
+    // As the control was opened: an emptied label goes back to exactly that
+    const [hadLabelKey] = useState(() => 'label' in filterRule);
     const label = useLabelDraft(filterRule.label ?? '', (next) =>
-        updateFilter({ ...filterRule, label: next.trim() ? next : undefined }),
+        updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
     );
     const [removeArmed, setRemoveArmed] = useState(false);
     const handleRemoveClick = useCallback(() => {
@@ -115,9 +121,9 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fallbackName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    // A control that lost its last field keeps the title it had
+    // An existing control that lost its last field keeps the title it had
     const title =
-        isPlaceholder && isNew && emptiedFieldLabel === null
+        isPlaceholder && isNew
             ? 'New filter'
             : hasLabel
               ? label.draft
@@ -133,7 +139,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         : isDirty
           ? 'Discard changes'
           : null;
-    const fieldCount = getFilterFields(filterRule).length;
+    const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
     const tabReach =
         dashboardTabs.length > 1
             ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
@@ -200,7 +206,12 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                                 size="compact-xs"
                                 variant="default"
                                 radius="xl"
-                                onClick={() => label.set(fieldLabel)}
+                                // The chip leaves once clicked: the label
+                                // input takes the focus it had
+                                onClick={() => {
+                                    label.set(fieldLabel);
+                                    focusLabelInput();
+                                }}
                             >
                                 {fieldLabel}
                             </Button>

@@ -11,6 +11,7 @@ import {
     type Metric,
     type ResultColumn,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -176,9 +177,9 @@ const Editor = () => {
         close,
     });
     return (
-        <div data-controls-editor>
+        <Box data-controls-editor>
             <FieldsAndTiles />
-        </div>
+        </Box>
     );
 };
 
@@ -988,6 +989,91 @@ describe('FieldsAndTiles', () => {
                 ),
             ).toBeInTheDocument();
         });
+    });
+
+    describe('while the tile fields are not loaded', () => {
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: undefined,
+            };
+        });
+
+        it('switches off the trash can of a field, which would write blind', async () => {
+            // tile-2 is left out: a blind write would lose that
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(removeButtonOf('Region')).toBeDisabled();
+            expect(removeButtonOf('Status')).toBeDisabled();
+            fireEvent.click(removeButtonOf('Region'));
+            fireEvent.click(removeButtonOf('Status'));
+            expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeWaitingField).not.toHaveBeenCalled();
+            expect(removeLastField).not.toHaveBeenCalled();
+        });
+
+        it('switches it back on once the fields are there', async () => {
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status],
+                },
+            };
+            rerender(<FieldsAndTiles />);
+
+            expect(removeButtonOf('Region')).toBeEnabled();
+        });
+    });
+
+    it('does not list a field that is only on a tile that is gone', async () => {
+        setSidebar(rule('orders_status', { 'tile-gone': REGION }));
+        renderWithProviders(<FieldsAndTiles />);
+
+        expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Region' }),
+        ).not.toBeInTheDocument();
+        // Status is the only field: removing it empties the control
+        await userEvent.click(removeButtonOf('Status'));
+        expect(removeLastField).toHaveBeenCalledWith('Status');
+        expect(updateFilter).not.toHaveBeenCalled();
+    });
+
+    it('closes "Add another field" when its button is clicked while open', async () => {
+        setSidebar(rule('orders_status'));
+        renderWithProviders(<FieldsAndTiles />);
+        const add = screen.getByRole('button', { name: 'Add another field' });
+
+        await userEvent.click(add);
+        expect(await screen.findByText('Orders')).toBeVisible();
+        expect(add).toHaveAttribute('aria-expanded', 'true');
+
+        await userEvent.click(add);
+        expect(fieldSearch()).not.toBeInTheDocument();
+        expect(add).toHaveAttribute('aria-expanded', 'false');
+        expect(add).toHaveFocus();
+    });
+
+    it('reads only a primary press as a press on "Add another field"', async () => {
+        setSidebar(rule('orders_status'));
+        renderWithProviders(<Editor />);
+        const add = screen.getByRole('button', { name: 'Add another field' });
+
+        await userEvent.click(add);
+        expect(await screen.findByText('Orders')).toBeVisible();
+        // A secondary press toggles nothing, so it must not be remembered
+        fireEvent.mouseDown(add, { button: 2 });
+        await userEvent.keyboard('{Escape}');
+        expect(fieldSearch()).not.toBeInTheDocument();
+
+        fireEvent.click(add);
+        expect(fieldSearch()).toBeInTheDocument();
     });
 
     it('renders nothing when no control is edited', () => {

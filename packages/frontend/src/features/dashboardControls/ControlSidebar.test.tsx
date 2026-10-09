@@ -105,6 +105,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         addWaitingField: vi.fn(),
         removeWaitingField: vi.fn(),
         updateFilter: vi.fn(),
+        updateOtherFilters: vi.fn(),
         removeFilter: vi.fn(),
         removeFilterById: vi.fn(),
         discard: vi.fn(),
@@ -240,6 +241,76 @@ describe('ControlSidebar', () => {
         expect(
             screen.getByRole('button', { name: 'Discard changes' }),
         ).toBeInTheDocument();
+    });
+
+    it('goes back to "New filter" when a new filter loses the field it got', () => {
+        setSidebar({
+            isNew: true,
+            isPlaceholder: true,
+            emptiedFieldLabel: 'Status',
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('heading', { name: 'New filter' }),
+        ).toBeInTheDocument();
+    });
+
+    it('stays "Filter" for an unlabelled filter whose field was not known', () => {
+        // Before: the field cannot be resolved
+        setSidebar({
+            isNew: false,
+            editingRule: makeRule({
+                target: { fieldId: 'orders_gone', tableName: 'orders' },
+            }),
+        });
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByRole('heading', { name: 'Filter' }),
+        ).toBeInTheDocument();
+
+        // After its last field is removed: no name was kept for it
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            emptiedFieldLabel: null,
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        rerender(<ControlSidebar />);
+        expect(
+            screen.getByRole('heading', { name: 'Filter' }),
+        ).toBeInTheDocument();
+    });
+
+    it('asks for the name viewers will see, and counts the fields on its tab', async () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+        expect(screen.getByLabelText(/^Filter label/)).toHaveAttribute(
+            'placeholder',
+            'Name viewers will see',
+        );
+
+        setSidebar({});
+        rerender(<ControlSidebar />);
+        await userEvent.hover(screen.getByText('(1)'));
+        expect(await screen.findByText('1 field')).toBeInTheDocument();
+
+        setSidebar({
+            editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
+        });
+        rerender(<ControlSidebar />);
+        await userEvent.hover(screen.getByText('(2)'));
+        expect(await screen.findByText('2 fields')).toBeInTheDocument();
     });
 
     it('keeps the title of an unlabelled filter left with no field', () => {
@@ -601,6 +672,60 @@ describe('ControlSidebar', () => {
                 ...editingRule,
                 label: undefined,
             });
+        });
+
+        it('leaves a rule that had no label exactly as it was once the label is emptied again', () => {
+            // As a saved rule arrives: no label key at all
+            const saved: DashboardFilterRule = JSON.parse(
+                JSON.stringify(makeRule({})),
+            );
+            expect('label' in saved).toBe(false);
+            const { updateFilter } = setSidebar({
+                isNew: false,
+                editingRule: saved,
+            });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+
+            typeLabel('Status of the order');
+            fireEvent.blur(labelInput());
+            const typed = vi.mocked(updateFilter).mock.calls[0][0];
+            expect(typed.label).toBe('Status of the order');
+
+            setSidebar({ isNew: false, editingRule: typed, updateFilter });
+            rerender(<ControlSidebar />);
+            typeLabel('');
+            fireEvent.blur(labelInput());
+
+            const reverted = vi.mocked(updateFilter).mock.calls[1][0];
+            expect(reverted).toStrictEqual(saved);
+            expect('label' in reverted).toBe(false);
+        });
+
+        it('trims the outer spaces of a label when it is written', () => {
+            const { updateFilter } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('  Order status ');
+            fireEvent.blur(labelInput());
+
+            expect(vi.mocked(updateFilter).mock.calls[0][0].label).toBe(
+                'Order status',
+            );
+        });
+
+        it('moves focus to the label when a suggestion is taken', async () => {
+            setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+            const chip = screen.getByRole('button', { name: 'Status' });
+            chip.focus();
+
+            await userEvent.click(chip);
+
+            // The chip is gone, and focus did not fall to the page with it
+            expect(
+                screen.queryByRole('button', { name: 'Status' }),
+            ).not.toBeInTheDocument();
+            expect(labelInput()).toHaveFocus();
         });
 
         it('sends the typed label before Done closes', async () => {

@@ -19,9 +19,11 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** False as soon as the edited filter is no longer in the dashboard. */
     isSidebarOpen: boolean;
     activeSection: ControlsSidebarSection;
     setActiveSection: (section: ControlsSidebarSection) => void;
+    /** Closes any other control first, as "Done" would; a no-op on the open one. */
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */
     openNew: () => void;
@@ -47,7 +49,7 @@ export type ControlsSidebarContextValue = {
      * Takes the edited control's fields away and leaves it open as a
      * placeholder with the same id and label. It was a control's last field.
      */
-    removeLastField: (fieldLabel: string) => void;
+    removeLastField: (fieldLabel: string | null) => void;
     /** The name of the field an emptied control lost, until it has one again. */
     emptiedFieldLabel: string | null;
     /** Field whose tiles are outlined after a click on its row. */
@@ -67,10 +69,18 @@ export type ControlsSidebarContextValue = {
     addWaitingField: (fieldId: string) => void;
     removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
+    /**
+     * Writes filters other than the edited one on the editor's behalf.
+     * Discard and Remove put them back as they were when the control opened.
+     */
+    updateOtherFilters: (rules: DashboardFilterRule[]) => void;
     /** Removes the edited filter and closes the sidebar. */
     removeFilter: () => void;
     removeFilterById: (filterId: string) => void;
-    /** Restores the dashboard filters as they were when the sidebar opened. */
+    /**
+     * Puts the edited filter back as it was when it was opened, or removes it
+     * when it was new, and undoes the editor's own writes to other filters.
+     */
     discard: () => void;
     /**
      * Closes and keeps the edits; saving stays with the dashboard's own Save.

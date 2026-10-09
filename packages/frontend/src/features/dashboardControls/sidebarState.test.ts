@@ -11,12 +11,15 @@ import {
     isFilterRuleDirty,
     isPlaceholderRule,
     PLACEHOLDER_TARGET,
+    haveFiltersChangedSince,
     removeFilterRule,
     replaceFilterRule,
-    toggleFilterLockOnTab,
+    restoreFilterRule,
+    restoreFilterRules,
+    withFilterRuleLabel,
 } from './sidebarState';
 
-const rule = (id: string, values: string[]): DashboardFilterRule => ({
+const rule = (id: string, values: unknown[]): DashboardFilterRule => ({
     id,
     label: undefined,
     operator: FilterOperator.EQUALS,
@@ -63,14 +66,145 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
-    it('toggles the lock on one tab and drops the list when empty', () => {
-        const locked = toggleFilterLockOnTab(rule('a', []), 't1', true);
-        expect(locked.lockedTabUuids).toEqual(['t1']);
-        const both = toggleFilterLockOnTab(locked, 't2', true);
-        expect(both.lockedTabUuids).toEqual(['t1', 't2']);
+    it('restores one rule and leaves what was written to the others', () => {
+        const snapshot = filters;
+        const current = replaceFilterRule(
+            replaceFilterRule(filters, rule('a', ['edited'])),
+            rule('m', ['written elsewhere']),
+        );
+        const restored = restoreFilterRule(current, snapshot, 'a');
+        expect(findFilterRule(restored, 'a')).toBe(
+            findFilterRule(snapshot, 'a'),
+        );
+        expect(findFilterRule(restored, 'm')?.values).toEqual([
+            'written elsewhere',
+        ]);
+    });
+
+    it('restoring a rule that left the filters puts it back where it was', () => {
+        const snapshot: DashboardFilters = {
+            ...filters,
+            dimensions: [rule('a', ['1']), rule('b', ['2']), rule('c', ['3'])],
+        };
+        // b was taken out since, and c was written by something else
+        const current: DashboardFilters = {
+            ...snapshot,
+            dimensions: [snapshot.dimensions[0], rule('c', ['elsewhere'])],
+        };
+
+        const restored = restoreFilterRule(current, snapshot, 'b');
+
+        expect(restored.dimensions.map((r) => r.id)).toEqual(['a', 'b', 'c']);
+        expect(restored.dimensions[1]).toBe(snapshot.dimensions[1]);
+        expect(restored.dimensions[2].values).toEqual(['elsewhere']);
+        // A metric goes back among the metrics
+        const noMetric = { ...filters, metrics: [] };
+        expect(restoreFilterRule(noMetric, filters, 'm')).toEqual(filters);
+    });
+
+    it('restoring a rule that moved to the other list takes it back to its own', () => {
+        const snapshot: DashboardFilters = {
+            ...filters,
+            dimensions: [rule('a', ['1']), rule('b', ['2'])],
+        };
+        // a was emptied and came back on a metric; b on a dimension, as a metric rule would
+        const current: DashboardFilters = {
+            ...snapshot,
+            dimensions: [snapshot.dimensions[1], rule('m', ['as a dimension'])],
+            metrics: [rule('a', ['as a metric'])],
+        };
+
+        expect(restoreFilterRule(current, snapshot, 'a')).toEqual({
+            ...current,
+            dimensions: [snapshot.dimensions[0], ...current.dimensions],
+            metrics: [],
+        });
+        expect(restoreFilterRule(current, snapshot, 'm')).toEqual({
+            ...current,
+            dimensions: [snapshot.dimensions[1]],
+            metrics: [snapshot.metrics[0], ...current.metrics],
+        });
+        // The same for a rule the editor wrote beside the edited one
+        expect(restoreFilterRules(current, snapshot, ['a', 'gone'])).toEqual(
+            restoreFilterRule(current, snapshot, 'a'),
+        );
+    });
+
+    it('restoring a rule the snapshot does not hold removes it', () => {
+        const added = {
+            ...filters,
+            dimensions: [...filters.dimensions, rule('new', [])],
+        };
+        expect(restoreFilterRule(added, filters, 'new')).toEqual(filters);
+    });
+
+    it('stays changed when anything but the undone rule differs', () => {
+        const snapshot = {
+            dashboardFilters: filters,
+            haveFiltersChanged: false,
+        };
+        expect(haveFiltersChangedSince(snapshot, filters)).toBe(false);
         expect(
-            toggleFilterLockOnTab(locked, 't1', true).lockedTabUuids,
-        ).toBeUndefined();
+            haveFiltersChangedSince(
+                snapshot,
+                replaceFilterRule(filters, rule('m', ['other'])),
+            ),
+        ).toBe(true);
+        expect(
+            haveFiltersChangedSince(
+                { ...snapshot, haveFiltersChanged: true },
+                filters,
+            ),
+        ).toBe(true);
+    });
+
+    it('an emptied label leaves the rule as it was found', () => {
+        const withKey = rule('a', []);
+        // As a saved rule arrives: JSON has no undefined
+        const withoutKey: DashboardFilterRule = JSON.parse(
+            JSON.stringify(withKey),
+        );
+
+        const typed = withFilterRuleLabel(withoutKey, 'Status', false);
+        expect(typed.label).toBe('Status');
+        const reverted = withFilterRuleLabel(typed, '', false);
+        expect(reverted).toEqual(withoutKey);
+        expect('label' in reverted).toBe(false);
+
+        expect(
+            withFilterRuleLabel(
+                withFilterRuleLabel(withKey, 'Status', true),
+                '   ',
+                true,
+            ),
+        ).toEqual(withKey);
+    });
+
+    it('trims the outer spaces of a label', () => {
+        expect(
+            withFilterRuleLabel(rule('a', []), '  Order status ', true).label,
+        ).toBe('Order status');
+    });
+
+    it('reads a default value as the shipped form does', () => {
+        // "(null)" alone is a value
+        expect(
+            isDefaultValueIncomplete({ ...rule('a', []), includeNull: true }),
+        ).toBe(false);
+        // Half a range is not
+        expect(
+            isDefaultValueIncomplete({
+                ...rule('a', [5, undefined]),
+                operator: FilterOperator.IN_BETWEEN,
+            }),
+        ).toBe(true);
+        // Neither is a relative date with no unit
+        expect(
+            isDefaultValueIncomplete({
+                ...rule('a', [3]),
+                operator: FilterOperator.IN_THE_PAST,
+            }),
+        ).toBe(true);
     });
 
     it('a default value is incomplete only when enabled and empty', () => {
