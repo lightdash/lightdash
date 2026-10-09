@@ -2,7 +2,14 @@ import { subject } from '@casl/ability';
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import { Button, Group, SegmentedControl, Stack } from '@mantine/core';
 import { IconAlertCircle, IconPlus, IconUsers } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    type FC,
+    type KeyboardEvent,
+} from 'react';
 import { useSearchParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -14,8 +21,11 @@ import { AttentionStrip } from '../features/adoption/components/AttentionStrip';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
 import { DepartmentsTable } from '../features/adoption/components/DepartmentsTable';
 import { MembershipModal } from '../features/adoption/components/MembershipModal';
+import { SelectedDepartment } from '../features/adoption/components/SelectedDepartment';
+import { ViewStrip } from '../features/adoption/components/ViewStrip';
 import { AdoptionMap } from '../features/adoption/map/AdoptionMap';
 import { type ColourBy } from '../features/adoption/map/geometry';
+import { DotSwatch } from '../features/adoption/map/MapLegend';
 import {
     ADOPTION_VIEW_LABELS,
     ADOPTION_VIEWS,
@@ -32,12 +42,26 @@ import {
     resolveAdoptionView,
     writeStoredView,
 } from '../features/adoption/utils/viewPreference';
-import { WaffleView } from '../features/adoption/waffle/WaffleView';
-import { useOrgAdoptionSummary } from '../hooks/useOrgDepartments';
+import {
+    WaffleSwatch,
+    WaffleView,
+} from '../features/adoption/waffle/WaffleView';
+import {
+    useDepartmentDetail,
+    useOrgAdoptionSummary,
+} from '../hooks/useOrgDepartments';
 
 type DrawerState =
     | { opened: false }
     | { opened: true; departmentUuid: string | null };
+
+// Escape in a field keeps its own meaning there
+const isInField = (target: EventTarget): boolean =>
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+        target.closest(
+            'input:not([type="radio"]):not([type="checkbox"]), textarea, select',
+        ) !== null);
 
 const Adoption: FC = () => {
     const { user } = useApp();
@@ -60,7 +84,11 @@ const Adoption: FC = () => {
     const selectedUuid = getSelectedDepartment(searchParams);
     // The views and the selected department colour people the same way
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    // Shared with the selected department below the view, so the drawer lists its people without loading everyone's
+    const selectedDetail = useDepartmentDetail(selectedUuid ?? undefined);
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
+    // While a delete is in flight the department answers 404; what was shown stays until it is deselected
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isPlacingPeople, setIsPlacingPeople] = useState(false);
     // Kept apart from opened, so the dialog keeps its tab while it closes
     const [placingTab, setPlacingTab] = useState<MembershipTab>('unassigned');
@@ -103,8 +131,31 @@ const Adoption: FC = () => {
         [],
     );
 
+    // Focus comes back to the view when the department is deselected, by the breadcrumb, Escape or the browser
+    const viewRef = useRef<HTMLDivElement | null>(null);
+    const previousSelectionRef = useRef(selectedUuid);
+    useEffect(() => {
+        if (previousSelectionRef.current !== null && selectedUuid === null) {
+            viewRef.current?.focus();
+        }
+        previousSelectionRef.current = selectedUuid;
+    }, [selectedUuid]);
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (
+            event.key !== 'Escape' ||
+            selectedUuid === null ||
+            event.defaultPrevented ||
+            isInField(event.target)
+        ) {
+            return;
+        }
+        select(null);
+    };
+
     const departments = summary.data?.departments ?? [];
     const unassignedCount = summary.data?.attention.unassignedCount ?? 0;
+    const placePeople = () =>
+        openPlacing(unassignedCount > 0 ? 'unassigned' : 'shared');
     // Read the edited department from fresh data so the drawer never shows stale values
     const found =
         drawer.opened && drawer.departmentUuid !== null
@@ -124,6 +175,12 @@ const Adoption: FC = () => {
             ? lastFound.current
             : null;
     const editing = found ?? heldDepartment;
+    const editingMembers =
+        drawer.opened &&
+        drawer.departmentUuid !== null &&
+        drawer.departmentUuid === selectedUuid
+            ? (selectedDetail.data?.members ?? null)
+            : null;
 
     const statusCode = summary.error?.error.statusCode;
     const isUnavailable = statusCode === 403 || statusCode === 404;
@@ -143,19 +200,18 @@ const Adoption: FC = () => {
             )}
             {canManage && summary.data && departments.length > 0 && (
                 <>
-                    {/* Always here, so where shared people count can be changed once nobody needs placing */}
-                    <Button
-                        size="xs"
-                        variant="default"
-                        leftSection={<MantineIcon icon={IconUsers} />}
-                        onClick={() =>
-                            openPlacing(
-                                unassignedCount > 0 ? 'unassigned' : 'shared',
-                            )
-                        }
-                    >
-                        Place people
-                    </Button>
+                    {/* Always somewhere, so where shared people count can be changed once nobody needs placing; with a
+                        department selected it is beside the department's name */}
+                    {selectedUuid === null && (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={<MantineIcon icon={IconUsers} />}
+                            onClick={placePeople}
+                        >
+                            Place people
+                        </Button>
+                    )}
                     <Button
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
@@ -206,35 +262,59 @@ const Adoption: FC = () => {
                         onPlace={() => openPlacing('unassigned')}
                         onReviewShared={() => openPlacing('shared')}
                     />
-                    {view === 'map' && (
-                        <AdoptionMap
-                            summary={summary.data}
-                            canManage={canManage}
-                            selectedUuid={selectedUuid}
-                            onSelect={select}
-                            colourBy={colourBy}
-                            onColourByChange={setColourBy}
-                            onEdit={openEdit}
-                        />
-                    )}
-                    {view === 'list' && (
-                        <DepartmentsTable
-                            departments={departments}
-                            canManage={canManage}
-                            onEdit={openEdit}
-                        />
-                    )}
-                    {view === 'waffle' && (
-                        <WaffleView
-                            summary={summary.data}
-                            canManage={canManage}
-                            selectedUuid={selectedUuid}
-                            onSelect={select}
-                            colourBy={colourBy}
-                            onColourByChange={setColourBy}
-                            onEdit={openEdit}
-                        />
-                    )}
+                    <Stack gap="lg" onKeyDown={handleKeyDown}>
+                        <ViewStrip
+                            ref={viewRef}
+                            label={ADOPTION_VIEW_LABELS[view]}
+                            isStrip={selectedUuid !== null}
+                        >
+                            {view === 'map' && (
+                                <AdoptionMap
+                                    summary={summary.data}
+                                    canManage={canManage}
+                                    selectedUuid={selectedUuid}
+                                    onSelect={select}
+                                    colourBy={colourBy}
+                                    onColourByChange={setColourBy}
+                                />
+                            )}
+                            {view === 'list' && (
+                                <DepartmentsTable
+                                    departments={departments}
+                                    canManage={canManage}
+                                    selectedUuid={selectedUuid}
+                                    onEdit={openEdit}
+                                />
+                            )}
+                            {view === 'waffle' && (
+                                <WaffleView
+                                    summary={summary.data}
+                                    canManage={canManage}
+                                    selectedUuid={selectedUuid}
+                                    onSelect={select}
+                                    colourBy={colourBy}
+                                    onColourByChange={setColourBy}
+                                />
+                            )}
+                        </ViewStrip>
+                        {selectedUuid !== null && (
+                            // A department starts afresh each time it is selected
+                            <SelectedDepartment
+                                key={selectedUuid}
+                                departmentUuid={selectedUuid}
+                                organization={summary.data.organization}
+                                colourBy={colourBy}
+                                keySwatch={
+                                    view === 'waffle' ? WaffleSwatch : DotSwatch
+                                }
+                                canManage={canManage}
+                                isDeleting={isDeleting}
+                                onSelect={select}
+                                onEdit={openEdit}
+                                onPlacePeople={placePeople}
+                            />
+                        )}
+                    </Stack>
                 </Stack>
             )}
             {canManage && (
@@ -244,7 +324,19 @@ const Adoption: FC = () => {
                         onClose={() => setDrawer({ opened: false })}
                         department={editing}
                         departments={departments}
-                        members={null}
+                        members={editingMembers}
+                        onDeleteStart={() => setIsDeleting(true)}
+                        onDeleteEnd={(succeeded) => {
+                            setIsDeleting(false);
+                            // The department deleted was the one selected, so the organization shows again
+                            if (
+                                succeeded &&
+                                drawer.opened &&
+                                drawer.departmentUuid === selectedUuid
+                            ) {
+                                select(null);
+                            }
+                        }}
                     />
                     <MembershipModal
                         opened={isPlacingPeople}

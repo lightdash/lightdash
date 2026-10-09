@@ -1,4 +1,8 @@
-import { type DepartmentWithMetrics } from '@lightdash/common';
+import {
+    getAncestorUuids,
+    getParentMap,
+    type DepartmentWithMetrics,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -16,15 +20,22 @@ import {
     IconChevronRight,
     IconPencil,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link } from 'react-router';
+import {
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { Link, useSearchParams } from 'react-router';
 import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
 } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { getDepartmentPath } from '../utils/adoptionNav';
+import { withSelectedDepartment } from '../utils/adoptionNav';
 import {
     buildDepartmentRows,
     formatOwners,
@@ -95,18 +106,50 @@ const ExplainedValue: FC<{ value: string; explanation: string }> = ({
 type Props = {
     departments: DepartmentWithMetrics[];
     canManage: boolean;
+    // The department selected on the page; the table marks its row, or its nearest ancestor's below the levels shown
+    selectedUuid: string | null;
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
 export const DepartmentsTable: FC<Props> = ({
     departments,
     canManage,
+    selectedUuid,
     onEdit,
 }) => {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    // A department selected from elsewhere opens the rows above it, so its own row shows
+    const [openedFor, setOpenedFor] = useState<string | null>(null);
+    if (selectedUuid !== openedFor) {
+        setOpenedFor(selectedUuid);
+        const ancestors =
+            selectedUuid === null
+                ? []
+                : getAncestorUuids(selectedUuid, getParentMap(departments));
+        if (ancestors.some((uuid) => !expanded.has(uuid))) {
+            setExpanded(new Set([...expanded, ...ancestors]));
+        }
+    }
     const rows = useMemo(
         () => buildDepartmentRows(departments, expanded),
         [departments, expanded],
+    );
+    const markedUuid = useMemo(() => {
+        if (selectedUuid === null) return null;
+        const shown = new Set(rows.map((row) => row.department.departmentUuid));
+        return (
+            [
+                selectedUuid,
+                ...getAncestorUuids(selectedUuid, getParentMap(departments)),
+            ].find((uuid) => shown.has(uuid)) ?? null
+        );
+    }, [selectedUuid, rows, departments]);
+    // A name selects its department, keeping the rest of the page's link
+    const [searchParams] = useSearchParams();
+    const linkTo = useCallback(
+        (departmentUuid: string) =>
+            `?${withSelectedDepartment(searchParams, departmentUuid).toString()}`,
+        [searchParams],
     );
     const { ref, width } = useElementSize();
     const showRoleSplit = width >= ROLE_SPLIT_MIN_TABLE_WIDTH;
@@ -164,9 +207,7 @@ export const DepartmentsTable: FC<Props> = ({
                             )}
                             <Anchor
                                 component={Link}
-                                to={getDepartmentPath(
-                                    department.departmentUuid,
-                                )}
+                                to={linkTo(department.departmentUuid)}
                                 fz="sm"
                                 fw={depth === 0 ? 600 : 400}
                                 truncate="end"
@@ -363,8 +404,10 @@ export const DepartmentsTable: FC<Props> = ({
                   },
               ]
             : dataColumns;
-    }, [canManage, onEdit, toggle]);
+    }, [canManage, onEdit, toggle, linkTo]);
 
+    // In a strip over the selected department the table scrolls within the strip's height, under its header
+    const containerRef = useRef<HTMLDivElement | null>(null);
     const table = useContentTable<DepartmentRow>({
         columns,
         data: rows,
@@ -375,8 +418,39 @@ export const DepartmentsTable: FC<Props> = ({
         enableBottomToolbar: false,
         getRowId: (row) => row.department.departmentUuid,
         mantineTableProps: { highlightOnHover: true },
+        mantineTableContainerProps: {
+            ref: containerRef,
+            style: { maxHeight: 'var(--adoption-view-height, none)' },
+        },
+        mantineTableBodyRowProps: ({ row }) =>
+            row.original.department.departmentUuid === markedUuid
+                ? {
+                      'data-selected': true,
+                      'aria-current': 'true',
+                      style: {
+                          backgroundColor: 'var(--mantine-primary-color-light)',
+                      },
+                  }
+                : {},
         state: { columnVisibility: { roles: showRoleSplit } },
     });
+
+    // The marked row is brought into the middle of what the strip shows below the table's header
+    useLayoutEffect(() => {
+        const container = containerRef.current;
+        const row = container?.querySelector('tr[data-selected]');
+        if (!container || !row) return;
+        const box = container.getBoundingClientRect();
+        const rowBox = row.getBoundingClientRect();
+        const header =
+            container.querySelector('thead')?.getBoundingClientRect().height ??
+            0;
+        container.scrollTop +=
+            rowBox.top -
+            box.top -
+            header -
+            (box.height - header - rowBox.height) / 2;
+    }, [markedUuid]);
 
     return (
         <Box ref={ref}>

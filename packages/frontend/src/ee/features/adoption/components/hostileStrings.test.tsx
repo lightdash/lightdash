@@ -13,7 +13,7 @@ import { renderWithProviders } from '../../../../testing/testUtils';
 import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { type ColourBy } from '../map/geometry';
-import { MapInspector } from '../map/MapInspector';
+import { CoverageRowList, MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
 import { DotSwatch } from '../map/MapLegend';
 import {
@@ -25,6 +25,7 @@ import {
 import {
     getCoverageRows,
     getDepartmentBreakdown,
+    getDirectRow,
 } from '../utils/peopleBreakdown';
 import { DepartmentDrawer } from './DepartmentDrawer';
 import { DepartmentsTable } from './DepartmentsTable';
@@ -221,7 +222,6 @@ const MapOnPage: FC = () => {
             onSelect={setSelectedUuid}
             colourBy={colourBy}
             onColourByChange={setColourBy}
-            onEdit={vi.fn()}
             measureText={estimateTextWidth}
         />
     );
@@ -240,13 +240,15 @@ describe('typed strings render as text', () => {
                 <DepartmentsTable
                     departments={[hostileDepartment, child]}
                     canManage
+                    selectedUuid={null}
                     onEdit={vi.fn()}
                 />
             </MemoryRouter>,
         );
+        // The link selects the department by its id, never by its name
         expect(screen.getByRole('link', { name: NAME })).toHaveAttribute(
             'href',
-            '/generalSettings/adoption/hostile',
+            '/?department=hostile',
         );
         expectLiteral(OWNER);
         // The note is in the headcount's tooltip
@@ -297,42 +299,38 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('in the map inspector', () => {
+    it('in the organization panel and the rows of sub-departments', () => {
         renderWithProviders(
             <MemoryRouter>
                 <MapInspector
-                    department={hostileDepartment}
-                    parentName={PARENT}
                     breakdown={getDepartmentBreakdown(
                         hostileDepartment,
                         'activity',
                     )}
-                    colourBy="activity"
-                    rows={getCoverageRows([child], 'activity')}
-                    member={memberFixture('p1', null, {
-                        firstName: PERSON,
-                        departmentUuid: 'hostile',
-                        departmentName: NAME,
-                        sharedWith: [{ departmentUuid: 'child', name: CHILD }],
-                        primaryDepartmentUuid: 'hostile',
-                    })}
+                    rows={getCoverageRows([hostileDepartment], 'activity')}
                     canManage
                     keySwatch={DotSwatch}
                     onDepartmentClick={vi.fn()}
-                    onClearMember={vi.fn()}
-                    onEdit={vi.fn()}
+                />
+                <CoverageRowList
+                    rows={getCoverageRows([child], 'activity')}
+                    direct={{
+                        name: NAME,
+                        row: getDirectRow(
+                            hostileDepartment,
+                            [child],
+                            'activity',
+                        )!,
+                    }}
+                    canManage
+                    onDepartmentClick={vi.fn()}
                 />
             </MemoryRouter>,
         );
-        // The title, the parent beside it, the person selected, the sub-department and the people directly in it
+        // A top-level department, a sub-department and the people directly in a department
         expectLiteral(NAME);
-        expectLiteral(PARENT);
-        expectLiteral(PERSON);
         expectLiteral(CHILD);
         expectLiteral(`Directly in ${NAME}`);
-        // The departments the person is in, and the one they count in
-        expectLiteral(`In 2 departments: ${CHILD}, ${NAME}`);
-        expectLiteral(`Counts in: ${NAME}`);
         expect(screen.getByTitle(`Directly in ${NAME} · 5`)).toHaveTextContent(
             `Directly in ${NAME} · 5`,
         );

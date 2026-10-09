@@ -92,11 +92,7 @@ const WaffleOnPage: FC<
 const renderWaffle = (departments: DepartmentWithMetrics[]) =>
     renderWithProviders(
         <MemoryRouter>
-            <WaffleOnPage
-                summary={summaryOf(departments)}
-                canManage
-                onEdit={vi.fn()}
-            />
+            <WaffleOnPage summary={summaryOf(departments)} canManage />
         </MemoryRouter>,
     );
 

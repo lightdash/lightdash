@@ -1,16 +1,6 @@
-import {
-    type DepartmentWithMetrics,
-    type OrganizationAdoptionSummary,
-} from '@lightdash/common';
+import { type OrganizationAdoptionSummary } from '@lightdash/common';
 import { Box, Paper, Stack, Text } from '@mantine/core';
-import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    type FC,
-} from 'react';
+import { useLayoutEffect, useMemo, useRef, type FC } from 'react';
 import mapStyles from '../map/AdoptionMap.module.css';
 import { AdoptionViewHeader } from '../map/AdoptionViewHeader';
 import {
@@ -31,7 +21,6 @@ import { useContainerSize } from '../map/useContainerSize';
 import { formatCount } from '../utils/format';
 import {
     getCoverageRows,
-    getDepartmentBreakdown,
     getOrganizationBreakdown,
 } from '../utils/peopleBreakdown';
 import { type SweepPoint } from '../utils/sweepDelay';
@@ -62,12 +51,12 @@ const px = (value: number): string => `${value}px`;
 type Props = {
     summary: OrganizationAdoptionSummary;
     canManage: boolean;
-    // The department selected on the page; null for the whole organization
+    // The department selected on the page, shown below the waffle as it becomes a strip; null for the whole
+    // organization
     selectedUuid: string | null;
     onSelect: (departmentUuid: string | null) => void;
     colourBy: ColourBy;
     onColourByChange: (colourBy: ColourBy) => void;
-    onEdit: (department: DepartmentWithMetrics) => void;
 };
 
 type DrawnPeople = {
@@ -138,8 +127,8 @@ const collectSquares = (
     return { marks, points, previousIndexes };
 };
 
-// The waffle's mark for a kind of person, keying its legend and the panel's bar beside it
-const WaffleSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
+// The waffle's mark for a kind of person, keying its legend, the panel's bar beside it and the selected department's
+export const WaffleSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
     <Box
         component="span"
         className={`${styles.mark} ${styles.swatch}`}
@@ -197,8 +186,25 @@ const WaffleLegend: FC<{
     </Stack>
 );
 
+// Where a selection is drawn: the part of a sub-department selected, else its department's block
+const getSelectionBox = (
+    layout: WaffleLayout,
+    blockId: string | null,
+    partId: string | null,
+): { y: number; height: number } | null => {
+    const block = layout.blocks.find((each) => each.id === blockId);
+    if (block === undefined) return null;
+    const part =
+        partId === blockId
+            ? undefined
+            : block.parts.find((each) => each.id === partId);
+    return part === undefined
+        ? { y: block.y, height: block.height }
+        : { y: block.y + part.y, height: part.height };
+};
+
 // Every top-level department as a block sized by headcount, its sub-departments stacked inside, and one square per
-// person grouped by colour. Selecting a block shows its department in the panel, as selecting a circle on the map does
+// person grouped by colour. Selecting a block selects its department, as selecting a circle on the map does
 export const WaffleView: FC<Props> = ({
     summary,
     canManage,
@@ -206,9 +212,10 @@ export const WaffleView: FC<Props> = ({
     onSelect,
     colourBy,
     onColourByChange,
-    onEdit,
 }) => {
     const { departments } = summary;
+    // A selected department is shown below the waffle, which becomes a strip with no panel beside it
+    const isStrip = selectedUuid !== null;
     const { ref, width } = useContainerSize(FALLBACK_SIZE);
 
     const byUuid = useMemo(
@@ -327,46 +334,18 @@ export const WaffleView: FC<Props> = ({
         transition,
     ]);
 
-    // The legend counts the whole organization as the map's legend and the panel do, each person once from the
-    // placed splits; the panel shows the selection
-    const organizationBreakdown = useMemo(
+    // The legend and the panel count the whole organization as the map's legend and panel do, each person once from
+    // the placed splits
+    const breakdown = useMemo(
         () => getOrganizationBreakdown(summary, colourBy),
         [summary, colourBy],
     );
-    const legendCounts = useMemo(
-        () => getLegendCounts(organizationBreakdown),
-        [organizationBreakdown],
-    );
-    const breakdown = useMemo(
-        () =>
-            selected === null
-                ? organizationBreakdown
-                : getDepartmentBreakdown(selected, colourBy),
-        [selected, organizationBreakdown, colourBy],
-    );
+    const legendCounts = useMemo(() => getLegendCounts(breakdown), [breakdown]);
     const rows = useMemo(
         () =>
-            getCoverageRows(
-                getVisibleDepartments(departments, selectedDepartmentUuid),
-                colourBy,
-            ),
-        [departments, selectedDepartmentUuid, colourBy],
+            getCoverageRows(getVisibleDepartments(departments, null), colourBy),
+        [departments, colourBy],
     );
-
-    const clearMember = useCallback(() => {}, []);
-
-    // A crumb or a row in the panel is gone once used, so focus moves to the new current crumb, as on the map
-    const currentCrumbRef = useRef<HTMLParagraphElement | null>(null);
-    const shouldFocusCrumbRef = useRef(false);
-    const selectAndFocusCrumb = (departmentUuid: string | null) => {
-        shouldFocusCrumbRef.current = true;
-        onSelect(departmentUuid);
-    };
-    useEffect(() => {
-        if (!shouldFocusCrumbRef.current) return;
-        shouldFocusCrumbRef.current = false;
-        currentCrumbRef.current?.focus();
-    }, [selectedDepartmentUuid]);
 
     // Every department a bar: above 20,000 people, or wherever no part has room for its squares
     const barReason: BarReason | null =
@@ -388,72 +367,99 @@ export const WaffleView: FC<Props> = ({
     const markedInBlock =
         topUuid === null ? null : (trail[1]?.departmentUuid ?? topUuid);
 
+    // A strip shows the selection in its middle, or from the top where the selection is taller than the strip. It
+    // scrolls again only when the selection moves, so new numbers leave a strip the person scrolled where it is
+    const scrollRef = useRef<HTMLDivElement | null>(null);
+    const selectionBox = isStrip
+        ? getSelectionBox(layout, topUuid, markedInBlock)
+        : null;
+    const selectionTop = selectionBox?.y ?? null;
+    const selectionHeight = selectionBox?.height ?? 0;
+    useLayoutEffect(() => {
+        const scroller = scrollRef.current;
+        if (!scroller) return;
+        const centred =
+            selectionTop === null
+                ? 0
+                : selectionTop - (scroller.clientHeight - selectionHeight) / 2;
+        scroller.scrollTop = Math.max(0, Math.min(selectionTop ?? 0, centred));
+    }, [selectionTop, selectionHeight]);
+
     return (
         // The map's root sets the colours the panel's bars and keys share with the dots and squares
         <Stack gap="md" className={mapStyles.root}>
             <AdoptionViewHeader
-                label="Selected department"
-                trail={trail}
-                currentUuid={selectedDepartmentUuid}
-                currentCrumbRef={currentCrumbRef}
-                onCrumbClick={selectAndFocusCrumb}
+                label="Position in the waffle"
+                isOrganization={!isStrip}
                 colourBy={colourBy}
                 onColourByChange={onColourByChange}
             />
 
-            <Box className={mapStyles.body}>
+            <Box className={mapStyles.body} data-strip={isStrip || undefined}>
                 <Paper className={`${mapStyles.frame} ${styles.frame}`}>
-                    <Box
-                        ref={ref}
-                        className={styles.canvas}
-                        __vars={{ '--waffle-height': px(layout.height) }}
-                    >
-                        {layout.blocks.length === 0 ? (
-                            <Box className={mapStyles.message}>
-                                <Text fz="sm" c="dimmed">
-                                    No people or headcount in this department
-                                    yet
-                                </Text>
-                            </Box>
-                        ) : (
+                    <Box ref={scrollRef} className={styles.scroller}>
+                        <Box
+                            ref={ref}
+                            className={styles.canvas}
+                            __vars={{ '--waffle-height': px(layout.height) }}
+                        >
+                            {layout.blocks.length === 0 ? (
+                                <Box className={mapStyles.message}>
+                                    <Text fz="sm" c="dimmed">
+                                        No people or headcount in this
+                                        department yet
+                                    </Text>
+                                </Box>
+                            ) : (
+                                <Box
+                                    ref={boardRef}
+                                    className={styles.board}
+                                    role="group"
+                                    aria-label="Departments in the waffle"
+                                >
+                                    {layout.blocks.map((blockLayout) => {
+                                        const block = blocksById.get(
+                                            blockLayout.id,
+                                        );
+                                        if (!block) return null;
+                                        return (
+                                            <WaffleBlock
+                                                key={block.departmentUuid}
+                                                block={block}
+                                                layout={blockLayout}
+                                                squaresByPart={squaresByPart}
+                                                colourBy={colourBy}
+                                                transition={transition}
+                                                selectedUuid={
+                                                    block.departmentUuid ===
+                                                    topUuid
+                                                        ? selectedDepartmentUuid
+                                                        : null
+                                                }
+                                                markedUuid={
+                                                    block.departmentUuid ===
+                                                    topUuid
+                                                        ? markedInBlock
+                                                        : null
+                                                }
+                                                isDimmed={
+                                                    topUuid !== null &&
+                                                    block.departmentUuid !==
+                                                        topUuid
+                                                }
+                                                canManage={canManage}
+                                                onSelect={onSelect}
+                                            />
+                                        );
+                                    })}
+                                </Box>
+                            )}
+                            {/* Empty but for the band that crosses the waffle while its colouring changes */}
                             <Box
-                                ref={boardRef}
-                                className={styles.board}
-                                role="group"
-                                aria-label="Departments in the waffle"
-                            >
-                                {layout.blocks.map((blockLayout) => {
-                                    const block = blocksById.get(
-                                        blockLayout.id,
-                                    );
-                                    if (!block) return null;
-                                    return (
-                                        <WaffleBlock
-                                            key={block.departmentUuid}
-                                            block={block}
-                                            layout={blockLayout}
-                                            squaresByPart={squaresByPart}
-                                            colourBy={colourBy}
-                                            transition={transition}
-                                            selectedUuid={
-                                                block.departmentUuid === topUuid
-                                                    ? selectedDepartmentUuid
-                                                    : null
-                                            }
-                                            markedUuid={
-                                                block.departmentUuid === topUuid
-                                                    ? markedInBlock
-                                                    : null
-                                            }
-                                            canManage={canManage}
-                                            onSelect={onSelect}
-                                        />
-                                    );
-                                })}
-                            </Box>
-                        )}
-                        {/* Empty but for the band that crosses the waffle while its colouring changes */}
-                        <Box ref={bandLayerRef} className={styles.bandLayer} />
+                                ref={bandLayerRef}
+                                className={styles.bandLayer}
+                            />
+                        </Box>
                     </Box>
                     <WaffleLegend
                         colourBy={colourBy}
@@ -462,19 +468,15 @@ export const WaffleView: FC<Props> = ({
                         hasNoHeadcount={hasNoHeadcount}
                     />
                 </Paper>
-                <MapInspector
-                    department={selected}
-                    parentName={trail[trail.length - 2]?.name ?? null}
-                    breakdown={breakdown}
-                    colourBy={colourBy}
-                    rows={rows}
-                    member={null}
-                    canManage={canManage}
-                    keySwatch={WaffleSwatch}
-                    onDepartmentClick={selectAndFocusCrumb}
-                    onClearMember={clearMember}
-                    onEdit={onEdit}
-                />
+                {!isStrip && (
+                    <MapInspector
+                        breakdown={breakdown}
+                        rows={rows}
+                        canManage={canManage}
+                        keySwatch={WaffleSwatch}
+                        onDepartmentClick={onSelect}
+                    />
+                )}
             </Box>
         </Stack>
     );

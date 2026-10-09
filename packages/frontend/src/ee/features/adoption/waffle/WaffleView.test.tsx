@@ -52,7 +52,7 @@ const summary = (
     attention: { unassignedCount: 0, sharedCount: 0 },
 });
 
-// The page holds the department selected and the colouring; here a stand-in does
+// The page holds the department selected and the colouring, and deselects; here a stand-in does
 const WaffleOnPage: FC<
     Omit<
         ComponentProps<typeof WaffleView>,
@@ -62,30 +62,30 @@ const WaffleOnPage: FC<
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
     return (
-        <WaffleView
-            {...props}
-            selectedUuid={selectedUuid}
-            onSelect={setSelectedUuid}
-            colourBy={colourBy}
-            onColourByChange={setColourBy}
-        />
+        <>
+            <WaffleView
+                {...props}
+                selectedUuid={selectedUuid}
+                onSelect={setSelectedUuid}
+                colourBy={colourBy}
+                onColourByChange={setColourBy}
+            />
+            <button type="button" onClick={() => setSelectedUuid(null)}>
+                Show the organization
+            </button>
+        </>
     );
 };
 
 const renderWaffle = (
     departments: DepartmentWithMetrics[],
-    {
-        canManage = true,
-        onEdit = vi.fn(),
-        placed = placedFixture(departments),
-    } = {},
+    { canManage = true, placed = placedFixture(departments) } = {},
 ) =>
     renderWithProviders(
         <MemoryRouter>
             <WaffleOnPage
                 summary={summary(departments, placed)}
                 canManage={canManage}
-                onEdit={onEdit}
             />
         </MemoryRouter>,
     );
@@ -394,21 +394,24 @@ describe('WaffleView', () => {
         expect(drawnSquares(container, 'viewer').length).toBeGreaterThan(0);
     });
 
-    it('marks the department the page selects and asks the page to select the one chosen', async () => {
-        const onSelect = vi.fn();
+    // The waffle as the page draws it with a department selected
+    const renderSelected = (selectedUuid: string, onSelect = vi.fn()) =>
         renderWithProviders(
             <MemoryRouter>
                 <WaffleView
                     summary={summary(deepOrganization)}
                     canManage
-                    selectedUuid="Finance"
+                    selectedUuid={selectedUuid}
                     onSelect={onSelect}
                     colourBy="activity"
                     onColourByChange={vi.fn()}
-                    onEdit={vi.fn()}
                 />
             </MemoryRouter>,
         );
+
+    it('marks the department the page selects and asks the page to select the one chosen', async () => {
+        const onSelect = vi.fn();
+        renderSelected('Finance', onSelect);
         expect(
             screen.getByRole('button', { name: /^Finance,/ }),
         ).toHaveAttribute('aria-current', 'true');
@@ -418,66 +421,51 @@ describe('WaffleView', () => {
         expect(onSelect).toHaveBeenLastCalledWith('Supply Chain');
     });
 
-    it('selects a department from its block, as a click on its circle on the map does, and goes back from the breadcrumb', async () => {
+    it('selects a department from its block, as a click on its circle on the map does, and becomes a strip until nothing is selected', async () => {
         const { container } = renderWaffle(deepOrganization);
         expect(
             within(panel()).getByRole('heading', { name: 'Organization' }),
         ).toBeInTheDocument();
         const finance = screen.getByRole('button', { name: /^Finance,/ });
         await userEvent.click(finance);
-        expect(
-            within(panel()).getByRole('heading', { name: 'Finance' }),
-        ).toBeInTheDocument();
-        expect(within(panel()).getByText('Department')).toBeInTheDocument();
         expect(finance).toHaveAttribute('aria-current', 'true');
+        // The department shows below the strip, which has no panel and no breadcrumb of its own
         expect(
-            container.querySelector('[aria-current="location"]'),
-        ).toHaveTextContent('Finance');
+            screen.queryByRole('complementary', { name: 'Details' }),
+        ).toBeNull();
+        expect(container.querySelector('[aria-current="location"]')).toBeNull();
+        expect(
+            screen.getByRole('radiogroup', { name: 'Color by' }),
+        ).toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: 'All departments' }),
+            screen.getByRole('button', { name: 'Show the organization' }),
         );
         expect(
             within(panel()).getByRole('heading', { name: 'Organization' }),
         ).toBeInTheDocument();
         expect(finance).not.toHaveAttribute('aria-current');
+        expect(
+            container.querySelector('[aria-current="location"]'),
+        ).toHaveTextContent('All departments');
     });
 
-    it('selects a sub-department from its part, with its parent beside it in the panel', async () => {
+    it('selects a sub-department from its part, marking the part and not its block', async () => {
         renderWaffle(deepOrganization);
         const supplyChain = screen.getByRole('button', {
             name: /^Supply Chain,/,
         });
         await userEvent.click(supplyChain);
-        expect(
-            within(panel()).getByRole('heading', { name: 'Supply Chain' }),
-        ).toBeInTheDocument();
-        expect(within(panel()).getByText('Operations')).toBeInTheDocument();
         expect(supplyChain).toHaveAttribute('aria-current', 'true');
         expect(
             screen.getByRole('button', { name: /^Operations,/ }),
         ).not.toHaveAttribute('aria-current');
-        // The breadcrumb leads back up through the parent
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Operations' }),
-        );
-        expect(
-            within(panel()).getByRole('heading', { name: 'Operations' }),
-        ).toBeInTheDocument();
     });
 
-    it('marks the part holding a department selected deeper from the panel, without calling the part current', async () => {
-        renderWaffle(deepOrganization);
+    it('marks the part holding a department selected deeper, without calling the part current', () => {
+        renderSelected('Support');
         const customerSuccess = screen.getByRole('button', {
             name: /^Customer Success,/,
         });
-        await userEvent.click(customerSuccess);
-        expect(customerSuccess).toHaveAttribute('aria-current', 'true');
-        await userEvent.click(
-            within(panel()).getByRole('button', { name: /^Support/ }),
-        );
-        expect(
-            within(panel()).getByRole('heading', { name: 'Support' }),
-        ).toBeInTheDocument();
         expect(customerSuccess).toHaveAttribute('data-selected');
         expect(customerSuccess).not.toHaveAttribute('aria-current');
         expect(
@@ -485,13 +473,72 @@ describe('WaffleView', () => {
         ).not.toHaveAttribute('data-selected');
     });
 
+    it('in a strip, dims every block but the selected one, which stays selectable, and scrolls to the selection', () => {
+        const { container } = renderSelected('Supply Chain');
+        const blockOf = (name: RegExp) =>
+            screen.getByRole('button', { name }).parentElement;
+        expect(blockOf(/^Operations,/)).not.toHaveAttribute('data-dimmed');
+        expect(blockOf(/^Commercial,/)).toHaveAttribute('data-dimmed');
+        expect(blockOf(/^Finance,/)).toHaveAttribute('data-dimmed');
+        // The strip's box scrolls the selected part to the top of what it shows, as it has no height here
+        const scroller = container.querySelector<HTMLElement>(
+            `.${styles.scroller}`,
+        );
+        const part = screen.getByRole('button', { name: /^Supply Chain,/ });
+        const block = blockOf(/^Operations,/);
+        const offset = (
+            element: HTMLElement | null | undefined,
+            name: string,
+        ) => Number.parseFloat(element?.style.getPropertyValue(name) ?? '');
+        expect(scroller?.scrollTop).toBe(
+            offset(block, '--block-y') + offset(part, '--part-y'),
+        );
+        expect(
+            screen.queryByRole('complementary', { name: 'Details' }),
+        ).toBeNull();
+        // The legend still keys the waffle in the strip
+        expect(
+            screen.getByRole('list', { name: 'Legend' }),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves a strip the person scrolled where it is when the same numbers arrive again', () => {
+        const element = () => (
+            <MemoryRouter>
+                <WaffleView
+                    summary={summary(deepOrganization)}
+                    canManage
+                    selectedUuid="Supply Chain"
+                    onSelect={vi.fn()}
+                    colourBy="activity"
+                    onColourByChange={vi.fn()}
+                />
+            </MemoryRouter>
+        );
+        const { container, rerender } = renderWithProviders(element());
+        const scroller = container.querySelector<HTMLElement>(
+            `.${styles.scroller}`,
+        );
+        if (scroller) scroller.scrollTop = 7;
+        rerender(element());
+        expect(scroller?.scrollTop).toBe(7);
+    });
+
+    it('dims nothing and starts at the top with nothing selected, or with a department not in the organization', () => {
+        const { container } = renderSelected('Deleted');
+        expect(container.querySelector('[data-dimmed]')).toBeNull();
+        expect(
+            container.querySelector<HTMLElement>(`.${styles.scroller}`)
+                ?.scrollTop,
+        ).toBe(0);
+    });
+
     it('selects a department with the keyboard', async () => {
         renderWaffle(deepOrganization);
-        screen.getByRole('button', { name: /^People,/ }).focus();
+        const people = screen.getByRole('button', { name: /^People,/ });
+        people.focus();
         await userEvent.keyboard('{Enter}');
-        expect(
-            within(panel()).getByRole('heading', { name: 'People' }),
-        ).toBeInTheDocument();
+        expect(people).toHaveAttribute('aria-current', 'true');
     });
 
     describe('a department without a headcount', () => {
@@ -546,20 +593,6 @@ describe('WaffleView', () => {
             renderWaffle(deepOrganization);
             expect(screen.queryByText('No headcount set')).toBeNull();
         });
-    });
-
-    it('moves focus to the breadcrumb when a department is selected from the panel, as the map does', async () => {
-        renderWaffle(deepOrganization);
-        await userEvent.click(
-            within(panel()).getByRole('button', {
-                name: /^Legal & Compliance/,
-            }),
-        );
-        expect(document.activeElement).toHaveAttribute(
-            'aria-current',
-            'location',
-        );
-        expect(document.activeElement).toHaveTextContent('Legal & Compliance');
     });
 
     it("keys the panel's bar with the waffle's own squares, a filled grey square for no account", () => {
@@ -879,7 +912,6 @@ describe('WaffleView', () => {
                         <WaffleOnPage
                             summary={summary(departments)}
                             canManage
-                            onEdit={vi.fn()}
                         />
                     </MemoryRouter>,
                 );

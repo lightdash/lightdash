@@ -1,11 +1,12 @@
 import { type DepartmentVennRegion } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { memberFixture } from './adoptionFixtures';
+import { memberFixture, metricsFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
     describeVennRegion,
     filterMembers,
     formatAlsoIn,
+    formatDepartmentCounts,
     formatLastActive,
     formatMemberSource,
     formatOverlapUsage,
@@ -336,6 +337,40 @@ describe('getCoverageCaption', () => {
     it('gives the people on Lightdash without a headcount, as they are all that is counted', () => {
         expect(getCoverageCaption(null, 3)).toBe('3 people on Lightdash');
         expect(getCoverageCaption(null, 1)).toBe('1 person on Lightdash');
+    });
+});
+
+describe('formatDepartmentCounts', () => {
+    const counts = (
+        hasHeadcount: boolean,
+        effectiveHeadcount: number,
+        memberCount: number,
+        activeCount30d: number,
+    ) =>
+        formatDepartmentCounts({
+            hasHeadcount,
+            effectiveHeadcount,
+            metrics: metricsFixture(memberCount, null, { activeCount30d }),
+        });
+    it('gives the people on Lightdash of the headcount, the active ones and the people without an account', () => {
+        expect(counts(true, 420, 187, 115)).toBe(
+            '187 of 420 on Lightdash · 115 active in 30 days · 233 without an account',
+        );
+    });
+    it('leaves out the people without an account when everyone in the headcount has one', () => {
+        expect(counts(true, 9, 9, 9)).toBe(
+            '9 of 9 on Lightdash · 9 active in 30 days',
+        );
+    });
+    it('gives only the people on Lightdash without a headcount, as they are all it counts', () => {
+        expect(counts(false, 14, 14, 10)).toBe(
+            '14 on Lightdash · 10 active in 30 days',
+        );
+    });
+    it('groups thousands', () => {
+        expect(counts(true, 2350, 1317, 1002)).toBe(
+            '1,317 of 2,350 on Lightdash · 1,002 active in 30 days · 1,033 without an account',
+        );
     });
 });
 

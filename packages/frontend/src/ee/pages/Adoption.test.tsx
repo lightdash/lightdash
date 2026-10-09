@@ -1,4 +1,8 @@
-import { type OrganizationAdoptionSummary } from '@lightdash/common';
+import {
+    type DepartmentDetail,
+    type DepartmentWithMetrics,
+    type OrganizationAdoptionSummary,
+} from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
@@ -9,15 +13,77 @@ import {
     dept,
     metricsFixture,
     placedMetricsFixture,
+    withServerHeadcounts,
 } from '../features/adoption/utils/adoptionFixtures';
 import Adoption from './Adoption';
+
+const OPERATIONS = '11111111-2222-4333-8444-555555555555';
+const STORES = '22222222-2222-4333-8444-555555555555';
+const UNKNOWN = '99999999-2222-4333-8444-555555555555';
+
+// Operations and Stores under it
+const [operations, stores] = withServerHeadcounts([
+    dept('Operations', null, 10, { departmentUuid: OPERATIONS }),
+    dept('Stores', OPERATIONS, 10, { departmentUuid: STORES }),
+]);
+
+// A department as the server sends it, with where it sits and what is below it
+const detailOf = (
+    department: DepartmentWithMetrics,
+    ancestors: DepartmentDetail['ancestors'],
+    children: DepartmentWithMetrics[],
+): DepartmentDetail => ({
+    department,
+    ancestors,
+    children,
+    targetProgress: null,
+    weeklyActive: department.metrics.weeklyActive.map((point) => ({
+        ...point,
+        orgAverage: 0,
+    })),
+    topContent: { dashboards: [], explores: [], aiAgents: [] },
+    members: [],
+});
 
 const summary = vi.fn();
 vi.mock('../hooks/useOrgDepartments', () => ({
     useOrgAdoptionSummary: () => summary(),
+    // Like the server: the two departments, and a 404 for any other uuid
+    useDepartmentDetail: (departmentUuid: string | undefined) => {
+        const answer = (data: DepartmentDetail) => ({
+            isInitialLoading: false,
+            isError: false,
+            data,
+            error: null,
+        });
+        if (departmentUuid === OPERATIONS) {
+            return answer(detailOf(operations, [], [stores]));
+        }
+        if (departmentUuid === STORES) {
+            return answer(
+                detailOf(
+                    stores,
+                    [{ departmentUuid: OPERATIONS, name: 'Operations' }],
+                    [],
+                ),
+            );
+        }
+        return departmentUuid === undefined
+            ? { isInitialLoading: false, isError: false, data: undefined }
+            : {
+                  isInitialLoading: false,
+                  isError: true,
+                  data: undefined,
+                  error: { error: { statusCode: 404, message: 'Not found' } },
+              };
+    },
     useDepartmentMembership: () => ({ data: [], isInitialLoading: false }),
     useSetDepartmentMembers: () => ({ mutate: vi.fn(), isLoading: false }),
     useSetPrimaryDepartment: () => ({ mutate: vi.fn(), isLoading: false }),
+}));
+// ECharts needs a real layout engine
+vi.mock('../../components/EChartsReactWrapper', () => ({
+    default: () => null,
 }));
 // The map draws with real layout, which jsdom does not have; this one shows what the page gives it
 const { mapSelection } = vi.hoisted(() => ({ mapSelection: vi.fn() }));
@@ -32,7 +98,7 @@ vi.mock('../features/adoption/map/AdoptionMap', () => ({
         mapSelection(selectedUuid);
         return (
             <>
-                <button type="button" onClick={() => onSelect('Operations')}>
+                <button type="button" onClick={() => onSelect(OPERATIONS)}>
                     Select Operations on the map
                 </button>
                 <button type="button" onClick={() => onSelect(null)}>
@@ -75,7 +141,7 @@ const organizationSummary = (
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(memberCount, null, { activeCount30d }),
     placed: placedMetricsFixture(memberCount, activeCount30d),
-    departments: [dept('Operations', null, 10)],
+    departments: [operations, stores],
     attention,
 });
 
@@ -250,9 +316,9 @@ describe('Adoption', () => {
             renderPage(
                 organizationSummary(12, 6),
                 undefined,
-                '/generalSettings/adoption?view=map&department=Operations',
+                `/generalSettings/adoption?view=map&department=${OPERATIONS}`,
             );
-            expect(mapSelection).toHaveBeenLastCalledWith('Operations');
+            expect(mapSelection).toHaveBeenLastCalledWith(OPERATIONS);
         });
 
         it('is none without one in the link, or with an empty one', () => {
@@ -276,9 +342,9 @@ describe('Adoption', () => {
                 }),
             );
             expect(location()).toHaveTextContent(
-                '/generalSettings/adoption?view=map&department=Operations',
+                `/generalSettings/adoption?view=map&department=${OPERATIONS}`,
             );
-            expect(mapSelection).toHaveBeenLastCalledWith('Operations');
+            expect(mapSelection).toHaveBeenLastCalledWith(OPERATIONS);
             await userEvent.click(
                 screen.getByRole('button', {
                     name: 'Select the organization on the map',
@@ -294,17 +360,162 @@ describe('Adoption', () => {
             renderPage(
                 organizationSummary(12, 6),
                 undefined,
-                '/generalSettings/adoption?view=map&department=Operations',
+                `/generalSettings/adoption?view=map&department=${OPERATIONS}`,
             );
             await userEvent.click(
                 screen.getByRole('radio', { name: 'Waffle' }),
             );
             expect(location()).toHaveTextContent(
-                '/generalSettings/adoption?view=waffle&department=Operations',
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
             );
             expect(
                 screen.getByRole('button', { name: /^Operations,/ }),
             ).toHaveAttribute('aria-current', 'true');
+        });
+
+        const view = (name: string) => screen.getByRole('region', { name });
+        const stripHeight = (name: string) =>
+            view(name).style.getPropertyValue('--adoption-view-height');
+        const panel = () =>
+            screen.queryByRole('complementary', { name: 'Details' });
+
+        it('turns the view into a 280 px strip with the department below it in place of the panel', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                MANAGER,
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
+            );
+            expect(stripHeight('Waffle')).toBe('280px');
+            expect(panel()).toBeNull();
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toHaveFocus();
+            // Place people sits beside the department's name, and the header keeps New department only
+            expect(
+                await screen.findAllByRole('button', { name: 'Place people' }),
+            ).toHaveLength(1);
+            expect(
+                screen.getByRole('button', { name: 'Edit department' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'New department' }),
+            ).toBeInTheDocument();
+        });
+
+        it('shows the view at full height with the panel beside it while nothing is selected', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                MANAGER,
+                '/generalSettings/adoption?view=waffle',
+            );
+            expect(stripHeight('Waffle')).toBe('');
+            expect(panel()).toBeInTheDocument();
+            expect(
+                screen.queryByRole('navigation', {
+                    name: 'Selected department',
+                }),
+            ).toBeNull();
+            expect(
+                await screen.findAllByRole('button', { name: 'Place people' }),
+            ).toHaveLength(1);
+        });
+
+        it('deselects on Escape, restoring the full view and the panel, and moves focus back to the view', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
+            );
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toHaveFocus();
+            await userEvent.keyboard('{Escape}');
+            expect(location()).toHaveTextContent(
+                /^\/generalSettings\/adoption\?view=waffle$/,
+            );
+            expect(stripHeight('Waffle')).toBe('');
+            expect(panel()).toBeInTheDocument();
+            expect(view('Waffle')).toHaveFocus();
+        });
+
+        it('selects the parent from the breadcrumb, and the organization from its first link', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?view=list&department=${STORES}`,
+            );
+            const crumbs = () =>
+                screen.getByRole('navigation', {
+                    name: 'Selected department',
+                });
+            await userEvent.click(
+                within(crumbs()).getByRole('link', { name: 'Operations' }),
+            );
+            expect(location()).toHaveTextContent(
+                `/generalSettings/adoption?view=list&department=${OPERATIONS}`,
+            );
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toHaveFocus();
+            await userEvent.click(
+                within(crumbs()).getByRole('link', { name: 'Organization' }),
+            );
+            expect(location()).toHaveTextContent(
+                /^\/generalSettings\/adoption\?view=list$/,
+            );
+            expect(view('List')).toHaveFocus();
+        });
+
+        it('opens the department from a block of the waffle', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=waffle',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            );
+            expect(location()).toHaveTextContent(
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
+            );
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toHaveFocus();
+        });
+
+        it('opens the department from a row of the list, which it marks', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=list',
+            );
+            await userEvent.click(
+                screen.getByRole('link', { name: 'Operations' }),
+            );
+            expect(location()).toHaveTextContent(
+                `/generalSettings/adoption?view=list&department=${OPERATIONS}`,
+            );
+            expect(stripHeight('List')).toBe('280px');
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toHaveFocus();
+            expect(
+                screen.getByRole('link', { name: 'Operations' }).closest('tr'),
+            ).toHaveAttribute('aria-current', 'true');
+        });
+
+        it("keeps the strip and shows the department's error in place when it cannot be found", () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?view=waffle&department=${UNKNOWN}`,
+            );
+            expect(stripHeight('Waffle')).toBe('280px');
+            expect(screen.getByText('Department not found')).toBeVisible();
+            // The view still offers every department
+            expect(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            ).toBeInTheDocument();
         });
     });
 });

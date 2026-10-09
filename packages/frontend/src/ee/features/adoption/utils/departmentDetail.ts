@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     type AdoptionMetrics,
     type DepartmentMember,
+    type DepartmentWithMetrics,
     type DepartmentOverlap,
     type DepartmentRef,
     type DepartmentTopContent,
@@ -309,6 +310,28 @@ export const getActiveCaption = (
     return withAccount === null || headcount === memberCount
         ? overall
         : `${overall} · ${withAccount}`;
+};
+
+// A department's numbers on one line: "187 of 420 on Lightdash · 115 active in 30 days · 233 without an account".
+// Without a headcount only the people on Lightdash are counted, so nobody is without an account
+export const formatDepartmentCounts = ({
+    hasHeadcount,
+    effectiveHeadcount,
+    metrics: { memberCount, activeCount30d },
+}: Pick<
+    DepartmentWithMetrics,
+    'hasHeadcount' | 'effectiveHeadcount' | 'metrics'
+>): string => {
+    const withoutAccount = hasHeadcount ? effectiveHeadcount - memberCount : 0;
+    return [
+        hasHeadcount
+            ? `${formatCount(memberCount)} of ${formatCount(effectiveHeadcount)} on Lightdash`
+            : `${formatCount(memberCount)} on Lightdash`,
+        `${formatCount(activeCount30d)} active in 30 days`,
+        ...(withoutAccount > 0
+            ? [`${formatCount(withoutAccount)} without an account`]
+            : []),
+    ].join(' · ');
 };
 
 // People of this department also in every "with" department and in no "without" one

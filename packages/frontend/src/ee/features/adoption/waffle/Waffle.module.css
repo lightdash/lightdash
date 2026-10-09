@@ -3,6 +3,12 @@
     align-self: start;
 }
 
+/* In a strip over a selected department the waffle scrolls within the strip's height */
+.scroller {
+    max-height: var(--adoption-view-height, none);
+    overflow-y: auto;
+}
+
 /* As tall as the waffle's content; everything in it is placed from its layout, in pixels from its top-left corner */
 .canvas {
     position: relative;
@@ -21,6 +27,11 @@
     top: var(--block-y);
     width: var(--block-width);
     height: var(--block-height);
+}
+
+/* Another department is selected; this one stays selectable */
+.block[data-dimmed] {
+    opacity: 0.35;
 }
 
 /* Covers the whole block: a click anywhere but on a sub-department selects the department */

@@ -87,7 +87,7 @@ const summary = (
     };
 };
 
-// The page holds the department selected and the colouring; here a stand-in does
+// The page holds the department selected and the colouring, and deselects; here a stand-in does
 const MapOnPage: FC<
     Omit<
         ComponentProps<typeof AdoptionMap>,
@@ -97,13 +97,18 @@ const MapOnPage: FC<
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
     return (
-        <AdoptionMap
-            {...props}
-            selectedUuid={selectedUuid}
-            onSelect={setSelectedUuid}
-            colourBy={colourBy}
-            onColourByChange={setColourBy}
-        />
+        <>
+            <AdoptionMap
+                {...props}
+                selectedUuid={selectedUuid}
+                onSelect={setSelectedUuid}
+                colourBy={colourBy}
+                onColourByChange={setColourBy}
+            />
+            <button type="button" onClick={() => setSelectedUuid(null)}>
+                Show the organization
+            </button>
+        </>
     );
 };
 
@@ -111,7 +116,6 @@ const renderMap = (
     departments: DepartmentWithMetrics[] = tree,
     {
         canManage = true,
-        onEdit = vi.fn(),
         organization = metricsFixture(12, null, { activeCount30d: 6 }),
         placed = null as OrganizationAdoptionSummary['placed'] | null,
     } = {},
@@ -121,7 +125,6 @@ const renderMap = (
             <MapOnPage
                 summary={summary(departments, organization, placed)}
                 canManage={canManage}
-                onEdit={onEdit}
                 measureText={estimateTextWidth}
             />
         </MemoryRouter>,
@@ -264,7 +267,7 @@ describe('AdoptionMap', () => {
         expect(byRole.reduce((sum, entry) => sum + entry.count, 0)).toBe(38);
     });
 
-    it('zooms into a department from its control and back out through the breadcrumb', async () => {
+    it('zooms into a department from its control as a strip, with no panel or breadcrumb, and back out when the page selects nothing', async () => {
         renderMap();
         await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
         expect(
@@ -278,11 +281,25 @@ describe('AdoptionMap', () => {
             }),
         ).toBeInTheDocument();
         expect(useDepartmentDetail).toHaveBeenLastCalledWith('Ops');
+        // The department below the strip has the breadcrumb and the numbers; the colouring stays here
+        expect(
+            screen.queryByRole('complementary', { name: 'Details' }),
+        ).toBeNull();
+        expect(screen.queryByText('All departments')).toBeNull();
+        expect(
+            screen.getByRole('radiogroup', { name: 'Color by' }),
+        ).toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('button', { name: 'All departments' }),
+            screen.getByRole('button', { name: 'Show the organization' }),
         );
         expect(
             screen.getByRole('button', { name: /^Finance,/ }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('complementary', { name: 'Details' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('All departments', { selector: '[aria-current]' }),
         ).toBeInTheDocument();
     });
 
@@ -294,7 +311,6 @@ describe('AdoptionMap', () => {
             onSelect,
             colourBy: 'activity' as const,
             onColourByChange: vi.fn(),
-            onEdit: vi.fn(),
             measureText: estimateTextWidth,
         };
         const { rerender } = renderWithProviders(
@@ -324,7 +340,7 @@ describe('AdoptionMap', () => {
         // A bare click: jsdom pointer events carry no window, which the drag handling reads
         if (circle) fireEvent.click(circle);
         expect(
-            screen.getByRole('heading', { name: 'Finance' }),
+            screen.getByRole('img', { name: /^Map of Finance:/ }),
         ).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /^Ops,/ })).toBeNull();
     });
@@ -340,7 +356,7 @@ describe('AdoptionMap', () => {
         expect(screen.queryByText(/: \d+ of \d+ active$/)).toBeNull();
     });
 
-    it('names people inside a small department and inspects the one selected', async () => {
+    it('names people inside a small department and marks the one selected', async () => {
         loadMembers('Finance', [
             memberFixture('ada', new Date().toISOString(), {
                 isActive30d: true,
@@ -425,8 +441,9 @@ describe('AdoptionMap', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Grace Hopper' }),
         );
-        expect(screen.getByText('grace@example.com')).toBeInTheDocument();
-        expect(screen.getByText('No activity in 90 days')).toBeInTheDocument();
+        expect(
+            container.querySelector('svg[role="img"] [data-selected]'),
+        ).toHaveAttribute('data-user', 'grace');
         expect(container.querySelectorAll('[data-selected]')).toHaveLength(1);
     });
 
@@ -630,35 +647,6 @@ describe('AdoptionMap', () => {
         expect(screen.queryByRole('img')).toBeNull();
     });
 
-    it('offers editing only to people who can manage departments', async () => {
-        const onEdit = vi.fn();
-        const { unmount } = renderMap(tree, { canManage: true, onEdit });
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Finance,/ }),
-        );
-        expect(
-            screen.getByRole('link', { name: 'Open Finance' }),
-        ).toHaveAttribute('href', '/generalSettings/adoption/Finance');
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Edit department' }),
-        );
-        expect(onEdit).toHaveBeenCalledWith(
-            expect.objectContaining({ departmentUuid: 'Finance' }),
-        );
-        unmount();
-
-        renderMap(tree, { canManage: false });
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Finance,/ }),
-        );
-        expect(
-            screen.getByRole('link', { name: 'Open Finance' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Edit department' }),
-        ).toBeNull();
-    });
-
     it('offers zoom controls', () => {
         renderMap();
         ['Zoom in', 'Zoom out', 'Reset view'].forEach((name) =>
@@ -668,12 +656,6 @@ describe('AdoptionMap', () => {
 
     describe('opening a department', () => {
         const expectOperationsOpen = () => {
-            expect(
-                screen.getByText('Operations', { selector: '[aria-current]' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('heading', { name: 'Operations' }),
-            ).toBeInTheDocument();
             expect(
                 screen.getByRole('img', {
                     // Its 40, the 8 it keeps beyond its sub-departments included, though nobody is in it yet
@@ -749,8 +731,8 @@ describe('AdoptionMap', () => {
             press();
             fireEvent.click(circle, { clientX: 90, clientY: 10 });
             expect(
-                screen.queryByRole('heading', { name: 'Operations' }),
-            ).toBeNull();
+                screen.getByRole('img', { name: /^Map of the organization/ }),
+            ).toBeInTheDocument();
             // The same press without travel is a selection
             press();
             fireEvent.click(circle, { clientX: 12, clientY: 11 });
@@ -758,93 +740,19 @@ describe('AdoptionMap', () => {
         });
     });
 
-    describe('keyboard', () => {
-        it('moves focus to the breadcrumb after opening a department', async () => {
-            renderMap(seededOrganization());
-            screen.getByRole('button', { name: /^Operations,/ }).focus();
-            await userEvent.keyboard('{Enter}');
-            expect(document.activeElement).toHaveTextContent('Operations');
-            expect(document.activeElement).toHaveAttribute(
-                'aria-current',
-                'location',
-            );
-        });
-
-        const openWithKeyboard = async (name: RegExp) => {
-            screen.getByRole('button', { name }).focus();
-            await userEvent.keyboard('{Enter}');
-        };
-
-        it('goes up one level on Escape and keeps focus on the map', async () => {
-            renderMap(seededOrganization());
-            await openWithKeyboard(/^Operations,/);
-            await openWithKeyboard(/^Stores,/);
-            expect(document.activeElement).toHaveTextContent('Stores');
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Operations' }),
-            ).toBeInTheDocument();
-            expect(document.activeElement).toHaveTextContent('Operations');
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Organization' }),
-            ).toBeInTheDocument();
-            expect(document.activeElement).toHaveTextContent('All departments');
-            // Nothing above the organization
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Organization' }),
-            ).toBeInTheDocument();
-        });
-
-        it('leaves focus where it was when a department is opened with the pointer', async () => {
-            const { container } = renderMap(seededOrganization());
-            const focusSpy = vi.spyOn(HTMLElement.prototype, 'focus');
-            // A row in the panel beside the map: moving focus to the breadcrumb would scroll the page up
-            await userEvent.click(
-                within(
-                    screen.getByRole('complementary', { name: 'Details' }),
-                ).getByText('Supply chain'),
-            );
-            expect(
-                screen.getByRole('heading', { name: 'Supply chain' }),
-            ).toBeInTheDocument();
-            expect(document.activeElement).not.toHaveAttribute('aria-current');
-            const circle = container.querySelector(
-                '[data-department="Procurement"]',
-            );
-            if (circle) fireEvent.click(circle);
-            expect(document.activeElement).not.toHaveAttribute('aria-current');
-            expect(
-                focusSpy.mock.contexts.some(
-                    (element) =>
-                        element instanceof HTMLElement &&
-                        element.hasAttribute('aria-current'),
-                ),
-            ).toBe(false);
-            focusSpy.mockRestore();
-        });
-
-        it("leaves Escape alone on controls that are not the map's way-finding", async () => {
-            renderMap(seededOrganization());
-            await openWithKeyboard(/^Operations,/);
-            screen.getByRole('radio', { name: 'Role' }).focus();
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Operations' }),
-            ).toBeInTheDocument();
-            screen.getByRole('button', { name: 'Zoom in' }).focus();
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Operations' }),
-            ).toBeInTheDocument();
-            // From a department control it goes up
-            screen.getByRole('button', { name: /^Stores,/ }).focus();
-            await userEvent.keyboard('{Escape}');
-            expect(
-                screen.getByRole('heading', { name: 'Organization' }),
-            ).toBeInTheDocument();
-        });
+    it('opens a department from its control with the keyboard and leaves Escape to the page', async () => {
+        renderMap(seededOrganization());
+        screen.getByRole('button', { name: /^Operations,/ }).focus();
+        await userEvent.keyboard('{Enter}');
+        expect(
+            screen.getByRole('img', { name: /^Map of Operations:/ }),
+        ).toBeInTheDocument();
+        // The page deselects on Escape; the map no longer goes up a level itself
+        screen.getByRole('button', { name: /^Stores,/ }).focus();
+        await userEvent.keyboard('{Escape}');
+        expect(
+            screen.getByRole('img', { name: /^Map of Operations:/ }),
+        ).toBeInTheDocument();
     });
 
     it('names what a click will open when hovering a sub-department at the top level', () => {
@@ -941,12 +849,12 @@ describe('AdoptionMap', () => {
             );
         const mainBar = () =>
             details().querySelector('[data-part]')?.parentElement;
-        const rowsUnder = (label: 'Departments' | 'Sub-departments') => [
+        const rowsUnder = (label: 'Departments') => [
             ...(within(details()).getByText(label).nextElementSibling
                 ?.children ?? []),
         ];
         // Each row as its name and its last column; the bar between them has no text
-        const listed = (label: 'Departments' | 'Sub-departments') =>
+        const listed = (label: 'Departments') =>
             rowsUnder(label).map((row) =>
                 [...row.children]
                     .map((cell) => cell.textContent)
@@ -1127,11 +1035,11 @@ describe('AdoptionMap', () => {
             expect(finance?.tagName).toBe('BUTTON');
             if (finance) await userEvent.click(finance);
             expect(
-                screen.getByText('Finance', { selector: '[aria-current]' }),
-            ).toBeInTheDocument();
-            expect(
                 screen.getByRole('img', { name: /^Map of Finance:/ }),
             ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('complementary', { name: 'Details' }),
+            ).toBeNull();
         });
 
         it('opens a department from its row with the keyboard', async () => {
@@ -1140,47 +1048,11 @@ describe('AdoptionMap', () => {
             expect(document.activeElement).toBe(row('Finance'));
             await userEvent.keyboard('{Enter}');
             expect(
-                within(details()).getByRole('heading', { name: 'Finance' }),
+                screen.getByRole('img', { name: /^Map of Finance:/ }),
             ).toBeInTheDocument();
         });
 
-        it("titles a department with its parent's name, or Department at the top level, and keeps its own numbers", async () => {
-            renderMap();
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Ops,/ }),
-            );
-            expect(
-                within(details()).getByRole('heading', { name: 'Ops' }),
-            ).toBeInTheDocument();
-            expect(
-                within(details()).getByText('Department'),
-            ).toBeInTheDocument();
-            expect(panelLegend()).toEqual([
-                'Healthy 4',
-                'At risk 0',
-                'Lost 5',
-                'No account 21',
-            ]);
-            // Stores and Depots both 30%: the larger first
-            expect(listed('Sub-departments')).toEqual([
-                'Stores | 30%',
-                'Depots | 30%',
-            ]);
-            await userEvent.click(within(details()).getByText('Stores'));
-            expect(
-                within(details()).getByRole('heading', { name: 'Stores' }),
-            ).toBeInTheDocument();
-            expect(within(details()).getByText('Ops')).toBeInTheDocument();
-            expect(panelLegend()).toEqual([
-                'Healthy 4',
-                'At risk 0',
-                'Lost 2',
-                'No account 14',
-            ]);
-            expect(within(details()).queryByText('Sub-departments')).toBeNull();
-        });
-
-        it('lists the people directly in a department last, over the headcount it keeps for them, with nothing to open', async () => {
+        it('draws the people directly in a department over the headcount it keeps for them, and counts them in the legend', async () => {
             // Ops is 40: Stores 20, Depots 10, and the 10 it keeps for the 4 directly in it, 1 of them active
             const { container } = renderMap([
                 d('Ops', null, 40, 13, 3, {
@@ -1210,24 +1082,7 @@ describe('AdoptionMap', () => {
                     ),
                 ].map((node) => node.textContent),
             ).toEqual(['Directly in Ops', '4 of 10 on Lightdash · 1 active']);
-            expect(listed('Sub-departments')).toEqual([
-                'Stores | 30%',
-                'Depots | 30%',
-                'Directly in Ops · 4 | 40%',
-            ]);
-            const directRow = rowsUnder('Sub-departments').at(-1);
-            expect(directRow?.tagName).not.toBe('BUTTON');
-            expect(within(details()).getByTitle('Directly in Ops · 4')).toBe(
-                directRow?.firstElementChild,
-            );
-            expect(barShares(directRow)).toEqual([10, 0, 30]);
-            // The department's own bar, the legend under the map and the rings drawn all count its 27
-            expect(panelLegend()).toEqual([
-                'Healthy 3',
-                'At risk 0',
-                'Lost 10',
-                'No account 27',
-            ]);
+            // The legend under the map and the rings drawn both count its 27
             expect(legendCounts()).toEqual([
                 { label: 'Healthy', count: 3 },
                 { label: 'At risk', count: 0 },
@@ -1241,16 +1096,7 @@ describe('AdoptionMap', () => {
             ).toHaveLength(27);
         });
 
-        it('leaves out the people directly in a department without sub-departments, as they are the department', async () => {
-            renderMap();
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Finance,/ }),
-            );
-            expect(within(details()).queryByText(/Directly in/)).toBeNull();
-            expect(within(details()).queryByText('Sub-departments')).toBeNull();
-        });
-
-        it('asks for a headcount where a department has none and no sub-departments, and sorts it with the zeros', async () => {
+        it('asks for a headcount where a department has none and no sub-departments, and sorts it with the zeros', () => {
             renderMap(seededOrganization());
             expect(listed('Departments')).toEqual([
                 'Supply chain | 0%',
@@ -1262,16 +1108,6 @@ describe('AdoptionMap', () => {
             ]);
             // Its one person is on Lightdash and active, so the bar is full
             expect(barShares(row('Product'))).toEqual([100, 0, 0]);
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Operations,/ }),
-            );
-            // Operations keeps 8 beyond its sub-departments, with nobody in it yet
-            expect(listed('Sub-departments')).toEqual([
-                'Stores | 0%',
-                'Depots | 0%',
-                'North | Add headcount',
-                'Directly in Operations · 0 | 0%',
-            ]);
         });
 
         it('asks for a headcount for a department with none entered on it or below it, sub-departments or not', () => {
@@ -1315,43 +1151,6 @@ describe('AdoptionMap', () => {
             ]);
         });
 
-        it('asks for headcounts in place of the people without an account in a department opened with none entered on it or below it', async () => {
-            const departments = [
-                d('Hub', null, null, 6, 2, {
-                    directMetrics: metricsFixture(0, null),
-                }),
-                d('Team', 'Hub', null, 6, 2),
-                d('Group', null, null, 4, 1, {
-                    directMetrics: metricsFixture(0, null),
-                }),
-                d('Squad', 'Group', 10, 4, 1),
-            ];
-            const { unmount } = renderMap(departments);
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Hub,/ }),
-            );
-            expect(
-                within(details()).getByText('Add headcounts to see coverage'),
-            ).toBeInTheDocument();
-            expect(panelLegend()).toEqual(['Healthy 2', 'At risk 0', 'Lost 4']);
-            unmount();
-
-            // A headcount entered below the department is enough
-            renderMap(departments);
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Group,/ }),
-            );
-            expect(
-                within(details()).queryByText('Add headcounts to see coverage'),
-            ).toBeNull();
-            expect(panelLegend()).toEqual([
-                'Healthy 1',
-                'At risk 0',
-                'Lost 3',
-                'No account 6',
-            ]);
-        });
-
         it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
             renderMap(seededOrganization(), { canManage: false });
             expect(listed('Departments')).toContain('Product | No headcount');
@@ -1368,7 +1167,7 @@ describe('AdoptionMap', () => {
             expect(barShares(row('Legal'))).toEqual([0, 0, 0]);
         });
 
-        it('reads the people directly in a department without a headcount as the other rows without one do', async () => {
+        it('labels the people directly in a department without a headcount with their count alone', async () => {
             const hub = [
                 d('Hub', null, null, 13, 3, {
                     directMetrics: metricsFixture(4, null, {
@@ -1378,15 +1177,10 @@ describe('AdoptionMap', () => {
                 d('Team', 'Hub', null, 6, 2),
                 d('Crew', 'Hub', null, 3, 0),
             ];
-            const { container, unmount } = renderMap(hub);
+            const { container } = renderMap(hub);
             await userEvent.click(
                 screen.getByRole('button', { name: /^Hub,/ }),
             );
-            expect(listed('Sub-departments')).toEqual([
-                'Team | Add headcount',
-                'Crew | Add headcount',
-                'Directly in Hub · 4 | Add headcount',
-            ]);
             const direct = container.querySelector(
                 '[data-kind="direct"][data-circle="own:Hub"]',
             );
@@ -1398,15 +1192,6 @@ describe('AdoptionMap', () => {
                     ),
                 ].map((node) => node.textContent),
             ).toEqual(['Directly in Hub', '4 on Lightdash · 1 active']);
-            unmount();
-
-            renderMap(hub, { canManage: false });
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Hub,/ }),
-            );
-            expect(listed('Sub-departments')).toContain(
-                'Directly in Hub · 4 | No headcount',
-            );
         });
 
         it('keys the bar with the same dots the map draws', () => {
@@ -1418,7 +1203,7 @@ describe('AdoptionMap', () => {
             ).toEqual(['healthy', 'atRisk', 'lost', 'noAccount']);
         });
 
-        it('counts a headcount below its sub-departments as their total, so the panel, the legend and the dots agree', async () => {
+        it('counts a headcount below its sub-departments as their total, so the legend and the dots agree', async () => {
             // Stores has more accounts than headcount, so it counts 25; Ops' own 30 is below the 35 of Stores
             // and Depots, so it counts 35
             const lopsided = [
@@ -1432,12 +1217,6 @@ describe('AdoptionMap', () => {
             await userEvent.click(
                 screen.getByRole('button', { name: /^Ops,/ }),
             );
-            expect(panelLegend()).toEqual([
-                'Healthy 0',
-                'At risk 0',
-                'Lost 25',
-                'No account 10',
-            ]);
             expect(legendCounts()).toEqual([
                 { label: 'Healthy', count: 0 },
                 { label: 'At risk', count: 0 },
@@ -1482,7 +1261,7 @@ describe('AdoptionMap', () => {
             ).toHaveLength(32);
         });
 
-        it('never shows coverage above 100%, in the rows or for the department opened', async () => {
+        it('never shows coverage above 100% in the rows', () => {
             // A headcount of 8 entered for 9 people on Lightdash, all active, counts 9
             const over = d('Data', null, 8, 9, 9, {
                 metrics: metricsFixture(9, 100, {
@@ -1495,55 +1274,9 @@ describe('AdoptionMap', () => {
                 'Finance | 38%',
                 'Data | 100%',
             ]);
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Data,/ }),
-            );
-            expect(panelLegend()).toEqual([
-                'Healthy 9',
-                'At risk 0',
-                'Lost 0',
-                'No account 0',
-            ]);
-            expect(barShares(mainBar())).toEqual([100, 0, 0]);
             expect(
                 within(details()).queryByText(/More accounts than headcount/),
             ).toBeNull();
-        });
-
-        it('shows no tiles, owners, groups, roles, targets or captions for a department', async () => {
-            // Finance's 8 is below its sub-department's 10, which the old panel had a caption for
-            renderMap([
-                d('Finance', null, 8, 3, 2, {
-                    owners: [
-                        { type: 'user', uuid: 'owner', name: 'Ada Owner' },
-                    ],
-                    linkedGroups: [
-                        { groupUuid: 'group', name: 'Finance team' },
-                    ],
-                    targetActiveUsers: 6,
-                    targetDate: '2026-12-31',
-                    directMetrics: metricsFixture(0, null),
-                }),
-                d('Payroll', 'Finance', 10, 3, 2),
-                d('Legal', null, 60, 0, 0),
-            ]);
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Finance,/ }),
-            );
-            expect(panelLegend()).toEqual([
-                'Healthy 2',
-                'At risk 0',
-                'Lost 1',
-                'No account 7',
-            ]);
-            expect(
-                within(details()).queryByText(
-                    /Ada Owner|Finance team|group|viewer|editor|admin|target|to go|headcount entered is below|^On Lightdash$|of 8/i,
-                ),
-            ).toBeNull();
-            expect(
-                within(details()).getByRole('link', { name: 'Open Finance' }),
-            ).toBeInTheDocument();
         });
     });
 
@@ -1860,7 +1593,7 @@ describe('AdoptionMap', () => {
         await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
         expect(screen.queryByText('Names could not be loaded')).toBeNull();
         await userEvent.click(
-            screen.getByRole('button', { name: 'All departments' }),
+            screen.getByRole('button', { name: 'Show the organization' }),
         );
         await userEvent.click(
             screen.getByRole('button', { name: /^Finance,/ }),
@@ -1880,7 +1613,7 @@ describe('AdoptionMap', () => {
             screen.getByRole('button', { name: /^Everyone,/ }),
         );
         expect(
-            screen.getByRole('heading', { name: 'Everyone' }),
+            screen.getByRole('img', { name: /^Map of Everyone:/ }),
         ).toBeInTheDocument();
         expect(useDepartmentDetail).toHaveBeenLastCalledWith(undefined);
         expect(screen.queryByText('Names could not be loaded')).toBeNull();
@@ -2073,46 +1806,6 @@ describe('AdoptionMap', () => {
                 'Depots',
                 '3 of 10 on Lightdash · 1 active · 2 count in another department too',
             ]);
-        });
-
-        it('says which departments the person selected is in, and where they count when that is set', async () => {
-            loadMembers('Ops', people);
-            const { container } = renderShared();
-            await userEvent.click(
-                screen.getByRole('button', { name: /^Ops,/ }),
-            );
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Sam Shared' }),
-            );
-            expect(
-                within(details()).getByText('In 2 departments: Depots, Stores'),
-            ).toBeInTheDocument();
-            expect(within(details()).queryByText(/^Counts in/)).toBeNull();
-            expect(within(details()).getByText('Viewer')).toBeInTheDocument();
-            // Both of Sam's dots are the person selected
-            expect(drawn(container, '[data-selected]')).toHaveLength(2);
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Pat Primary' }),
-            );
-            expect(
-                within(details()).getByText(
-                    'In 2 departments: Finance, Stores',
-                ),
-            ).toBeInTheDocument();
-            expect(
-                within(details()).getByText('Counts in: Stores'),
-            ).toBeInTheDocument();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Sue Stone' }),
-            );
-            expect(
-                within(details()).getByText('Viewer · Stores'),
-            ).toBeInTheDocument();
-            expect(
-                within(details()).queryByText(/^In \d+ departments/),
-            ).toBeNull();
         });
 
         it('leaves the ring out of the legend when nobody in view is in another department', () => {
@@ -2308,7 +2001,6 @@ describe('AdoptionMap', () => {
                             d('Finance', null, 8, 3, 3),
                         ])}
                         canManage
-                        onEdit={vi.fn()}
                         measureText={estimateTextWidth}
                     />
                 </MemoryRouter>,
@@ -2321,7 +2013,7 @@ describe('AdoptionMap', () => {
             expect(isStill()).toBe(true);
             fireEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
             expect(
-                screen.getByRole('heading', { name: 'Ops' }),
+                screen.getByRole('img', { name: /^Map of Ops:/ }),
             ).toBeInTheDocument();
             expect(isStill()).toBe(true);
         });
