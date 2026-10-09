@@ -149,7 +149,7 @@ describe('waffle wording', () => {
         const operations = buildWaffleBlocks(deepOrganization)[0];
         expect(
             operations.parts.map((part) =>
-                formatPartLabel(part.name ?? operations.name, part),
+                part.name === null ? null : formatPartLabel(part),
             ),
         ).toEqual([
             'Supply Chain · 170 of 1,750',

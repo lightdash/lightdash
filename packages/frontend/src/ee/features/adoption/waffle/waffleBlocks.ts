@@ -7,20 +7,20 @@ import { countBucketPeople, type PeopleBucket } from '../map/geometry';
 import { formatCount } from '../utils/format';
 
 // One part of a department's block: a sub-department with everyone below it, the people directly in the department
-// beside its sub-departments, or the whole of a department without sub-departments
+// beside its sub-departments ("Directly in" it), or the whole of a department without sub-departments
 export type WafflePart = {
     id: string;
-    kind: 'department' | 'direct' | 'own';
     // The department the part stands for: the sub-department, or the block's own department
     departmentUuid: string;
-    // The sub-department's name, or "Directly in" the block's department; a department's only part has none
-    name: string | null;
     people: PeopleBucket;
     // One square per person: the effective headcount, or for the people directly in a department its residual
     size: number;
-};
+} & (
+    | { kind: 'department' | 'direct'; name: string }
+    | { kind: 'own'; name: null }
+);
 
-export type WaffleBlock = {
+export type WaffleBlockData = {
     departmentUuid: string;
     name: string;
     size: number;
@@ -49,7 +49,7 @@ const getBucket = (department: DepartmentWithMetrics): PeopleBucket => ({
 // so the parts hold its whole effective headcount and nobody is drawn twice
 export const buildWaffleBlocks = (
     departments: DepartmentWithMetrics[],
-): WaffleBlock[] => {
+): WaffleBlockData[] => {
     const children = getChildrenMap(departments);
     const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
     const lookup = (uuids: string[] | undefined): DepartmentWithMetrics[] =>
@@ -111,7 +111,7 @@ export const buildWaffleBlocks = (
     return lookup(children.get(null))
         .sort(byHeadcount)
         .map(
-            (top): WaffleBlock => ({
+            (top): WaffleBlockData => ({
                 departmentUuid: top.departmentUuid,
                 name: top.name,
                 size: top.effectiveHeadcount,
@@ -138,8 +138,10 @@ export const formatCounts = (
     `${formatPeople(members, headcount)} · ${formatCount(active)} active`;
 
 // A part's label: "Sales · 420 of 760"
-export const formatPartLabel = (name: string, part: WafflePart): string =>
-    `${name} · ${formatPeople(part.people.metrics.memberCount, part.people.headcount)}`;
+export const formatPartLabel = (
+    part: Extract<WafflePart, { name: string }>,
+): string =>
+    `${part.name} · ${formatPeople(part.people.metrics.memberCount, part.people.headcount)}`;
 
 // What a screen reader hears for a block or a part: "Sales, 420 of 760 on Lightdash, 252 active"
 export const describeCounts = (
