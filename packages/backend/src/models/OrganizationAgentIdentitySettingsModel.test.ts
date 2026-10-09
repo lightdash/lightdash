@@ -11,7 +11,6 @@ const model = new OrganizationAgentIdentitySettingsModel({
 });
 beforeEach(() => {
     tracker.reset();
-    tracker.on.select('organization_agent_identity_rules').response([]);
 });
 afterAll(async () => database.destroy());
 
@@ -88,9 +87,13 @@ test.each([
 test('legacy false replaces an AI slot rule and reports the actual prior source', async () => {
     tracker.reset();
     tracker.on.select('organizations').response([{ organization_uuid: 'org' }]);
-    tracker.on
-        .select('organization_agent_identity_rules')
-        .response([{ source: 'ai_service_account' }]);
+    tracker.on.select('organization_agent_identity_settings').response([
+        {
+            source: 'ai_service_account',
+            require_verified_agent_sessions: false,
+            timestamps_match: true,
+        },
+    ]);
     tracker.on.insert('organization_agent_identity_rules').response([]);
     tracker.on.insert('organization_agent_identity_settings').response([]);
     expect(
