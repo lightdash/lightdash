@@ -1,3 +1,10 @@
+# [2.524.0](https://github.com/lightdash/lightdash/compare/2.523.0...2.524.0) (2026-10-09)
+
+
+### Features
+
+* **warehouse:** refresh Snowflake sign-ins through a resolver, one refresh at a time per credential row ([#30840](https://github.com/lightdash/lightdash/issues/30840)) ([2dc4903](https://github.com/lightdash/lightdash/commit/2dc49031de83c0dba9ddb8ed27a115e58d462612))
+
 # [2.523.0](https://github.com/lightdash/lightdash/compare/2.522.0...2.523.0) (2026-10-09)
 
 
