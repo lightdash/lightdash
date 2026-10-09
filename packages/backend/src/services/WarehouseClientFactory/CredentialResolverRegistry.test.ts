@@ -20,7 +20,7 @@ import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredential
 it('rejects duplicate registrations', () => {
     const registry = new CredentialResolverRegistry();
     const resolver = new BigquerySsoCredentialResolver(
-        lightdashConfigMock.auth.google,
+        () => lightdashConfigMock.auth.google,
         null,
     );
     registry.register(
@@ -47,7 +47,7 @@ it.each([
 ])('keeps %s outside the SSO resolver', async (authenticationType) => {
     const registry = new CredentialResolverRegistry();
     const resolver = new BigquerySsoCredentialResolver(
-        lightdashConfigMock.auth.google,
+        () => lightdashConfigMock.auth.google,
         null,
     );
     const resolve = vi.spyOn(resolver, 'resolve');

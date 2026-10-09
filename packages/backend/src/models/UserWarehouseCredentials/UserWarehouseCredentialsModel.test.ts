@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { DbUserWarehouseCredentials } from '../../database/entities/userWarehouseCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentialsModel';
@@ -24,7 +24,8 @@ const validBigqueryCredentials = {
     authenticationType: BigqueryAuthenticationType.SSO,
     keyfileContents: {
         type: 'authorized_user',
-        client_id: lightdashConfigMock.auth.google.oauth2ClientId!,
+        client_id:
+            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId!,
         client_secret: 'client-secret',
         refresh_token: 'refresh-token',
     },

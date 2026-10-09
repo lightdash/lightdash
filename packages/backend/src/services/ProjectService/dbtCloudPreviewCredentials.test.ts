@@ -21,7 +21,7 @@ import {
 } from '@lightdash/warehouses';
 import { createHmac } from 'crypto';
 import fetch, { Response } from 'node-fetch';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -159,9 +159,9 @@ const setup = (
     const userModel = { findSessionUserByUUID: vi.fn(async () => creator) };
     const service = new ProjectService({
         lightdashConfig: {
-            ...lightdashConfigMock,
+            ...lightdashConfigWithGoogleOAuthMock,
             warehouseClient: {
-                ...lightdashConfigMock.warehouseClient,
+                ...lightdashConfigWithGoogleOAuthMock.warehouseClient,
                 resolveDbtCloudPreviewCredentials: enabled,
                 resolveCompileCredentials: compileEnabled,
             },
@@ -823,7 +823,9 @@ it.each([true, false])(
             maximumBytesBilled: undefined,
             keyfileContents: {
                 type: 'authorized_user',
-                client_id: lightdashConfigMock.auth.google.oauth2ClientId!,
+                client_id:
+                    lightdashConfigWithGoogleOAuthMock.auth.google
+                        .oauth2ClientId!,
                 refresh_token: 'saved-refresh',
             },
         };
@@ -838,7 +840,8 @@ it.each([true, false])(
                 keyfileContents: {
                     ...credentials.keyfileContents,
                     client_secret:
-                        lightdashConfigMock.auth.google.oauth2ClientSecret,
+                        lightdashConfigWithGoogleOAuthMock.auth.google
+                            .oauth2ClientSecret,
                 },
             }),
             expect.any(Object),

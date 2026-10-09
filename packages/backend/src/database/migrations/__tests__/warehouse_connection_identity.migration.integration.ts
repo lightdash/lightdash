@@ -18,7 +18,7 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
@@ -66,14 +66,14 @@ describe('Multi runtime identity on the real schema', () => {
         identity = new WarehouseConnectionIdentityModel({ database });
         savedSqlModel = new SavedSqlModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         projectModel = new ProjectModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             encryptionUtil: new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             }),
         });
     }, 600000);
@@ -608,7 +608,7 @@ describe('Multi runtime identity on the real schema', () => {
             const upstream = await createMultiProject();
             const previewUuid = await createPreviewProject(upstream);
             const encryption = new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             });
             const credentials = {
                 type: WarehouseTypes.BIGQUERY,
