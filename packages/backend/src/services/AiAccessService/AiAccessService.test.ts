@@ -12,6 +12,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
+    SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
     type AiIdentitySource,
@@ -22,6 +23,7 @@ import {
     type QueryHistory,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
+import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
@@ -3237,6 +3239,80 @@ describe('retained results after identity rule changes', () => {
 });
 
 describe('silent refresh routing', () => {
+    test.each([QuerySurface.MCP, QuerySurface.APP, QuerySurface.API])(
+        'returns an administrator-directed OAuth refusal without reconnect or expiry events on %s',
+        async (surface) => {
+            const { service, registry, analytics } = setup();
+            const model = {
+                findAiCredentialWithSecrets: vi.fn(async () => ({
+                    uuid: 'credential',
+                    expiresAt: null,
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'refresh-token',
+                    },
+                })),
+                rotateRefreshToken: vi.fn(),
+                deleteAiCredential: vi.fn(),
+            };
+            registry.mockReturnValue(
+                new SnowflakeAiCredentialProvider({
+                    lightdashConfig: {
+                        ...lightdashConfigMock,
+                        auth: {
+                            ...lightdashConfigMock.auth,
+                            snowflakeAi: {
+                                ...lightdashConfigMock.auth.snowflakeAi,
+                                clientId: 'client',
+                                clientSecret: 'secret',
+                                authorizationEndpoint:
+                                    'https://warehouse.example/authorize',
+                                tokenEndpoint:
+                                    'https://warehouse.example/token',
+                            },
+                        },
+                    },
+                    userWarehouseCredentialsModel:
+                        model as unknown as UserWarehouseCredentialsModel,
+                }),
+            );
+            const exchange = vi
+                .spyOn(refresh, 'requestNewAccessToken')
+                .mockImplementation((_strategy, _token, callback) =>
+                    callback(
+                        { statusCode: 400, data: '{"error":"invalid_client"}' },
+                        '',
+                        '',
+                        {},
+                    ),
+                );
+            try {
+                await expect(
+                    service.resolvePlan({
+                        ...args,
+                        connection: snowflake,
+                        evaluation: { kind: 'query', surface },
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                        action: null,
+                        connectUrl: null,
+                        message:
+                            'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                    },
+                });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => event.event),
+                ).toEqual(['query.refused']);
+                expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+                expect(model.deleteAiCredential).not.toHaveBeenCalled();
+            } finally {
+                exchange.mockRestore();
+            }
+        },
+    );
     test('preserves a retryable error without refusal analytics or URLs', async () => {
         const { service, provider, analytics } = setup();
         const error = new UnexpectedServerError('Try again in a moment.', {

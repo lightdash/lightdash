@@ -30,6 +30,11 @@ import {
 } from './AiCredentialProvider';
 import { type AiCredentialProviderDependencies } from './registry';
 
+const waitForRefreshRotation = () =>
+    new Promise<void>((resolve) => {
+        setTimeout(resolve, 300);
+    });
+
 export class SnowflakeAiCredentialProvider implements AiCredentialProvider<CreateSnowflakeCredentials> {
     readonly warehouseType = WarehouseTypes.SNOWFLAKE;
 
@@ -161,6 +166,40 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         };
     }
 
+    private async findRotatedCredential(
+        connection: CreateSnowflakeCredentials,
+        userUuid: string,
+        oldRefreshToken: string,
+        remainingReads: number,
+    ): Promise<UserWarehouseCredentialsWithSecrets | null> {
+        const current =
+            await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                {
+                    userUuid,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+            );
+        const latest = current
+            ? mergePersonalWarehouseCredentials(connection, current)
+            : null;
+        if (
+            current &&
+            latest?.type === WarehouseTypes.SNOWFLAKE &&
+            latest.authenticationType === SnowflakeAuthenticationType.SSO &&
+            latest.refreshToken &&
+            latest.refreshToken !== oldRefreshToken
+        )
+            return current;
+        if (remainingReads <= 1) return null;
+        await waitForRefreshRotation();
+        return this.findRotatedCredential(
+            connection,
+            userUuid,
+            oldRefreshToken,
+            remainingReads - 1,
+        );
+    }
+
     private async refreshCredential(
         connection: CreateSnowflakeCredentials,
         credential: UserWarehouseCredentialsWithSecrets,
@@ -196,27 +235,13 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             switch (failure.kind) {
                 case 'grant_gone': {
                     if (retryRotation) {
-                        const current =
-                            await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
-                                {
-                                    userUuid,
-                                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                                },
-                            );
-                        const latest = current
-                            ? mergePersonalWarehouseCredentials(
-                                  connection,
-                                  current,
-                              )
-                            : null;
-                        if (
-                            current &&
-                            latest?.type === WarehouseTypes.SNOWFLAKE &&
-                            latest.authenticationType ===
-                                SnowflakeAuthenticationType.SSO &&
-                            latest.refreshToken &&
-                            latest.refreshToken !== oldRefreshToken
-                        )
+                        const current = await this.findRotatedCredential(
+                            connection,
+                            userUuid,
+                            oldRefreshToken,
+                            3,
+                        );
+                        if (current)
                             return this.refreshCredential(
                                 connection,
                                 current,
@@ -238,7 +263,11 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     );
                 case 'configuration':
                     throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.NEEDS_SIGN_IN,
+                        AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                        {
+                            message:
+                                'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                        },
                     );
                 default:
                     return assertUnreachable(
@@ -247,21 +276,24 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     );
             }
         }
-        const expiresAt =
-            tokens.refreshTokenExpiresAt ??
-            (credential.expiresAt &&
-            credential.expiresAt.getTime() <= Date.now()
-                ? null
-                : credential.expiresAt);
         if (
             tokens.refreshToken !== oldRefreshToken ||
-            expiresAt?.getTime() !== credential.expiresAt?.getTime()
+            (tokens.refreshTokenExpiresAt &&
+                tokens.refreshTokenExpiresAt.getTime() !==
+                    credential.expiresAt?.getTime()) ||
+            (credential.expiresAt &&
+                credential.expiresAt.getTime() <= Date.now())
         )
             await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
                 credential.uuid,
                 oldRefreshToken,
                 tokens.refreshToken,
-                expiresAt,
+                tokens.refreshTokenExpiresAt
+                    ? {
+                          kind: 'reported',
+                          expiresAt: tokens.refreshTokenExpiresAt,
+                      }
+                    : { kind: 'unreported' },
             );
         return { credential, tokens, merged: credentials };
     }
