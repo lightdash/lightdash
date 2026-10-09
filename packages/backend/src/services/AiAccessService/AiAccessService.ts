@@ -33,6 +33,7 @@ import {
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
+    type AgentIdentityProjectWithoutAiServiceAccount,
     type AiAccessForUser,
     type AiActorKind,
     type AiExecutionPlan,
@@ -318,6 +319,37 @@ export class AiAccessService extends BaseService {
                 })),
             ),
         };
+    }
+
+    async getProjectsWithoutAiServiceAccount(
+        account: Account,
+        warehouseType: WarehouseTypes,
+    ): Promise<AgentIdentityProjectWithoutAiServiceAccount[]> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            !isAllowedAgentIdentitySource(warehouseType, 'ai_service_account')
+        ) {
+            throw new ParameterError(
+                'The AI service account is not supported for the warehouse type',
+            );
+        }
+        return this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
+            organizationUuid,
+            warehouseType,
+        );
     }
 
     private async authorizeSnowflakeSetup(account: Account): Promise<string> {

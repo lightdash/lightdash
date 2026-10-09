@@ -3,6 +3,7 @@ import {
     FeatureFlags,
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
+    type AiIdentitySource,
 } from '@lightdash/common';
 import { Anchor, Group, Select, Stack, Text } from '@mantine/core';
 import { Fragment, useState } from 'react';
@@ -13,6 +14,7 @@ import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { getWarehouseIcon } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import AgentIdentityRuleConfirmModal from './AgentIdentityRuleConfirmModal';
 import {
     useOrganizationAgentIdentitySettings,
     useUpdateOrganizationAgentIdentityRule,
@@ -33,7 +35,10 @@ const AgentIdentityRule = ({
 }) => {
     const save = useUpdateOrganizationAgentIdentityRule();
     const [pending, setPending] = useState(false);
-    const source = pending ? 'agent_sign_in' : rule.source;
+    const [pendingSource, setPendingSource] = useState<Exclude<
+        AiIdentitySource,
+        'agent_sign_in'
+    > | null>(null);
 
     return (
         <Stack gap="xs">
@@ -48,7 +53,7 @@ const AgentIdentityRule = ({
                 </Text>
                 <Select
                     aria-label={`${identityWarehouseNames[rule.warehouseType as keyof typeof identityWarehouseNames]} agent identity`}
-                    value={source}
+                    value={rule.source}
                     data={AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
                         (source) => ({
                             value: source,
@@ -69,7 +74,7 @@ const AgentIdentityRule = ({
                     allowDeselect={false}
                     disabled={save.isLoading}
                     w={340}
-                    onChange={(value) => {
+                    onOptionSubmit={(value) => {
                         const source = AGENT_IDENTITY_SOURCES[
                             rule.warehouseType
                         ].person.find((allowed) => allowed === value);
@@ -82,17 +87,37 @@ const AgentIdentityRule = ({
                             return;
                         }
                         setPending(false);
-                        if (source && source !== rule.source)
-                            save.mutate({
-                                warehouseType: rule.warehouseType,
-                                source,
-                            });
+                        if (
+                            source &&
+                            source !== 'agent_sign_in' &&
+                            source !== rule.source
+                        )
+                            setPendingSource(source);
                     }}
                 />
             </Group>
             <Text size="sm" c="dimmed">
-                {identityLabels[source].helper}
+                {pending
+                    ? 'Not saved. Finish the setup below, then select Turn on.'
+                    : identityLabels[rule.source].helper}
             </Text>
+            {pendingSource !== null && (
+                <AgentIdentityRuleConfirmModal
+                    warehouseType={rule.warehouseType}
+                    source={pendingSource}
+                    onClose={() => setPendingSource(null)}
+                    saving={save.isLoading}
+                    onConfirm={() =>
+                        save.mutate(
+                            {
+                                warehouseType: rule.warehouseType,
+                                source: pendingSource,
+                            },
+                            { onSuccess: () => setPendingSource(null) },
+                        )
+                    }
+                />
+            )}
             {rule.projectsMissingAiServiceAccount &&
                 rule.projectsMissingAiServiceAccount.length > 0 && (
                     <Text size="sm" c="orange">

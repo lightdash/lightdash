@@ -1,6 +1,9 @@
 import { Ability } from '@casl/ability';
 import {
     FeatureFlags,
+    FeatureNotEnabledError,
+    ForbiddenError,
+    ParameterError,
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
     type PossibleAbilities,
@@ -18,6 +21,12 @@ import { type ServiceRepository } from '../../services/ServiceRepository';
 import { OrganizationAgentIdentityController } from './OrganizationAgentIdentityController';
 
 const setup = () => {
+    vi.spyOn(analyticsMock, 'track').mockClear();
+    const slots = {
+        findProjectsMissingSlot: vi.fn(
+            async (): Promise<{ projectUuid: string; name: string }[]> => [],
+        ),
+    };
     const model = {
         get: vi.fn(async () => ({ requireVerifiedAgentSessions: false })),
         upsert: vi.fn(
@@ -58,9 +67,7 @@ const setup = () => {
             getWithSecret: vi.fn().mockResolvedValue(null),
         } as unknown as OrganizationSnowflakeAgentClientModel,
         analytics: analyticsMock,
-        aiServiceAccountCredentialsModel: {
-            findProjectsMissingSlot: vi.fn(async () => []),
-        },
+        aiServiceAccountCredentialsModel: slots,
         featureFlagModel: flags,
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -91,7 +98,7 @@ const setup = () => {
     } as ServiceRepository);
     const account = buildAccount();
     const req = { account } as Request;
-    return { controller, model, rules, account, req, flags };
+    return { controller, model, rules, account, req, flags, slots };
 };
 
 test('allows an authenticated member to read their organization settings', async () => {
@@ -281,4 +288,85 @@ test('gates the per-warehouse PUT before writing', async () => {
         statusCode: 403,
     });
     expect(rules.set).not.toHaveBeenCalled();
+});
+
+describe('projects without an AI service account', () => {
+    test.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
+        'returns the missing projects for an admin on %s without saving',
+        async (warehouseType) => {
+            const { controller, rules, account, req, slots } = setup();
+            account.user.ability = new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'Organization',
+                    conditions: {
+                        organizationUuid: account.organization.organizationUuid,
+                    },
+                },
+            ]);
+            const missing = [{ projectUuid: 'project-uuid', name: 'Project' }];
+            slots.findProjectsMissingSlot.mockResolvedValue(missing);
+            expect(
+                await controller.getProjectsWithoutAiServiceAccount(
+                    req,
+                    warehouseType,
+                ),
+            ).toEqual({
+                status: 'ok',
+                results: missing,
+            });
+            expect(slots.findProjectsMissingSlot).toHaveBeenCalledWith(
+                account.organization.organizationUuid,
+                warehouseType,
+            );
+            expect(rules.set).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        },
+    );
+    test('rejects a non-admin', async () => {
+        const { controller, req, rules, slots } = setup();
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.BIGQUERY,
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+    test('rejects an unsupported warehouse', async () => {
+        const { controller, req, account, rules, slots } = setup();
+        account.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Organization',
+                conditions: {
+                    organizationUuid: account.organization.organizationUuid,
+                },
+            },
+        ]);
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.POSTGRES,
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
+    test('rejects the read when the feature flag is off', async () => {
+        const { controller, req, flags, rules, slots } = setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        await expect(
+            controller.getProjectsWithoutAiServiceAccount(
+                req,
+                WarehouseTypes.BIGQUERY,
+            ),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(analyticsMock.track).not.toHaveBeenCalled();
+    });
 });

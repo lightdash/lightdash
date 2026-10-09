@@ -120,6 +120,16 @@ export const isAllowedAgentIdentitySource = (
         sources.includes(source),
     );
 
+export interface AgentIdentityProjectWithoutAiServiceAccount {
+    projectUuid: string;
+    name: string;
+}
+
+export interface ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse {
+    status: 'ok';
+    results: AgentIdentityProjectWithoutAiServiceAccount[];
+}
+
 export type OrganizationAgentIdentityRule = {
     warehouseType: WarehouseTypes;
     source: AiIdentitySource;
