@@ -15,6 +15,7 @@ import {
     SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseConnectionError,
+    WarehouseQueryError,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDuckdbDucklakeCredentials,
@@ -2097,6 +2098,60 @@ describe('AI service account factory scopes', () => {
             ).toMatchObject(databricks);
         },
     );
+
+    test('attributes Databricks query authentication failure without selecting another credential source', async () => {
+        const { factory, aiAccessService, projectModel, credentialSource } =
+            buildFixture();
+        const error = new WarehouseQueryError(
+            'Received a response with a bad HTTP status code: 401',
+        );
+        const databricks = {
+            type: WarehouseTypes.DATABRICKS,
+            serverHostName: 'workspace.example.com',
+            httpPath: '/sql/warehouse',
+            database: 'schema',
+            token: 'slot-token',
+        } as const;
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...slotPlan,
+            credentials: databricks,
+        });
+        const streamQuery = vi.fn().mockRejectedValue(error);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                streamQuery,
+            }),
+        );
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => {
+                    await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                        tags: {},
+                    });
+                },
+            ),
+        ).rejects.toMatchObject({
+            cause: error,
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(streamQuery).toHaveBeenCalledOnce();
+        expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledOnce();
+        expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
+        expect(credentialSource.loadBase).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).not.toHaveBeenCalled();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledOnce();
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+        ).toMatchObject(databricks);
+    });
 
     test('passes Databricks probe controls through a bypass without an AI plan', async () => {
         const { factory, projectModel, aiAccessService } = buildFixture();

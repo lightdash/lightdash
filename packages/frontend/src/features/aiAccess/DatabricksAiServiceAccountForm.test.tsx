@@ -1,7 +1,9 @@
 import {
     DatabricksAuthenticationType,
     WarehouseTypes,
+    type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
+    type ApiAiServiceAccountSaveResponse,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
@@ -23,6 +25,21 @@ const verification: AiServiceAccountTestResult = {
     observed: { currentUser: 'verified-principal' },
     message: 'Connection works.',
     checkedAt: new Date('2026-10-09T12:00:00Z'),
+};
+const slot: AiServiceAccountSlot = {
+    uuid: 'slot',
+    identityUuid: 'new-identity',
+    projectUuid: 'project',
+    warehouseConnectionUuid: null,
+    kind: 'ai_service_account',
+    scope: 'connection',
+    warehouseType: WarehouseTypes.DATABRICKS,
+    method: 'oauth_m2m',
+    createdByUserUuid: null,
+    updatedByUserUuid: null,
+    credentialSubjectUserUuid: null,
+    createdAt: new Date('2026-10-09T12:00:00Z'),
+    updatedAt: new Date('2026-10-09T12:00:00Z'),
 };
 const credentials = {
     type: WarehouseTypes.DATABRICKS,
@@ -60,11 +77,12 @@ describe('Databricks AI service account form', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(lightdashApi).mockResolvedValue(verification);
-        vi.mocked(lightdashApiResponse).mockResolvedValue({
+        const response: ApiAiServiceAccountSaveResponse = {
             status: 'ok',
-            results: { identityUuid: 'new-identity' },
+            results: slot,
             verification,
-        });
+        };
+        vi.mocked(lightdashApiResponse).mockResolvedValue(response);
     });
     it('requires both non-blank inputs and masks the secret', () => {
         setup();
@@ -114,7 +132,7 @@ describe('Databricks AI service account form', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));
         await waitFor(() =>
             expect(onSaved).toHaveBeenCalledWith(
-                { identityUuid: 'new-identity' },
+                slot,
                 'verified-principal',
                 verification,
             ),

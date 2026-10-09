@@ -1,6 +1,8 @@
 import {
     DatabricksAuthenticationType,
     WarehouseTypes,
+    type AiServiceAccountSlot,
+    type ApiAiServiceAccountSaveResponse,
 } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
@@ -121,12 +123,27 @@ describe('AI service account credential mutations', () => {
     it.each([verification, undefined])(
         'retains optional save verification: %s',
         async (resultVerification) => {
-            const slot = { identityUuid: 'identity' };
-            vi.mocked(lightdashApiResponse).mockResolvedValue({
+            const slot: AiServiceAccountSlot = {
+                uuid: 'slot',
+                identityUuid: 'identity',
+                projectUuid: 'project',
+                warehouseConnectionUuid: null,
+                kind: 'ai_service_account',
+                scope: 'connection',
+                warehouseType: WarehouseTypes.DATABRICKS,
+                method: 'oauth_m2m',
+                createdByUserUuid: null,
+                updatedByUserUuid: null,
+                credentialSubjectUserUuid: null,
+                createdAt: new Date('2026-10-09T12:00:00Z'),
+                updatedAt: new Date('2026-10-09T12:00:00Z'),
+            };
+            const response: ApiAiServiceAccountSaveResponse = {
                 status: 'ok',
                 results: slot,
                 verification: resultVerification,
-            });
+            };
+            vi.mocked(lightdashApiResponse).mockResolvedValue(response);
             const { result } = renderHookWithProviders(() =>
                 useSaveAiServiceAccount('project'),
             );

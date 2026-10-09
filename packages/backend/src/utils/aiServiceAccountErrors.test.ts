@@ -77,6 +77,9 @@ describe('Databricks AI service account authentication errors', () => {
         new WarehouseConnectionError(
             'Received a response with a bad HTTP status code: 401',
         ),
+        new WarehouseQueryError(
+            'Received a response with a bad HTTP status code: 401',
+        ),
     ])('recognizes token or session authentication rejection %j', (error) => {
         expect(isDatabricksServiceAccountAuthError(error)).toBe(true);
     });
@@ -87,9 +90,6 @@ describe('Databricks AI service account authentication errors', () => {
             'Received a response with a bad HTTP status code: 403',
         ),
         new WarehouseQueryError('Syntax error near token'),
-        new WarehouseQueryError(
-            'Received a response with a bad HTTP status code: 401',
-        ),
         new Error('Invalid access token in SQL'),
         new Error('ECONNRESET'),
         { response: { status: 503 } },

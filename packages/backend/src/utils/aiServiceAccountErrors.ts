@@ -1,4 +1,7 @@
-import { WarehouseConnectionError } from '@lightdash/common';
+import {
+    WarehouseConnectionError,
+    WarehouseQueryError,
+} from '@lightdash/common';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null;
@@ -65,7 +68,8 @@ export const isDatabricksServiceAccountAuthError = (
     )
         return true;
     if (
-        error instanceof WarehouseConnectionError &&
+        (error instanceof WarehouseConnectionError ||
+            error instanceof WarehouseQueryError) &&
         /^Received a response with a bad HTTP status code: 401$/.test(
             error.message,
         )
