@@ -1,16 +1,13 @@
-import { Button, Group, Paper, Text } from '@mantine/core';
-import { useLayoutEffect, useMemo, useState, type FC } from 'react';
+import { Button, Divider, Group, Paper, Text } from '@mantine/core';
+import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { joinLabels, pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields, type FieldScope } from './peers';
 import { useControlsSidebar } from './useControlsSidebar';
-import {
-    useFieldTileActions,
-    type FieldTiles,
-    type TileScope,
-} from './useFieldTileActions';
+import { useFieldTileActions, type FieldTiles } from './useFieldTileActions';
 import { usePortalTargets } from './usePortalTargets';
 
 const GRID_KEY = 'grid';
@@ -23,12 +20,11 @@ const getGridSelector = (key: string) =>
         ? GRID_SELECTOR
         : `[data-tab-uuid="${key}"] ${GRID_SELECTOR}`;
 
-// An element of ours right above the active tab's tile grid, so the bar
-// scrolls with the tiles and pushes them down
-const useBarHost = (
+// The element the active tab's tile grid sits in: the bar goes after the grid
+const useGridContainer = (
     activeTabUuid: string | undefined,
     isEnabled: boolean,
-): HTMLElement | null => {
+): Element | null => {
     const keys = useMemo(
         () =>
             activeTabUuid === undefined
@@ -45,68 +41,67 @@ const useBarHost = (
         anyGrid !== undefined && anyGrid.closest(TAB_PANEL_SELECTOR) === null
             ? anyGrid
             : undefined;
-    const grid = tabGrid ?? loneGrid ?? null;
-
-    const [host, setHost] = useState<HTMLElement | null>(null);
-    useLayoutEffect(() => {
-        if (grid === null) return;
-        const element = document.createElement('div');
-        grid.before(element);
-        setHost(element);
-        return () => {
-            element.remove();
-            setHost(null);
-        };
-    }, [grid]);
-    return host;
+    return (tabGrid ?? loneGrid)?.parentElement ?? null;
 };
 
-type ActionsProps = {
+type ScopeGroupProps = {
+    // "This tab", "Every tab", or "Tiles" on a dashboard without tabs
+    name: string;
     label: string;
     scope: FieldScope;
     replacedLabels: string[];
     // Ends each `aria-label`: " on this tab", or nothing without tabs
     scopeSuffix: string;
-    clearLabel: string;
     clearName: string;
-    isQuiet: boolean;
     onAddToUnfiltered: () => void;
     onSwitch: () => void;
     onClear: () => void;
 };
 
-// The actions of one scope; one that would change nothing is left out
-const Actions: FC<ActionsProps> = ({
+// One scope: its count, then the actions that would change something
+const ScopeGroup: FC<ScopeGroupProps> = ({
+    name,
     label,
     scope,
     replacedLabels,
     scopeSuffix,
-    clearLabel,
     clearName,
-    isQuiet,
     onAddToUnfiltered,
     onSwitch,
     onClear,
 }) => {
-    const { applied, unfiltered, replaced } = scope;
+    const { applied, possible, unfiltered, replaced } = scope;
     const replacedNames = joinLabels(replacedLabels);
-    const variant = isQuiet ? 'subtle' : 'default';
     return (
-        <>
+        <Group gap="xs" wrap="nowrap">
+            <Group gap={6} wrap="nowrap" aria-live="polite">
+                <Text fz="xs" c="dimmed">
+                    {name}
+                </Text>
+                {possible === 0 ? (
+                    <Text fz="xs" c="dimmed">
+                        no tile has it
+                    </Text>
+                ) : (
+                    <Text fz="xs" fw={600} className={classes.count}>
+                        {`${applied} of ${possible}`}
+                    </Text>
+                )}
+            </Group>
             {unfiltered > 0 && (
                 <Button
                     size="compact-xs"
-                    variant={variant}
-                    aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
+                    variant="default"
+                    aria-label={`Filter the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)} by ${label}${scopeSuffix}`}
                     onClick={onAddToUnfiltered}
                 >
-                    {`Add to ${unfiltered} unfiltered`}
+                    {`Filter ${unfiltered} more`}
                 </Button>
             )}
             {replaced > 0 && (
                 <Button
                     size="compact-xs"
-                    variant={variant}
+                    variant="default"
                     aria-label={`Switch ${replaced} ${pluralizeTiles(replaced)} from ${replacedNames} to ${label}${scopeSuffix}`}
                     onClick={onSwitch}
                 >
@@ -116,30 +111,21 @@ const Actions: FC<ActionsProps> = ({
             {applied > 0 && (
                 <Button
                     size="compact-xs"
-                    variant={variant}
+                    variant="subtle"
+                    color="gray"
                     aria-label={clearName}
                     onClick={onClear}
                 >
-                    {clearLabel}
+                    Clear
                 </Button>
             )}
-        </>
+        </Group>
     );
-};
-
-const getCountSentence = (
-    label: string,
-    { applied, possible }: FieldScope,
-    hasTabs: boolean,
-): string => {
-    if (!hasTabs)
-        return `${label} is on ${applied} of ${possible} ${pluralizeTiles(possible)}`;
-    if (possible === 0) return `No tile on this tab has ${label}`;
-    return `${label} is on ${applied} of ${possible} ${pluralizeTiles(possible)} on this tab`;
 };
 
 const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     const {
+        field,
         label,
         thisTabScope,
         thisTabReplacedLabels,
@@ -149,72 +135,76 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         switchFromOthers,
         clear,
     } = fieldTiles;
-    const hasTabs = thisTabScope !== null;
-    const mainTileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
 
     return (
         <Paper
             role="region"
             aria-label={`Tiles filtered by ${label}`}
+            shadow="md"
+            withBorder
+            radius="md"
             className={classes.bar}
         >
-            <Group gap="xs">
-                <Text
-                    fz="sm"
-                    fw={600}
-                    aria-live="polite"
-                    className={classes.count}
-                >
-                    {getCountSentence(
-                        label,
-                        thisTabScope ?? everyTabScope,
-                        hasTabs,
+            <Group gap="sm" justify="center">
+                <Group gap={6} wrap="nowrap">
+                    {field !== null && (
+                        <FieldIcon item={field} size={14} aria-hidden />
                     )}
-                </Text>
-                <Actions
-                    label={label}
-                    scope={thisTabScope ?? everyTabScope}
-                    replacedLabels={
-                        hasTabs ? thisTabReplacedLabels : everyTabReplacedLabels
-                    }
-                    scopeSuffix={hasTabs ? ' on this tab' : ''}
-                    clearLabel={hasTabs ? 'Clear this tab' : 'Clear from tiles'}
-                    clearName={
-                        hasTabs
-                            ? `Clear ${label} from this tab`
-                            : `Clear ${label} from tiles`
-                    }
-                    isQuiet={false}
-                    onAddToUnfiltered={() => addToUnfiltered(mainTileScope)}
-                    onSwitch={() => switchFromOthers(mainTileScope)}
-                    onClear={() => clear(mainTileScope)}
-                />
-            </Group>
-            {hasTabs && (
-                <Group gap="xs" className={classes.everyTab}>
-                    <Text fz="xs" c="dimmed" className={classes.everyTabCount}>
-                        {`Every tab: ${everyTabScope.applied} of ${everyTabScope.possible}`}
+                    <Text fz="sm" fw={600} truncate maw={240}>
+                        {label}
                     </Text>
-                    <Actions
+                </Group>
+                <Divider orientation="vertical" />
+                {thisTabScope === null ? (
+                    <ScopeGroup
+                        name="Tiles"
                         label={label}
                         scope={everyTabScope}
                         replacedLabels={everyTabReplacedLabels}
-                        scopeSuffix=" on every tab"
-                        clearLabel="Clear everywhere"
-                        clearName={`Clear ${label} from every tab`}
-                        isQuiet
+                        scopeSuffix=""
+                        clearName={`Clear ${label} from tiles`}
                         onAddToUnfiltered={() => addToUnfiltered('every-tab')}
                         onSwitch={() => switchFromOthers('every-tab')}
                         onClear={() => clear('every-tab')}
                     />
-                </Group>
-            )}
+                ) : (
+                    <>
+                        <ScopeGroup
+                            name="This tab"
+                            label={label}
+                            scope={thisTabScope}
+                            replacedLabels={thisTabReplacedLabels}
+                            scopeSuffix=" on this tab"
+                            clearName={`Clear ${label} from this tab`}
+                            onAddToUnfiltered={() =>
+                                addToUnfiltered('this-tab')
+                            }
+                            onSwitch={() => switchFromOthers('this-tab')}
+                            onClear={() => clear('this-tab')}
+                        />
+                        <Divider orientation="vertical" />
+                        <ScopeGroup
+                            name="Every tab"
+                            label={label}
+                            scope={everyTabScope}
+                            replacedLabels={everyTabReplacedLabels}
+                            scopeSuffix=" on every tab"
+                            clearName={`Clear ${label} from every tab`}
+                            onAddToUnfiltered={() =>
+                                addToUnfiltered('every-tab')
+                            }
+                            onSwitch={() => switchFromOthers('every-tab')}
+                            onClear={() => clear('every-tab')}
+                        />
+                    </>
+                )}
+            </Group>
         </Paper>
     );
 };
 
-// Over the tiles while a field is clicked: what it is on, and what would
-// change that. The hovered field never shows it, so the tiles do not jump
+// Floats over the tiles while a field is clicked: what it is on, and what
+// would change that. Never for the hovered field
 export const FieldTilesBar: FC = () => {
     const { editingRule, highlightedFieldId, waitingFieldIds } =
         useControlsSidebar();
@@ -229,9 +219,9 @@ export const FieldTilesBar: FC = () => {
             ? highlightedFieldId
             : null;
     const isShown = getFieldTiles !== null && fieldId !== null;
-    const host = useBarHost(activeTabUuid, isShown);
+    const container = useGridContainer(activeTabUuid, isShown);
 
-    if (getFieldTiles === null || fieldId === null || host === null)
+    if (getFieldTiles === null || fieldId === null || container === null)
         return null;
-    return createPortal(<Bar fieldTiles={getFieldTiles(fieldId)} />, host);
+    return createPortal(<Bar fieldTiles={getFieldTiles(fieldId)} />, container);
 };

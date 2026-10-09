@@ -1,35 +1,30 @@
-/* Lined up with the tiles: the grid's container padding is 10px */
+/* Floats at the bottom of the dashboard area, as wide as its content. Sticky
+   in the element the grid sits in, after the grid: it never moves a tile, and
+   it is above the tile overlays (z-index 2) and below the sticky tabs */
 .bar {
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
 
-    margin: 0 10px var(--mantine-spacing-xs);
+    position: sticky;
+    bottom: var(--mantine-spacing-md);
+    z-index: 3;
+    width: fit-content;
+    max-width: calc(100% - 2 * var(--mantine-spacing-md));
+    margin: var(--mantine-spacing-xs) auto 0;
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-color: var(--mantine-color-blue-5);
     animation: barEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
 }
 
-/* Pushes the buttons to the end of the line */
 .count {
-    margin-right: auto;
-    font-variant-numeric: tabular-nums;
-}
-
-.everyTab {
-    margin-top: var(--mantine-spacing-xs);
-    padding-top: var(--mantine-spacing-xs);
-    border-top: 1px solid var(--mantine-color-default-border);
-}
-
-.everyTabCount {
     font-variant-numeric: tabular-nums;
 }
 
 @keyframes barEnter {
     from {
         opacity: 0;
-        transform: translateY(-6px);
+        transform: translateY(6px);
     }
     to {
         opacity: 1;

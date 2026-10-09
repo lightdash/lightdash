@@ -337,30 +337,35 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   (`applied`), the ones the filter is not on (`unfiltered`) and the ones on
   another field (`replaced`, with `replacedFieldIds`). The three never
   overlap.
-- `FieldTilesBar` is where a field's tiles are changed. It shows over the
-  tiles while a field is clicked (`highlightedFieldId`, never the hovered one,
-  so the tiles do not jump on hover) and the control is not a placeholder. A
-  waiting field can be clicked too.
-  - With tabs, line 1 is "<Field> is on x of N tiles on this tab" and the
-    buttons for the active tab; line 2, quieter, is "Every tab: x of N" and
-    the same actions as `subtle` buttons. A tab where no tile offers the
-    field reads "No tile on this tab has <Field>" with no button. Without
-    tabs there is one line, "<Field> is on x of N tiles".
-  - "Add to n unfiltered" is `applyFieldToUnfilteredTiles`. "Switch n from
-    <fields>" is `switchTilesToField`: only the tiles on another field of the
-    filter, so it never touches an unfiltered tile and the two buttons never
-    count the same one. The clear ("Clear this tab", "Clear everywhere",
-    "Clear from tiles" without tabs) is `removeFieldFromAll`.
+- `FieldTilesBar` is where a field's tiles are changed: a compact floating
+  selection bar, shown while a field is clicked (`highlightedFieldId`, never
+  the hovered one) and the control is not a placeholder. A waiting field can
+  be clicked too.
+  - One line that wraps when narrow: the field's icon and name, then one
+    group per scope behind a vertical `Divider`. A group is a dimmed scope
+    label ("This tab", "Every tab"; "Tiles" alone without tabs), the count
+    "x of N", then its actions. Where no tile offers the field the count
+    reads "no tile has it" and the group has no action.
+  - Actions are the same in every group, `compact-xs`: "Filter n more"
+    (`applyFieldToUnfilteredTiles`), "Switch n from <fields>"
+    (`switchTilesToField`: only the tiles on another field of the filter, so
+    the two never count the same tile) and a subtle gray "Clear"
+    (`removeFieldFromAll`).
   - A button that would change nothing is not rendered, never disabled.
-  - It is a `region` named "Tiles filtered by <field>"; the count sentence is
-    `aria-live="polite"`; each button's `aria-label` names the field, the
-    count and the scope ("on this tab", "on every tab", nothing without
-    tabs).
-  - Mount: `ControlsSidebarPage` renders it, and it portals into an element
-    of its own placed right before the active tab's `.react-grid-layout`
-    (found with `usePortalTargets`, inside `[data-tab-uuid]` when the
-    dashboard has tab panels). So it scrolls with the tiles and pushes them
-    down. It is not in `ControlsBar`: the filter bar's wrapper is sticky.
+  - It is a `region` named "Tiles filtered by <field>"; each group's label
+    and count sit in one `aria-live="polite"` element; each button's
+    `aria-label` names the field, the count and the scope ("on this tab",
+    "on every tab", nothing without tabs).
+  - Mount: `ControlsSidebarPage` renders it, and it portals into the element
+    the active tab's `.react-grid-layout` sits in (found with
+    `usePortalTargets`: the `[data-tab-uuid]` panel, or the grid wrapper
+    without tab panels), so it lands after the grid and moves no tile.
+  - Position: `position: sticky; bottom` in that element, `width:
+    fit-content` and auto side margins, so it is centred in the dashboard
+    content and stays at the bottom of the view while the page scrolls;
+    under the last tile row on a short dashboard. `z-index: 3`: above the
+    tile overlays (2), below the sticky tabs, menus and modals. It is not in
+    `ControlsBar`: that would put it in the sticky filter bar.
   - "Remove field" and `isWaiting` are always whole-dashboard.
 - Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
@@ -512,7 +517,7 @@ Rules:
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
   count in a sidebar row, the footer status, the `.confirm` line on a tile
-  card). The field bar arrives with `translateY(-6px)` only. Tab badges do not replay: they change on every hover. The editor's
+  card). The field bar rises from `translateY(6px)`. Tab badges do not replay: they change on every hover. The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo
