@@ -204,6 +204,17 @@ export type AiServiceAccountTestResult = {
     checkedAt: Date;
 };
 
+export type AiServiceAccountParent = {
+    projectUuid: string;
+    projectName: string | null;
+    identityUuid: string;
+    principal: string | null;
+};
+
+export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
+    parent: AiServiceAccountParent | null;
+}
+
 export type ApiAiServiceAccountSlotResponse = {
     status: 'ok';
     results: AiServiceAccountSlot | null;

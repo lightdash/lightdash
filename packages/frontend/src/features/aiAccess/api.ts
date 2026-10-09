@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    type ApiAiServiceAccountStatusResponse,
     type AiAccessForUser,
     type AiWarehouseCapabilities,
     type ApiError,
@@ -16,7 +17,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId } from 'react';
-import { lightdashApi } from '../../api';
+import { lightdashApi, lightdashApiResponse } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -144,11 +145,12 @@ export const useAiServiceAccount = (projectUuid: string) => {
         null,
         'service-account',
         () =>
-            get<AiServiceAccountSlot | null>(
-                projectUuid,
-                'service-account',
-                null,
-            ),
+            lightdashApiResponse<ApiAiServiceAccountStatusResponse>({
+                version: 'v2',
+                url: aiAccessUrl(projectUuid, 'service-account', null),
+                method: 'GET',
+                body: undefined,
+            }),
         flag?.enabled === true,
     );
 };

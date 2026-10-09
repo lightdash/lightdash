@@ -12,6 +12,7 @@ import {
     type AgentAccessReport,
     type AgentAccessTestRequest,
     type AiServiceAccountCredentialInput,
+    type AiServiceAccountParent,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
     type UUID,
@@ -33,6 +34,10 @@ import {
     applyAiServiceAccountCredentials,
     mergeAiServiceAccountCredentials,
 } from './applyAiServiceAccountCredentials';
+import {
+    AiServiceAccountSlotResolutionError,
+    AiServiceAccountSlotResolver,
+} from './resolveAiServiceAccountSlot';
 import { testAgentAccess } from './testAgentAccess';
 
 type Dependencies = {
@@ -132,6 +137,7 @@ export class AiServiceAccountService extends BaseService {
             connectionName: string;
             previousGeneration: string | null;
             generation: string | null;
+            inheritedFromProjectUuid: string | null;
             result: 'success' | 'failure' | null;
         },
     ): void {
@@ -173,6 +179,62 @@ export class AiServiceAccountService extends BaseService {
             projectUuid,
             warehouseConnectionUuid,
         );
+    }
+
+    async getStatus(
+        account: Account,
+        projectUuid: string,
+        connectionUuid: string | null,
+    ): Promise<{
+        results: AiServiceAccountSlot | null;
+        parent: AiServiceAccountParent | null;
+    }> {
+        const { warehouseConnectionUuid, organizationUuid } =
+            await this.loadConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+                false,
+            );
+        const results =
+            await this.deps.aiServiceAccountCredentialsModel.getSlot(
+                projectUuid,
+                warehouseConnectionUuid,
+            );
+        const resolver = new AiServiceAccountSlotResolver(this.deps);
+        const input = { projectUuid, connection: warehouseConnectionUuid };
+        const inherited = await resolver
+            .resolveParent(input)
+            .catch(async (error) => {
+                if (!(error instanceof AiServiceAccountSlotResolutionError))
+                    throw error;
+                const metadata = await resolver.resolveParentMetadata(input);
+                return metadata === null
+                    ? null
+                    : {
+                          ...metadata,
+                          slot: { slot: metadata.slot, secrets: null },
+                      };
+            });
+        if (inherited === null) return { results, parent: null };
+        const parentUuid = inherited.sourceProjectUuid;
+        const canView = this.createAuditedAbility(account).can(
+            'view',
+            subject('Project', { organizationUuid, projectUuid: parentUuid }),
+        );
+        return {
+            results,
+            parent: {
+                projectUuid: parentUuid,
+                projectName: canView
+                    ? (await this.deps.projectModel.getSummary(parentUuid)).name
+                    : null,
+                identityUuid: inherited.slot.slot.identityUuid,
+                principal:
+                    inherited.slot.secrets?.keyfileContents.client_email ??
+                    null,
+            },
+        };
     }
 
     async upsert(
@@ -224,6 +286,7 @@ export class AiServiceAccountService extends BaseService {
                 connectionName,
                 previousGeneration: previous?.identityUuid ?? null,
                 generation: slot.identityUuid,
+                inheritedFromProjectUuid: null,
                 result: null,
             },
         );
@@ -274,6 +337,7 @@ export class AiServiceAccountService extends BaseService {
             connectionName,
             previousGeneration: previous?.identityUuid ?? null,
             generation: null,
+            inheritedFromProjectUuid: null,
             result: null,
         });
         trackSafely(() =>
@@ -349,15 +413,21 @@ export class AiServiceAccountService extends BaseService {
         );
         const sql = 'SELECT SESSION_USER() AS principal';
         let queryStarted = false;
+        let inheritedFromProjectUuid: string | null = null;
+        let testedGeneration =
+            input === null ? null : (slot?.identityUuid ?? null);
         let result: AiServiceAccountTestResult;
         let failureReason: 'connection_failed' | 'query_failed' | null = null;
         try {
             if (input === null) {
-                secrets =
-                    await this.deps.aiServiceAccountCredentialsModel.getSecrets(
-                        projectUuid,
-                        warehouseConnectionUuid,
-                    );
+                const resolved = await new AiServiceAccountSlotResolver(
+                    this.deps,
+                ).resolve({ projectUuid, connection: warehouseConnectionUuid });
+                secrets = resolved?.slot.secrets ?? null;
+                testedGeneration = resolved?.slot.slot.identityUuid ?? null;
+                inheritedFromProjectUuid = resolved?.inherited
+                    ? resolved.sourceProjectUuid
+                    : null;
             }
             if (secrets === null) {
                 throw new NotFoundError(
@@ -402,6 +472,8 @@ export class AiServiceAccountService extends BaseService {
                 checkedAt: new Date(),
             };
         } catch (error) {
+            if (error instanceof AiServiceAccountSlotResolutionError)
+                inheritedFromProjectUuid = error.inheritedFromProjectUuid;
             if (secrets === null && error instanceof NotFoundError) throw error;
             failureReason = queryStarted ? 'query_failed' : 'connection_failed';
             this.logger.warn('AI service account test failed', {
@@ -425,8 +497,9 @@ export class AiServiceAccountService extends BaseService {
             event: 'agent_identity.service_account_tested',
             warehouseConnectionUuid,
             connectionName,
-            previousGeneration: slot?.identityUuid ?? null,
-            generation: slot?.identityUuid ?? null,
+            previousGeneration: testedGeneration,
+            generation: testedGeneration,
+            inheritedFromProjectUuid,
             result: result.ok ? 'success' : 'failure',
         });
         trackSafely(() =>
@@ -441,6 +514,7 @@ export class AiServiceAccountService extends BaseService {
                     result: result.ok ? 'success' : 'failure',
                     failureReason,
                     credentialSource: input === null ? 'saved' : 'submitted',
+                    inheritedFromProjectUuid,
                 },
             }),
         );

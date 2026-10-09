@@ -76,6 +76,10 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
+import {
+    AiServiceAccountSlotResolutionError,
+    AiServiceAccountSlotResolver,
+} from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
 import {
     connectionContextFromUser,
@@ -979,6 +983,10 @@ export class AiAccessService extends BaseService {
         context: QueryExecutionContext;
     }): void {
         this.logger.info('Agent query', {
+            inheritedFromProjectUuid:
+                plan.identity === 'ai_service_account'
+                    ? plan.inheritedFromProjectUuid
+                    : null,
             queryUuid,
             projectUuid,
             warehouseConnectionUuid,
@@ -1123,6 +1131,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1134,6 +1143,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
                 settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1163,6 +1173,7 @@ export class AiAccessService extends BaseService {
             | 'isServiceAccount'
         > & { warehouseType: WarehouseTypes },
         reason: AiAccessRefusalReason,
+        inheritedFromProjectUuid: string | null = null,
     ): void {
         if (args.evaluation.kind === 'query') {
             const userId = this.analyticsUserId(args);
@@ -1178,6 +1189,7 @@ export class AiAccessService extends BaseService {
                 surface: args.evaluation.surface,
                 warehouseType: args.warehouseType,
                 reason,
+                inheritedFromProjectUuid,
                 actor:
                     args.agentActor !== undefined
                         ? args.agentActor
@@ -1216,11 +1228,13 @@ export class AiAccessService extends BaseService {
         args: AccessArgs,
         error: AiAccessRefusedError,
         level: 'warn' | 'debug' = 'warn',
+        inheritedFromProjectUuid: string | null = null,
     ): void {
         const sessionCheckError =
             error.cause instanceof AgentSessionCheckError ? error.cause : null;
         const cause = sessionCheckError?.cause ?? error.cause;
         this.logger[level]('AI access query refused', {
+            inheritedFromProjectUuid,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             userUuid: args.userUuid,
@@ -1275,6 +1289,15 @@ export class AiAccessService extends BaseService {
         };
     }
 
+    private get slotResolver() {
+        return new AiServiceAccountSlotResolver({
+            projectModel: this.projectModel,
+            warehouseConnectionModel: this.warehouseConnectionModel,
+            aiServiceAccountCredentialsModel:
+                this.aiServiceAccountCredentialsModel,
+        });
+    }
+
     private async resolveEnabledPlan(
         args: ResolvePlanArgs,
     ): Promise<AiExecutionPlan> {
@@ -1283,6 +1306,7 @@ export class AiAccessService extends BaseService {
             args.connection.type,
             this.actorKind(args),
         );
+        let inheritedFromProjectUuid: string | null = null;
         try {
             if (rule.source === 'marked_person')
                 return await this.markedPlan(args);
@@ -1294,15 +1318,20 @@ export class AiAccessService extends BaseService {
             if (rule.source === 'ai_service_account') {
                 let saved;
                 try {
-                    saved =
-                        await this.aiServiceAccountCredentialsModel.getSecrets(
-                            args.projectUuid,
-                            args.warehouseConnectionUuid,
-                            true,
-                        );
-                } catch {
+                    saved = await this.slotResolver.resolve({
+                        projectUuid: args.projectUuid,
+                        connection: args.warehouseConnectionUuid,
+                    });
+                    inheritedFromProjectUuid = saved?.inherited
+                        ? saved.sourceProjectUuid
+                        : null;
+                } catch (error) {
+                    if (error instanceof AiServiceAccountSlotResolutionError)
+                        inheritedFromProjectUuid =
+                            error.inheritedFromProjectUuid;
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 if (saved === null) {
@@ -1314,17 +1343,20 @@ export class AiAccessService extends BaseService {
                 try {
                     credentials = applyAiServiceAccountCredentials(
                         args.connection,
-                        saved.secrets,
+                        saved.slot.secrets,
                     );
                 } catch {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 return {
                     identity: 'ai_service_account',
-                    identityUuid: saved.slot.identityUuid,
-                    credentialUuid: saved.slot.uuid,
+                    sourceProjectUuid: saved.sourceProjectUuid,
+                    inheritedFromProjectUuid,
+                    identityUuid: saved.slot.slot.identityUuid,
+                    credentialUuid: saved.slot.slot.uuid,
                     credentials,
                     assurances: [
                         {
@@ -1338,7 +1370,7 @@ export class AiAccessService extends BaseService {
                         actorKind: this.actorKind(args),
                         personUuid: args.userUuid,
                         userUuid: args.userUuid,
-                        principalRef: saved.slot.uuid,
+                        principalRef: saved.slot.slot.uuid,
                         queryTags: { [AI_AGENT_TAG]: 'true' },
                     },
                 };
@@ -1409,10 +1441,12 @@ export class AiAccessService extends BaseService {
                     args,
                     refusalError,
                     args.evaluation.kind === 'diagnostic' ? 'debug' : 'warn',
+                    inheritedFromProjectUuid,
                 );
                 this.trackQueryRefusal(
                     { ...args, warehouseType: args.connection.type },
                     refusalError.refusal.reason,
+                    inheritedFromProjectUuid,
                 );
                 throw refusalError;
             }
@@ -1747,6 +1781,9 @@ export class AiAccessService extends BaseService {
                             isServiceAccount: account.isServiceAccount(),
                         },
                         AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        plan.identity === 'ai_service_account'
+                            ? plan.inheritedFromProjectUuid
+                            : null,
                     );
                     throw refuse(uuid, 'credential_generation_mismatch');
                 }
@@ -1790,6 +1827,9 @@ export class AiAccessService extends BaseService {
                         isServiceAccount: account.isServiceAccount(),
                     },
                     AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    plan.identity === 'ai_service_account'
+                        ? plan.inheritedFromProjectUuid
+                        : null,
                 );
                 throw refuse(uuid, 'source_generation_mismatch');
             }
@@ -1851,11 +1891,11 @@ export class AiAccessService extends BaseService {
                 case 'ai_service_account': {
                     result.identity = 'ai_service_account';
                     result.principalKind = 'service_account';
-                    const slot =
-                        await this.aiServiceAccountCredentialsModel.getSlot(
-                            args.projectUuid,
-                            args.warehouseConnectionUuid,
-                        );
+                    const resolved = await this.slotResolver.resolveMetadata({
+                        projectUuid: args.projectUuid,
+                        connection: args.warehouseConnectionUuid,
+                    });
+                    const slot = resolved?.slot ?? null;
                     if (slot === null) {
                         throw new AiAccessRefusedError(
                             AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
@@ -1920,7 +1960,12 @@ export class AiAccessService extends BaseService {
                 args.projectUuid,
                 AgentIdentityConnectEntryPoint.UNKNOWN,
             );
-            this.logRefusal(args, refusalError, 'debug');
+            this.logRefusal(
+                args,
+                refusalError,
+                'debug',
+                refusalError.inheritedFromProjectUuid,
+            );
             result.refusal = refusalError.refusal;
         }
         return result;

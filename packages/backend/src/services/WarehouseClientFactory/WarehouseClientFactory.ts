@@ -818,6 +818,9 @@ export class WarehouseClientFactory {
                 snowflakeVirtualWarehouse ?? null,
                 databricksCompute ?? null,
                 aiPlan?.identity ?? null,
+                ...(aiPlan?.identity === 'ai_service_account'
+                    ? [aiPlan.sourceProjectUuid]
+                    : []),
                 aiPlan
                     ? (getAiExecutionCredentialUuid(aiPlan) ??
                       aiPlan.audit.personUuid)
@@ -973,6 +976,7 @@ export class WarehouseClientFactory {
                     credentials,
                     error,
                     refusalScope,
+                    overrides.aiPlan.inheritedFromProjectUuid,
                 );
             }
             if (constructingClient && wrapConstructionErrors) {
@@ -1001,6 +1005,7 @@ export class WarehouseClientFactory {
                     credentials,
                     error,
                     refusalScope,
+                    aiPlan.inheritedFromProjectUuid,
                 ),
             );
             this.clientOptions.set(
@@ -1030,6 +1035,7 @@ export class WarehouseClientFactory {
             warehouseConnectionUuid: string | null;
             refused: boolean;
         },
+        inheritedFromProjectUuid: string | null = null,
     ): Promise<never> {
         if (
             credentials.type !== WarehouseTypes.BIGQUERY ||
@@ -1055,6 +1061,7 @@ export class WarehouseClientFactory {
                     warehouseType: credentials.type,
                 },
                 reason,
+                inheritedFromProjectUuid,
             );
             this.logger[
                 this.aiAccessEvaluation(context).kind === 'diagnostic'

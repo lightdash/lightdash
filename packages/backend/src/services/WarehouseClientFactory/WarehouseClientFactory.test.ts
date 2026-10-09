@@ -1979,6 +1979,8 @@ describe('AI service account factory scopes', () => {
         { identity: 'ai_service_account' }
     > = {
         identity: 'ai_service_account',
+        sourceProjectUuid: 'project',
+        inheritedFromProjectUuid: null,
         identityUuid: 'generation-a',
         credentialUuid: 'slot-row',
         credentials: {
@@ -2066,6 +2068,43 @@ describe('AI service account factory scopes', () => {
         expect(credentialSource.finish).not.toHaveBeenCalled();
     });
 
+    test('uses inherited authentication on the preview connection', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        const inheritedPlan = {
+            ...slotPlan,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: {
+                ...slotPlan.credentials,
+                project: 'preview-warehouse',
+                dataset: 'preview-dataset',
+            },
+        };
+        aiAccessService.resolvePlan.mockResolvedValue(inheritedPlan);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async (resolved) => {
+                expect(resolved.aiPlan).toBe(inheritedPlan);
+                expect(resolved.warehouseCredentials).toMatchObject({
+                    project: 'preview-warehouse',
+                    dataset: 'preview-dataset',
+                    keyfileContents: {
+                        type: 'service_account',
+                        private_key: 'saved-key',
+                        client_email: 'agent@example.com',
+                    },
+                });
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining(inheritedPlan.credentials),
+            expect.anything(),
+        );
+    });
+
     test('separates ordinary, marked, agent sign-in, slot generations and connections even with equal credentials', async () => {
         const { factory, projectModel } = buildFixture();
         const identities = [
@@ -2080,6 +2119,11 @@ describe('AI service account factory scopes', () => {
             { ...plan, identityUuid: slotPlan.identityUuid },
             slotPlan,
             { ...slotPlan, identityUuid: 'generation-b' },
+            {
+                ...slotPlan,
+                sourceProjectUuid: 'parent',
+                inheritedFromProjectUuid: 'parent',
+            },
         ];
         const clients = await Promise.all(
             identities.map((aiPlan) => {
@@ -2098,7 +2142,7 @@ describe('AI service account factory scopes', () => {
                 );
             }),
         );
-        expect(new Set(clients).size).toBe(5);
+        expect(new Set(clients).size).toBe(6);
         const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
             kind: 'resolved',
             projectUuid: 'project-uuid',
@@ -2124,7 +2168,7 @@ describe('AI service account factory scopes', () => {
         );
         expect(
             projectModel.getWarehouseClientFromCredentials,
-        ).toHaveBeenCalledTimes(5);
+        ).toHaveBeenCalledTimes(6);
         expect(again.credentials).toEqual(clients[3].credentials);
         await factory.withWarehouseClient(
             { ...ref, warehouseConnectionUuid: 'extra' },
@@ -2133,7 +2177,7 @@ describe('AI service account factory scopes', () => {
         );
         expect(
             projectModel.getWarehouseClientFromCredentials,
-        ).toHaveBeenCalledTimes(6);
+        ).toHaveBeenCalledTimes(7);
     });
 
     test.each([
@@ -2196,6 +2240,7 @@ describe('AI service account factory scopes', () => {
                 event: 'query.refused',
                 userId: 'user-uuid',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     organizationId: 'org-uuid',
                     projectId: 'project-uuid',
                     userId: 'user-uuid',
@@ -2358,6 +2403,7 @@ describe('AI service account factory scopes', () => {
                     warehouseType: WarehouseTypes.BIGQUERY,
                 },
                 'ai_service_account_invalid',
+                null,
             );
             expect(
                 JSON.stringify(aiAccessService.trackQueryRefusal.mock.calls),

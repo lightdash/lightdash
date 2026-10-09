@@ -25,6 +25,7 @@ const queryCompletedEvent: QueryCompletedEvent = {
     event: 'query.completed',
     userId: 'user-1',
     properties: {
+        inheritedFromProjectUuid: null,
         queryId: 'query-1',
         organizationId: 'org-1',
         projectId: 'project-1',

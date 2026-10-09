@@ -10765,6 +10765,7 @@ export class ProjectService
                             queryContext: context,
                         }),
                         async ({
+                            aiPlan,
                             warehouseClient,
                             warehouseCredentials,
                             warehouseConnectionUuid,
@@ -10898,6 +10899,11 @@ export class ProjectService
                             this.analytics.trackAccount(account, {
                                 event: 'query.executed',
                                 properties: {
+                                    inheritedFromProjectUuid:
+                                        aiPlan?.identity ===
+                                        'ai_service_account'
+                                            ? aiPlan.inheritedFromProjectUuid
+                                            : null,
                                     ...this.getQueryConnectionAnalyticsProperties(
                                         {
                                             warehouseConnectionUuid,
@@ -11056,6 +11062,7 @@ export class ProjectService
                 { organizationUuid, queryContext: null },
             ),
             async ({
+                aiPlan,
                 warehouseClient,
                 warehouseCredentials,
                 warehouseConnectionUuid,
@@ -11071,6 +11078,10 @@ export class ProjectService
                     userId: user.userUuid,
                     event: 'query.executed',
                     properties: {
+                        inheritedFromProjectUuid:
+                            aiPlan?.identity === 'ai_service_account'
+                                ? aiPlan.inheritedFromProjectUuid
+                                : null,
                         ...connectionAnalytics,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
@@ -11137,6 +11148,7 @@ export class ProjectService
                 { organizationUuid, queryContext: context },
             ),
             async ({
+                aiPlan,
                 warehouseClient,
                 warehouseCredentials,
                 warehouseConnectionUuid,
@@ -11152,6 +11164,10 @@ export class ProjectService
                     userId: userUuid,
                     event: 'query.executed',
                     properties: {
+                        inheritedFromProjectUuid:
+                            aiPlan?.identity === 'ai_service_account'
+                                ? aiPlan.inheritedFromProjectUuid
+                                : null,
                         ...connectionAnalytics,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
@@ -11243,6 +11259,7 @@ export class ProjectService
                 { organizationUuid, queryContext: context },
             ),
             async ({
+                aiPlan,
                 warehouseClient,
                 warehouseCredentials,
                 warehouseConnectionUuid,
@@ -11252,6 +11269,10 @@ export class ProjectService
                     userId: userUuid,
                     event: 'query.executed',
                     properties: {
+                        inheritedFromProjectUuid:
+                            aiPlan?.identity === 'ai_service_account'
+                                ? aiPlan.inheritedFromProjectUuid
+                                : null,
                         ...this.getQueryConnectionAnalyticsProperties({
                             warehouseConnectionUuid,
                             warehouseType: warehouseCredentials.type,
