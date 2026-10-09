@@ -26,7 +26,10 @@ import {
     type RefreshTokenRotation,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { OAuthCredentialRefresher } from '../../OAuthRefresh/OAuthCredentialRefresher';
+import {
+    OAuthCredentialRefresher,
+    OAuthRefreshExchangeError,
+} from '../../OAuthRefresh/OAuthCredentialRefresher';
 import {
     OAuthCredentialRefreshSource,
     type OAuthCredentialRefreshSourceDependencies,
@@ -61,15 +64,6 @@ type Dependencies = OAuthCredentialRefreshSourceDependencies & {
         error: unknown,
     ) => Promise<never>;
 };
-
-class DatabricksRefreshExchangeError extends Error {
-    constructor(
-        readonly originalError: unknown,
-        readonly refreshToken: string,
-    ) {
-        super('Databricks token exchange failed');
-    }
-}
 
 export class DatabricksOAuthCredentialResolver implements CredentialResolver<CreateDatabricksCredentials> {
     private readonly refresher: OAuthCredentialRefresher;
@@ -301,27 +295,20 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                           }
                         : null,
                 exchange: async (refreshToken) => {
-                    try {
-                        const refreshed = await (
-                            lockEnabled
-                                ? refreshDatabricksOAuthTokenWithDeadline
-                                : refreshDatabricksOAuthToken
-                        )(
-                            connection.serverHostName,
-                            clientId,
-                            refreshToken,
-                            clientSecret,
-                        );
-                        return {
-                            ...refreshed,
-                            previousRefreshToken: refreshToken,
-                        };
-                    } catch (error) {
-                        throw new DatabricksRefreshExchangeError(
-                            error,
-                            refreshToken,
-                        );
-                    }
+                    const refreshed = await (
+                        lockEnabled
+                            ? refreshDatabricksOAuthTokenWithDeadline
+                            : refreshDatabricksOAuthToken
+                    )(
+                        connection.serverHostName,
+                        clientId,
+                        refreshToken,
+                        clientSecret,
+                    );
+                    return {
+                        ...refreshed,
+                        previousRefreshToken: refreshToken,
+                    };
                 },
                 persist: async ({
                     lockedRefreshToken,
@@ -357,7 +344,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
             };
         } catch (caught) {
             const error =
-                caught instanceof DatabricksRefreshExchangeError
+                caught instanceof OAuthRefreshExchangeError
                     ? caught.originalError
                     : caught;
             if (error instanceof OAuthRequestTimeoutError)
@@ -367,7 +354,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
             if (owner?.kind === 'project') {
                 return this.deps.attributeSharedSignInExpiry(
                     owner.uuid,
-                    caught instanceof DatabricksRefreshExchangeError
+                    caught instanceof OAuthRefreshExchangeError
                         ? { ...connection, refreshToken: caught.refreshToken }
                         : connection,
                     mapped,

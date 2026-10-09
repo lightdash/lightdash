@@ -10,6 +10,15 @@ export type OAuthTokenExchange = {
     refreshToken?: string;
 };
 
+export class OAuthRefreshExchangeError extends Error {
+    constructor(
+        readonly originalError: unknown,
+        readonly refreshToken: string,
+    ) {
+        super('OAuth token exchange failed');
+    }
+}
+
 export class OAuthCredentialRefresher {
     constructor(private readonly rotation: Pick<RefreshTokenRotation, 'run'>) {}
 
@@ -32,15 +41,24 @@ export class OAuthCredentialRefresher {
             trx?: Knex;
         }) => Promise<void>;
     }): Promise<R> {
+        const exchangeWithAttribution = async (
+            sentRefreshToken: string,
+        ): Promise<R> => {
+            try {
+                return await exchange(sentRefreshToken);
+            } catch (error) {
+                throw new OAuthRefreshExchangeError(error, sentRefreshToken);
+            }
+        };
         if (row !== null) {
             const { result } = await this.rotation.run({
                 ...row,
-                exchange,
+                exchange: exchangeWithAttribution,
                 persist,
             });
             return result;
         }
-        const result = await exchange(refreshToken);
+        const result = await exchangeWithAttribution(refreshToken);
         await persist({ lockedRefreshToken: refreshToken, result });
         return result;
     }

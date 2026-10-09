@@ -2,8 +2,14 @@ import {
     createDatabase,
     deferred,
 } from '../../models/RefreshTokenRotation/fakeKnex.mock';
-import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
-import { OAuthCredentialRefresher } from './OAuthCredentialRefresher';
+import {
+    RefreshTokenRotation,
+    RefreshTokenRowMissingError,
+} from '../../models/RefreshTokenRotation/RefreshTokenRotation';
+import {
+    OAuthCredentialRefresher,
+    OAuthRefreshExchangeError,
+} from './OAuthCredentialRefresher';
 
 const setup = () => {
     const { database, transaction } = createDatabase();
@@ -74,19 +80,80 @@ test('locked callers share the reread, exchange and persistence on the held tran
     expect(f.transaction).toHaveBeenCalledTimes(1);
 });
 
-test('a failed exchange does not persist', async () => {
+test.each([true, false])(
+    'a failed exchange carries the sent token and does not persist with lock %s',
+    async (locked) => {
+        const f = setup();
+        const error = new Error('exchange failed');
+        const persist = vi.fn();
+        const exchange = vi.fn().mockRejectedValue(error);
+        const result = f.refresher.refresh({
+            refreshToken: 'selected',
+            row: locked
+                ? {
+                      key: { kind: 'project', uuid: 'row', purpose: null },
+                      shareKey: 'provider',
+                      readCurrentRefreshToken: async () => 'reread',
+                  }
+                : null,
+            exchange,
+            persist,
+        });
+        await expect(result).rejects.toBeInstanceOf(OAuthRefreshExchangeError);
+        await expect(result).rejects.toMatchObject({
+            originalError: error,
+            refreshToken: locked ? 'reread' : 'selected',
+        });
+        expect(exchange).toHaveBeenCalledExactlyOnceWith(
+            locked ? 'reread' : 'selected',
+        );
+        expect(persist).not.toHaveBeenCalled();
+    },
+);
+
+test('a reread failure passes through unchanged', async () => {
     const f = setup();
-    const error = new Error('exchange failed');
+    const error = new RefreshTokenRowMissingError();
+    const exchange = vi.fn();
     const persist = vi.fn();
     await expect(
         f.refresher.refresh({
             refreshToken: 'selected',
-            row: null,
-            exchange: async () => {
-                throw error;
+            row: {
+                key: { kind: 'project', uuid: 'row', purpose: null },
+                shareKey: 'provider',
+                readCurrentRefreshToken: async () => {
+                    throw error;
+                },
             },
+            exchange,
             persist,
         }),
     ).rejects.toBe(error);
+    expect(exchange).not.toHaveBeenCalled();
     expect(persist).not.toHaveBeenCalled();
 });
+
+test.each([true, false])(
+    'a persist failure passes through unchanged with lock %s',
+    async (locked) => {
+        const f = setup();
+        const error = new Error('persist failed');
+        await expect(
+            f.refresher.refresh({
+                refreshToken: 'selected',
+                row: locked
+                    ? {
+                          key: { kind: 'project', uuid: 'row', purpose: null },
+                          shareKey: 'provider',
+                          readCurrentRefreshToken: async () => 'reread',
+                      }
+                    : null,
+                exchange: async () => ({ accessToken: 'access' }),
+                persist: async () => {
+                    throw error;
+                },
+            }),
+        ).rejects.toBe(error);
+    },
+);

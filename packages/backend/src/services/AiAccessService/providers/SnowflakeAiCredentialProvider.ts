@@ -32,7 +32,10 @@ import {
     RefreshTokenSourceChangedError,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type AiUserWarehouseCredentials } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { OAuthCredentialRefresher } from '../../OAuthRefresh/OAuthCredentialRefresher';
+import {
+    OAuthCredentialRefresher,
+    OAuthRefreshExchangeError,
+} from '../../OAuthRefresh/OAuthCredentialRefresher';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
 import { type AiAccessEvaluation } from '../AiAccessService';
 import { type ResolvedSnowflakeAgentClient } from '../SnowflakeAgentClientResolver';
@@ -44,12 +47,6 @@ import {
     type AiSessionProbeResult,
 } from './AiCredentialProvider';
 import { type AiCredentialProviderDependencies } from './registry';
-
-class AgentRefreshExchangeError extends Error {
-    constructor(readonly original: unknown) {
-        super('Agent sign-in refresh failed');
-    }
-}
 
 const waitForRefreshRotation = () =>
     new Promise<void>((resolve) => {
@@ -334,18 +331,13 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                             : null;
                     },
                 },
-                exchange: async (currentRefreshToken) => {
-                    try {
-                        return await exchangeSnowflakeRefreshToken({
-                            client,
-                            refreshToken: currentRefreshToken,
-                            now: new Date(),
-                            requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS,
-                        });
-                    } catch (error) {
-                        throw new AgentRefreshExchangeError(error);
-                    }
-                },
+                exchange: (currentRefreshToken) =>
+                    exchangeSnowflakeRefreshToken({
+                        client,
+                        refreshToken: currentRefreshToken,
+                        now: new Date(),
+                        requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS,
+                    }),
                 persist: async ({ lockedRefreshToken, result, trx }) => {
                     Logger.info('Agent sign-in refreshed', {
                         userUuid,
@@ -406,13 +398,13 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     error,
                 );
             if (
-                !(error instanceof AgentRefreshExchangeError) &&
+                !(error instanceof OAuthRefreshExchangeError) &&
                 !(error instanceof RefreshTokenLockTimeoutError)
             )
                 throw error;
             const cause =
-                error instanceof AgentRefreshExchangeError
-                    ? error.original
+                error instanceof OAuthRefreshExchangeError
+                    ? error.originalError
                     : error;
             if (
                 !silentRefresh &&
