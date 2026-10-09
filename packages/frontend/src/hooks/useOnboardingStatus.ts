@@ -4,35 +4,43 @@ import {
     type ProjectSavedChartStatus,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
-const getOnboardingStatus = async () =>
+const getOnboardingStatus = async (lightdashApi: LightdashApi) =>
     lightdashApi<OnboardingStatus>({
         url: `/org/onboardingStatus`,
         method: 'GET',
         body: undefined,
     });
 
-export const useOnboardingStatus = () =>
-    useQuery<OnboardingStatus, ApiError>({
+export const useOnboardingStatus = () => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<OnboardingStatus, ApiError>({
         queryKey: ['onboarding-status'],
-        queryFn: getOnboardingStatus,
+        queryFn: () => getOnboardingStatus(lightdashApi),
         retry: false,
         refetchOnMount: true,
     });
+};
 
-const getProjectSavedChartStatus = async (projectUuid: string) =>
+const getProjectSavedChartStatus = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ProjectSavedChartStatus>({
         url: `/projects/${projectUuid}/hasSavedCharts`,
         method: 'GET',
         body: undefined,
     });
 
-export const useProjectSavedChartStatus = (projectUuid: string | undefined) =>
-    useQuery<ProjectSavedChartStatus, ApiError>({
+export const useProjectSavedChartStatus = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectSavedChartStatus, ApiError>({
         queryKey: [projectUuid, 'project-saved-chart-status'],
-        queryFn: () => getProjectSavedChartStatus(projectUuid!),
+        queryFn: () => getProjectSavedChartStatus(lightdashApi, projectUuid!),
         retry: false,
         refetchOnMount: true,
         enabled: !!projectUuid,
     });
+};

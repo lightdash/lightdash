@@ -4,7 +4,7 @@ import {
     type FunnelQueryResult,
 } from '@lightdash/common';
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import type { RootState } from '../../sqlRunner/store';
 import {
     buildDateRange,
@@ -27,7 +27,7 @@ export const fetchEventNames = createAsyncThunk<
         { rejectWithValue },
     ) => {
         try {
-            return await lightdashApi<string[]>({
+            return await sharedLightdashApi<string[]>({
                 url: `/projects/${projectUuid}/funnel/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}&timestampFieldId=${timestampFieldId}`,
                 method: 'GET',
                 body: undefined,
@@ -67,7 +67,7 @@ export const runFunnelQuery = createAsyncThunk<
     });
 
     try {
-        return (await lightdashApi<null>({
+        return (await sharedLightdashApi<null>({
             url: `/projects/${fb.projectUuid}/funnel/query`,
             method: 'POST',
             body: JSON.stringify(request),

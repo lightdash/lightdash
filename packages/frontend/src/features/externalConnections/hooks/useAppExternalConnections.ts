@@ -3,9 +3,11 @@ import {
     type AppExternalConnectionLinked,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const getAppExternalConnections = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
 ) =>
@@ -18,9 +20,12 @@ export const getAppExternalConnections = async (
 export const useAppExternalConnections = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
-) =>
-    useQuery<AppExternalConnectionLinked[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AppExternalConnectionLinked[], ApiError>({
         queryKey: ['app-external-connections', projectUuid, appUuid],
-        queryFn: () => getAppExternalConnections(projectUuid!, appUuid!),
+        queryFn: () =>
+            getAppExternalConnections(lightdashApi, projectUuid!, appUuid!),
         enabled: !!projectUuid && !!appUuid,
     });
+};

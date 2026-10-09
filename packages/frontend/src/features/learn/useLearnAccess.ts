@@ -1,7 +1,7 @@
 import { type ApiError, type LearnAccess } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { heldScopes } from './access';
 
 /**
@@ -15,6 +15,7 @@ import { heldScopes } from './access';
  * API client cannot.
  */
 export const useLearnAccess = () => {
+    const lightdashApi = useLightdashApi();
     const query = useQuery<LearnAccess, ApiError>({
         queryKey: ['learn_access'],
         queryFn: () =>

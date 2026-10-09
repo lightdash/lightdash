@@ -27,9 +27,10 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 import { invalidateContent } from '../useContent';
 import { useProjectUuid } from '../useProjectUuid';
@@ -37,6 +38,7 @@ import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
 export const getDashboard = async (
+    lightdashApi: LightdashApi,
     id: string,
     projectUuid: string,
     includeUnpublishedDraft: boolean = false,
@@ -50,7 +52,11 @@ export const getDashboard = async (
         body: undefined,
     });
 
-const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
+const createDashboard = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: CreateDashboard,
+) =>
     lightdashApi<Dashboard>({
         url: `/projects/${projectUuid}/dashboards`,
         method: 'POST',
@@ -58,6 +64,7 @@ const createDashboard = async (projectUuid: string, data: CreateDashboard) =>
     });
 
 const createDashboardWithCharts = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: CreateDashboardWithCharts,
 ) =>
@@ -68,6 +75,7 @@ const createDashboardWithCharts = async (
     });
 
 const duplicateDashboard = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     dashboardUuid: string,
     data: { dashboardName: string; dashboardDesc: string },
@@ -79,6 +87,7 @@ const duplicateDashboard = async (
     });
 
 const updateDashboard = async (
+    lightdashApi: LightdashApi,
     id: string,
     data: UpdateDashboard,
     projectUuid: string,
@@ -92,7 +101,11 @@ const updateDashboard = async (
 
 export const updateDashboardApi = updateDashboard;
 
-const deleteDashboard = async (id: string, projectUuid: string) =>
+const deleteDashboard = async (
+    lightdashApi: LightdashApi,
+    id: string,
+    projectUuid: string,
+) =>
     lightdashApi<null>({
         url: `/projects/${projectUuid}/dashboards/${id}`,
         version: 'v2',
@@ -101,6 +114,7 @@ const deleteDashboard = async (id: string, projectUuid: string) =>
     });
 
 const postDashboardsAvailableFilters = async (
+    lightdashApi: LightdashApi,
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
 ) =>
     lightdashApi<DashboardAvailableFilters>({
@@ -110,6 +124,7 @@ const postDashboardsAvailableFilters = async (
     });
 
 const postEmbedDashboardsAvailableFilters = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
 ) =>
@@ -123,20 +138,26 @@ export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     projectUuid?: string,
     embedToken?: string,
-) =>
-    useQuery<DashboardAvailableFilters, ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DashboardAvailableFilters, ApiError>(
         ['dashboards', 'availableFilters', ...savedChartUuidsAndTileUuids],
         () =>
             embedToken && projectUuid
                 ? postEmbedDashboardsAvailableFilters(
+                      lightdashApi,
                       projectUuid,
                       savedChartUuidsAndTileUuids,
                   )
-                : postDashboardsAvailableFilters(savedChartUuidsAndTileUuids),
+                : postDashboardsAvailableFilters(
+                      lightdashApi,
+                      savedChartUuidsAndTileUuids,
+                  ),
         {
             enabled: savedChartUuidsAndTileUuids.length > 0,
         },
     );
+};
 
 export const useDashboardQuery = ({
     uuidOrSlug,
@@ -152,6 +173,7 @@ export const useDashboardQuery = ({
     useQueryOptions?: UseQueryOptions<Dashboard, ApiError>;
     includeUnpublishedDraft?: boolean;
 } = {}) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<Dashboard, ApiError>({
         queryKey: [
@@ -163,6 +185,7 @@ export const useDashboardQuery = ({
         queryFn: async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
             return getDashboard(
+                lightdashApi,
                 uuidOrSlug || '',
                 projectUuid,
                 includeUnpublishedDraft,
@@ -186,6 +209,7 @@ export const useDashboardVersionRefresh = (
     dashboardUuid: string | undefined,
     projectUuid?: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<Dashboard | null, ApiError, Dashboard | undefined>({
@@ -203,6 +227,7 @@ export const useDashboardVersionRefresh = (
                 }
 
                 const latestDashboard = await getDashboard(
+                    lightdashApi,
                     dashboardUuid,
                     projectUuid,
                 );
@@ -238,6 +263,7 @@ export const useDashboardVersionRefresh = (
 // because the JWT auth middleware resolves the embed secret from it — embedded
 // dashboards can't authenticate on a route without a project in the path.
 const exportDashboardContent = async (
+    lightdashApi: LightdashApi,
     id: string,
     projectUuid: string,
     data: {
@@ -264,6 +290,7 @@ type DashboardContentExportDetails = {
 };
 
 export const useExportDashboardContent = () => {
+    const lightdashApi = useLightdashApi();
     const {
         showToastSuccess,
         showToastError,
@@ -288,6 +315,7 @@ export const useExportDashboardContent = () => {
     >(
         (data) =>
             exportDashboardContent(
+                lightdashApi,
                 data.dashboard.uuid,
                 data.dashboard.projectUuid,
                 {
@@ -311,7 +339,11 @@ export const useExportDashboardContent = () => {
                 });
             },
             onSuccess: async (job, data) => {
-                pollJobStatus(job.jobId, data.dashboard.projectUuid)
+                pollJobStatus(
+                    lightdashApi,
+                    job.jobId,
+                    data.dashboard.projectUuid,
+                )
                     .then((rawDetails) => {
                         const details =
                             rawDetails as DashboardContentExportDetails | null;
@@ -376,6 +408,7 @@ export const useExportDashboardContent = () => {
 // synchronous export endpoint, so heavy dashboards don't hold an HTTP request
 // open until the gateway times out.
 export const useExportDashboardContentPreview = () => {
+    const lightdashApi = useLightdashApi();
     const {
         showToastInfo,
         showToastSuccess,
@@ -397,6 +430,7 @@ export const useExportDashboardContentPreview = () => {
     >(
         async (data) => {
             const job = await exportDashboardContent(
+                lightdashApi,
                 data.dashboard.uuid,
                 data.dashboard.projectUuid,
                 {
@@ -410,6 +444,7 @@ export const useExportDashboardContentPreview = () => {
                 },
             );
             const details = (await pollJobStatus(
+                lightdashApi,
                 job.jobId,
                 data.dashboard.projectUuid,
             )) as DashboardContentExportDetails | null;
@@ -460,6 +495,7 @@ export const useUpdateDashboard = (
     showRedirectButton: boolean = false,
     onSuccessCallback?: (dashboard: Dashboard) => void,
 ) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -473,7 +509,7 @@ export const useUpdateDashboard = (
                 throw new Error('Project UUID is undefined');
             }
 
-            return updateDashboard(id, data, projectUuid);
+            return updateDashboard(lightdashApi, id, data, projectUuid);
         },
         {
             mutationKey: ['dashboard_update'],
@@ -558,12 +594,15 @@ export const useCreateMutation = (
     showRedirectButton: boolean = false,
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboard>(
         (data) =>
-            projectUuid ? createDashboard(projectUuid, data) : Promise.reject(),
+            projectUuid
+                ? createDashboard(lightdashApi, projectUuid, data)
+                : Promise.reject(),
         {
             mutationKey: ['dashboard_create', projectUuid],
             onSuccess: async (result) => {
@@ -606,13 +645,14 @@ export const useCreateDashboardWithChartsMutation = (
     projectUuid: string | undefined,
     { showToastOnSuccess = true }: { showToastOnSuccess?: boolean } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<Dashboard, ApiError, CreateDashboardWithCharts>(
         (data) =>
             projectUuid
-                ? createDashboardWithCharts(projectUuid, data)
+                ? createDashboardWithCharts(lightdashApi, projectUuid, data)
                 : Promise.reject(),
         {
             mutationKey: ['dashboard_create_with_charts', projectUuid],
@@ -656,6 +696,7 @@ type DuplicateDashboardMutationOptions = {
 export const useDuplicateDashboardMutation = (
     options?: DuplicateDashboardMutationOptions,
 ) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
@@ -667,7 +708,7 @@ export const useDuplicateDashboardMutation = (
     >(
         ({ uuid, name, description }) =>
             projectUuid
-                ? duplicateDashboard(projectUuid, uuid, {
+                ? duplicateDashboard(lightdashApi, projectUuid, uuid, {
                       dashboardName: name,
                       dashboardDesc: description ?? '',
                   })
@@ -709,6 +750,7 @@ export const useDuplicateDashboardMutation = (
 };
 
 export const useDashboardDeleteMutation = (projectUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { health } = useApp();
@@ -719,7 +761,7 @@ export const useDashboardDeleteMutation = (projectUuid?: string) => {
             if (!projectUuid) {
                 throw new Error('Project UUID is undefined');
             }
-            return deleteDashboard(id, projectUuid);
+            return deleteDashboard(lightdashApi, id, projectUuid);
         },
         {
             onSuccess: async () => {
@@ -754,6 +796,7 @@ export const useDashboardDeleteMutation = (projectUuid?: string) => {
 };
 
 const getDashboardHistory = async (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
 ): Promise<DashboardHistory> =>
     lightdashApi<DashboardHistory>({
@@ -762,15 +805,18 @@ const getDashboardHistory = async (
         body: undefined,
     });
 
-export const useDashboardHistory = (dashboardUuid: string | undefined) =>
-    useQuery<DashboardHistory, ApiError>({
+export const useDashboardHistory = (dashboardUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DashboardHistory, ApiError>({
         queryKey: ['dashboard_history', dashboardUuid],
-        queryFn: () => getDashboardHistory(dashboardUuid!),
+        queryFn: () => getDashboardHistory(lightdashApi, dashboardUuid!),
         enabled: dashboardUuid !== undefined,
         retry: false,
     });
+};
 
 const getDashboardVersion = async (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
     versionUuid: string,
 ): Promise<DashboardVersion> => {
@@ -784,15 +830,19 @@ const getDashboardVersion = async (
 export const useDashboardVersion = (
     dashboardUuid: string | undefined,
     versionUuid: string | undefined,
-) =>
-    useQuery<DashboardVersion, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DashboardVersion, ApiError>({
         queryKey: ['dashboard_version', dashboardUuid, versionUuid],
-        queryFn: () => getDashboardVersion(dashboardUuid!, versionUuid!),
+        queryFn: () =>
+            getDashboardVersion(lightdashApi, dashboardUuid!, versionUuid!),
         enabled: dashboardUuid !== undefined && versionUuid !== undefined,
         retry: false,
     });
+};
 
 const rollbackDashboard = async (
+    lightdashApi: LightdashApi,
     dashboardUuid: string,
     versionUuid: string,
 ): Promise<null> =>
@@ -805,12 +855,13 @@ const rollbackDashboard = async (
 export const useDashboardVersionRollbackMutation = (
     dashboardUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, string>(
         (versionUuid: string) =>
             dashboardUuid && versionUuid
-                ? rollbackDashboard(dashboardUuid, versionUuid)
+                ? rollbackDashboard(lightdashApi, dashboardUuid, versionUuid)
                 : Promise.reject(),
         {
             mutationKey: ['dashboard_version_rollback'],

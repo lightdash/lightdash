@@ -12,6 +12,7 @@ import {
     type VizColumn,
     type VizSortBy,
 } from '@lightdash/common';
+import { type LightdashApi } from '../../../api';
 import { BaseResultsRunner } from '../../queryRunner/BaseResultsRunner';
 import { getPivotQueryFunctionForSqlQuery } from '../../queryRunner/sqlRunnerPivotQueries';
 
@@ -43,6 +44,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sortBy,
         parameters,
         warehouseConnectionUuid,
+        lightdashApi,
     }: {
         columns: VizColumn[];
         rows: RawResultRow[];
@@ -52,6 +54,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
         sortBy?: VizSortBy[];
         parameters: ParametersValuesMap;
         warehouseConnectionUuid?: string | null;
+        lightdashApi: LightdashApi;
     }) {
         const fields: SqlRunnerField[] = columns.map((column) => ({
             kind: FieldType.DIMENSION,
@@ -70,7 +73,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             rows,
             projectUuid,
             columnNames: fields.map((field) => field.name),
-            runPivotQuery: getPivotQueryFunctionForSqlQuery({
+            runPivotQuery: getPivotQueryFunctionForSqlQuery(lightdashApi, {
                 projectUuid,
                 limit,
                 sql,

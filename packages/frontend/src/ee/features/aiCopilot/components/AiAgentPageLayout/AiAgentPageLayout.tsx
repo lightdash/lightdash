@@ -24,6 +24,7 @@ import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
@@ -88,6 +89,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     isAgentSidebarCollapsed,
     isEmbed = false,
 }) => {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
     const { mode: embedMode } = useEmbed();
@@ -111,7 +114,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     // panel owns error handling.
     const artifactQuery =
         preview?.type === 'artifact'
-            ? aiAgentArtifactVersionQuery(preview)
+            ? aiAgentArtifactVersionQuery(lightdashApi, preview)
             : null;
     const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
         queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],

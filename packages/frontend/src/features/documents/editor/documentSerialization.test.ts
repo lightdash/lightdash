@@ -7,6 +7,7 @@ import {
 import { Editor } from '@tiptap/core';
 import { GapCursor } from '@tiptap/pm/gapcursor';
 import { TextSelection } from '@tiptap/pm/state';
+import { sharedLightdashApi } from '../../../api';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
@@ -57,7 +58,7 @@ const getBlocks = (editor: Editor) =>
 
 const load = (blocks: DocumentChartBlock[]) => {
     const editor = new Editor({
-        extensions: createDocumentEditorExtensions({
+        extensions: createDocumentEditorExtensions(sharedLightdashApi, {
             projectUuid: 'project',
             editing: { onInsertChart: null, onEditChart: null },
         }),

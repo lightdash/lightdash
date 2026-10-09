@@ -14,8 +14,9 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const POLL_INTERVAL_MS = 2_000;
 
@@ -34,35 +35,48 @@ const getAgentOnboardingRefetchInterval = (
         ? POLL_INTERVAL_MS
         : false;
 
-const getRun = async (projectUuid: string, runUuid: string) =>
+const getRun = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    runUuid: string,
+) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding/${runUuid}`,
         method: 'GET',
         body: undefined,
     });
 
-const getActiveRun = async (projectUuid: string) =>
+const getActiveRun = async (lightdashApi: LightdashApi, projectUuid: string) =>
     lightdashApi<ApiAgentOnboardingActiveRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding`,
         method: 'GET',
         body: undefined,
     });
 
-const startRun = async (projectUuid: string) =>
+const startRun = async (lightdashApi: LightdashApi, projectUuid: string) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding`,
         method: 'POST',
         body: undefined,
     });
 
-const cancelRun = async (projectUuid: string, runUuid: string) =>
+const cancelRun = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    runUuid: string,
+) =>
     lightdashApi<ApiAgentOnboardingRunResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding/${runUuid}/cancel`,
         method: 'POST',
         body: undefined,
     });
 
-const getFile = async (projectUuid: string, runUuid: string, path: string) =>
+const getFile = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    runUuid: string,
+    path: string,
+) =>
     lightdashApi<ApiAgentOnboardingFileResponse['results']>({
         url: `/ee/projects/${projectUuid}/agent-onboarding/${runUuid}/file?${new URLSearchParams(
             { path },
@@ -75,14 +89,16 @@ export const useAgentOnboardingRun = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
     options?: Pick<UseQueryOptions<AgentOnboardingRun, ApiError>, 'enabled'>,
-) =>
-    useQuery<AgentOnboardingRun, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentOnboardingRun, ApiError>({
         queryKey: agentOnboardingRunQueryKey(projectUuid, runUuid),
-        queryFn: () => getRun(projectUuid!, runUuid!),
+        queryFn: () => getRun(lightdashApi, projectUuid!, runUuid!),
         enabled: !!projectUuid && !!runUuid && (options?.enabled ?? true),
         refetchInterval: getAgentOnboardingRefetchInterval,
         refetchIntervalInBackground: true,
     });
+};
 
 export const useActiveAgentOnboardingRun = (
     projectUuid: string | undefined,
@@ -90,22 +106,25 @@ export const useActiveAgentOnboardingRun = (
         UseQueryOptions<AgentOnboardingRun | null, ApiError>,
         'enabled'
     >,
-) =>
-    useQuery<AgentOnboardingRun | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentOnboardingRun | null, ApiError>({
         queryKey: agentOnboardingActiveRunQueryKey(projectUuid),
-        queryFn: () => getActiveRun(projectUuid!),
+        queryFn: () => getActiveRun(lightdashApi, projectUuid!),
         enabled: !!projectUuid && (options?.enabled ?? true),
         // A run can start or finish elsewhere in the app, so this must not be
         // served stale on remount (e.g. after a back navigation)
         staleTime: 0,
     });
+};
 
 export const useAgentOnboardingFile = (
     projectUuid: string | undefined,
     runUuid: string | undefined,
     file: AgentOnboardingFile | undefined,
-) =>
-    useQuery<AgentOnboardingFileContent, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<AgentOnboardingFileContent, ApiError>({
         queryKey: [
             'agent-onboarding-file',
             projectUuid,
@@ -113,17 +132,21 @@ export const useAgentOnboardingFile = (
             file?.path,
             file?.updatedAt,
         ],
-        queryFn: () => getFile(projectUuid!, runUuid!, file!.path),
+        queryFn: () =>
+            getFile(lightdashApi, projectUuid!, runUuid!, file!.path),
         enabled: !!projectUuid && !!runUuid && !!file,
         keepPreviousData: true,
     });
+};
 
 export const useStartAgentOnboardingRun = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
     return useMutation<AgentOnboardingRun, ApiError, string>({
-        mutationFn: startRun,
+        mutationFn: (projectUuid: string) =>
+            startRun(lightdashApi, projectUuid),
         onSuccess: (run) => {
             queryClient.setQueryData(
                 agentOnboardingRunQueryKey(
@@ -152,12 +175,13 @@ type CancelRunArgs = {
 };
 
 export const useCancelAgentOnboardingRun = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
     return useMutation<AgentOnboardingRun, ApiError, CancelRunArgs>({
         mutationFn: ({ projectUuid, runUuid }) =>
-            cancelRun(projectUuid, runUuid),
+            cancelRun(lightdashApi, projectUuid, runUuid),
         onSuccess: (run) => {
             queryClient.setQueryData(
                 agentOnboardingRunQueryKey(

@@ -1,7 +1,8 @@
 import { type ApiError } from '@lightdash/common';
 import { IconRefreshDot } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useSchedulerJobsContext from '../providers/SchedulerJobs/useSchedulerJobsContext';
 import useToaster from './toaster/useToaster';
 
@@ -9,7 +10,10 @@ type RefreshOptions = {
     showToast?: boolean;
 };
 
-const refreshAllPreAggregates = async (projectUuid: string) =>
+const refreshAllPreAggregates = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<{ jobIds: string[] }>({
         url: `/projects/${projectUuid}/pre-aggregates/refresh`,
         method: 'POST',
@@ -20,13 +24,14 @@ export const useRefreshAllPreAggregates = (
     projectUuid: string,
     options: RefreshOptions = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToast = true } = options;
     const { showToastApiError } = useToaster();
     const { registerJobs } = useSchedulerJobsContext();
     const queryClient = useQueryClient();
 
     return useMutation<{ jobIds: string[] }, ApiError>(
-        () => refreshAllPreAggregates(projectUuid),
+        () => refreshAllPreAggregates(lightdashApi, projectUuid),
         {
             mutationKey: ['refreshAllPreAggregates', projectUuid],
             onSuccess: (data) => {
@@ -61,6 +66,7 @@ export const useRefreshAllPreAggregates = (
 };
 
 const refreshPreAggregateByDefinitionName = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     preAggregateDefinitionName: string,
 ) =>
@@ -74,6 +80,7 @@ export const useRefreshPreAggregateByDefinitionName = (
     projectUuid: string,
     options: RefreshOptions = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToast = true } = options;
     const { showToastApiError } = useToaster();
     const { registerJobs } = useSchedulerJobsContext();
@@ -82,6 +89,7 @@ export const useRefreshPreAggregateByDefinitionName = (
     return useMutation<{ jobIds: string[] }, ApiError, string>(
         (preAggregateDefinitionName) =>
             refreshPreAggregateByDefinitionName(
+                lightdashApi,
                 projectUuid,
                 preAggregateDefinitionName,
             ),

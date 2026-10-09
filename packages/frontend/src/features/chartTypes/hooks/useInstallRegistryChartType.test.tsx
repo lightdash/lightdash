@@ -2,12 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { captureChartTypeError } from '../utils/captureChartTypeError';
 import { useUpgradeAllRegistryChartTypes } from './useInstallRegistryChartType';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../hooks/toaster/useToaster', () => ({ default: vi.fn() }));
 vi.mock('../utils/captureChartTypeError', () => ({
     captureChartTypeError: vi.fn(),
@@ -35,7 +35,7 @@ const charts = [
 
 describe('useUpgradeAllRegistryChartTypes', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
         vi.mocked(useToaster).mockReturnValue({
             showToastSuccess,
             showToastError,
@@ -46,7 +46,7 @@ describe('useUpgradeAllRegistryChartTypes', () => {
 
     it('upgrades one chart type at a time and keeps going after a failure', async () => {
         const apiError = { error: { message: 'artifact missing' } };
-        vi.mocked(lightdashApi).mockImplementation(({ url }) =>
+        mockedLightdashApi.mockImplementation(({ url }) =>
             url.includes('/globe/')
                 ? Promise.reject(apiError)
                 : Promise.resolve({
@@ -66,14 +66,14 @@ describe('useUpgradeAllRegistryChartTypes', () => {
             }),
         );
 
-        expect(
-            vi.mocked(lightdashApi).mock.calls.map(([args]) => args.url),
-        ).toEqual([
-            '/ee/projects/project-1/apps/registry/charts/gauge/install',
-            '/ee/projects/project-1/apps/registry/charts/globe/install',
-            '/ee/projects/project-1/apps/registry/charts/venn/install',
-        ]);
-        expect(vi.mocked(lightdashApi).mock.calls[0][0].body).toBe(
+        expect(mockedLightdashApi.mock.calls.map(([args]) => args.url)).toEqual(
+            [
+                '/ee/projects/project-1/apps/registry/charts/gauge/install',
+                '/ee/projects/project-1/apps/registry/charts/globe/install',
+                '/ee/projects/project-1/apps/registry/charts/venn/install',
+            ],
+        );
+        expect(mockedLightdashApi.mock.calls[0][0].body).toBe(
             JSON.stringify({ upgradeConsumingCharts: true }),
         );
         expect(showToastSuccess).toHaveBeenCalledWith({

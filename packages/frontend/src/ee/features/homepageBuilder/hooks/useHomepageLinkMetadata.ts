@@ -1,5 +1,5 @@
 import { type HomepageLinkMetadata } from '@lightdash/common';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 
 /**
  * Unfurl a pasted resource URL via the homepage builder endpoint. Resolves with
@@ -8,6 +8,7 @@ import { lightdashApi } from '../../../../api';
  * link.
  */
 export const fetchHomepageLinkMetadata = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     url: string,
 ): Promise<HomepageLinkMetadata> => {

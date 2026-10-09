@@ -29,6 +29,7 @@ import {
 import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../../utils/dateFilter';
 import ErrorState from '../common/ErrorState';
 import MantineIcon from '../common/MantineIcon';
@@ -44,6 +45,7 @@ import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 import { getUnderlyingDataColumnOrder } from './utils';
 
 const UnderlyingDataModalContent: FC = () => {
+    const lightdashApi = useLightdashApi();
     const authoringEnabled = useContentAuthoringEnabled();
     const projectUuid = useProjectUuid();
     const {
@@ -220,6 +222,7 @@ const UnderlyingDataModalContent: FC = () => {
             if (limit === null || limit !== resultsData?.rows.length) {
                 // Get new query uuid with new limit
                 const newQuery = await getUnderlyingDataResults(
+                    lightdashApi,
                     projectUuid!,
                     {
                         context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
@@ -250,6 +253,7 @@ const UnderlyingDataModalContent: FC = () => {
             underlyingDataItemId,
             parameters,
             sorts,
+            lightdashApi,
         ],
     );
 

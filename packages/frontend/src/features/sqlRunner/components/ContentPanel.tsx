@@ -68,6 +68,7 @@ import { useOrganization } from '../../../hooks/organization/useOrganization';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
@@ -222,6 +223,8 @@ const QueryErrorBlock: FC<{
 export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     toolbarActions,
 }) => {
+    const lightdashApi = useLightdashApi();
+
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
@@ -617,7 +620,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             // 2. limit is different from current query
             // 3. there is no fallback query uuid (in theory, never happens)
             if (!queryUuid || limit === null || limit !== downloadLimit) {
-                return executeSqlDownloadQuery({
+                return executeSqlDownloadQuery(lightdashApi, {
                     projectUuid,
                     sql,
                     limit: downloadLimit,
@@ -634,6 +637,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             queryUuid,
             parameterValues,
             warehouseConnectionUuid,
+            lightdashApi,
         ],
     );
 

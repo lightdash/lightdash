@@ -1,7 +1,10 @@
 import { type ProjectGroupAccess } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 
-export function getProjectGroupAccessList(projectUuid: string) {
+export function getProjectGroupAccessList(
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) {
     return lightdashApi<ProjectGroupAccess[]>({
         url: `/projects/${projectUuid}/groupAccesses`,
         method: 'GET',

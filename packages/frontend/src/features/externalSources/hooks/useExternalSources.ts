@@ -10,13 +10,17 @@ import {
     type UpdateExternalSourcePayload,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const EXTERNAL_SOURCES_BASE = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/external-sources`;
 
-const listExternalSourcesApi = async (projectUuid: string) =>
+const listExternalSourcesApi = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ExternalSource[]>({
         url: EXTERNAL_SOURCES_BASE(projectUuid),
         method: 'GET',
@@ -24,6 +28,7 @@ const listExternalSourcesApi = async (projectUuid: string) =>
     });
 
 export const getExternalSourceApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     sourceUuid: string,
 ) =>
@@ -35,11 +40,14 @@ export const getExternalSourceApi = async (
 
 // Raw body + filename in query params (matches the backend controller —
 // mirrors the design-file upload precedent, NOT multipart/form-data).
-const uploadCsvApi = async (args: {
-    projectUuid: string;
-    file: File;
-    scope: ExternalSourceScope;
-}) => {
+const uploadCsvApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        file: File;
+        scope: ExternalSourceScope;
+    },
+) => {
     const search = new URLSearchParams({
         filename: args.file.name,
         scope: args.scope,
@@ -56,11 +64,14 @@ const uploadCsvApi = async (args: {
     });
 };
 
-const commitUploadApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-    payload: CreateExternalSourceTablePayload;
-}) =>
+const commitUploadApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+        payload: CreateExternalSourceTablePayload;
+    },
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
             args.sourceUuid
@@ -77,25 +88,33 @@ export const useExternalSource = (
     projectUuid: string | undefined,
     sourceUuid: string | undefined,
     options?: { poll?: boolean },
-) =>
-    useQuery<ExternalSource, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ExternalSource, ApiError>({
         queryKey: ['external-sources', projectUuid, sourceUuid],
-        queryFn: () => getExternalSourceApi(projectUuid!, sourceUuid!),
+        queryFn: () =>
+            getExternalSourceApi(lightdashApi, projectUuid!, sourceUuid!),
         enabled: !!projectUuid && !!sourceUuid,
         refetchInterval: options?.poll
             ? (data) =>
                   data?.status === ExternalSourceStatus.SYNCING ? 2000 : false
             : false,
     });
+};
 
 export const useUploadCsv = (
     projectUuid: string | undefined,
     scope: ExternalSourceScope = ExternalSourceScope.CATALOG,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<StagedExternalSourceUpload, ApiError, File>({
         mutationFn: (file) =>
-            uploadCsvApi({ projectUuid: projectUuid!, file, scope }),
+            uploadCsvApi(lightdashApi, {
+                projectUuid: projectUuid!,
+                file,
+                scope,
+            }),
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Could not upload the file',
@@ -106,6 +125,7 @@ export const useUploadCsv = (
 };
 
 export const useCommitCsvUpload = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ExternalSource,
@@ -113,7 +133,7 @@ export const useCommitCsvUpload = (projectUuid: string | undefined) => {
         { sourceUuid: string; payload: CreateExternalSourceTablePayload }
     >({
         mutationFn: ({ sourceUuid, payload }) =>
-            commitUploadApi({
+            commitUploadApi(lightdashApi, {
                 projectUuid: projectUuid!,
                 sourceUuid,
                 payload,
@@ -135,10 +155,11 @@ export const useInvalidateTables = () => {
         });
 };
 
-export const useExternalSources = (projectUuid: string | undefined) =>
-    useQuery<ExternalSource[], ApiError>({
+export const useExternalSources = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ExternalSource[], ApiError>({
         queryKey: ['external-sources', projectUuid],
-        queryFn: () => listExternalSourcesApi(projectUuid!),
+        queryFn: () => listExternalSourcesApi(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
         refetchInterval: (data) =>
             data?.some(
@@ -147,11 +168,15 @@ export const useExternalSources = (projectUuid: string | undefined) =>
                 ? 2000
                 : false,
     });
+};
 
-const createSheetsSourceApi = async (args: {
-    projectUuid: string;
-    payload: CreateGoogleSheetsSourcePayload;
-}) =>
+const createSheetsSourceApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        payload: CreateGoogleSheetsSourcePayload;
+    },
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/google-sheets`,
         method: 'POST',
@@ -159,6 +184,7 @@ const createSheetsSourceApi = async (args: {
     });
 
 export const useCreateSheetsSource = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ExternalSource,
@@ -166,7 +192,10 @@ export const useCreateSheetsSource = (projectUuid: string | undefined) => {
         CreateGoogleSheetsSourcePayload
     >({
         mutationFn: (payload) =>
-            createSheetsSourceApi({ projectUuid: projectUuid!, payload }),
+            createSheetsSourceApi(lightdashApi, {
+                projectUuid: projectUuid!,
+                payload,
+            }),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-sources', projectUuid],
@@ -175,10 +204,13 @@ export const useCreateSheetsSource = (projectUuid: string | undefined) => {
     });
 };
 
-const refreshExternalSourceApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-}) =>
+const refreshExternalSourceApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+    },
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
             args.sourceUuid
@@ -188,11 +220,12 @@ const refreshExternalSourceApi = async (args: {
     });
 
 export const useRefreshExternalSource = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<ExternalSource, ApiError, string>({
         mutationFn: (sourceUuid) =>
-            refreshExternalSourceApi({
+            refreshExternalSourceApi(lightdashApi, {
                 projectUuid: projectUuid!,
                 sourceUuid,
             }),
@@ -214,10 +247,13 @@ export const useRefreshExternalSource = (projectUuid: string | undefined) => {
     });
 };
 
-const reconnectExternalSourceApi = (args: {
-    projectUuid: string;
-    sourceUuid: string;
-}) =>
+const reconnectExternalSourceApi = (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+    },
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}/reconnect`,
         method: 'POST',
@@ -225,11 +261,12 @@ const reconnectExternalSourceApi = (args: {
     });
 
 export const useReconnectExternalSource = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<ExternalSource, ApiError, string>({
         mutationFn: (sourceUuid) =>
-            reconnectExternalSourceApi({
+            reconnectExternalSourceApi(lightdashApi, {
                 projectUuid: projectUuid!,
                 sourceUuid,
             }),
@@ -250,11 +287,14 @@ export const useReconnectExternalSource = (projectUuid: string | undefined) => {
     });
 };
 
-const renameExternalSourceApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-    payload: UpdateExternalSourcePayload;
-}) =>
+const renameExternalSourceApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+        payload: UpdateExternalSourcePayload;
+    },
+) =>
     lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}`,
         method: 'PATCH',
@@ -262,6 +302,7 @@ const renameExternalSourceApi = async (args: {
     });
 
 export const useRenameExternalSource = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -270,7 +311,7 @@ export const useRenameExternalSource = (projectUuid: string | undefined) => {
         { sourceUuid: string; payload: UpdateExternalSourcePayload }
     >({
         mutationFn: ({ sourceUuid, payload }) =>
-            renameExternalSourceApi({
+            renameExternalSourceApi(lightdashApi, {
                 projectUuid: projectUuid!,
                 sourceUuid,
                 payload,
@@ -293,11 +334,14 @@ export const useRenameExternalSource = (projectUuid: string | undefined) => {
     });
 };
 
-const replaceCsvApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-    file: File;
-}) => {
+const replaceCsvApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+        file: File;
+    },
+) => {
     const search = new URLSearchParams({ filename: args.file.name });
     return lightdashApi<ExternalSource>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
@@ -312,6 +356,7 @@ const replaceCsvApi = async (args: {
 };
 
 export const useReplaceCsvFile = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
@@ -320,7 +365,11 @@ export const useReplaceCsvFile = (projectUuid: string | undefined) => {
         { sourceUuid: string; file: File }
     >({
         mutationFn: ({ sourceUuid, file }) =>
-            replaceCsvApi({ projectUuid: projectUuid!, sourceUuid, file }),
+            replaceCsvApi(lightdashApi, {
+                projectUuid: projectUuid!,
+                sourceUuid,
+                file,
+            }),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: ['external-sources', projectUuid],
@@ -335,10 +384,13 @@ export const useReplaceCsvFile = (projectUuid: string | undefined) => {
     });
 };
 
-export const deleteExternalSourceApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-}) =>
+export const deleteExternalSourceApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+    },
+) =>
     lightdashApi<undefined>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${args.sourceUuid}`,
         method: 'DELETE',
@@ -346,11 +398,12 @@ export const deleteExternalSourceApi = async (args: {
     });
 
 export const useDeleteExternalSource = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>({
         mutationFn: (sourceUuid) =>
-            deleteExternalSourceApi({
+            deleteExternalSourceApi(lightdashApi, {
                 projectUuid: projectUuid!,
                 sourceUuid,
             }),
@@ -372,11 +425,14 @@ export const useDeleteExternalSource = (projectUuid: string | undefined) => {
     });
 };
 
-const getTablePreviewApi = async (args: {
-    projectUuid: string;
-    sourceUuid: string;
-    tableUuid: string;
-}) =>
+const getTablePreviewApi = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        sourceUuid: string;
+        tableUuid: string;
+    },
+) =>
     lightdashApi<ExternalSourceTablePreview>({
         url: `${EXTERNAL_SOURCES_BASE(args.projectUuid)}/${
             args.sourceUuid
@@ -389,8 +445,9 @@ export const useExternalSourceTablePreview = (args: {
     projectUuid: string | undefined;
     sourceUuid: string | undefined;
     tableUuid: string | undefined;
-}) =>
-    useQuery<ExternalSourceTablePreview, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ExternalSourceTablePreview, ApiError>({
         queryKey: [
             'external-sources',
             args.projectUuid,
@@ -399,10 +456,11 @@ export const useExternalSourceTablePreview = (args: {
             args.tableUuid,
         ],
         queryFn: () =>
-            getTablePreviewApi({
+            getTablePreviewApi(lightdashApi, {
                 projectUuid: args.projectUuid!,
                 sourceUuid: args.sourceUuid!,
                 tableUuid: args.tableUuid!,
             }),
         enabled: !!args.projectUuid && !!args.sourceUuid && !!args.tableUuid,
     });
+};

@@ -8,9 +8,10 @@ import type {
     LearnWorkspaceFile,
     LearnWorkspaceFileSummary,
 } from '@lightdash/common';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 
 export const getWorkspaceFiles = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
 ): Promise<LearnWorkspaceFileSummary[]> =>
     lightdashApi<ApiLearnWorkspaceFilesResponse['results']>({
@@ -20,6 +21,7 @@ export const getWorkspaceFiles = async (
     });
 
 export const getWorkspaceFile = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     path: string,
 ): Promise<LearnWorkspaceFile> =>
@@ -30,6 +32,7 @@ export const getWorkspaceFile = async (
     });
 
 export const saveWorkspaceFile = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     path: string,
     content: string,
@@ -41,6 +44,7 @@ export const saveWorkspaceFile = async (
     });
 
 export const runWorkspaceCommand = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     request: LearnSandboxCommandRequest,
 ): Promise<{ commandUuid: string }> =>
@@ -51,6 +55,7 @@ export const runWorkspaceCommand = async (
     });
 
 export const getCommandOutput = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     commandUuid: string,
     after: number,

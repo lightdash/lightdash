@@ -4,12 +4,13 @@ import {
     QueryExecutionContext,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { executeMergeQuery } from './useMergeQuery';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
-const api = vi.mocked(lightdashApi);
+const api = mockedLightdashApi;
 
 describe('executeMergeQuery', () => {
     beforeEach(() => api.mockReset());
@@ -23,6 +24,7 @@ describe('executeMergeQuery', () => {
         } as never);
 
         const result = await executeMergeQuery(
+            sharedLightdashApi,
             'project-uuid',
             {
                 sources: [],
@@ -79,13 +81,17 @@ describe('executeMergeQuery', () => {
             errors: [{ message: 'Missing customer name' }],
         } as never);
 
-        const result = await executeMergeQuery('project-uuid', {
-            sources: [],
-            joinKey: [],
-            joinType: MergeJoinType.FULL,
-            limit: 500,
-            tableCalculations: [],
-        });
+        const result = await executeMergeQuery(
+            sharedLightdashApi,
+            'project-uuid',
+            {
+                sources: [],
+                joinKey: [],
+                joinType: MergeJoinType.FULL,
+                limit: 500,
+                tableCalculations: [],
+            },
+        );
 
         expect(result).toMatchObject({
             outcome: 'refused',

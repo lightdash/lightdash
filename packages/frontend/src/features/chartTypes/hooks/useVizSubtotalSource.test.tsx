@@ -92,7 +92,7 @@ describe('useVizSubtotalSource', () => {
         expect(portugal).toEqual({ rows: [CITY_ROWS[0], CITY_ROWS[1]] });
         expect(spain).toEqual({ rows: [CITY_ROWS[2]] });
         expect(fetchRows).toHaveBeenCalledTimes(1);
-        expect(fetchRows).toHaveBeenCalledWith({
+        expect(fetchRows).toHaveBeenCalledWith(expect.anything(), {
             projectUuid: 'project-uuid',
             sourceQueryUuid: 'query-1',
             subtotalDimensions: DIMENSIONS,
@@ -219,7 +219,7 @@ describe('useVizSubtotalSource', () => {
             ),
             expect(currentRequest).resolves.toEqual({ rows: CITY_ROWS }),
         ]);
-        expect(fetchRows).toHaveBeenCalledExactlyOnceWith({
+        expect(fetchRows).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
             projectUuid: 'project-uuid',
             sourceQueryUuid: 'query-2',
             subtotalDimensions: [DIMENSIONS[0]],

@@ -6,18 +6,22 @@ import {
     type DashboardPreAggregateAudit,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import { type TilePreAggregateStatus } from '../../providers/Dashboard/types';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const runDashboardPreAggregateAudit = ({
-    projectUuid,
-    dashboardUuid,
-    dashboardFilters,
-}: {
-    projectUuid: string;
-    dashboardUuid: string;
-    dashboardFilters: DashboardFilters;
-}): Promise<DashboardPreAggregateAudit> => {
+const runDashboardPreAggregateAudit = (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        dashboardUuid,
+        dashboardFilters,
+    }: {
+        projectUuid: string;
+        dashboardUuid: string;
+        dashboardFilters: DashboardFilters;
+    },
+): Promise<DashboardPreAggregateAudit> => {
     const body: ApiRunDashboardPreAggregateAuditBody = { dashboardFilters };
     return lightdashApi<DashboardPreAggregateAudit>({
         url: `/projects/${projectUuid}/pre-aggregates/dashboards/${dashboardUuid}/audit`,
@@ -66,8 +70,9 @@ export const useDashboardPreAggregateAudit = ({
     dashboardUuid: string | undefined;
     dashboardFilters: DashboardFilters;
     enabled?: boolean;
-}) =>
-    useQuery<DashboardPreAggregateAudit, ApiError>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DashboardPreAggregateAudit, ApiError>({
         queryKey: [
             'dashboard-pre-aggregate-audit',
             projectUuid,
@@ -75,10 +80,11 @@ export const useDashboardPreAggregateAudit = ({
             dashboardFilters,
         ],
         queryFn: () =>
-            runDashboardPreAggregateAudit({
+            runDashboardPreAggregateAudit(lightdashApi, {
                 projectUuid: projectUuid!,
                 dashboardUuid: dashboardUuid!,
                 dashboardFilters,
             }),
         enabled: enabled && !!projectUuid && !!dashboardUuid,
     });
+};

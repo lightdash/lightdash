@@ -5,14 +5,15 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { pollForResults } from '../../queryRunner/executeQuery';
 import {
     SAVED_CHART_PREVIEW_ROW_LIMIT,
     executeSavedChartPreviewQuery,
 } from './savedChartPreviewQuery';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../queryRunner/executeQuery', () => ({ pollForResults: vi.fn() }));
 
 const executedMetricQuery = {
@@ -28,7 +29,7 @@ const executedMetricQuery = {
 describe('executeSavedChartPreviewQuery', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             queryUuid: 'preview-query',
             metricQuery: executedMetricQuery,
             fields: { orders_status: { name: 'orders_status' } },
@@ -67,7 +68,7 @@ describe('executeSavedChartPreviewQuery', () => {
         });
 
         await expect(
-            executeSavedChartPreviewQuery({
+            executeSavedChartPreviewQuery(sharedLightdashApi, {
                 projectUuid: 'project-1',
                 chartUuid: 'chart-1',
             }),
@@ -79,7 +80,7 @@ describe('executeSavedChartPreviewQuery', () => {
             pivotDetails,
         });
 
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/project-1/query/chart',
             version: 'v2',
             method: 'POST',
@@ -91,6 +92,7 @@ describe('executeSavedChartPreviewQuery', () => {
             }),
         });
         expect(pollForResults).toHaveBeenCalledWith(
+            expect.anything(),
             'project-1',
             'preview-query',
         );
@@ -113,14 +115,14 @@ describe('executeSavedChartPreviewQuery', () => {
                 },
             ],
         };
-        await executeSavedChartPreviewQuery({
+        await executeSavedChartPreviewQuery(sharedLightdashApi, {
             projectUuid: 'project-1',
             chartUuid: 'chart-1',
             pivotResults: false,
             pivotConfiguration,
         });
         expect(
-            JSON.parse(String(vi.mocked(lightdashApi).mock.calls[0][0].body)),
+            JSON.parse(String(mockedLightdashApi.mock.calls[0][0].body)),
         ).toMatchObject({
             chartUuid: 'chart-1',
             pivotResults: false,
@@ -129,7 +131,7 @@ describe('executeSavedChartPreviewQuery', () => {
     });
 
     it('maps a failed chart-query request to its API error message', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             status: 'error',
             error: {
                 name: 'InternalServerError',
@@ -140,7 +142,7 @@ describe('executeSavedChartPreviewQuery', () => {
         });
 
         await expect(
-            executeSavedChartPreviewQuery({
+            executeSavedChartPreviewQuery(sharedLightdashApi, {
                 projectUuid: 'project-1',
                 chartUuid: 'chart-1',
             }),
@@ -155,7 +157,7 @@ describe('executeSavedChartPreviewQuery', () => {
         } as unknown as Awaited<ReturnType<typeof pollForResults>>);
 
         await expect(
-            executeSavedChartPreviewQuery({
+            executeSavedChartPreviewQuery(sharedLightdashApi, {
                 projectUuid: 'project-1',
                 chartUuid: 'chart-1',
             }),

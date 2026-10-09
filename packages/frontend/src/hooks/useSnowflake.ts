@@ -5,9 +5,10 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
 import { getAiAccessRefusal } from '../features/aiAccess/errors';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
@@ -138,7 +139,7 @@ export function useSnowflakeAiLoginPopup(attribution: AgentConnectAttribution) {
     });
 }
 
-const getIsAuthenticated = async () =>
+const getIsAuthenticated = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         url: `/snowflake/sso/is-authenticated`,
         method: 'GET',
@@ -146,11 +147,12 @@ const getIsAuthenticated = async () =>
     });
 
 export const useIsSnowflakeAuthenticated = () => {
+    const lightdashApi = useLightdashApi();
     const health = useHealth();
 
     return useQuery<ApiSuccessEmpty['results'], ApiError>({
         queryKey: ['snowflake-sso-is-authenticated'],
-        queryFn: getIsAuthenticated,
+        queryFn: () => getIsAuthenticated(lightdashApi),
         enabled: health.data?.auth.snowflake.enabled === true,
         retry: false,
     });

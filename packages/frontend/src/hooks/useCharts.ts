@@ -1,8 +1,12 @@
 import type { ApiError, SpaceQuery } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
-const getChartsInProject = async (projectUuid: string) => {
+const getChartsInProject = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) => {
     return lightdashApi<SpaceQuery[]>({
         url: `/projects/${projectUuid}/charts`,
         method: 'GET',
@@ -14,9 +18,10 @@ export const useCharts = (
     projectUuid: string | undefined,
     useQueryFetchOptions?: UseQueryOptions<SpaceQuery[], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<SpaceQuery[], ApiError>({
         queryKey: ['project', projectUuid, 'charts'],
-        queryFn: () => getChartsInProject(projectUuid!),
+        queryFn: () => getChartsInProject(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
         ...useQueryFetchOptions,
     });

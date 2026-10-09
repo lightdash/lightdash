@@ -1,5 +1,5 @@
 import { type ApiDashboardAsCodeListResponse } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useContentAsCode } from './useContentAsCode';
 
 const DASHBOARD_FIELDS_TO_OMIT = ['updatedAt', 'downloadedAt'];
@@ -16,6 +16,7 @@ export const useDashboardAsCode = ({
     dashboardUuid: string;
     enabled: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useContentAsCode<ApiDashboardAsCodeListResponse['results']>({
         queryKey: ['dashboard-as-code', projectUuid, dashboardUuid],
         queryFn: () =>

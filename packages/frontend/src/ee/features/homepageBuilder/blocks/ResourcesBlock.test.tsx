@@ -1,6 +1,7 @@
 import { type HomepageResourcesBlock } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { sharedLightdashApi } from '../../../../api';
 import { fetchHomepageLinkMetadata } from '../hooks/useHomepageLinkMetadata';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { resolveResourceUrl } from './resourceUrls';
@@ -352,7 +353,11 @@ describe('ResourcesBlockBuild smart paste', () => {
     it('falls back to a plain link when the host is not allowlisted', async () => {
         mockFetch.mockRejectedValueOnce(new Error('400'));
         await expect(
-            resolveResourceUrl('p1', 'https://example.com/handbook'),
+            resolveResourceUrl(
+                sharedLightdashApi,
+                'p1',
+                'https://example.com/handbook',
+            ),
         ).resolves.toEqual({
             url: 'https://example.com/handbook',
             kind: 'link',
@@ -398,8 +403,13 @@ describe('ResourcesBlockBuild smart paste', () => {
             description: 'Channel',
             imageUrl: 'https://i.ytimg.com/vi/x/hqdefault.jpg',
         });
-        await resolveResourceUrl('p1', 'youtube.com/watch?v=x');
+        await resolveResourceUrl(
+            sharedLightdashApi,
+            'p1',
+            'youtube.com/watch?v=x',
+        );
         expect(mockFetch).toHaveBeenCalledWith(
+            expect.anything(),
             'p1',
             'https://youtube.com/watch?v=x',
         );

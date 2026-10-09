@@ -1,7 +1,8 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type DeleteSampleParams = {
     projectUuid: string;
@@ -9,11 +10,10 @@ type DeleteSampleParams = {
     sampleUuid: string;
 };
 
-const deleteConnectionSample = async ({
-    projectUuid,
-    connectionUuid,
-    sampleUuid,
-}: DeleteSampleParams): Promise<undefined> =>
+const deleteConnectionSample = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, connectionUuid, sampleUuid }: DeleteSampleParams,
+): Promise<undefined> =>
     lightdashApi<undefined>({
         url: `/ee/projects/${projectUuid}/external-connections/${connectionUuid}/samples/${sampleUuid}`,
         method: 'DELETE',
@@ -21,10 +21,12 @@ const deleteConnectionSample = async ({
     });
 
 export const useDeleteConnectionSample = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, DeleteSampleParams>({
-        mutationFn: deleteConnectionSample,
+        mutationFn: (args: DeleteSampleParams) =>
+            deleteConnectionSample(lightdashApi, args),
         onSuccess: async (_data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: [

@@ -3,13 +3,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import {
     suggestChartTypeFields,
     useSuggestedChartTypeExplore,
 } from './useChartTypeSuggestions';
 
-vi.mock('../../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../../api');
 
 const request = {
     prompt: 'revenue by region',
@@ -27,7 +28,7 @@ const request = {
 describe('suggestChartTypeFields', () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
     });
 
     afterEach(() => {
@@ -35,7 +36,7 @@ describe('suggestChartTypeFields', () => {
     });
 
     it('gives up after six seconds', async () => {
-        vi.mocked(lightdashApi).mockImplementation(
+        mockedLightdashApi.mockImplementation(
             ({ signal }) =>
                 new Promise((_resolve, reject) => {
                     signal?.addEventListener('abort', () =>
@@ -43,7 +44,7 @@ describe('suggestChartTypeFields', () => {
                     );
                 }),
         );
-        const result = suggestChartTypeFields('p1', {
+        const result = suggestChartTypeFields(sharedLightdashApi, 'p1', {
             ...request,
             exploreName: 'orders',
         });
@@ -54,7 +55,7 @@ describe('suggestChartTypeFields', () => {
         expect(settled).not.toHaveBeenCalled();
         await vi.advanceTimersByTimeAsync(1);
         expect(settled).toHaveBeenCalledOnce();
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/ai/p1/chart-type/suggest-fields',
                 method: 'POST',
@@ -65,7 +66,7 @@ describe('suggestChartTypeFields', () => {
 
 describe('useSuggestedChartTypeExplore', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
     });
 
     const wrapper = () => {
@@ -81,7 +82,7 @@ describe('useSuggestedChartTypeExplore', () => {
         const response: SuggestedChartTypeExploreResult = {
             suggestion: { exploreName: 'orders', reason: 'It has revenue.' },
         };
-        vi.mocked(lightdashApi).mockResolvedValue(response as never);
+        mockedLightdashApi.mockResolvedValue(response as never);
         const Wrapper = wrapper();
         const first = renderHook(
             () => useSuggestedChartTypeExplore('p1', request),
@@ -101,7 +102,7 @@ describe('useSuggestedChartTypeExplore', () => {
         );
 
         expect(reopened.result.current?.exploreName).toBe('orders');
-        expect(lightdashApi).toHaveBeenCalledExactlyOnceWith(
+        expect(sharedLightdashApi).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 url: '/ai/p1/chart-type/suggest-explore',
             }),
@@ -109,7 +110,7 @@ describe('useSuggestedChartTypeExplore', () => {
     });
 
     it('reasks when clarifications or input declarations change', async () => {
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             suggestion: null,
         } as never);
         const Wrapper = wrapper();
@@ -117,14 +118,18 @@ describe('useSuggestedChartTypeExplore', () => {
             ({ query }) => useSuggestedChartTypeExplore('p1', query),
             { initialProps: { query: request }, wrapper: Wrapper },
         );
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(1),
+        );
 
         const withClarification = {
             ...request,
             clarifications: ['A different answer'],
         };
         rerender({ query: withClarification });
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(2),
+        );
 
         rerender({
             query: {
@@ -132,7 +137,9 @@ describe('useSuggestedChartTypeExplore', () => {
                 fields: [{ ...request.fields[0], label: 'Amount' }],
             },
         });
-        await waitFor(() => expect(lightdashApi).toHaveBeenCalledTimes(3));
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledTimes(3),
+        );
     });
 
     it('asks nothing without a request', () => {
@@ -142,6 +149,6 @@ describe('useSuggestedChartTypeExplore', () => {
         );
 
         expect(result.current).toBeNull();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

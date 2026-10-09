@@ -8,9 +8,9 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
 import getChartDataModel from '../../components/DataViz/transformers/getChartDataModel';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { getPivotQueryResults } from '../queryRunner/executeQuery';
 import { SqlChartResultsRunner } from '../sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
 
@@ -31,6 +31,8 @@ export const useDocumentSqlChartResults = ({
     reference: DocumentQueryReference;
     chart: DocumentSqlChart;
 }) => {
+    const lightdashApi = useLightdashApi();
+
     const palette = useProjectColorPalette(projectUuid, {
         spaceUuid: spaceUuid ?? undefined,
     });
@@ -53,7 +55,11 @@ export const useDocumentSqlChartResults = ({
                     signal,
                 });
             const { originalColumns, ...pivotResults } =
-                await getPivotQueryResults(projectUuid, queryUuid);
+                await getPivotQueryResults(
+                    lightdashApi,
+                    projectUuid,
+                    queryUuid,
+                );
             const columns: VizColumn[] = Object.keys(pivotResults.columns).map(
                 (reference) => ({ reference }),
             );

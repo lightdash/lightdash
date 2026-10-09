@@ -12,6 +12,7 @@ import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { toSemanticChartAsCode } from './savedChartContent';
 
 const PAGE_SIZE = 50;
@@ -38,6 +39,7 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
     onLink,
     onCopy,
 }) => {
+    const lightdashApi = useLightdashApi();
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
@@ -75,7 +77,11 @@ const DocumentSavedChartPickerModal: FC<Props> = ({
         try {
             onCopy(
                 toSemanticChartAsCode(
-                    await getSavedQuery(selected.uuid, projectUuid),
+                    await getSavedQuery(
+                        lightdashApi,
+                        selected.uuid,
+                        projectUuid,
+                    ),
                 ),
             );
         } catch {

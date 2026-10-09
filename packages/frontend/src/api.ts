@@ -24,6 +24,7 @@ import {
     networkFailureMessage,
     UnexpectedResponseError,
 } from './utils/networkDiagnostics';
+import { getResultsFromStream } from './utils/request';
 
 // TODO: import from common or fix the instantiation of the request module
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
@@ -210,29 +211,35 @@ type LightdashApiPropsWrite = LightdashApiPropsBase & {
     body: BodyInit | null | undefined;
 };
 
-type LightdashApiProps = LightdashApiPropsGetOrDelete | LightdashApiPropsWrite;
+export type LightdashApiProps =
+    | LightdashApiPropsGetOrDelete
+    | LightdashApiPropsWrite;
 
 const MAX_NETWORK_HISTORY = 10;
 const SENSITIVE_DATA_REDACTED = '[REDACTED: sensitive request]';
 export let networkHistory: AnyType[] = [];
 
-export const lightdashApi = async <T extends ApiResponse['results']>(
+const request = async <T extends ApiResponse['results']>(
+    embed: InMemoryEmbed | undefined,
     props: LightdashApiProps,
 ): Promise<T> => {
-    const response = await lightdashApiResponse<ApiResponse<T>>(props);
+    const response = await requestResponse<ApiResponse<T>>(embed, props);
     return (response.results ?? null) as T;
 };
 
-export const lightdashApiResponse = async <T extends ApiResponse>({
-    method,
-    url,
-    body,
-    headers,
-    version = 'v1',
-    signal,
-    sensitive = false,
-    diagnoseTransportFailures = false,
-}: LightdashApiProps): Promise<T> => {
+const requestResponse = async <T extends ApiResponse>(
+    embed: InMemoryEmbed | undefined,
+    {
+        method,
+        url,
+        body,
+        headers,
+        version = 'v1',
+        signal,
+        sensitive = false,
+        diagnoseTransportFailures = false,
+    }: LightdashApiProps,
+): Promise<T> => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     );
@@ -257,7 +264,6 @@ export const lightdashApiResponse = async <T extends ApiResponse>({
         },
     );
 
-    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
         headers: finalizeHeaders(headers, embed, sentryTrace),
@@ -340,15 +346,18 @@ export const lightdashApiResponse = async <T extends ApiResponse>({
         });
 };
 
-export const lightdashApiStream = ({
-    method,
-    url,
-    body,
-    headers,
-    version = 'v1',
-    signal,
-    diagnoseTransportFailures = false,
-}: LightdashApiProps) => {
+const requestStream = (
+    embed: InMemoryEmbed | undefined,
+    {
+        method,
+        url,
+        body,
+        headers,
+        version = 'v1',
+        signal,
+        diagnoseTransportFailures = false,
+    }: LightdashApiProps,
+) => {
     const baseUrl = sessionStorage.getItem(
         LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
     );
@@ -373,7 +382,6 @@ export const lightdashApiStream = ({
         },
     );
 
-    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
         headers: finalizeHeaders(headers, embed, sentryTrace),
@@ -395,3 +403,34 @@ export const lightdashApiStream = ({
         return r;
     });
 };
+
+export type LightdashApi = {
+    <T extends ApiResponse['results']>(props: LightdashApiProps): Promise<T>;
+    // The whole response envelope, for endpoints that return more than results
+    response: <T extends ApiResponse>(props: LightdashApiProps) => Promise<T>;
+    stream: (props: LightdashApiProps) => Promise<Response>;
+    getResultsFromStream: <T>(url: string | undefined) => Promise<T[]>;
+};
+
+// Each client sends one embed's token; SDK components create their own.
+export const createLightdashApi = (
+    getEmbed: () => InMemoryEmbed | undefined,
+): LightdashApi =>
+    Object.assign(
+        <T extends ApiResponse['results']>(props: LightdashApiProps) =>
+            request<T>(getEmbed(), props),
+        {
+            response: <T extends ApiResponse>(props: LightdashApiProps) =>
+                requestResponse<T>(getEmbed(), props),
+            stream: (props: LightdashApiProps) =>
+                requestStream(getEmbed(), props),
+            getResultsFromStream: <T>(url: string | undefined) =>
+                getResultsFromStream<T>(url, getEmbed()),
+        },
+    );
+
+// The main app and iframe embeds share one token. Code should use
+// useLightdashApi() so embedded SDK components send their own token instead.
+export const sharedLightdashApi = createLightdashApi(() =>
+    getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY),
+);

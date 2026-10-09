@@ -8,13 +8,14 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 // refresh asks the server to reconcile open write-back PRs with the git
 // provider; the server throttles that to once a minute per project
-export const useContentDrafts = (projectUuid: string | undefined) =>
-    useQuery<ApiContentDraftsResponse['results'], ApiError>({
+export const useContentDrafts = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiContentDraftsResponse['results'], ApiError>({
         queryKey: ['content-drafts', projectUuid],
         queryFn: () =>
             lightdashApi<ApiContentDraftsResponse['results']>({
@@ -25,12 +26,14 @@ export const useContentDrafts = (projectUuid: string | undefined) =>
         enabled: projectUuid !== undefined,
         refetchInterval: 30000,
     });
+};
 
 export const useContentDraftReview = (
     projectUuid: string | undefined,
     draftUuid: string | undefined,
-) =>
-    useQuery<ApiContentDraftReviewResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiContentDraftReviewResponse['results'], ApiError>({
         queryKey: ['content-draft-review', projectUuid, draftUuid],
         queryFn: () =>
             lightdashApi<ApiContentDraftReviewResponse['results']>({
@@ -40,8 +43,10 @@ export const useContentDraftReview = (
             }),
         enabled: projectUuid !== undefined && draftUuid !== undefined,
     });
+};
 
 export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ContentDraftSummary, ApiError, string>(
@@ -81,6 +86,7 @@ export const useWriteBackDraftMutation = (projectUuid: string | undefined) => {
 };
 
 export const useDismissDraftMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError, string>(
@@ -112,8 +118,9 @@ export const useDismissDraftMutation = (projectUuid: string | undefined) => {
 export const useDraftStaleness = (
     projectUuid: string | undefined,
     draftUuid: string | undefined,
-) =>
-    useQuery<ApiContentDraftStalenessResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiContentDraftStalenessResponse['results'], ApiError>({
         queryKey: ['content-draft-staleness', projectUuid, draftUuid],
         queryFn: () =>
             lightdashApi<ApiContentDraftStalenessResponse['results']>({
@@ -123,8 +130,10 @@ export const useDraftStaleness = (
             }),
         enabled: projectUuid !== undefined && draftUuid !== undefined,
     });
+};
 
 export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<
@@ -167,6 +176,7 @@ export const useRebaseDraftMutation = (projectUuid: string | undefined) => {
 };
 
 export const useReopenDraftMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ContentDraftSummary, ApiError, string>(

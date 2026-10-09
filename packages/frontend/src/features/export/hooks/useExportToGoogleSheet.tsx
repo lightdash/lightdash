@@ -9,6 +9,7 @@ import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const getProgressSubtitle = (progress: GsheetExportProgress | null): string => {
     if (!progress) return 'This may take a few minutes...';
@@ -54,6 +55,7 @@ export const useExportToGoogleSheet = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastInfo } = useToaster();
 
     const exportToGoogleSheetStartMutation = useExportToGoogleSheetStart({
@@ -71,7 +73,7 @@ export const useExportToGoogleSheet = ({
         queryKey: [`google-sheets`, startGoogleSheetExportData?.jobId],
         queryFn: () =>
             startGoogleSheetExportData
-                ? getCsvFileUrl(startGoogleSheetExportData)
+                ? getCsvFileUrl(lightdashApi, startGoogleSheetExportData)
                 : Promise.reject({
                       error: new Error(
                           "Couldn't create scheduler job for google sheets export",

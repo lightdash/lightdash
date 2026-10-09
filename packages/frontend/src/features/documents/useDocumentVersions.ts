@@ -4,7 +4,7 @@ import {
     type DocumentVersionList,
 } from '@lightdash/common';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const PAGE_SIZE = 50;
 
@@ -12,8 +12,9 @@ const PAGE_SIZE = 50;
 export const useDocumentVersions = (
     projectUuid: string,
     documentUuid: string,
-) =>
-    useInfiniteQuery<DocumentVersionList, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<DocumentVersionList, ApiError>({
         queryKey: ['document-versions', projectUuid, documentUuid],
         queryFn: ({ pageParam = 0, signal }) =>
             lightdashApi<DocumentVersionList>({
@@ -25,14 +26,16 @@ export const useDocumentVersions = (
         getNextPageParam: (page) => page.nextOffset ?? undefined,
         retry: false,
     });
+};
 
 /** The Document with a historical version's content; versions never change. */
 export const useDocumentVersion = (
     projectUuid: string,
     documentUuid: string,
     versionUuid: string | null,
-) =>
-    useQuery<Document, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<Document, ApiError>({
         queryKey: ['document-version', projectUuid, documentUuid, versionUuid],
         queryFn: ({ signal }) =>
             lightdashApi<Document>({
@@ -46,3 +49,4 @@ export const useDocumentVersion = (
         keepPreviousData: true,
         retry: false,
     });
+};

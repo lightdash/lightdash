@@ -1,10 +1,15 @@
 import { type ApiError, type ApiExploreResults } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
 
-const getExplore = async (projectUuid: string, exploreId: string) => {
+const getExplore = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    exploreId: string,
+) => {
     try {
         return await lightdashApi<ApiExploreResults>({
             url: `/projects/${projectUuid}/explores/${exploreId}`,
@@ -34,12 +39,14 @@ export const useExploreByProjectUuid = (
     projectUuid: string | undefined,
     useQueryOptions?: UseQueryOptions<ApiExploreResults, ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
 
     const queryKey = ['tables', activeTableName, projectUuid];
     return useQuery<ApiExploreResults, ApiError>({
         queryKey,
-        queryFn: () => getExplore(projectUuid!, activeTableName || ''),
+        queryFn: () =>
+            getExplore(lightdashApi, projectUuid!, activeTableName || ''),
         enabled: !!activeTableName && !!projectUuid,
         onError: (result) => setErrorResponse(result),
         retry: false,

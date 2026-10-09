@@ -28,7 +28,7 @@ import {
     type Editor,
 } from '@tiptap/react';
 import tippy, { type Instance as TippyInstance } from 'tippy.js';
-import { lightdashApi } from '../../../../../api';
+import { type LightdashApi } from '../../../../../api';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import {
@@ -153,7 +153,10 @@ const groupLabels: Record<string, string> = {
 // appear.
 const projectFilesCache = new Map<string, Promise<string[]>>();
 
-const fetchProjectFiles = (projectUuid: string): Promise<string[]> => {
+const fetchProjectFiles = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+): Promise<string[]> => {
     const cached = projectFilesCache.get(projectUuid);
     if (cached) return cached;
     const request = lightdashApi<ApiProjectFilesResponse['results']>({
@@ -175,11 +178,12 @@ const fetchProjectFiles = (projectUuid: string): Promise<string[]> => {
 };
 
 const getProjectFileSuggestions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string | undefined,
     query: string,
 ): Promise<FileMentionSuggestionItem[]> => {
     if (!projectUuid) return [];
-    const files = await fetchProjectFiles(projectUuid);
+    const files = await fetchProjectFiles(lightdashApi, projectUuid);
     const matched = query.trim()
         ? files.filter((path) => fuzzyContentMentionLabelMatch(path, query))
         : files;
@@ -201,7 +205,10 @@ const getProjectFileSuggestions = async (
 // simply doesn't appear.
 const repositoriesCache = new Map<string, Promise<GitRepo[]>>();
 
-const fetchRepositories = (projectUuid: string): Promise<GitRepo[]> => {
+const fetchRepositories = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+): Promise<GitRepo[]> => {
     const cached = repositoriesCache.get(projectUuid);
     if (cached) return cached;
     const request = lightdashApi<ApiProjectRepositoriesResponse['results']>({
@@ -220,11 +227,12 @@ const fetchRepositories = (projectUuid: string): Promise<GitRepo[]> => {
 };
 
 const getRepositorySuggestions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string | undefined,
     query: string,
 ): Promise<RepositoryMentionSuggestionItem[]> => {
     if (!projectUuid) return [];
-    const repos = await fetchRepositories(projectUuid);
+    const repos = await fetchRepositories(lightdashApi, projectUuid);
     const matched = query.trim()
         ? repos.filter((repo) =>
               fuzzyContentMentionLabelMatch(repo.fullName, query),
@@ -471,6 +479,7 @@ const summaryContentToSuggestion = (
 };
 
 const getSearchSuggestions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     query: string,
 ): Promise<ContentMentionSuggestionItem[]> => {
@@ -500,23 +509,26 @@ const getSearchSuggestions = async (
         .filter((item): item is ContentMentionSuggestionItem => item !== null);
 };
 
-export const buildContentMentionSuggestionItems = async ({
-    projectUuid,
-    query,
-    priorityItems,
-    hidePersonalDataApps = false,
-}: {
-    projectUuid: string | undefined;
-    query: string;
-    priorityItems: ContentMentionSuggestionItem[];
-    // A space-restricted agent cannot read personal apps, so don't offer them.
-    hidePersonalDataApps?: boolean;
-}) => {
+export const buildContentMentionSuggestionItems = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        query,
+        priorityItems,
+        hidePersonalDataApps = false,
+    }: {
+        projectUuid: string | undefined;
+        query: string;
+        priorityItems: ContentMentionSuggestionItem[];
+        // A space-restricted agent cannot read personal apps, so don't offer them.
+        hidePersonalDataApps?: boolean;
+    },
+) => {
     const matchingPriorityItems = priorityItems.filter((item) =>
         fuzzyContentMentionLabelMatch(item.label, query),
     );
     const searchItems = projectUuid
-        ? await getSearchSuggestions(projectUuid, query)
+        ? await getSearchSuggestions(lightdashApi, projectUuid, query)
         : [];
 
     const seen = new Set<string>();
@@ -677,19 +689,22 @@ const renderContentMentionItem = (
     );
 };
 
-const generateContentMentionSuggestion = ({
-    getProjectUuid,
-    getPriorityItems,
-    getHidePersonalDataApps,
-    onMenuStateChange,
-    includeFilesAndRepositories,
-}: {
-    getProjectUuid: () => string | undefined;
-    getPriorityItems: () => ContentMentionSuggestionItem[];
-    getHidePersonalDataApps: () => boolean;
-    onMenuStateChange?: (state: ContentMentionMenuState) => void;
-    includeFilesAndRepositories: boolean;
-}): MentionOptions['suggestion'] => ({
+const generateContentMentionSuggestion = (
+    lightdashApi: LightdashApi,
+    {
+        getProjectUuid,
+        getPriorityItems,
+        getHidePersonalDataApps,
+        onMenuStateChange,
+        includeFilesAndRepositories,
+    }: {
+        getProjectUuid: () => string | undefined;
+        getPriorityItems: () => ContentMentionSuggestionItem[];
+        getHidePersonalDataApps: () => boolean;
+        onMenuStateChange?: (state: ContentMentionMenuState) => void;
+        includeFilesAndRepositories: boolean;
+    },
+): MentionOptions['suggestion'] => ({
     char: '@',
     allowSpaces: true,
     pluginKey: contentMentionPluginKey,
@@ -698,7 +713,7 @@ const generateContentMentionSuggestion = ({
         // Files / repositories are only mentionable in the AI-agent composer;
         // other surfaces (e.g. homepage announcements) mention content only.
         if (!includeFilesAndRepositories) {
-            return buildContentMentionSuggestionItems({
+            return buildContentMentionSuggestionItems(lightdashApi, {
                 projectUuid,
                 query,
                 priorityItems: getPriorityItems(),
@@ -707,14 +722,14 @@ const generateContentMentionSuggestion = ({
         }
         // Fetch all three in parallel so files/repos don't wait on content.
         const [contentItems, fileItems, repositoryItems] = await Promise.all([
-            buildContentMentionSuggestionItems({
+            buildContentMentionSuggestionItems(lightdashApi, {
                 projectUuid,
                 query,
                 priorityItems: getPriorityItems(),
                 hidePersonalDataApps: getHidePersonalDataApps(),
             }),
-            getProjectFileSuggestions(projectUuid, query),
-            getRepositorySuggestions(projectUuid, query),
+            getProjectFileSuggestions(lightdashApi, projectUuid, query),
+            getRepositorySuggestions(lightdashApi, projectUuid, query),
         ]);
         return [...contentItems, ...fileItems, ...repositoryItems];
     },
@@ -857,19 +872,22 @@ const generateContentMentionSuggestion = ({
     },
 });
 
-export const createContentMentionExtension = ({
-    getProjectUuid,
-    getPriorityItems,
-    getHidePersonalDataApps = () => false,
-    onMenuStateChange,
-    includeFilesAndRepositories = true,
-}: {
-    getProjectUuid: () => string | undefined;
-    getPriorityItems: () => ContentMentionSuggestionItem[];
-    getHidePersonalDataApps?: () => boolean;
-    onMenuStateChange?: (state: ContentMentionMenuState) => void;
-    includeFilesAndRepositories?: boolean;
-}) =>
+export const createContentMentionExtension = (
+    lightdashApi: LightdashApi,
+    {
+        getProjectUuid,
+        getPriorityItems,
+        getHidePersonalDataApps = () => false,
+        onMenuStateChange,
+        includeFilesAndRepositories = true,
+    }: {
+        getProjectUuid: () => string | undefined;
+        getPriorityItems: () => ContentMentionSuggestionItem[];
+        getHidePersonalDataApps?: () => boolean;
+        onMenuStateChange?: (state: ContentMentionMenuState) => void;
+        includeFilesAndRepositories?: boolean;
+    },
+) =>
     Mention.extend({
         name: CONTENT_MENTION_NAME,
         atom: true,
@@ -898,7 +916,7 @@ export const createContentMentionExtension = ({
             return ReactNodeViewRenderer(ContentMentionNodeView);
         },
     }).configure({
-        suggestion: generateContentMentionSuggestion({
+        suggestion: generateContentMentionSuggestion(lightdashApi, {
             getProjectUuid,
             getPriorityItems,
             getHidePersonalDataApps,

@@ -7,7 +7,8 @@ import {
     useInfiniteQuery,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type DataAppActivityResults = ApiDataAppActivityResponse['results'];
 
@@ -24,6 +25,7 @@ const createQueryString = (params: Record<string, unknown>): string => {
 };
 
 const getDataAppActivity = async (
+    lightdashApi: LightdashApi,
     args: DataAppActivityFilters & { page: number },
 ) =>
     lightdashApi<DataAppActivityResults>({
@@ -39,11 +41,12 @@ export const useInfiniteDataAppActivity = (
         DataAppActivityResults,
         ApiError
     > = {},
-) =>
-    useInfiniteQuery<DataAppActivityResults, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<DataAppActivityResults, ApiError>({
         queryKey: ['data-app-activity', filters],
         queryFn: ({ pageParam }) =>
-            getDataAppActivity({
+            getDataAppActivity(lightdashApi, {
                 ...filters,
                 page: (pageParam as number) ?? 1,
             }),
@@ -56,3 +59,4 @@ export const useInfiniteDataAppActivity = (
         },
         ...infiniteQueryOpts,
     });
+};

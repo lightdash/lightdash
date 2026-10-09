@@ -8,10 +8,12 @@ import {
     useQueryClient,
     type UseMutationOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
 const getProjectUserWarehouseCredentialsPreference = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
 ) =>
     lightdashApi<UserWarehouseCredentials>({
@@ -23,19 +25,24 @@ const getProjectUserWarehouseCredentialsPreference = async (
 export const useProjectUserWarehouseCredentialsPreference = (
     projectUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<UserWarehouseCredentials, ApiError>({
         queryKey: [
             'project-user-warehouse-credentials-preference',
             projectUuid,
         ],
         queryFn: () =>
-            getProjectUserWarehouseCredentialsPreference(projectUuid!),
+            getProjectUserWarehouseCredentialsPreference(
+                lightdashApi,
+                projectUuid!,
+            ),
         enabled: !!projectUuid,
         retry: false,
     });
 };
 
 const updateProjectUserWarehouseCredentialsPreference = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     userWarehouseCredentialsUuid: string,
 ) =>
@@ -53,11 +60,13 @@ type UpdateCredentialsPreference = {
 export const useProjectUserWarehouseCredentialsPreferenceMutation = (
     options?: UseMutationOptions<null, ApiError, UpdateCredentialsPreference>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<null, ApiError, UpdateCredentialsPreference>(
         ({ projectUuid, userWarehouseCredentialsUuid }) =>
             updateProjectUserWarehouseCredentialsPreference(
+                lightdashApi,
                 projectUuid,
                 userWarehouseCredentialsUuid,
             ),

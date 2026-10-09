@@ -4,9 +4,11 @@ import {
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const getPreAggregateMaterializations = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     paginateArgs?: KnexPaginateArgs,
 ) =>
@@ -25,13 +27,14 @@ export const usePreAggregateMaterializations = (
     projectUuid: string,
     pageSize: number = 50,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<
         ApiGetPreAggregateMaterializationsResponse['results'],
         ApiError
     >({
         queryKey: ['preAggregateMaterializations', projectUuid, pageSize],
         queryFn: ({ pageParam }) =>
-            getPreAggregateMaterializations(projectUuid, {
+            getPreAggregateMaterializations(lightdashApi, projectUuid, {
                 page: (pageParam as number) ?? 1,
                 pageSize,
             }),

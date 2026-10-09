@@ -9,7 +9,8 @@ import {
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import dayjs from 'dayjs';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const getUrlParams = ({
     dateRange,
@@ -58,16 +59,19 @@ type RunMetricTotalArgs = {
     rollingDays?: number;
 };
 
-const postRunMetricTotal = async ({
-    projectUuid,
-    exploreName,
-    metricName,
-    dateRange,
-    timeFrame,
-    granularity,
-    comparisonType,
-    rollingDays,
-}: RunMetricTotalArgs) => {
+const postRunMetricTotal = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        exploreName,
+        metricName,
+        dateRange,
+        timeFrame,
+        granularity,
+        comparisonType,
+        rollingDays,
+    }: RunMetricTotalArgs,
+) => {
     const queryString = getUrlParams({
         dateRange,
         timeFrame,
@@ -86,16 +90,19 @@ const postRunMetricTotal = async ({
     });
 };
 
-const postCompileMetricTotalQuery = async ({
-    projectUuid,
-    exploreName,
-    metricName,
-    dateRange,
-    timeFrame,
-    granularity,
-    comparisonType,
-    rollingDays,
-}: RunMetricTotalArgs) => {
+const postCompileMetricTotalQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        exploreName,
+        metricName,
+        dateRange,
+        timeFrame,
+        granularity,
+        comparisonType,
+        rollingDays,
+    }: RunMetricTotalArgs,
+) => {
     const queryString = getUrlParams({
         dateRange,
         timeFrame,
@@ -122,13 +129,16 @@ type RunMetricSeriesArgs = {
     granularity: TimeFrames;
 };
 
-const postRunMetricSeries = async ({
-    projectUuid,
-    exploreName,
-    metricName,
-    dateRange,
-    granularity,
-}: RunMetricSeriesArgs) => {
+const postRunMetricSeries = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        exploreName,
+        metricName,
+        dateRange,
+        granularity,
+    }: RunMetricSeriesArgs,
+) => {
     const queryString = getUrlParams({
         dateRange,
         granularity,
@@ -153,6 +163,7 @@ export const useRunMetricSeries = ({
 }: Partial<RunMetricSeriesArgs> & {
     options?: UseQueryOptions<ApiMetricsExplorerQueryResults['results']>;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery({
         queryKey: [
             'runMetricSeries',
@@ -164,7 +175,7 @@ export const useRunMetricSeries = ({
             dateRange?.[1],
         ],
         queryFn: () =>
-            postRunMetricSeries({
+            postRunMetricSeries(lightdashApi, {
                 projectUuid: projectUuid!,
                 exploreName: exploreName!,
                 metricName: metricName!,
@@ -188,6 +199,7 @@ export const useRunMetricTotal = ({
 }: Partial<RunMetricTotalArgs> & {
     options?: UseQueryOptions<ApiMetricsExplorerTotalResults['results']>;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery({
         queryKey: [
             'runMetricTotal',
@@ -202,7 +214,7 @@ export const useRunMetricTotal = ({
             rollingDays,
         ],
         queryFn: () =>
-            postRunMetricTotal({
+            postRunMetricTotal(lightdashApi, {
                 projectUuid: projectUuid!,
                 exploreName: exploreName!,
                 metricName: metricName!,
@@ -229,6 +241,7 @@ export const useCompileMetricTotalQuery = ({
 }: Partial<RunMetricTotalArgs> & {
     options?: UseQueryOptions<ApiCompiledQueryResults>;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery({
         queryKey: [
             'compileMetricTotalQuery',
@@ -243,7 +256,7 @@ export const useCompileMetricTotalQuery = ({
             rollingDays,
         ],
         queryFn: () =>
-            postCompileMetricTotalQuery({
+            postCompileMetricTotalQuery(lightdashApi, {
                 projectUuid: projectUuid!,
                 exploreName: exploreName!,
                 metricName: metricName!,

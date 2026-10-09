@@ -26,6 +26,7 @@ import { useProject } from '../../hooks/useProject';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { LearnDoneModal } from '../learn/LearnDoneModal';
@@ -133,6 +134,7 @@ type ReturnTo = 'home' | 'learn';
  * and never disturbs anyone else. The one navigation the tour ever performs.
  */
 const ScopeTourHost: FC = () => {
+    const lightdashApi = useLightdashApi();
     // Project routes may carry a slug rather than a uuid; the route context
     // has both resolved.
     const projectRoute = useOptionalProjectRoute();
@@ -212,7 +214,7 @@ const ScopeTourHost: FC = () => {
         { trainingProjectUuid: string }
     >(
         ({ trainingProjectUuid }) =>
-            deleteTrainingPreviews(trainingProjectUuid),
+            deleteTrainingPreviews(lightdashApi, trainingProjectUuid),
         {
             onSettled: async () => {
                 await Promise.all([
@@ -350,41 +352,45 @@ const ScopeTourHost: FC = () => {
             /** Started from the completion dialog in a copy about to go. */
             leavingCopy?: boolean;
         }
-    >(({ trainingProjectUuid }) => createTrainingPreview(trainingProjectUuid), {
-        onError: ({ error }) => {
-            copyRequestedRef.current = false;
-            showToastApiError({
-                title: 'Could not start the walkthrough',
-                apiError: error,
-            });
-        },
-        onSuccess: async (copy, { scope, from, leavingCopy }) => {
-            const to = tourUrlInCopy(copy.projectUuid, scope, from);
-            // The navbar resolves the active project from the cached project
-            // list, and the trainee permissions on the new copy only exist
-            // in a freshly built ability, so both are refreshed around the
-            // move. From a copy, the move comes first: the page being left
-            // is addressed by its slug, which the refreshed list no longer
-            // has (see leaveCopy). Every org member can view any project of
-            // the org, so the new copy opens on the old ability, and the
-            // walkthrough waits for its controls while the ability catches
-            // up.
-            const refresh = () =>
-                Promise.all([
-                    queryClient.invalidateQueries(['projects']),
-                    queryClient.invalidateQueries(['user']),
-                    queryClient.invalidateQueries(['account']),
-                ]);
-            if (leavingCopy) {
-                setFinishedScope(null);
-                await navigate(to, { state: LEAVING_COPY_STATE });
+    >(
+        ({ trainingProjectUuid }) =>
+            createTrainingPreview(lightdashApi, trainingProjectUuid),
+        {
+            onError: ({ error }) => {
+                copyRequestedRef.current = false;
+                showToastApiError({
+                    title: 'Could not start the walkthrough',
+                    apiError: error,
+                });
+            },
+            onSuccess: async (copy, { scope, from, leavingCopy }) => {
+                const to = tourUrlInCopy(copy.projectUuid, scope, from);
+                // The navbar resolves the active project from the cached project
+                // list, and the trainee permissions on the new copy only exist
+                // in a freshly built ability, so both are refreshed around the
+                // move. From a copy, the move comes first: the page being left
+                // is addressed by its slug, which the refreshed list no longer
+                // has (see leaveCopy). Every org member can view any project of
+                // the org, so the new copy opens on the old ability, and the
+                // walkthrough waits for its controls while the ability catches
+                // up.
+                const refresh = () =>
+                    Promise.all([
+                        queryClient.invalidateQueries(['projects']),
+                        queryClient.invalidateQueries(['user']),
+                        queryClient.invalidateQueries(['account']),
+                    ]);
+                if (leavingCopy) {
+                    setFinishedScope(null);
+                    await navigate(to, { state: LEAVING_COPY_STATE });
+                    await refresh();
+                    return;
+                }
                 await refresh();
-                return;
-            }
-            await refresh();
-            void navigate(to);
+                void navigate(to);
+            },
         },
-    });
+    );
 
     // Next makes the fresh copy from here and goes straight into it, so no
     // page shows on the way. Making it removes this copy on the server, so

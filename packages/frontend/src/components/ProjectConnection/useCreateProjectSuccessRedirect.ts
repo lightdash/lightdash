@@ -5,6 +5,7 @@ import { useEffect, useRef, type RefObject } from 'react';
 import { useNavigate } from 'react-router';
 import { getProject } from '../../hooks/useProject';
 import { refetchFeatureFlags } from '../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 export const useCreateProjectSuccessRedirect = ({
     activeJob,
@@ -19,6 +20,7 @@ export const useCreateProjectSuccessRedirect = ({
     celebrateOnSuccess: boolean;
     submitButtonRef: RefObject<HTMLButtonElement | null>;
 }) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const hasFiredConfettiRef = useRef(false);
@@ -87,7 +89,7 @@ export const useCreateProjectSuccessRedirect = ({
                     refetchFeatureFlags(queryClient),
                     queryClient.prefetchQuery({
                         queryKey: ['project', projectUuid],
-                        queryFn: () => getProject(projectUuid),
+                        queryFn: () => getProject(lightdashApi, projectUuid),
                     }),
                 ]);
             } catch {
@@ -103,5 +105,6 @@ export const useCreateProjectSuccessRedirect = ({
         queryClient,
         submitButtonRef,
         successRedirect,
+        lightdashApi,
     ]);
 };

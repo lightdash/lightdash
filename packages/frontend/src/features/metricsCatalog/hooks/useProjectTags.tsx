@@ -12,11 +12,13 @@ import {
     useQueryClient,
     type InfiniteData,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { updateMetricsCatalogQuery } from '../utils/updateMetricsCatalogQuery';
 import { addCategoryToCatalogItem } from './useCatalogCategories';
 
 const createTag = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: Pick<Tag, 'name' | 'color'>,
 ) => {
@@ -31,6 +33,7 @@ const createTag = async (
  * Create a tag in a project and tag it to a catalog item if provided
  */
 export const useCreateTag = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -47,9 +50,9 @@ export const useCreateTag = () => {
     >({
         mutationKey: ['create-tag'],
         mutationFn: async ({ projectUuid, data, catalogSearchUuid }) => {
-            const newTag = await createTag(projectUuid, data);
+            const newTag = await createTag(lightdashApi, projectUuid, data);
             if (catalogSearchUuid) {
-                await addCategoryToCatalogItem({
+                await addCategoryToCatalogItem(lightdashApi, {
                     projectUuid,
                     catalogSearchUuid,
                     tagUuid: newTag.tagUuid,
@@ -144,7 +147,7 @@ export const useCreateTag = () => {
     });
 };
 
-const getTags = async (projectUuid: string) => {
+const getTags = async (lightdashApi: LightdashApi, projectUuid: string) => {
     return lightdashApi<ApiGetTagsResponse['results']>({
         url: `/projects/${projectUuid}/tags`,
         method: 'GET',
@@ -156,14 +159,16 @@ const getTags = async (projectUuid: string) => {
  * Get all tags available in a project
  */
 export const useProjectTags = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiGetTagsResponse['results'], ApiError>({
         queryKey: ['project-tags', projectUuid],
-        queryFn: () => getTags(projectUuid!),
+        queryFn: () => getTags(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
     });
 };
 
 const updateTag = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     tagUuid: string,
     data: Pick<Tag, 'name' | 'color'>,
@@ -179,6 +184,7 @@ const updateTag = async (
  * Update a tag's name or color in a project
  */
 export const useUpdateTag = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],
@@ -194,7 +200,7 @@ export const useUpdateTag = () => {
     >({
         mutationKey: ['update-tag'],
         mutationFn: ({ projectUuid, tagUuid, data }) => {
-            return updateTag(projectUuid, tagUuid, data);
+            return updateTag(lightdashApi, projectUuid, tagUuid, data);
         },
         onMutate: async ({ projectUuid, tagUuid, data }) => {
             // Cancel any outgoing refetches
@@ -260,7 +266,11 @@ export const useUpdateTag = () => {
     });
 };
 
-const deleteTag = async (projectUuid: string, tagUuid: string) => {
+const deleteTag = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    tagUuid: string,
+) => {
     return lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/tags/${tagUuid}`,
         method: 'DELETE',
@@ -272,6 +282,7 @@ const deleteTag = async (projectUuid: string, tagUuid: string) => {
  * Delete a tag from a project
  */
 export const useDeleteTag = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty,
@@ -283,7 +294,7 @@ export const useDeleteTag = () => {
     >({
         mutationKey: ['delete-tag'],
         mutationFn: ({ projectUuid, tagUuid }) => {
-            return deleteTag(projectUuid, tagUuid);
+            return deleteTag(lightdashApi, projectUuid, tagUuid);
         },
         onMutate: async ({ projectUuid, tagUuid }) => {
             // Cancel any outgoing refetches

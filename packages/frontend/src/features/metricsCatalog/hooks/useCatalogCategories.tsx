@@ -9,7 +9,8 @@ import {
     useQueryClient,
     type InfiniteData,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { updateMetricsCatalogQuery } from '../utils/updateMetricsCatalogQuery';
 
 type AddCategoryToCatalogItemParams = {
@@ -18,11 +19,10 @@ type AddCategoryToCatalogItemParams = {
     tagUuid: string;
 };
 
-export const addCategoryToCatalogItem = async ({
-    projectUuid,
-    catalogSearchUuid,
-    tagUuid,
-}: AddCategoryToCatalogItemParams) => {
+export const addCategoryToCatalogItem = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, catalogSearchUuid, tagUuid }: AddCategoryToCatalogItemParams,
+) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/categories`,
         method: 'POST',
@@ -34,6 +34,7 @@ export const addCategoryToCatalogItem = async ({
  * Add a category to a catalog item
  */
 export const useAddCategoryToCatalogItem = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],
@@ -44,7 +45,8 @@ export const useAddCategoryToCatalogItem = () => {
         }
     >({
         mutationKey: ['add-category'],
-        mutationFn: addCategoryToCatalogItem,
+        mutationFn: (args: AddCategoryToCatalogItemParams) =>
+            addCategoryToCatalogItem(lightdashApi, args),
         onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
             // Cancel any outgoing refetches
             await queryClient.cancelQueries({
@@ -113,11 +115,14 @@ export const useAddCategoryToCatalogItem = () => {
 
 type RemoveCategoryFromCatalogItemParams = AddCategoryToCatalogItemParams;
 
-const removeCategoryFromCatalogItem = async ({
-    projectUuid,
-    catalogSearchUuid,
-    tagUuid,
-}: RemoveCategoryFromCatalogItemParams) => {
+const removeCategoryFromCatalogItem = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        catalogSearchUuid,
+        tagUuid,
+    }: RemoveCategoryFromCatalogItemParams,
+) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/categories/${tagUuid}`,
         method: 'DELETE',
@@ -129,6 +134,7 @@ const removeCategoryFromCatalogItem = async ({
  * Remove a category from a catalog item
  */
 export const useRemoveCategoryFromCatalogItem = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],
@@ -139,7 +145,8 @@ export const useRemoveCategoryFromCatalogItem = () => {
         }
     >({
         mutationKey: ['remove-category'],
-        mutationFn: removeCategoryFromCatalogItem,
+        mutationFn: (args: RemoveCategoryFromCatalogItemParams) =>
+            removeCategoryFromCatalogItem(lightdashApi, args),
         onMutate: async ({ catalogSearchUuid, tagUuid, projectUuid }) => {
             // Cancel any outgoing refetches
             await queryClient.cancelQueries({

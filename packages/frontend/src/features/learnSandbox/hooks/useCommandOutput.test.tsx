@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useCommandOutput } from './useCommandOutput';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 
 describe('useCommandOutput', () => {
     beforeEach(() => {
@@ -12,7 +12,7 @@ describe('useCommandOutput', () => {
 
     it('accumulates chunks with an after cursor and stops when done', async () => {
         vi.useFakeTimers();
-        const api = vi.mocked(lightdashApi);
+        const api = mockedLightdashApi;
         api.mockResolvedValueOnce({
             commandUuid: 'c',
             status: 'running',
@@ -61,7 +61,7 @@ describe('useCommandOutput', () => {
 
     it('resets when the command changes and surfaces fetch errors', async () => {
         vi.useFakeTimers();
-        const api = vi.mocked(lightdashApi);
+        const api = mockedLightdashApi;
         api.mockResolvedValueOnce({
             commandUuid: 'c1',
             status: 'running',
@@ -112,7 +112,7 @@ describe('useCommandOutput', () => {
 
     it('sanitizes each chunk of text as it is accumulated', async () => {
         vi.useFakeTimers();
-        const api = vi.mocked(lightdashApi);
+        const api = mockedLightdashApi;
         api.mockResolvedValueOnce({
             commandUuid: 'c',
             status: 'done',
@@ -142,7 +142,7 @@ describe('useCommandOutput', () => {
 
     it('does not set an error from a poll that resolves after the effect stopped', async () => {
         vi.useFakeTimers();
-        const api = vi.mocked(lightdashApi);
+        const api = mockedLightdashApi;
         let rejectPoll: (reason: unknown) => void = () => {};
         api.mockImplementationOnce(
             () =>

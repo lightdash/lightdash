@@ -5,9 +5,11 @@ import {
     type CiChecks,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const getPullRequestCiChecks = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     prUrl: string,
     commitSha: string | null,
@@ -40,10 +42,17 @@ export const usePullRequestCiChecks = (
     projectUuid: string | undefined,
     prUrl: string | null | undefined,
     commitSha: string | null,
-) =>
-    useQuery<CiChecks | null, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<CiChecks | null, ApiError>({
         queryKey: ['pullRequestCiChecks', projectUuid, prUrl, commitSha],
-        queryFn: () => getPullRequestCiChecks(projectUuid!, prUrl!, commitSha),
+        queryFn: () =>
+            getPullRequestCiChecks(
+                lightdashApi,
+                projectUuid!,
+                prUrl!,
+                commitSha,
+            ),
         enabled: !!projectUuid && !!prUrl,
         refetchInterval: (data) =>
             // A merged PR is terminal — its mergeable_state often reads
@@ -57,3 +66,4 @@ export const usePullRequestCiChecks = (
         refetchOnWindowFocus: false,
         retry: false,
     });
+};

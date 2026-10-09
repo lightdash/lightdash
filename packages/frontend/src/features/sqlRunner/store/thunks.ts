@@ -9,6 +9,7 @@ import {
 import type * as rtk from '@reduxjs/toolkit';
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { type RootState } from '.';
+import { sharedLightdashApi } from '../../../api';
 import {
     selectChartDisplayByKind,
     selectChartFieldConfigByKind,
@@ -74,6 +75,7 @@ export const runSqlQuery = createAsyncThunk<
         try {
             // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             const results = await executeSqlQuery(
+                sharedLightdashApi,
                 projectUuid,
                 sql,
                 limit,
@@ -85,7 +87,11 @@ export const runSqlQuery = createAsyncThunk<
                     onQueryStarted: (queryUuid) => {
                         // Aborting the thunk also tells the warehouse to stop
                         signal.addEventListener('abort', () => {
-                            void cancelAsyncQuery(projectUuid, queryUuid);
+                            void cancelAsyncQuery(
+                                sharedLightdashApi,
+                                projectUuid,
+                                queryUuid,
+                            );
                         });
                     },
                 },

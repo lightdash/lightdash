@@ -4,10 +4,12 @@ import {
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const updateScheduler = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: UpdateSchedulerAndTargetsWithoutId,
 ) =>
@@ -18,13 +20,14 @@ const updateScheduler = async (
     });
 
 export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         SchedulerAndTargets,
         ApiError,
         UpdateSchedulerAndTargetsWithoutId
-    >((data) => updateScheduler(schedulerUuid, data), {
+    >((data) => updateScheduler(lightdashApi, schedulerUuid, data), {
         mutationKey: ['update_scheduler'],
         onSuccess: async () => {
             await queryClient.invalidateQueries(['chart_schedulers']);
@@ -45,7 +48,11 @@ export const useSchedulersUpdateMutation = (schedulerUuid: string) => {
     });
 };
 
-const updateSchedulerEnabled = async (uuid: string, enabled: boolean) =>
+const updateSchedulerEnabled = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+    enabled: boolean,
+) =>
     lightdashApi<SchedulerAndTargets>({
         url: `/schedulers/${uuid}/enabled`,
         method: 'PATCH',
@@ -53,10 +60,12 @@ const updateSchedulerEnabled = async (uuid: string, enabled: boolean) =>
     });
 
 export const useSchedulersEnabledUpdateMutation = (schedulerUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<SchedulerAndTargets, ApiError, boolean>(
-        (enabled) => updateSchedulerEnabled(schedulerUuid, enabled),
+        (enabled) =>
+            updateSchedulerEnabled(lightdashApi, schedulerUuid, enabled),
         {
             mutationKey: ['update_scheduler_enabled'],
             onSuccess: async () => {

@@ -11,24 +11,27 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-const getSlack = async () =>
+const getSlack = async (lightdashApi: LightdashApi) =>
     lightdashApi<SlackSettings>({
         url: `/slack/`,
         method: 'GET',
         body: undefined,
     });
 
-export const useGetSlack = () =>
-    useQuery<SlackSettings, ApiError>({
+export const useGetSlack = () => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SlackSettings, ApiError>({
         queryKey: ['slack'],
-        queryFn: () => getSlack(),
+        queryFn: () => getSlack(lightdashApi),
         retry: false,
     });
+};
 
-const deleteSlack = async () =>
+const deleteSlack = async (lightdashApi: LightdashApi) =>
     lightdashApi<null>({
         url: `/slack/`,
         method: 'DELETE',
@@ -36,40 +39,47 @@ const deleteSlack = async () =>
     });
 
 export const useDeleteSlack = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, undefined>(deleteSlack, {
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['slack']);
+    return useMutation<null, ApiError, undefined>(
+        () => deleteSlack(lightdashApi),
+        {
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['slack']);
 
-            showToastSuccess({
-                title: `Deleted! Slack integration was deleted`,
-            });
+                showToastSuccess({
+                    title: `Deleted! Slack integration was deleted`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete Slack integration`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete Slack integration`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
-const getSlackChannels = async ({
-    search,
-    excludeArchived,
-    excludeDms,
-    excludeGroups,
-    forceRefresh,
-    includeChannelIds,
-}: {
-    search: string;
-    excludeArchived: boolean;
-    excludeDms: boolean;
-    excludeGroups: boolean;
-    forceRefresh: boolean;
-    includeChannelIds?: string[];
-}) => {
+const getSlackChannels = async (
+    lightdashApi: LightdashApi,
+    {
+        search,
+        excludeArchived,
+        excludeDms,
+        excludeGroups,
+        forceRefresh,
+        includeChannelIds,
+    }: {
+        search: string;
+        excludeArchived: boolean;
+        excludeDms: boolean;
+        excludeGroups: boolean;
+        forceRefresh: boolean;
+        includeChannelIds?: string[];
+    },
+) => {
     const queryString = new URLSearchParams();
     queryString.set('search', search);
     queryString.set('excludeArchived', excludeArchived.toString());
@@ -102,6 +112,7 @@ export const useSlackChannels = (
     },
     useQueryOptions?: UseQueryOptions<SlackChannel[] | undefined, ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -115,7 +126,7 @@ export const useSlackChannels = (
             includeChannelIds,
         ],
         queryFn: () =>
-            getSlackChannels({
+            getSlackChannels(lightdashApi, {
                 search,
                 excludeArchived,
                 excludeDms,
@@ -128,7 +139,7 @@ export const useSlackChannels = (
 
     const refresh = useCallback(async () => {
         setIsRefreshing(true);
-        const slackChannelsAfterRefresh = await getSlackChannels({
+        const slackChannelsAfterRefresh = await getSlackChannels(lightdashApi, {
             search,
             excludeArchived,
             excludeDms,
@@ -155,6 +166,7 @@ export const useSlackChannels = (
         excludeGroups,
         includeChannelIds,
         queryClient,
+        lightdashApi,
     ]);
 
     return {
@@ -164,7 +176,10 @@ export const useSlackChannels = (
     };
 };
 
-const getSlackChannelById = async (channelId: string) =>
+const getSlackChannelById = async (
+    lightdashApi: LightdashApi,
+    channelId: string,
+) =>
     lightdashApi<SlackChannel | null>({
         url: `/slack/channels/${encodeURIComponent(channelId)}`,
         method: 'GET',
@@ -175,10 +190,12 @@ const getSlackChannelById = async (channelId: string) =>
  * Hook for on-demand channel lookup when user pastes a channel ID
  */
 export const useSlackChannelLookup = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<SlackChannel | null, ApiError, string>({
-        mutationFn: getSlackChannelById,
+        mutationFn: (channelId: string) =>
+            getSlackChannelById(lightdashApi, channelId),
         onSuccess: async (channel) => {
             if (channel) {
                 // Invalidate channels queries to include the new channel
@@ -191,7 +208,10 @@ export const useSlackChannelLookup = () => {
     });
 };
 
-const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
+const updateSlackCustomSettings = async (
+    lightdashApi: LightdashApi,
+    opts: SlackAppCustomSettings,
+) =>
     lightdashApi<null>({
         url: `/slack/custom-settings`,
         method: 'PUT',
@@ -202,10 +222,12 @@ const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
     });
 
 export const useUpdateSlackAppCustomSettingsMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, SlackAppCustomSettings>(
-        updateSlackCustomSettings,
+        (opts: SlackAppCustomSettings) =>
+            updateSlackCustomSettings(lightdashApi, opts),
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries(['slack']);

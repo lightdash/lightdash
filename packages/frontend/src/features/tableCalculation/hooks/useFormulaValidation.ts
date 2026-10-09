@@ -5,11 +5,13 @@ import {
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { selectTableName, useExplorerSelector } from '../../explorer/store';
 
 const validateFormula = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     exploreName: string,
     formula: string,
@@ -28,6 +30,7 @@ export const useFormulaValidation = (
     formula: string,
     metricQuery: MetricQuery,
 ) => {
+    const lightdashApi = useLightdashApi();
     const [validatedFormula, setValidatedFormula] = useState<string | null>(
         null,
     );
@@ -59,6 +62,7 @@ export const useFormulaValidation = (
         ],
         queryFn: () =>
             validateFormula(
+                lightdashApi,
                 projectUuid!,
                 tableName!,
                 formulaWithPrefix!,
@@ -91,6 +95,7 @@ export const useFormulaValidation = (
                 ],
                 queryFn: () =>
                     validateFormula(
+                        lightdashApi,
                         projectUuid,
                         tableName,
                         prefixed,
@@ -104,7 +109,14 @@ export const useFormulaValidation = (
             // failure would be worse than letting it through.
             return null;
         }
-    }, [formula, metricQuery, projectUuid, queryClient, tableName]);
+    }, [
+        formula,
+        metricQuery,
+        projectUuid,
+        queryClient,
+        tableName,
+        lightdashApi,
+    ]);
 
     return {
         error,

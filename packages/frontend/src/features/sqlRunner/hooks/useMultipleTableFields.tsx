@@ -2,6 +2,7 @@ import { type ApiError } from '@lightdash/common';
 import { useQueries } from '@tanstack/react-query';
 import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     fetchTableFields as fetchConnectionTableFields,
     tableFieldsQueryKey as connectionTableFieldsQueryKey,
@@ -19,6 +20,7 @@ export type TableReference = {
 };
 
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
+    const lightdashApi = useLightdashApi();
     // Create queries for each unique table reference
     const queries = useMemo(() => {
         // Deduplicate table references based on projectUuid + schema + tableName
@@ -55,8 +57,12 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                       ],
                 queryFn: () =>
                     identity
-                        ? fetchConnectionTableFields(ref.projectUuid, identity)
-                        : fetchTableFields({
+                        ? fetchConnectionTableFields(
+                              lightdashApi,
+                              ref.projectUuid,
+                              identity,
+                          )
+                        : fetchTableFields(lightdashApi, {
                               projectUuid: ref.projectUuid,
                               tableName: ref.tableName,
                               schema: ref.schema,
@@ -71,7 +77,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 },
             };
         });
-    }, [tableReferences]);
+    }, [tableReferences, lightdashApi]);
 
     const results = useQueries({
         queries,

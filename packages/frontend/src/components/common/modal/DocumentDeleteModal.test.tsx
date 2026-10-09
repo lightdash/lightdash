@@ -8,6 +8,7 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import DocumentDeleteModal from './DocumentDeleteModal';
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
     error: vi.fn(),
     softDelete: { enabled: true, retentionDays: 14 as number | undefined },
 }));
-vi.mock('../../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../../api');
 vi.mock('../../../providers/App/useApp', () => ({
     default: () => ({ health: { data: { softDelete: mocks.softDelete } } }),
 }));
@@ -68,7 +69,7 @@ const renderModal = () => {
 describe('Document delete confirmation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mocks.api.mockResolvedValue(undefined);
+        mockedLightdashApi.mockResolvedValue(undefined);
         mocks.softDelete = { enabled: true, retentionDays: 14 };
     });
     it('deletes the selected document and refreshes discovery, viewer and trash after success', async () => {
@@ -78,7 +79,7 @@ describe('Document delete confirmation', () => {
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
         await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
-        expect(mocks.api).toHaveBeenCalledWith({
+        expect(mockedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             method: 'POST',
             url: '/content/project/delete',
@@ -92,7 +93,7 @@ describe('Document delete confirmation', () => {
         );
     });
     it('keeps confirmation open and reports a failed delete', async () => {
-        mocks.api.mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'No access', statusCode: 403 },
         });
         const { onConfirm, onClose } = renderModal();
@@ -110,16 +111,16 @@ describe('Document delete confirmation', () => {
     });
     it('runs the success navigation even if the deleted viewer unmounts the modal first', async () => {
         const pending = Promise.withResolvers<void>();
-        mocks.api.mockReturnValue(pending.promise);
+        mockedLightdashApi.mockReturnValue(pending.promise);
         const { onConfirm, unmount } = renderModal();
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-        await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+        await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
         unmount();
         await act(async () => pending.resolve());
         await waitFor(() => expect(onConfirm).toHaveBeenCalledOnce());
     });
     it('disables repeat confirmation and cancel while deletion is pending', async () => {
-        mocks.api.mockReturnValue(new Promise(() => {}));
+        mockedLightdashApi.mockReturnValue(new Promise(() => {}));
         renderModal();
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
         await waitFor(() =>
@@ -133,7 +134,7 @@ describe('Document delete confirmation', () => {
         const { onClose } = renderModal();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         expect(onClose).toHaveBeenCalledOnce();
-        expect(mocks.api).not.toHaveBeenCalled();
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
     });
     it('does not promise automatic retention cleanup', () => {
         mocks.softDelete.retentionDays = undefined;

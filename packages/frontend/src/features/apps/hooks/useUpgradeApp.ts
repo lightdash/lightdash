@@ -4,8 +4,9 @@ import {
     type UpgradeAppRequestBody,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UpgradeAppParams = {
     projectUuid: string;
@@ -15,7 +16,10 @@ type UpgradeAppParams = {
 
 type UpgradeAppResult = ApiUpgradeAppResponse['results'];
 
-const upgradeApp = ({ projectUuid, appUuid, body }: UpgradeAppParams) =>
+const upgradeApp = (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, body }: UpgradeAppParams,
+) =>
     lightdashApi<UpgradeAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/upgrade`,
@@ -23,10 +27,11 @@ const upgradeApp = ({ projectUuid, appUuid, body }: UpgradeAppParams) =>
     });
 
 export const useUpgradeApp = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<UpgradeAppResult, ApiError, UpgradeAppParams>({
-        mutationFn: upgradeApp,
+        mutationFn: (args: UpgradeAppParams) => upgradeApp(lightdashApi, args),
         onSuccess: (_result, { projectUuid, appUuid }) => {
             // The new pending version lands in the app query; the build
             // experience's polling takes over from there.

@@ -10,19 +10,23 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import useQueryError from './useQueryError';
 
 // gets users access tokens
-const getAccessToken = async () =>
+const getAccessToken = async (lightdashApi: LightdashApi) =>
     lightdashApi<any[]>({
         url: `/user/me/personal-access-tokens`,
         method: 'GET',
         body: undefined,
     });
 
-const createAccessToken = async (data: CreatePersonalAccessToken) =>
+const createAccessToken = async (
+    lightdashApi: LightdashApi,
+    data: CreatePersonalAccessToken,
+) =>
     lightdashApi<ApiCreateUserTokenResults>({
         url: `/user/me/personal-access-tokens`,
         method: 'POST',
@@ -30,14 +34,21 @@ const createAccessToken = async (data: CreatePersonalAccessToken) =>
         sensitive: true,
     });
 
-const deleteAccessToken = async (tokenUuid: string) =>
+const deleteAccessToken = async (
+    lightdashApi: LightdashApi,
+    tokenUuid: string,
+) =>
     lightdashApi<null>({
         url: `/user/me/personal-access-tokens/${tokenUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
-const rotateAccessToken = async (tokenUuid: string, expiresAt: string) =>
+const rotateAccessToken = async (
+    lightdashApi: LightdashApi,
+    tokenUuid: string,
+    expiresAt: string,
+) =>
     lightdashApi<ApiCreateUserTokenResults>({
         url: `/user/me/personal-access-tokens/${tokenUuid}/rotate`,
         method: 'PATCH',
@@ -48,10 +59,11 @@ const rotateAccessToken = async (tokenUuid: string, expiresAt: string) =>
 export const useAccessToken = (
     useQueryOptions?: UseQueryOptions<PersonalAccessToken[], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
     return useQuery<PersonalAccessToken[], ApiError>({
         queryKey: ['personal_access_tokens'],
-        queryFn: () => getAccessToken(),
+        queryFn: () => getAccessToken(lightdashApi),
         retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
@@ -59,13 +71,14 @@ export const useAccessToken = (
 };
 
 export const useCreateAccessToken = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiCreateUserTokenResults,
         ApiError,
         CreatePersonalAccessToken
-    >((data) => createAccessToken(data), {
+    >((data) => createAccessToken(lightdashApi, data), {
         mutationKey: ['personal_access_tokens'],
         retry: 3,
         onSuccess: async () => {
@@ -81,45 +94,54 @@ export const useCreateAccessToken = () => {
 };
 
 export const useDeleteAccessToken = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, string>(deleteAccessToken, {
-        mutationKey: ['personal_access_tokens'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['personal_access_tokens']);
-            showToastSuccess({
-                title: `Success! Your token was deleted.`,
-            });
+    return useMutation<null, ApiError, string>(
+        (tokenUuid: string) => deleteAccessToken(lightdashApi, tokenUuid),
+        {
+            mutationKey: ['personal_access_tokens'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['personal_access_tokens']);
+                showToastSuccess({
+                    title: `Success! Your token was deleted.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to delete token`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to delete token`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };
 
 export const useRotateAccessToken = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ApiCreateUserTokenResults,
         ApiError,
         { tokenUuid: string; expiresAt: string }
-    >(({ tokenUuid, expiresAt }) => rotateAccessToken(tokenUuid, expiresAt), {
-        mutationKey: ['personal_access_tokens'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(['personal_access_tokens']);
-            showToastSuccess({
-                title: `Success! Your token was rotated.`,
-            });
+    >(
+        ({ tokenUuid, expiresAt }) =>
+            rotateAccessToken(lightdashApi, tokenUuid, expiresAt),
+        {
+            mutationKey: ['personal_access_tokens'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['personal_access_tokens']);
+                showToastSuccess({
+                    title: `Success! Your token was rotated.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to rotate token`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to rotate token`,
-                apiError: error,
-            });
-        },
-    });
+    );
 };

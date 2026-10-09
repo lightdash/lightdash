@@ -5,13 +5,14 @@ import {
     type UUID,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 export const useTestAgentAccess = (
     projectUuid: UUID,
     connection: UUID | null,
-) =>
-    useMutation<AgentAccessReport, ApiError, AgentAccessTestRequest>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<AgentAccessReport, ApiError, AgentAccessTestRequest>({
         mutationFn: (request) => {
             const query = new URLSearchParams();
             if (connection !== null) query.set('connection', connection);
@@ -25,3 +26,4 @@ export const useTestAgentAccess = (
         },
         retry: false,
     });
+};

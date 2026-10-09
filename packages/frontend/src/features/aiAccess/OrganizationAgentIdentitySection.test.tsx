@@ -14,7 +14,8 @@ import {
 } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { identityLabels } from './identityLabels';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
@@ -29,7 +30,7 @@ const mocks = vi.hoisted(() => ({
     toast: vi.fn(),
     errorToast: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: {
@@ -113,7 +114,7 @@ const apiHandler = async ({
     url,
     method,
     body,
-}: Parameters<typeof lightdashApi>[0]) => {
+}: Parameters<typeof sharedLightdashApi>[0]) => {
     if (url.endsWith('/setup'))
         return {
             redirectUri:
@@ -214,7 +215,7 @@ describe('Organisation agent identity settings', () => {
                 },
             ],
         };
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
     });
     it('shows two warehouse rows with shared copy and no switch or status badges', async () => {
         const { container } = renderSection();
@@ -246,7 +247,7 @@ describe('Organisation agent identity settings', () => {
         const { invalidate } = renderSection();
         await changeToMarkedPerson(name);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: `/org/agent-identity/${warehouseType}`,
                 method: 'PUT',
@@ -276,7 +277,7 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/bigquery',
                 method: 'PUT',
@@ -293,7 +294,7 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByRole('button', { name: 'View setup' }),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/org/agent-identity/snowflake/setup',
             }),
@@ -329,7 +330,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByText('Paste what Snowflake returned'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(
@@ -377,7 +378,7 @@ describe('Organisation agent identity settings', () => {
         );
         fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/snowflake',
                 method: 'PUT',
@@ -484,7 +485,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
         ).toHaveValue(identityLabels.marked_person.label);
         expect(screen.queryByText('Not active yet')).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         await selectAgentSignIn();
@@ -531,7 +532,7 @@ describe('Organisation agent identity settings', () => {
                 ).toBeEnabled(),
             );
             let finishRefetch: (() => void) | undefined;
-            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+            mockedLightdashApi.mockImplementation(async (request) => {
                 const response = await apiHandler(request);
                 if (!request.url.endsWith('/setup')) return response;
                 return new Promise<typeof response>((resolve) => {
@@ -587,12 +588,12 @@ describe('Organisation agent identity settings', () => {
             screen.queryByText('Copy and run in Snowflake'),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeEnabled();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
         fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'PUT' }),
             ),
         );
@@ -618,11 +619,9 @@ describe('Organisation agent identity settings', () => {
             screen.queryByRole('button', { name: 'Turn on' }),
         ).not.toBeInTheDocument();
         expect(
-            vi
-                .mocked(lightdashApi)
-                .mock.calls.filter(([request]) =>
-                    request.url.endsWith('/verify'),
-                ),
+            mockedLightdashApi.mock.calls.filter(([request]) =>
+                request.url.endsWith('/verify'),
+            ),
         ).toHaveLength(1);
     });
     it('opens setup when verification of an active integration fails', async () => {
@@ -643,7 +642,7 @@ describe('Organisation agent identity settings', () => {
         const button = await screen.findByRole('button', {
             name: 'Verify integration',
         });
-        vi.mocked(lightdashApi).mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: { message: 'Unavailable' },
         });
         fireEvent.click(button);
@@ -717,7 +716,7 @@ describe('Organisation agent identity settings', () => {
     it('disables only the saving row', async () => {
         renderSection();
         await screen.findAllByRole('combobox');
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         await changeToMarkedPerson('Snowflake');
         await waitFor(() =>
             expect(
@@ -731,26 +730,26 @@ describe('Organisation agent identity settings', () => {
         ).toBeEnabled();
     });
     it('waits for settings to load', () => {
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         renderSection();
         expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     });
     it('allows retry after a load failure', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         renderSection();
         expect(
             await screen.findByText('Could not load agent identity settings.'),
         ).toBeInTheDocument();
-        vi.mocked(lightdashApi).mockImplementation(apiHandler);
+        mockedLightdashApi.mockImplementation(apiHandler);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await screen.findAllByRole('combobox')).toHaveLength(2);
     });
     it('reports failed saves and preserves the value', async () => {
         renderSection();
         await screen.findAllByRole('combobox');
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         await changeToMarkedPerson('Snowflake');
@@ -767,6 +766,6 @@ describe('Organisation agent identity settings', () => {
         expect(
             screen.queryByText(/Choose who AI agents run as/),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

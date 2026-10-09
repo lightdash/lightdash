@@ -5,12 +5,14 @@ import {
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
 } from '@lightdash/common';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type DataAppVizsPage = ApiListDataAppVizsResponse['results'];
 
 const getDataAppVisualizations = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     page: number,
     pageSize: number,
@@ -47,6 +49,7 @@ export const useDataAppVisualizations = (
     sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     pageSize: number = FETCH_SIZE,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { embedToken } = useEmbed();
     const isEmbedded = !!embedToken;
     return useInfiniteQuery<DataAppVizsPage, ApiError>({
@@ -61,6 +64,7 @@ export const useDataAppVisualizations = (
         ],
         queryFn: ({ pageParam = 1 }) =>
             getDataAppVisualizations(
+                lightdashApi,
                 projectUuid!,
                 pageParam as number,
                 pageSize,

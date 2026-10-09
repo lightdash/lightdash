@@ -355,6 +355,7 @@ describe('MergeProvider', () => {
             }),
         );
         expect(executeMergeQuery).toHaveBeenCalledWith(
+            expect.anything(),
             'project-uuid',
             mergeQuery,
             { 'customers.customer_name': 'Ken' },
@@ -381,6 +382,7 @@ describe('MergeProvider', () => {
         );
         expect(executeMergeQuery).toHaveBeenNthCalledWith(
             1,
+            expect.anything(),
             'project-uuid',
             mergeQuery,
             undefined,
@@ -388,6 +390,7 @@ describe('MergeProvider', () => {
         );
         expect(executeMergeQuery).toHaveBeenNthCalledWith(
             2,
+            expect.anything(),
             'project-uuid',
             mergeQuery,
             undefined,

@@ -4,8 +4,9 @@ import {
     type VizColumn,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type CreatePrParams = {
     projectUuid: string;
@@ -14,12 +15,10 @@ type CreatePrParams = {
     columns: VizColumn[];
 };
 
-const createPullRequest = async ({
-    projectUuid,
-    name,
-    sql,
-    columns,
-}: CreatePrParams) =>
+const createPullRequest = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, name, sql, columns }: CreatePrParams,
+) =>
     lightdashApi<ApiGithubDbtWriteBack['results']>({
         url: `/projects/${projectUuid}/sqlRunner/pull-request`,
         method: 'POST',
@@ -31,13 +30,14 @@ const createPullRequest = async ({
  * This hook is used to create a pull request with the SQL query and columns from the SQL runner
  */
 export const useGithubDbtWriteBack = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
 
     return useMutation<
         ApiGithubDbtWriteBack['results'],
         ApiError,
         CreatePrParams
-    >(createPullRequest, {
+    >((args: CreatePrParams) => createPullRequest(lightdashApi, args), {
         mutationKey: ['sqlRunner', 'createPullRequest'],
         onSuccess: (data) => {
             window.open(data.prUrl, '_blank', 'noopener,noreferrer');

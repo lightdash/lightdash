@@ -6,10 +6,14 @@ import {
     type ProjectDbtSourceWithConnection,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
-const getProjectDbtSources = async (projectUuid: string) =>
+const getProjectDbtSources = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<ProjectDbtSourceSummary[]>({
         url: `/projects/${projectUuid}/dbt-sources`,
         method: 'GET',
@@ -17,6 +21,7 @@ const getProjectDbtSources = async (projectUuid: string) =>
     });
 
 const createProjectDbtSource = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ApiCreateProjectDbtSource,
 ) =>
@@ -27,6 +32,7 @@ const createProjectDbtSource = async (
     });
 
 const getProjectDbtSource = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     projectDbtSourceUuid: string,
 ) =>
@@ -37,6 +43,7 @@ const getProjectDbtSource = async (
     });
 
 const updateProjectDbtSource = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     projectDbtSourceUuid: string,
     data: ApiUpdateProjectDbtSource,
@@ -48,6 +55,7 @@ const updateProjectDbtSource = async (
     });
 
 const deleteProjectDbtSource = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     projectDbtSourceUuid: string,
 ) =>
@@ -57,24 +65,27 @@ const deleteProjectDbtSource = async (
         body: undefined,
     });
 
-export const useProjectDbtSources = (projectUuid?: string) =>
-    useQuery<ProjectDbtSourceSummary[], ApiError>({
+export const useProjectDbtSources = (projectUuid?: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectDbtSourceSummary[], ApiError>({
         queryKey: ['project_dbt_sources', projectUuid],
-        queryFn: () => getProjectDbtSources(projectUuid!),
+        queryFn: () => getProjectDbtSources(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
     });
+};
 
 export const useCreateProjectDbtSourceMutation = (
     projectUuid: string,
     options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         ProjectDbtSourceSummary,
         ApiError,
         ApiCreateProjectDbtSource
-    >((data) => createProjectDbtSource(projectUuid, data), {
+    >((data) => createProjectDbtSource(lightdashApi, projectUuid, data), {
         mutationKey: ['create_project_dbt_source', projectUuid],
         onSuccess: async (source) => {
             options?.onSuccess?.(source);
@@ -96,17 +107,25 @@ export const useCreateProjectDbtSourceMutation = (
 export const useProjectDbtSource = (
     projectUuid: string,
     projectDbtSourceUuid?: string,
-) =>
-    useQuery<ProjectDbtSourceWithConnection, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ProjectDbtSourceWithConnection, ApiError>({
         queryKey: ['project_dbt_source', projectUuid, projectDbtSourceUuid],
-        queryFn: () => getProjectDbtSource(projectUuid, projectDbtSourceUuid!),
+        queryFn: () =>
+            getProjectDbtSource(
+                lightdashApi,
+                projectUuid,
+                projectDbtSourceUuid!,
+            ),
         enabled: !!projectDbtSourceUuid,
     });
+};
 
 export const useUpdateProjectDbtSourceMutation = (
     projectUuid: string,
     options?: { onSuccess?: (source: ProjectDbtSourceSummary) => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -115,7 +134,12 @@ export const useUpdateProjectDbtSourceMutation = (
         { projectDbtSourceUuid: string; data: ApiUpdateProjectDbtSource }
     >(
         ({ projectDbtSourceUuid, data }) =>
-            updateProjectDbtSource(projectUuid, projectDbtSourceUuid, data),
+            updateProjectDbtSource(
+                lightdashApi,
+                projectUuid,
+                projectDbtSourceUuid,
+                data,
+            ),
         {
             mutationKey: ['update_project_dbt_source', projectUuid],
             onSuccess: async (source, { projectDbtSourceUuid }) => {
@@ -146,11 +170,16 @@ export const useUpdateProjectDbtSourceMutation = (
 };
 
 export const useDeleteProjectDbtSourceMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, string>(
         (projectDbtSourceUuid) =>
-            deleteProjectDbtSource(projectUuid, projectDbtSourceUuid),
+            deleteProjectDbtSource(
+                lightdashApi,
+                projectUuid,
+                projectDbtSourceUuid,
+            ),
         {
             mutationKey: ['delete_project_dbt_source', projectUuid],
             onSuccess: async () => {

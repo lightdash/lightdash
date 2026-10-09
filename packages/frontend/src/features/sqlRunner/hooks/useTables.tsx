@@ -4,24 +4,27 @@ import {
     type ApiWarehouseTablesCatalog,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GetTablesParams = {
     projectUuid: string;
 };
 
-const fetchTables = async ({
-    projectUuid,
-}: Pick<GetTablesParams, 'projectUuid'>) =>
+const fetchTables = async (
+    lightdashApi: LightdashApi,
+    { projectUuid }: Pick<GetTablesParams, 'projectUuid'>,
+) =>
     lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/tables`,
         method: 'GET',
         body: undefined,
     });
 
-const refreshTables = async ({
-    projectUuid,
-}: Pick<GetTablesParams, 'projectUuid'>) =>
+const refreshTables = async (
+    lightdashApi: LightdashApi,
+    { projectUuid }: Pick<GetTablesParams, 'projectUuid'>,
+) =>
     lightdashApi<ApiWarehouseTablesCatalog>({
         url: `/projects/${projectUuid}/sqlRunner/refresh-catalog`,
         method: 'POST',
@@ -36,6 +39,7 @@ export type TablesBySchema =
     | undefined;
 
 export const useTables = ({ projectUuid }: GetTablesParams) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<
         ApiWarehouseTablesCatalog,
         ApiError,
@@ -43,7 +47,7 @@ export const useTables = ({ projectUuid }: GetTablesParams) => {
     >({
         queryKey: ['sqlRunner', 'tables', projectUuid],
         queryFn: () =>
-            fetchTables({
+            fetchTables(lightdashApi, {
                 projectUuid,
             }),
         retry: false,
@@ -54,10 +58,11 @@ export const useTables = ({ projectUuid }: GetTablesParams) => {
 export const useRefreshTables = ({
     projectUuid,
 }: Pick<GetTablesParams, 'projectUuid'>) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<ApiWarehouseTablesCatalog, ApiError>(
-        () => refreshTables({ projectUuid }),
+        () => refreshTables(lightdashApi, { projectUuid }),
         {
             onSuccess: async () => {
                 await queryClient.invalidateQueries([

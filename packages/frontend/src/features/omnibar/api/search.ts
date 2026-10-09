@@ -1,19 +1,22 @@
 import { type SearchFilters, type SearchResults } from '@lightdash/common';
 import isNil from 'lodash/isNil';
 import omitBy from 'lodash/omitBy';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 
-export const getSearchResults = async ({
-    projectUuid,
-    query,
-    filters,
-    source,
-}: {
-    projectUuid: string;
-    query: string;
-    source: 'omnibar' | 'ai_search_box';
-    filters?: SearchFilters;
-}) => {
+export const getSearchResults = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        query,
+        filters,
+        source,
+    }: {
+        projectUuid: string;
+        query: string;
+        source: 'omnibar' | 'ai_search_box';
+        filters?: SearchFilters;
+    },
+) => {
     const sanitisedFilters = omitBy(filters, isNil);
     const params = new URLSearchParams({
         ...Object.fromEntries(

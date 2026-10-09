@@ -20,6 +20,7 @@ import {
 } from '../../hooks/useReconnectSharedSignIn';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     getSharedSignInExpiry,
     shouldOpenSharedSignInReconnectModal,
@@ -33,6 +34,7 @@ import {
 } from './sharedSignInListenerDecision';
 
 export const SharedSignInExpiryListener: FC = () => {
+    const lightdashApi = useLightdashApi();
     const { user } = useApp();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -140,7 +142,8 @@ export const SharedSignInExpiryListener: FC = () => {
             void queryClient
                 .fetchQuery({
                     queryKey: ['shared-sign-in-status', projectUuid],
-                    queryFn: () => getSharedSignInStatus(projectUuid),
+                    queryFn: () =>
+                        getSharedSignInStatus(lightdashApi, projectUuid),
                     staleTime: 0,
                     retry: false,
                 })
@@ -229,6 +232,7 @@ export const SharedSignInExpiryListener: FC = () => {
         navigate,
         reconnectFlag.data?.enabled,
         reconnectFlag.isLoading,
+        lightdashApi,
     ]);
 
     return modalProjectUuid ? (

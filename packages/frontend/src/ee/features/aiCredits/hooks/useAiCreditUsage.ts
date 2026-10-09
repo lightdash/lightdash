@@ -3,19 +3,22 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
-const getAiCreditUsage = () =>
+const getAiCreditUsage = (lightdashApi: LightdashApi) =>
     lightdashApi<ApiAiCreditUsageResponse['results']>({
         url: '/org/ai-credits/usage',
         method: 'GET',
         body: undefined,
     });
 
-export const useAiCreditUsage = ({ enabled }: { enabled: boolean }) =>
-    useQuery<ApiAiCreditUsageResponse['results'], ApiError>({
+export const useAiCreditUsage = ({ enabled }: { enabled: boolean }) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiCreditUsageResponse['results'], ApiError>({
         queryKey: ['ai-credit-usage'],
-        queryFn: getAiCreditUsage,
+        queryFn: () => getAiCreditUsage(lightdashApi),
         enabled,
         retry: false,
     });
+};

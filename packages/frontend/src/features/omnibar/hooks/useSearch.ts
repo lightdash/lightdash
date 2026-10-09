@@ -4,6 +4,7 @@ import {
     type SearchResults,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { getSearchResults } from '../api/search';
 import { type SearchResultMap } from '../types/searchResultMap';
 import { getSearchItemMap } from '../utils/getSearchItemMap';
@@ -44,16 +45,23 @@ const useSearch = ({
     filters,
     source,
     ...params
-}: Params) =>
-    useQuery<SearchResults, ApiError, SearchResultMap>({
+}: Params) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SearchResults, ApiError, SearchResultMap>({
         queryKey: [projectUuid, 'search', filters ?? 'all', query],
         queryFn: () =>
-            getSearchResults({ projectUuid, query, filters, source }),
+            getSearchResults(lightdashApi, {
+                projectUuid,
+                query,
+                filters,
+                source,
+            }),
         retry: false,
         enabled: hasMinQueryLength(query),
         select: (data) =>
             getSearchItemMap(data, projectUuid, projectUrlIdentifier),
         ...params,
     });
+};
 
 export default useSearch;

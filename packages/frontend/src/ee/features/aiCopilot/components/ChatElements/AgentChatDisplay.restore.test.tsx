@@ -8,15 +8,14 @@ import { fireEvent, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../../../api';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { store } from '../../store';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from './AgentChatDisplay';
 
-vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
-const mockedLightdashApi = vi.mocked(lightdashApi);
+vi.mock('../../../../../api');
 
 vi.mock('../../hooks/useProjectAiMcpServers', () => ({
     useAgentAiMcpServers: () => ({ data: [] }),

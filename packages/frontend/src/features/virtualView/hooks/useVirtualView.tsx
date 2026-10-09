@@ -8,19 +8,23 @@ import {
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
-const createVirtualView = async ({
-    projectUuid,
-    name,
-    sql,
-    columns,
-    parameterValues,
-    warehouseConnectionUuid,
-}: {
-    projectUuid: string;
-} & CreateVirtualViewPayload) =>
+const createVirtualView = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        name,
+        sql,
+        columns,
+        parameterValues,
+        warehouseConnectionUuid,
+    }: {
+        projectUuid: string;
+    } & CreateVirtualViewPayload,
+) =>
     lightdashApi<ApiCreateVirtualView['results']>({
         url: `/projects/${projectUuid}/sqlRunner/virtual-view`,
         method: 'POST',
@@ -43,6 +47,7 @@ export const useCreateVirtualView = ({
 }: {
     projectUuid: string;
 }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -52,7 +57,11 @@ export const useCreateVirtualView = ({
             projectUuid: string;
         } & CreateVirtualViewPayload
     >({
-        mutationFn: createVirtualView,
+        mutationFn: (
+            args: {
+                projectUuid: string;
+            } & CreateVirtualViewPayload,
+        ) => createVirtualView(lightdashApi, args),
         onSuccess: async (data) => {
             await queryClient.invalidateQueries({ queryKey: ['tables'] });
             showToastSuccess({
@@ -78,17 +87,20 @@ export const useCreateVirtualView = ({
     });
 };
 
-const updateVirtualView = async ({
-    exploreName,
-    projectUuid,
-    name,
-    sql,
-    columns,
-    parameterValues,
-}: {
-    exploreName: string;
-    projectUuid: string;
-} & UpdateVirtualViewPayload) =>
+const updateVirtualView = async (
+    lightdashApi: LightdashApi,
+    {
+        exploreName,
+        projectUuid,
+        name,
+        sql,
+        columns,
+        parameterValues,
+    }: {
+        exploreName: string;
+        projectUuid: string;
+    } & UpdateVirtualViewPayload,
+) =>
     lightdashApi<ApiCreateVirtualView['results']>({
         url: `/projects/${projectUuid}/sqlRunner/virtual-view/${exploreName}`,
         method: 'PUT',
@@ -101,6 +113,7 @@ const updateVirtualView = async ({
     });
 
 export const useUpdateVirtualView = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
@@ -108,7 +121,12 @@ export const useUpdateVirtualView = (projectUuid: string) => {
         ApiError,
         { projectUuid: string; exploreName: string } & UpdateVirtualViewPayload
     >({
-        mutationFn: updateVirtualView,
+        mutationFn: (
+            args: {
+                exploreName: string;
+                projectUuid: string;
+            } & UpdateVirtualViewPayload,
+        ) => updateVirtualView(lightdashApi, args),
         onSuccess: async ({ name }) => {
             await queryClient.invalidateQueries({
                 queryKey: ['tables', projectUuid, 'filtered'],
@@ -128,13 +146,16 @@ export const useUpdateVirtualView = (projectUuid: string) => {
     });
 };
 
-const deleteVirtualView = async ({
-    projectUuid,
-    name,
-}: {
-    projectUuid: string;
-    name: string;
-}) =>
+const deleteVirtualView = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        name,
+    }: {
+        projectUuid: string;
+        name: string;
+    },
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/sqlRunner/virtual-view/${name}`,
         method: 'DELETE',
@@ -142,6 +163,7 @@ const deleteVirtualView = async ({
     });
 
 export const useDeleteVirtualView = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
@@ -150,7 +172,8 @@ export const useDeleteVirtualView = (projectUuid: string) => {
         ApiError,
         { projectUuid: string; name: string }
     >({
-        mutationFn: deleteVirtualView,
+        mutationFn: (args: { projectUuid: string; name: string }) =>
+            deleteVirtualView(lightdashApi, args),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: ['tables', projectUuid, 'filtered'],

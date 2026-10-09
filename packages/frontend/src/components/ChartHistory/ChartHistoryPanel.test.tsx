@@ -5,8 +5,9 @@ import userEvent from '@testing-library/user-event';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { AbilityContext } from '../../providers/Ability/context';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import {
     manageChartRule,
     mockSavedChartResponse,
@@ -14,7 +15,7 @@ import {
 import { renderWithProviders } from '../../testing/testUtils';
 import ChartHistoryPanel from './ChartHistoryPanel';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
 // The Explorer is out of scope here; a probe exposes what the preview session
 // was built from, so the test can see the version's own palette and parameters.
@@ -98,7 +99,7 @@ const renderPanel = (
 
 describe('ChartHistoryPanel', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -129,7 +130,7 @@ describe('ChartHistoryPanel', () => {
                 return restoredChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
     });
 
     it('restores an older version, warns about unsaved edits, and hands back the saved chart', async () => {
@@ -159,7 +160,7 @@ describe('ChartHistoryPanel', () => {
         await waitFor(() =>
             expect(onRestored).toHaveBeenCalledWith(restoredChart),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'POST',
                 url: '/saved/chart-uuid/rollback/older-version',
@@ -200,7 +201,7 @@ describe('ChartHistoryPanel', () => {
 
     it('shows a retryable error when the selected version cannot be loaded', async () => {
         let previewAttempts = 0;
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -228,7 +229,7 @@ describe('ChartHistoryPanel', () => {
                 };
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
 
         const user = userEvent.setup();
         renderPanel();
@@ -247,7 +248,7 @@ describe('ChartHistoryPanel', () => {
     });
 
     it('shows a loading state while the selected version is loading', async () => {
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (method === 'GET' && url === '/saved/chart-uuid/history') {
                 return {
                     history: [
@@ -262,7 +263,7 @@ describe('ChartHistoryPanel', () => {
                 return new Promise(() => {});
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
 
         renderPanel();
 

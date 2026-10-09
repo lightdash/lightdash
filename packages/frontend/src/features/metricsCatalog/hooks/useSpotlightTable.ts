@@ -7,18 +7,22 @@ import {
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UseSpotlightTableConfigOptions = {
     projectUuid: string | undefined;
 };
 
-const getSpotlightTableConfig = async ({
-    projectUuid,
-}: {
-    projectUuid: string;
-}) => {
+const getSpotlightTableConfig = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+    }: {
+        projectUuid: string;
+    },
+) => {
     try {
         return await lightdashApi<ApiGetSpotlightTableConfig['results']>({
             url: `/projects/${projectUuid}/spotlight/table/config`,
@@ -39,20 +43,27 @@ const getSpotlightTableConfig = async ({
 export const useSpotlightTableConfig = ({
     projectUuid,
 }: UseSpotlightTableConfigOptions) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiGetSpotlightTableConfig['results'], ApiError>({
         queryKey: ['spotlight-table-config', projectUuid],
-        queryFn: () => getSpotlightTableConfig({ projectUuid: projectUuid! }),
+        queryFn: () =>
+            getSpotlightTableConfig(lightdashApi, {
+                projectUuid: projectUuid!,
+            }),
         enabled: !!projectUuid,
     });
 };
 
-const createSpotlightTableConfig = async ({
-    projectUuid,
-    data,
-}: {
-    projectUuid: string;
-    data: Pick<SpotlightTableConfig, 'columnConfig'>;
-}) => {
+const createSpotlightTableConfig = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        data,
+    }: {
+        projectUuid: string;
+        data: Pick<SpotlightTableConfig, 'columnConfig'>;
+    },
+) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/spotlight/table/config`,
         method: 'POST',
@@ -63,6 +74,7 @@ const createSpotlightTableConfig = async ({
 };
 
 export const useCreateSpotlightTableConfig = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     return useMutation<
@@ -74,7 +86,7 @@ export const useCreateSpotlightTableConfig = () => {
         }
     >({
         mutationFn: ({ projectUuid, data }) =>
-            createSpotlightTableConfig({ projectUuid, data }),
+            createSpotlightTableConfig(lightdashApi, { projectUuid, data }),
         onSuccess: (_, { projectUuid }) => {
             void queryClient.invalidateQueries({
                 queryKey: ['spotlight-table-config', projectUuid],
@@ -91,11 +103,14 @@ export const useCreateSpotlightTableConfig = () => {
     });
 };
 
-const resetSpotlightTableConfig = async ({
-    projectUuid,
-}: {
-    projectUuid: string;
-}) => {
+const resetSpotlightTableConfig = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+    }: {
+        projectUuid: string;
+    },
+) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/spotlight/table/config`,
         method: 'DELETE',
@@ -104,6 +119,7 @@ const resetSpotlightTableConfig = async ({
 };
 
 export const useResetSpotlightTableConfig = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],
@@ -111,7 +127,7 @@ export const useResetSpotlightTableConfig = () => {
         { projectUuid: string }
     >({
         mutationFn: ({ projectUuid }) =>
-            resetSpotlightTableConfig({ projectUuid }),
+            resetSpotlightTableConfig(lightdashApi, { projectUuid }),
         onSuccess: (_, { projectUuid }) => {
             void queryClient.invalidateQueries({
                 queryKey: ['spotlight-table-config', projectUuid],

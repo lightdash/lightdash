@@ -1,18 +1,21 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const deleteUserQuery = async () =>
+const deleteUserQuery = async (lightdashApi: LightdashApi) =>
     lightdashApi<null>({
         url: `/user/me`,
         method: 'DELETE',
         body: undefined,
     });
 
-export const useDeleteUserMutation = () =>
-    useMutation<null, ApiError>(deleteUserQuery, {
+export const useDeleteUserMutation = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<null, ApiError>(() => deleteUserQuery(lightdashApi), {
         mutationKey: ['user_delete'],
         onSuccess: () => {
             window.location.href = '/login';
         },
     });
+};

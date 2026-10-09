@@ -15,9 +15,10 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
@@ -27,6 +28,7 @@ import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const executeAsyncDashboardChartQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncDashboardChartRequestParams,
 ): Promise<ApiExecuteAsyncDashboardChartQueryResults> =>
@@ -39,6 +41,7 @@ const executeAsyncDashboardChartQuery = async (
 
 // Embed-only endpoint for executing a dashboard tile query
 const postEmbedDashboardTileQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: {
         tileUuid: string;
@@ -74,6 +77,7 @@ export const useDashboardChartReadyQuery = (
     chartUuid: string | null,
     contextOverride?: QueryExecutionContext,
 ) => {
+    const lightdashApi = useLightdashApi();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardTileStatusContext(
@@ -320,6 +324,7 @@ export const useDashboardChartReadyQuery = (
 
             const executeQueryResponse = isEmbedContext
                 ? await postEmbedDashboardTileQuery(
+                      lightdashApi,
                       chartQuery.data.projectUuid,
                       {
                           tileUuid,
@@ -333,6 +338,7 @@ export const useDashboardChartReadyQuery = (
                       },
                   )
                 : await executeAsyncDashboardChartQuery(
+                      lightdashApi,
                       chartQuery.data.projectUuid,
                       {
                           context: effectiveContext,

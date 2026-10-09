@@ -16,7 +16,7 @@ import {
     useQuery,
     useQueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
@@ -57,6 +57,7 @@ const connectionsUrl = (projectUuid: string) =>
     `/projects/${projectUuid}/warehouse-connections`;
 
 export const useWarehouseConnections = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const { data: flag } = useServerFeatureFlag(
         FeatureFlags.MultiConnectionProjects,
     );
@@ -78,8 +79,9 @@ export const useWarehouseConnections = (projectUuid: string) => {
 export const useWarehouseConnectionsForUserCredentials = (
     projectUuid: string,
     enabled = true,
-) =>
-    useQuery<WarehouseConnectionForUserCredentials[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<WarehouseConnectionForUserCredentials[], ApiError>({
         queryKey: [
             'projects',
             projectUuid,
@@ -94,6 +96,7 @@ export const useWarehouseConnectionsForUserCredentials = (
         enabled,
         retry: false,
     });
+};
 
 const userCredentialsQueryKey = (
     projectUuid: string,
@@ -109,8 +112,9 @@ const userCredentialsQueryKey = (
 export const useWarehouseConnectionsUserCredentials = (
     projectUuid: string,
     warehouseConnectionUuids: string[],
-) =>
-    useQueries({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQueries({
         queries: warehouseConnectionUuids.map((warehouseConnectionUuid) => ({
             queryKey: userCredentialsQueryKey(
                 projectUuid,
@@ -125,11 +129,13 @@ export const useWarehouseConnectionsUserCredentials = (
             retry: false,
         })),
     });
+};
 
 export const useWarehouseConnectionUserCredentialsMutation = (
     projectUuid: string,
     options: { onSuccess: () => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -176,8 +182,9 @@ export const useWarehouseConnectionUserCredentialsMutation = (
 export const useWarehouseConnection = (
     projectUuid: string,
     warehouseConnectionUuid: string | null,
-) =>
-    useQuery<WarehouseConnectionWithCredentials, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<WarehouseConnectionWithCredentials, ApiError>({
         queryKey: connectionQueryKey(
             projectUuid,
             warehouseConnectionUuid ?? '',
@@ -190,6 +197,7 @@ export const useWarehouseConnection = (
             }),
         enabled: warehouseConnectionUuid !== null,
     });
+};
 
 const useConnectionInvalidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
@@ -204,6 +212,7 @@ export const useCreateWarehouseConnection = (
         onNameConflict: NameConflictHandler;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -242,6 +251,7 @@ export const useUpdateWarehouseConnection = (
     projectUuid: string,
     options: { onSuccess: () => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -291,6 +301,7 @@ export const useRenameWarehouseConnection = (
         onNameConflict: NameConflictHandler;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
@@ -329,6 +340,7 @@ export const useDeleteWarehouseConnection = (
     projectUuid: string,
     options: { onSuccess: () => void },
 ) => {
+    const lightdashApi = useLightdashApi();
     const invalidate = useConnectionInvalidation(projectUuid);
     const { showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, string>(

@@ -64,7 +64,7 @@ describe('useSqlQueryRun', () => {
                 await result.current.mutateAsync({ sql: 'select 1', limit: 1 });
             });
 
-            expect(vi.mocked(executeSqlQuery).mock.calls[0][5]).toBe(expected);
+            expect(vi.mocked(executeSqlQuery).mock.calls[0][6]).toBe(expected);
         },
     );
 
@@ -90,7 +90,7 @@ describe('useSqlQueryRun', () => {
         });
 
         await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(2));
-        expect(vi.mocked(executeSqlQuery).mock.calls[1][1]).toBe('select 1');
+        expect(vi.mocked(executeSqlQuery).mock.calls[1][2]).toBe('select 1');
     });
 
     it('reports a virtual-view failure with its project', async () => {

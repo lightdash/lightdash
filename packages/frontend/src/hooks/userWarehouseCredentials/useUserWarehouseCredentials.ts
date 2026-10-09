@@ -11,10 +11,11 @@ import {
     type UseMutationOptions,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-export const getUserWarehouseCredentials = async () =>
+export const getUserWarehouseCredentials = async (lightdashApi: LightdashApi) =>
     lightdashApi<UserWarehouseCredentialsWithAgentStatus[]>({
         url: `/user/warehouseCredentials`,
         method: 'GET',
@@ -27,14 +28,19 @@ export const useUserWarehouseCredentials = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     return useQuery<UserWarehouseCredentialsWithAgentStatus[], ApiError>({
         queryKey: ['user_warehouse_credentials'],
-        queryFn: getUserWarehouseCredentials,
+        queryFn: () => getUserWarehouseCredentials(lightdashApi),
         ...useQueryOptions,
     });
 };
 
-const getProjectUserWarehouseCredentials = async (projectUuid: string) =>
+const getProjectUserWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+) =>
     lightdashApi<UserWarehouseCredentials[]>({
         url: `/projects/${projectUuid}/user-warehouse-credentials`,
         method: 'GET',
@@ -45,15 +51,19 @@ export const useProjectUserWarehouseCredentials = (
     projectUuid: string | undefined,
     useQueryOptions?: UseQueryOptions<UserWarehouseCredentials[], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     return useQuery<UserWarehouseCredentials[], ApiError>({
         queryKey: ['project_user_warehouse_credentials', projectUuid],
-        queryFn: () => getProjectUserWarehouseCredentials(projectUuid!),
+        queryFn: () =>
+            getProjectUserWarehouseCredentials(lightdashApi, projectUuid!),
         enabled: !!projectUuid,
         ...useQueryOptions,
     });
 };
 
 const createUserWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
     data: UpsertUserWarehouseCredentials,
 ) =>
     lightdashApi<UserWarehouseCredentials>({
@@ -70,13 +80,15 @@ export const useUserWarehouseCredentialsCreateMutation = (
         UpsertUserWarehouseCredentials
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<
         UserWarehouseCredentials,
         ApiError,
         UpsertUserWarehouseCredentials
-    >((data) => createUserWarehouseCredentials(data), {
+    >((data) => createUserWarehouseCredentials(lightdashApi, data), {
         mutationKey: ['create_user_warehouse_credentials'],
         onSuccess: async (data, payload) => {
             await queryClient.invalidateQueries(['user_warehouse_credentials']);
@@ -100,6 +112,7 @@ export const useUserWarehouseCredentialsCreateMutation = (
 };
 
 const updateUserWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
     uuid: string,
     data: UpsertUserWarehouseCredentials,
 ) =>
@@ -111,10 +124,12 @@ const updateUserWarehouseCredentials = async (
     });
 
 export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError, UpsertUserWarehouseCredentials>(
-        (data) => updateUserWarehouseCredentials(uuid, data),
+        (data) => updateUserWarehouseCredentials(lightdashApi, uuid, data),
         {
             mutationKey: ['update_user_warehouse_credentials'],
             onSuccess: async (_) => {
@@ -140,7 +155,10 @@ export const useUserWarehouseCredentialsUpdateMutation = (uuid: string) => {
     );
 };
 
-const deleteUserWarehouseCredentials = async (uuid: string) =>
+const deleteUserWarehouseCredentials = async (
+    lightdashApi: LightdashApi,
+    uuid: string,
+) =>
     lightdashApi<null>({
         url: `/user/warehouseCredentials/${uuid}`,
         method: 'DELETE',
@@ -148,10 +166,12 @@ const deleteUserWarehouseCredentials = async (uuid: string) =>
     });
 
 export const useUserWarehouseCredentialsDeleteMutation = (uuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<null, ApiError>(
-        () => deleteUserWarehouseCredentials(uuid),
+        () => deleteUserWarehouseCredentials(lightdashApi, uuid),
         {
             mutationKey: ['delete_user_warehouse_credentials'],
             onSuccess: async (_) => {

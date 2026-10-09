@@ -6,15 +6,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import {
     useConnectionBadges,
     useExploreConnectionName,
 } from './useConnectionBadges';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./useQueryError', () => ({
     default: () => vi.fn(),
@@ -25,7 +23,7 @@ vi.mock('../ee/providers/Embed/useEmbed', () => ({
     default: () => ({ embedToken: mockEmbedToken }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const connection = (
     warehouseConnectionUuid: string,

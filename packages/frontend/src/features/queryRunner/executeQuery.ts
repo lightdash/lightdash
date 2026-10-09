@@ -8,8 +8,7 @@ import {
     type ParametersValuesMap,
     type RawResultRow,
 } from '@lightdash/common';
-import { lightdashApi } from '../../api';
-import { getResultsFromStream } from '../../utils/request';
+import { type LightdashApi } from '../../api';
 import type { ResultsAndColumns } from '../sqlRunner/hooks/useSqlQueryRun';
 
 const throwIfAborted = (signal: AbortSignal | undefined) => {
@@ -19,6 +18,7 @@ const throwIfAborted = (signal: AbortSignal | undefined) => {
 };
 
 export const cancelAsyncQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
 ): Promise<void> => {
@@ -31,6 +31,7 @@ export const cancelAsyncQuery = async (
 };
 
 export const pollForResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
@@ -53,7 +54,13 @@ export const pollForResults = async (
         const nextBackoff = Math.min(backoffMs * 2, 1000);
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         throwIfAborted(signal);
-        return pollForResults(projectUuid, queryUuid, nextBackoff, signal);
+        return pollForResults(
+            lightdashApi,
+            projectUuid,
+            queryUuid,
+            nextBackoff,
+            signal,
+        );
     }
 
     return results;
@@ -66,6 +73,7 @@ export type ExecuteSqlQueryOptions = {
 };
 
 export const executeSqlQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     sql: string,
     limit?: number,
@@ -92,6 +100,7 @@ export const executeSqlQuery = async (
 
     options.onQueryStarted?.(response.queryUuid);
     const query = await pollForResults(
+        lightdashApi,
         projectUuid,
         response.queryUuid,
         250,
@@ -111,7 +120,8 @@ export const executeSqlQuery = async (
 
     const fileUrl = `/api/v2/projects/${projectUuid}/query/${response.queryUuid}/results`;
 
-    const results = await getResultsFromStream<RawResultRow>(fileUrl);
+    const results =
+        await lightdashApi.getResultsFromStream<RawResultRow>(fileUrl);
 
     return {
         queryUuid: query.queryUuid,
@@ -123,16 +133,19 @@ export const executeSqlQuery = async (
 };
 
 export const getPivotQueryResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
 ) =>
     readPivotQueryResults(
+        lightdashApi,
         projectUuid,
-        await pollForResults(projectUuid, queryUuid),
+        await pollForResults(lightdashApi, projectUuid, queryUuid),
     );
 
 /** Reads a polled pivot query's results; throws when it did not finish ready. */
 export const readPivotQueryResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     query: ApiGetAsyncQueryResults,
 ) => {
@@ -150,7 +163,8 @@ export const readPivotQueryResults = async (
 
     const fileUrl = `/api/v2/projects/${projectUuid}/query/${queryUuid}/results`;
 
-    const results = await getResultsFromStream<RawResultRow>(fileUrl);
+    const results =
+        await lightdashApi.getResultsFromStream<RawResultRow>(fileUrl);
 
     return {
         results,
@@ -167,6 +181,7 @@ export const readPivotQueryResults = async (
 };
 
 export const executeSqlPivotQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: ExecuteAsyncSqlQueryRequestParams,
 ) => {
@@ -181,10 +196,11 @@ export const executeSqlPivotQuery = async (
         version: 'v2',
     });
 
-    return getPivotQueryResults(projectUuid, response.queryUuid);
+    return getPivotQueryResults(lightdashApi, projectUuid, response.queryUuid);
 };
 
 export const executeSqlChartPivotQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: ExecuteAsyncSqlChartRequestParams,
 ) => {
@@ -195,10 +211,11 @@ export const executeSqlChartPivotQuery = async (
         version: 'v2',
     });
 
-    return getPivotQueryResults(projectUuid, response.queryUuid);
+    return getPivotQueryResults(lightdashApi, projectUuid, response.queryUuid);
 };
 
 export const executeDashboardSqlChartPivotQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: ExecuteAsyncDashboardSqlChartRequestParams,
 ) => {
@@ -210,13 +227,18 @@ export const executeDashboardSqlChartPivotQuery = async (
             version: 'v2',
         });
 
-    return getPivotQueryResults(projectUuid, executeQueryResponse.queryUuid);
+    return getPivotQueryResults(
+        lightdashApi,
+        projectUuid,
+        executeQueryResponse.queryUuid,
+    );
 };
 
 // Embed-only path: hits the /embed/* endpoint, which authorizes via the
 // dashboard JWT instead of the registered chart access used by the v2
 // dashboard-sql-chart endpoint.
 export const executeEmbedDashboardSqlChartPivotQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: {
         tileUuid: string;
@@ -236,5 +258,9 @@ export const executeEmbedDashboardSqlChartPivotQuery = async (
             body: JSON.stringify(payload),
         });
 
-    return getPivotQueryResults(projectUuid, executeQueryResponse.queryUuid);
+    return getPivotQueryResults(
+        lightdashApi,
+        projectUuid,
+        executeQueryResponse.queryUuid,
+    );
 };
