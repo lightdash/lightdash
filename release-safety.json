@@ -1,32 +1,18 @@
 {
   "schemaVersion": "2",
-  "version": "2.498.0",
-  "previousVersion": "2.497.1",
-  "releaseDate": "2026-10-09T09:01:03.005Z",
+  "version": "2.499.0",
+  "previousVersion": "2.498.0",
+  "releaseDate": "2026-10-09T09:23:26.116Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261009100000_drop_ai_credit_entitlements.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_credit_entitlements",
-          "ai_credit_holds"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
@@ -55,12 +41,5 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "ai-credit-entitlements-table-dropped",
-      "reason": "Drops the never-populated ai_credit_entitlements table and the unused ai_credit_holds.ai_credit_entitlement_uuid column with its partial unique index. Releases from 2.388.0 onward neither read nor write them, so a rolling upgrade from 2.388.0 or later is unaffected. An instance upgrading straight from 2.381.0 through 2.387.x must use the Recreate strategy: those releases still query ai_credit_entitlements from the AI usage sink, so their pods would fail to record AI usage once the table is gone.",
-      "requiredStop": false,
-      "migration": "packages/backend/src/ee/database/migrations/20261009100000_drop_ai_credit_entitlements.ts"
-    }
-  ]
+  "declaredBreaks": []
 }

@@ -1,3 +1,15 @@
+# [2.499.0](https://github.com/lightdash/lightdash/compare/2.498.0...2.499.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** refresh and focus SQL chart dashboard tiles after agent edits ([#30778](https://github.com/lightdash/lightdash/issues/30778)) ([950177d](https://github.com/lightdash/lightdash/commit/950177da5206eded850f8dde7602992f347d8efa))
+
+
+### Features
+
+* **sdk:** open saved charts inside the embed when the host has no onExplore ([#30760](https://github.com/lightdash/lightdash/issues/30760)) ([c7cb324](https://github.com/lightdash/lightdash/commit/c7cb324639acd2a7a48bcecbbc5df3e9de1b86fc)), closes [#30621](https://github.com/lightdash/lightdash/issues/30621)
+
 # [2.498.0](https://github.com/lightdash/lightdash/compare/2.497.1...2.498.0) (2026-10-09)
 
 
