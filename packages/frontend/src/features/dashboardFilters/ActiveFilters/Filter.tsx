@@ -1,5 +1,6 @@
 import {
     applyDefaultTileTargets,
+    isEmptyDashboardFilterRule,
     isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -14,6 +15,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
+import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -157,6 +159,10 @@ const Filter: FC<Props> = ({
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
+    const isAnyValue =
+        !!filterRule.disabled ||
+        (!filterRule.required && isEmptyDashboardFilterRule(filterRule));
+
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
         closeSubPopover();
@@ -210,6 +216,7 @@ const Filter: FC<Props> = ({
                     >
                         <Button
                             data-dashboard-filter-control
+                            data-filter-active={isAnyValue ? undefined : true}
                             pos="relative"
                             size="xs"
                             variant={isTemporary ? 'outline' : 'default'}
@@ -224,13 +231,28 @@ const Filter: FC<Props> = ({
                             } ${isOrphaned ? classes.inactiveFilter : ''}`}
                             pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                             leftSection={
-                                (isDraggable || showRequirementIcon) && (
+                                (isDraggable ||
+                                    showRequirementIcon ||
+                                    field) && (
                                     <Group gap={2} wrap="nowrap">
                                         {isDraggable && (
                                             <MantineIcon
                                                 icon={IconGripVertical}
                                                 cursor="grab"
                                                 size="sm"
+                                            />
+                                        )}
+                                        {field && (
+                                            <FieldIcon
+                                                item={field}
+                                                size="sm"
+                                                color={
+                                                    isAnyValue
+                                                        ? 'ldGray.4'
+                                                        : undefined
+                                                }
+                                                className={classes.fieldIcon}
+                                                data-testid="filter-field-icon"
                                             />
                                         )}
                                         {showRequirementIcon && (
