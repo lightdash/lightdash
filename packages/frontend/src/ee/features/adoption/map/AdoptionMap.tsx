@@ -154,8 +154,8 @@ export const AdoptionMap: FC<Props> = ({
         [focus, departments],
     );
     const rows = useMemo(
-        () => getCoverageRows(visibleDepartments, departments),
-        [visibleDepartments, departments],
+        () => getCoverageRows(visibleDepartments),
+        [visibleDepartments],
     );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);

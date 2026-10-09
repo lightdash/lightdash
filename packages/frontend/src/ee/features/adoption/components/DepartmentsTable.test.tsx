@@ -346,8 +346,8 @@ describe('DepartmentsTable', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText(/1,200|30 Nov 2026/)).not.toBeInTheDocument();
     });
-    it('shows coverage and activity as plain shares, which never pass 100%, and still asks for a missing headcount', () => {
-        renderWithProviders(
+    it('shows coverage and activity as plain shares, which never pass 100%, and asks for a missing headcount in place of coverage', () => {
+        const { unmount } = renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
                     departments={[
@@ -395,10 +395,47 @@ describe('DepartmentsTable', () => {
                 name: 'Add headcount for Product',
             }),
         ).toBeInTheDocument();
-        expect(within(product).getByText('100% (5)')).toBeInTheDocument();
+        // In place of the 100% its own people would give; its activity still shows
+        const [coverage, active] = within(product)
+            .getAllByRole('cell')
+            .slice(2);
+        expect(coverage).toHaveTextContent(/^Add headcount$/);
+        expect(within(product).queryByText('100% (5)')).toBeNull();
+        expect(active).toHaveTextContent(/^40% \(2\)$/);
         expect(
             screen.queryByText(/More accounts than headcount|of 8\)/),
         ).toBeNull();
+        unmount();
+    });
+    it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
+        renderWithProviders(
+            <MemoryRouter>
+                <DepartmentsTable
+                    departments={[
+                        // No headcount entered on Ops or below it
+                        dept('Ops', null, null, {
+                            headcount: null,
+                            effectiveHeadcount: 6,
+                            hasHeadcount: false,
+                            metrics: metricsFixture(6, 100),
+                        }),
+                        dept('Stores', 'Ops', null, {
+                            headcount: null,
+                            effectiveHeadcount: 6,
+                            hasHeadcount: false,
+                            metrics: metricsFixture(6, 100),
+                        }),
+                    ]}
+                    canManage={false}
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        const ops = screen.getByRole('link', { name: 'Ops' }).closest('tr')!;
+        const [coverage] = within(ops).getAllByRole('cell').slice(2);
+        expect(coverage).toHaveTextContent(/^No headcount$/);
+        expect(screen.queryByText('Add headcount')).toBeNull();
+        expect(screen.queryByText(/100%/)).toBeNull();
     });
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();

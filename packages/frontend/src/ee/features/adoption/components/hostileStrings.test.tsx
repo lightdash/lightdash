@@ -236,7 +236,7 @@ describe('typed strings render as text', () => {
                     department={hostileDepartment}
                     parentName={PARENT}
                     breakdown={getDepartmentBreakdown(hostileDepartment)}
-                    rows={getCoverageRows([child], [hostileDepartment, child])}
+                    rows={getCoverageRows([child])}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
                         departmentName: NAME,

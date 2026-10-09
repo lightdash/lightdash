@@ -30,6 +30,7 @@ import {
     formatOwners,
     formatRoleSplit,
     formatShare,
+    getMissingHeadcountWord,
     type DepartmentRow,
 } from '../utils/departmentRows';
 import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
@@ -251,14 +252,21 @@ export const DepartmentsTable: FC<Props> = ({
                 id: 'coverage',
                 header: 'Coverage',
                 size: 144,
-                Cell: ({ row }) => (
-                    <CellText>
-                        {formatShare(
-                            row.original.department.metrics.coveragePct,
-                            row.original.department.metrics.memberCount,
-                        )}
-                    </CellText>
-                ),
+                Cell: ({ row }) => {
+                    const { department } = row.original;
+                    return department.hasHeadcount ? (
+                        <CellText>
+                            {formatShare(
+                                department.metrics.coveragePct,
+                                department.metrics.memberCount,
+                            )}
+                        </CellText>
+                    ) : (
+                        <CellText c="dimmed">
+                            {getMissingHeadcountWord(canManage)}
+                        </CellText>
+                    );
+                },
             },
             {
                 id: 'active',

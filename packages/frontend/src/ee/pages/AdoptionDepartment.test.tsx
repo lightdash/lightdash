@@ -286,19 +286,55 @@ describe('AdoptionDepartment', () => {
             });
             expect(within(engineering).getByText('97% (33)')).toBeVisible();
         });
-        it('shows activity as a share of the headcount and of the people with an account', () => {
+        it('shows activity as a share of the headcount, once when everyone in it has an account', () => {
             renderPage();
             const tile = screen.getByRole('group', {
                 name: 'Active in 30 days',
             });
             expect(within(tile).getByText('45% (85)')).toBeVisible();
             expect(
-                within(tile).getByText(
-                    '85 of 191 people were active · 85 of the 191 with an account',
-                ),
+                within(tile).getByText('85 of 191 people were active'),
             ).toBeVisible();
         });
-        it('asks for a headcount where none is set, counting only the people on Lightdash', () => {
+        it('says there is no headcount in place of coverage where none is entered on the department or below it', () => {
+            const none = departmentDetail();
+            detail.mockReturnValue(
+                loaded({
+                    ...none,
+                    department: {
+                        ...none.department,
+                        headcount: null,
+                        hasHeadcount: false,
+                    },
+                    children: none.children.map((child) =>
+                        child.name === 'Science'
+                            ? { ...child, headcount: null, hasHeadcount: false }
+                            : child,
+                    ),
+                }),
+            );
+            renderPage();
+            const tile = screen.getByRole('group', { name: 'Coverage' });
+            expect(within(tile).getByText('No headcount')).toBeVisible();
+            expect(within(tile).queryByText(/100%/)).toBeNull();
+            expect(
+                within(tile).getByText('191 people on Lightdash'),
+            ).toBeVisible();
+            expect(
+                within(
+                    screen.getByRole('group', { name: 'Active in 30 days' }),
+                ).getByText('85 of the 191 with an account were active'),
+            ).toBeVisible();
+            // A sub-department without one reads the same in its row; its activity still shows
+            const [coverage, active] = within(
+                screen.getByRole('row', { name: /Science/ }),
+            )
+                .getAllByRole('cell')
+                .slice(1);
+            expect(coverage).toHaveTextContent(/^No headcount$/);
+            expect(active).toHaveTextContent(/^100% \(9\)$/);
+        });
+        it('asks people who can edit departments to add a headcount where none is entered', async () => {
             const none = departmentDetail();
             detail.mockReturnValue(
                 loaded({
@@ -310,18 +346,12 @@ describe('AdoptionDepartment', () => {
                     },
                 }),
             );
-            renderPage();
-            const tile = screen.getByRole('group', { name: 'Coverage' });
-            expect(within(tile).getByText('100% (191)')).toBeVisible();
-            expect(
-                within(tile).getByText(
-                    'Add a headcount to count people without an account',
-                ),
-            ).toBeVisible();
+            renderPage(DEPARTMENT, MANAGER);
+            await screen.findByRole('button', { name: 'Edit department' });
             expect(
                 within(
-                    screen.getByRole('group', { name: 'Active in 30 days' }),
-                ).getByText('85 of the 191 with an account were active'),
+                    screen.getByRole('group', { name: 'Coverage' }),
+                ).getByText('Add headcount'),
             ).toBeVisible();
         });
         it('keeps the breadcrumb, the title and Edit department, with no line of owners, headcount, groups or roles under them', async () => {

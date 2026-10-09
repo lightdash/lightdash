@@ -322,10 +322,9 @@ describe('getCoverageCaption', () => {
             '221 of 2,350 people have an account',
         );
     });
-    it('asks for a headcount without one, as only the people on Lightdash are counted', () => {
-        expect(getCoverageCaption(null, 3)).toBe(
-            'Add a headcount to count people without an account',
-        );
+    it('gives the people on Lightdash without a headcount, as they are all that is counted', () => {
+        expect(getCoverageCaption(null, 3)).toBe('3 people on Lightdash');
+        expect(getCoverageCaption(null, 1)).toBe('1 person on Lightdash');
     });
 });
 
@@ -420,6 +419,11 @@ describe('getActiveCaption', () => {
     it('groups thousands', () => {
         expect(getActiveCaption(2350, 1126, 1221)).toBe(
             '1,126 of 2,350 people were active · 1,126 of the 1,221 with an account',
+        );
+    });
+    it('gives the headcount base alone when everyone in the headcount has an account', () => {
+        expect(getActiveCaption(191, 85, 191)).toBe(
+            '85 of 191 people were active',
         );
     });
 });

@@ -59,7 +59,7 @@ export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
     activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
-    coveragePct: number | null; // of the effective headcount, so never above 100; null without one
+    coveragePct: number | null; // of the effective headcount, so never above 100; null only when that is 0
     activePct: number | null;
     roleSplit: RoleSplit;
     weeklyActive: WeeklyActivePoint[]; // 12 points, oldest first; chart and dashboard views only

@@ -66,6 +66,10 @@ export const buildDepartmentRows = (
     return visit(null, 0);
 };
 
+// Shown in place of coverage where no headcount is entered on a department or below it, which would read 100%
+export const getMissingHeadcountWord = (canManage: boolean): string =>
+    canManage ? 'Add headcount' : 'No headcount';
+
 // A share that rounds to 0% but has people in it reads "<1%", never "0%"
 export const formatShare = (pct: number | null, count: number): string => {
     if (pct === null) return formatQuantity(count, PEOPLE);

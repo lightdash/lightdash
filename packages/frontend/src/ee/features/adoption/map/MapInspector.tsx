@@ -18,6 +18,7 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
+import { getMissingHeadcountWord } from '../utils/departmentRows';
 import { formatCount } from '../utils/format';
 import {
     getDirectRow,
@@ -116,11 +117,7 @@ const RowEnd: FC<{
                 </Text>
             );
         case 'noHeadcount':
-            return (
-                <RowWord>
-                    {canManage ? 'Add headcount' : 'No headcount'}
-                </RowWord>
-            );
+            return <RowWord>{getMissingHeadcountWord(canManage)}</RowWord>;
         case 'nobody':
             return <RowWord>Nobody yet</RowWord>;
         default:
@@ -128,16 +125,28 @@ const RowEnd: FC<{
     }
 };
 
-const BreakdownLegend: FC<{ breakdown: PeopleBreakdown }> = ({ breakdown }) => (
+// Without a headcount anywhere, nobody can be counted as having no account, so that count gives way to a request
+const BreakdownLegend: FC<{
+    breakdown: PeopleBreakdown;
+    hasHeadcount: boolean;
+}> = ({ breakdown, hasHeadcount }) => (
     <ul className={styles.legend}>
-        {LEGEND.map(({ part, dot, label }) => (
-            <li key={part} className={styles.legendItem}>
-                <DotSwatch kind={dot} />
-                <Text fz="xs" className={styles.count}>
-                    {`${label} ${formatCount(breakdown[part])}`}
-                </Text>
-            </li>
-        ))}
+        {LEGEND.map(({ part, dot, label }) =>
+            part === 'noAccount' && !hasHeadcount ? (
+                <li key={part} className={styles.legendItem}>
+                    <Text fz="xs" c="dimmed">
+                        Add headcounts to see coverage
+                    </Text>
+                </li>
+            ) : (
+                <li key={part} className={styles.legendItem}>
+                    <DotSwatch kind={dot} />
+                    <Text fz="xs" className={styles.count}>
+                        {`${label} ${formatCount(breakdown[part])}`}
+                    </Text>
+                </li>
+            ),
+        )}
     </ul>
 );
 
@@ -154,6 +163,9 @@ export const MapInspector: FC<Props> = ({
 }) => {
     const subtitle =
         department === null ? 'All departments' : (parentName ?? 'Department');
+    // The organization has a coverage figure only once some department has a headcount
+    const hasHeadcount =
+        department !== null || rows.some((row) => row.department.hasHeadcount);
     // The people directly in a department beside its sub-departments, as the map draws them
     const direct =
         department === null
@@ -186,7 +198,10 @@ export const MapInspector: FC<Props> = ({
                 </Group>
                 <Stack gap="xs">
                     <BreakdownBar breakdown={breakdown} size="lg" />
-                    <BreakdownLegend breakdown={breakdown} />
+                    <BreakdownLegend
+                        breakdown={breakdown}
+                        hasHeadcount={hasHeadcount}
+                    />
                 </Stack>
                 {member !== null && (
                     <Stack gap={6}>

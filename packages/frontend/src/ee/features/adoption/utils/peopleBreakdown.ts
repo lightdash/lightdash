@@ -70,14 +70,10 @@ export type CoverageRow = {
     reading: CoverageReading;
 };
 
-// With no headcount and no sub-departments a department would read 100% from its own people, so it asks for
-// a headcount instead; with an effective headcount of 0 nobody is counted at all
-const getReading = (
-    department: DepartmentWithMetrics,
-    hasChildren: boolean,
-): CoverageReading => {
-    if (!department.hasHeadcount && !hasChildren)
-        return { kind: 'noHeadcount' };
+// With no headcount entered on it or below it a department would read 100% from its own people, so it asks
+// for a headcount instead; with an effective headcount of 0 nobody is counted at all
+const getReading = (department: DepartmentWithMetrics): CoverageReading => {
+    if (!department.hasHeadcount) return { kind: 'noHeadcount' };
     if (department.effectiveHeadcount <= 0) return { kind: 'nobody' };
     return {
         kind: 'coverage',
@@ -95,15 +91,10 @@ const getReading = (
 // department, then the name
 export const getCoverageRows = (
     rowDepartments: DepartmentWithMetrics[],
-    departments: DepartmentWithMetrics[],
-): CoverageRow[] => {
-    const children = getChildrenMap(departments);
-    return rowDepartments
+): CoverageRow[] =>
+    rowDepartments
         .map((department) => {
-            const reading = getReading(
-                department,
-                children.has(department.departmentUuid),
-            );
+            const reading = getReading(department);
             return {
                 coverage:
                     reading.kind === 'coverage'
@@ -127,7 +118,6 @@ export const getCoverageRows = (
                 a.row.department.name.localeCompare(b.row.department.name),
         )
         .map(({ row }) => row);
-};
 
 export type DirectRow = {
     memberCount: number;

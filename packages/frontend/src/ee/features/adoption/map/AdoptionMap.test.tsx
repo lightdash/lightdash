@@ -1049,6 +1049,44 @@ describe('AdoptionMap', () => {
             ]);
         });
 
+        it('asks for a headcount for a department with none entered on it or below it, sub-departments or not', () => {
+            renderMap([
+                d('Hub', null, null, 6, 2, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Team', 'Hub', null, 6, 2),
+                d('Finance', null, 8, 3, 2),
+            ]);
+            // Hub counts only its own people, which would read 100%
+            expect(listed('Departments')).toEqual([
+                'Hub | Add headcount',
+                'Finance | 38%',
+            ]);
+            // Some department has a headcount, so the organization still gives its people without an account
+            expect(panelLegend()).toContain('No account 5');
+        });
+
+        it('asks for headcounts in place of the organization figure for people without an account when no department has one', () => {
+            renderMap([
+                d('Hub', null, null, 6, 2, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Team', 'Hub', null, 6, 2),
+                d('Product', null, null, 5, 5),
+            ]);
+            expect(
+                within(details()).getByText('Add headcounts to see coverage'),
+            ).toBeInTheDocument();
+            expect(panelLegend()).toEqual([
+                'Active 7',
+                'On Lightdash, not active 4',
+            ]);
+            expect(listed('Departments')).toEqual([
+                'Hub | Add headcount',
+                'Product | Add headcount',
+            ]);
+        });
+
         it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
             renderMap(seededOrganization(), { canManage: false });
             expect(listed('Departments')).toContain('Product | No headcount');

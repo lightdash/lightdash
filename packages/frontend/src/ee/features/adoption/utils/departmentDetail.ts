@@ -257,7 +257,7 @@ export const getCoverageCaption = (
     memberCount: number,
 ): string =>
     headcount === null
-        ? 'Add a headcount to count people without an account'
+        ? `${formatQuantity(memberCount, PEOPLE)} on Lightdash`
         : `${formatCount(memberCount)} of ${formatCount(headcount)} people have an account`;
 
 export const getActiveCaption = (
@@ -275,5 +275,8 @@ export const getActiveCaption = (
             : `${withAccount} ${activeCount === 1 ? 'was' : 'were'} active`;
     }
     const overall = `${formatCount(activeCount)} of ${formatCount(headcount)} people ${activeCount === 1 ? 'was' : 'were'} active`;
-    return withAccount === null ? overall : `${overall} · ${withAccount}`;
+    // When everyone in the headcount has an account, the share of accounts would only repeat it
+    return withAccount === null || headcount === memberCount
+        ? overall
+        : `${overall} · ${withAccount}`;
 };

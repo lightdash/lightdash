@@ -166,10 +166,8 @@ describe('getOrganizationBreakdown', () => {
 });
 
 describe('getCoverageRows', () => {
-    const names = (
-        rows: DepartmentWithMetrics[],
-        departments: DepartmentWithMetrics[] = rows,
-    ) => getCoverageRows(rows, departments).map((row) => row.department.name);
+    const names = (rows: DepartmentWithMetrics[]) =>
+        getCoverageRows(rows).map((row) => row.department.name);
 
     it('puts the lowest coverage first, and a department asking for a headcount with the zeros', () => {
         const departments = [
@@ -207,10 +205,12 @@ describe('getCoverageRows', () => {
             ]),
         ).toEqual(['Smaller', 'Larger']);
     });
-    it('asks for a headcount only for a department with neither a headcount nor sub-departments', () => {
+    it('asks for a headcount wherever none is entered on a department or below it, sub-departments or not', () => {
         const departments = withServerHeadcounts([
             d('Hub', null, null, 6, 2, 0, 0),
             d('Team', 'Hub', null, 6, 2),
+            d('Group', null, null, 4, 1, 0, 0),
+            d('Squad', 'Group', 10, 4, 1),
             d('Product', null, null, 3, 3),
             d('Data', null, 9, 1, 1),
         ]);
@@ -218,20 +218,18 @@ describe('getCoverageRows', () => {
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,
             ),
-            departments,
         );
         expect(rows.map((row) => [row.department.name, row.reading])).toEqual([
+            // Hub and Product would read 100% from their own people
+            ['Hub', { kind: 'noHeadcount' }],
             ['Product', { kind: 'noHeadcount' }],
             ['Data', { kind: 'coverage', pct: 11 }],
-            // A parent without a headcount counts its people, so it reads 100%
-            ['Hub', { kind: 'coverage', pct: 100 }],
+            // Group's headcount comes from Squad, entered below it
+            ['Group', { kind: 'coverage', pct: 40 }],
         ]);
     });
     it("gives each row its department's breakdown and rounded coverage", () => {
-        const [row] = getCoverageRows(
-            [d('Finance', null, 420, 187, 115)],
-            [d('Finance', null, 420, 187, 115)],
-        );
+        const [row] = getCoverageRows([d('Finance', null, 420, 187, 115)]);
         expect(row.breakdown).toEqual({
             active: 115,
             onLightdashNotActive: 72,
@@ -250,7 +248,6 @@ describe('getCoverageRows', () => {
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,
             ),
-            departments,
         );
         expect(
             Object.fromEntries(
@@ -263,7 +260,7 @@ describe('getCoverageRows', () => {
             (department) => department.parentDepartmentUuid === null,
         );
         expect(
-            getCoverageRows(topLevel, deepOrganization).map((row) => [
+            getCoverageRows(topLevel).map((row) => [
                 row.department.name,
                 row.reading.kind === 'coverage' ? row.reading.pct : null,
             ]),

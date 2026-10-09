@@ -33,6 +33,7 @@ import {
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
+    getMissingHeadcountWord,
     sortByCoverage,
 } from '../features/adoption/utils/departmentRows';
 import { type Noun } from '../features/adoption/utils/format';
@@ -147,7 +148,7 @@ const AdoptionDepartment: FC = () => {
     const { department, ancestors, children, members, topContent } =
         detail.data;
     const { metrics } = department;
-    // Without a headcount the people on Lightdash are all that is counted, so the captions ask for one
+    // Without a headcount the people on Lightdash are all that is counted, so the captions give that count
     const headcount = department.hasHeadcount
         ? department.effectiveHeadcount
         : null;
@@ -188,10 +189,14 @@ const AdoptionDepartment: FC = () => {
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     <StatTile
                         label="Coverage"
-                        value={formatShare(
-                            metrics.coveragePct,
-                            metrics.memberCount,
-                        )}
+                        value={
+                            department.hasHeadcount
+                                ? formatShare(
+                                      metrics.coveragePct,
+                                      metrics.memberCount,
+                                  )
+                                : getMissingHeadcountWord(canManage)
+                        }
                         detail={getCoverageCaption(
                             headcount,
                             metrics.memberCount,
@@ -271,12 +276,22 @@ const AdoptionDepartment: FC = () => {
                                             </Anchor>
                                         </Table.Td>
                                         <Table.Td>
-                                            <Text fz="sm">
-                                                {formatShare(
-                                                    child.metrics.coveragePct,
-                                                    child.metrics.memberCount,
-                                                )}
-                                            </Text>
+                                            {child.hasHeadcount ? (
+                                                <Text fz="sm">
+                                                    {formatShare(
+                                                        child.metrics
+                                                            .coveragePct,
+                                                        child.metrics
+                                                            .memberCount,
+                                                    )}
+                                                </Text>
+                                            ) : (
+                                                <Text fz="sm" c="dimmed">
+                                                    {getMissingHeadcountWord(
+                                                        canManage,
+                                                    )}
+                                                </Text>
+                                            )}
                                         </Table.Td>
                                         <Table.Td>
                                             <Text fz="sm">
