@@ -62,6 +62,11 @@ import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSideb
 import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import {
+    getDashboardModePath,
+    getDashboardTabPath,
+    getDashboardUrlIdentifier,
+} from '../features/dashboardTabs/tabUrl';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
     appendNewTilesToBottom,
@@ -114,6 +119,10 @@ const Dashboard: FC = () => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
     const dashboardIdentifier = dashboard?.slug ?? routeDashboardIdentifier;
+    const dashboardUrlIdentifier = getDashboardUrlIdentifier({
+        routeDashboardUuidOrSlug: routeDashboardIdentifier,
+        dashboardSlug: dashboard?.slug,
+    });
     const { mutate: reopenDraft, isLoading: isReopeningDraft } =
         useReopenDraftMutation(projectUuid);
     const { mutate: rebaseDraft, isLoading: isRebasingDraft } =
@@ -718,18 +727,27 @@ const Dashboard: FC = () => {
 
         if (dashboardTabs.length > 0) {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                getDashboardTabPath({
+                    projectUrlIdentifier,
+                    dashboardUrlIdentifier,
+                    isEditMode: false,
+                    tabUuid: activeTab?.uuid,
+                }),
                 { replace: true },
             );
         } else {
             void navigate(
-                `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
+                getDashboardModePath({
+                    projectUrlIdentifier,
+                    dashboardUrlIdentifier,
+                    isEditMode: false,
+                }),
                 { replace: true },
             );
         }
     }, [
         dashboard,
-        dashboardIdentifier,
+        dashboardUrlIdentifier,
         navigate,
         projectUrlIdentifier,
         setDashboardTiles,
@@ -866,12 +884,21 @@ const Dashboard: FC = () => {
                 blocker.proceed();
             } else if (dashboardTabs.length > 1) {
                 void navigate(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${activeTab?.uuid}`,
+                    getDashboardTabPath({
+                        projectUrlIdentifier,
+                        dashboardUrlIdentifier,
+                        isEditMode: false,
+                        tabUuid: activeTab?.uuid,
+                    }),
                     { replace: true },
                 );
             } else {
                 void navigate(
-                    `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view`,
+                    getDashboardModePath({
+                        projectUrlIdentifier,
+                        dashboardUrlIdentifier,
+                        isEditMode: false,
+                    }),
                     { replace: true },
                 );
             }
@@ -880,7 +907,7 @@ const Dashboard: FC = () => {
         blocker,
         isChartEditBlocked,
         setHaveTabsChanged,
-        dashboardIdentifier,
+        dashboardUrlIdentifier,
         navigate,
         isSuccess,
         projectUrlIdentifier,
@@ -909,8 +936,17 @@ const Dashboard: FC = () => {
                 {
                     pathname:
                         dashboardTabs.length > 0
-                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${activeTab?.uuid}`
-                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit`,
+                            ? getDashboardTabPath({
+                                  projectUrlIdentifier,
+                                  dashboardUrlIdentifier,
+                                  isEditMode: true,
+                                  tabUuid: activeTab?.uuid,
+                              })
+                            : getDashboardModePath({
+                                  projectUrlIdentifier,
+                                  dashboardUrlIdentifier,
+                                  isEditMode: true,
+                              }),
                     search: '',
                 },
                 { replace: true },
@@ -918,7 +954,7 @@ const Dashboard: FC = () => {
         });
     }, [
         projectUrlIdentifier,
-        dashboardIdentifier,
+        dashboardUrlIdentifier,
         resetDashboardFilters,
         refreshDashboardVersion,
         navigate,
