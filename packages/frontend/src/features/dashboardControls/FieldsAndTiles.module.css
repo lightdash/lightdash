@@ -66,13 +66,17 @@
 }
 
 .rowActions button,
-.rowUnpin {
+.rowEye {
     position: relative;
     z-index: 1;
 }
 
 .rowActions {
     padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+}
+
+.itemCount {
+    font-variant-numeric: tabular-nums;
 }
 
 .addFieldSelect {

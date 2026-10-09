@@ -9,7 +9,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import { IconChevronDown, IconEye } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -19,62 +19,97 @@ import { type FieldScope } from './peers';
 const pluralizeTiles = (count: number): string =>
     count === 1 ? 'tile' : 'tiles';
 
-// Which tiles a row counts and acts on; null on a dashboard without tabs
+// Which tiles a menu item acts on
 export type TileScope = 'this-tab' | 'every-tab';
-
-const SCOPE_SUFFIX: Record<TileScope, string> = {
-    'this-tab': ' on this tab',
-    'every-tab': ' on every tab',
-};
-
-const CLEAR_LABEL: Record<TileScope, string> = {
-    'this-tab': 'Clear from this tab',
-    'every-tab': 'Clear from every tab',
-};
 
 const joinLabels = (labels: string[]): string =>
     labels.length < 2
         ? labels.join('')
         : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
 
-// The way out of a selected row; render it right after the row's name button.
-// It leaves the page once clicked, so focus is handed back to that button
-const ShowAllTilesButton: FC<{ onClick: () => void }> = ({ onClick }) => (
-    <Button
-        className={classes.rowUnpin}
-        size="compact-xs"
-        variant="subtle"
-        mt="xs"
-        mr="xs"
-        flex="0 0 auto"
-        onClick={(event) => {
-            const rowButton = event.currentTarget.previousElementSibling;
-            if (rowButton instanceof HTMLElement) rowButton.focus();
-            onClick();
-        }}
-    >
-        Show all tiles
-    </Button>
-);
+type ApplyItemsProps = {
+    label: string;
+    scope: FieldScope;
+    replacedLabels: string[];
+    // Ends each `aria-label`: " on this tab", or nothing without tabs
+    scopeSuffix: string;
+    onAddToUnfiltered: () => void;
+    onAll: () => void;
+};
+
+// The two apply items of one scope
+const ApplyItems: FC<ApplyItemsProps> = ({
+    label,
+    scope,
+    replacedLabels,
+    scopeSuffix,
+    onAddToUnfiltered,
+    onAll,
+}) => {
+    const { possible, unfiltered, replaced } = scope;
+    const replaces = `Replaces ${joinLabels(replacedLabels)} on ${replaced} ${pluralizeTiles(replaced)}`;
+    const allLabel = `Apply ${label} to all ${possible} ${pluralizeTiles(possible)}${scopeSuffix}`;
+    return (
+        <>
+            <Menu.Item
+                disabled={unfiltered === 0}
+                aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
+                rightSection={
+                    <Text fz="xs" c="dimmed" className={classes.itemCount}>
+                        {unfiltered}
+                    </Text>
+                }
+                onClick={onAddToUnfiltered}
+            >
+                Unfiltered tiles
+            </Menu.Item>
+            <Menu.Item
+                disabled={unfiltered + replaced === 0}
+                aria-label={
+                    replaced > 0 ? `${allLabel}. ${replaces}` : allLabel
+                }
+                rightSection={
+                    <Text fz="xs" c="dimmed" className={classes.itemCount}>
+                        {possible}
+                    </Text>
+                }
+                onClick={onAll}
+            >
+                All tiles
+                {replaced > 0 && (
+                    <Text fz="xs" c="dimmed">
+                        {replaces}
+                    </Text>
+                )}
+            </Menu.Item>
+        </>
+    );
+};
+
+const getScopeHeading = (name: string, scope: FieldScope): string =>
+    scope.possible === 0 && scope.applied === 0
+        ? `${name} · no tiles`
+        : `${name} · ${scope.applied} of ${scope.possible}`;
 
 type Props = {
     field: DashboardFilterableField | null;
     label: string;
     tableLabel: string;
-    // Counted over the tiles in scope
-    scope: FieldScope;
-    tileScope: TileScope | null;
-    // Names of the fields "all" would take off their tiles
-    replacedLabels: string[];
+    // Counted over the tiles of the active tab; null on a dashboard without tabs
+    thisTabScope: FieldScope | null;
+    // Names of the fields "All tiles" would take off their tiles on this tab
+    thisTabReplacedLabels: string[];
+    // Counted over every tile
+    everyTabScope: FieldScope;
+    everyTabReplacedLabels: string[];
     isHighlighted: boolean;
     // On no tile yet
     isWaiting: boolean;
     onToggleHighlight: () => void;
-    onClearHighlight: () => void;
     onHoverChange: (isHovered: boolean) => void;
-    onAddToUnfiltered: () => void;
-    onAll: () => void;
-    onClear: () => void;
+    onAddToUnfiltered: (tileScope: TileScope) => void;
+    onAll: (tileScope: TileScope) => void;
+    onClear: (tileScope: TileScope) => void;
     onRemove: () => void;
     // Why the row cannot be removed, or null when it can
     removeDisabledReason: string | null;
@@ -84,13 +119,13 @@ export const FieldRow: FC<Props> = ({
     field,
     label,
     tableLabel,
-    scope,
-    tileScope,
-    replacedLabels,
+    thisTabScope,
+    thisTabReplacedLabels,
+    everyTabScope,
+    everyTabReplacedLabels,
     isHighlighted,
     isWaiting,
     onToggleHighlight,
-    onClearHighlight,
     onHoverChange,
     onAddToUnfiltered,
     onAll,
@@ -98,15 +133,7 @@ export const FieldRow: FC<Props> = ({
     onRemove,
     removeDisabledReason,
 }) => {
-    const { applied, possible, unfiltered, replaced } = scope;
-    const showAdd = unfiltered > 0 && (applied > 0 || replaced > 0);
-    const showAll = replaced > 0 || (unfiltered > 0 && applied === 0);
-    const showClear = applied > 0;
-    const scopeSuffix = tileScope === null ? '' : SCOPE_SUFFIX[tileScope];
-    const replaces = `Replaces ${joinLabels(replacedLabels)} on ${replaced} ${pluralizeTiles(replaced)}`;
-    const allLabel = `Apply ${label} to all ${possible} ${pluralizeTiles(possible)}${scopeSuffix}`;
-    const isEmptyTab =
-        tileScope === 'this-tab' && possible === 0 && applied === 0;
+    const { applied, possible } = everyTabScope;
     const canRemove = removeDisabledReason === null;
 
     return (
@@ -139,9 +166,28 @@ export const FieldRow: FC<Props> = ({
                         </Text>
                     </Group>
                 </UnstyledButton>
-                {isHighlighted && (
-                    <ShowAllTilesButton onClick={onClearHighlight} />
-                )}
+                <Tooltip
+                    label={
+                        isHighlighted
+                            ? 'Showing only these tiles'
+                            : 'Show only these tiles'
+                    }
+                >
+                    <ActionIcon
+                        className={classes.rowEye}
+                        size="sm"
+                        variant={isHighlighted ? 'filled' : 'subtle'}
+                        color={isHighlighted ? 'blue' : 'gray'}
+                        mt="xs"
+                        mr="xs"
+                        flex="0 0 auto"
+                        aria-pressed={isHighlighted}
+                        aria-label={`Show only tiles filtered by ${label}`}
+                        onClick={onToggleHighlight}
+                    >
+                        <MantineIcon icon={IconEye} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
             <Group
                 className={classes.rowActions}
@@ -156,91 +202,96 @@ export const FieldRow: FC<Props> = ({
                     truncate
                     className={classes.rowCount}
                 >
-                    {isEmptyTab
-                        ? `${tableLabel} · no tiles on this tab`
-                        : `${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
+                    {`${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
                 </Text>
-                <Group gap={4} wrap="nowrap" flex="0 0 auto">
-                    {showAdd && (
+                <Menu position="bottom-end" width={240}>
+                    <Menu.Target>
                         <Button
                             size="compact-xs"
-                            variant="subtle"
-                            aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
-                            onClick={onAddToUnfiltered}
+                            variant="default"
+                            flex="0 0 auto"
+                            rightSection={
+                                <MantineIcon icon={IconChevronDown} size="sm" />
+                            }
+                            aria-label={`Apply to tiles: ${label}`}
                         >
-                            Add to {unfiltered} unfiltered
+                            Apply to
                         </Button>
-                    )}
-                    {showAll && (
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        {thisTabScope !== null && (
+                            <>
+                                <Menu.Label>
+                                    {getScopeHeading('This tab', thisTabScope)}
+                                </Menu.Label>
+                                <ApplyItems
+                                    label={label}
+                                    scope={thisTabScope}
+                                    replacedLabels={thisTabReplacedLabels}
+                                    scopeSuffix=" on this tab"
+                                    onAddToUnfiltered={() =>
+                                        onAddToUnfiltered('this-tab')
+                                    }
+                                    onAll={() => onAll('this-tab')}
+                                />
+                                <Menu.Label>
+                                    {getScopeHeading(
+                                        'Every tab',
+                                        everyTabScope,
+                                    )}
+                                </Menu.Label>
+                            </>
+                        )}
+                        <ApplyItems
+                            label={label}
+                            scope={everyTabScope}
+                            replacedLabels={everyTabReplacedLabels}
+                            scopeSuffix={
+                                thisTabScope === null ? '' : ' on every tab'
+                            }
+                            onAddToUnfiltered={() =>
+                                onAddToUnfiltered('every-tab')
+                            }
+                            onAll={() => onAll('every-tab')}
+                        />
+                        <Menu.Divider />
+                        {thisTabScope !== null && (
+                            <Menu.Item
+                                disabled={thisTabScope.applied === 0}
+                                onClick={() => onClear('this-tab')}
+                            >
+                                Clear from this tab
+                            </Menu.Item>
+                        )}
+                        <Menu.Item
+                            disabled={applied === 0}
+                            onClick={() => onClear('every-tab')}
+                        >
+                            {thisTabScope === null
+                                ? 'Clear from tiles'
+                                : 'Clear from every tab'}
+                        </Menu.Item>
+                        <Menu.Divider />
+                        {/* Not `disabled`: the arrow keys still reach it, so
+                            the reason can be read */}
                         <Tooltip
-                            label={replaces}
-                            disabled={replaced === 0}
+                            label={removeDisabledReason}
+                            disabled={canRemove}
                             events={{ hover: true, focus: true, touch: true }}
                         >
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                // The safe action leads when there are two
-                                color={showAdd ? 'gray' : undefined}
-                                aria-label={
-                                    replaced > 0
-                                        ? `${allLabel}. ${replaces}`
-                                        : allLabel
-                                }
-                                onClick={onAll}
-                            >
-                                {showAdd
-                                    ? `All ${possible}`
-                                    : `Apply to all ${possible}`}
-                            </Button>
-                        </Tooltip>
-                    )}
-                    <Menu position="bottom-end">
-                        <Menu.Target>
-                            <Tooltip label="More">
-                                <ActionIcon
-                                    size="sm"
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label={`More actions for ${label}`}
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            {showClear && (
-                                <Menu.Item onClick={onClear}>
-                                    {tileScope === null
-                                        ? 'Clear from tiles'
-                                        : CLEAR_LABEL[tileScope]}
-                                </Menu.Item>
-                            )}
-                            {/* Not `disabled`: the arrow keys still reach
-                                    it, so the reason can be read */}
-                            <Tooltip
-                                label={removeDisabledReason}
-                                disabled={canRemove}
-                                events={{
-                                    hover: true,
-                                    focus: true,
-                                    touch: true,
+                            <Menu.Item
+                                closeMenuOnClick={canRemove}
+                                aria-disabled={!canRemove || undefined}
+                                c={canRemove ? undefined : 'dimmed'}
+                                onClick={() => {
+                                    if (canRemove) onRemove();
                                 }}
                             >
-                                <Menu.Item
-                                    closeMenuOnClick={canRemove}
-                                    aria-disabled={!canRemove || undefined}
-                                    c={canRemove ? undefined : 'dimmed'}
-                                    onClick={() => {
-                                        if (canRemove) onRemove();
-                                    }}
-                                >
-                                    Remove field
-                                </Menu.Item>
-                            </Tooltip>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Group>
+                                Remove field
+                            </Menu.Item>
+                        </Tooltip>
+                    </Menu.Dropdown>
+                </Menu>
             </Group>
         </Stack>
     );

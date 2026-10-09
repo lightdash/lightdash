@@ -9,14 +9,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    SegmentedControl,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -56,13 +49,6 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 const SQL_COLUMN_LABEL = 'SQL column';
 const NO_FIELDS: DashboardFilterableField[] = [];
 const NO_TILE_FIELDS: Record<string, DashboardFilterableField[]> = {};
-
-const TILE_SCOPE_OPTIONS: { value: TileScope; label: string }[] = [
-    { value: 'this-tab', label: 'This tab' },
-    { value: 'every-tab', label: 'Every tab' },
-];
-const isTileScope = (value: string): value is TileScope =>
-    TILE_SCOPE_OPTIONS.some((option) => option.value === value);
 
 const getRuleFieldTarget = (
     rule: DashboardFilterRule,
@@ -223,22 +209,22 @@ export const FieldsAndTiles: FC = () => {
         metricFiltersFlag?.enabled ?? import.meta.env.DEV;
     const fieldsMap = useFilterableItemsMap();
     const [isAdding, setIsAdding] = useState(false);
-    // Local to the open editor: never saved, back to "This tab" next time
-    const [tileScopeChoice, setTileScopeChoice] =
-        useState<TileScope>('this-tab');
     const addButtonRef = useRef<HTMLButtonElement>(null);
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
-    // Without two tabs there is no scope to choose: every tile is in
+    // Without two tabs there is no "this tab": every tile is one scope
     const scopeTabUuid = dashboardTabs.length >= 2 ? activeTabUuid : undefined;
-    const tileScope = scopeTabUuid === undefined ? null : tileScopeChoice;
-    const scopedTiles = useMemo(
+    const thisTabTiles = useMemo(
         () =>
-            tileScope === 'this-tab'
-                ? tiles.filter((tile) => tile.tabUuid === scopeTabUuid)
-                : tiles,
-        [tiles, tileScope, scopeTabUuid],
+            scopeTabUuid === undefined
+                ? null
+                : tiles.filter((tile) => tile.tabUuid === scopeTabUuid),
+        [tiles, scopeTabUuid],
     );
+    const tilesByScope: Record<TileScope, DashboardTile[]> = {
+        'this-tab': thisTabTiles ?? tiles,
+        'every-tab': tiles,
+    };
     const availableTileFilters = filterableFieldsByTileUuid ?? NO_TILE_FIELDS;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
@@ -368,18 +354,6 @@ export const FieldsAndTiles: FC = () => {
                         Choose which field each tile is filtered by.
                     </Text>
                 </Stack>
-                {tileScope !== null && (
-                    <SegmentedControl
-                        size="xs"
-                        fullWidth
-                        aria-label="Where field actions apply"
-                        data={TILE_SCOPE_OPTIONS}
-                        value={tileScope}
-                        onChange={(value) => {
-                            if (isTileScope(value)) setTileScopeChoice(value);
-                        }}
-                    />
-                )}
                 {rowIds.map((fieldId) => {
                     const field = getField(fieldId);
                     const isSqlColumn = isSqlColumnRow(fieldId);
@@ -389,15 +363,22 @@ export const FieldsAndTiles: FC = () => {
                         (field === null
                             ? null
                             : { fieldId, tableName: field.table });
-                    const scope = (
-                        isSqlColumn ? getSqlColumnScope : getFieldScope
-                    )(
-                        editingRule,
-                        fieldId,
-                        scopedTiles,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    );
+                    const getScope = (scopeTiles: DashboardTile[]) =>
+                        (isSqlColumn ? getSqlColumnScope : getFieldScope)(
+                            editingRule,
+                            fieldId,
+                            scopeTiles,
+                            filterableFieldsByTileUuid,
+                            sqlColumnsByTile,
+                        );
+                    const getReplacedLabels = (scope: FieldScope) =>
+                        scope.replacedFieldIds.map(
+                            (replacedId) =>
+                                getField(replacedId)?.label ?? replacedId,
+                        );
+                    const thisTabScope =
+                        thisTabTiles === null ? null : getScope(thisTabTiles);
+                    const everyTabScope = getScope(tiles);
                     return (
                         <FieldRow
                             key={fieldId}
@@ -412,11 +393,15 @@ export const FieldsAndTiles: FC = () => {
                                       target?.tableName ??
                                       '')
                             }
-                            scope={scope}
-                            tileScope={tileScope}
-                            replacedLabels={scope.replacedFieldIds.map(
-                                (replacedId) =>
-                                    getField(replacedId)?.label ?? replacedId,
+                            thisTabScope={thisTabScope}
+                            thisTabReplacedLabels={
+                                thisTabScope === null
+                                    ? []
+                                    : getReplacedLabels(thisTabScope)
+                            }
+                            everyTabScope={everyTabScope}
+                            everyTabReplacedLabels={getReplacedLabels(
+                                everyTabScope,
                             )}
                             isHighlighted={highlightedFieldId === fieldId}
                             isWaiting={isWaiting}
@@ -425,13 +410,13 @@ export const FieldsAndTiles: FC = () => {
                                     clearHighlightedField();
                                 else setHighlightedFieldId(fieldId);
                             }}
-                            onClearHighlight={clearHighlightedField}
                             onHoverChange={(isHovered) => {
                                 if (isHovered) setHoveredFieldId(fieldId);
                                 else if (hoveredFieldId === fieldId)
                                     setHoveredFieldId(null);
                             }}
-                            onAddToUnfiltered={() => {
+                            onAddToUnfiltered={(tileScope) => {
+                                const scopedTiles = tilesByScope[tileScope];
                                 if (isSqlColumn) {
                                     updateFilter(
                                         applySqlColumnToAll(
@@ -463,7 +448,8 @@ export const FieldsAndTiles: FC = () => {
                                     ),
                                 );
                             }}
-                            onAll={() => {
+                            onAll={(tileScope) => {
+                                const scopedTiles = tilesByScope[tileScope];
                                 if (isSqlColumn) {
                                     updateFilter(
                                         applySqlColumnToAll(
@@ -486,11 +472,11 @@ export const FieldsAndTiles: FC = () => {
                                     ),
                                 );
                             }}
-                            onClear={() => {
+                            onClear={(tileScope) => {
                                 const next = removeFieldFromAll(
                                     editingRule,
                                     fieldId,
-                                    scopedTiles,
+                                    tilesByScope[tileScope],
                                     filterableFieldsByTileUuid,
                                 );
                                 updateFilter(next);

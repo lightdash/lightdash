@@ -369,7 +369,7 @@ describe('ControlsSidebarProvider', () => {
                     )
                     .map((tile) => tile.uuid),
             ).toEqual(['t2']);
-            // What the sidebar row reads: "1 of 3 tiles", "Apply to all 3"
+            // What the sidebar row reads: "1 of 3 tiles", "All tiles" for 3
             expect(
                 getFieldCount(
                     added,
