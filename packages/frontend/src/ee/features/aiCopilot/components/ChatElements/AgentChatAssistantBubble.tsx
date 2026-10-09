@@ -725,6 +725,9 @@ const AssistantBubbleContent: FC<{
                                         agentUuid,
                                         threadUuid: message.threadUuid,
                                         pendingToolCallIds: pendingApprovalIds,
+                                        decidedToolCallIds:
+                                            streamingState?.decidedToolCallIds ??
+                                            [],
                                     }}
                                 />
                             )}
@@ -774,6 +777,7 @@ const AssistantBubbleContent: FC<{
                     agentUuid,
                     threadUuid: message.threadUuid,
                     pendingToolCallIds: getPendingPersistedApprovalIds(message),
+                    decidedToolCallIds: [],
                 };
                 return (
                     <>

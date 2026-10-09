@@ -202,6 +202,7 @@ describe('LiveActivityCard composer approval', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['composer-approval'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -245,6 +246,7 @@ describe('LiveActivityCard runSql', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -252,6 +254,94 @@ describe('LiveActivityCard runSql', () => {
         expect(screen.getByText('awaiting approval')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
+    });
+
+    it('collapses once the approval is decided', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('keeps a group that streams in as the approval clears expanded', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const nextGroup: LiveActivityToolGroup = {
+            keyId: 'sql-call-2',
+            toolName: 'runSql',
+            calls: [
+                {
+                    toolCallId: 'sql-call-2',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'select 2 as two', limit: 10 },
+                },
+            ],
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
+                />
+            </Provider>,
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[...sqlToolGroups, nextGroup]}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'true');
     });
 
     it('keeps a user collapse when the stream ends', async () => {
