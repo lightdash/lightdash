@@ -47,6 +47,10 @@ const setup = (enabled: boolean) => {
             getWarehouseCredentialsForBinding: load,
         },
         aiServiceAccountCredentialsModel: model,
+        warehouseConnectionModel: {
+            getProject: vi.fn().mockResolvedValue({ projectUuid: 'project' }),
+            list: vi.fn().mockResolvedValue([]),
+        },
         projectService: {
             warehouseClientFactory: {
                 withWarehouseClient: vi

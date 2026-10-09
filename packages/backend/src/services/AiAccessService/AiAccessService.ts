@@ -23,6 +23,7 @@ import {
     getSnowflakeAgentRedirectUri,
     isAiAccessQueryContext,
     isAllowedAgentIdentitySource,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -33,6 +34,7 @@ import {
     type AiAccessForUser,
     type AiActorKind,
     type AiExecutionPlan,
+    type AiIdentitySource,
     type AiMarkerTestResult,
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
@@ -56,6 +58,11 @@ import {
     getSnowflakeAgentMissingSettings,
     isSnowflakeAgentConfigured,
 } from '../../config/snowflakeAgentConfiguration';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { redactCredentialError } from '../../logging/redactCredentialError';
+import { logAuditEvent } from '../../logging/winston';
+import { withCause } from '../../logging/withCause';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
@@ -79,7 +86,10 @@ import {
 import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
-import { type AiCredentialProvider } from './providers/AiCredentialProvider';
+import {
+    AgentSessionCheckError,
+    type AiCredentialProvider,
+} from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
 import {
     getQueryIdentityLineage,
@@ -446,6 +456,12 @@ export class AiAccessService extends BaseService {
             ? 'agent_sign_in'
             : 'marked_person';
         if (changed) {
+            this.recordRuleChange(
+                account,
+                WarehouseTypes.SNOWFLAKE,
+                previousSource,
+                source,
+            );
             const userId = this.analyticsUserId({
                 userUuid: account.user.id,
                 isRegisteredUser: account.user.type === 'registered',
@@ -515,6 +531,12 @@ export class AiAccessService extends BaseService {
                 rule,
             );
         if (changed) {
+            this.recordRuleChange(
+                account,
+                warehouseType,
+                previousSource,
+                rule.source,
+            );
             trackSafely(() =>
                 this.analytics.track({
                     event: 'agent_identity.rule_updated',
@@ -540,6 +562,40 @@ export class AiAccessService extends BaseService {
                       )
                     : null,
         };
+    }
+
+    private recordRuleChange(
+        account: Account,
+        warehouseType: WarehouseTypes,
+        previousSource: AiIdentitySource,
+        source: AiIdentitySource,
+    ): void {
+        try {
+            assertIsAccountWithOrg(account);
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromAccount(account),
+                    'update',
+                    {
+                        type: 'OrganizationAgentIdentityRule',
+                        organizationUuid: account.organization.organizationUuid,
+                        metadata: {
+                            event: 'agent_identity.rule_updated',
+                            warehouseType,
+                            previousSource,
+                            source,
+                        },
+                    },
+                    {},
+                    'allowed',
+                ),
+            );
+        } catch (error) {
+            this.logger.warn(
+                'Failed to write the agent identity rule audit event',
+                redactCredentialError(error),
+            );
+        }
     }
 
     private async authorizeProject(
@@ -597,7 +653,16 @@ export class AiAccessService extends BaseService {
     trackConnectOutcome(
         attempt: AgentConnectAttempt,
         failureReason: AgentIdentityConnectFailureReason | null,
+        error: unknown = null,
     ): void {
+        if (failureReason !== null) {
+            this.logger.warn('Agent sign-in connect failed', {
+                userUuid: attempt.userId,
+                organizationUuid: attempt.organizationId,
+                reason: failureReason,
+                ...(error === null ? {} : redactCredentialError(error)),
+            });
+        }
         const properties: AgentIdentityConnectProperties = {
             ...attempt,
             warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -828,7 +893,6 @@ export class AiAccessService extends BaseService {
                     ? plan.credentialUuid
                     : getAiExecutionCredentialUuid(plan),
             identityUuid: getAiExecutionCredentialUuid(plan),
-            principalRef: plan.audit.principalRef,
             context,
         });
     }
@@ -948,20 +1012,22 @@ export class AiAccessService extends BaseService {
             connectUrl.searchParams.set('project', projectUuid);
             connectUrl.searchParams.set('redirect', '/agent-connected');
             connectUrl.searchParams.set('entryPoint', entryPoint);
-            return new AiAccessRefusedError(error.refusal.reason, {
+            const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
             });
+            return withCause(refusal, error.cause ?? error);
         }
         if (
             error.refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
             (error.refusal.settingsUrl === null ||
                 error.refusal.settingsUrl.endsWith('/aiAccess'))
         ) {
-            return new AiAccessRefusedError(error.refusal.reason, {
+            const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
                 settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
             });
+            return withCause(refusal, error.cause ?? error);
         }
         return error;
     }
@@ -1038,14 +1104,25 @@ export class AiAccessService extends BaseService {
         }
     }
 
-    private logRefusal(args: AccessArgs, error: AiAccessRefusedError): void {
-        this.logger.warn('AI access query refused', {
+    private logRefusal(
+        args: AccessArgs,
+        error: AiAccessRefusedError,
+        level: 'warn' | 'debug' = 'warn',
+    ): void {
+        const sessionCheckError =
+            error.cause instanceof AgentSessionCheckError ? error.cause : null;
+        const cause = sessionCheckError?.cause ?? error.cause;
+        this.logger[level]('AI access query refused', {
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             userUuid: args.userUuid,
             reason: error.refusal.reason,
             actorKind: this.actorKind(args),
             principalKind: this.actorKind(args),
+            ...(sessionCheckError
+                ? { sessionCheckReason: sessionCheckError.reason }
+                : {}),
+            ...(cause ? redactCredentialError(cause) : {}),
         });
     }
 
@@ -1174,6 +1251,8 @@ export class AiAccessService extends BaseService {
             const { credentials, assurances, identityUuid } =
                 await provider.mint({
                     connection: args.connection,
+                    organizationUuid: args.organizationUuid,
+                    evaluationKind: args.evaluation.kind,
                     person: { userUuid: args.userUuid, email },
                     silentRefresh: await this.isSilentRefreshEnabled(
                         args,
@@ -1181,10 +1260,18 @@ export class AiAccessService extends BaseService {
                     ),
                 });
             const probe = await provider.probe(credentials, assurances);
-            if (!probe.ok)
-                throw new AiAccessRefusedError(
-                    AiAccessRefusalReason.PRINCIPAL_FAILED,
+            if (!probe.ok) {
+                throw withCause(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.PRINCIPAL_FAILED,
+                    ),
+                    new AgentSessionCheckError(
+                        probe.reason,
+                        probe.message,
+                        probe.cause,
+                    ),
                 );
+            }
             return {
                 identity: 'connected_person',
                 identityUuid,
@@ -1206,7 +1293,11 @@ export class AiAccessService extends BaseService {
                         ? this.connectEntryPoint(args.evaluation.surface)
                         : AgentIdentityConnectEntryPoint.UNKNOWN,
                 );
-                this.logRefusal(args, refusalError);
+                this.logRefusal(
+                    args,
+                    refusalError,
+                    args.evaluation.kind === 'diagnostic' ? 'debug' : 'warn',
+                );
                 this.trackQueryRefusal(
                     { ...args, warehouseType: args.connection.type },
                     refusalError.refusal.reason,
@@ -1295,12 +1386,42 @@ export class AiAccessService extends BaseService {
                   })
                 : null;
         onIdentityEnabled?.();
+        const visited = new Set(
+            uniqueRoots.map((root) => root.queryHistory.queryUuid),
+        );
         const maxNodes = 500;
         const maxDepth = 50;
-        const refuse = () =>
-            new AiAccessRefusedError(
+        const logLineageRefusal = (
+            refusedNode: string,
+            reason: string,
+            depth: number | null = null,
+        ) => {
+            this.logger.warn('Agent result lineage refused', {
+                queryUuid: queryHistory.queryUuid,
+                refusedNode,
+                reason,
+                ...(reason === 'depth_limit' || reason === 'size_limit'
+                    ? { depth, size: visited.size, maxDepth, maxNodes }
+                    : {}),
+            });
+        };
+        const logLookupRefusal = (error: unknown, refusedNode: string) => {
+            if (error instanceof NotFoundError)
+                logLineageRefusal(refusedNode, 'ancestor_not_found');
+            else if (error instanceof ForbiddenError)
+                logLineageRefusal(refusedNode, 'ancestor_forbidden');
+            throw error;
+        };
+        const refuse = (
+            refusedNode: string,
+            reason: string,
+            depth: number | null = null,
+        ) => {
+            logLineageRefusal(refusedNode, reason, depth);
+            return new AiAccessRefusedError(
                 AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
             );
+        };
         const nodes = new Map<
             string,
             {
@@ -1309,18 +1430,17 @@ export class AiAccessService extends BaseService {
                 isDuckdbExecution: boolean;
             }
         >();
-        const visited = new Set(
-            uniqueRoots.map((root) => root.queryHistory.queryUuid),
-        );
-        if (visited.size > maxNodes) throw refuse();
+        if (visited.size > maxNodes)
+            throw refuse(queryHistory.queryUuid, 'size_limit', 0);
         const rootLevel = await Promise.all(
             uniqueRoots.map(async ({ queryHistory: root }) => {
                 if (root.duckdbExecutionReferences === undefined) {
                     return {
                         queryHistory: root,
-                        execution:
-                            await this.queryHistoryModel.getDuckdbExecution(
-                                root.queryUuid,
+                        execution: await this.queryHistoryModel
+                            .getDuckdbExecution(root.queryUuid)
+                            .catch((error: unknown) =>
+                                logLookupRefusal(error, root.queryUuid),
                             ),
                     };
                 }
@@ -1356,19 +1476,34 @@ export class AiAccessService extends BaseService {
                 for (const uuid of sources) {
                     if (!visited.has(uuid)) {
                         visited.add(uuid);
-                        if (visited.size > maxNodes) throw refuse();
+                        if (visited.size > maxNodes)
+                            throw refuse(uuid, 'size_limit', depth + 1);
                         next.add(uuid);
                     }
                 }
             }
             if (next.size === 0) return;
-            if (depth >= maxDepth) throw refuse();
-            const nextLevel =
-                await this.queryHistoryModel.getManyWithDuckdbExecutions(
-                    [...next],
-                    projectUuid,
-                    account,
-                );
+            if (depth >= maxDepth)
+                throw refuse([...next][0], 'depth_limit', depth + 1);
+            const nextLevel = await this.queryHistoryModel
+                .getManyWithDuckdbExecutions([...next], projectUuid, account)
+                .catch((error: unknown) => {
+                    const missingNode =
+                        error instanceof NotFoundError
+                            ? [...next].find(
+                                  (uuid) =>
+                                      error.message ===
+                                      `Query ${uuid} not found for project ${projectUuid}`,
+                              )
+                            : null;
+                    return logLookupRefusal(
+                        error,
+                        missingNode ??
+                            (next.size === 1
+                                ? [...next][0]
+                                : queryHistory.queryUuid),
+                    );
+                });
             return readLevel(nextLevel, depth + 1);
         };
         await readLevel(rootLevel, 0);
@@ -1377,10 +1512,13 @@ export class AiAccessService extends BaseService {
         const heights = new Map<string, number>();
         const ordered: string[] = [];
         const visit = (uuid: string, pathDepth: number): number => {
-            if (active.has(uuid) || pathDepth > maxDepth) throw refuse();
+            if (active.has(uuid)) throw refuse(uuid, 'cycle');
+            if (pathDepth > maxDepth)
+                throw refuse(uuid, 'depth_limit', pathDepth);
             const knownHeight = heights.get(uuid);
             if (knownHeight !== undefined) {
-                if (pathDepth + knownHeight > maxDepth) throw refuse();
+                if (pathDepth + knownHeight > maxDepth)
+                    throw refuse(uuid, 'depth_limit', pathDepth + knownHeight);
                 return knownHeight;
             }
             active.add(uuid);
@@ -1437,7 +1575,17 @@ export class AiAccessService extends BaseService {
                             projectUuid,
                             warehouseConnectionUuid,
                             'view',
-                        );
+                        ).catch((error: unknown) => {
+                            if (
+                                error instanceof NotFoundError ||
+                                error instanceof ForbiddenError
+                            )
+                                logLineageRefusal(
+                                    uuid,
+                                    'connection_unavailable',
+                                );
+                            throw error;
+                        });
                         warehouseTypesByConnection.set(
                             warehouseConnectionUuid,
                             connection.type,
@@ -1457,7 +1605,11 @@ export class AiAccessService extends BaseService {
                     })();
                     plansByConnection.set(warehouseConnectionUuid, planPromise);
                 }
-                const plan = await planPromise;
+                const plan = await planPromise.catch((error: unknown) => {
+                    if (error instanceof AiAccessRefusedError)
+                        logLineageRefusal(uuid, error.refusal.reason);
+                    throw error;
+                });
                 const generation = getAiExecutionCredentialUuid(plan);
                 if (
                     node.status === QueryHistoryStatus.READY &&
@@ -1484,7 +1636,7 @@ export class AiAccessService extends BaseService {
                         },
                         AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
                     );
-                    throw refuse();
+                    throw refuse(uuid, 'credential_generation_mismatch');
                 }
                 plans.set(uuid, plan);
             },
@@ -1527,7 +1679,7 @@ export class AiAccessService extends BaseService {
                     },
                     AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
                 );
-                throw refuse();
+                throw refuse(uuid, 'source_generation_mismatch');
             }
             const resolvedPlan = credentialPlan ?? plan;
             const sourceIdentities = getQueryIdentityLineage(
@@ -1652,7 +1804,7 @@ export class AiAccessService extends BaseService {
                 args.projectUuid,
                 AgentIdentityConnectEntryPoint.UNKNOWN,
             );
-            this.logRefusal(args, refusalError);
+            this.logRefusal(args, refusalError, 'debug');
             result.refusal = refusalError.refusal;
         }
         return result;

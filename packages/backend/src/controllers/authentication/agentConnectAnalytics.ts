@@ -101,12 +101,19 @@ const consumeConnectAttempt = (req: Request) => {
 const recordConnectOutcome = (
     req: Request,
     failureReason: AgentIdentityConnectFailureReason | null,
+    error: unknown = null,
 ): void => {
     const attempt = consumeConnectAttempt(req);
     if (!attempt) return;
+    const sessionCheckError =
+        failureReason ===
+            AgentIdentityConnectFailureReason.SESSION_CHECK_FAILED &&
+        error instanceof Error
+            ? (error.cause ?? null)
+            : null;
     req.services
         .getAiAccessService()
-        .trackConnectOutcome(attempt, failureReason);
+        .trackConnectOutcome(attempt, failureReason, sessionCheckError);
 };
 
 const getConnectErrorReason = () =>
@@ -184,6 +191,7 @@ export const agentConnectCallback: RequestHandler = (req, res, next) => {
                                   tokenExchangeStarted,
                                   verification: req.agentConnectVerification,
                               }),
+                        error,
                     );
                 }
                 res.redirect(getAgentConnectRedirectURL(isSuccess, error)(req));
