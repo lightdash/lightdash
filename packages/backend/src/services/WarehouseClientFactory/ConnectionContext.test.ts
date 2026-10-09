@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     QueryExecutionContext,
     QuerySurface,
     type Account,
@@ -9,6 +10,8 @@ import {
     connectionContextFromUser,
     ConnectionSurface,
     connectionSurfaceFromQuerySurface,
+    getAccountAgentIdentityFacts,
+    getAgentActor,
     querySurfaceFromConnectionSurface,
     surfaceFromQueryContext,
     type ConnectionAiClient,
@@ -83,6 +86,16 @@ describe('ConnectionContext', () => {
         expect(aiClientFromQueryContext(null)).toBeNull();
     });
 
+    test('ordinary CLI queries retain API credential routing', () => {
+        expect(
+            connectionSurfaceFromQuerySurface(
+                QuerySurface.CLI,
+                QueryExecutionContext.CLI,
+            ),
+        ).toBe(ConnectionSurface.API);
+        expect(aiClientFromQueryContext(QueryExecutionContext.CLI)).toBeNull();
+    });
+
     test('the user builder preserves the existing registered-user default', () => {
         expect(
             connectionContextFromUser(
@@ -97,6 +110,8 @@ describe('ConnectionContext', () => {
                     userUuid: 'user-uuid',
                     isRegisteredUser: true,
                     isServiceAccount: false,
+                    serviceAccountUuid: null,
+                    oauthClientId: null,
                 },
                 aiClient: null,
             },
@@ -115,6 +130,7 @@ describe('ConnectionContext', () => {
         [ConnectionSurface.SLACK_AGENT, QuerySurface.SLACK],
         [ConnectionSurface.MCP, QuerySurface.MCP],
         [ConnectionSurface.API, QuerySurface.API],
+        [ConnectionSurface.CLI, QuerySurface.CLI],
     ] as const)(
         'maps connection surface %s to query surface %s',
         (surface, expected) => {
@@ -125,7 +141,7 @@ describe('ConnectionContext', () => {
     test.each([
         [QuerySurface.SLACK, ConnectionSurface.SLACK_AGENT],
         [QuerySurface.API, ConnectionSurface.API],
-        [QuerySurface.CLI, ConnectionSurface.API],
+        [QuerySurface.CLI, ConnectionSurface.CLI],
         [QuerySurface.MCP, ConnectionSurface.MCP],
         [QuerySurface.APP, ConnectionSurface.IN_APP_AGENT],
     ] as const)(
@@ -153,6 +169,7 @@ describe('ConnectionContext', () => {
         'the account builder overrides %s without changing the AI client',
         (surface) => {
             const account = {
+                authentication: { type: 'session' },
                 user: { id: 'user-uuid' },
                 isRegisteredUser: () => true,
                 isServiceAccount: () => false,
@@ -178,6 +195,7 @@ describe('ConnectionContext', () => {
         { isRegisteredUser: false, isServiceAccount: false },
     ])('the account builder calls the account helpers for %o', (flags) => {
         const account = {
+            authentication: { type: 'session' },
             user: { id: 'user-uuid' },
             isRegisteredUser: vi.fn(() => flags.isRegisteredUser),
             isServiceAccount: vi.fn(() => flags.isServiceAccount),
@@ -192,11 +210,105 @@ describe('ConnectionContext', () => {
         );
         expect(context.actor).toEqual({
             surface: ConnectionSurface.MCP,
-            person: { userUuid: 'user-uuid', ...flags },
+            person: {
+                userUuid: 'user-uuid',
+                ...flags,
+                serviceAccountUuid: null,
+                oauthClientId: null,
+            },
             aiClient: { kind: 'mcp' },
         });
         expect(context.purpose).toBe('compile');
         expect(account.isRegisteredUser).toHaveBeenCalledOnce();
         expect(account.isServiceAccount).toHaveBeenCalledOnce();
+    });
+});
+
+describe('connection actor identity', () => {
+    test('carries the service account UUID from authentication', () => {
+        const account = {
+            authentication: {
+                type: 'service-account',
+                serviceAccountUuid: 'service-account',
+            },
+            user: { id: 'backing-user' },
+            isRegisteredUser: () => true,
+            isServiceAccount: () => true,
+        } as Account;
+        expect(
+            connectionContextFromAccount(account, {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.AI,
+            }).actor.person,
+        ).toEqual({
+            userUuid: 'backing-user',
+            isRegisteredUser: true,
+            isServiceAccount: true,
+            serviceAccountUuid: 'service-account',
+            oauthClientId: null,
+        });
+    });
+    test.each([
+        [
+            ConnectionSurface.IN_APP_AGENT,
+            AgentActorSurface.IN_APP_AGENT,
+            'lightdash-chat',
+        ],
+        [
+            ConnectionSurface.DATA_APP,
+            AgentActorSurface.DATA_APP,
+            'lightdash-data-app',
+        ],
+        [ConnectionSurface.SLACK_AGENT, AgentActorSurface.SLACK_AGENT, null],
+        [ConnectionSurface.MCP, AgentActorSurface.MCP, null],
+    ] as const)(
+        'derives the default identity for %s',
+        (surface, agentSurface, clientId) => {
+            expect(
+                getAgentActor({ surface, person: null, aiClient: null }),
+            ).toEqual({ surface: agentSurface, clientId });
+        },
+    );
+    test('reconstructs the stored actor without replacing its client', () => {
+        const context = connectionContextFromUser(
+            { userUuid: 'user' },
+            {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.AI,
+                agentActor: {
+                    surface: AgentActorSurface.AI_SUMMARY,
+                    clientId: 'lightdash-ai-summary',
+                },
+            },
+        );
+        expect(getAgentActor(context.actor)).toEqual({
+            surface: AgentActorSurface.AI_SUMMARY,
+            clientId: 'lightdash-ai-summary',
+        });
+    });
+});
+
+describe('account agent identity facts', () => {
+    test.each([
+        [
+            { type: 'oauth', clientId: 'real-client' },
+            { serviceAccountUuid: null, oauthClientId: 'real-client' },
+        ],
+        [
+            { type: 'pat', clientId: 'API key' },
+            { serviceAccountUuid: null, oauthClientId: null },
+        ],
+        [
+            {
+                type: 'service-account',
+                serviceAccountUuid: 'sa',
+                clientId: 'Service account',
+            },
+            { serviceAccountUuid: 'sa', oauthClientId: null },
+        ],
+    ])('extracts only real ids from %j', (authentication, expected) => {
+        expect(
+            getAccountAgentIdentityFacts({ authentication } as Account),
+        ).toEqual(expected);
     });
 });

@@ -200,7 +200,11 @@ const clickButton = async (
     const respond = vi.fn().mockResolvedValue(undefined);
     await handler({
         ack,
-        body: { type: 'block_actions', user: { id: SLACK_USER_ID } },
+        body: {
+            type: 'block_actions',
+            api_app_id: 'A-action',
+            user: { id: SLACK_USER_ID },
+        },
         action: {
             type: 'button',
             action_id: `actions.sql_approval:${TOOL_CALL_ID}:${THREAD_UUID}:${decision}${
@@ -266,6 +270,7 @@ describe('AiAgentService.decideSqlApproval for Slack queries', () => {
                 schedulerClient.slackAiPrompt,
             ).toHaveBeenCalledExactlyOnceWith({
                 slackPromptUuid: PROMPT_UUID,
+                slackAppId: null,
                 userUuid: PROMPT_ISSUER_UUID,
                 projectUuid: PROJECT_UUID,
                 organizationUuid: ORGANIZATION_UUID,
@@ -436,6 +441,7 @@ describe('AiAgentService.handleSqlApprovalButton', () => {
 
         expect(schedulerClient.slackAiPrompt).toHaveBeenCalledWith({
             slackPromptUuid: PROMPT_UUID,
+            slackAppId: 'A-action',
             userUuid: PROMPT_ISSUER_UUID,
             projectUuid: PROJECT_UUID,
             organizationUuid: ORGANIZATION_UUID,
@@ -500,7 +506,13 @@ describe('SQL approval decision analytics', () => {
                 source: 'web',
             }),
         );
-        expect(schedulerClient.slackAiPrompt).toHaveBeenCalledOnce();
+        expect(schedulerClient.slackAiPrompt).toHaveBeenCalledExactlyOnceWith({
+            slackPromptUuid: PROMPT_UUID,
+            slackAppId: null,
+            userUuid: PROMPT_ISSUER_UUID,
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+        });
     });
 
     it('refuses an approval for content that is not a SQL chart', async () => {

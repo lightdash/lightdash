@@ -4279,6 +4279,8 @@ describe('ProjectService', () => {
                                 userUuid: site.userUuid,
                                 isRegisteredUser: true,
                                 isServiceAccount: false,
+                                serviceAccountUuid: null,
+                                oauthClientId: null,
                             },
                         }),
                     }),

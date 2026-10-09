@@ -1,5 +1,8 @@
 import {
+    AGENT_CLIENT_IDS,
+    AgentActorSurface,
     assertUnreachable,
+    isAiAccessQueryContext,
     QueryExecutionContext,
     QuerySurface,
     type Account,
@@ -11,6 +14,7 @@ export enum ConnectionSurface {
     SLACK_AGENT = 'slack_agent',
     MCP = 'mcp',
     API = 'api',
+    CLI = 'cli',
     SCHEDULE = 'schedule',
     EMBED = 'embed',
     DATA_APP = 'data_app',
@@ -28,9 +32,38 @@ export type ConnectionPerson = {
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
+    serviceAccountUuid?: string | null;
+    oauthClientId?: string | null;
 };
 
-export type ConnectionAiClient = { kind: 'agent' | 'mcp' | 'data_app' };
+export type ConnectionAiClient = {
+    kind: 'agent' | 'mcp' | 'data_app';
+    surface?: AgentActorSurface;
+    clientId?: string | null;
+};
+
+const agentSurfaces: Partial<Record<ConnectionSurface, AgentActorSurface>> = {
+    [ConnectionSurface.IN_APP_AGENT]: AgentActorSurface.IN_APP_AGENT,
+    [ConnectionSurface.MCP]: AgentActorSurface.MCP,
+    [ConnectionSurface.CLI]: AgentActorSurface.CLI,
+    [ConnectionSurface.SLACK_AGENT]: AgentActorSurface.SLACK_AGENT,
+    [ConnectionSurface.DATA_APP]: AgentActorSurface.DATA_APP,
+};
+
+export const getAgentActor = (
+    actor: ConnectionActor,
+): {
+    surface: AgentActorSurface;
+    clientId: string | null;
+} | null => {
+    const surface = actor.aiClient?.surface ?? agentSurfaces[actor.surface];
+    if (surface === undefined) return null;
+    const clientId =
+        actor.aiClient?.clientId !== undefined
+            ? actor.aiClient.clientId
+            : AGENT_CLIENT_IDS[surface];
+    return { surface, clientId };
+};
 
 export type ConnectionActor = {
     surface: ConnectionSurface;
@@ -62,6 +95,8 @@ export const querySurfaceFromConnectionSurface = (
             return QuerySurface.MCP;
         case ConnectionSurface.API:
             return QuerySurface.API;
+        case ConnectionSurface.CLI:
+            return QuerySurface.CLI;
         default:
             return assertUnreachable(surface, 'Unknown connection surface');
     }
@@ -133,8 +168,11 @@ export const connectionSurfaceFromQuerySurface = (
         case QuerySurface.MCP:
             return ConnectionSurface.MCP;
         case QuerySurface.API:
-        case QuerySurface.CLI:
             return ConnectionSurface.API;
+        case QuerySurface.CLI:
+            return queryContext !== null && isAiAccessQueryContext(queryContext)
+                ? ConnectionSurface.CLI
+                : ConnectionSurface.API;
         default:
             return assertUnreachable(surface, 'Unknown query surface');
     }
@@ -153,6 +191,7 @@ export const aiClientFromQueryContext = (
             return { kind: 'data_app' };
         case ConnectionSurface.APP:
         case ConnectionSurface.SLACK_AGENT:
+        case ConnectionSurface.CLI:
         case ConnectionSurface.API:
         case ConnectionSurface.SCHEDULE:
         case ConnectionSurface.EMBED:
@@ -168,6 +207,7 @@ type ConnectionContextOptions = {
     purpose?: 'query' | 'compile';
     aiAccess?: ConnectionContext['aiAccess'];
     surface?: ConnectionSurface;
+    agentActor?: { surface: AgentActorSurface; clientId: string | null };
 };
 
 export const connectionContextFromUser = (
@@ -175,10 +215,14 @@ export const connectionContextFromUser = (
         userUuid,
         isRegisteredUser = true,
         isServiceAccount = false,
+        serviceAccountUuid = null,
+        oauthClientId = null,
     }: {
         userUuid: string;
         isRegisteredUser?: boolean;
         isServiceAccount?: boolean;
+        serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
     },
     {
         organizationUuid,
@@ -186,17 +230,42 @@ export const connectionContextFromUser = (
         purpose = 'query',
         aiAccess = 'enforce',
         surface = surfaceFromQueryContext(queryContext),
+        agentActor,
     }: ConnectionContextOptions,
 ): ConnectionContext => ({
     organizationUuid,
     actor: {
         surface,
-        person: { userUuid, isRegisteredUser, isServiceAccount },
-        aiClient: aiClientFromQueryContext(queryContext),
+        person: {
+            userUuid,
+            isRegisteredUser,
+            isServiceAccount,
+            serviceAccountUuid,
+            oauthClientId,
+        },
+        aiClient: agentActor
+            ? {
+                  kind: aiClientFromQueryContext(queryContext)?.kind ?? 'agent',
+                  ...agentActor,
+              }
+            : aiClientFromQueryContext(queryContext),
     },
     queryContext,
     purpose,
     aiAccess,
+});
+
+export const getAccountAgentIdentityFacts = (
+    account: Account,
+): { serviceAccountUuid: string | null; oauthClientId: string | null } => ({
+    serviceAccountUuid:
+        account.authentication.type === 'service-account'
+            ? account.authentication.serviceAccountUuid
+            : null,
+    oauthClientId:
+        account.authentication.type === 'oauth'
+            ? account.authentication.clientId
+            : null,
 });
 
 export const connectionContextFromAccount = (
@@ -208,6 +277,7 @@ export const connectionContextFromAccount = (
             userUuid: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            ...getAccountAgentIdentityFacts(account),
         },
         options,
     );

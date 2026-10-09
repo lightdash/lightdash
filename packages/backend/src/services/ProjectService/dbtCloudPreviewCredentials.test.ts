@@ -579,6 +579,8 @@ describe('dbt Cloud preview credential resolution', () => {
                             userUuid: user.userUuid,
                             isRegisteredUser: true,
                             isServiceAccount: false,
+                            serviceAccountUuid: null,
+                            oauthClientId: null,
                         },
                     }),
                 }),

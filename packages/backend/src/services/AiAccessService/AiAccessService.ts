@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
@@ -11,6 +12,7 @@ import {
     AiAgentMarkerLevel,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildAgentIdentityClaim,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -59,11 +61,21 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
 import { BaseService } from '../BaseService';
+import {
+    connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
+    getAccountAgentIdentityFacts,
+    getAgentActor,
+} from '../WarehouseClientFactory/ConnectionContext';
+import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
-import { getQuerySourceParameters } from './queryResultLineage';
+import {
+    getQueryIdentityLineage,
+    getQuerySourceParameters,
+} from './queryResultLineage';
 
 export type AgentConnectAttempt = Omit<
     AgentIdentityConnectProperties,
@@ -85,6 +97,9 @@ export type ResolvePlanArgs = {
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
+    serviceAccountUuid?: string | null;
+    oauthClientId?: string | null;
+    agentActor?: { surface: AgentActorSurface; clientId: string | null } | null;
 };
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
@@ -649,6 +664,8 @@ export class AiAccessService extends BaseService {
                     : plan.audit.userUuid,
             identity: plan.identity,
             actorKind: plan.audit.actorKind,
+            actorSurface: plan.agentIdentity?.act.surface ?? null,
+            actorClientId: plan.agentIdentity?.act.client_id ?? null,
             principalKind:
                 plan.identity === 'ai_service_account'
                     ? 'service_account'
@@ -794,6 +811,7 @@ export class AiAccessService extends BaseService {
     trackQueryRefusal(
         args: Pick<
             ResolvePlanArgs,
+            | 'agentActor'
             | 'evaluation'
             | 'organizationUuid'
             | 'projectUuid'
@@ -818,6 +836,17 @@ export class AiAccessService extends BaseService {
                 surface: args.evaluation.surface,
                 warehouseType: args.warehouseType,
                 reason,
+                actor:
+                    args.agentActor !== undefined
+                        ? args.agentActor
+                        : getAgentActor({
+                              surface: connectionSurfaceFromQuerySurface(
+                                  args.evaluation.surface,
+                                  null,
+                              ),
+                              person: null,
+                              aiClient: null,
+                          }),
             };
             trackSafely(() =>
                 this.analytics.track({
@@ -858,7 +887,39 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
-        return this.resolveEnabledPlan(args);
+        const actor = resolveQueryAgentActor({
+            context: args.context,
+            querySurface:
+                args.evaluation.kind === 'query'
+                    ? args.evaluation.surface
+                    : null,
+            oauthClientId: args.oauthClientId ?? null,
+            explicitActor: args.agentActor,
+        });
+        const plan = await this.resolveEnabledPlan({
+            ...args,
+            agentActor: actor,
+        });
+        const subjectUuid = args.isServiceAccount
+            ? args.serviceAccountUuid
+            : args.userUuid;
+        return {
+            ...plan,
+            agentIdentity:
+                actor &&
+                subjectUuid &&
+                (args.isRegisteredUser || args.isServiceAccount)
+                    ? buildAgentIdentityClaim({
+                          subject: {
+                              type: args.isServiceAccount
+                                  ? 'service_account'
+                                  : 'user',
+                              uuid: subjectUuid,
+                          },
+                          ...actor,
+                      })
+                    : null,
+        };
     }
 
     private async resolveEnabledPlan(
@@ -1013,6 +1074,8 @@ export class AiAccessService extends BaseService {
             agentProducedOnly: boolean;
         }[],
         evaluation: AiAccessEvaluation = { kind: 'result_read' },
+        onIdentityEnabled?: () => void,
+        queryContext: QueryExecutionContext | null = null,
     ): Promise<Map<string, AiExecutionPlan | null>> {
         const uniqueRoots = [
             ...new Map(
@@ -1048,6 +1111,18 @@ export class AiAccessService extends BaseService {
             return new Map();
         }
 
+        const agentActor =
+            evaluation.kind === 'query'
+                ? resolveQueryAgentActor({
+                      context:
+                          queryContext ??
+                          QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                      querySurface: evaluation.surface,
+                      oauthClientId:
+                          getAccountAgentIdentityFacts(account).oauthClientId,
+                  })
+                : null;
+        onIdentityEnabled?.();
         const maxNodes = 500;
         const maxDepth = 50;
         const refuse = () =>
@@ -1197,6 +1272,7 @@ export class AiAccessService extends BaseService {
                         );
                         return this.resolveEnabledPlan({
                             evaluation,
+                            agentActor,
                             projectUuid,
                             organizationUuid,
                             warehouseConnectionUuid,
@@ -1223,6 +1299,7 @@ export class AiAccessService extends BaseService {
                     this.trackQueryRefusal(
                         {
                             evaluation,
+                            agentActor,
                             organizationUuid,
                             projectUuid,
                             warehouseConnectionUuid,
@@ -1264,6 +1341,7 @@ export class AiAccessService extends BaseService {
                 this.trackQueryRefusal(
                     {
                         evaluation,
+                        agentActor,
                         organizationUuid,
                         projectUuid,
                         warehouseConnectionUuid:
@@ -1279,7 +1357,26 @@ export class AiAccessService extends BaseService {
                 );
                 throw refuse();
             }
-            plans.set(uuid, credentialPlan ?? plan);
+            const resolvedPlan = credentialPlan ?? plan;
+            const sourceIdentities = getQueryIdentityLineage(
+                sources.map((source) => nodes.get(source)!.queryHistory),
+            );
+            plans.set(
+                uuid,
+                resolvedPlan === null
+                    ? null
+                    : {
+                          ...resolvedPlan,
+                          agentIdentity: node.agentIdentity ?? null,
+                          sourceIdentities,
+                      },
+            );
+            this.logger.info('Agent result lineage', {
+                queryUuid: uuid,
+                projectUuid,
+                agentIdentity: node.agentIdentity ?? null,
+                sourceIdentities,
+            });
         }
         return plans;
     }

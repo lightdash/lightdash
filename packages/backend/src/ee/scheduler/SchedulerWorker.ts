@@ -467,6 +467,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
+                    payload.slackAppId ?? null,
                 );
             },
             [EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES]: async (

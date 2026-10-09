@@ -46,6 +46,7 @@ import type {
 } from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
+    getAgentActor,
     querySurfaceFromConnectionSurface,
     WarehouseCredentialKind,
     type ConnectionContext,
@@ -288,6 +289,11 @@ export class WarehouseClientFactory {
                 userUuid: person.userUuid,
                 isRegisteredUser: person.isRegisteredUser,
                 isServiceAccount: person.isServiceAccount,
+                serviceAccountUuid: person.serviceAccountUuid,
+                oauthClientId: person.oauthClientId,
+                ...(context.actor.aiClient?.surface
+                    ? { agentActor: getAgentActor(context.actor) }
+                    : {}),
             });
         }
         if (
@@ -875,6 +881,7 @@ export class WarehouseClientFactory {
                     userUuid: person?.userUuid ?? '',
                     isRegisteredUser: person?.isRegisteredUser ?? false,
                     isServiceAccount: person?.isServiceAccount ?? false,
+                    agentActor: getAgentActor(context.actor),
                     warehouseType: credentials.type,
                 },
                 reason,

@@ -41,6 +41,7 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AgentActorSurface,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -4649,6 +4650,7 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
 };
 
 export type AgentQueryRefusedProperties = {
+    actor: { surface: AgentActorSurface; clientId: string | null } | null;
     organizationId: string;
     projectId: string;
     userId: string | null;

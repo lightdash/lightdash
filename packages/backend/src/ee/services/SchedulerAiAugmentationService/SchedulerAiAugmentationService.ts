@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
@@ -24,6 +25,7 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
+import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
@@ -259,27 +261,35 @@ export class SchedulerAiAugmentationService extends BaseService {
                 }
             }),
         );
-        switch (augmentation.type) {
-            case 'agent':
-                return this.runAgentForDelivery(
-                    scheduler,
-                    createdBy,
-                    augmentation,
-                    deliveryQueries,
-                );
-            case 'fast_model':
-                return this.runFastModelForDelivery(
-                    scheduler,
-                    createdBy,
-                    augmentation.prompt,
-                    deliveryQueries,
-                );
-            default:
-                return assertUnreachable(
-                    augmentation,
-                    'Unknown scheduler AI augmentation type',
-                );
-        }
+        return agentExecutionContext.run(
+            {
+                surface: AgentActorSurface.AI_SUMMARY,
+                clientId: 'lightdash-ai-summary',
+            },
+            () => {
+                switch (augmentation.type) {
+                    case 'agent':
+                        return this.runAgentForDelivery(
+                            scheduler,
+                            createdBy,
+                            augmentation,
+                            deliveryQueries,
+                        );
+                    case 'fast_model':
+                        return this.runFastModelForDelivery(
+                            scheduler,
+                            createdBy,
+                            augmentation.prompt,
+                            deliveryQueries,
+                        );
+                    default:
+                        return assertUnreachable(
+                            augmentation,
+                            'Unknown scheduler AI augmentation type',
+                        );
+                }
+            },
+        );
     }
 
     // The agent gets the same delivery data as the fast model, plus the

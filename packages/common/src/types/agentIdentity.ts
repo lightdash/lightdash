@@ -1,4 +1,63 @@
+import { v5 as uuidv5 } from 'uuid';
 import { WarehouseTypes, type BigqueryAuthenticationType } from './projects';
+
+export enum AgentActorSurface {
+    IN_APP_AGENT = 'in_app_agent',
+    MCP = 'mcp',
+    SLACK_AGENT = 'slack_agent',
+    CLI = 'cli',
+    DATA_APP = 'data_app',
+    AI_SUMMARY = 'ai_summary',
+}
+
+export const AGENT_CLIENT_IDS = {
+    [AgentActorSurface.IN_APP_AGENT]: 'lightdash-chat',
+    [AgentActorSurface.CLI]: 'lightdash-cli',
+    [AgentActorSurface.DATA_APP]: 'lightdash-data-app',
+    [AgentActorSurface.AI_SUMMARY]: 'lightdash-ai-summary',
+    [AgentActorSurface.MCP]: null,
+    [AgentActorSurface.SLACK_AGENT]: null,
+} as const;
+
+export type AgentSubjectRef = {
+    type: 'user' | 'service_account';
+    uuid: string;
+};
+export type AgentActorClaim = {
+    sub: string;
+    surface: AgentActorSurface;
+    client_id: string | null;
+};
+export type AgentIdentityClaim = {
+    sub: string;
+    subject: AgentSubjectRef;
+    act: AgentActorClaim;
+};
+
+export const buildAgentIdentityClaim = ({
+    subject,
+    surface,
+    clientId,
+}: {
+    subject: AgentSubjectRef;
+    surface: AgentActorSurface;
+    clientId: string | null;
+}): AgentIdentityClaim => ({
+    sub: `${subject.type}:${subject.uuid}`,
+    subject,
+    act: {
+        sub: `${surface}:${clientId ?? 'unknown'}`,
+        surface,
+        client_id: clientId,
+    },
+});
+
+export const getAgentClientLabel = (clientId: string | null): string => {
+    if (clientId === null) return 'unknown';
+    const lowered = clientId.toLowerCase();
+    if (/^[a-z0-9_-]{1,60}$/.test(lowered)) return lowered;
+    return `h-${uuidv5(clientId, uuidv5.URL).replace(/-/g, '')}`;
+};
 
 export type AiActorKind = 'person' | 'service_account';
 export type AiIdentitySource =

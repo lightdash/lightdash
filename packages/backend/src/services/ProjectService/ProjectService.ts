@@ -2311,6 +2311,8 @@ export class ProjectService
         context,
         querySurface,
         isServiceAccount = false,
+        serviceAccountUuid,
+        oauthClientId,
         purpose = 'query',
     }: {
         projectUuid: string;
@@ -2320,6 +2322,8 @@ export class ProjectService
         context?: QueryExecutionContext;
         querySurface?: QuerySurface;
         isServiceAccount?: boolean;
+        serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
         purpose?: 'query' | 'compile';
     }): Promise<ResolvedWarehouseCredentials> {
         const base = await this.loadExtraConnectionCredentialBase({
@@ -2332,6 +2336,8 @@ export class ProjectService
             purpose,
         });
         return this.resolveLegacyWarehouseCredentials(base, {
+            serviceAccountUuid,
+            oauthClientId,
             userId,
             isRegisteredUser,
             isServiceAccount,
@@ -2904,6 +2910,8 @@ export class ProjectService
             userId,
             isRegisteredUser,
             isServiceAccount = false,
+            serviceAccountUuid,
+            oauthClientId,
             context = null,
             purpose = 'query',
             querySurface,
@@ -2911,6 +2919,8 @@ export class ProjectService
             userId: string;
             isRegisteredUser: boolean;
             isServiceAccount?: boolean;
+            serviceAccountUuid?: string | null;
+            oauthClientId?: string | null;
             context?: QueryExecutionContext | null;
             purpose?: 'query' | 'compile';
             querySurface?: QuerySurface;
@@ -2930,6 +2940,8 @@ export class ProjectService
                     userUuid: userId,
                     isRegisteredUser,
                     isServiceAccount,
+                    serviceAccountUuid: serviceAccountUuid ?? null,
+                    oauthClientId: oauthClientId ?? null,
                 },
                 aiClient: aiClientFromQueryContext(context),
             },
@@ -3135,6 +3147,8 @@ export class ProjectService
                         userId: args.userId,
                         isRegisteredUser: args.isRegisteredUser,
                         isServiceAccount: args.isServiceAccount,
+                        serviceAccountUuid: args.serviceAccountUuid,
+                        oauthClientId: args.oauthClientId,
                         context: args.context,
                         querySurface: args.querySurface,
                     });
@@ -3301,6 +3315,8 @@ export class ProjectService
         context,
         querySurface,
         isServiceAccount = false,
+        serviceAccountUuid,
+        oauthClientId,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
@@ -3309,6 +3325,8 @@ export class ProjectService
         context?: QueryExecutionContext;
         querySurface?: QuerySurface;
         isServiceAccount?: boolean;
+        serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
     }): Promise<ResolvedWarehouseCredentials> {
         const base = await this.loadSingleRouteCredentialBase({
@@ -3320,6 +3338,8 @@ export class ProjectService
             preloadedOrgWarehouseCredentialsUuid,
         });
         return this.resolveLegacyWarehouseCredentials(base, {
+            serviceAccountUuid,
+            oauthClientId,
             userId,
             isRegisteredUser,
             isServiceAccount,
