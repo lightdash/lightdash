@@ -1,5 +1,7 @@
 import {
     FeatureFlags,
+    type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
+    type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
     type AiAccessForUser,
     type AiWarehouseCapabilities,
@@ -110,6 +112,34 @@ export const useOrganizationAgentIdentitySettings = () => {
         enabled: flag?.enabled === true,
     });
 };
+
+export const useProjectsWithoutAiServiceAccount = (
+    warehouseType: WarehouseTypes,
+    enabled: boolean,
+) =>
+    useQuery<
+        ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results'],
+        ApiError
+    >({
+        queryKey: [
+            'ai-access',
+            'org',
+            'agent-identity',
+            warehouseType,
+            'projects-without-ai-service-account',
+        ],
+        queryFn: () =>
+            lightdashApi<
+                ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results']
+            >({
+                version: 'v2',
+                url: `/org/agent-identity/${warehouseType}/projects-without-ai-service-account`,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled,
+        retry: false,
+    });
 
 export const useUpdateOrganizationAgentIdentityRule = () => {
     const client = useQueryClient();

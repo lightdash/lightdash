@@ -131,6 +131,7 @@ import type {
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
     ApiOrganizationAgentIdentityOverviewResponse,
+    ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
     ApiOrganizationAgentIdentityRuleResponse,
     ApiOrganizationAgentIdentitySnowflakeSetupResponse,
     ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
@@ -1570,6 +1571,7 @@ type ApiResults =
     | ApiAiMarkerTestResponse
     | ApiAiAccessForUserResponse['results']
     | ApiOrganizationAgentIdentityOverviewResponse['results']
+    | ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results']
     | ApiOrganizationAgentIdentityRuleResponse['results']
     | ApiOrganizationAgentIdentitySnowflakeSetupResponse['results']
     | ApiOrganizationAgentIdentitySnowflakeVerifyResponse['results']

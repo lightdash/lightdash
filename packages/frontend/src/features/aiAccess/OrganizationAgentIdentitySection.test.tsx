@@ -107,6 +107,7 @@ const overview = (): OrganizationAgentIdentityOverview => ({
     ],
 });
 let currentOverview = overview();
+let missingProjects: { projectUuid: string; name: string }[] = [];
 const backendSql = 'CREATE SECURITY INTEGRATION BACKEND_PROVIDED;';
 let verification: OrganizationAgentIdentitySnowflakeVerify;
 const apiHandler = async ({
@@ -114,6 +115,8 @@ const apiHandler = async ({
     method,
     body,
 }: Parameters<typeof lightdashApi>[0]) => {
+    if (url.endsWith('/projects-without-ai-service-account'))
+        return missingProjects;
     if (url.endsWith('/setup'))
         return {
             redirectUri:
@@ -176,6 +179,19 @@ const changeToMarkedPerson = async (name: string) => {
     );
 };
 
+const chooseServiceAccount = async () => {
+    fireEvent.click(
+        await screen.findByRole('combobox', {
+            name: 'BigQuery agent identity',
+        }),
+    );
+    fireEvent.click(
+        screen.getByRole('option', {
+            name: identityLabels.ai_service_account.label,
+        }),
+    );
+};
+
 describe('Organisation agent identity settings', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -187,6 +203,7 @@ describe('Organisation agent identity settings', () => {
             healthError: false,
         });
         currentOverview = overview();
+        missingProjects = [];
         verification = {
             checkedAt: new Date(),
             passed: true,
@@ -245,6 +262,27 @@ describe('Organisation agent identity settings', () => {
     ])('saves only the source for %s', async (name, warehouseType) => {
         const { invalidate } = renderSection();
         await changeToMarkedPerson(name);
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            `Use each person's credentials for ${name}?`,
+        );
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            `Agents will get the same ${name} access as the person asking. Your warehouse can't limit agent queries separately.`,
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: expect.stringContaining(
+                    '/projects-without-ai-service-account',
+                ),
+            }),
+        );
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: "Use each person's credentials",
+            }),
+        );
         await waitFor(() =>
             expect(lightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
@@ -260,7 +298,7 @@ describe('Organisation agent identity settings', () => {
         );
         expect(invalidate).toHaveBeenCalledWith(['ai-access']);
     });
-    it('selects the AI service account without a requirement field', async () => {
+    it('confirms the AI service account before sending exactly one PUT', async () => {
         const data = overview();
         data.rules[1].source = 'marked_person';
         currentOverview = data;
@@ -275,6 +313,25 @@ describe('Organisation agent identity settings', () => {
                 name: identityLabels.ai_service_account.label,
             }),
         );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Use the AI service account for BigQuery?',
+        );
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            "Agents on BigQuery will run as each project's AI service account, not as the person asking.",
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+        expect(
+            screen.getByRole('combobox', {
+                name: 'BigQuery agent identity',
+            }),
+        ).toHaveValue(identityLabels.marked_person.label);
+        const confirm = screen.getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        await waitFor(() => expect(confirm).toBeEnabled());
+        fireEvent.click(confirm);
         await waitFor(() =>
             expect(lightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
@@ -283,6 +340,159 @@ describe('Organisation agent identity settings', () => {
                 body: JSON.stringify({ source: 'ai_service_account' }),
             }),
         );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([request]) => request.method === 'PUT'),
+        ).toHaveLength(1);
+    });
+    it.each([1, 2, 5])(
+        'lists %s affected projects before saving',
+        async (count) => {
+            missingProjects = Array.from({ length: count }, (_, index) => ({
+                projectUuid: `project-${index}`,
+                name: `Project ${index}`,
+            }));
+            currentOverview.rules[1].source = 'marked_person';
+            renderSection();
+            await chooseServiceAccount();
+            const alert = await screen.findByRole('alert');
+            expect(alert).toHaveTextContent(
+                `${count} ${count === 1 ? 'project has' : 'projects have'} no AI service account yet:`,
+            );
+            expect(alert).toHaveTextContent(
+                `Agents stop working on ${count === 1 ? 'it' : 'them'} until a project admin adds one.`,
+            );
+            const links = within(alert).getAllByRole('link');
+            expect(links).toHaveLength(Math.min(count, 3));
+            links.forEach((link, index) => {
+                expect(link).toHaveTextContent(`Project ${index}`);
+                expect(link).toHaveAttribute(
+                    'href',
+                    `/generalSettings/projectManagement/project-${index}/agentIdentity`,
+                );
+            });
+            if (count > 3)
+                expect(alert).toHaveTextContent(
+                    'Project 0, Project 1, Project 2 and 2 more.',
+                );
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/bigquery/projects-without-ai-service-account',
+                method: 'GET',
+                body: undefined,
+            });
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+        },
+    );
+    it.each(['Cancel', 'Close'])(
+        'dismisses with %s without saving',
+        async (name) => {
+            currentOverview.rules[1].source = 'marked_person';
+            renderSection();
+            await chooseServiceAccount();
+            fireEvent.click(
+                await screen.findByRole('button', { name, exact: true }),
+            );
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('combobox', {
+                    name: 'BigQuery agent identity',
+                }),
+            ).toHaveValue(identityLabels.marked_person.label);
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+        },
+    );
+    it('waits for the affected-project read before allowing confirmation', async () => {
+        vi.mocked(lightdashApi).mockImplementation((request) =>
+            request.url.endsWith('/projects-without-ai-service-account')
+                ? new Promise(() => {})
+                : apiHandler(request),
+        );
+        currentOverview.rules[1].source = 'marked_person';
+        renderSection();
+        await chooseServiceAccount();
+        expect(
+            await screen.findByLabelText('Checking AI service accounts'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Use the AI service account' }),
+        ).toBeDisabled();
+    });
+    it('allows confirmation when the affected-project read fails', async () => {
+        vi.mocked(lightdashApi).mockImplementation((request) =>
+            request.url.endsWith('/projects-without-ai-service-account')
+                ? Promise.reject({ error: { message: 'Read failed' } })
+                : apiHandler(request),
+        );
+        currentOverview.rules[1].source = 'marked_person';
+        renderSection();
+        await chooseServiceAccount();
+        expect(
+            await screen.findByText(
+                'Could not check which projects have an AI service account.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Use the AI service account' }),
+        ).toBeEnabled();
+    });
+    it('keeps the modal open and prevents duplicate confirmation while saving', async () => {
+        vi.mocked(lightdashApi).mockImplementation((request) =>
+            request.method === 'PUT'
+                ? new Promise(() => {})
+                : apiHandler(request),
+        );
+        renderSection();
+        await changeToMarkedPerson('BigQuery');
+        const confirm = await screen.findByRole('button', {
+            name: "Use each person's credentials",
+        });
+        fireEvent.click(confirm);
+        await waitFor(() =>
+            expect(confirm).toHaveAttribute('data-loading', 'true'),
+        );
+        fireEvent.click(confirm);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Close', exact: true }),
+        );
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([request]) => request.method === 'PUT'),
+        ).toHaveLength(1);
+    });
+    it('keeps the modal open after a save error', async () => {
+        vi.mocked(lightdashApi).mockImplementation((request) =>
+            request.method === 'PUT'
+                ? Promise.reject({ error: { message: 'Save failed' } })
+                : apiHandler(request),
+        );
+        renderSection();
+        await changeToMarkedPerson('BigQuery');
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: "Use each person's credentials",
+            }),
+        );
+        await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: "Use each person's credentials",
+            }),
+        ).toBeEnabled();
+        expect(
+            screen.getByRole('combobox', { name: 'BigQuery agent identity' }),
+        ).toHaveValue(identityLabels.ai_service_account.label);
     });
     it('offers the Databricks AI service account rule without per-person sign-in', async () => {
         currentOverview.rules.push({
@@ -304,6 +514,14 @@ describe('Organisation agent identity settings', () => {
                 name: identityLabels.ai_service_account.label,
             }),
         );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Use the AI service account for Databricks?',
+        );
+        const confirm = screen.getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        await waitFor(() => expect(confirm).toBeEnabled());
+        fireEvent.click(confirm);
         await waitFor(() =>
             expect(lightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
@@ -338,6 +556,15 @@ describe('Organisation agent identity settings', () => {
     it('keeps selection pending, renders backend SQL and enables Turn on only after verification passes', async () => {
         startUnconfigured();
         await selectAgentSignIn();
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toHaveValue(identityLabels.marked_person.label);
+        expect(
+            screen.getByText(
+                'Not saved. Finish the setup below, then select Turn on.',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(
             await screen.findByText('Set up the Snowflake agent integration'),
         ).toBeInTheDocument();
@@ -785,6 +1012,11 @@ describe('Organisation agent identity settings', () => {
         await screen.findAllByRole('combobox');
         vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
         await changeToMarkedPerson('Snowflake');
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: "Use each person's credentials",
+            }),
+        );
         await waitFor(() =>
             expect(
                 screen.getByRole('combobox', {
@@ -820,6 +1052,11 @@ describe('Organisation agent identity settings', () => {
             error: { message: 'Unavailable' },
         });
         await changeToMarkedPerson('Snowflake');
+        fireEvent.click(
+            await screen.findByRole('button', {
+                name: "Use each person's credentials",
+            }),
+        );
         await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
         expect(
             screen.getByRole('combobox', { name: 'Snowflake agent identity' }),

@@ -2271,6 +2271,70 @@ describe('organization agent identity rules', () => {
         return admin;
     };
 
+    describe('getProjectsWithoutAiServiceAccount', () => {
+        test.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
+            'returns missing projects for an admin on %s without writing or tracking',
+            async (warehouseType) => {
+                const { service, slots, organizationRules, analytics } = setup();
+                const admin = manager();
+                const missing = [
+                    { projectUuid: 'missing-project', name: 'Missing project' },
+                ];
+                slots.findProjectsMissingSlot.mockResolvedValue(missing);
+                expect(
+                    await service.getProjectsWithoutAiServiceAccount(
+                        admin,
+                        warehouseType,
+                    ),
+                ).toEqual(missing);
+                expect(slots.findProjectsMissingSlot).toHaveBeenCalledWith(
+                    admin.organization.organizationUuid,
+                    warehouseType,
+                );
+                expect(organizationRules.set).not.toHaveBeenCalled();
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
+        test('rejects a non-admin before reading projects', async () => {
+            const { service, slots, organizationRules, analytics } = setup();
+            await expect(
+                service.getProjectsWithoutAiServiceAccount(
+                    buildAccount(),
+                    WarehouseTypes.BIGQUERY,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+        test('rejects an unsupported warehouse before reading projects', async () => {
+            const { service, slots, organizationRules, analytics } = setup();
+            await expect(
+                service.getProjectsWithoutAiServiceAccount(
+                    manager(),
+                    WarehouseTypes.POSTGRES,
+                ),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+        test('checks the feature flag before reading projects', async () => {
+            const { service, slots, flags, organizationRules, analytics } =
+                setup();
+            flags.get.mockResolvedValue({ enabled: false });
+            await expect(
+                service.getProjectsWithoutAiServiceAccount(
+                    manager(),
+                    WarehouseTypes.BIGQUERY,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
+            expect(organizationRules.set).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        });
+    });
+
     test.each([true, false])(
         'lists missing projects only for organization managers: %s',
         async (canManage) => {

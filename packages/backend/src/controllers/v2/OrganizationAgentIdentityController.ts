@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiOrganizationAgentIdentityOverviewResponse,
+    ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
     ApiOrganizationAgentIdentityRuleResponse,
     ApiOrganizationAgentIdentitySnowflakeSetupResponse,
     ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
@@ -49,6 +50,21 @@ export class OrganizationAgentIdentityController extends BaseController {
             results: await this.services
                 .getAiAccessService()
                 .getOrganizationSettings(req.account!),
+        };
+    }
+
+    @Get('/{warehouseType}/projects-without-ai-service-account')
+    @OperationId('getOrganizationAgentIdentityProjectsWithoutAiServiceAccount')
+    @SuccessResponse('200', 'Success')
+    async getProjectsWithoutAiServiceAccount(
+        @Request() req: express.Request,
+        @Path() warehouseType: WarehouseTypes,
+    ): Promise<ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .getProjectsWithoutAiServiceAccount(req.account!, warehouseType),
         };
     }
 
