@@ -22,8 +22,8 @@ export const lightdashConfigMock: LightdashConfig = {
         enableOidcToEmailLinking: false,
         google: {
             loginPath: '',
-            oauth2ClientId: 'test-google-client-id',
-            oauth2ClientSecret: 'test-google-client-secret',
+            oauth2ClientId: undefined,
+            oauth2ClientSecret: undefined,
             callbackPath: '',
             googleDriveApiKey: undefined,
             enableGCloudADC: false,
@@ -585,4 +585,16 @@ export const lightdashConfigMock: LightdashConfig = {
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
     previewFeatureFlags: { enabled: false },
+};
+
+export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    auth: {
+        ...lightdashConfigMock.auth,
+        google: {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: 'test-google-client-id',
+            oauth2ClientSecret: 'test-google-client-secret',
+        },
+    },
 };

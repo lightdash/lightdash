@@ -26,6 +26,10 @@ import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCred
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../../../services/WarehouseClientFactory/CredentialResolver';
 import { EXTRA_CONNECTION_SELECT_CREDENTIALS_MESSAGE } from '../../../services/WarehouseConnectionService/extraConnectionUserCredentials';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -574,7 +578,11 @@ describe('Extra connection credentials on the real schema', () => {
 
     const outcome = (run: Promise<CredentialsResult>): Promise<Outcome> =>
         run.then(
-            (ok) => ({ ok }),
+            (ok) => {
+                const { [credentialResolution]: _resolution, ...credentials } =
+                    ok as CredentialsResult & MaterializedCredentials;
+                return { ok: credentials };
+            },
             (error: Error) => ({
                 error: { name: error.name, message: error.message },
             }),

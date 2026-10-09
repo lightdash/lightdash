@@ -20,7 +20,7 @@ export const createCredentialResolverRegistry = ({
     registry.register(
         WarehouseTypes.BIGQUERY,
         BigqueryAuthenticationType.SSO,
-        new BigquerySsoCredentialResolver(lightdashConfig.auth.google, {
+        new BigquerySsoCredentialResolver(() => lightdashConfig.auth.google, {
             getRefreshToken: (userUuid) =>
                 userOAuthGrantsModel.getRefreshToken(
                     userUuid,
