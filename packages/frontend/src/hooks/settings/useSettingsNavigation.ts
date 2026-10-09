@@ -93,6 +93,7 @@ export const useSettingsNavigation = (
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -149,6 +150,24 @@ export const useSettingsNavigation = (
             children: [],
             exact: true,
         });
+
+        if (showMyAgentConnections) {
+            yourSettings.push({
+                label: 'My agent connections',
+                to: '/generalSettings/myAgentConnections',
+                icon: IconPlugConnected,
+                keywords: [
+                    'agent',
+                    'ai',
+                    'mcp',
+                    'snowflake',
+                    'bigquery',
+                    'connect',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
 
         if (ability?.can('create', 'ScheduledDeliveries')) {
             yourSettings.push({
@@ -1279,6 +1298,7 @@ export const useSettingsNavigation = (
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,

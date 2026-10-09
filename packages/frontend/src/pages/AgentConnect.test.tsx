@@ -149,8 +149,8 @@ describe('AgentConnect', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'My warehouse connections' }),
-        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
+            screen.getByRole('link', { name: 'My agent connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(mocks.assign).not.toHaveBeenCalled();
     });
 
