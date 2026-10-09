@@ -554,20 +554,13 @@ const ExistingThreadPanel: FC<{
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
-    const {
-        agentDefault,
-        explicitModelConfig,
-        extendedThinking,
-        handleExtendedThinkingChange,
-        handleSelectedModelKeyChange,
-        modelOptions,
-        selectedModelKey,
-        showExtendedThinking,
-    } = useAiAgentModelSelection({
+    const { explicitModelConfig, selectedModel } = useAiAgentModelSelection({
         projectUuid,
         agentUuid: agent.uuid,
         defaultModelConfig: agent.modelConfig,
     });
+    // Model can't change mid-thread; the status bar shows what the next message uses.
+    const threadModelName = selectedModel?.displayName ?? null;
 
     const handleSubmit = ({
         message,
@@ -720,20 +713,8 @@ const ExistingThreadPanel: FC<{
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
                         fullWidth
-                        dense
                         threadUuid={threadId}
-                        models={modelOptions}
-                        selectedModelId={selectedModelKey}
-                        onModelChange={handleSelectedModelKeyChange}
-                        extendedThinking={
-                            showExtendedThinking ? extendedThinking : undefined
-                        }
-                        onExtendedThinkingChange={
-                            showExtendedThinking
-                                ? handleExtendedThinkingChange
-                                : undefined
-                        }
-                        agentDefault={agentDefault}
+                        threadModelName={threadModelName}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]
