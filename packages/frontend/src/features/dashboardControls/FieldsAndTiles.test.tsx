@@ -34,8 +34,6 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 const mockSqlColumnsByTile = vi.hoisted(() => ({
     current: {} as Record<string, { reference: string; type: string }[]>,
 }));
-// The Tabs section has its own tests
-vi.mock('./TabTargets', () => ({ TabTargets: () => null }));
 vi.mock('./useSqlColumnsByTile', () => ({
     useSqlColumnsByTile: () => mockSqlColumnsByTile.current,
 }));
@@ -515,11 +513,15 @@ describe('FieldsAndTiles', () => {
             expect(screen.getByText('SQL column · 1 of 2 tiles')).toBeVisible();
         });
 
-        it('applies the column to every tile that has it', () => {
+        it('adds the column to the tiles that have it and are not filtered', () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
 
-            fireEvent.click(screen.getByText('Apply to all 2'));
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add country to the 1 unfiltered tile',
+                }),
+            );
             const next = getUpdatedRule();
             expect(Object.keys(next.tileTargets ?? {})).toEqual([
                 'sql-1',
@@ -618,13 +620,312 @@ describe('FieldsAndTiles', () => {
         expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
     });
 
-    it('applies a field to every tile that offers it', () => {
-        setSidebar(rule('orders_status', { 'tile-1': false }));
-        renderWithProviders(<FieldsAndTiles />);
+    describe('the actions of a field', () => {
+        const actionNames = () =>
+            screen
+                .getAllByRole('button')
+                .map((button) => button.textContent)
+                .filter((text) =>
+                    /^(Add to|All|Apply to all) \d/.test(text ?? ''),
+                );
 
-        expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
-        fireEvent.click(screen.getByText('Apply to all 2'));
-        expect(getUpdatedRule().tileTargets).toBeUndefined();
+        it('has none when every tile that offers the field is on it', () => {
+            setSidebar(rule('orders_status'));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
+            expect(actionNames()).toEqual([]);
+        });
+
+        it('applies a field that is on no tile to every tile that offers it', () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(screen.getByText('Orders · 0 of 2 tiles')).toBeVisible();
+            expect(actionNames()).toEqual(['Apply to all 2']);
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('adds a field to the tiles that are not filtered yet', () => {
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
+            expect(actionNames()).toEqual(['Add to 1 unfiltered']);
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add Status to the 1 unfiltered tile',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('offers the safe action first when "all" would replace a field', () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(actionNames()).toEqual(['Add to 1 unfiltered', 'All 2']);
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add Status to the 1 unfiltered tile',
+                }),
+            );
+            // tile-1 keeps Region
+            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
+
+            updateFilter.mockClear();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles. Replaces Region on 1 tile',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('says which field it replaces before the click', async () => {
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(actionNames()).toEqual(['Apply to all 2']);
+            const all = screen.getByRole('button', {
+                name: 'Apply Status to all 2 tiles. Replaces Region on 1 tile',
+            });
+            await userEvent.hover(all);
+            expect(
+                await screen.findByText('Replaces Region on 1 tile'),
+            ).toBeInTheDocument();
+
+            fireEvent.click(all);
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('names every field it replaces', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [tile('tile-1'), tile('tile-2')],
+                allFilterableFields: [status, region, city],
+                allFilterableFieldsMap: {
+                    orders_status: status,
+                    orders_region: region,
+                    customers_city: city,
+                },
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status, city],
+                },
+            };
+            setSidebar(
+                rule('orders_status', {
+                    'tile-1': REGION,
+                    'tile-2': {
+                        fieldId: 'customers_city',
+                        tableName: 'customers',
+                    },
+                }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles. Replaces Region and City on 2 tiles',
+                }),
+            ).toBeVisible();
+        });
+    });
+
+    describe('on a dashboard with tabs', () => {
+        const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+        const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+        const scopeSwitch = () =>
+            screen.queryByRole('radiogroup', {
+                name: 'Where field actions apply',
+            });
+        const pickScope = (name: string) =>
+            fireEvent.click(screen.getByRole('radio', { name }));
+        const setTabs = (activeTab: typeof TAB_1) => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    { ...tile('tile-1'), tabUuid: 'tab-1' },
+                    { ...tile('tile-2'), tabUuid: 'tab-1' },
+                    { ...tile('tile-3'), tabUuid: 'tab-2' },
+                ],
+                dashboardTabs: [TAB_1, TAB_2],
+                activeTab,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status],
+                    'tile-3': [status],
+                },
+            };
+        };
+
+        beforeEach(() => setTabs(TAB_1));
+
+        it('has no scope switch with fewer than two tabs', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTabs: [TAB_1],
+            };
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(scopeSwitch()).not.toBeInTheDocument();
+            // Every tile is in scope
+            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Add Status to the 1 unfiltered tile',
+                }),
+            ).toBeVisible();
+        });
+
+        it('starts on "This tab" and counts the tiles of the active tab', () => {
+            setSidebar(rule('orders_status'));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+
+            expect(scopeSwitch()).toBeInTheDocument();
+            expect(
+                screen.getByRole('radio', { name: 'This tab' }),
+            ).toBeChecked();
+            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
+
+            // It follows the dashboard tab
+            setTabs(TAB_2);
+            rerender(<FieldsAndTiles />);
+            expect(
+                screen.getByRole('radio', { name: 'This tab' }),
+            ).toBeChecked();
+            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
+
+            pickScope('Every tab');
+            expect(
+                screen.getByRole('radio', { name: 'Every tab' }),
+            ).toBeChecked();
+            expect(screen.getByText('Orders · 3 of 3 tiles')).toBeVisible();
+        });
+
+        it('says so when no tile on this tab offers the field', () => {
+            setTabs(TAB_2);
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
+            expect(
+                screen.getByText('Orders · no tiles on this tab'),
+            ).toBeVisible();
+            expect(
+                screen.queryByRole('button', { name: /^(Add|Apply) Region/ }),
+            ).not.toBeInTheDocument();
+
+            pickScope('Every tab');
+            expect(
+                screen.queryByText('Orders · no tiles on this tab'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
+        });
+
+        it('adds a field on this tab only, then on every tab', () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add Status to the 1 unfiltered tile on this tab',
+                }),
+            );
+            // The other tab keeps what it had
+            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
+
+            updateFilter.mockClear();
+            pickScope('Every tab');
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Add Status to the 2 unfiltered tiles on every tab',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('replaces a field on this tab only', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status],
+                    'tile-3': [status, region],
+                },
+            };
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-3': REGION }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 2 tiles on this tab. Replaces Region on 1 tile',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': REGION });
+
+            updateFilter.mockClear();
+            pickScope('Every tab');
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Apply Status to all 3 tiles on every tab. Replaces Region on 2 tiles',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toBeUndefined();
+        });
+
+        it('clears a field from this tab, or from every tab', async () => {
+            setSidebar(rule('orders_status'));
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('Status');
+            expect(
+                screen.queryByText('Clear from tiles'),
+            ).not.toBeInTheDocument();
+            fireEvent.click(await screen.findByText('Clear from this tab'));
+            expect(getUpdatedRule().tileTargets).toEqual({
+                'tile-1': false,
+                'tile-2': false,
+            });
+
+            updateFilter.mockClear();
+            pickScope('Every tab');
+            openRowMenu('Status');
+            fireEvent.click(await screen.findByText('Clear from every tab'));
+            expect(getUpdatedRule().tileTargets).toEqual({
+                'tile-1': false,
+                'tile-2': false,
+                'tile-3': false,
+            });
+        });
+
+        it('hides the clear action when the field is on no tile of this tab', async () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('Status');
+            expect(await screen.findByText('Remove field')).toBeInTheDocument();
+            expect(
+                screen.queryByText('Clear from this tab'),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('clears a field from its tiles', async () => {

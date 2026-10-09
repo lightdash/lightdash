@@ -9,10 +9,7 @@ import {
     type DashboardTile,
     type DimensionType,
 } from '@lightdash/common';
-import {
-    getDefaultField,
-    getFilterTileRelation,
-} from '../dashboardFilters/FilterConfiguration/utils';
+import { getFilterTileRelation } from '../dashboardFilters/FilterConfiguration/utils';
 
 export type FieldsByTile =
     | Record<string, DashboardFilterableField[]>
@@ -160,6 +157,39 @@ export const getFieldCount = (
             fieldId,
     ).length,
 });
+
+// What a field's actions would do over the given tiles: the ones that offer
+// it are on it, unfiltered, or on another field that "all" would replace
+export type FieldScope = FieldCount & {
+    unfiltered: number;
+    replaced: number;
+    replacedFieldIds: string[];
+};
+
+export const getFieldScope = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): FieldScope => {
+    const fieldIdsOnTiles = tiles
+        .filter((tile) => doesTileOfferField(tile, fieldId, fieldsByTile))
+        .map(
+            (tile) =>
+                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)
+                    ?.fieldId ?? null,
+        );
+    const replacedFieldIds = fieldIdsOnTiles.filter(
+        (onTile): onTile is string => onTile !== null && onTile !== fieldId,
+    );
+    return {
+        ...getFieldCount(rule, fieldId, tiles, fieldsByTile, sqlColumnsByTile),
+        unfiltered: fieldIdsOnTiles.filter((onTile) => onTile === null).length,
+        replaced: replacedFieldIds.length,
+        replacedFieldIds: [...new Set(replacedFieldIds)],
+    };
+};
 
 const withTileTargets = (
     rule: DashboardFilterRule,
@@ -346,121 +376,3 @@ export const getTabCountsForField = (
             ];
         }),
     );
-
-const findField = (
-    fieldId: string,
-    fieldsByTile: FieldsByTile,
-): DashboardFilterableField | undefined =>
-    Object.values(fieldsByTile ?? {})
-        .flat()
-        .find((field) => getItemId(field) === fieldId);
-
-// What switching a whole tab on gives a tile: a data app tile follows the
-// rule, a SQL chart tile is left alone (its column is chosen per tile), and
-// any other tile gets one of the filter's own fields that it offers
-const getSwitchOnField = (
-    rule: DashboardFilterRule,
-    tile: DashboardTile,
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile,
-): DashboardFieldTarget | null => {
-    if (isDashboardDataAppTileType(tile)) return rule.target;
-    if (isSqlTile(tile, sqlColumnsByTile)) return null;
-    const ownFieldIds = getFilterFields(rule);
-    const offered = (fieldsByTile?.[tile.uuid] ?? [])
-        .filter((field) => ownFieldIds.includes(getItemId(field)))
-        .sort(
-            (first, second) =>
-                ownFieldIds.indexOf(getItemId(first)) -
-                ownFieldIds.indexOf(getItemId(second)),
-        );
-    // The shipped order: the filter's first field, else the same type and
-    // name, else the same type
-    const targetField = findField(rule.target.fieldId, fieldsByTile);
-    const field =
-        (targetField === undefined
-            ? undefined
-            : getDefaultField(offered, targetField)) ?? offered[0];
-    return field === undefined
-        ? null
-        : { fieldId: getItemId(field), tableName: field.table };
-};
-
-// all: every tile the filter can reach on the tab is filtered. The reach is
-// the tiles it is on, plus the ones the switch could turn on, plus SQL chart
-// tiles with a column
-export type TabTargetState = {
-    checked: 'all' | 'some' | 'none';
-    // False: switching on would change nothing
-    canSwitchOn: boolean;
-};
-
-export const getTabTargetState = (
-    rule: DashboardFilterRule,
-    tabUuid: string,
-    tiles: DashboardTile[],
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile = {},
-): TabTargetState => {
-    const tabTiles = tiles.filter((tile) => tile.tabUuid === tabUuid);
-    const filtered = tabTiles.filter(
-        (tile) =>
-            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !== null,
-    );
-    const unfiltered = tabTiles.filter((tile) => !filtered.includes(tile));
-    const switchable = unfiltered.filter(
-        (tile) =>
-            getSwitchOnField(rule, tile, fieldsByTile, sqlColumnsByTile) !==
-            null,
-    );
-    const isAnyLeft =
-        switchable.length > 0 ||
-        unfiltered.some((tile) => isSqlTile(tile, sqlColumnsByTile));
-    return {
-        checked: filtered.length === 0 ? 'none' : isAnyLeft ? 'some' : 'all',
-        canSwitchOn: switchable.length > 0,
-    };
-};
-
-// On: every tile on the tab that is not filtered gets its switch-on field,
-// and the filtered ones keep theirs. Off: every tile on the tab is left out
-export const setTabTargets = (
-    rule: DashboardFilterRule,
-    tabUuid: string,
-    on: boolean,
-    tiles: DashboardTile[],
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile = {},
-): DashboardFilterRule =>
-    tiles
-        .filter((tile) => tile.tabUuid === tabUuid)
-        .reduce((next, tile) => {
-            if (!on)
-                return setTileField(
-                    next,
-                    tile,
-                    null,
-                    fieldsByTile,
-                    sqlColumnsByTile,
-                );
-            if (
-                getTileField(next, tile, fieldsByTile, sqlColumnsByTile) !==
-                null
-            )
-                return next;
-            const field = getSwitchOnField(
-                next,
-                tile,
-                fieldsByTile,
-                sqlColumnsByTile,
-            );
-            return field === null
-                ? next
-                : setTileField(
-                      next,
-                      tile,
-                      field,
-                      fieldsByTile,
-                      sqlColumnsByTile,
-                  );
-        }, rule);

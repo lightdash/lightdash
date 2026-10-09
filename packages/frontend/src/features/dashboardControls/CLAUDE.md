@@ -246,17 +246,33 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile is `available`, and it always gets a card so the mapping can be
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
-- `TabTargets` is the sidebar's "Tabs" section, for a filter on a dashboard
-  with two tabs or more: one checkbox per tab with the tab badge's count. The
-  state is over the tiles the filter can reach on the tab (the ones it is on,
-  the ones the switch could turn on, SQL chart tiles with a column): checked when all are filtered, indeterminate when some are. A click
-  is one `updateFilter` write (`setTabTargets`). As in the shipped popover, a
-  checked or indeterminate tab switches off (`setTileField(..., null)` for
-  every tile on it) and an unchecked one switches on. On, each unfiltered tile
-  gets the filter's first field when it offers it, else the shipped best
-  match among the filter's own fields it offers (`getDefaultField`: same name
-  and type, then same type); a field the filter does not have is never added, a data app
-  tile follows the rule again, and a SQL chart tile is left alone.
+- Scope: on a dashboard with two tabs or more, a `SegmentedControl` under the
+  "Fields in this filter" heading ("This tab", the default, and "Every tab")
+  chooses the tiles the field cards count and act on. "This tab" is the
+  dashboard's active tab and follows it. The choice is `useState` in
+  `FieldsAndTiles`: never saved, back to "This tab" when the editor closes.
+  With fewer than two tabs there is no switch and every tile is in scope.
+  Scope is only which tiles are passed to the helpers (`dashboardTiles`
+  filtered by `tabUuid`), so an action never writes a tile out of scope.
+- A card (`FieldRow`) reads `getFieldScope` over the tiles in scope: of the
+  tiles that offer the field (`possible`), the ones on it (`applied`), the
+  ones the filter is not on (`unfiltered`) and the ones on another field
+  (`replaced`, with `replacedFieldIds`). A SQL column row gets the same shape
+  from `getSqlColumnScope`. The count line is "<table> · x of N tiles", or
+  "<table> · no tiles on this tab" when nothing on the tab offers the field.
+  - Buttons: none when `unfiltered + replaced` is 0. "Apply to all N" when
+    nothing would be replaced and the field is on no tile, or when there is
+    something to replace and nothing unfiltered. "Add to N unfiltered"
+    (`applyFieldToUnfilteredTiles`) when nothing would be replaced and the
+    field is on a tile. Both, "Add to N unfiltered" then a gray "All N", when
+    there are tiles of both kinds. The all button is `applyFieldToAll`.
+  - A button that replaces says so before the click: a tooltip "Replaces
+    <fields> on N tiles", repeated in its `aria-label`. Every `aria-label`
+    names the field, the count and the scope ("on this tab", "on every tab",
+    nothing without tabs).
+  - More menu: "Clear from this tab" / "Clear from every tab" ("Clear from
+    tiles" without tabs), shown while the field is on a tile in scope.
+    "Remove field" and `isWaiting` are always whole-dashboard.
 - Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
 - A tile's look answers two questions only: is it filtered by this control, and, if a field is active, is it on that field. Whether the tile
