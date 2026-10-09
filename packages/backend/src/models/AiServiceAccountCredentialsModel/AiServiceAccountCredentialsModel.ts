@@ -292,9 +292,10 @@ export class AiServiceAccountCredentialsModel {
         expectedIdentityUuid: string,
         verification: AiServiceAccountTestResult,
     ): Promise<void> {
-        z.union([databricksVerificationSchema, snowflakeVerificationSchema]).parse(
-            verification,
-        );
+        z.union([
+            databricksVerificationSchema,
+            snowflakeVerificationSchema,
+        ]).parse(verification);
         await this.args.database.transaction(async (trx) => {
             const row = await this.query(
                 projectUuid,
@@ -434,7 +435,10 @@ export class AiServiceAccountCredentialsModel {
             secrets.type !== WarehouseTypes.BIGQUERY && verification !== null
                 ? {
                       ...secrets,
-                      verification: parseVerification(secrets.type, verification),
+                      verification: parseVerification(
+                          secrets.type,
+                          verification,
+                      ),
                   }
                 : secrets;
         return this.args.database.transaction(async (trx) => {

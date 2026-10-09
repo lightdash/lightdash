@@ -52,13 +52,13 @@ describe('identity source map', () => {
                 expect(actorSources.includes('ai_service_account')).toBe(
                     type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
-                        type === WarehouseTypes.SNOWFLAKE,
+                    type === WarehouseTypes.SNOWFLAKE,
                 );
             }
             expect(supportsAiServiceAccount(type)).toBe(
                 type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
-                        type === WarehouseTypes.SNOWFLAKE,
+                    type === WarehouseTypes.SNOWFLAKE,
             );
             expect(sources.person).toEqual(sources.service_account);
             const expectedCount = {
@@ -151,7 +151,7 @@ describe('organization identity rules', () => {
             ).toBe(
                 type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
-                        type === WarehouseTypes.SNOWFLAKE,
+                    type === WarehouseTypes.SNOWFLAKE,
             );
         },
     );

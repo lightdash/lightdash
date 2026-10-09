@@ -85,7 +85,7 @@ it.each(
         (type) =>
             type !== WarehouseTypes.BIGQUERY &&
             type !== WarehouseTypes.DATABRICKS &&
-                type !== WarehouseTypes.SNOWFLAKE,
+            type !== WarehouseTypes.SNOWFLAKE,
     ),
 )('rejects unsupported %s connections', (type) => {
     expect(() =>

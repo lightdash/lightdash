@@ -38,18 +38,19 @@ describe.each([
                     : warehouseType === WarehouseTypes.DATABRICKS
                       ? {
                             type: WarehouseTypes.DATABRICKS,
-                            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                            authenticationType:
+                                DatabricksAuthenticationType.OAUTH_M2M,
                             oauthClientId: 'id',
                             oauthClientSecret: 'secret',
                         }
                       : ({
-                          type: WarehouseTypes.BIGQUERY,
-                          authenticationType:
-                              BigqueryAuthenticationType.PRIVATE_KEY,
-                          keyfileContents: {
-                              client_email: 'agent@example.com',
-                          },
-                      } as AiServiceAccountSecrets),
+                            type: WarehouseTypes.BIGQUERY,
+                            authenticationType:
+                                BigqueryAuthenticationType.PRIVATE_KEY,
+                            keyfileContents: {
+                                client_email: 'agent@example.com',
+                            },
+                        } as AiServiceAccountSecrets),
         });
         const setup = () => {
             const projects = new Map<string, ProjectSummary>([

@@ -355,15 +355,19 @@ const AiServiceAccountSummary = ({
                                 {
                                     onSuccess: (result) => {
                                         const principal =
-                                            warehouseType === WarehouseTypes.SNOWFLAKE
-                                                ? getSnowflakeAiPrincipal(result)
+                                            warehouseType ===
+                                            WarehouseTypes.SNOWFLAKE
+                                                ? getSnowflakeAiPrincipal(
+                                                      result,
+                                                  )
                                                 : result.principal;
                                         if (result.ok && principal)
                                             onTestSuccess(
                                                 principal,
                                                 warehouseType ===
                                                     WarehouseTypes.DATABRICKS ||
-                                                warehouseType === WarehouseTypes.SNOWFLAKE
+                                                warehouseType ===
+                                                    WarehouseTypes.SNOWFLAKE
                                                     ? result
                                                     : null,
                                             );

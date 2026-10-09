@@ -214,8 +214,8 @@ export class AiServiceAccountService extends BaseService {
                   )
                 : results !== null;
         const verification =
-            (connection.type === WarehouseTypes.DATABRICKS ||
-                connection.type === WarehouseTypes.SNOWFLAKE)
+            connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? {
                       verification:
                           await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -268,8 +268,8 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...((connection.type === WarehouseTypes.DATABRICKS ||
-                connection.type === WarehouseTypes.SNOWFLAKE)
+                ...(connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE
                     ? {
                           verification:
                               await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -334,8 +334,8 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
-            (connection.type === WarehouseTypes.DATABRICKS ||
-                connection.type === WarehouseTypes.SNOWFLAKE)
+            connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? await this.testConnection(
                       account,
                       projectUuid,
@@ -387,8 +387,8 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...((connection.type === WarehouseTypes.DATABRICKS ||
-                connection.type === WarehouseTypes.SNOWFLAKE)
+            ...(connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? { verification }
                 : {}),
         };

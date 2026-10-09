@@ -14,6 +14,7 @@ import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/Snowfla
 
 const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
 const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
+const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
 const entries = [
     {
@@ -22,7 +23,7 @@ const entries = [
     },
     {
         warehouseType: WarehouseTypes.DATABRICKS,
-        resolver: new DatabricksAiServiceAccountCredentialResolver(),
+        resolver: databricksResolver,
     },
     {
         warehouseType: WarehouseTypes.BIGQUERY,
@@ -51,9 +52,10 @@ export const buildAiServiceAccountCredentials = (
             return snowflakeResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.BIGQUERY:
             return bigqueryResolver.buildCredentials(connection, secrets);
+        case WarehouseTypes.DATABRICKS:
+            return databricksResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.ATHENA:
         case WarehouseTypes.CLICKHOUSE:
-        case WarehouseTypes.DATABRICKS:
         case WarehouseTypes.DUCKDB:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.REDSHIFT:
