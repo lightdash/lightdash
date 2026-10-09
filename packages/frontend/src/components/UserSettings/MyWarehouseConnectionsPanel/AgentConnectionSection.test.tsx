@@ -118,7 +118,7 @@ describe('AgentConnectionSection', () => {
         renderSection([{ ...credential, expiresAt }]);
         expect(
             screen.getByText(
-                `Agent connected, expires ${formatDate(expiresAt)}`,
+                `Your agent connection ends on ${formatDate(expiresAt)}`,
             ),
         ).toBeInTheDocument();
         expect(
@@ -134,13 +134,18 @@ describe('AgentConnectionSection', () => {
         expect(
             screen.queryByRole('button', { name: 'Disconnect' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Your agent connection ends on/),
+        ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
     });
 
     it('shows the connected state without a date', () => {
         renderSection([credential]);
         expect(screen.getByText('Agent connected')).toBeInTheDocument();
-        expect(screen.queryByText(/connected since/)).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Your agent connection ends on/),
+        ).not.toBeInTheDocument();
         expect(
             screen.queryByText(credential.createdAt.toLocaleDateString()),
         ).not.toBeInTheDocument();

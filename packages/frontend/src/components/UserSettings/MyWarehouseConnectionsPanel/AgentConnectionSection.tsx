@@ -51,12 +51,7 @@ export const AgentConnectionSection = ({
                                         color="green"
                                         size={16}
                                     />
-                                    <Text fz="sm">
-                                        Agent connected
-                                        {credential.expiresAt
-                                            ? `, expires ${formatDate(credential.expiresAt)}`
-                                            : ''}
-                                    </Text>
+                                    <Text fz="sm">Agent connected</Text>
                                 </Group>
                             ) : null}
                             {expired && (
@@ -80,6 +75,12 @@ export const AgentConnectionSection = ({
                                 </Button>
                             )}
                         </Group>
+                        {connected && credential.expiresAt ? (
+                            <Text c="dimmed" fz="sm">
+                                Your agent connection ends on{' '}
+                                {formatDate(credential.expiresAt)}
+                            </Text>
+                        ) : null}
                         {!connected && login.error && (
                             <Text c="red" fz="sm" role="alert">
                                 {login.error.message}
