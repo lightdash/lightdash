@@ -69,9 +69,15 @@ const AiServiceAccountDetails = ({
                 ) : (
                     <Text size="sm">the parent project</Text>
                 )}
-                <Text size="sm" role="status">
-                    Signs in as {testedPrincipal ?? parent.principal}
-                </Text>
+                {parent.principal !== null ? (
+                    <Text size="sm" role="status">
+                        Signs in as {testedPrincipal ?? parent.principal}
+                    </Text>
+                ) : (
+                    <Text size="sm" role="status">
+                        The parent project's key could not be read.
+                    </Text>
+                )}
             </>
         ) : null}
     </Stack>
@@ -98,7 +104,7 @@ const AiServiceAccountRemoveModal = ({
         variant={inherit ? 'default' : 'delete'}
         description={
             inherit
-                ? `Remove this project's key and use the parent project's key (${parent?.principal})? Agent queries use the parent's key on the next query.`
+                ? `Remove this project's key and use the parent project's key${parent?.principal ? ` (${parent.principal})` : ''}? Agent queries use the parent's key on the next query.`
                 : 'Remove this AI service account? Agent queries are refused if your organisation requires it.'
         }
         confirmLabel={inherit ? "Use the parent's key" : 'Remove'}
@@ -318,9 +324,7 @@ const AiServiceAccountSettingsBody = ({
         identityKey: string;
         principal: string;
     } | null>(null);
-    const identityKey =
-        slot?.identityUuid ??
-        (parent ? `${parent.projectUuid}:${parent.principal}` : null);
+    const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
     const principal =
         testedPrincipal?.identityKey === identityKey
             ? (testedPrincipal?.principal ?? null)

@@ -157,4 +157,16 @@ export class AiServiceAccountSlotResolver {
                   ),
               );
     }
+
+    async resolveParentMetadata(input: Input) {
+        const parent = await this.parent(await this.normalize(input));
+        return parent === null
+            ? null
+            : this.read(parent, true, ({ projectUuid, connection }) =>
+                  this.deps.aiServiceAccountCredentialsModel.getSlot(
+                      projectUuid,
+                      connection,
+                  ),
+              );
+    }
 }

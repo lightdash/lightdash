@@ -196,9 +196,21 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
-        const inherited = await new AiServiceAccountSlotResolver(
-            this.deps,
-        ).resolveParent({ projectUuid, connection: warehouseConnectionUuid });
+        const resolver = new AiServiceAccountSlotResolver(this.deps);
+        const input = { projectUuid, connection: warehouseConnectionUuid };
+        const inherited = await resolver
+            .resolveParent(input)
+            .catch(async (error) => {
+                if (!(error instanceof AiServiceAccountSlotResolutionError))
+                    throw error;
+                const metadata = await resolver.resolveParentMetadata(input);
+                return metadata === null
+                    ? null
+                    : {
+                          ...metadata,
+                          slot: { slot: metadata.slot, secrets: null },
+                      };
+            });
         if (inherited === null) return { results, parent: null };
         const parentUuid = inherited.sourceProjectUuid;
         const canView = this.createAuditedAbility(account).can(
@@ -212,7 +224,10 @@ export class AiServiceAccountService extends BaseService {
                 projectName: canView
                     ? (await this.deps.projectModel.getSummary(parentUuid)).name
                     : null,
-                principal: inherited.slot.secrets.keyfileContents.client_email,
+                identityUuid: inherited.slot.slot.identityUuid,
+                principal:
+                    inherited.slot.secrets?.keyfileContents.client_email ??
+                    null,
             },
         };
     }

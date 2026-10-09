@@ -207,7 +207,8 @@ export type AiServiceAccountTestResult = {
 export type AiServiceAccountParent = {
     projectUuid: string;
     projectName: string | null;
-    principal: string;
+    identityUuid: string;
+    principal: string | null;
 };
 
 export type ApiAiServiceAccountStatusResponse =

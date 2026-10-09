@@ -4380,7 +4380,11 @@ export class AsyncQueryService extends ProjectService {
             }
 
             await this.markAsyncQueryErrored({
-                inheritedFromProjectUuid,
+                inheritedFromProjectUuid:
+                    inheritedFromProjectUuid ??
+                    (e instanceof AiAccessRefusedError
+                        ? e.inheritedFromProjectUuid
+                        : null),
                 queryUuid,
                 projectUuid,
                 organizationUuid,

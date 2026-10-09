@@ -1131,6 +1131,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1142,6 +1143,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
                 settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1329,6 +1331,7 @@ export class AiAccessService extends BaseService {
                             error.inheritedFromProjectUuid;
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 if (saved === null) {
@@ -1345,6 +1348,7 @@ export class AiAccessService extends BaseService {
                 } catch {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 return {

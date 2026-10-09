@@ -814,11 +814,49 @@ it.each([true, false])(
             parent: {
                 projectUuid: 'parent',
                 projectName: canView ? 'Parent project' : null,
+                identityUuid: 'parent-generation',
                 principal: 'agent@example.com',
             },
         });
     },
 );
+it.each([true, false])(
+    'returns status with an unreadable parent key and own slot=%s',
+    async (hasOwnSlot) => {
+        const f = previewFixture();
+        const ownSlot = hasOwnSlot ? { uuid: 'slot' } : null;
+        f.model.getSlot.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { uuid: 'parent-slot', identityUuid: 'parent-generation' }
+                : ownSlot,
+        );
+        f.model.getSecrets.mockRejectedValue(new Error('unreadable key'));
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toEqual({
+            results: ownSlot,
+            parent: {
+                projectUuid: 'parent',
+                projectName: 'Parent project',
+                identityUuid: 'parent-generation',
+                principal: null,
+            },
+        });
+        expect(f.model.getSlot).toHaveBeenLastCalledWith('parent', null);
+    },
+);
+it('propagates unexpected errors while loading parent status', async () => {
+    const f = previewFixture();
+    const error = new Error('project lookup failed');
+    f.getSummary
+        .mockResolvedValueOnce({
+            organizationUuid: f.account.organization.organizationUuid,
+        })
+        .mockRejectedValueOnce(error);
+    await expect(f.service.getStatus(f.account, 'project', null)).rejects.toBe(
+        error,
+    );
+});
 it('returns no parent on a non-preview status response', async () => {
     const f = setup();
     expect(await f.service.getStatus(f.account, 'project', null)).toEqual({

@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
+    ProjectType,
     WarehouseTypes,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -41,12 +42,13 @@ const setup = (enabled: boolean) => {
         schema: 'schema',
         warehouse: 'compute',
     });
+    const getSummary = vi.fn().mockResolvedValue({
+        organizationUuid: account.organization.organizationUuid,
+    });
     const service = new AiServiceAccountService({
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
         projectModel: {
-            getSummary: vi.fn().mockResolvedValue({
-                organizationUuid: account.organization.organizationUuid,
-            }),
+            getSummary,
             getWarehouseCredentialsForBinding: load,
         },
         aiServiceAccountCredentialsModel: model,
@@ -69,6 +71,7 @@ const setup = (enabled: boolean) => {
         req: { account } as Request,
         model,
         load,
+        getSummary,
     };
 };
 
@@ -167,3 +170,34 @@ it('keeps the own slot as results and returns an explicit parent field', async (
         parent: null,
     });
 });
+
+it.each([true, false])(
+    'returns a successful status with an unreadable parent and own slot=%s',
+    async (hasOwnSlot) => {
+        const f = setup(true);
+        const ownSlot = hasOwnSlot ? { uuid: 'slot' } : null;
+        f.getSummary.mockImplementation(async (uuid: string) => ({
+            organizationUuid: f.req.account!.organization.organizationUuid,
+            type:
+                uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+            upstreamProjectUuid: uuid === 'project' ? 'parent' : null,
+            name: 'Parent project',
+        }));
+        f.model.getSlot.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { uuid: 'parent-slot', identityUuid: 'parent-generation' }
+                : ownSlot,
+        );
+        f.model.getSecrets.mockRejectedValue(new Error('unreadable key'));
+        await expect(f.controller.get('project', f.req)).resolves.toEqual({
+            status: 'ok',
+            results: ownSlot,
+            parent: {
+                projectUuid: 'parent',
+                projectName: 'Parent project',
+                identityUuid: 'parent-generation',
+                principal: null,
+            },
+        });
+    },
+);

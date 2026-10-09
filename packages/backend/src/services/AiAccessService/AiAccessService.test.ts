@@ -4427,6 +4427,7 @@ describe('preview AI service account inheritance', () => {
         await expect(
             f.service.resolvePlan({ ...args, connection: bigquery }),
         ).rejects.toMatchObject({
+            inheritedFromProjectUuid: 'parent',
             refusal: {
                 reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
             },

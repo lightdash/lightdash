@@ -5477,6 +5477,37 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        test('attributes terminal query events to the parent when plan resolution refuses', async () => {
+            const { service, resolve } = setupRefusal();
+            resolve.mockRejectedValue(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    { inheritedFromProjectUuid: 'parent' },
+                ),
+            );
+            Object.assign(service, {
+                markAsyncQueryErrored:
+                    AsyncQueryService.prototype['markAsyncQueryErrored'],
+            });
+            const track = vi.spyOn(analyticsMock, 'track');
+            track.mockClear();
+
+            await service.runAsyncWarehouseQuery(executionArgs);
+
+            expect(resolve).toHaveBeenCalledOnce();
+            for (const event of ['query.error', 'query.completed']) {
+                expect(track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event,
+                        properties: expect.objectContaining({
+                            inheritedFromProjectUuid: 'parent',
+                        }),
+                    }),
+                );
+            }
+            track.mockRestore();
+        });
+
         test('counts one expired refusal across all seven result readers and repeated polls', async () => {
             const { service, analytics, resolve, trackRefusal, markErrored } =
                 setupRefusal();

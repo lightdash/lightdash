@@ -93,6 +93,7 @@ let parent: AiServiceAccountParent | null = null;
 const parentAccount = {
     projectUuid: 'parent-project',
     projectName: 'Production',
+    identityUuid: 'parent-generation',
     principal: 'parent@example.test',
 };
 const savedSlot = {
@@ -281,6 +282,46 @@ describe('AI service account card', () => {
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: "Use the parent's key" }),
+        ).toBeVisible();
+    });
+    it('keeps inherited controls available when the parent key cannot be read', async () => {
+        parent = { ...parentAccount, principal: null };
+        setup();
+        expect(
+            await screen.findByText(
+                "The parent project's key could not be read.",
+            ),
+        ).toBeVisible();
+        expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Use a different key' }),
+        ).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+    });
+    it('clears inherited test results when the parent key rotates with the same principal', async () => {
+        parent = parentAccount;
+        const { client } = setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        await screen.findByText('Signs in as tested-principal');
+        fireEvent.click(screen.getByRole('button', { name: 'Test as agent' }));
+        await screen.findByText('Could not verify agent access.');
+
+        parent = {
+            ...parentAccount,
+            identityUuid: 'rotated-parent-generation',
+        };
+        await client.invalidateQueries(['ai-access']);
+
+        await waitFor(() => {
+            expect(
+                screen.queryByText('Signs in as tested-principal'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Could not verify agent access.'),
+            ).not.toBeInTheDocument();
+        });
+        expect(
+            screen.getByText('Signs in as parent@example.test'),
         ).toBeVisible();
     });
     it('does not link a parent the user cannot view', async () => {
