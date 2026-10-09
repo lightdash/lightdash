@@ -141,7 +141,13 @@ export const useSavedSqlChartResults = (
         UseSavedSqlChartResults,
         Partial<ApiError>
     >(
-        ['savedSqlChartResults', savedSqlUuid ?? slug, args], // keep uuid/slug in the key to facilitate cache invalidation
+        // uuid/slug eases cache invalidation; lastUpdatedAt reruns results after a chart edit
+        [
+            'savedSqlChartResults',
+            savedSqlUuid ?? slug,
+            args,
+            chartQuery.data?.lastUpdatedAt,
+        ],
         async () => {
             try {
                 // Safe to assume these are defined because of the enabled flag
@@ -234,8 +240,10 @@ export const useSavedSqlChartResults = (
             }
         },
         {
+            // Waiting for a chart refetch avoids running results under a stale key
             enabled:
                 !!chartQuery.data &&
+                !chartQuery.isFetching &&
                 !chartQuery.isError &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
