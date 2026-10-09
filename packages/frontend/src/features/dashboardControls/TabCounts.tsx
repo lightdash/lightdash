@@ -2,7 +2,6 @@ import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getFieldDisplayLabel } from './fieldGrains';
 import { getTabCounts, getTabCountsForField } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebar } from './useControlsSidebar';
@@ -68,9 +67,7 @@ export const TabCounts: FC = () => {
     const getFilterSubject = (): string => {
         if (activeFieldId === null) return 'this filter';
         const activeField = fieldsMap[activeFieldId];
-        return activeField
-            ? getFieldDisplayLabel(activeField, Object.values(fieldsMap))
-            : activeFieldId;
+        return activeField ? activeField.label : activeFieldId;
     };
     const reach = `use ${getFilterSubject()}`;
 
