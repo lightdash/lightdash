@@ -282,6 +282,7 @@ const swappableProjectRoutes = (
         `/generalSettings`,
         `/generalSettings/password`,
         `/generalSettings/myWarehouseConnections`,
+        `/generalSettings/myAgentConnections`,
         `/generalSettings/personalAccessTokens`,
         `/generalSettings/scimAccessTokens`,
         `/generalSettings/organization`,

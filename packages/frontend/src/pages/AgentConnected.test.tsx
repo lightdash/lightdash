@@ -48,8 +48,8 @@ describe('AgentConnected', () => {
         expect(screen.getByText(reason)).toBeInTheDocument();
         expect(
             screen.getByRole('link', {
-                name: 'Try again from My warehouse connections',
+                name: 'Try again from My agent connections',
             }),
-        ).toHaveAttribute('href', '/generalSettings/myWarehouseConnections');
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
     });
 });

@@ -1,47 +1,23 @@
 import {
-    FeatureFlags,
     UserWarehouseCredentialPurpose,
-    WarehouseTypes,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { Anchor, Button, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useOrganizationAgentIdentitySettings } from '../../../features/aiAccess/api';
-import useHealth from '../../../hooks/health/useHealth';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
-import { AgentConnectionSection } from './AgentConnectionSection';
 import { CreateCredentialsModal } from './CreateCredentialsModal';
 import { CredentialsTable } from './CredentialsTable';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
 import { EditCredentialsModal } from './EditCredentialsModal';
-import { shouldShowAgentConnection } from './snowflakeAiVisibility';
 
 export const MyWarehouseConnectionsPanel = () => {
     const { data: credentials } = useUserWarehouseCredentials();
-    const { data: health } = useHealth();
-    const { data: agentIdentityFlag } = useServerFeatureFlag(
-        FeatureFlags.AgentIdentity,
-    );
     const defaultCredentials = credentials?.filter(
         ({ purpose }) => purpose !== UserWarehouseCredentialPurpose.AI,
-    );
-    const { data: agentIdentitySettings } =
-        useOrganizationAgentIdentitySettings();
-    const showBigQuery =
-        agentIdentitySettings?.rules.some(
-            (rule) =>
-                rule.warehouseType === WarehouseTypes.BIGQUERY &&
-                rule.source === 'ai_service_account',
-        ) === true;
-    const showAiSignIn = shouldShowAgentConnection(
-        agentIdentityFlag?.enabled === true,
-        health?.auth.snowflakeAi.enabled === true,
-        showBigQuery,
     );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const [warehouseCredentialsToBeEdited, setWarehouseCredentialsToBeEdited] =
@@ -82,13 +58,6 @@ export const MyWarehouseConnectionsPanel = () => {
                 </Button>
             }
         >
-            {showAiSignIn && (
-                <AgentConnectionSection
-                    credentials={credentials ?? []}
-                    showSnowflake={health?.auth.snowflakeAi.enabled === true}
-                    showBigQuery={showBigQuery}
-                />
-            )}
             {defaultCredentials && defaultCredentials.length > 0 ? (
                 <>
                     {personalConnectionsCallout}

@@ -13,6 +13,8 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
 ): SettingsContext => ({
+    showMyAgentConnections: false,
+    isMyAgentConnectionsLoading: false,
     user: undefined,
     health: undefined,
     organization: undefined,
@@ -264,6 +266,41 @@ describe('limited project settings navigation', () => {
                     .find((section) => section.id === 'current-project')
                     ?.items.map(({ label, to }) => ({ label, to })),
             ).toEqual(expected);
+        },
+    );
+});
+
+describe('My agent connections navigation', () => {
+    it.each([true, false])(
+        'uses shared visibility %s',
+        (showMyAgentConnections) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({ showMyAgentConnections }),
+                ),
+            );
+            const items = result.current.find(
+                ({ id }) => id === 'your-settings',
+            )!.items;
+            const index = items.findIndex(
+                ({ label }) => label === 'My agent connections',
+            );
+            if (showMyAgentConnections) {
+                expect(items[index - 1].label).toBe('My warehouse connections');
+                expect(items[index]).toMatchObject({
+                    to: '/generalSettings/myAgentConnections',
+                    keywords: [
+                        'agent',
+                        'ai',
+                        'mcp',
+                        'snowflake',
+                        'bigquery',
+                        'connect',
+                    ],
+                });
+            } else {
+                expect(index).toBe(-1);
+            }
         },
     );
 });

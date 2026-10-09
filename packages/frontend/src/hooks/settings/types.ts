@@ -59,6 +59,8 @@ export type SettingsNavigationSection = {
  * router, sidebar nav, and a future settings search all derive from it.
  */
 export type SettingsContext = {
+    showMyAgentConnections: boolean;
+    isMyAgentConnectionsLoading: boolean;
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;

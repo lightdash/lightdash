@@ -1,6 +1,15 @@
+import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
-import { aiAccessApi } from './api';
+import { renderHookWithProviders } from '../../testing/testUtils';
+import { aiAccessApi, useOrganizationAgentIdentitySettings } from './api';
+
+let flagEnabled: boolean | undefined = false;
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: flagEnabled === undefined ? undefined : { enabled: flagEnabled },
+    }),
+}));
 vi.mock('../../api', () => ({ lightdashApi: vi.fn().mockResolvedValue({}) }));
 describe('AI access API URLs', () => {
     beforeEach(() => vi.clearAllMocks());
@@ -24,4 +33,31 @@ describe('AI access API URLs', () => {
             );
         },
     );
+});
+
+describe('Organization agent identity request gating', () => {
+    beforeEach(() => vi.clearAllMocks());
+    it.each([false, undefined])(
+        'makes no request when the flag is %s',
+        (enabled) => {
+            flagEnabled = enabled;
+            const { result } = renderHookWithProviders(() =>
+                useOrganizationAgentIdentitySettings(),
+            );
+            expect(result.current.fetchStatus).toBe('idle');
+            expect(lightdashApi).not.toHaveBeenCalled();
+        },
+    );
+    it('loads the rules when the flag is enabled', async () => {
+        flagEnabled = true;
+        renderHookWithProviders(() => useOrganizationAgentIdentitySettings());
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledExactlyOnceWith({
+                version: 'v2',
+                url: '/org/agent-identity',
+                method: 'GET',
+                body: undefined,
+            }),
+        );
+    });
 });

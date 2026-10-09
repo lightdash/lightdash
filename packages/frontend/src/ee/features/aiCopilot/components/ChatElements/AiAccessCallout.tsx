@@ -74,6 +74,15 @@ export const AiAccessCallout = ({
                             >
                                 Connect agent
                             </Button>
+                            {variant === 'card' && (
+                                <Anchor
+                                    component={Link}
+                                    to="/generalSettings/myAgentConnections"
+                                    size="sm"
+                                >
+                                    Manage agent connections
+                                </Anchor>
+                            )}
                         </Group>
                     )}
                     {requiresSignIn && login.error && (
