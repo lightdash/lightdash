@@ -7,6 +7,7 @@ import {
     type Project,
     type BigqueryCredentials,
     type DatabricksCredentials,
+    type SnowflakeCredentials,
     type AiServiceAccountTestResult,
     type ApiError,
     type AiServiceAccountSlot,
@@ -40,8 +41,13 @@ import {
 } from './api';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
 import { DatabricksAgentSetup } from './DatabricksAgentSetup';
+import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
+import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
 
-type AiServiceAccountConnection = BigqueryCredentials | DatabricksCredentials;
+type AiServiceAccountConnection =
+    | BigqueryCredentials
+    | DatabricksCredentials
+    | SnowflakeCredentials;
 
 const AiServiceAccountParentPrincipal = ({
     parent,
@@ -61,20 +67,26 @@ const AiServiceAccountParentPrincipal = ({
     );
 };
 
-const DatabricksAiServiceAccountDetails = ({
+const VerifiedAiServiceAccountDetails = ({
     slot,
     parent,
     testedPrincipal,
     observation,
+    warehouseType,
 }: {
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
+    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS;
 }) => {
     return (
         <Stack gap="xs">
-            <Text size="sm">Databricks service principal · OAuth M2M</Text>
+            <Text size="sm">
+                {warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? 'Snowflake key pair'
+                    : 'Databricks service principal · OAuth M2M'}
+            </Text>
             {testedPrincipal ? (
                 <Text size="sm" role="status">
                     Signs in as {testedPrincipal}
@@ -130,9 +142,11 @@ const AiServiceAccountDetails = ({
     observation: AiServiceAccountTestResult | null;
 }) => {
     switch (warehouseType) {
+        case WarehouseTypes.SNOWFLAKE:
         case WarehouseTypes.DATABRICKS:
             return (
-                <DatabricksAiServiceAccountDetails
+                <VerifiedAiServiceAccountDetails
+                    warehouseType={warehouseType}
                     slot={slot}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
@@ -194,7 +208,7 @@ const AiServiceAccountRemoveModal = ({
     onConfirm: () => void;
 }) => {
     const credentialLabel =
-        warehouseType === WarehouseTypes.BIGQUERY ? 'key' : 'credentials';
+        warehouseType === WarehouseTypes.DATABRICKS ? 'credentials' : 'key';
     return (
         <MantineModal
             opened={opened}
@@ -235,7 +249,7 @@ const AiServiceAccountTestFeedback = ({
             <Text
                 size="sm"
                 role={
-                    warehouseType === WarehouseTypes.DATABRICKS
+                    warehouseType !== WarehouseTypes.BIGQUERY
                         ? 'alert'
                         : 'status'
                 }
@@ -248,7 +262,7 @@ const AiServiceAccountTestFeedback = ({
                 {error.error.message}
             </Text>
         )}
-        {warehouseType === WarehouseTypes.DATABRICKS &&
+        {warehouseType !== WarehouseTypes.BIGQUERY &&
             observation?.ok &&
             (error || (result && !result.ok)) && (
                 <Text size="sm" c="dimmed">
@@ -309,7 +323,9 @@ const AiServiceAccountSummary = ({
                             ? 'Replace'
                             : warehouseType === WarehouseTypes.BIGQUERY
                               ? 'Use a different key'
-                              : 'Use a different service principal'}
+                              : warehouseType === WarehouseTypes.SNOWFLAKE
+                                ? 'Use a different key'
+                                : 'Use a different service principal'}
                     </Button>
                     <Button
                         variant="default"
@@ -320,12 +336,16 @@ const AiServiceAccountSummary = ({
                                 { credentials: null },
                                 {
                                     onSuccess: (result) => {
-                                        const principal = result.principal;
+                                        const principal =
+                                            warehouseType === WarehouseTypes.SNOWFLAKE
+                                                ? getSnowflakeAiPrincipal(result)
+                                                : result.principal;
                                         if (result.ok && principal)
                                             onTestSuccess(
                                                 principal,
                                                 warehouseType ===
-                                                    WarehouseTypes.DATABRICKS
+                                                    WarehouseTypes.DATABRICKS ||
+                                                warehouseType === WarehouseTypes.SNOWFLAKE
                                                     ? result
                                                     : null,
                                             );
@@ -344,9 +364,9 @@ const AiServiceAccountSummary = ({
                                     disabled={busy}
                                     onClick={() => setConfirmation('inherit')}
                                 >
-                                    {warehouseType === WarehouseTypes.BIGQUERY
-                                        ? "Use the parent's key"
-                                        : "Use the parent's credentials"}
+                                    {warehouseType === WarehouseTypes.DATABRICKS
+                                        ? "Use the parent's credentials"
+                                        : "Use the parent's key"}
                                 </Button>
                             )}
                             <Button
@@ -472,11 +492,13 @@ const getAiPrincipalState = (
     const observation = currentTest?.verification ?? persistedVerification;
     const principal =
         currentTest?.principal ??
-        (warehouseType === WarehouseTypes.DATABRICKS
-            ? observation?.ok
-                ? observation.principal
-                : null
-            : null);
+        (warehouseType === WarehouseTypes.SNOWFLAKE
+            ? getSnowflakeAiPrincipal(observation)
+            : warehouseType === WarehouseTypes.DATABRICKS
+              ? observation?.ok
+                  ? observation.principal
+                  : null
+              : null);
     return { identityKey, observation, principal };
 };
 
@@ -506,6 +528,8 @@ const AiServiceAccountSetup = ({
                     tested={tested}
                 />
             );
+        case WarehouseTypes.SNOWFLAKE:
+            return <SnowflakeAiServiceAccountSetup hasKey={hasKey} />;
         default:
             return assertUnreachable(connection, 'Unknown warehouse type');
     }
@@ -629,7 +653,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     if (
         !project.projectUuid ||
         (project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
-            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS) ||
+            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS &&
+            project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE) ||
         !flag?.enabled ||
         !ability.can(
             'manage',

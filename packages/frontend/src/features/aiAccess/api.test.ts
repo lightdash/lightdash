@@ -1,5 +1,7 @@
 import {
     DatabricksAuthenticationType,
+    SnowflakeAuthenticationType,
+    BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
     type ApiAiServiceAccountSaveResponse,
@@ -234,4 +236,90 @@ describe('AI service account credential mutations', () => {
             expect(lightdashApiResponse).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('AI service account save', () => {
+    it.each([true, false])(
+        'retains Snowflake verification when present: %s',
+        async (verified) => {
+            const verification = verified
+                ? {
+                      ok: true,
+                      principal: 'USER',
+                      observed: { currentUser: 'USER', currentRole: 'ROLE' },
+                      message: 'Connection works.',
+                      checkedAt: new Date(),
+                  }
+                : null;
+            const slot = { identityUuid: 'generation' } as AiServiceAccountSlot;
+            vi.mocked(lightdashApiResponse).mockResolvedValue({
+                status: 'ok',
+                results: slot,
+                ...(verified ? { verification } : {}),
+            });
+            const { result } = renderHookWithProviders(() =>
+                useSaveAiServiceAccount('project'),
+            );
+            const credentials = {
+                type: WarehouseTypes.SNOWFLAKE as const,
+                authenticationType:
+                    SnowflakeAuthenticationType.PRIVATE_KEY as const,
+                user: 'user',
+                privateKey: 'private-key',
+                privateKeyPass: null,
+                role: 'role',
+                warehouse: 'warehouse',
+            };
+            await act(async () => {
+                await result.current.mutateAsync(credentials);
+            });
+            await waitFor(() =>
+                expect(result.current.data).toEqual({ slot, verification }),
+            );
+            expect(lightdashApiResponse).toHaveBeenLastCalledWith({
+                version: 'v2',
+                url: '/projects/project/ai-access/service-account',
+                method: 'PUT',
+                body: JSON.stringify(credentials),
+                sensitive: true,
+            });
+            act(() => result.current.reset());
+            await waitFor(() =>
+                expect(result.current.variables).toBeUndefined(),
+            );
+        },
+    );
+    it('keeps the BigQuery payload and returns an explicit absent verification', async () => {
+        vi.mocked(lightdashApiResponse).mockResolvedValue({
+            status: 'ok',
+            results: { identityUuid: 'bigquery' } as AiServiceAccountSlot,
+        });
+        const { result } = renderHookWithProviders(() =>
+            useSaveAiServiceAccount('project'),
+        );
+        const credentials = {
+            type: WarehouseTypes.BIGQUERY as const,
+            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY as const,
+            keyfileContents: {
+                type: 'service_account',
+                client_email: 'agent@example.test',
+                private_key: 'key',
+            },
+        };
+        await act(async () => {
+            await result.current.mutateAsync(credentials);
+        });
+        await waitFor(() =>
+            expect(result.current.data).toEqual({
+                slot: { identityUuid: 'bigquery' },
+                verification: null,
+            }),
+        );
+        expect(lightdashApiResponse).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                body: JSON.stringify(credentials),
+                sensitive: true,
+            }),
+        );
+    });
 });

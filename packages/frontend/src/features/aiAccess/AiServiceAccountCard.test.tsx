@@ -10,7 +10,13 @@ import {
     type Project,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -107,6 +113,17 @@ const savedSlot = {
     method: 'private_key',
     updatedAt: new Date('2026-10-08T12:00:00Z'),
 } as AiServiceAccountSlot;
+const snowflakeVerification: AiServiceAccountTestResult = {
+    ok: true,
+    principal: 'OBSERVED_USER',
+    observed: { currentUser: 'OBSERVED_USER', currentRole: 'OBSERVED_ROLE' },
+    message: 'Connection works.',
+    checkedAt: new Date('2026-10-09T12:00:00Z'),
+};
+const snowflakeProject = {
+    ...project,
+    warehouseConnection: { type: WarehouseTypes.SNOWFLAKE },
+} as Project;
 const key = {
     type: 'service_account',
     client_email: 'secret-email@example.test',
@@ -182,18 +199,20 @@ describe('AI service account card', () => {
                     ],
                 };
             if (url.endsWith('/test'))
-                return {
-                    ok: true,
-                    principal: 'tested-principal',
-                    message: 'Connection works.',
-                    observed: {},
-                    checkedAt: new Date(),
-                };
+                return warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? snowflakeVerification
+                    : {
+                          ok: true,
+                          principal: 'tested-principal',
+                          message: 'Connection works.',
+                          observed: {},
+                          checkedAt: new Date(),
+                      };
             if (method === 'GET')
                 return { status: 'ok', results: slot, parent, verification };
             if (method === 'PUT') {
                 slot = savedSlot;
-                return { status: 'ok', results: slot };
+                return { status: 'ok', results: slot, verification };
             }
             if (method === 'DELETE') slot = null;
             return slot;
@@ -568,7 +587,7 @@ describe('AI service account card', () => {
                 warehouseConnection: {
                     type:
                         reason === 'warehouse'
-                            ? WarehouseTypes.SNOWFLAKE
+                            ? WarehouseTypes.POSTGRES
                             : WarehouseTypes.BIGQUERY,
                 },
             } as Project);
@@ -1127,5 +1146,282 @@ describe('AI service account card', () => {
         expect(
             screen.queryByRole('button', { name: 'Add an AI service account' }),
         ).not.toBeInTheDocument();
+    });
+    describe('Snowflake', () => {
+        beforeEach(() => {
+            warehouseType = WarehouseTypes.SNOWFLAKE;
+            source = 'ai_service_account';
+        });
+        const saved = () => {
+            slot = { ...savedSlot, warehouseType: WarehouseTypes.SNOWFLAKE };
+            verification = snowflakeVerification;
+        };
+        it('shows setup and the missing-slot warning without BigQuery setup', async () => {
+            setup(snowflakeProject);
+            await screen.findByRole('button', {
+                name: 'Add an AI service account',
+            });
+            expect(
+                screen.getByText(/AI agents on this connection are refused/),
+            ).toBeVisible();
+            expect(
+                screen.getByText(/Use a separate Snowflake user and role/),
+            ).toBeVisible();
+            expect(screen.getByText(/CREATE USER AI_AGENT/)).toHaveTextContent(
+                "RSA_PUBLIC_KEY = '<public key without PEM headers>'",
+            );
+            expect(screen.queryByText(/gcloud/)).not.toBeInTheDocument();
+        });
+        it.each(['own', 'inherited'])(
+            'shows the persisted %s user and role and uses only the generic Test',
+            async (owner) => {
+                if (owner === 'own') saved();
+                else
+                    parent = {
+                        ...parentAccount,
+                        principal: null,
+                        verification: snowflakeVerification,
+                    };
+                setup(snowflakeProject);
+                expect(
+                    await screen.findByText(
+                        'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                    ),
+                ).toBeVisible();
+                const title = screen.getByText('Snowflake key pair');
+                const principal = screen.getByText(
+                    'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                );
+                const dates = screen.getByText(/Last checked/);
+                expect(title.compareDocumentPosition(principal)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                expect(principal.compareDocumentPosition(dates)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                expect(dates).toBeVisible();
+                if (owner === 'own')
+                    expect(dates).toHaveTextContent(
+                        /Last checked .+ · Last updated/,
+                    );
+                expect(
+                    screen.queryByRole('button', { name: 'Test as agent' }),
+                ).not.toBeInTheDocument();
+                if (owner === 'inherited')
+                    expect(
+                        screen.getByText('From parent project'),
+                    ).toBeVisible();
+                fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+                await waitFor(() =>
+                    expect(lightdashApi).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            url: '/projects/project/ai-access/service-account/test',
+                            body: JSON.stringify({ credentials: null }),
+                        }),
+                    ),
+                );
+                expect(lightdashApi).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        url: '/projects/project/ai-access/service-account/test-access',
+                    }),
+                );
+                expect(
+                    screen.queryByText(/could not be read/),
+                ).not.toBeInTheDocument();
+            },
+        );
+        it.each(['own', 'inherited'])(
+            'shows neutral guidance for an %s slot with no observation and alerts on Test failure',
+            async (owner) => {
+                if (owner === 'own') {
+                    saved();
+                    verification = null;
+                } else {
+                    parent = {
+                        ...parentAccount,
+                        principal: null,
+                        verification: null,
+                    };
+                }
+                setup(snowflakeProject);
+                const guidance = await screen.findByText(
+                    'Not checked yet. Run Test to see who it signs in as.',
+                );
+                expect(guidance).toBeVisible();
+                expect(guidance).not.toHaveAttribute('role');
+                expect(guidance).toHaveStyle({
+                    color: 'var(--mantine-color-dimmed)',
+                });
+                expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(/Last checked/),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', {
+                        name:
+                            owner === 'own' ? 'Replace' : 'Use a different key',
+                    }),
+                ).toBeEnabled();
+                vi.mocked(lightdashApi).mockResolvedValueOnce({
+                    ...snowflakeVerification,
+                    ok: false,
+                    principal: null,
+                    observed: null,
+                    message: 'Sign-in failed.',
+                });
+                fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+                expect(await screen.findByRole('alert')).toHaveTextContent(
+                    'Sign-in failed.',
+                );
+            },
+        );
+        it('shows a current failure beside the last successful observation', async () => {
+            saved();
+            setup(snowflakeProject);
+            await screen.findByText(
+                'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+            );
+            vi.mocked(lightdashApi).mockRejectedValueOnce({
+                error: { message: 'Sign-in failed.' },
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'Sign-in failed.',
+            );
+            expect(
+                screen.getByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+            ).toBeVisible();
+        });
+        it('replaces stale local observations when the slot generation changes', async () => {
+            saved();
+            const { client } = setup(snowflakeProject);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Test' }),
+            );
+            await waitFor(() =>
+                expect(lightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({ method: 'POST' }),
+                ),
+            );
+            slot = {
+                ...savedSlot,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                identityUuid: 'new-generation',
+            };
+            verification = {
+                ...snowflakeVerification,
+                observed: { currentUser: 'NEW_USER', currentRole: 'NEW_ROLE' },
+            };
+            await act(async () => {
+                await client.invalidateQueries(['ai-access']);
+            });
+            expect(
+                await screen.findByText('Signs in as NEW_USER · NEW_ROLE'),
+            ).toBeVisible();
+            expect(
+                screen.queryByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+            ).not.toBeInTheDocument();
+        });
+        it('keeps the prior slot and inputs after a failed replacement', async () => {
+            saved();
+            setup(snowflakeProject);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Replace' }),
+            );
+            const dialog = await screen.findByRole('dialog');
+            const modal = within(dialog);
+            fireEvent.click(modal.getByLabelText('Paste key'));
+            for (const [label, value] of [
+                ['User', 'new_user'],
+                ['Role', 'new_role'],
+                ['Warehouse', 'warehouse'],
+                [
+                    'Private key',
+                    '-----BEGIN PRIVATE KEY-----\nYWJj\n-----END PRIVATE KEY-----',
+                ],
+            ]) {
+                fireEvent.change(
+                    modal.getByLabelText(label, {
+                        exact: false,
+                        selector: 'input, textarea',
+                    }),
+                    { target: { value } },
+                );
+            }
+            vi.mocked(lightdashApi).mockRejectedValueOnce({
+                error: { message: 'Sign-in failed.' },
+            });
+            fireEvent.click(
+                modal.getByRole('button', { name: 'Test and save' }),
+            );
+            expect(await modal.findByRole('alert')).toHaveTextContent(
+                'Sign-in failed.',
+            );
+            expect(
+                modal.getByLabelText('User', {
+                    exact: false,
+                    selector: 'input, textarea',
+                }),
+            ).toHaveValue('new_user');
+            expect(
+                screen.getByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+            ).toBeVisible();
+        });
+        it('returns to the parent only after removal is confirmed', async () => {
+            saved();
+            parent = {
+                ...parentAccount,
+                principal: null,
+                verification: {
+                    ...snowflakeVerification,
+                    observed: {
+                        currentUser: 'PARENT',
+                        currentRole: 'PARENT_ROLE',
+                    },
+                },
+            };
+            setup(snowflakeProject);
+            fireEvent.click(
+                await screen.findByRole('button', {
+                    name: "Use the parent's key",
+                }),
+            );
+            const modal = within(await screen.findByRole('dialog'));
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'DELETE' }),
+            );
+            fireEvent.click(
+                modal.getByRole('button', { name: "Use the parent's key" }),
+            );
+            expect(
+                await screen.findByText('Signs in as PARENT · PARENT_ROLE'),
+            ).toBeVisible();
+            expect(
+                screen.queryByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Remove' }),
+            ).not.toBeInTheDocument();
+        });
+        it.each(['flag', 'permission'])(
+            'renders no card or setup and makes no request without %s',
+            (gate) => {
+                mocks.enabled = gate !== 'flag';
+                mocks.canManage = gate !== 'permission';
+                const { container } = setup(snowflakeProject);
+                expect(
+                    container.querySelector('.mantine-Accordion-root'),
+                ).toBeNull();
+                expect(
+                    screen.queryByText('AI service account'),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(
+                        /Use a separate Snowflake user and role/,
+                    ),
+                ).not.toBeInTheDocument();
+                expect(lightdashApi).not.toHaveBeenCalled();
+            },
+        );
     });
 });
