@@ -30,6 +30,7 @@ const buildService = () => {
             })),
             createWebAppThread,
             createWebAppPrompt,
+            findThreadModelConfig: vi.fn(async () => null),
             getThread,
             findThreadMessage,
             getContextForPromptUuids: vi.fn(async () => new Map()),
