@@ -37,6 +37,19 @@ describe('isSqlApprovalToolCall', () => {
         ).toBe(false);
     });
 
+    it('gates content queries only for a SQL source', () => {
+        expect(
+            isSqlApprovalToolCall('runContentQuery', {
+                source: { type: 'sql', sql: 'select 1', limit: null },
+            }),
+        ).toBe(true);
+        expect(
+            isSqlApprovalToolCall('runContentQuery', {
+                source: { type: 'chart', chartSlug: 'orders', limit: null },
+            }),
+        ).toBe(false);
+    });
+
     it('gates SQL chart edits only when the patch can change the SQL', () => {
         expect(
             isSqlApprovalToolCall('editContent', {
@@ -88,6 +101,11 @@ describe('getSqlApprovalSql', () => {
                 patch: [{ op: 'replace', path: '/sql', value: 'select 3' }],
             }),
         ).toBe('select 3');
+        expect(
+            getSqlApprovalSql({
+                source: { type: 'sql', sql: 'select 4', limit: null },
+            }),
+        ).toBe('select 4');
     });
 
     it('labels and joins every warehouse SQL node of a composer pipeline', () => {

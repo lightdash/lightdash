@@ -186,6 +186,7 @@ export const getToolCallChipLabel = (
             if (args.source?.type === 'dashboardChart') {
                 return `${args.source.dashboardSlug}: ${args.source.chartSlug}`;
             }
+            if (args.source?.type === 'sql') return 'SQL';
             return args.source?.chartSlug ?? null;
         }
         case 'loadProjectContext': {

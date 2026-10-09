@@ -164,6 +164,7 @@ const makeAgentTools = (
             runSavedChartQuery: noop,
             updateProgress: noopAsync,
             validateContent: noop,
+            sqlQuerying: null,
         }),
         generateVisualization: getRunQuery({
             agentContext: new AgentContext([]),
