@@ -2,11 +2,17 @@ import {
     ConflictError,
     NotFoundError,
     ParameterError,
+    UnexpectedServerError,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
+import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { stripOwnedSshTunnelPrivateKey } from '../../utils/sshTunnelCredentials';
+import { SshKeyPairModel } from '../SshKeyPairModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -224,7 +230,7 @@ export class WarehouseConnectionIdentityModel {
         transaction: Knex.Transaction,
         upstreamProjectUuid: string,
         previewProjectUuid: string,
-    ): Promise<void> {
+    ): Promise<number> {
         const projects = await transaction('projects')
             .whereIn('project_uuid', [upstreamProjectUuid, previewProjectUuid])
             .select<{ project_uuid: string; organization_id: number }[]>(
@@ -239,14 +245,16 @@ export class WarehouseConnectionIdentityModel {
                 'A preview must be in the same organization as its upstream project',
             );
         }
+        return projects[0].organization_id;
     }
 
     async copyConnectionsToPreview(
         upstreamProjectUuid: string,
         previewProjectUuid: string,
+        encryptionUtil: EncryptionUtil,
     ): Promise<WarehouseConnectionMap> {
         return this.database.transaction(async (transaction) => {
-            await this.assertSameOrganization(
+            const organizationId = await this.assertSameOrganization(
                 transaction,
                 upstreamProjectUuid,
                 previewProjectUuid,
@@ -289,6 +297,40 @@ export class WarehouseConnectionIdentityModel {
             await upstreamConnections.reduce<Promise<void>>(
                 async (previous, connection) => {
                     await previous;
+                    let encryptedCredentials = connection.encrypted_credentials;
+                    if (
+                        encryptedCredentials !== null &&
+                        (connection.warehouse_type ===
+                            WarehouseTypes.POSTGRES ||
+                            connection.warehouse_type ===
+                                WarehouseTypes.REDSHIFT)
+                    ) {
+                        let credentials: CreateWarehouseCredentials;
+                        try {
+                            credentials = JSON.parse(
+                                encryptionUtil.decrypt(encryptedCredentials),
+                            ) as CreateWarehouseCredentials;
+                        } catch {
+                            throw new UnexpectedServerError(
+                                'Failed to load warehouse connection credentials',
+                            );
+                        }
+                        const organization = await transaction('organizations')
+                            .where('organization_id', organizationId)
+                            .first('organization_uuid');
+                        const stored = await stripOwnedSshTunnelPrivateKey(
+                            new SshKeyPairModel({
+                                database: transaction,
+                                encryptionUtil,
+                            }),
+                            credentials,
+                            organization?.organization_uuid ?? null,
+                        );
+                        if (stored !== credentials)
+                            encryptedCredentials = encryptionUtil.encrypt(
+                                JSON.stringify(stored),
+                            );
+                    }
                     const [copy] = await transaction(
                         WAREHOUSE_CONNECTIONS_TABLE,
                     )
@@ -297,8 +339,7 @@ export class WarehouseConnectionIdentityModel {
                             is_original: connection.is_original,
                             name: connection.name,
                             warehouse_type: connection.warehouse_type,
-                            encrypted_credentials:
-                                connection.encrypted_credentials,
+                            encrypted_credentials: encryptedCredentials,
                             organization_warehouse_credentials_uuid:
                                 connection.organization_warehouse_credentials_uuid,
                             list_all_databases: connection.list_all_databases,

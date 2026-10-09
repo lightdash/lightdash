@@ -19,6 +19,8 @@ import {
     OrganizationWarehouseCredentialsTableName,
 } from '../database/entities/organizationWarehouseCredentials';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { stripOwnedSshTunnelPrivateKey } from '../utils/sshTunnelCredentials';
+import { SshKeyPairModel } from './SshKeyPairModel';
 
 type OrganizationWarehouseCredentialsModelArguments = {
     database: Knex;
@@ -232,7 +234,14 @@ export class OrganizationWarehouseCredentialsModel {
     ): Promise<OrganizationWarehouseCredentials> {
         const encryptedCredentials = this.encryptionUtil.encrypt(
             OrganizationWarehouseCredentialsModel.stringifyCredentials(
-                data.credentials,
+                await stripOwnedSshTunnelPrivateKey(
+                    new SshKeyPairModel({
+                        database: this.database,
+                        encryptionUtil: this.encryptionUtil,
+                    }),
+                    data.credentials,
+                    organizationUuid,
+                ),
             ),
         );
 
@@ -326,7 +335,14 @@ export class OrganizationWarehouseCredentialsModel {
                 updateData.warehouse_type = data.credentials.type;
                 updateData.warehouse_connection = this.encryptionUtil.encrypt(
                     OrganizationWarehouseCredentialsModel.stringifyCredentials(
-                        data.credentials,
+                        await stripOwnedSshTunnelPrivateKey(
+                            new SshKeyPairModel({
+                                database: transaction,
+                                encryptionUtil: this.encryptionUtil,
+                            }),
+                            data.credentials,
+                            existing.organization_uuid,
+                        ),
                     ),
                 );
             }

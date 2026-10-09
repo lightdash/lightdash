@@ -122,9 +122,15 @@ resolution. SSH key resolution allocates no resources.
 ### SSH transport resolver
 
 Postgres and Redshift connections with SSH enabled use a transport resolver after
-the authentication resolver or legacy refresh. Save validation still stores a
-copy of the private key. At use time, the resolver reads the public key's pair
-and prefers its private key when it belongs to the context's organisation. If
+the authentication resolver or legacy refresh. Save validation omits the private
+key from stored credentials when the context has an organisation and that
+organisation owns the public key's pair. Immediate connection credentials can
+still carry the key. Project updates, organisation credentials, extra connections
+and preview copies use the same ownership rule. Legacy rows keep their copy when
+the pair is missing, has no owner or belongs to another organisation. No migration
+rewrites rows; old rows lose the copy on their next credential write when the rule
+holds. At use time, the resolver reads the public key's pair and prefers its
+private key when it belongs to the context's organisation. If
 that pair is absent or not owned by the organisation, it uses the copied private
 key. Without either key, resolution fails.
 

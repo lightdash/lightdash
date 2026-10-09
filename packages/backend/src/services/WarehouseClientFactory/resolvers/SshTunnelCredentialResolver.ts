@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'crypto';
 import type { SshKeyPairModel } from '../../../models/SshKeyPairModel';
+import { findOwnedSshKeyPair } from '../../../utils/sshTunnelCredentials';
 import type {
     CredentialResolution,
     CredentialResolver,
@@ -50,21 +51,23 @@ export class SshTunnelCredentialResolver implements CredentialResolver<SshTunnel
         const publicKey = connection.sshTunnelPublicKey ?? '';
         if (publicKey.trim() === '')
             throw new ParameterError(SSH_TUNNEL_KEY_MISSING_MESSAGE);
-        let privateKey = connection.sshTunnelPrivateKey ?? '';
-        if (privateKey === '') {
-            const keyPair = await this.sshKeyPairModel.find(publicKey);
-            if (
-                context.organizationUuid === null ||
-                !keyPair ||
-                keyPair.organizationUuid !== context.organizationUuid
-            ) {
-                throw new ParameterError(SSH_TUNNEL_KEY_UNKNOWN_MESSAGE);
-            }
-            privateKey = keyPair.privateKey;
-        }
+        const ownedKeyPair = await findOwnedSshKeyPair(
+            this.sshKeyPairModel,
+            publicKey,
+            context.organizationUuid,
+        );
+        const privateKey =
+            connection.sshTunnelPrivateKey || ownedKeyPair?.privateKey;
+        if (!privateKey)
+            throw new ParameterError(SSH_TUNNEL_KEY_UNKNOWN_MESSAGE);
+        const storedCredentials: SshTunnelCredentials = {
+            ...stored,
+            sshTunnelPrivateKey: privateKey,
+        };
+        if (ownedKeyPair !== null) delete storedCredentials.sshTunnelPrivateKey;
         return {
             connection: { ...connection, sshTunnelPrivateKey: privateKey },
-            stored: { ...stored, sshTunnelPrivateKey: privateKey },
+            stored: storedCredentials,
         };
     }
 
@@ -76,16 +79,11 @@ export class SshTunnelCredentialResolver implements CredentialResolver<SshTunnel
         const copiedKey = connection.sshTunnelPrivateKey ?? '';
         if (publicKey.trim() === '' && copiedKey === '')
             throw new ParameterError(SSH_TUNNEL_KEY_MISSING_MESSAGE);
-        const keyPair =
-            publicKey.trim() !== '' && context.organizationUuid !== null
-                ? await this.sshKeyPairModel.find(publicKey)
-                : null;
-        const ownedKeyPair =
-            keyPair !== null &&
-            context.organizationUuid !== null &&
-            keyPair.organizationUuid === context.organizationUuid
-                ? keyPair
-                : null;
+        const ownedKeyPair = await findOwnedSshKeyPair(
+            this.sshKeyPairModel,
+            publicKey,
+            context.organizationUuid,
+        );
         if (ownedKeyPair === null && copiedKey === '')
             throw new ParameterError(SSH_TUNNEL_KEY_UNKNOWN_MESSAGE);
         return {
