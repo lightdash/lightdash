@@ -35,7 +35,7 @@ export const FUTURE_VERSION_CHART = {
 
 /** A block tag this release doesn't know, as a newer release writes it. */
 export const FUTURE_BLOCK_TAG =
-    '<saved-chart slug="monthly-revenue" title="Live">';
+    '<data-app-embed slug="monthly-revenue" title="Live">';
 
 /**
  * Stored content as a newer release could write it: a known chart, a chart of

@@ -1786,6 +1786,7 @@ export type DocumentChartCounts = {
     customChartCount: number;
     mergeChartCount: number;
     sqlChartCount: number;
+    savedChartLinkCount: number;
     markdownLength: number;
 };
 

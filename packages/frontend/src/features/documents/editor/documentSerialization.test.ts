@@ -10,6 +10,7 @@ import { TextSelection } from '@tiptap/pm/state';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
+import { DOCUMENT_SAVED_CHART_NODE } from './documentSavedChartNode';
 import {
     getDocumentContent,
     getTopLevelInsertPosition,
@@ -540,7 +541,7 @@ describe('content from a newer release', () => {
     };
     const unsupportedTag: DocumentChartBlock = {
         type: 'unsupportedTag',
-        line: '<saved-chart slug="monthly-revenue" title="Live">',
+        line: '<data-app-embed slug="monthly-revenue" title="Live">',
     };
     const blocks = [
         markdown('Intro'),
@@ -601,6 +602,59 @@ describe('content from a newer release', () => {
         expect(
             getBlocks(editor).every((block) => block.type === 'markdown'),
         ).toBe(true);
+        editor.destroy();
+    });
+});
+
+describe('saved chart links', () => {
+    const savedChart: DocumentChartBlock = {
+        type: 'savedChart',
+        kind: 'chart',
+        attributes: {
+            uuid: 'a5632229-9bb1-4e73-9c57-553f0b5915f8',
+            title: 'Live "revenue"',
+        },
+    };
+    const savedSqlChart: DocumentChartBlock = {
+        type: 'savedChart',
+        kind: 'sqlChart',
+        attributes: { uuid: '4b993aca-ca6f-455b-a6aa-19c26e65c502' },
+    };
+    const blocks = [
+        markdown('Intro'),
+        savedChart,
+        chart('Orders'),
+        savedSqlChart,
+        markdown('Outro'),
+    ];
+
+    it('writes links back unchanged and in place', () => {
+        const editor = load(blocks);
+        expect(getBlocks(editor)).toStrictEqual(blocks);
+        expect(getDocumentContent(editor).markdown).toContain(
+            '<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8" title="Live &quot;revenue&quot;">',
+        );
+        editor.destroy();
+    });
+
+    it('drops a removed link and keeps the others', () => {
+        const editor = load(blocks);
+        const positions: number[] = [];
+        editor.state.doc.forEach((node, offset) => {
+            if (node.type.name === DOCUMENT_SAVED_CHART_NODE) {
+                positions.push(offset);
+            }
+        });
+        editor.commands.deleteRange({
+            from: positions[1],
+            to: positions[1] + 1,
+        });
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Intro'),
+            savedChart,
+            chart('Orders'),
+            markdown('Outro'),
+        ]);
         editor.destroy();
     });
 });

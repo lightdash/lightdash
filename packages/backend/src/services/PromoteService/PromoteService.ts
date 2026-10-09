@@ -8,11 +8,13 @@ import {
     DashboardTileTypes,
     ForbiddenError,
     getDeepestPaths,
+    getDocumentSavedChartLinks,
     getErrorMessage,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
     isSubPath,
     mapDocumentCharts,
+    mapDocumentSavedChartLinks,
     NotFoundError,
     ParameterError,
     PromotedChart as PromotedChangeChart,
@@ -30,6 +32,7 @@ import {
     type Document,
     type DocumentChartContent,
     type DocumentContent,
+    type DocumentSavedChartKind,
     type RegisteredAccount,
     type SpaceSummaryBase,
     type UUID,
@@ -3042,9 +3045,13 @@ export class PromoteService extends BaseService {
             projectUuid,
             missingAppUuids,
         );
-        const content = bindDataAppVizs(
-            source.version.content,
-            new Map([...bindings, ...promotedBindings]),
+        const content = await this.promoteLinkedCharts(
+            user,
+            projectUuid,
+            bindDataAppVizs(
+                source.version.content,
+                new Map([...bindings, ...promotedBindings]),
+            ),
         );
         const spaceUuid = await this.getOrCreateUpstreamSpace(
             user,
@@ -3111,6 +3118,44 @@ export class PromoteService extends BaseService {
             upstreamProjectUuid,
             upstream.documentUuid,
         );
+    }
+
+    /**
+     * Promote the saved charts a Document links to, as a dashboard promotes
+     * its charts, and point the links at the upstream copies.
+     */
+    private async promoteLinkedCharts(
+        user: SessionUser,
+        projectUuid: string,
+        content: DocumentContent,
+    ): Promise<DocumentContent> {
+        const links = getDocumentSavedChartLinks(content);
+        const promote = async (
+            kind: DocumentSavedChartKind,
+            uuid: string,
+        ): Promise<string> =>
+            kind === 'chart'
+                ? (await this.promoteChart(user, uuid)).uuid
+                : (await this.promoteSqlChart(user, projectUuid, uuid))
+                      .savedSqlUuid;
+        const upstreamUuids = new Map<string, string>();
+        // Sequential: promotions may create the same upstream Spaces
+        // eslint-disable-next-line no-restricted-syntax
+        for (const { kind, attributes } of links) {
+            const key = `${kind}:${attributes.uuid}`;
+            if (attributes.uuid && !upstreamUuids.has(key)) {
+                // eslint-disable-next-line no-await-in-loop
+                upstreamUuids.set(key, await promote(kind, attributes.uuid));
+            }
+        }
+        return mapDocumentSavedChartLinks(content, ({ kind, attributes }) => {
+            const upstreamUuid = upstreamUuids.get(
+                `${kind}:${attributes.uuid}`,
+            );
+            return upstreamUuid === undefined
+                ? attributes
+                : { ...attributes, uuid: upstreamUuid };
+        });
     }
 
     private async getDocumentPromotion(

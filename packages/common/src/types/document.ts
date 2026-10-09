@@ -211,6 +211,15 @@ export type DocumentQueryReference = {
     chartId: string;
 };
 
+/** A Document whose current version links a saved chart. */
+export type DocumentLinkingChart = Pick<
+    DocumentSummary,
+    'documentUuid' | 'name' | 'slug' | 'spaceUuid'
+>;
+export type ApiDocumentsLinkingChartResponse = ApiSuccess<
+    DocumentLinkingChart[]
+>;
+
 /** SQL charts answer with SQL results; the others with metric query results. */
 export type ApiDocumentChartQueryResponse = ApiSuccess<
     ApiExecuteAsyncMetricQueryResults | ApiExecuteAsyncSqlQueryResults

@@ -1,5 +1,7 @@
 import {
+    formatDocumentTag,
     getDocumentChartBlocks,
+    getSavedChartTagName,
     type DocumentChartContent,
     type DocumentContent,
     type DocumentExploreChartContent,
@@ -45,6 +47,14 @@ const getText = (content: DocumentContent): string[] =>
         .flatMap((block) => {
             if (block.type === 'markdown') return [block.markdown];
             if (block.type === 'unsupportedTag') return [block.line];
+            if (block.type === 'savedChart') {
+                return [
+                    formatDocumentTag({
+                        name: getSavedChartTagName(block.kind),
+                        attributes: block.attributes,
+                    }),
+                ];
+            }
             return [];
         })
         .join('\n\n')
