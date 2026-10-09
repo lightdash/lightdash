@@ -141,10 +141,8 @@ describe('AppIframePreview', () => {
         expect(sandbox).not.toContain('allow-same-origin');
     });
 
-
     // allow-forms is required so submit events reach app handlers; CSP
     // form-action 'none' prevents exfiltration
-
     it('sandboxes the iframe with allow-forms so submit handlers fire', () => {
         render(<Harness hostColorScheme="light" />);
         const sandbox =
