@@ -123,7 +123,10 @@ import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
-import { getRunContentQuery } from '../tools/runContentQuery';
+import {
+    canRunContentQuerySql,
+    getRunContentQuery,
+} from '../tools/runContentQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -2050,6 +2053,13 @@ export const getAgentTools = (
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,
     });
+    const canRunContentSql = canRunContentQuerySql({
+        canRunSql: args.canRunSql,
+        toolAllowlist:
+            args.execution.mode === 'standard'
+                ? (args.execution.toolAllowlist ?? null)
+                : null,
+    });
     const runContentQuery = getRunContentQuery({
         reviewQuery,
         updateProgress: dependencies.updateProgress,
@@ -2060,7 +2070,7 @@ export const getAgentTools = (
         maxLimit: args.maxQueryLimit,
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
-        sqlQuerying: args.canRunSql
+        sqlQuerying: canRunContentSql
             ? {
                   runSqlJob: queryDependencies.runSqlJob,
                   approval: sqlApproval,

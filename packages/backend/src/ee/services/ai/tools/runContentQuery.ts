@@ -80,6 +80,16 @@ type RowsOutcome = Extract<
     { outcome: 'rows' }
 >;
 
+/** A run pinned to a tool allowlist without runSql (data-app investigations) gets no raw SQL here either. */
+export const canRunContentQuerySql = ({
+    canRunSql,
+    toolAllowlist,
+}: {
+    canRunSql: boolean;
+    toolAllowlist: ReadonlySet<string> | null;
+}): boolean =>
+    canRunSql && (toolAllowlist === null || toolAllowlist.has('runSql'));
+
 export const CONTENT_SQL_DISABLED_RESULT =
     'Running SQL needs SQL mode, which is not enabled for this agent. Do not retry; query an explore with source.type "metricQuery" instead, or ask an admin to enable SQL mode.';
 
