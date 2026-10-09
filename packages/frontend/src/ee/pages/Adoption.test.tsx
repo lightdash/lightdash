@@ -4,12 +4,13 @@ import {
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import {
     dept,
     memberFixture,
@@ -80,16 +81,36 @@ const operationsOverlaps = (
 });
 
 const summary = vi.fn();
+const { track, remove, membershipEnabled, deleting, mutation } = vi.hoisted(
+    () => ({
+        track: vi.fn(),
+        remove: vi.fn(),
+        membershipEnabled: vi.fn(),
+        // Departments whose delete is in flight: their refetch answers 404, and the last data stays
+        deleting: new Set<string>(),
+        mutation: () => ({ mutateAsync: vi.fn(), isLoading: false }),
+    }),
+);
 vi.mock('../hooks/useOrgDepartments', () => ({
     useOrgAdoptionSummary: () => summary(),
     // Like the server: the two departments, and a 404 for any other uuid
     useDepartmentDetail: (departmentUuid: string | undefined) => {
-        const answer = (data: DepartmentDetail) => ({
-            isInitialLoading: false,
-            isError: false,
-            data,
-            error: null,
-        });
+        const answer = (data: DepartmentDetail) =>
+            departmentUuid !== undefined && deleting.has(departmentUuid)
+                ? {
+                      isInitialLoading: false,
+                      isError: true,
+                      data,
+                      error: {
+                          error: { statusCode: 404, message: 'Not found' },
+                      },
+                  }
+                : {
+                      isInitialLoading: false,
+                      isError: false,
+                      data,
+                      error: null,
+                  };
         if (departmentUuid === OPERATIONS) {
             return answer(
                 detailOf(operations, [], [stores], OPERATIONS_PEOPLE),
@@ -130,9 +151,31 @@ vi.mock('../hooks/useOrgDepartments', () => ({
                   )
                 : undefined,
     }),
-    useDepartmentMembership: () => ({ data: [], isInitialLoading: false }),
-    useSetDepartmentMembers: () => ({ mutate: vi.fn(), isLoading: false }),
+    // Like the real query: nothing until it is enabled
+    useDepartmentMembership: (enabled: boolean) => {
+        membershipEnabled(enabled);
+        return { data: enabled ? [] : undefined, isInitialLoading: false };
+    },
+    useCreateDepartment: mutation,
+    useUpdateDepartment: mutation,
+    useDeleteDepartment: () => ({ mutateAsync: remove, isLoading: false }),
+    useSetDepartmentOwners: mutation,
+    useSetDepartmentGroups: mutation,
+    useSetDepartmentMembers: () => ({
+        mutate: vi.fn(),
+        mutateAsync: vi.fn(),
+        isLoading: false,
+    }),
     useSetPrimaryDepartment: () => ({ mutate: vi.fn(), isLoading: false }),
+}));
+vi.mock('../../hooks/useOrganizationUsers', () => ({
+    useOrganizationUsers: () => ({ data: [] }),
+}));
+vi.mock('../../hooks/useOrganizationGroups', () => ({
+    useOrganizationGroups: () => ({ data: [] }),
+}));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
 }));
 // ECharts needs a real layout engine
 vi.mock('../../components/EChartsReactWrapper', () => ({
@@ -240,6 +283,10 @@ describe('Adoption', () => {
         summary.mockReset();
         mapSelection.mockReset();
         mapPerson.mockReset();
+        track.mockReset();
+        remove.mockReset();
+        membershipEnabled.mockReset();
+        deleting.clear();
     });
     afterEach(() => {
         window.localStorage.clear();
@@ -641,6 +688,173 @@ describe('Adoption', () => {
             ).toBeNull();
             expect(screen.getByText('sam@example.com')).toBeInTheDocument();
         });
+
+        it('writes the view it was selected in beside the department, and keeps the view when deselected', async () => {
+            // Nothing in the link names a view; the waffle is the one this person last chose
+            window.localStorage.setItem(
+                'lightdash-adoption-view:b264d83a-9000-426a-85ec-3f9c20f368ce',
+                'waffle',
+            );
+            window.localStorage.setItem(
+                'lightdash-adoption-view:anonymous',
+                'waffle',
+            );
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption',
+            );
+            await userEvent.click(
+                await screen.findByRole('button', { name: /^Operations,/ }),
+            );
+            expect(location()).toHaveTextContent(
+                `/generalSettings/adoption?department=${OPERATIONS}&view=waffle`,
+            );
+            await userEvent.keyboard('{Escape}');
+            expect(location()).toHaveTextContent(
+                /^\/generalSettings\/adoption\?view=waffle$/,
+            );
+        });
+
+        it('gives a link that names a department but no view the view it opens in', () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?department=${OPERATIONS}`,
+            );
+            expect(location()).toHaveTextContent(
+                `/generalSettings/adoption?department=${OPERATIONS}&view=map`,
+            );
+        });
+
+        it('sends one event for each department selected, with the view it was selected in', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=waffle',
+            );
+            expect(track).not.toHaveBeenCalled();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            );
+            expect(track).toHaveBeenCalledExactlyOnceWith({
+                name: EventName.ADOPTION_DEPARTMENT_SELECTED,
+                properties: { departmentUuid: OPERATIONS, view: 'waffle' },
+            });
+            // Another view of the same department sends nothing; another department sends one more
+            await userEvent.click(screen.getByRole('radio', { name: 'List' }));
+            expect(track).toHaveBeenCalledOnce();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Stores/ }),
+            );
+            expect(track).toHaveBeenCalledTimes(2);
+            expect(track).toHaveBeenLastCalledWith({
+                name: EventName.ADOPTION_DEPARTMENT_SELECTED,
+                properties: { departmentUuid: STORES, view: 'list' },
+            });
+            // Deselecting sends nothing, and selecting it again sends one more
+            await userEvent.keyboard('{Escape}');
+            expect(track).toHaveBeenCalledTimes(2);
+            await userEvent.click(
+                screen.getByRole('link', { name: 'Operations' }),
+            );
+            expect(track).toHaveBeenCalledTimes(3);
+        });
+
+        it('sends the event once for a department the page opens on', () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?view=map&department=${OPERATIONS}`,
+            );
+            expect(track).toHaveBeenCalledExactlyOnceWith({
+                name: EventName.ADOPTION_DEPARTMENT_SELECTED,
+                properties: { departmentUuid: OPERATIONS, view: 'map' },
+            });
+        });
+
+        it("hands the department's people to Edit department, so the drawer lists them without loading everyone", async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                MANAGER,
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
+            );
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Edit department' }),
+            );
+            const drawer = await screen.findByRole('dialog', {
+                name: 'Edit Operations',
+            });
+            expect(
+                within(drawer).getByText('2 people in this department'),
+            ).toBeInTheDocument();
+            expect(within(drawer).getByText('sam L')).toBeInTheDocument();
+            expect(within(drawer).getByText('sue L')).toBeInTheDocument();
+            expect(membershipEnabled).toHaveBeenCalled();
+            expect(membershipEnabled).not.toHaveBeenCalledWith(true);
+        });
+
+        it('loads everyone for a department edited from the list with none selected', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                MANAGER,
+                '/generalSettings/adoption?view=list',
+            );
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Edit Operations' }),
+            );
+            await screen.findByRole('dialog', { name: 'Edit Operations' });
+            expect(membershipEnabled).toHaveBeenCalledWith(true);
+        });
+
+        it('keeps the department shown while its delete is in flight, and deselects it once deleted', async () => {
+            let finishDelete = (_: null) => {};
+            remove.mockImplementation(
+                () =>
+                    new Promise<null>((resolve) => {
+                        finishDelete = resolve;
+                    }),
+            );
+            renderPage(
+                organizationSummary(12, 6),
+                MANAGER,
+                `/generalSettings/adoption?view=waffle&department=${OPERATIONS}`,
+            );
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Edit department' }),
+            );
+            const drawer = await screen.findByRole('dialog', {
+                name: 'Edit Operations',
+            });
+            await userEvent.click(
+                within(drawer).getByRole('button', {
+                    name: 'Delete department',
+                }),
+            );
+            // While the delete is in flight the department answers 404, which the page does not show
+            deleting.add(OPERATIONS);
+            await userEvent.click(
+                within(
+                    await screen.findByRole('dialog', {
+                        name: 'Delete Operations',
+                    }),
+                ).getByRole('button', { name: 'Delete department' }),
+            );
+            expect(remove).toHaveBeenCalledWith(OPERATIONS);
+            expect(
+                screen.getByRole('heading', { name: 'Operations' }),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('Department not found')).toBeNull();
+            await act(async () => finishDelete(null));
+            expect(location()).toHaveTextContent(
+                /^\/generalSettings\/adoption\?view=waffle$/,
+            );
+            expect(
+                screen.queryByRole('navigation', {
+                    name: 'Selected department',
+                }),
+            ).toBeNull();
+        });
     });
 
     it("redirects the department page's old link to the department selected on this page", () => {
@@ -667,8 +881,9 @@ describe('Adoption', () => {
                 <Location />
             </MemoryRouter>,
         );
+        // The view it opens in is added to the link
         expect(location()).toHaveTextContent(
-            `/generalSettings/adoption?department=${OPERATIONS}`,
+            `/generalSettings/adoption?department=${OPERATIONS}&view=map`,
         );
         expect(
             screen.getByRole('heading', { name: 'Operations' }),

@@ -678,7 +678,7 @@ describe('DepartmentForm', { timeout: 20_000 }, () => {
             ]);
         });
 
-        it('on the department page, reads chips from its people and loads everyone only once the picker opens', async () => {
+        it('for the selected department, reads chips from its people and loads everyone only once the picker opens', async () => {
             membership = [
                 placedIn('u1', 'Ann', ['Finance', 'Ops']),
                 placedIn('u2', 'Bob', ['Finance']),
@@ -716,7 +716,7 @@ describe('DepartmentForm', { timeout: 20_000 }, () => {
             ]);
         });
 
-        it('on the department page, loads everyone at once when an assigned person counts elsewhere', () => {
+        it('for the selected department, loads everyone at once when an assigned person counts elsewhere', () => {
             // Bob is assigned here but counts in Finance, so the page's people leave him out
             membership = [
                 placedIn('u1', 'Ann', ['Ops']),
@@ -804,7 +804,7 @@ describe('DepartmentForm', { timeout: 20_000 }, () => {
             membership = [];
         });
 
-        it('uses the people the department page already loaded instead of fetching everyone', () => {
+        it('uses the people the selected department already loaded instead of fetching everyone', () => {
             const loaded = Array.from({ length: 60 }, (_, index) =>
                 memberFixture(`m${index}`, null, {
                     firstName: `Member${index}`,

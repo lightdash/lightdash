@@ -16,6 +16,8 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { AdoptionEmptyState } from '../features/adoption/components/AdoptionEmptyState';
 import { AttentionStrip } from '../features/adoption/components/AttentionStrip';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
@@ -134,16 +136,49 @@ const Adoption: FC = () => {
             { replace: true },
         );
     };
-    // Each selection is a step in the browser's history, as opening a department page was
+    // Each selection is a step in the browser's history, as opening a department page was. It names the view too, so
+    // a link to it opens in the same view; deselecting keeps the view
     const select = useCallback(
         (departmentUuid: string | null) => {
             if (departmentUuid === selectedUuid) return;
-            setSearchParams((previous) =>
-                withSelectedDepartment(previous, departmentUuid),
-            );
+            setSearchParams((previous) => {
+                const next = withSelectedDepartment(previous, departmentUuid);
+                if (departmentUuid !== null) next.set(VIEW_PARAM, view);
+                return next;
+            });
         },
-        [selectedUuid, setSearchParams],
+        [selectedUuid, setSearchParams, view],
     );
+    // A link that names a department but no view, such as the old route's or one followed from the list, gets the
+    // view it opens in
+    useEffect(() => {
+        if (selectedUuid === null || searchParams.get(VIEW_PARAM) !== null) {
+            return;
+        }
+        setSearchParams(
+            (previous) => {
+                const next = new URLSearchParams(previous);
+                next.set(VIEW_PARAM, view);
+                return next;
+            },
+            { replace: true },
+        );
+    }, [selectedUuid, searchParams, view, setSearchParams]);
+    // One event for each department selected, where the department page's page view used to be sent
+    const { track } = useTracking();
+    const trackedSelectionRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (selectedUuid === null) {
+            trackedSelectionRef.current = null;
+            return;
+        }
+        if (trackedSelectionRef.current === selectedUuid) return;
+        trackedSelectionRef.current = selectedUuid;
+        track({
+            name: EventName.ADOPTION_DEPARTMENT_SELECTED,
+            properties: { departmentUuid: selectedUuid, view },
+        });
+    }, [selectedUuid, view, track]);
     const openCreate = useCallback(
         () => setDrawer({ opened: true, departmentUuid: null }),
         [],

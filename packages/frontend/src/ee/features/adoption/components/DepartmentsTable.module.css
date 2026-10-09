@@ -17,3 +17,13 @@
     text-underline-offset: 3px;
     width: fit-content;
 }
+
+/* In a strip over the selected department the table scrolls within the strip's height, under its header */
+.container {
+    max-height: var(--adoption-view-height, none);
+}
+
+/* The row of the department selected on the page, or of its nearest ancestor shown */
+.markedRow > td {
+    background-color: var(--mantine-primary-color-light);
+}

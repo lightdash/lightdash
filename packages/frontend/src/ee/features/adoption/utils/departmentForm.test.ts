@@ -169,7 +169,7 @@ describe('getResolvedMembers', () => {
             'countsElsewhere',
         ]);
     });
-    it('comes through the first of their sub-departments, as the department page does', () => {
+    it('comes through the first of their sub-departments, as the selected department does', () => {
         expect(lines('ops', [member('both', ['depots', 'stores'])])).toEqual([
             ['both', 'Depots'],
         ]);
@@ -240,7 +240,7 @@ describe('placements for also in', () => {
             { userUuid: 'nobody', departmentUuids: [] },
         ]);
     });
-    it("reads a department page's people from where they count and who they are shared with", () => {
+    it("reads the selected department's people from where they count and who they are shared with", () => {
         expect(
             placementsFromDetail([
                 memberFixture('shared', null, {

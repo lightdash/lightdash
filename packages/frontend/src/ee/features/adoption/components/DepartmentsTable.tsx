@@ -420,16 +420,14 @@ export const DepartmentsTable: FC<Props> = ({
         mantineTableProps: { highlightOnHover: true },
         mantineTableContainerProps: {
             ref: containerRef,
-            style: { maxHeight: 'var(--adoption-view-height, none)' },
+            className: styles.container,
         },
         mantineTableBodyRowProps: ({ row }) =>
             row.original.department.departmentUuid === markedUuid
                 ? {
                       'data-selected': true,
                       'aria-current': 'true',
-                      style: {
-                          backgroundColor: 'var(--mantine-primary-color-light)',
-                      },
+                      className: styles.markedRow,
                   }
                 : {},
         state: { columnVisibility: { roles: showRoleSplit } },

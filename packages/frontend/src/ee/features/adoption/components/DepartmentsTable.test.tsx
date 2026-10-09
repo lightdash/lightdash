@@ -101,6 +101,7 @@ describe('DepartmentsTable', () => {
         const row = (name: string) =>
             screen.getByRole('link', { name }).closest('tr');
         expect(row('Stores')).toHaveAttribute('aria-current', 'true');
+        expect(row('Stores')).toHaveClass(styles.markedRow);
         expect(
             screen.getByRole('button', { name: 'Collapse Ops' }),
         ).toHaveAttribute('aria-expanded', 'true');
@@ -130,9 +131,8 @@ describe('DepartmentsTable', () => {
     });
     it('scrolls within the height a strip gives it, and is as tall as it needs otherwise', () => {
         renderTable();
-        const container = screen.getByRole('table').parentElement;
-        expect(container?.style.maxHeight).toBe(
-            'var(--adoption-view-height, none)',
+        expect(screen.getByRole('table').parentElement).toHaveClass(
+            styles.container,
         );
     });
     it('reveals children when a parent is expanded, with state on the button', async () => {
