@@ -234,32 +234,26 @@ describe('AI Agent Document authoring', () => {
         expect(createContent).not.toHaveBeenCalled();
     });
 
-    test.each([{ slug: 'findings' }, { documentUuid }])(
-        'reads a Document using %j',
-        async (identifier) => {
-            const readContent = vi.fn().mockResolvedValue(document);
-            const tool = getReadContent({
-                readContent,
-                documentsEnabled: true,
-            });
-            if (!tool.execute) {
-                throw new Error('Missing executor');
-            }
-            const result = await tool.execute(
-                { type: 'document', ...identifier },
-                options,
-            );
-            expect(readContent).toHaveBeenCalledWith({
-                type: 'document',
-                ...identifier,
-                chartId: null,
-            });
-            expect(result).toHaveProperty(
-                'result',
-                expect.stringContaining(versionUuid),
-            );
-        },
-    );
+    test('reads a Document by slug', async () => {
+        const readContent = vi.fn().mockResolvedValue(document);
+        const tool = getReadContent({ readContent, documentsEnabled: true });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        const result = await tool.execute(
+            { type: 'document', slug: 'findings' },
+            options,
+        );
+        expect(readContent).toHaveBeenCalledWith({
+            type: 'document',
+            slug: 'findings',
+            chartId: null,
+        });
+        expect(result).toHaveProperty(
+            'result',
+            expect.stringContaining(versionUuid),
+        );
+    });
 
     test('rejects disabled reads even when called directly', async () => {
         const readContent = vi.fn();
@@ -268,7 +262,7 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         expect(
-            await tool.execute({ type: 'document', documentUuid }, options),
+            await tool.execute({ type: 'document', slug: 'findings' }, options),
         ).toMatchObject({ metadata: { status: 'error' } });
         expect(readContent).not.toHaveBeenCalled();
     });
@@ -339,21 +333,6 @@ describe('AI Agent Document authoring', () => {
             result: expect.stringContaining('Document has changed'),
         });
         expect(editContent).toHaveBeenCalledOnce();
-    });
-
-    test('rejects ambiguous Document identifiers', async () => {
-        const readContent = vi.fn();
-        const tool = getReadContent({ readContent, documentsEnabled: true });
-        if (!tool.execute) {
-            throw new Error('Missing executor');
-        }
-        expect(
-            await tool.execute(
-                { type: 'document', slug: 'findings', documentUuid },
-                options,
-            ),
-        ).toMatchObject({ metadata: { status: 'error' } });
-        expect(readContent).not.toHaveBeenCalled();
     });
 
     test('passes full replacement and base version to the shared edit path', async () => {

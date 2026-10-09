@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getDocumentUrl,
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
@@ -251,7 +252,11 @@ export const PinnedContextCard: FC<Props> = ({
                 <ContentReferenceLink
                     kind="document"
                     rel="noreferrer"
-                    to={`/projects/${projectUuid}/documents/${item.documentUuid}`}
+                    to={getDocumentUrl(
+                        projectUuid,
+                        item.documentUuid,
+                        item.documentSlug ?? undefined,
+                    )}
                     target="_blank"
                 >
                     {item.displayName ?? item.documentSlug ?? 'Document'}

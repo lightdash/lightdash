@@ -26,10 +26,8 @@ type ContentReadKey = {
 const toContentReadKey = (input: unknown): ContentReadKey | null => {
     const parsed = mcpReadContentArgsSchema.safeParse(input);
     if (!parsed.success) return null;
-    const { type, slug, documentUuid, chartId } = parsed.data;
-    const item = slug ?? documentUuid;
-    if (item == null) return null;
-    return { type, item: chartId ? `${item}#${chartId}` : item };
+    const { type, slug, chartId } = parsed.data;
+    return { type, item: chartId ? `${slug}#${chartId}` : slug };
 };
 
 const serializeKey = ({ type, item }: ContentReadKey) => `${type}:${item}`;

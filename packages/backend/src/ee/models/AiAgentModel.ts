@@ -7488,22 +7488,29 @@ export class AiAgentModel {
         await trx(AiPromptContextTableName).insert(rows);
     }
 
-    /** The Document most recently pinned to any prompt in the thread. */
-    async findThreadDocumentUuid(threadUuid: string): Promise<string | null> {
+    /** Slug of the Document most recently pinned in the thread, or null if none or deleted. */
+    async findThreadDocumentSlug(threadUuid: string): Promise<string | null> {
         const row = await this.database(AiPromptContextTableName)
             .join(
                 AiPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiPromptContextTableName}.ai_prompt_uuid`,
             )
+            .leftJoin(DocumentsTableName, (join) => {
+                join.on(
+                    `${DocumentsTableName}.document_uuid`,
+                    '=',
+                    `${AiPromptContextTableName}.entity_uuid`,
+                ).andOnNull(`${DocumentsTableName}.deleted_at`);
+            })
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(`${AiPromptContextTableName}.entity_type`, 'document')
             .whereNotNull(`${AiPromptContextTableName}.entity_uuid`)
             .orderBy(`${AiPromptContextTableName}.created_at`, 'desc')
-            .first<Pick<DbAiPromptContext, 'entity_uuid'> | undefined>(
-                `${AiPromptContextTableName}.entity_uuid`,
+            .first<{ slug: string | null } | undefined>(
+                `${DocumentsTableName}.slug`,
             );
-        return row?.entity_uuid ?? null;
+        return row?.slug ?? null;
     }
 
     async getContextForPromptUuids(
