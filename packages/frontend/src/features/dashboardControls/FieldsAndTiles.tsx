@@ -37,6 +37,8 @@ import {
     getFieldScope,
     getFilterFields,
     getTileField,
+    getTilesOnTab,
+    isSqlColumnRow,
     removeField,
     removeFieldFromAll,
     setTileField,
@@ -72,7 +74,9 @@ const getRuleFieldTarget = (
     return (
         Object.values(rule.tileTargets ?? {})
             .filter(isDashboardFieldTarget)
-            .find((target) => target.fieldId === fieldId) ?? null
+            .find(
+                (target) => !target.isSqlColumn && target.fieldId === fieldId,
+            ) ?? null
     );
 };
 
@@ -88,19 +92,17 @@ const getSqlColumnTiles = (
     );
 
 // A SQL column is offered by the SQL chart tiles that have it, never by a
-// tile's fields
+// tile's fields. `columnTiles` is that set (`getSqlColumnTiles`): the row
+// counts and acts on it alone, so a tile whose columns are not loaded is left
+// as it is
 const getSqlColumnScope = (
     rule: DashboardFilterRule,
     reference: string,
-    tiles: DashboardTile[],
+    columnTiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile,
 ): FieldScope => {
-    const columnsOnTiles = getSqlColumnTiles(
-        reference,
-        tiles,
-        sqlColumnsByTile,
-    ).map(
+    const columnsOnTiles = columnTiles.map(
         (tile) =>
             getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
             null,
@@ -113,7 +115,7 @@ const getSqlColumnScope = (
         applied: getFieldCount(
             rule,
             reference,
-            tiles,
+            columnTiles,
             fieldsByTile,
             sqlColumnsByTile,
         ).applied,
@@ -126,11 +128,11 @@ const getSqlColumnScope = (
 const applySqlColumnToAll = (
     rule: DashboardFilterRule,
     reference: string,
-    tiles: DashboardTile[],
+    columnTiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile,
 ): DashboardFilterRule =>
-    getSqlColumnTiles(reference, tiles, sqlColumnsByTile).reduce(
+    columnTiles.reduce(
         (next, tile) =>
             setTileField(
                 next,
@@ -227,6 +229,7 @@ export const FieldsAndTiles: FC = () => {
     const [tileScopeChoice, setTileScopeChoice] =
         useState<TileScope>('this-tab');
     const addButtonRef = useRef<HTMLButtonElement>(null);
+    const wasAddingOnPress = useRef(false);
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
     // Without two tabs there is no scope to choose: every tile is in
@@ -234,11 +237,14 @@ export const FieldsAndTiles: FC = () => {
     const tileScope = scopeTabUuid === undefined ? null : tileScopeChoice;
     const scopedTiles = useMemo(
         () =>
-            tileScope === 'this-tab'
-                ? tiles.filter((tile) => tile.tabUuid === scopeTabUuid)
+            tileScope === 'this-tab' && scopeTabUuid !== undefined
+                ? getTilesOnTab(tiles, dashboardTabs, scopeTabUuid)
                 : tiles,
-        [tiles, tileScope, scopeTabUuid],
+        [tiles, dashboardTabs, tileScope, scopeTabUuid],
     );
+    // While undefined, what a tile offers is unknown and no field row acts. A
+    // SQL column row goes by the tiles' columns, which it only lists loaded
+    const areTileFieldsLoaded = filterableFieldsByTileUuid !== undefined;
     const availableTileFilters = filterableFieldsByTileUuid ?? NO_TILE_FIELDS;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
@@ -265,8 +271,11 @@ export const FieldsAndTiles: FC = () => {
     }, [availableTileFilters]);
 
     const fieldIds = useMemo(
-        () => (editingRule === null ? [] : getFilterFields(editingRule)),
-        [editingRule],
+        () =>
+            editingRule === null
+                ? []
+                : getFilterFields(editingRule, dashboardTiles),
+        [editingRule, dashboardTiles],
     );
 
     const targetField = useFilterRuleField(editingRule);
@@ -341,12 +350,8 @@ export const FieldsAndTiles: FC = () => {
         );
     }
 
-    const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
-    const isSqlColumnRow = (fieldId: string) =>
-        isSqlColumnFilter && fieldId === editingRule.target.fieldId;
-
     const getField = (fieldId: string): DashboardFilterableField | null =>
-        isSqlColumnRow(fieldId)
+        isSqlColumnRow(editingRule, fieldId)
             ? null
             : toDashboardFilterableField(fieldsMap[fieldId]);
 
@@ -382,19 +387,29 @@ export const FieldsAndTiles: FC = () => {
                 )}
                 {rowIds.map((fieldId) => {
                     const field = getField(fieldId);
-                    const isSqlColumn = isSqlColumnRow(fieldId);
+                    const isSqlColumn = isSqlColumnRow(editingRule, fieldId);
                     const isWaiting = waitingFieldIds.includes(fieldId);
-                    const target =
-                        getRuleFieldTarget(editingRule, fieldId) ??
-                        (field === null
-                            ? null
-                            : { fieldId, tableName: field.table });
+                    const target = isSqlColumn
+                        ? null
+                        : (getRuleFieldTarget(editingRule, fieldId) ??
+                          (field === null
+                              ? null
+                              : { fieldId, tableName: field.table }));
+                    const canAct = isSqlColumn || areTileFieldsLoaded;
+                    // One set of tiles for the count and for every action
+                    const rowTiles = isSqlColumn
+                        ? getSqlColumnTiles(
+                              fieldId,
+                              scopedTiles,
+                              sqlColumnsByTile,
+                          )
+                        : scopedTiles;
                     const scope = (
                         isSqlColumn ? getSqlColumnScope : getFieldScope
                     )(
                         editingRule,
                         fieldId,
-                        scopedTiles,
+                        rowTiles,
                         filterableFieldsByTileUuid,
                         sqlColumnsByTile,
                     );
@@ -431,13 +446,15 @@ export const FieldsAndTiles: FC = () => {
                                 else if (hoveredFieldId === fieldId)
                                     setHoveredFieldId(null);
                             }}
+                            areActionsDisabled={!canAct}
                             onAddToUnfiltered={() => {
+                                if (!canAct) return;
                                 if (isSqlColumn) {
                                     updateFilter(
                                         applySqlColumnToAll(
                                             editingRule,
                                             fieldId,
-                                            scopedTiles.filter(
+                                            rowTiles.filter(
                                                 (tile) =>
                                                     getTileField(
                                                         editingRule,
@@ -464,12 +481,13 @@ export const FieldsAndTiles: FC = () => {
                                 );
                             }}
                             onAll={() => {
+                                if (!canAct) return;
                                 if (isSqlColumn) {
                                     updateFilter(
                                         applySqlColumnToAll(
                                             editingRule,
                                             fieldId,
-                                            scopedTiles,
+                                            rowTiles,
                                             filterableFieldsByTileUuid,
                                             sqlColumnsByTile,
                                         ),
@@ -487,15 +505,19 @@ export const FieldsAndTiles: FC = () => {
                                 );
                             }}
                             onClear={() => {
-                                const next = removeFieldFromAll(
-                                    editingRule,
-                                    fieldId,
-                                    scopedTiles,
-                                    filterableFieldsByTileUuid,
+                                if (!canAct) return;
+                                updateFilter(
+                                    removeFieldFromAll(
+                                        editingRule,
+                                        fieldId,
+                                        rowTiles,
+                                        filterableFieldsByTileUuid,
+                                        sqlColumnsByTile,
+                                    ),
                                 );
-                                updateFilter(next);
                             }}
                             onRemove={() => {
+                                if (!canAct) return;
                                 clearHighlight(fieldId);
                                 if (isWaiting) {
                                     removeWaitingField(fieldId);
@@ -534,8 +556,20 @@ export const FieldsAndTiles: FC = () => {
                         variant="light"
                         size="xs"
                         leftSection={<MantineIcon icon={IconPlus} />}
+                        // The press already puts the open search away (focus
+                        // leaves it), so the click that follows must not
+                        // open it again
+                        onMouseDown={() => {
+                            wasAddingOnPress.current = isAdding;
+                        }}
+                        onMouseLeave={() => {
+                            wasAddingOnPress.current = false;
+                        }}
                         onClick={() => {
-                            if (hasCandidates) setIsAdding((open) => !open);
+                            const wasAdding =
+                                isAdding || wasAddingOnPress.current;
+                            wasAddingOnPress.current = false;
+                            if (hasCandidates) setIsAdding(!wasAdding);
                         }}
                         aria-expanded={isAdding && hasCandidates}
                         data-disabled={!hasCandidates || undefined}
@@ -568,7 +602,11 @@ export const FieldsAndTiles: FC = () => {
                             // Every tile it fits already has a field: it
                             // waits, and the tile cards offer the switch
                             // and with no tile to show, it is not clicked
-                            if (getFilterFields(next).includes(fieldId))
+                            if (
+                                getFilterFields(next, dashboardTiles).includes(
+                                    fieldId,
+                                )
+                            )
                                 setHighlightedFieldId(fieldId);
                             else addWaitingField(fieldId);
                             setIsAdding(false);

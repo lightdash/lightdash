@@ -12,9 +12,9 @@ const isInViewport = (element: Element): boolean => {
 };
 
 // When a row is clicked, the first tile on its field scrolls into view if none
-// of them is visible. Hover never scrolls, and neither do the marks tiles carry
-// while no row is clicked: the list passes the clicked field only then, and
-// only to the tiles on it. A field on no tile scrolls nothing.
+// of them is visible. Only the click scrolls: the list passes the clicked
+// field to the tiles on it whatever is hovered, so hovering another row and
+// leaving it changes nothing here. A field on no tile scrolls nothing.
 export const useScrollToHighlightedTile = (
     ref: RefObject<HTMLElement | null>,
     highlightedFieldId: string | null,

@@ -2,9 +2,11 @@ import { Badge, Tooltip } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getTabCounts, getTabCountsForField } from './peers';
+import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
+import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
 import classes from './TabCounts.module.css';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
+import { toDashboardFilterableField } from './useFilterRuleField';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -13,13 +15,16 @@ const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
 export const TabCounts: FC = () => {
-    const { editingRule, isPlaceholder, activeFieldId } = useControlsSidebar();
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
-    const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
+    // Dimensions and metrics: a filter can be on either
+    const fieldsMap = useFilterableItemsMap();
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
     const tabUuids = useMemo(
@@ -64,14 +69,16 @@ export const TabCounts: FC = () => {
         sqlColumnsByTile,
     ]);
 
-    const getFilterSubject = (): string => {
-        if (activeFieldId === null) return 'this filter';
-        const activeField = fieldsMap[activeFieldId];
-        return activeField ? activeField.label : activeFieldId;
-    };
-    const reach = `use ${getFilterSubject()}`;
-
     if (!isEnabled) return null;
+
+    // A SQL column goes by its own name, never by a field's
+    const filterSubject =
+        activeFieldId === null
+            ? 'this filter'
+            : isSqlColumnRow(editingRule, activeFieldId)
+              ? activeFieldId
+              : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
+                activeFieldId);
 
     return (
         <>
@@ -85,7 +92,11 @@ export const TabCounts: FC = () => {
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} tiles on this tab ${reach}`}
+                        label={
+                            count.total === 1
+                                ? `${count.applied} of 1 tile on this tab uses ${filterSubject}`
+                                : `${count.applied} of ${count.total} tiles on this tab use ${filterSubject}`
+                        }
                     >
                         <Badge
                             size="xs"

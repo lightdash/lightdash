@@ -180,6 +180,10 @@ describe('TileOverlays', () => {
         );
         mockDashboardContext.current = {
             dashboardTiles: [both, statusOnly, markdown, otherTab],
+            dashboardTabs: [
+                { uuid: 'tab-1', name: 'One', order: 0 },
+                { uuid: 'tab-2', name: 'Two', order: 1 },
+            ],
             activeTab: { uuid: 'tab-1', name: 'One', order: 0 },
             allFilterableFieldsMap: {
                 orders_status: statusField,
@@ -1381,6 +1385,122 @@ describe('TileOverlays', () => {
         renderWithProviders(<TileOverlays />);
         expect(scrollIntoView).toHaveBeenCalledTimes(1);
         expect(scrollIntoView.mock.instances[0]).toBe(overlay(both.uuid));
+    });
+
+    it('does not scroll again when another row is hovered and left', () => {
+        const scrollIntoView = vi.fn();
+        Element.prototype.scrollIntoView = scrollIntoView;
+
+        const clicked = {
+            activeFieldId: 'orders_status',
+            highlightedFieldId: 'orders_status',
+        };
+        setSidebar(clicked);
+        const { rerender } = renderWithProviders(<TileOverlays />);
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+
+        // Hovering, or tabbing past, the Region row
+        setSidebar({ ...clicked, activeFieldId: 'orders_region' });
+        rerender(<TileOverlays />);
+        // And leaving it: Status is the active field again
+        setSidebar(clicked);
+        rerender(<TileOverlays />);
+
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    });
+
+    describe('a SQL column that reads like a field id', () => {
+        const onColumn = {
+            fieldId: 'orders_status',
+            tableName: 'mock_table',
+            isSqlColumn: true,
+        };
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [sql, statusOnly],
+            };
+            mockTileStatusContext.current = {
+                sqlChartTilesMetadata: {
+                    [sql.uuid]: {
+                        columns: [
+                            {
+                                reference: 'orders_status',
+                                type: DimensionType.STRING,
+                            },
+                        ],
+                    },
+                },
+            };
+        });
+
+        it('is not on the field of that id: the tile is "other", and is no scroll target', () => {
+            const scrollIntoView = vi.fn();
+            Element.prototype.scrollIntoView = scrollIntoView;
+            setSidebar({
+                editingRule: rule({ tileTargets: { [sql.uuid]: onColumn } }),
+                activeFieldId: 'orders_status',
+                highlightedFieldId: 'orders_status',
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(overlay(sql.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'other',
+            );
+            expect(overlay(statusOnly.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'mapped',
+            );
+            expect(scrollIntoView.mock.instances).toEqual([
+                overlay(statusOnly.uuid),
+            ]);
+        });
+
+        it('names a SQL column filter by its column, and offers a chart tile no field for it', () => {
+            setSidebar({
+                editingRule: rule({
+                    target: onColumn,
+                    tileTargets: { [sql.uuid]: onColumn },
+                }),
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(
+                card(sql.uuid).getByLabelText(
+                    'orders_status on Title tile-sql',
+                ),
+            ).toBeInTheDocument();
+            // The chart tile offers a field called orders_status, which is
+            // not this column
+            expect(
+                card(statusOnly.uuid).queryByLabelText(/ on Title /),
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    it('lists a tile with a missing or stale tab on the first tab, as the grid draws it', () => {
+        const noTab = { ...tile('tile-both', 'tab-1'), tabUuid: undefined };
+        const staleTab = tile('tile-status', 'tab-deleted');
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardTiles: [noTab, staleTab, otherTab],
+        };
+        const { unmount } = renderWithProviders(<TileOverlays />);
+        expect(overlay(both.uuid)).not.toBeNull();
+        expect(overlay(statusOnly.uuid)).not.toBeNull();
+        expect(overlay(otherTab.uuid)).toBeNull();
+        unmount();
+
+        // Not on the second tab too
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            activeTab: { uuid: 'tab-2', name: 'Two', order: 1 },
+        };
+        renderWithProviders(<TileOverlays />);
+        expect(overlay(both.uuid)).toBeNull();
+        expect(overlay(statusOnly.uuid)).toBeNull();
+        expect(overlay(otherTab.uuid)).not.toBeNull();
     });
 
     it('never scrolls while no field is clicked, though the tiles are marked', () => {

@@ -11,6 +11,7 @@ import {
     type Metric,
     type ResultColumn,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -171,9 +172,9 @@ const Editor = () => {
         close,
     });
     return (
-        <div data-controls-editor>
+        <Box data-controls-editor>
             <FieldsAndTiles />
-        </div>
+        </Box>
     );
 };
 
@@ -543,6 +544,23 @@ describe('FieldsAndTiles', () => {
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
+        it('counts and clears the same tiles, leaving one whose columns are not loaded', async () => {
+            // sql-2 is on the column, and its columns have not arrived
+            mockSqlColumnsByTile.current = {
+                'sql-1': [{ reference: 'country', type: 'string' }],
+                'sql-2': [],
+            };
+            setSidebar(sqlRule({ 'sql-1': COUNTRY, 'sql-2': COUNTRY }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            expect(screen.getByText('SQL column · 1 of 1 tile')).toBeVisible();
+
+            openRowMenu('country');
+            fireEvent.click(await screen.findByText('Clear from tiles'));
+            // Nothing here could put sql-2 back, so it keeps its column
+            expect(getUpdatedRule().tileTargets).toEqual({ 'sql-2': COUNTRY });
+        });
+
         it('has no other field to add', () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
@@ -816,6 +834,29 @@ describe('FieldsAndTiles', () => {
                 screen.getByRole('radio', { name: 'Every tab' }),
             ).toBeChecked();
             expect(screen.getByText('Orders · 3 of 3 tiles')).toBeVisible();
+        });
+
+        it('counts a tile with a missing or stale tab on the first tab, as the grid draws it', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    { ...tile('tile-1'), tabUuid: 'tab-1' },
+                    { ...tile('tile-2'), tabUuid: 'tab-deleted' },
+                    { ...tile('tile-3'), tabUuid: undefined },
+                ],
+            };
+            setSidebar(rule('orders_status'));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+            expect(screen.getByText('Orders · 3 of 3 tiles')).toBeVisible();
+
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: TAB_2,
+            };
+            rerender(<FieldsAndTiles />);
+            expect(
+                screen.getByText('Orders · no tiles on this tab'),
+            ).toBeVisible();
         });
 
         it('says so when no tile on this tab offers the field', () => {
@@ -1220,6 +1261,85 @@ describe('FieldsAndTiles', () => {
                 ),
             ).toBeInTheDocument();
         });
+    });
+
+    describe('while the tile fields are not loaded', () => {
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: undefined,
+            };
+        });
+
+        it('switches off the actions of a field, which would write blind', async () => {
+            // tile-2 is left out: a blind write would lose that
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('Region');
+            const clear = await screen.findByRole('menuitem', {
+                name: 'Clear from tiles',
+            });
+            const remove = screen.getByRole('menuitem', {
+                name: 'Remove field',
+            });
+            expect(clear).toBeDisabled();
+            expect(remove).toBeDisabled();
+            fireEvent.click(clear);
+            fireEvent.click(remove);
+            expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeWaitingField).not.toHaveBeenCalled();
+        });
+
+        it('switches them back on once the fields are there', async () => {
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status],
+                },
+            };
+            rerender(<FieldsAndTiles />);
+
+            openRowMenu('Region');
+            expect(
+                await screen.findByRole('menuitem', { name: 'Remove field' }),
+            ).toBeEnabled();
+        });
+    });
+
+    it('does not list a field that is only on a tile that is gone', async () => {
+        setSidebar(rule('orders_status', { 'tile-gone': REGION }));
+        renderWithProviders(<FieldsAndTiles />);
+
+        expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: 'Region' }),
+        ).not.toBeInTheDocument();
+        // Status is the only field, so it cannot be removed
+        openRowMenu('Status');
+        expect(
+            await screen.findByRole('menuitem', { name: 'Remove field' }),
+        ).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('closes "Add a field" when its button is clicked while open', async () => {
+        setSidebar(rule('orders_status'));
+        renderWithProviders(<FieldsAndTiles />);
+        const add = screen.getByRole('button', { name: 'Add a field' });
+
+        await userEvent.click(add);
+        expect(await screen.findByText('Orders')).toBeVisible();
+        expect(add).toHaveAttribute('aria-expanded', 'true');
+
+        await userEvent.click(add);
+        expect(fieldSearch()).not.toBeInTheDocument();
+        expect(add).toHaveAttribute('aria-expanded', 'false');
+        expect(add).toHaveFocus();
     });
 
     it('renders nothing when no control is edited', () => {

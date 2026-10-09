@@ -6,6 +6,7 @@ import {
 import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import { ViewerControls } from './ViewerControls';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -14,6 +15,11 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
+}));
+
+const mockTrack = vi.hoisted(() => vi.fn());
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mockTrack }),
 }));
 
 vi.mock(
@@ -170,6 +176,85 @@ describe('ViewerControls', () => {
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: ['t2', 't1', 't3'] }),
             );
+        });
+
+        describe('tracking, as the lock on the pill', () => {
+            const lockEvent = (
+                action: 'lock' | 'unlock',
+                tabUuid: string | undefined,
+            ) => ({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action,
+                    dashboardUuid: 'dashboard-uuid',
+                    tabUuid,
+                    fieldId: 'field_a',
+                    tableName: 'orders',
+                },
+            });
+
+            it('sends the event of the tab that is locked or unlocked', () => {
+                renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+                openRow(/Viewers/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: 'Finance' }),
+                );
+                expect(mockTrack).toHaveBeenCalledTimes(1);
+                expect(mockTrack).toHaveBeenLastCalledWith(
+                    lockEvent('lock', 't3'),
+                );
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: 'Details' }),
+                );
+                expect(mockTrack).toHaveBeenLastCalledWith(
+                    lockEvent('unlock', 't2'),
+                );
+            });
+
+            it('sends one event per tab that "every tab" changes', () => {
+                renderControls(makeRule('a', { lockedTabUuids: ['t2'] }));
+                openRow(/Viewers/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: /Lock on every tab/ }),
+                );
+
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('lock', 't1'),
+                    lockEvent('lock', 't3'),
+                ]);
+            });
+
+            it('sends the unlock of every locked tab', () => {
+                renderControls(
+                    makeRule('a', { lockedTabUuids: ['t1', 't2', 't3'] }),
+                );
+                openRow(/Viewers/);
+
+                fireEvent.click(
+                    screen.getByRole('switch', { name: /Lock on every tab/ }),
+                );
+
+                expect(mockTrack.mock.calls.map(([event]) => event)).toEqual([
+                    lockEvent('unlock', 't1'),
+                    lockEvent('unlock', 't2'),
+                    lockEvent('unlock', 't3'),
+                ]);
+            });
+
+            it('sends no tab on a dashboard without tabs', () => {
+                setContext([]);
+                renderControls(makeRule('a'));
+                openRow(/Viewers/);
+
+                fireEvent.click(screen.getByRole('switch', { name: /Lock/ }));
+
+                expect(mockTrack).toHaveBeenCalledWith(
+                    lockEvent('lock', undefined),
+                );
+            });
         });
 
         it('uses the dashboard uuid when there are no tabs', () => {

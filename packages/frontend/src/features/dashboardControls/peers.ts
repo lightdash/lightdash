@@ -30,6 +30,33 @@ export const toSqlColumnTarget = (reference: string): DashboardFieldTarget => ({
 const isSqlTile = (tile: DashboardTile, sqlColumnsByTile: SqlColumnsByTile) =>
     (sqlColumnsByTile[tile.uuid]?.length ?? 0) > 0;
 
+// As the grid draws them: a missing or stale tabUuid is the first tab
+export const getEffectiveTabUuid = (
+    tile: DashboardTile,
+    tabs: DashboardTab[],
+): string | undefined =>
+    tile.tabUuid && tabs.some((tab) => tab.uuid === tile.tabUuid)
+        ? tile.tabUuid
+        : tabs[0]?.uuid;
+
+export const getTilesOnTab = (
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    tabUuid: string,
+): DashboardTile[] =>
+    tiles.filter((tile) => getEffectiveTabUuid(tile, tabs) === tabUuid);
+
+// False while the tile's fields are not loaded: what it offers is not known,
+// which is not the same as offering nothing
+export const isTileFieldKnown = (
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile,
+): boolean =>
+    fieldsByTile !== undefined ||
+    isDashboardDataAppTileType(tile) ||
+    isSqlTile(tile, sqlColumnsByTile);
+
 export type FieldCount = { applied: number; possible: number };
 export type TabCount = { applied: number; total: number };
 
@@ -77,17 +104,36 @@ export const getTileField = (
     return getDefaultTileField(rule, tile, fieldsByTile);
 };
 
-// The field a tile is on. A data app tile that is on is on no particular field
-const getFieldIdOnTile = (
+// A SQL column filter has one row, its column; every other row is a field
+export const isSqlColumnRow = (
     rule: DashboardFilterRule,
+    rowId: string,
+): boolean => rule.target.isSqlColumn === true && rule.target.fieldId === rowId;
+
+// A SQL column is never a field: the two only match within their own kind
+export const isTargetOnRow = (
+    rule: DashboardFilterRule,
+    target: DashboardFieldTarget | null,
+    rowId: string,
+): boolean =>
+    target !== null &&
+    target.fieldId === rowId &&
+    (target.isSqlColumn === true) === isSqlColumnRow(rule, rowId);
+
+// A data app tile that is on is on no particular row
+const isTileOnRow = (
+    rule: DashboardFilterRule,
+    rowId: string,
     tile: DashboardTile,
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
-): string | null =>
-    isDashboardDataAppTileType(tile)
-        ? null
-        : (getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
-          null);
+): boolean =>
+    !isDashboardDataAppTileType(tile) &&
+    isTargetOnRow(
+        rule,
+        getTileField(rule, tile, fieldsByTile, sqlColumnsByTile),
+        rowId,
+    );
 
 // Mirrors the shipped invalid state: the tile is mapped to a field or column
 // it does not offer. Null while the tile's fields are not known
@@ -124,18 +170,31 @@ export const isTileChanged = (
     return (current?.fieldId ?? null) !== (fallback?.fieldId ?? null);
 };
 
-// SQL column mappings are per tile and never fields of the filter
-const getPeerTargets = (rule: DashboardFilterRule): DashboardFieldTarget[] =>
-    Object.values(rule.tileTargets ?? {})
+// SQL column mappings are per tile and never fields of the filter, and
+// neither is a mapping left behind by a tile that is gone. With `tiles`
+// undefined (not loaded) every mapping counts
+const getPeerTargets = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+): DashboardFieldTarget[] => {
+    const tileUuids =
+        tiles === undefined ? null : new Set(tiles.map((tile) => tile.uuid));
+    return Object.entries(rule.tileTargets ?? {})
+        .filter(([tileUuid]) => tileUuids === null || tileUuids.has(tileUuid))
+        .map(([, target]) => target)
         .filter(isDashboardFieldTarget)
         .filter((target) => !target.isSqlColumn && target.fieldId !== '');
+};
 
 // A placeholder has an empty target, which is never a field
-export const getFilterFields = (rule: DashboardFilterRule): string[] => [
+export const getFilterFields = (
+    rule: DashboardFilterRule,
+    tiles: DashboardTile[] | undefined,
+): string[] => [
     ...new Set(
         [
             rule.target.fieldId,
-            ...getPeerTargets(rule).map((target) => target.fieldId),
+            ...getPeerTargets(rule, tiles).map((target) => target.fieldId),
         ].filter((fieldId) => fieldId !== ''),
     ),
 ];
@@ -151,10 +210,8 @@ export const getFieldCount = (
     possible: tiles.filter((tile) =>
         doesTileOfferField(tile, fieldId, fieldsByTile),
     ).length,
-    applied: tiles.filter(
-        (tile) =>
-            getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
-            fieldId,
+    applied: tiles.filter((tile) =>
+        isTileOnRow(rule, fieldId, tile, fieldsByTile, sqlColumnsByTile),
     ).length,
 });
 
@@ -218,7 +275,11 @@ export const setTileField = (
             ([tileUuid]) => tileUuid !== tile.uuid,
         ),
     );
-    if ((field?.fieldId ?? null) === (fallback?.fieldId ?? null)) {
+    // An entry is only dropped when the default is known to say the same
+    if (
+        isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile) &&
+        (field?.fieldId ?? null) === (fallback?.fieldId ?? null)
+    ) {
         return withTileTargets(rule, others);
     }
     return withTileTargets(rule, { ...others, [tile.uuid]: field ?? false });
@@ -263,13 +324,15 @@ export const removeFieldFromAll = (
     fieldId: string,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): DashboardFilterRule =>
     tiles
-        .filter(
-            (tile) => getFieldIdOnTile(rule, tile, fieldsByTile) === fieldId,
+        .filter((tile) =>
+            isTileOnRow(rule, fieldId, tile, fieldsByTile, sqlColumnsByTile),
         )
         .reduce(
-            (next, tile) => setTileField(next, tile, null, fieldsByTile),
+            (next, tile) =>
+                setTileField(next, tile, null, fieldsByTile, sqlColumnsByTile),
             rule,
         );
 
@@ -285,14 +348,14 @@ export const removeField = (
                 ([, entry]) =>
                     !(
                         isDashboardFieldTarget(entry) &&
-                        entry.fieldId === fieldId
+                        isTargetOnRow(rule, entry, fieldId)
                     ),
             ),
         );
         return withTileTargets(rule, kept);
     }
 
-    const promoted = getPeerTargets(rule).find(
+    const promoted = getPeerTargets(rule, tiles).find(
         (target) => target.fieldId !== fieldId,
     );
     if (promoted === undefined) return rule;
@@ -312,7 +375,7 @@ export const removeField = (
                 fieldsByTile,
             );
         }
-        if (effective?.fieldId === fieldId) {
+        if (isTargetOnRow(rule, effective, fieldId)) {
             return setTileField(next, tile, null, fieldsByTile);
         }
         return setTileField(next, tile, effective, fieldsByTile);
@@ -328,7 +391,7 @@ export const getTabCounts = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            const tabTiles = getTilesOnTab(tiles, tabs, tab.uuid);
             return [
                 tab.uuid,
                 {
@@ -358,19 +421,19 @@ export const getTabCountsForField = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            const tabTiles = getTilesOnTab(tiles, tabs, tab.uuid);
             return [
                 tab.uuid,
                 {
                     total: tabTiles.length,
-                    applied: tabTiles.filter(
-                        (tile) =>
-                            getFieldIdOnTile(
-                                rule,
-                                tile,
-                                fieldsByTile,
-                                sqlColumnsByTile,
-                            ) === fieldId,
+                    applied: tabTiles.filter((tile) =>
+                        isTileOnRow(
+                            rule,
+                            fieldId,
+                            tile,
+                            fieldsByTile,
+                            sqlColumnsByTile,
+                        ),
                     ).length,
                 },
             ];

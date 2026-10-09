@@ -19,9 +19,11 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** False as soon as the edited filter is no longer in the dashboard. */
     isSidebarOpen: boolean;
     activeSection: ControlsSidebarSection;
     setActiveSection: (section: ControlsSidebarSection) => void;
+    /** Closes any other control first, as "Done" would; a no-op on the open one. */
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */
     openNew: () => void;
@@ -63,7 +65,10 @@ export type ControlsSidebarContextValue = {
     /** Removes the edited filter and closes the sidebar. */
     removeFilter: () => void;
     removeFilterById: (filterId: string) => void;
-    /** Restores the dashboard filters as they were when the sidebar opened. */
+    /**
+     * Puts the edited filter back as it was when it was opened, or removes it
+     * when it was new. The other filters are left as they are.
+     */
     discard: () => void;
     /**
      * Closes and keeps the edits; saving stays with the dashboard's own Save.

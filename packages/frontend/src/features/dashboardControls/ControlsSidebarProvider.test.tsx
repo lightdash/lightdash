@@ -98,6 +98,27 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
 const setup = () =>
     renderHook(() => useControlsSidebar(), { wrapper: Wrapper });
 
+// A write the editor did not make: another tile, tab or pill action
+const writeOutsideTheEditor = (
+    update: (filters: DashboardFilters) => DashboardFilters,
+) =>
+    act(() => {
+        const context = mockDashboardContext.current as {
+            setDashboardFilters: (
+                next: (filters: DashboardFilters) => DashboardFilters,
+            ) => void;
+            setHaveFiltersChanged: (changed: boolean) => void;
+        };
+        context.setDashboardFilters(update);
+        context.setHaveFiltersChanged(true);
+    });
+const excludeTileFromB = (filters: DashboardFilters): DashboardFilters => ({
+    ...filters,
+    dimensions: filters.dimensions.map((r) =>
+        r.id === 'b' ? { ...r, tileTargets: { t2: false } } : r,
+    ),
+});
+
 describe('ControlsSidebarProvider', () => {
     beforeEach(() => {
         latest.filters = initialFilters;
@@ -566,7 +587,150 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters.dimensions[0].values).toEqual(['1']);
     });
 
-    it('removes the edited filter starting from the snapshot', () => {
+    describe('writes made outside the editor while it is open', () => {
+        it('survive Discard, which only puts the edited rule back', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            writeOutsideTheEditor(excludeTileFromB);
+
+            act(() => result.current.discard());
+
+            expect(latest.filters.dimensions[0]).toBe(
+                initialFilters.dimensions[0],
+            );
+            expect(latest.filters.dimensions[1].tileTargets).toEqual({
+                t2: false,
+            });
+            // Something else did change, so the dashboard still has to save
+            expect(latest.changed).toBe(true);
+        });
+
+        it('survive discarding a new control, which only takes that control out', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            writeOutsideTheEditor(excludeTileFromB);
+
+            act(() => result.current.discard());
+
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
+                'a',
+                'b',
+            ]);
+            expect(latest.filters.dimensions[1].tileTargets).toEqual({
+                t2: false,
+            });
+            expect(latest.changed).toBe(true);
+        });
+
+        it('survive Remove, which only takes the edited rule out', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            writeOutsideTheEditor(excludeTileFromB);
+
+            act(() => result.current.removeFilter());
+
+            expect(latest.filters.dimensions).toEqual([
+                { ...initialFilters.dimensions[1], tileTargets: { t2: false } },
+            ]);
+            expect(latest.changed).toBe(true);
+        });
+
+        it('close the sidebar when they take the edited rule away', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            expect(result.current.isSidebarOpen).toBe(true);
+
+            writeOutsideTheEditor((filters) => ({
+                ...filters,
+                dimensions: filters.dimensions.filter((r) => r.id !== 'a'),
+            }));
+
+            expect(result.current.editingRule).toBeNull();
+            expect(result.current.isSidebarOpen).toBe(false);
+
+            // The next open starts over
+            act(() => result.current.open('b'));
+            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.isSidebarOpen).toBe(true);
+        });
+    });
+
+    it('opening another filter turns off an empty default on the one it leaves', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({ ...rule('a', []), disabled: false }),
+        );
+
+        act(() => result.current.open('b'));
+
+        expect(result.current.editing).toEqual({ filterId: 'b' });
+        expect(latest.filters.dimensions[0].disabled).toBe(true);
+    });
+
+    it('opening the control that is already open changes nothing', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.setActiveSection('settings'));
+        act(() => result.current.addWaitingField('orders_region'));
+
+        act(() => result.current.open('a'));
+
+        // Same snapshot, so the edit can still be discarded
+        expect(result.current.isDirty).toBe(true);
+        expect(result.current.activeSection).toBe('settings');
+        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+        act(() => result.current.discard());
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it('opening the new control that is already open keeps it new', () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        const { id } = latest.filters.dimensions[2];
+
+        act(() => result.current.open(id));
+
+        expect(result.current.isNew).toBe(true);
+        expect(result.current.editing).toEqual({ filterId: id });
+        // Still a control that Discard drops
+        act(() => result.current.discard());
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.changed).toBe(false);
+    });
+
+    it('drops the waiting fields of a filter when another one opens', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.addWaitingField('orders_region'));
+
+        act(() => result.current.open('b'));
+        act(() => result.current.open('a'));
+
+        expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    it('a first field carries over no setting the placeholder did not have', () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+
+        const added = latest.filters.dimensions[2];
+        expect(
+            [
+                'lockedTabUuids',
+                'required',
+                'requiredGroupId',
+                'singleValue',
+            ].filter((key) => key in added),
+        ).toEqual([]);
+    });
+
+    it('removes the edited filter, edits and all', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));

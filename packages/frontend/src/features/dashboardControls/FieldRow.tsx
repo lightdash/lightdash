@@ -78,6 +78,8 @@ type Props = {
     onRemove: () => void;
     // Why the row cannot be removed, or null when it can
     removeDisabledReason: string | null;
+    // The tiles' fields are not loaded: an action would write blind
+    areActionsDisabled: boolean;
 };
 
 export const FieldRow: FC<Props> = ({
@@ -97,6 +99,7 @@ export const FieldRow: FC<Props> = ({
     onClear,
     onRemove,
     removeDisabledReason,
+    areActionsDisabled,
 }) => {
     const { applied, possible, unfiltered, replaced } = scope;
     const showAdd = unfiltered > 0 && (applied > 0 || replaced > 0);
@@ -166,6 +169,7 @@ export const FieldRow: FC<Props> = ({
                             size="compact-xs"
                             variant="subtle"
                             aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
+                            disabled={areActionsDisabled}
                             onClick={onAddToUnfiltered}
                         >
                             Add to {unfiltered} unfiltered
@@ -187,6 +191,7 @@ export const FieldRow: FC<Props> = ({
                                         ? `${allLabel}. ${replaces}`
                                         : allLabel
                                 }
+                                disabled={areActionsDisabled}
                                 onClick={onAll}
                             >
                                 {showAdd
@@ -210,7 +215,10 @@ export const FieldRow: FC<Props> = ({
                         </Menu.Target>
                         <Menu.Dropdown>
                             {showClear && (
-                                <Menu.Item onClick={onClear}>
+                                <Menu.Item
+                                    disabled={areActionsDisabled}
+                                    onClick={onClear}
+                                >
                                     {tileScope === null
                                         ? 'Clear from tiles'
                                         : CLEAR_LABEL[tileScope]}
@@ -228,6 +236,7 @@ export const FieldRow: FC<Props> = ({
                                 }}
                             >
                                 <Menu.Item
+                                    disabled={areActionsDisabled}
                                     closeMenuOnClick={canRemove}
                                     aria-disabled={!canRemove || undefined}
                                     c={canRemove ? undefined : 'dimmed'}

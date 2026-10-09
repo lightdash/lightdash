@@ -567,6 +567,60 @@ describe('ControlSidebar', () => {
             });
         });
 
+        it('leaves a rule that had no label exactly as it was once the label is emptied again', () => {
+            // As a saved rule arrives: no label key at all
+            const saved: DashboardFilterRule = JSON.parse(
+                JSON.stringify(makeRule({})),
+            );
+            expect('label' in saved).toBe(false);
+            const { updateFilter } = setSidebar({
+                isNew: false,
+                editingRule: saved,
+            });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+
+            typeLabel('Status of the order');
+            fireEvent.blur(labelInput());
+            const typed = vi.mocked(updateFilter).mock.calls[0][0];
+            expect(typed.label).toBe('Status of the order');
+
+            setSidebar({ isNew: false, editingRule: typed, updateFilter });
+            rerender(<ControlSidebar />);
+            typeLabel('');
+            fireEvent.blur(labelInput());
+
+            const reverted = vi.mocked(updateFilter).mock.calls[1][0];
+            expect(reverted).toStrictEqual(saved);
+            expect('label' in reverted).toBe(false);
+        });
+
+        it('trims the outer spaces of a label when it is written', () => {
+            const { updateFilter } = setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+
+            typeLabel('  Order status ');
+            fireEvent.blur(labelInput());
+
+            expect(vi.mocked(updateFilter).mock.calls[0][0].label).toBe(
+                'Order status',
+            );
+        });
+
+        it('moves focus to the label when a suggestion is taken', async () => {
+            setSidebar({});
+            renderWithProviders(<ControlSidebar />);
+            const chip = screen.getByRole('button', { name: 'Status' });
+            chip.focus();
+
+            await userEvent.click(chip);
+
+            // The chip is gone, and focus did not fall to the page with it
+            expect(
+                screen.queryByRole('button', { name: 'Status' }),
+            ).not.toBeInTheDocument();
+            expect(labelInput()).toHaveFocus();
+        });
+
         it('sends the typed label before Done closes', async () => {
             const { updateFilter, close, editingRule } = setSidebar({});
             renderWithProviders(<ControlSidebar />);

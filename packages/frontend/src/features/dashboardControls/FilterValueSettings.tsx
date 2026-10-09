@@ -5,8 +5,10 @@ import {
 } from '@lightdash/common';
 import { Stack, Text } from '@mantine/core';
 import { type FC } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import ShippedFilterSettings from '../dashboardFilters/FilterConfiguration/FilterSettings';
 import { getFilterRuleWithDisabledState } from '../dashboardFilters/FilterConfiguration/utils';
+import { isLockedRequiredMissingValue } from './requirements';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
@@ -17,14 +19,28 @@ type Props = {
 };
 
 // The shipped settings form without its label and its Required card. There
-// is no Apply: every edit is written at once, through the shipped popover's rule
+// is no Apply: every edit is written at once, through the shipped popover's
+// rule, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
     filterType,
     field,
     filterRule,
     onChange,
 }) => {
+    const getUiString = useUiStrings();
     const isRequired = !!filterRule.required || !!filterRule.requiredGroupId;
+    const isLockedAndRequired =
+        !!filterRule.lockedTabUuids?.length && !!filterRule.required;
+    const handleChange = (next: DashboardFilterRule) => {
+        const written = getFilterRuleWithDisabledState(next, true);
+        // A rule already in that state can still be edited out of it
+        if (
+            isLockedRequiredMissingValue(written) &&
+            !isLockedRequiredMissingValue(filterRule)
+        )
+            return;
+        onChange(written);
+    };
 
     return (
         <Stack gap="xs">
@@ -36,10 +52,13 @@ export const FilterValueSettings: FC<Props> = ({
                 filterType={filterType}
                 field={field ?? undefined}
                 filterRule={filterRule}
-                onChangeFilterRule={(next) =>
-                    onChange(getFilterRuleWithDisabledState(next, true))
-                }
+                onChangeFilterRule={handleChange}
             />
+            {isLockedAndRequired && (
+                <Text size="xs" c="dimmed">
+                    {getUiString('filters.config.applyLockedRequiredTooltip')}
+                </Text>
+            )}
             {isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
                     Choose a value, or the default is left off.

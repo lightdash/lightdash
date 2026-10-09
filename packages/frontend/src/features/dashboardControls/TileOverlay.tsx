@@ -26,10 +26,13 @@ import {
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
+    getEffectiveTabUuid,
     getFilterFields,
     getMissingTileFieldId,
     getTileField,
     canTileTakeFilter,
+    isTargetOnRow,
+    isTileFieldKnown,
     setTileField,
     toSqlColumnTarget,
     type SqlColumn,
@@ -80,10 +83,13 @@ const getFieldTarget = (
 ): DashboardFieldTarget | null => {
     const field = fieldsMap[fieldId];
     if (field) return { fieldId, tableName: field.table };
-    if (rule.target.fieldId === fieldId) return rule.target;
+    if (rule.target.fieldId === fieldId && !rule.target.isSqlColumn)
+        return rule.target;
     const fromTile = Object.values(rule.tileTargets ?? {}).find(
         (target): target is DashboardFieldTarget =>
-            isDashboardFieldTarget(target) && target.fieldId === fieldId,
+            isDashboardFieldTarget(target) &&
+            !target.isSqlColumn &&
+            target.fieldId === fieldId,
     );
     return fromTile ?? null;
 };
@@ -125,7 +131,7 @@ type TileOverlayProps = {
     candidates: string[];
     fieldsMap: FieldsMap;
     highlight: TileHighlight | null;
-    // The clicked field, on the tiles that are on it
+    // The clicked field, on the tiles that are on it. Hover never changes it
     scrollFieldId: string | null;
     // Bucket for the arrival wave
     wave: number;
@@ -323,6 +329,7 @@ export const TileOverlays: FC = () => {
         (c) => c.waitingFieldIds,
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const activeTab = useDashboardContext((c) => c.activeTab);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -343,15 +350,15 @@ export const TileOverlays: FC = () => {
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const isActive = editingRule !== null;
 
+    // The tiles the grid draws on the active tab
     const tiles = useMemo(
         () =>
             (dashboardTiles ?? []).filter(
                 (tile) =>
                     !activeTab ||
-                    !tile.tabUuid ||
-                    tile.tabUuid === activeTab.uuid,
+                    getEffectiveTabUuid(tile, dashboardTabs) === activeTab.uuid,
             ),
-        [dashboardTiles, activeTab],
+        [dashboardTiles, dashboardTabs, activeTab],
     );
     const tileUuids = useMemo(() => tiles.map((tile) => tile.uuid), [tiles]);
     const targets = usePortalTargets(
@@ -382,6 +389,8 @@ export const TileOverlays: FC = () => {
             }
             const isSqlTile =
                 (sqlColumnsByTile[tileUuid] ?? NO_COLUMNS).length > 0;
+            // Nothing is written while what the tile offers is not known
+            if (!isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile)) return;
             // A data app tile switched on follows the rule, as it does by
             // default
             const field =
@@ -405,12 +414,17 @@ export const TileOverlays: FC = () => {
     );
 
     // A waiting field is offered on every tile that could take it
+    // A SQL column filter has no field: its column is never looked up as one
+    const isSqlColumnFilter = editingRule?.target.isSqlColumn === true;
     const filterFieldIds =
-        editingRule === null
+        editingRule === null || isSqlColumnFilter
             ? NO_FIELD_IDS
-            : [...getFilterFields(editingRule), ...waitingFieldIds];
+            : [
+                  ...getFilterFields(editingRule, dashboardTiles),
+                  ...waitingFieldIds,
+              ];
     const targetField =
-        editingRule === null
+        editingRule === null || isSqlColumnFilter
             ? undefined
             : fieldsMap[editingRule.target.fieldId];
     // Keyed on the filter's fields, not the rule: an edit that keeps them, or
@@ -492,19 +506,21 @@ export const TileOverlays: FC = () => {
 
     const filterLabel =
         editingRule.label ??
-        getFieldLabel(editingRule.target.fieldId, fieldsMap);
+        (isSqlColumnFilter
+            ? editingRule.target.fieldId
+            : getFieldLabel(editingRule.target.fieldId, fieldsMap));
     return (
         <>
             {tiles.map((tile, index) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
-                const tileFieldId =
-                    getTileField(
-                        editingRule,
-                        tile,
-                        fieldsByTile,
-                        sqlColumnsByTile,
-                    )?.fieldId ?? null;
+                const tileTarget = getTileField(
+                    editingRule,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                );
+                const tileFieldId = tileTarget?.fieldId ?? null;
                 const sqlColumns = sqlColumnsByTile[tile.uuid] ?? NO_COLUMNS;
                 const isSqlTile = sqlColumns.length > 0;
                 const isDataAppTile = isDashboardDataAppTileType(tile);
@@ -534,12 +550,21 @@ export const TileOverlays: FC = () => {
                 // Solid blue: filtered. Dashed blue: filtered, but not by the
                 // active field. Dashed grey: not filtered, but could be. A data
                 // app tile that is on is on no particular field
+                const isOnTheControl =
+                    isReachable &&
+                    tileFieldId !== null &&
+                    missingFieldId === null;
+                // A SQL column is never one of the filter's fields
+                const isOnRow = (rowId: string | null) =>
+                    rowId !== null &&
+                    isOnTheControl &&
+                    !isDataAppTile &&
+                    isTargetOnRow(editingRule, tileTarget, rowId);
                 const highlight: TileHighlight | null = !isReachable
                     ? null
-                    : tileFieldId === null || missingFieldId !== null
+                    : !isOnTheControl
                       ? 'available'
-                      : activeFieldId === null ||
-                          (!isDataAppTile && tileFieldId === activeFieldId)
+                      : activeFieldId === null || isOnRow(activeFieldId)
                         ? 'mapped'
                         : 'other';
                 return createPortal(
@@ -556,12 +581,11 @@ export const TileOverlays: FC = () => {
                         candidates={candidates}
                         fieldsMap={fieldsMap}
                         highlight={highlight}
-                        // Only a tile on the clicked field, while it is the
-                        // active one
+                        // Only a tile on the clicked field. Not read from the
+                        // active one: hovering another row and leaving would
+                        // scroll again
                         scrollFieldId={
-                            highlight === 'mapped' &&
-                            activeFieldId !== null &&
-                            activeFieldId === highlightedFieldId
+                            isOnRow(highlightedFieldId)
                                 ? highlightedFieldId
                                 : null
                         }

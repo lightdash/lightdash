@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyFieldToAll,
     getDefaultTileField,
+    getEffectiveTabUuid,
     getFieldCount,
     getFieldScope,
     getFilterFields,
@@ -19,7 +20,11 @@ import {
     getTabCounts,
     getTabCountsForField,
     getTileField,
+    getTilesOnTab,
+    isSqlColumnRow,
+    isTargetOnRow,
     isTileChanged,
+    isTileFieldKnown,
     canTileTakeFilter,
     removeField,
     removeFieldFromAll,
@@ -100,7 +105,10 @@ describe('peers', () => {
 
     it('lists fields in order without duplicates', () => {
         expect(
-            getFilterFields(rule({ b: PAYMENTS, c: PAYMENTS, d: false })),
+            getFilterFields(
+                rule({ b: PAYMENTS, c: PAYMENTS, d: false }),
+                tiles,
+            ),
         ).toEqual(['orders_status', 'payments_status']);
     });
 
@@ -110,10 +118,11 @@ describe('peers', () => {
             target: { fieldId: '', tableName: '' },
             tileTargets: {},
         };
-        expect(getFilterFields(placeholder)).toEqual([]);
+        expect(getFilterFields(placeholder, tiles)).toEqual([]);
         expect(
             getFilterFields(
                 rule({ b: { fieldId: '', tableName: '' }, c: PAYMENTS }),
+                tiles,
             ),
         ).toEqual(['orders_status', 'payments_status']);
     });
@@ -314,10 +323,15 @@ describe('peers with SQL chart tiles', () => {
         expect(cleared.tileTargets).toBeUndefined();
     });
 
+    // The column row only exists on a SQL column filter
+    const columnRule = (
+        tileTargets?: DashboardFilterRule['tileTargets'],
+    ): DashboardFilterRule => ({ ...rule(tileTargets), target: SQL_STATUS });
+
     it('counts a SQL tile among possible and applied', () => {
         expect(
             getFieldCount(
-                rule({ s: SQL_STATUS }),
+                columnRule({ s: SQL_STATUS }),
                 'status',
                 allTiles,
                 fieldsByTile,
@@ -326,8 +340,13 @@ describe('peers with SQL chart tiles', () => {
             // a SQL column is reached per tile, so it is never "possible" as a field
         ).toEqual({ possible: 0, applied: 1 });
         expect(
-            getFieldCount(rule(), 'status', allTiles, fieldsByTile, sqlColumns)
-                .applied,
+            getFieldCount(
+                columnRule(),
+                'status',
+                allTiles,
+                fieldsByTile,
+                sqlColumns,
+            ).applied,
         ).toBe(0);
     });
 
@@ -343,7 +362,7 @@ describe('peers with SQL chart tiles', () => {
         ).toEqual({ total: 4, applied: 1 });
         expect(
             getTabCountsForField(
-                rule({ s: SQL_STATUS }),
+                columnRule({ s: SQL_STATUS }),
                 'status',
                 allTiles,
                 tabs,
@@ -605,6 +624,195 @@ describe('what a field would do over the tiles in scope', () => {
             unfiltered: 0,
             replaced: 1,
             replacedFieldIds: ['orders_gone'],
+        });
+    });
+
+    describe('while the tile fields are not loaded', () => {
+        it('never drops the entry of a tile it knows nothing about', () => {
+            // Left out, and "not loaded" must not read as "offers nothing"
+            const excluded = rule({ a: false });
+            expect(
+                setTileField(excluded, a, null, undefined).tileTargets,
+            ).toEqual({ a: false });
+            expect(
+                setTileField(rule(), a, null, undefined).tileTargets,
+            ).toEqual({
+                a: false,
+            });
+            expect(
+                setTileField(rule(), a, ORDERS, undefined).tileTargets,
+            ).toEqual({ a: ORDERS });
+        });
+
+        it('keeps exclusions through clear and remove', () => {
+            const r = rule({ a: false, b: PAYMENTS, c: PAYMENTS });
+            expect(
+                removeFieldFromAll(r, 'payments_status', tiles, undefined)
+                    .tileTargets,
+            ).toEqual({ a: false, b: false, c: false });
+            const promoted = removeField(r, 'orders_status', tiles, undefined);
+            expect(promoted.target).toEqual(PAYMENTS);
+            expect(promoted.tileTargets?.a).toBe(false);
+        });
+
+        it('still knows a data app tile and a SQL chart tile', () => {
+            const appTile = {
+                uuid: 'app',
+                type: DashboardTileTypes.DATA_APP,
+            } as DashboardTile;
+            const sqlTile = {
+                uuid: 's',
+                type: DashboardTileTypes.SQL_CHART,
+            } as DashboardTile;
+            const sqlColumns: SqlColumnsByTile = {
+                s: [{ reference: 'status', type: DimensionType.STRING }],
+            };
+            expect(isTileFieldKnown(a, undefined, {})).toBe(false);
+            expect(isTileFieldKnown(a, fieldsByTile, {})).toBe(true);
+            expect(isTileFieldKnown(appTile, undefined, {})).toBe(true);
+            expect(isTileFieldKnown(sqlTile, undefined, sqlColumns)).toBe(true);
+            expect(
+                setTileField(rule({ app: false }), appTile, ORDERS, undefined),
+            ).not.toHaveProperty('tileTargets');
+        });
+    });
+
+    describe('a field only on tiles that are gone', () => {
+        const stale = rule({ gone: PAYMENTS });
+
+        it('is not a field of the filter', () => {
+            expect(getFilterFields(stale, tiles)).toEqual(['orders_status']);
+            expect(getFilterFields(rule({ c: PAYMENTS }), tiles)).toEqual([
+                'orders_status',
+                'payments_status',
+            ]);
+        });
+
+        it('counts while the tiles are not loaded', () => {
+            expect(getFilterFields(stale, undefined)).toEqual([
+                'orders_status',
+                'payments_status',
+            ]);
+        });
+
+        it('is never promoted when the first field is removed', () => {
+            expect(
+                removeField(stale, 'orders_status', tiles, fieldsByTile),
+            ).toBe(stale);
+        });
+    });
+
+    describe('a SQL column that reads like a field id', () => {
+        const sqlTile = {
+            uuid: 's',
+            tabUuid: 't1',
+            type: DashboardTileTypes.SQL_CHART,
+        } as DashboardTile;
+        const sqlColumns: SqlColumnsByTile = {
+            s: [{ reference: 'orders_status', type: DimensionType.STRING }],
+        };
+        const allTiles = [...tiles, sqlTile];
+        const onColumn = rule({ s: toSqlColumnTarget('orders_status') });
+
+        it('is not on the field of the same id', () => {
+            expect(
+                getFieldCount(
+                    onColumn,
+                    'orders_status',
+                    allTiles,
+                    fieldsByTile,
+                    sqlColumns,
+                ),
+            ).toEqual({ applied: 2, possible: 2 });
+            expect(
+                getTabCountsForField(
+                    onColumn,
+                    'orders_status',
+                    allTiles,
+                    tabs,
+                    fieldsByTile,
+                    sqlColumns,
+                ).t1,
+            ).toEqual({ applied: 2, total: 3 });
+            expect(
+                isTargetOnRow(
+                    onColumn,
+                    toSqlColumnTarget('orders_status'),
+                    'orders_status',
+                ),
+            ).toBe(false);
+            expect(isTargetOnRow(onColumn, ORDERS, 'orders_status')).toBe(true);
+        });
+
+        it('keeps its tile when the field is cleared', () => {
+            expect(
+                removeFieldFromAll(
+                    onColumn,
+                    'orders_status',
+                    allTiles,
+                    fieldsByTile,
+                    sqlColumns,
+                ).tileTargets,
+            ).toEqual({
+                a: false,
+                b: false,
+                s: toSqlColumnTarget('orders_status'),
+            });
+        });
+
+        it('is the one row of a SQL column filter', () => {
+            const columnRule: DashboardFilterRule = {
+                ...rule({ s: toSqlColumnTarget('orders_status') }),
+                target: toSqlColumnTarget('orders_status'),
+            };
+            expect(isSqlColumnRow(columnRule, 'orders_status')).toBe(true);
+            expect(isSqlColumnRow(onColumn, 'orders_status')).toBe(false);
+            expect(
+                getFieldCount(
+                    columnRule,
+                    'orders_status',
+                    [sqlTile],
+                    fieldsByTile,
+                    sqlColumns,
+                ).applied,
+            ).toBe(1);
+        });
+    });
+
+    describe('effective tab', () => {
+        const noTab = {
+            ...tile('x', 't1'),
+            tabUuid: undefined,
+        } as DashboardTile;
+        const staleTab = tile('y', 'deleted-tab');
+
+        it('is the first tab for a missing or stale tabUuid, as on the grid', () => {
+            expect(getEffectiveTabUuid(a, tabs)).toBe('t1');
+            expect(getEffectiveTabUuid(c, tabs)).toBe('t2');
+            expect(getEffectiveTabUuid(noTab, tabs)).toBe('t1');
+            expect(getEffectiveTabUuid(staleTab, tabs)).toBe('t1');
+            expect(getEffectiveTabUuid(noTab, [])).toBeUndefined();
+        });
+
+        it('counts such tiles on the first tab', () => {
+            const every = [...tiles, noTab, staleTab];
+            expect(getTilesOnTab(every, tabs, 't1').map((t) => t.uuid)).toEqual(
+                ['a', 'b', 'x', 'y'],
+            );
+            const fields = { ...fieldsByTile, x: fieldsByTile.a };
+            expect(getTabCounts(rule(), every, tabs, fields).t1).toEqual({
+                applied: 3,
+                total: 4,
+            });
+            expect(
+                getTabCountsForField(
+                    rule(),
+                    'orders_status',
+                    every,
+                    tabs,
+                    fields,
+                ).t1,
+            ).toEqual({ applied: 3, total: 4 });
         });
     });
 });

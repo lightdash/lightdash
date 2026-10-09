@@ -5,7 +5,7 @@ import { ControlsSidebarProvider } from './ControlsSidebarProvider';
 import { LinkPrompts } from './LinkPrompts';
 import { TabCounts } from './TabCounts';
 import { TileOverlays } from './TileOverlay';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 import { usePinnedSidebarTop } from './usePinnedSidebarTop';
 
 type Props = ComponentProps<typeof Page>;
@@ -15,7 +15,7 @@ const SIDEBAR_WIDTH = { defaultWidth: 380, minWidth: 320, maxWidth: 560 };
 // The sidebar element is always passed so the page tree keeps its shape;
 // only isSidebarOpen changes when a control is opened.
 const PageWithControlSidebar: FC<Props> = (props) => {
-    const { isSidebarOpen } = useControlsSidebar();
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     usePinnedSidebarTop();
     return (
         <Page
