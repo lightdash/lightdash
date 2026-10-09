@@ -32,6 +32,10 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // rides inside the modal, so it must stay off with it.
     FeatureFlags.InDashboardChartEditor,
     FeatureFlags.DashboardCustomMetrics,
+    // Replaces the dashboard filter bar's edit mode with a sidebar that is
+    // still being built. Opt-in: previews and the dashboard E2E specs stay on
+    // the shipped filter popover.
+    FeatureFlags.DashboardControls,
     // Derived from instance configuration: left to their config handler so a
     // preview never advertises a feature whose backend isn't configured.
     CommercialFeatureFlags.AiCopilot,
