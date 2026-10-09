@@ -39,12 +39,29 @@ export class CredentialResolverRegistry {
             throw new UnexpectedServerError(
                 'A credential resolver is already registered for this authentication mode',
             );
-        this.resolvers.set(key, {
+        this.resolvers.set(key, this.dispatcher(resolver));
+    }
+
+    private readonly transports: {
+        matches: (credentials: CreateWarehouseCredentials) => boolean;
+        resolver: Dispatcher;
+    }[] = [];
+
+    registerTransport<C extends CreateWarehouseCredentials>(
+        matches: (
+            credentials: CreateWarehouseCredentials,
+        ) => credentials is NoInfer<C>,
+        resolver: CredentialResolver<C>,
+    ): void {
+        this.transports.push({ matches, resolver: this.dispatcher(resolver) });
+    }
+
+    private dispatcher<C extends CreateWarehouseCredentials, S>(
+        resolver: CredentialResolver<C, S>,
+    ): Dispatcher {
+        return {
             resolve: async (selection) => {
-                const typedSelection = selection as CredentialSelection<
-                    CredentialsFor<T>,
-                    S
-                >;
+                const typedSelection = selection as CredentialSelection<C, S>;
                 const resolved = await resolver.resolve(typedSelection);
                 let disposal: Promise<void> | null = null;
                 return {
@@ -64,10 +81,8 @@ export class CredentialResolverRegistry {
                 };
             },
             validateOnSave: (input) =>
-                resolver.validateOnSave(
-                    input as CredentialSaveInput<CredentialsFor<T>, S>,
-                ),
-        });
+                resolver.validateOnSave(input as CredentialSaveInput<C, S>),
+        };
     }
 
     private get(
@@ -93,7 +108,10 @@ export class CredentialResolverRegistry {
     }
 
     has(credentials: CreateWarehouseCredentials): boolean {
-        return this.get(credentials) !== undefined;
+        return (
+            this.get(credentials) !== undefined ||
+            this.transports.some(({ matches }) => matches(credentials))
+        );
     }
 
     async validateOnSave<S>(
@@ -109,9 +127,18 @@ export class CredentialResolverRegistry {
         mode: 'connection' | 'ai_service_account' = 'connection',
     ): Promise<ValidatedCredential<CreateWarehouseCredentials, unknown>> {
         const resolver = this.get(input.connection, mode);
-        return resolver
-            ? resolver.validateOnSave(input)
+        const validated = resolver
+            ? await resolver.validateOnSave(input)
             : { connection: input.connection, stored: input.stored };
+        const transport =
+            mode === 'connection'
+                ? this.transports.find(({ matches }) =>
+                      matches(validated.connection),
+                  )
+                : undefined;
+        return transport
+            ? transport.resolver.validateOnSave({ ...input, ...validated })
+            : validated;
     }
 
     async resolveCredentialSelection<S>(
@@ -136,6 +163,45 @@ export class CredentialResolverRegistry {
         )
             return selection.connection;
         const resolver = this.get(selection.connection, mode);
-        return resolver ? resolver.resolve(selection) : legacyResolve();
+        const credentials: MaterializedCredentials = resolver
+            ? await resolver.resolve(selection)
+            : await legacyResolve();
+        const transport = this.transports.find(({ matches }) =>
+            matches(credentials),
+        );
+        if (!transport) return credentials;
+        const { [credentialResolution]: modeResolution, ...connection } =
+            credentials;
+        const transported = await transport.resolver.resolve({
+            ...selection,
+            connection,
+        });
+        const resolved = transported[credentialResolution]!;
+        let disposal: Promise<void> | null = null;
+        return {
+            ...transported,
+            [credentialResolution]: {
+                clientOptions: {
+                    ...modeResolution?.clientOptions,
+                    ...resolved.clientOptions,
+                },
+                cacheable:
+                    (modeResolution?.cacheable ?? true) && resolved.cacheable,
+                cacheKeyIdentity: [
+                    ...(modeResolution?.cacheKeyIdentity ?? []),
+                    ...resolved.cacheKeyIdentity,
+                ],
+                dispose: () => {
+                    disposal ??= (async () => {
+                        try {
+                            await resolved.dispose();
+                        } finally {
+                            await modeResolution?.dispose();
+                        }
+                    })();
+                    return disposal;
+                },
+            },
+        };
     }
 }
