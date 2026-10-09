@@ -26,7 +26,7 @@ import {
     type FC,
 } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -67,6 +67,7 @@ import {
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
 import styles from './tabs.module.css';
+import { getDashboardTabPath, getDashboardUrlIdentifier } from './tabUrl';
 import { useAutoScrollOnDrag } from './useAutoScrollOnDrag';
 import { useGridStyles } from './useGridStyles';
 
@@ -330,7 +331,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const navigate = useNavigate();
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardUuid = dashboard?.uuid;
-    const dashboardIdentifier = dashboard?.slug;
+    const { dashboardUuid: routeDashboardUuidOrSlug } = useParams<{
+        dashboardUuid: string;
+    }>();
+    const dashboardIdentifier = getDashboardUrlIdentifier({
+        routeDashboardUuidOrSlug,
+        dashboardSlug: dashboard?.slug,
+        isEditMode,
+    });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
@@ -651,9 +659,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             startTabTransition(() => {
                 void navigate(
                     {
-                        pathname: isEditMode
-                            ? `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/edit/tabs/${tab?.uuid}`
-                            : `/projects/${projectUrlIdentifier}/dashboards/${dashboardIdentifier}/view/tabs/${tab?.uuid}`,
+                        pathname: getDashboardTabPath({
+                            projectUrlIdentifier,
+                            dashboardUrlIdentifier: dashboardIdentifier,
+                            isEditMode,
+                            tabUuid: tab?.uuid,
+                        }),
                         search: newParams.toString(),
                     },
                     { replace: true },
