@@ -19,6 +19,8 @@ const FADE_MS = 380;
 const BAND_WIDTH_PX = 160;
 // The band's brightest line crosses each dot halfway through the dot's fade
 const BAND_LAG_MS = FADE_MS / 2;
+// When the band's animation never ends (a hidden tab), it goes this long after it should have
+const BAND_FALLBACK_MS = 100;
 // The front's slant: it is this much longer than the height it spans, and the band this much wider
 // across than it is thick
 const SLANT = Math.hypot(1, SWEEP_DOWN_WEIGHT);
@@ -37,17 +39,19 @@ type ColourChange = {
 const prefersReducedMotion = (): boolean =>
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-// One band slanted like the sweep's front, crossing the map with it from off one corner to off the other
-const drawBand = (layer: HTMLElement, area: SweepArea) => {
+// One band slanted like the sweep's front, crossing the map with it from off one corner to off the other.
+// It goes when its animation ends; the function returned takes it away sooner.
+const drawBand = (layer: HTMLElement, area: SweepArea): (() => void) => {
     // When the band's centre is over the middle of the map, and how long it takes to pass a dot
     const centreMs =
         getSweepDelay({ x: area.width / 2, y: area.height / 2 }, area) +
         BAND_LAG_MS;
     const passMs = (BAND_WIDTH_PX * SLANT) / SWEEP_PX_PER_MS;
-    const duration =
+    const duration = Math.round(
         getSweepDelay({ x: area.width, y: area.height }, area) +
-        BAND_LAG_MS +
-        passMs / 2;
+            BAND_LAG_MS +
+            passMs / 2,
+    );
     // How far right of the map's middle the band is, a given time after the change
     const offsetAt = (ms: number) => `${(ms - centreMs) * SWEEP_PX_PER_MS}px`;
     const band = select(layer)
@@ -59,11 +63,17 @@ const drawBand = (layer: HTMLElement, area: SweepArea) => {
         .style('--sweep-angle', `${Math.atan(SWEEP_DOWN_WEIGHT)}rad`)
         .style('--sweep-from', offsetAt(0))
         .style('--sweep-to', offsetAt(duration));
-    return { duration, remove: () => band.remove() };
+    const remove = () => {
+        window.clearTimeout(fallback);
+        band.remove();
+    };
+    const fallback = window.setTimeout(remove, duration + BAND_FALLBACK_MS);
+    band.on('animationend', remove);
+    return remove;
 };
 
-// Called once React has drawn the new colours, before the browser works them out: each dot fades to its
-// new colour when the sweep reaches it. Returns a function that ends the change at once.
+// Fades each dot to the colour React has just drawn once the sweep reaches it. Stopping it early takes the band
+// away at once; fades the browser has already started, or is holding for the sweep, finish on their own timing.
 export const startColourTransition = (
     { dotsLayer, points, area, bandLayer }: ColourChange,
     transition: ColourTransition,
@@ -74,15 +84,11 @@ export const startColourTransition = (
     const delays = points.map((point) => getSweepDelay(point, area));
     layer.style('--colour-fade', `${FADE_MS}ms`);
     dots.style('transition-delay', (_, index) => `${delays[index]}ms`);
-    let end = FADE_MS + delays.reduce((last, delay) => Math.max(last, delay));
     let removeBand = () => {};
     switch (transition) {
-        case 'sweep': {
-            const band = drawBand(bandLayer, area);
-            removeBand = band.remove;
-            end = Math.max(end, band.duration);
+        case 'sweep':
+            removeBand = drawBand(bandLayer, area);
             break;
-        }
         // Reflow is drawn where grouping reorders people (the waffle view). Dots on the map never move,
         // so here it is the sweep without the band.
         case 'reflow':
@@ -90,18 +96,21 @@ export const startColourTransition = (
         default:
             return assertUnreachable(transition, 'Unknown colour transition');
     }
-    let isDone = false;
+    let areDotsCleared = false;
     // Hover, selection and new data change a dot at once again
-    const finish = () => {
-        if (isDone) return;
-        isDone = true;
+    const clearDots = () => {
+        if (areDotsCleared) return;
+        areDotsCleared = true;
         dots.style('transition-delay', null);
         layer.style('--colour-fade', null);
-        removeBand();
     };
-    const timer = window.setTimeout(finish, end);
+    const timer = window.setTimeout(
+        clearDots,
+        FADE_MS + delays.reduce((last, delay) => Math.max(last, delay)),
+    );
     return () => {
         window.clearTimeout(timer);
-        finish();
+        clearDots();
+        removeBand();
     };
 };

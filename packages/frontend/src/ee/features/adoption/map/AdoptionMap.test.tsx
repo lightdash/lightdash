@@ -1470,14 +1470,11 @@ describe('AdoptionMap', () => {
             };
         };
 
-        let matchMedia: typeof window.matchMedia;
         beforeEach(() => {
-            ({ matchMedia } = window);
             vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
         });
         afterEach(() => {
             vi.useRealTimers();
-            window.matchMedia = matchMedia;
         });
 
         it('sweeps the new colours across the dots from the top-left corner, then leaves no delay on any dot', () => {
@@ -1512,29 +1509,71 @@ describe('AdoptionMap', () => {
             ).not.toBeNull();
         });
 
-        it('changes the colours at once for people who prefer reduced motion', () => {
-            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-                matches: query === '(prefers-reduced-motion: reduce)',
-                media: query,
-                onchange: null,
-                addListener: vi.fn(),
-                removeListener: vi.fn(),
-                addEventListener: vi.fn(),
-                removeEventListener: vi.fn(),
-                dispatchEvent: vi.fn(),
-            })) as unknown as typeof window.matchMedia;
+        it('times each dot by where the zoom puts it on screen, a dot zoomed off the map by the nearest point on it', () => {
             const { container } = renderMap();
+            fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+            const [x, y, k] = (
+                /translate\(([-\d.]+),([-\d.]+)\) scale\(([-\d.]+)\)/.exec(
+                    container
+                        .querySelector('svg[role="img"] > g')
+                        ?.getAttribute('transform') ?? '',
+                ) ?? []
+            )
+                .slice(1)
+                .map(Number);
+            expect(k).toBeGreaterThan(1);
             fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
-            const { delays, fade, band } = drawing(container);
-            expect(delays.every((delay) => delay === '')).toBe(true);
-            expect(fade).toBe('');
-            expect(band).toBeNull();
+            const { area, dots, delays } = drawing(container);
+            const onScreen = dots.map((dot) => ({
+                x: x + k * Number(dot.getAttribute('cx')),
+                y: y + k * Number(dot.getAttribute('cy')),
+            }));
+            expect(delays).toEqual(
+                onScreen.map((point) => `${getSweepDelay(point, area)}ms`),
+            );
             expect(
-                container.querySelector('svg[role="img"] [data-dot="viewer"]'),
-            ).not.toBeNull();
+                onScreen.some(
+                    (point) =>
+                        point.x < 0 ||
+                        point.x > area.width ||
+                        point.y < 0 ||
+                        point.y > area.height,
+                ),
+            ).toBe(true);
         });
 
-        it('ends the sweep at once when a person is selected during it, so the selection shows straight away', () => {
+        it('changes the colours at once for people who prefer reduced motion', () => {
+            const matchMedia = vi
+                .spyOn(window, 'matchMedia')
+                .mockImplementation((query) => ({
+                    matches: query === '(prefers-reduced-motion: reduce)',
+                    media: query,
+                    onchange: null,
+                    addListener: vi.fn(),
+                    removeListener: vi.fn(),
+                    addEventListener: vi.fn(),
+                    removeEventListener: vi.fn(),
+                    dispatchEvent: vi.fn(),
+                }));
+            try {
+                const { container } = renderMap();
+                fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+                const { delays, fade, band } = drawing(container);
+                expect(delays.every((delay) => delay === '')).toBe(true);
+                expect(fade).toBe('');
+                expect(band).toBeNull();
+                expect(
+                    container.querySelector(
+                        'svg[role="img"] [data-dot="viewer"]',
+                    ),
+                ).not.toBeNull();
+            } finally {
+                matchMedia.mockRestore();
+            }
+        });
+
+        it('shows a selection made during the sweep at once and takes the band away', () => {
             loadMembers('Finance', [
                 memberFixture('ada', new Date().toISOString(), {
                     isActive30d: true,

@@ -354,14 +354,16 @@ export const DepartmentMap: FC<Props> = ({
         resetView();
     }, [resetView, layoutKey, width, height]);
 
-    // Runs before the browser works out the new colours, so each waits for the sweep to reach its dot.
-    // Zooming, resizing, new data or a selection during the sweep ends it, so they show at once.
+    // React draws the new colours first and d3 writes their delays here, before the browser works them out.
+    // Nothing may read layout between the two in the same render, or the colours change at once, silently.
     useLayoutEffect(() => {
         if (drawnColourByRef.current === colourBy) return undefined;
         drawnColourByRef.current = colourBy;
         const dotsLayer = dotsRef.current;
         const bandLayer = sweepLayerRef.current;
         if (!dotsLayer || !bandLayer) return undefined;
+        // A zoom, a resize, new data or a selection during the sweep shows at once and takes the band away;
+        // the other dots still change on the sweep's timing
         return startColourTransition(
             {
                 dotsLayer,
