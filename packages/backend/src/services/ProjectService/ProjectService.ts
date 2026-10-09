@@ -474,10 +474,8 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type CredentialOwner } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
-import {
-    prepareSnowflakeOAuthCredentials,
-    SnowflakeOAuthCredentialResolver,
-} from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
+import { prepareWarehouseOAuthCredentials } from '../WarehouseClientFactory/preparedOAuthCredentials';
+import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
@@ -2704,7 +2702,7 @@ export class ProjectService
                                 : null,
                     },
                 );
-            const credentials = prepareSnowflakeOAuthCredentials(
+            const credentials = prepareWarehouseOAuthCredentials(
                 resolved.clientCredentials,
             );
 
@@ -6658,7 +6656,7 @@ export class ProjectService
                             kind: 'bypass',
                             mode: 'test_and_compile',
                             projectUuid: input.projectUuid,
-                            credentials: prepareSnowflakeOAuthCredentials(
+                            credentials: prepareWarehouseOAuthCredentials(
                                 input.credentials,
                             ),
                             tunnelOptions: this.connectionTestTunnelOptions(),
@@ -6890,7 +6888,7 @@ export class ProjectService
                     kind: 'bypass',
                     mode: 'connection_test',
                     projectUuid: null,
-                    credentials: prepareSnowflakeOAuthCredentials(credentials),
+                    credentials: prepareWarehouseOAuthCredentials(credentials),
                     tunnelOptions: this.connectionTestTunnelOptions(),
                 },
                 context,
@@ -7061,7 +7059,7 @@ export class ProjectService
                 mode: 'timezone_preview',
                 projectUuid: body.mode === 'edit' ? body.projectUuid : null,
                 credentials:
-                    prepareSnowflakeOAuthCredentials(effectiveCredentials),
+                    prepareWarehouseOAuthCredentials(effectiveCredentials),
             };
         }
         return this.warehouseClientFactory.withWarehouseClient(
@@ -7334,7 +7332,7 @@ export class ProjectService
                         legacyOwner: { kind: 'project', uuid: projectUuid },
                     },
                 );
-            warehouseConnection = prepareSnowflakeOAuthCredentials(
+            warehouseConnection = prepareWarehouseOAuthCredentials(
                 resolved.clientCredentials,
             );
         }
@@ -7457,7 +7455,7 @@ export class ProjectService
             }
         }
 
-        return prepareSnowflakeOAuthCredentials(warehouseConnection);
+        return prepareWarehouseOAuthCredentials(warehouseConnection);
     }
 
     private async withCompileAdapter<T>(
@@ -16920,7 +16918,7 @@ export class ProjectService
                 kind: 'bypass',
                 mode: 'dbt_cloud_preview_webhook',
                 projectUuid,
-                credentials: prepareSnowflakeOAuthCredentials(
+                credentials: prepareWarehouseOAuthCredentials(
                     project.warehouseConnection,
                 ),
             };
