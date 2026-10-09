@@ -27,8 +27,9 @@ import {
     type PeopleBreakdown,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
-import { type DotKind } from './geometry';
+import { type ColourBy } from './geometry';
 import { DotSwatch } from './MapLegend';
+import { DOT_LABELS } from './mapStyles';
 import { formatMemberActivity, formatPct } from './mapView';
 
 type Props = {
@@ -38,6 +39,7 @@ type Props = {
     parentName: string | null;
     // Everyone the panel is about, counted as the legend under the map counts them
     breakdown: PeopleBreakdown;
+    colourBy: ColourBy;
     // The departments one level down, which is what the map is showing, lowest coverage first
     rows: CoverageRow[];
     member: DepartmentMember | null;
@@ -47,43 +49,33 @@ type Props = {
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
-type Part = keyof PeopleBreakdown;
-
-// Each part is keyed with the dot the map draws for those people
-const LEGEND: { part: Part; dot: DotKind; label: string }[] = [
-    { part: 'active', dot: 'active', label: 'Active' },
-    {
-        part: 'onLightdashNotActive',
-        dot: 'idle',
-        label: 'On Lightdash, not active',
-    },
-    { part: 'noAccount', dot: 'noAccount', label: 'No account' },
-];
-
-// The share of the whole bar a part takes; the whole is everyone the breakdown counts
-const getShare = (breakdown: PeopleBreakdown, part: Part): number => {
-    const total =
-        breakdown.active + breakdown.onLightdashNotActive + breakdown.noAccount;
-    return total > 0 ? (100 * breakdown[part]) / total : 0;
-};
-
-// Active, then on Lightdash but not active, over a track that stands for the people without an account
+// The parts of the people on Lightdash, as the map colours them, over a track that stands for the people
+// without an account; the whole bar is everyone the breakdown counts
 const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
     breakdown,
     size,
-}) => (
-    <Progress.Root size={size} radius={size === 'lg' ? 'sm' : 'xs'} aria-hidden>
-        {(['active', 'onLightdashNotActive'] as const).map((part) => (
-            <Progress.Section
-                key={part}
-                className={styles.segment}
-                data-part={part}
-                value={getShare(breakdown, part)}
-                withAria={false}
-            />
-        ))}
-    </Progress.Root>
-);
+}) => {
+    const total = breakdown.reduce((sum, part) => sum + part.count, 0);
+    return (
+        <Progress.Root
+            size={size}
+            radius={size === 'lg' ? 'sm' : 'xs'}
+            aria-hidden
+        >
+            {breakdown
+                .filter((part) => part.kind !== 'noAccount')
+                .map((part) => (
+                    <Progress.Section
+                        key={part.kind}
+                        className={styles.segment}
+                        data-part={part.kind}
+                        value={total > 0 ? (100 * part.count) / total : 0}
+                        withAria={false}
+                    />
+                ))}
+        </Progress.Root>
+    );
+};
 
 const RowWord: FC<{ children: string }> = ({ children }) => (
     <Text
@@ -125,24 +117,25 @@ const RowEnd: FC<{
     }
 };
 
-// Without a headcount anywhere, nobody can be counted as having no account, so that count gives way to a request
+// Each part keyed with the dot the map draws for those people. Without a headcount anywhere, nobody can be
+// counted as having no account, so that count gives way to a request
 const BreakdownLegend: FC<{
     breakdown: PeopleBreakdown;
     hasHeadcount: boolean;
 }> = ({ breakdown, hasHeadcount }) => (
     <ul className={styles.legend}>
-        {LEGEND.map(({ part, dot, label }) =>
-            part === 'noAccount' && !hasHeadcount ? (
-                <li key={part} className={styles.legendItem}>
+        {breakdown.map(({ kind, count }) =>
+            kind === 'noAccount' && !hasHeadcount ? (
+                <li key={kind} className={styles.legendItem}>
                     <Text fz="xs" c="dimmed">
                         Add headcounts to see coverage
                     </Text>
                 </li>
             ) : (
-                <li key={part} className={styles.legendItem}>
-                    <DotSwatch kind={dot} />
+                <li key={kind} className={styles.legendItem}>
+                    <DotSwatch kind={kind} />
                     <Text fz="xs" className={styles.count}>
-                        {`${label} ${formatCount(breakdown[part])}`}
+                        {`${DOT_LABELS[kind]} ${formatCount(count)}`}
                     </Text>
                 </li>
             ),
@@ -154,6 +147,7 @@ export const MapInspector: FC<Props> = ({
     department,
     parentName,
     breakdown,
+    colourBy,
     rows,
     member,
     canManage,
@@ -175,6 +169,7 @@ export const MapInspector: FC<Props> = ({
             : getDirectRow(
                   department,
                   rows.map((row) => row.department),
+                  colourBy,
               );
     return (
         <Paper p="md" component="aside" aria-label="Details">

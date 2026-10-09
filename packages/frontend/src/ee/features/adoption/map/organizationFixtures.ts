@@ -1,4 +1,7 @@
-import { type DepartmentWithMetrics } from '@lightdash/common';
+import {
+    type ActivitySplit,
+    type DepartmentWithMetrics,
+} from '@lightdash/common';
 import {
     dept,
     metricsFixture,
@@ -18,10 +21,29 @@ type Row = [
     directActive: number,
 ];
 
-const toDepartments = (rows: Row[]): DepartmentWithMetrics[] =>
-    withServerHeadcounts(
-        rows.map(
-            ([
+// Of the people directly in a department who are not active, two in five were active in the last 90 days
+const getDirectSplit = (members: number, active: number): ActivitySplit => {
+    const atRisk = Math.floor(((members - active) * 2) / 5);
+    return { healthy: active, atRisk, lost: members - active - atRisk };
+};
+
+const toDepartments = (rows: Row[]): DepartmentWithMetrics[] => {
+    // A department's people are its own and its sub-departments', so its split is theirs added up
+    const getRolledSplit = (row: Row): ActivitySplit =>
+        rows
+            .filter(([, parent]) => parent === row[0])
+            .map(getRolledSplit)
+            .reduce(
+                (sum, split) => ({
+                    healthy: sum.healthy + split.healthy,
+                    atRisk: sum.atRisk + split.atRisk,
+                    lost: sum.lost + split.lost,
+                }),
+                getDirectSplit(row[5], row[6]),
+            );
+    return withServerHeadcounts(
+        rows.map((row) => {
+            const [
                 name,
                 parent,
                 headcount,
@@ -29,20 +51,23 @@ const toDepartments = (rows: Row[]): DepartmentWithMetrics[] =>
                 active,
                 directMembers,
                 directActive,
-            ]) =>
-                dept(name, parent, null, {
-                    headcount,
-                    metrics: metricsFixture(members, null, {
-                        activeCount30d: active,
-                        activeCount12w: active,
-                    }),
-                    directMetrics: metricsFixture(directMembers, null, {
-                        activeCount30d: directActive,
-                        activeCount12w: directActive,
-                    }),
+            ] = row;
+            return dept(name, parent, null, {
+                headcount,
+                metrics: metricsFixture(members, null, {
+                    activeCount30d: active,
+                    activeCount12w: active,
+                    activitySplit: getRolledSplit(row),
                 }),
-        ),
+                directMetrics: metricsFixture(directMembers, null, {
+                    activeCount30d: directActive,
+                    activeCount12w: directActive,
+                    activitySplit: getDirectSplit(directMembers, directActive),
+                }),
+            });
+        }),
     );
+};
 
 // Four levels deep, 56 departments and 1,763 people placed; 5,582 headcount entered at the top level, 5,587
 // effective as People's 120 is below its sub-departments' 125

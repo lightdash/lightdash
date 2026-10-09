@@ -35,7 +35,7 @@ import {
     type TextMeasurer,
     type TextRole,
 } from './mapLayout';
-import { OUTLINED_DOT_KINDS } from './mapStyles';
+import { DOT_LABELS, OUTLINED_DOT_KINDS } from './mapStyles';
 import { type CircleInfo, type MapDot } from './mapView';
 import { isZoomGesture } from './zoomGesture';
 
@@ -180,8 +180,9 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
                         r={radius}
                         strokeWidth={isOutlined ? strokeWidth : undefined}
                     >
+                        {/* Names the person and the part of the colouring they are in */}
                         {dot.member && (
-                            <title>{getMemberName(dot.member)}</title>
+                            <title>{`${getMemberName(dot.member)} · ${DOT_LABELS[dot.kind]}`}</title>
                         )}
                     </circle>
                 );

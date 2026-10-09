@@ -12,6 +12,7 @@ import {
     formatQuantity,
     PEOPLE,
     SUB_DEPARTMENTS,
+    type Noun,
 } from '../utils/format';
 import { type PeopleBreakdown } from '../utils/peopleBreakdown';
 import {
@@ -25,6 +26,7 @@ import {
     type DotKind,
     type PackedCircle,
 } from './geometry';
+import { COLOUR_BY_LABELS } from './mapStyles';
 
 // First names are only readable when few people share the map
 export const NAME_LABEL_LIMIT = 150;
@@ -80,7 +82,6 @@ const getCircleDots = (
     circle: PackedCircle,
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
-    now: Date,
 ): CircleDots => {
     if (circle.people === null) return { kinds: [], members: [] };
     if (membersByDepartment === null || circle.departmentUuid === null) {
@@ -97,7 +98,6 @@ const getCircleDots = (
     const members = orderMembersForDots(
         membersByDepartment.get(circle.departmentUuid) ?? [],
         colourBy,
-        now,
     );
     const withoutAccount = Math.max(
         countBucketPeople(circle.people) - members.length,
@@ -105,7 +105,7 @@ const getCircleDots = (
     );
     return {
         kinds: [
-            ...members.map((member) => getMemberDotKind(member, colourBy, now)),
+            ...members.map((member) => getMemberDotKind(member, colourBy)),
             ...Array.from(
                 { length: withoutAccount },
                 (): DotKind => 'noAccount',
@@ -120,7 +120,6 @@ export const countDotKinds = (
     circles: PackedCircle[],
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
-    now: Date = new Date(),
 ): Map<DotKind, number> => {
     const counts = new Map<DotKind, number>();
     const add = (kind: DotKind, count: number) =>
@@ -134,32 +133,19 @@ export const countDotKinds = (
             );
             return;
         }
-        getCircleDots(circle, colourBy, membersByDepartment, now).kinds.forEach(
+        getCircleDots(circle, colourBy, membersByDepartment).kinds.forEach(
             (kind) => add(kind, 1),
         );
     });
     return counts;
 };
 
-// What the legend counts: the panel's numbers, which the dots drawn match. Coloured by activity it reads them
-// as they are; otherwise the people on Lightdash are counted as drawn and the rest from the panel
+// What the legend counts: the panel's numbers, which the dots drawn match, as the server puts each person in the
+// bucket and role it counts them in
 export const getLegendCounts = (
     breakdown: PeopleBreakdown,
-    circles: PackedCircle[],
-    colourBy: ColourBy,
-    membersByDepartment: MembersByDepartment | null,
-    now: Date = new Date(),
-): Map<DotKind, number> => {
-    const counts =
-        colourBy === 'active'
-            ? new Map<DotKind, number>([
-                  ['active', breakdown.active],
-                  ['idle', breakdown.onLightdashNotActive],
-              ])
-            : countDotKinds(circles, colourBy, membersByDepartment, now);
-    counts.set('noAccount', breakdown.noAccount);
-    return counts;
-};
+): Map<DotKind, number> =>
+    new Map(breakdown.map(({ kind, count }) => [kind, count]));
 
 // Circles drawn with the dashed rings the legend keys; a "Directly in" circle inside another is a plain ring
 const isDrawnWithRing = (circle: PackedCircle): boolean =>
@@ -194,13 +180,11 @@ export const buildDots = (
     circle: PackedCircle,
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
-    now: Date = new Date(),
 ): MapDot[] => {
     const { kinds, members } = getCircleDots(
         circle,
         colourBy,
         membersByDepartment,
-        now,
     );
     const { dotRadius, positions } = layoutDots(kinds.length, circle.r);
     return positions.map((position, index) => ({
@@ -333,16 +317,40 @@ export const getViewTotals = (circles: PackedCircle[]): ViewTotals =>
         { people: 0, members: 0, active: 0 },
     );
 
+const counted = (noun: Noun) => (count: number) => formatQuantity(count, noun);
+const named = (name: string) => (count: number) =>
+    `${formatCount(count)} ${name}`;
+
+// Each part of a colouring as it is read out, with its count
+const SPOKEN_KINDS: Record<DotKind, (count: number) => string> = {
+    healthy: named('healthy'),
+    atRisk: named('at risk'),
+    lost: named('lost'),
+    admin: counted({ one: 'admin', other: 'admins' }),
+    editor: counted({ one: 'editor', other: 'editors' }),
+    interactiveViewer: counted({
+        one: 'interactive viewer',
+        other: 'interactive viewers',
+    }),
+    viewer: counted({ one: 'viewer', other: 'viewers' }),
+    noAccount: named('with no account'),
+};
+
 export const buildMapAriaLabel = ({
     scopeName,
     departmentCount,
     totals,
     areDotsHidden,
+    colourBy,
+    breakdown,
 }: {
     scopeName: string | null; // null at the top of the organization
     departmentCount: number;
     totals: ViewTotals;
     areDotsHidden: boolean;
+    colourBy: ColourBy;
+    // The people in view, in the parts their dots are coloured by
+    breakdown: PeopleBreakdown;
 }): string => {
     const departments =
         scopeName === null
@@ -357,9 +365,12 @@ export const buildMapAriaLabel = ({
             : `${formatCount(totals.members)} on Lightdash`,
         `${formatCount(totals.active)} active in the last 30 days`,
     ].join(', ');
+    const colouring = `${COLOUR_BY_LABELS[colourBy].toLowerCase()}: ${breakdown
+        .map(({ kind, count }) => SPOKEN_KINDS[kind](count))
+        .join(', ')}`;
     const encoding = areDotsHidden
         ? 'Each circle is a department sized by headcount'
-        : 'Each circle is a department sized by headcount and each dot is a person';
+        : `Each circle is a department sized by headcount and each dot is a person, coloured by ${colouring}`;
     return `Map of ${scopeName ?? 'the organization'}: ${numbers}. ${encoding}. The List view has the same numbers as a table`;
 };
 

@@ -1,4 +1,4 @@
-import { formatCount } from '../utils/format';
+import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
 import {
     enlargeSmallCircles,
     layoutPack,
@@ -212,7 +212,7 @@ export const fitToArea = (input: PackDatum, area: Area): PackedCircle[] => {
     return enlargeSmallCircles(circles, MIN_CIRCLE_RADIUS, area);
 };
 
-// The line of numbers under a circle's name, longest first; the hover label shows the last, the shortest
+// The line of numbers under a circle's name, longest first; a name at rest shows the last, the shortest
 export const getCaptionVariants = (stats: CircleStats): string[] => {
     // The people directly in a department read in full, over the headcount kept for them
     if (stats.isDirect)
@@ -304,8 +304,37 @@ const measureLabel = (
     height: LINE_PX[role] + (text.detail === null ? 0 : LINE_PX.detail),
 });
 
-// What a hover label says: the name with its shortest line of numbers, then the name alone
-const getFirstTexts = (
+// The fuller line a hover label gives under the name of a circle of the level in view: the people on Lightdash,
+// how many are active, a missing headcount and the sub-departments, each only where it applies
+const getFullCaption = (stats: CircleStats, subDepartments: number): string => {
+    if (stats.isDirect) {
+        return formatDirectPeople(stats.members, stats.headcount, stats.active);
+    }
+    const people =
+        stats.members === 0
+            ? [
+                  stats.headcount === null
+                      ? 'Nobody on Lightdash'
+                      : `${formatCount(stats.headcount)} people · nobody on Lightdash`,
+              ]
+            : [
+                  `${formatCount(stats.members)}${stats.headcount === null ? '' : ` of ${formatCount(stats.headcount)}`} on Lightdash`,
+                  stats.active === stats.members
+                      ? 'all active'
+                      : `${formatCount(stats.active)} active`,
+              ];
+    return [
+        ...people,
+        ...(stats.headcount === null ? ['no headcount'] : []),
+        ...(subDepartments > 0
+            ? [formatQuantity(subDepartments, SUB_DEPARTMENTS)]
+            : []),
+    ].join(' · ');
+};
+
+// What a circle's name at rest says: the name with its shortest line of numbers, then the name alone. A
+// circle inside another gives its count beside its name
+const getRestTexts = (
     circle: PackedCircle,
     stats: CircleStats,
 ): LabelText[] => {
@@ -324,6 +353,23 @@ const getFirstTexts = (
         { name: circle.name, detail: null },
     ];
 };
+
+// What a hover label says: for a circle of the level in view the fuller line first, so hovering one named at
+// rest adds to its name
+const getHoverTexts = (
+    circle: PackedCircle,
+    stats: CircleStats,
+): LabelText[] => [
+    ...(circle.depth === 1
+        ? [
+              {
+                  name: circle.name,
+                  detail: getFullCaption(stats, circle.childDepartmentCount),
+              },
+          ]
+        : []),
+    ...getRestTexts(circle, stats),
+];
 
 // Shortened to fit the width; null when even the numbers are too wide
 const getOutsideText = (
@@ -381,19 +427,17 @@ const getOutsideCandidate = (
 const isNamed = (circle: PackedCircle): boolean =>
     circle.kind === 'department' || circle.depth === 1;
 
-// A circle's label shows while it is hovered or its control has focus, in full unless it is wider than
-// the drawing: under the circle, or over it when under is off the drawing or on the zoom buttons
-export const getHoverLabel = (
+// The first of the texts that fits the drawing's width, in full unless it is wider than the drawing: under the
+// circle, or over it when under is off the drawing or on the zoom buttons
+const placeLabel = (
     circle: PackedCircle,
-    info: Map<string, CircleInfo>,
+    texts: LabelText[],
     zoom: number,
     area: Area,
     measure: TextMeasurer,
 ): CircleLabel | null => {
-    const stats = info.get(circle.id)?.stats;
-    if (!stats || !isNamed(circle)) return null;
     const maxWidth = area.width * zoom - PANEL_INSET_PX * 2;
-    const text = getFirstTexts(circle, stats)
+    const text = texts
         .map((each) => getOutsideText(circle, each, maxWidth, measure))
         .find((each): each is LabelText => each !== null);
     if (!text) return null;
@@ -423,28 +467,72 @@ export const getHoverLabel = (
     };
 };
 
+// A circle's label shows while it is hovered or its control has focus
+export const getHoverLabel = (
+    circle: PackedCircle,
+    info: Map<string, CircleInfo>,
+    zoom: number,
+    area: Area,
+    measure: TextMeasurer,
+): CircleLabel | null => {
+    const stats = info.get(circle.id)?.stats;
+    if (!stats || !isNamed(circle)) return null;
+    return placeLabel(
+        circle,
+        getHoverTexts(circle, stats),
+        zoom,
+        area,
+        measure,
+    );
+};
+
 // A circle narrower than this on screen is named on hover only
 const REST_LABEL_MIN_DIAMETER_PX = 24;
 
-// Each circle of the level in view is named at rest, as and where its hover label would name it. Nothing is
-// moved or resized to make room for the names
+// Each circle of the level in view is named at rest, placed by the hover label's rule. Nothing is moved or resized
+// for the names: where two would overlap, the larger circle keeps its name and the other is named on hover only
 export const getRestLabels = (
     circles: PackedCircle[],
     info: Map<string, CircleInfo>,
     zoom: number,
     area: Area,
     measure: TextMeasurer,
-): CircleLabel[] =>
-    circles.flatMap((circle) => {
+): CircleLabel[] => {
+    const placed = circles.flatMap((circle) => {
+        const stats = info.get(circle.id)?.stats;
         if (
+            !stats ||
             circle.depth !== 1 ||
             circle.r * 2 * zoom < REST_LABEL_MIN_DIAMETER_PX
         ) {
             return [];
         }
-        const label = getHoverLabel(circle, info, zoom, area, measure);
-        return label === null ? [] : [label];
+        const label = placeLabel(
+            circle,
+            getRestTexts(circle, stats),
+            zoom,
+            area,
+            measure,
+        );
+        return label === null ? [] : [{ circle, label }];
     });
+    const kept = new Set<CircleLabel>();
+    [...placed]
+        .sort(
+            (a, b) =>
+                b.circle.r - a.circle.r ||
+                b.circle.size - a.circle.size ||
+                a.circle.id.localeCompare(b.circle.id),
+        )
+        .forEach(({ label }) => {
+            if (
+                ![...kept].some((other) => boxesOverlap(other.box, label.box))
+            ) {
+                kept.add(label);
+            }
+        });
+    return placed.flatMap(({ label }) => (kept.has(label) ? [label] : []));
+};
 
 // A hover label takes the place of its circle's name at rest, and of any other name it would sit on
 export const makeWayForHoverLabel = (

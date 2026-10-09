@@ -60,7 +60,7 @@ const draw = (
             circles={circles}
             info={info}
             dots={[]}
-            colourBy="active"
+            colourBy="activity"
             showNames={false}
             ariaLabel="Map"
             measureText={estimateTextWidth}
@@ -136,8 +136,11 @@ describe('DepartmentMap labels', () => {
         expect(container.querySelector('[data-label]')).toBeNull();
 
         hover('Service');
-        expect(textOf('Service')).toEqual(['Service', '200 of 300']);
-        // Never both at once
+        // The fuller line, so hovering adds to the name at rest; never both at once
+        expect(textOf('Service')).toEqual([
+            'Service',
+            '200 of 300 on Lightdash · 120 active',
+        ]);
         expect(restTextOf('Service')).toEqual([]);
         leave('Service');
         expect(container.querySelector('[data-label]')).toBeNull();
@@ -145,7 +148,10 @@ describe('DepartmentMap labels', () => {
     });
     it("swaps a department's name at rest for its hover label while its control has keyboard focus", () => {
         const { textOf, restTextOf } = draw([circleOfPeople(120)], 'Service');
-        expect(textOf('Service')).toEqual(['Service', '200 of 300']);
+        expect(textOf('Service')).toEqual([
+            'Service',
+            '200 of 300 on Lightdash · 120 active',
+        ]);
         expect(restTextOf('Service')).toEqual([]);
     });
     it('names the people directly in a department after the department around them, and no circle inside another at rest', () => {
@@ -167,7 +173,10 @@ describe('DepartmentMap labels', () => {
             container.querySelector('[data-rest-label="own:Ops"]'),
         ).toBeNull();
         hover('own:Ops');
-        expect(textOf('Ops')).toEqual(['Ops', '12 of 40']);
+        expect(textOf('Ops')).toEqual([
+            'Ops',
+            '12 of 40 on Lightdash · 5 active · 1 sub-department',
+        ]);
         expect(restTextOf('Ops')).toEqual([]);
         expect(container.querySelector('[data-label="own:Ops"]')).toBeNull();
     });
@@ -196,7 +205,10 @@ describe('DepartmentMap labels', () => {
         ]);
         expect(restTextOf('Service')).toEqual([]);
         hover('Service');
-        expect(textOf('Service')).toEqual(['Service', '200 of 300']);
+        expect(textOf('Service')).toEqual([
+            'Service',
+            '200 of 300 on Lightdash · 120 active',
+        ]);
         leave('Service');
         // 35 px across once zoomed in; the name keeps its size on screen
         fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));

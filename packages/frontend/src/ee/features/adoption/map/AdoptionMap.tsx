@@ -84,10 +84,8 @@ export const AdoptionMap: FC<Props> = ({
         null,
     );
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('active');
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
-    // One clock per visit, so a dot never changes kind between renders
-    const now = useMemo(() => new Date(), []);
 
     // Labels are measured in the font they are drawn in, again once web fonts have loaded
     const [font, setFont] = useState<{ family: string; epoch: number } | null>(
@@ -149,13 +147,13 @@ export const AdoptionMap: FC<Props> = ({
     const breakdown = useMemo(
         () =>
             focus === null
-                ? getOrganizationBreakdown(departments)
-                : getDepartmentBreakdown(focus),
-        [focus, departments],
+                ? getOrganizationBreakdown(departments, colourBy)
+                : getDepartmentBreakdown(focus, colourBy),
+        [focus, departments, colourBy],
     );
     const rows = useMemo(
-        () => getCoverageRows(visibleDepartments),
-        [visibleDepartments],
+        () => getCoverageRows(visibleDepartments, colourBy),
+        [visibleDepartments, colourBy],
     );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
@@ -189,22 +187,12 @@ export const AdoptionMap: FC<Props> = ({
         () =>
             showDots
                 ? circles.flatMap((circle) =>
-                      buildDots(circle, colourBy, membersByDepartment, now),
+                      buildDots(circle, colourBy, membersByDepartment),
                   )
                 : [],
-        [showDots, circles, colourBy, membersByDepartment, now],
+        [showDots, circles, colourBy, membersByDepartment],
     );
-    const legendCounts = useMemo(
-        () =>
-            getLegendCounts(
-                breakdown,
-                circles,
-                colourBy,
-                membersByDepartment,
-                now,
-            ),
-        [breakdown, circles, colourBy, membersByDepartment, now],
-    );
+    const legendCounts = useMemo(() => getLegendCounts(breakdown), [breakdown]);
 
     // Whether the last thing the person did in the map was a key press or a pointer press
     const lastInputRef = useRef<'keyboard' | 'pointer'>('pointer');
@@ -355,6 +343,8 @@ export const AdoptionMap: FC<Props> = ({
                                     departmentCount: visibleDepartments.length,
                                     totals,
                                     areDotsHidden: !showDots,
+                                    colourBy,
+                                    breakdown,
                                 })}
                                 measureText={measure}
                                 layoutKey={focusedUuid ?? 'root'}
@@ -431,6 +421,7 @@ export const AdoptionMap: FC<Props> = ({
                     department={focus}
                     parentName={trail[trail.length - 2]?.name ?? null}
                     breakdown={breakdown}
+                    colourBy={colourBy}
                     rows={rows}
                     member={selectedMember}
                     canManage={canManage}

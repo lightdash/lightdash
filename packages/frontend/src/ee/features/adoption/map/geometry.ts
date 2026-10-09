@@ -24,8 +24,6 @@ const ENLARGED_CLEARANCE = 2;
 const MIN_ENLARGEMENT = 0.5;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const LAPSED_DAYS = 84;
 const LABEL_PX_PER_CHAR = 3.6;
 const ROOMY_DOT_RADIUS = 11;
 const DENSE_DOT_RADIUS = 5;
@@ -36,13 +34,12 @@ const RING_WITH_CENTRE_COUNT = 7;
 // Centres are kept this multiple of a dot's diameter apart, so neighbours never touch
 const DOT_SPACING = 1.06;
 
-export type ColourBy = 'active' | 'role' | 'lastActive';
+export type ColourBy = 'activity' | 'role';
 
 export type DotKind =
-    | 'active'
-    | 'idle'
-    | 'lapsed'
-    | 'inactive'
+    | 'healthy'
+    | 'atRisk'
+    | 'lost'
     | 'admin'
     | 'editor'
     | 'interactiveViewer'
@@ -86,14 +83,13 @@ export type PackedCircle = Omit<PackDatum, 'children'> & {
 
 // Core first: this is also the order dots are laid out from the centre
 const DOT_ORDER: DotKind[] = [
-    'active',
-    'lapsed',
+    'healthy',
+    'atRisk',
+    'lost',
     'admin',
     'editor',
     'interactiveViewer',
     'viewer',
-    'idle',
-    'inactive',
     'noAccount',
 ];
 
@@ -114,13 +110,11 @@ export const getDotSegments = (
         count: countBucketPeople(bucket) - metrics.memberCount,
     };
     switch (colourBy) {
-        case 'active':
+        case 'activity':
             return [
-                { kind: 'active', count: metrics.activeCount30d },
-                {
-                    kind: 'idle',
-                    count: metrics.memberCount - metrics.activeCount30d,
-                },
+                { kind: 'healthy', count: metrics.activitySplit.healthy },
+                { kind: 'atRisk', count: metrics.activitySplit.atRisk },
+                { kind: 'lost', count: metrics.activitySplit.lost },
                 noAccount,
             ];
         case 'role':
@@ -132,19 +126,6 @@ export const getDotSegments = (
                     count: metrics.roleSplit.interactiveViewers,
                 },
                 { kind: 'viewer', count: metrics.roleSplit.viewers },
-                noAccount,
-            ];
-        case 'lastActive':
-            return [
-                { kind: 'active', count: metrics.activeCount30d },
-                {
-                    kind: 'lapsed',
-                    count: metrics.activeCount12w - metrics.activeCount30d,
-                },
-                {
-                    kind: 'inactive',
-                    count: metrics.memberCount - metrics.activeCount12w,
-                },
                 noAccount,
             ];
         default:
@@ -656,26 +637,16 @@ const roleKind = (role: OrganizationMemberRole): DotKind => {
     }
 };
 
-// Active in 30 days is the server's flag; only the 12-week split still reads the timestamp
+// A person's activity bucket is the server's, from the bounds its counts were taken with
 export const getMemberDotKind = (
-    member: Pick<DepartmentMember, 'role' | 'lastActiveAt' | 'isActive30d'>,
+    member: Pick<DepartmentMember, 'role' | 'activity'>,
     colourBy: ColourBy,
-    now: Date = new Date(),
 ): DotKind => {
     switch (colourBy) {
-        case 'active':
-            return member.isActive30d ? 'active' : 'idle';
+        case 'activity':
+            return member.activity;
         case 'role':
             return roleKind(member.role);
-        case 'lastActive': {
-            if (member.isActive30d) return 'active';
-            const daysSince =
-                member.lastActiveAt === null
-                    ? Number.POSITIVE_INFINITY
-                    : (now.getTime() - Date.parse(member.lastActiveAt)) /
-                      MS_PER_DAY;
-            return daysSince <= LAPSED_DAYS ? 'lapsed' : 'inactive';
-        }
         default:
             return assertUnreachable(colourBy, 'Unknown colouring');
     }
@@ -684,12 +655,11 @@ export const getMemberDotKind = (
 export const orderMembersForDots = (
     members: DepartmentMember[],
     colourBy: ColourBy,
-    now: Date = new Date(),
 ): DepartmentMember[] =>
     [...members].sort(
         (a, b) =>
-            DOT_ORDER.indexOf(getMemberDotKind(a, colourBy, now)) -
-            DOT_ORDER.indexOf(getMemberDotKind(b, colourBy, now)),
+            DOT_ORDER.indexOf(getMemberDotKind(a, colourBy)) -
+            DOT_ORDER.indexOf(getMemberDotKind(b, colourBy)),
     );
 
 export const truncateLabel = (name: string, radius: number): string => {

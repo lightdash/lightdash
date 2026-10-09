@@ -7,6 +7,7 @@ import {
     estimateTextWidth,
     getControlsBox,
     getHoverLabel,
+    getRestLabels,
     layoutMap,
     type Area,
     type Box,
@@ -87,8 +88,8 @@ describe.each([
                         }),
                 ).toEqual([]);
             });
-            // At rest each circle of the level in view at least 24 px across carries the label checked above, and
-            // nothing else is drawn; the organization's level is drawn at every width
+            // At rest the organization's level is named with the shortest lines, placed as above, no two names
+            // overlapping, and nothing else is drawn
             const { circles, info } = drawView(departments, null, area);
             const { container, unmount } = renderWithProviders(
                 <DepartmentMap
@@ -97,7 +98,7 @@ describe.each([
                     circles={circles}
                     info={info}
                     dots={[]}
-                    colourBy="active"
+                    colourBy="activity"
                     showNames={false}
                     ariaLabel="Map"
                     measureText={estimateTextWidth}
@@ -111,29 +112,34 @@ describe.each([
             expect(container.querySelectorAll('[data-circle]').length).toBe(
                 circles.length,
             );
-            const named = circles.filter(
-                (circle) => circle.depth === 1 && circle.r * 2 >= 24,
+            const named = getRestLabels(
+                circles,
+                info,
+                1,
+                area,
+                estimateTextWidth,
             );
             expect(
-                named.map((circle) =>
+                named.map((label) =>
                     [
                         ...container.querySelectorAll(
-                            `[data-rest-label="${circle.id}"]`,
+                            `[data-rest-label="${label.id}"]`,
                         ),
                     ].map((node) => node.textContent),
                 ),
-            ).toEqual(
-                named.map((circle) => {
-                    const label = getHoverLabel(
-                        circle,
-                        info,
-                        1,
-                        area,
-                        estimateTextWidth,
+            ).toEqual(named.map((label) => [label.name, label.detail]));
+            named.forEach((label, index) => {
+                expect(label.box.x).toBeGreaterThanOrEqual(0);
+                expect(label.box.y + label.box.height).toBeLessThanOrEqual(
+                    HEIGHT,
+                );
+                expect(overlaps(label.box, controls)).toBe(false);
+                named
+                    .slice(index + 1)
+                    .forEach((other) =>
+                        expect(overlaps(label.box, other.box)).toBe(false),
                     );
-                    return [label?.name, label?.detail];
-                }),
-            );
+            });
             expect(container.querySelectorAll('svg text')).toHaveLength(
                 named.length * 2,
             );

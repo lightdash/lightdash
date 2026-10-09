@@ -1,6 +1,20 @@
 /* Colours the map's dots and legend share with the panel beside the map */
 .root {
-    --adoption-not-active: var(--mantine-color-violet-outline);
+    --adoption-viewer: var(--mantine-color-violet-outline);
+    /* Activity: in both schemes the amber is about 1.5:1 lighter than the green and at least 1.7:1 lighter
+       than the red, so neighbouring buckets differ in lightness as well as hue */
+    --adoption-healthy: light-dark(
+        var(--mantine-color-green-7),
+        var(--mantine-color-green-6)
+    );
+    --adoption-at-risk: light-dark(
+        var(--mantine-color-yellow-6),
+        var(--mantine-color-yellow-5)
+    );
+    --adoption-lost: light-dark(
+        var(--mantine-color-red-7),
+        var(--mantine-color-red-5)
+    );
 }
 
 .body {
@@ -74,16 +88,43 @@
     max-width: 50%;
 }
 
-/* The bars' parts: the map's active violet, then the not-active ring's colour as light as the map's lighter
-   violet dots. What is left of a bar is its track, the people without an account */
-.segment[data-part='active'] {
+/* The bars' parts in the dots' colours; a viewer's ring becomes its violet as light as the lighter violet
+   dots. What is left of a bar is its track, the people without an account */
+.segment[data-part='healthy'] {
+    background-color: var(--adoption-healthy);
+}
+
+.segment[data-part='atRisk'] {
+    background-color: var(--adoption-at-risk);
+}
+
+.segment[data-part='lost'] {
+    background-color: var(--adoption-lost);
+}
+
+.segment[data-part='admin'] {
+    background-color: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-2)
+    );
+}
+
+.segment[data-part='editor'] {
     background-color: var(--mantine-color-violet-filled);
 }
 
-.segment[data-part='onLightdashNotActive'] {
+.segment[data-part='interactiveViewer'] {
     background-color: color-mix(
         in srgb,
-        var(--adoption-not-active) 45%,
+        var(--mantine-color-violet-filled) 45%,
+        var(--mantine-color-body)
+    );
+}
+
+.segment[data-part='viewer'] {
+    background-color: color-mix(
+        in srgb,
+        var(--adoption-viewer) 45%,
         var(--mantine-color-body)
     );
 }

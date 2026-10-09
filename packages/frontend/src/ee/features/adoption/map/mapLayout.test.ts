@@ -486,14 +486,19 @@ describe('getHoverLabel', () => {
             if (!circle) throw new Error(`No circle ${id}`);
             return getHoverLabel(circle, info, 1, PANEL, estimateTextWidth);
         };
+        // The fuller line, each part only where it applies
         expect(hoverOf('Operations')).toMatchObject({
             name: 'Operations',
-            detail: '1 of 40',
+            detail: '1 of 40 on Lightdash · all active · 3 sub-departments',
             isNested: false,
         });
         expect(hoverOf('Product')).toMatchObject({
             name: 'Product',
-            detail: 'No headcount',
+            detail: '1 on Lightdash · all active · no headcount',
+        });
+        expect(hoverOf('Supply chain')).toMatchObject({
+            name: 'Supply chain',
+            detail: '80 people · nobody on Lightdash · 2 sub-departments',
         });
         expect(hoverOf('Stores')).toMatchObject({
             name: 'Stores · 22',
@@ -550,7 +555,7 @@ describe('getHoverLabel', () => {
         // A department without sub-departments whose headcount of 8 counts its 9 people on Lightdash
         expect(hoverIn('Governance', 'own:Governance')).toMatchObject({
             name: 'Governance',
-            detail: '9 of 9',
+            detail: '9 of 9 on Lightdash · all active',
         });
         // The people directly in a department, over what Data keeps for them beside its sub-departments' 110
         expect(hoverIn('Data', 'own:Data')).toMatchObject({
@@ -601,7 +606,7 @@ describe('getRestLabels', () => {
         new Map(departments.map((each) => [each.departmentUuid, each])),
     );
 
-    it('names each circle of the level in view as and where its hover label names it, and none inside them', () => {
+    it('names each circle of the level in view with its shortest line of numbers, and none inside them', () => {
         const labels = getRestLabels(
             circles,
             info,
@@ -609,21 +614,101 @@ describe('getRestLabels', () => {
             PANEL,
             estimateTextWidth,
         );
-        expect(labels.map((label) => label.id).sort()).toEqual([
-            'Finance',
-            'Ops',
+        expect(
+            labels
+                .map((label) => [label.id, label.name, label.detail])
+                .sort(([a], [b]) => String(a).localeCompare(String(b))),
+        ).toEqual([
+            ['Finance', 'Finance', '3 of 8'],
+            ['Ops', 'Ops', '9 of 30'],
         ]);
+        // Hovering adds the fuller line under the same name
+        expect(
+            getHoverLabel(find('Ops'), info, 1, PANEL, estimateTextWidth)
+                ?.detail,
+        ).toBe('9 of 30 on Lightdash · 4 active · 2 sub-departments');
         labels.forEach((label) =>
-            expect(label).toEqual(
-                getHoverLabel(
-                    find(label.id),
-                    info,
-                    1,
-                    PANEL,
-                    estimateTextWidth,
-                ),
+            expect(label.box.y).toBeGreaterThan(
+                find(label.id).y + find(label.id).r,
             ),
         );
+    });
+    it("leaves out the smaller circle's name where two names would overlap, never the larger one's, in every view of the 6,000-headcount organization at 480 px", () => {
+        const area = { width: 480, height: 560 };
+        const byUuid = new Map(
+            deepOrganization.map((each) => [each.departmentUuid, each]),
+        );
+        let dropped = 0;
+        [null, ...deepOrganization.map((each) => each.departmentUuid)].forEach(
+            (focus) => {
+                const { circles: view, find: findIn } = build(
+                    deepOrganization,
+                    area,
+                    focus,
+                );
+                const viewInfo = describeCircles(view, byUuid);
+                const labels = getRestLabels(
+                    view,
+                    viewInfo,
+                    1,
+                    area,
+                    estimateTextWidth,
+                );
+                // No two names at rest overlap
+                labels.forEach((a, index) =>
+                    labels
+                        .slice(index + 1)
+                        .forEach((b) =>
+                            expect(boxesIntersect(a.box, b.box)).toBe(false),
+                        ),
+                );
+                // A circle left unnamed is no larger than one whose name its own would sit on, or come within
+                // 2 px of
+                view.filter(
+                    (circle) =>
+                        circle.depth === 1 &&
+                        circle.r * 2 >= 24 &&
+                        !labels.some((label) => label.id === circle.id),
+                ).forEach((circle) => {
+                    dropped += 1;
+                    const own = getRestLabels(
+                        [circle],
+                        viewInfo,
+                        1,
+                        area,
+                        estimateTextWidth,
+                    );
+                    expect(
+                        labels.some(
+                            (label) =>
+                                findIn(label.id).r >= circle.r &&
+                                own.some((mine) =>
+                                    boxesIntersect(
+                                        {
+                                            x: mine.box.x - 2,
+                                            y: mine.box.y - 2,
+                                            width: mine.box.width + 4,
+                                            height: mine.box.height + 4,
+                                        },
+                                        label.box,
+                                    ),
+                                ),
+                        ),
+                    ).toBe(true);
+                    // It is still named on hover
+                    expect(
+                        getHoverLabel(
+                            circle,
+                            viewInfo,
+                            1,
+                            area,
+                            estimateTextWidth,
+                        ),
+                    ).not.toBeNull();
+                });
+            },
+        );
+        expect(dropped).toBeGreaterThan(0);
     });
     it('names a circle at rest only while it is at least 24 px across on screen', () => {
         const small = { ...find('Finance'), r: 11.9 };

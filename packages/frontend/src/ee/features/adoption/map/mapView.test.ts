@@ -113,11 +113,11 @@ describe('getFocusTrail', () => {
 });
 
 describe('countDotKinds', () => {
-    it.each(['active', 'role', 'lastActive'] as const)(
+    it.each(['activity', 'role'] as const)(
         'adds up to the people in view when colouring by %s',
         (colourBy) => {
             const circles = layout(null);
-            const counts = countDotKinds(circles, colourBy, null, NOW);
+            const counts = countDotKinds(circles, colourBy, null);
             const total = LEGEND_KINDS[colourBy].reduce(
                 (sum, kind) => sum + (counts.get(kind) ?? 0),
                 0,
@@ -127,26 +127,28 @@ describe('countDotKinds', () => {
             expect(total).toBe(83);
         },
     );
-    it('counts active, idle and no account from the summary', () => {
-        const counts = countDotKinds(layout(null), 'active', null, NOW);
-        expect(counts.get('active')).toBe(11);
-        expect(counts.get('idle')).toBe(6);
-        expect(counts.get('noAccount')).toBe(66);
+    it('counts healthy, at risk, lost and no account from the summary', () => {
+        const counts = countDotKinds(layout(null), 'activity', null);
+        expect(Object.fromEntries(counts)).toEqual({
+            healthy: 11,
+            atRisk: 0,
+            lost: 6,
+            noAccount: 66,
+        });
     });
-    it('counts named people by their own activity once they are loaded', () => {
+    it("counts named people by the server's bucket for them once they are loaded", () => {
         const members = groupMembersByDepartment([
             memberFixture('a', RECENT, {
                 departmentUuid: 'Finance',
                 isActive30d: true,
             }),
-            memberFixture('b', null, { departmentUuid: 'Finance' }),
+            memberFixture('b', RECENT, { departmentUuid: 'Finance' }),
             memberFixture('c', null, { departmentUuid: 'Finance' }),
         ]);
         const circles = layout('Finance');
-        const counts = countDotKinds(circles, 'active', members, NOW);
-        expect(counts.get('active')).toBe(1);
-        expect(counts.get('idle')).toBe(2);
-        expect(counts.get('noAccount')).toBe(5);
+        expect(
+            Object.fromEntries(countDotKinds(circles, 'activity', members)),
+        ).toEqual({ healthy: 1, atRisk: 1, lost: 1, noAccount: 5 });
     });
 });
 
@@ -158,112 +160,92 @@ describe('getLegendCounts', () => {
         d('Depots', 'Ops', 10, 2, 1),
     ]);
 
-    it("reads the panel's numbers when colouring by activity, and the dots drawn match them", () => {
+    it("reads the panel's numbers, and the dots drawn match them", () => {
         const circles = layout(null, parent);
-        const breakdown = getOrganizationBreakdown(parent);
-        const counts = getLegendCounts(breakdown, circles, 'active', null, NOW);
-        expect(counts.get('active')).toBe(breakdown.active);
-        expect(counts.get('idle')).toBe(breakdown.onLightdashNotActive);
-        expect(counts.get('noAccount')).toBe(31);
+        const breakdown = getOrganizationBreakdown(parent, 'activity');
+        const counts = getLegendCounts(breakdown);
+        expect(Object.fromEntries(counts)).toEqual({
+            healthy: 4,
+            atRisk: 0,
+            lost: 5,
+            noAccount: 31,
+        });
         // Stores 15, Depots 8, and the 10 Ops keeps for its own people less the 2 on Lightdash
-        expect(
-            countDotKinds(circles, 'active', null, NOW).get('noAccount'),
-        ).toBe(15 + 8 + 8);
+        expect(countDotKinds(circles, 'activity', null)).toEqual(counts);
+        expect(counts.get('noAccount')).toBe(15 + 8 + 8);
     });
     it.each([
         ['6,000-headcount', deepOrganization],
         ['enterprise-shaped', flatOrganization],
     ])(
-        'matches the dots drawn, kind by kind, at every level of the %s organization',
+        'matches the dots drawn, bucket by bucket and role by role, at every level of the %s organization',
         (_, departments) => {
             const byId = new Map(
                 departments.map((each) => [each.departmentUuid, each]),
             );
-            [null, ...departments.map((each) => each.departmentUuid)].forEach(
-                (focus) => {
+            (['activity', 'role'] as const).forEach((colourBy) =>
+                [
+                    null,
+                    ...departments.map((each) => each.departmentUuid),
+                ].forEach((focus) => {
                     const focused = focus === null ? null : byId.get(focus);
                     const circles = layout(focus, departments);
                     const legend = getLegendCounts(
                         focused
-                            ? getDepartmentBreakdown(focused)
-                            : getOrganizationBreakdown(departments),
-                        circles,
-                        'active',
-                        null,
-                        NOW,
+                            ? getDepartmentBreakdown(focused, colourBy)
+                            : getOrganizationBreakdown(departments, colourBy),
                     );
-                    const dots = countDotKinds(circles, 'active', null, NOW);
+                    const dots = countDotKinds(circles, colourBy, null);
                     expect({
+                        colourBy,
                         focus,
-                        counts: LEGEND_KINDS.active.map(
+                        counts: LEGEND_KINDS[colourBy].map(
                             (kind) => legend.get(kind) ?? 0,
                         ),
                     }).toEqual({
+                        colourBy,
                         focus,
-                        counts: LEGEND_KINDS.active.map(
+                        counts: LEGEND_KINDS[colourBy].map(
                             (kind) => dots.get(kind) ?? 0,
                         ),
                     });
-                },
+                }),
             );
+            // Every bucket is drawn somewhere in the organization
+            const top = getOrganizationBreakdown(departments, 'activity');
+            top.forEach((part) => expect(part.count).toBeGreaterThan(0));
         },
     );
     it('reads the same as the dots wherever the headcount is all in sub-departments', () => {
         const circles = layout(null);
         const counts = getLegendCounts(
-            getOrganizationBreakdown(tree),
-            circles,
-            'active',
-            null,
-            NOW,
+            getOrganizationBreakdown(tree, 'activity'),
         );
-        const dots = countDotKinds(circles, 'active', null, NOW);
-        LEGEND_KINDS.active.forEach((kind) =>
+        const dots = countDotKinds(circles, 'activity', null);
+        LEGEND_KINDS.activity.forEach((kind) =>
             expect(counts.get(kind)).toBe(dots.get(kind)),
         );
     });
-    it("counts the people on Lightdash as drawn for the other colourings, and those without an account from the panel's numbers", () => {
-        const circles = layout('Ops', parent);
-        const breakdown = getDepartmentBreakdown(parent[0]);
-        (['role', 'lastActive'] as const).forEach((colourBy) => {
-            const counts = getLegendCounts(
-                breakdown,
-                circles,
-                colourBy,
-                null,
-                NOW,
-            );
-            const onLightdash = LEGEND_KINDS[colourBy]
-                .filter((kind) => kind !== 'noAccount')
-                .reduce((sum, kind) => sum + (counts.get(kind) ?? 0), 0);
-            expect(onLightdash).toBe(9);
-            expect(counts.get('noAccount')).toBe(31);
+    it("counts roles from the panel's numbers when colouring by role", () => {
+        const breakdown = getDepartmentBreakdown(parent[0], 'role');
+        expect(Object.fromEntries(getLegendCounts(breakdown))).toEqual({
+            admin: 0,
+            editor: 0,
+            interactiveViewer: 0,
+            viewer: 9,
+            noAccount: 31,
         });
     });
     it("reads the panel's numbers even where the people loaded for the dots differ from them", () => {
-        const members = groupMembersByDepartment([
-            memberFixture('a', RECENT, {
-                departmentUuid: 'Finance',
-                isActive30d: true,
-            }),
-            memberFixture('b', null, { departmentUuid: 'Finance' }),
-        ]);
         const finance = byUuid.get('Finance');
         expect(finance).toBeDefined();
         if (!finance) return;
-        const counts = getLegendCounts(
-            getDepartmentBreakdown(finance),
-            layout('Finance'),
-            'active',
-            members,
-            NOW,
-        );
         // Finance's summary: 3 on Lightdash, 2 active, headcount 8
-        expect(Object.fromEntries(counts)).toEqual({
-            active: 2,
-            idle: 1,
-            noAccount: 5,
-        });
+        expect(
+            Object.fromEntries(
+                getLegendCounts(getDepartmentBreakdown(finance, 'activity')),
+            ),
+        ).toEqual({ healthy: 2, atRisk: 0, lost: 1, noAccount: 5 });
     });
 });
 
@@ -292,14 +274,14 @@ describe('getRingKeys', () => {
 describe('buildDots', () => {
     it('draws one dot per person, inside the circle', () => {
         const [circle] = layout('Finance');
-        const dots = buildDots(circle, 'active', null, NOW);
+        const dots = buildDots(circle, 'activity', null);
         expect(dots).toHaveLength(8);
         dots.forEach((dot) => {
             const distance = Math.hypot(dot.x - circle.x, dot.y - circle.y);
             expect(distance + dot.r).toBeLessThanOrEqual(circle.r);
         });
     });
-    it('attaches loaded people to the account dots, most active first', () => {
+    it('attaches loaded people to the account dots, healthy first', () => {
         const members = groupMembersByDepartment([
             memberFixture('idle', null, { departmentUuid: 'Finance' }),
             memberFixture('busy', RECENT, {
@@ -308,7 +290,7 @@ describe('buildDots', () => {
             }),
         ]);
         const [circle] = layout('Finance');
-        const dots = buildDots(circle, 'active', members, NOW);
+        const dots = buildDots(circle, 'activity', members);
         expect(dots.map((dot) => dot.member?.userUuid ?? null)).toEqual([
             'busy',
             'idle',
@@ -320,14 +302,14 @@ describe('buildDots', () => {
             null,
         ]);
         expect(dots.map((dot): DotKind => dot.kind).slice(0, 3)).toEqual([
-            'active',
-            'idle',
+            'healthy',
+            'lost',
             'noAccount',
         ]);
     });
     it('draws nothing for a circle that only holds sub-departments', () => {
         const ops = layout(null).find((circle) => circle.id === 'Ops');
-        expect(ops && buildDots(ops, 'active', null, NOW)).toEqual([]);
+        expect(ops && buildDots(ops, 'activity', null)).toEqual([]);
     });
 });
 
@@ -451,17 +433,22 @@ describe('describeCircles', () => {
 });
 
 describe('buildMapAriaLabel', () => {
-    it('summarises the organization in words', () => {
+    it('summarises the organization in words, naming the parts the dots are coloured by', () => {
         const circles = layout(null);
-        expect(
+        const describe = (colourBy: 'activity' | 'role') =>
             buildMapAriaLabel({
                 scopeName: null,
                 departmentCount: 4,
                 totals: getViewTotals(circles),
                 areDotsHidden: false,
-            }),
-        ).toBe(
-            'Map of the organization: 4 departments, 83 people, 17 on Lightdash placed in a department, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person. The List view has the same numbers as a table',
+                colourBy,
+                breakdown: getOrganizationBreakdown(tree, colourBy),
+            });
+        expect(describe('activity')).toBe(
+            'Map of the organization: 4 departments, 83 people, 17 on Lightdash placed in a department, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 11 healthy, 0 at risk, 6 lost, 66 with no account. The List view has the same numbers as a table',
+        );
+        expect(describe('role')).toContain(
+            'each dot is a person, coloured by role: 0 admins, 0 editors, 0 interactive viewers, 17 viewers, 66 with no account.',
         );
     });
     it('names the focused department and its sub-departments', () => {
@@ -471,6 +458,8 @@ describe('buildMapAriaLabel', () => {
                 departmentCount: 2,
                 totals: getViewTotals(layout('Ops')),
                 areDotsHidden: false,
+                colourBy: 'activity',
+                breakdown: [],
             }),
         ).toMatch(
             /^Map of Ops: 2 sub-departments, 30 people, 9 on Lightdash, 4 active in the last 30 days\./,
@@ -483,6 +472,8 @@ describe('buildMapAriaLabel', () => {
                 departmentCount: 1,
                 totals: { people: 1, members: 1, active: 0 },
                 areDotsHidden: false,
+                colourBy: 'activity',
+                breakdown: [],
             }),
         ).toMatch(/^Map of the organization: 1 department, 1 person, /);
         expect(
@@ -491,6 +482,8 @@ describe('buildMapAriaLabel', () => {
                 departmentCount: 0,
                 totals: getViewTotals(layout('Finance')),
                 areDotsHidden: false,
+                colourBy: 'activity',
+                breakdown: [],
             }),
         ).toMatch(/^Map of Finance: 8 people, 3 on Lightdash, /);
     });
@@ -501,6 +494,8 @@ describe('buildMapAriaLabel', () => {
                 departmentCount: 1,
                 totals: { people: 6000, members: 10, active: 5 },
                 areDotsHidden: true,
+                colourBy: 'activity',
+                breakdown: [],
             }),
         ).toBe(
             'Map of the organization: 1 department, 6,000 people, 10 on Lightdash placed in a department, 5 active in the last 30 days. Each circle is a department sized by headcount. The List view has the same numbers as a table',

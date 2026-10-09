@@ -88,6 +88,10 @@ _Avoid_: licensed, provisioned, seated
 In this organization in the last 30 days, ran a query from a dashboard, explore, saved chart, SQL runner or metrics explorer, viewed underlying data, asked the AI agent, or used MCP; or viewed a chart or dashboard. API, CLI, scheduled deliveries and alerts as queries, syncs, auto-refreshed dashboards and embeds do not count. A scheduled delivery still writes a chart view under its owner, so it can make the owner active.
 _Avoid_: engaged, retained, MAU
 
+**Activity bucket**:
+Where a member falls by their latest activity, from the same sources as active: healthy with activity in the last 30 days (so healthy and active count the same people), at risk with activity in the last 90 days but not the last 30, and lost with none in the last 90 days or none ever. People without an account are no account, not lost. The bounds are `HEALTHY_ACTIVITY_DAYS` (30) and `AT_RISK_ACTIVITY_DAYS` (90) in common.
+_Avoid_: churned, dormant, inactive, lapsed
+
 **Coverage**:
 Members divided by effective headcount, as a percentage, so never above 100. A department with no headcount entered on it or below it shows no coverage, as it would only read 100 %; the pages ask for a headcount instead.
 _Avoid_: penetration, reach, adoption rate
@@ -119,7 +123,7 @@ _Avoid_: popular content, favourites, what they use, what this department uses
 ### Views
 
 **Map**:
-The default index view: departments as nested circles with one dot per person, coloured by activity, role or last activity. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
+The default index view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
 _Avoid_: bubble chart, treemap, org chart
 
 **List**:
@@ -140,5 +144,5 @@ _Avoid_: alerts, issues, to-do
 ## Flagged ambiguities
 
 - The word "group" always means a Lightdash user group. A department is not a group, and linking a group to a department does not change the group.
-- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. The map's "Active in 12 weeks" is a separate colouring, not the active measure.
+- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. On the map, healthy is the same people as active.
 - The code and API say `unassigned`. Do not introduce "unplaced" in code, docs or copy.

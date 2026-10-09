@@ -235,8 +235,12 @@ describe('typed strings render as text', () => {
                 <MapInspector
                     department={hostileDepartment}
                     parentName={PARENT}
-                    breakdown={getDepartmentBreakdown(hostileDepartment)}
-                    rows={getCoverageRows([child])}
+                    breakdown={getDepartmentBreakdown(
+                        hostileDepartment,
+                        'activity',
+                    )}
+                    colourBy="activity"
+                    rows={getCoverageRows([child], 'activity')}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
                         departmentName: NAME,
@@ -383,7 +387,8 @@ describe('typed strings render as text', () => {
         expect(drawnText('title').some((title) => title.includes(NAME))).toBe(
             true,
         );
-        expect(drawnText('title')).toContain(`${PERSON} ${SURNAME}`);
+        // The person's dot is titled with their full name and the part of the colouring they are in
+        expect(drawnText('title')).toContain(`${PERSON} ${SURNAME} · Lost`);
         expect(
             drawnText('text').some(
                 (text) =>

@@ -3,56 +3,55 @@ import {
     type AdoptionMetrics,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
+import {
+    getDotSegments,
+    type ColourBy,
+    type DotKind,
+    type DotSegment,
+} from '../map/geometry';
+import { LEGEND_KINDS } from '../map/mapStyles';
 import { getDirectHeadcount } from './headcount';
 
-// Everyone counted, in three parts that add up to the effective headcount. The panel's bars and
-// legend and the legend under the map all read it, so they never disagree
-export type PeopleBreakdown = {
-    active: number;
-    onLightdashNotActive: number;
-    noAccount: number;
-};
+// Everyone counted, in the parts the map colours them by, the people without an account last; the parts add up
+// to the effective headcount. The panel's bars and legend and the legend under the map all read it
+export type PeopleBreakdown = DotSegment[];
 
 export const getPeopleBreakdown = (
-    metrics: Pick<AdoptionMetrics, 'memberCount' | 'activeCount30d'>,
+    metrics: AdoptionMetrics,
     effectiveHeadcount: number,
-): PeopleBreakdown => ({
-    active: metrics.activeCount30d,
-    onLightdashNotActive: Math.max(
-        metrics.memberCount - metrics.activeCount30d,
-        0,
-    ),
-    noAccount: Math.max(effectiveHeadcount - metrics.memberCount, 0),
-});
+    colourBy: ColourBy,
+): PeopleBreakdown =>
+    getDotSegments({ metrics, headcount: effectiveHeadcount }, colourBy);
 
 export const getDepartmentBreakdown = (
     department: DepartmentWithMetrics,
+    colourBy: ColourBy,
 ): PeopleBreakdown =>
-    getPeopleBreakdown(department.metrics, department.effectiveHeadcount);
+    getPeopleBreakdown(
+        department.metrics,
+        department.effectiveHeadcount,
+        colourBy,
+    );
 
 // Everyone placed in a department: the top-level departments added up. The summary's organization
 // numbers are not used, as they count everyone on Lightdash, placed or not
 export const getOrganizationBreakdown = (
     departments: DepartmentWithMetrics[],
+    colourBy: ColourBy,
 ): PeopleBreakdown => {
     const topLevel = new Set(getChildrenMap(departments).get(null));
-    const sum = (count: (department: DepartmentWithMetrics) => number) =>
-        departments.reduce(
-            (total, department) =>
-                topLevel.has(department.departmentUuid)
-                    ? total + count(department)
-                    : total,
-            0,
+    const totals = new Map<DotKind, number>();
+    departments.forEach((department) => {
+        if (!topLevel.has(department.departmentUuid)) return;
+        getDepartmentBreakdown(department, colourBy).forEach(
+            ({ kind, count }) =>
+                totals.set(kind, (totals.get(kind) ?? 0) + count),
         );
-    return getPeopleBreakdown(
-        {
-            memberCount: sum((department) => department.metrics.memberCount),
-            activeCount30d: sum(
-                (department) => department.metrics.activeCount30d,
-            ),
-        },
-        sum((department) => department.effectiveHeadcount),
-    );
+    });
+    return LEGEND_KINDS[colourBy].map((kind) => ({
+        kind,
+        count: totals.get(kind) ?? 0,
+    }));
 };
 
 const getShare = (part: number, whole: number): number =>
@@ -91,6 +90,7 @@ const getReading = (department: DepartmentWithMetrics): CoverageReading => {
 // department, then the name
 export const getCoverageRows = (
     rowDepartments: DepartmentWithMetrics[],
+    colourBy: ColourBy,
 ): CoverageRow[] =>
     rowDepartments
         .map((department) => {
@@ -105,7 +105,7 @@ export const getCoverageRows = (
                         : 0,
                 row: {
                     department,
-                    breakdown: getDepartmentBreakdown(department),
+                    breakdown: getDepartmentBreakdown(department, colourBy),
                     reading,
                 },
             };
@@ -130,6 +130,7 @@ export type DirectRow = {
 export const getDirectRow = (
     department: DepartmentWithMetrics,
     children: DepartmentWithMetrics[],
+    colourBy: ColourBy,
 ): DirectRow | null => {
     if (children.length === 0) return null;
     const { directMetrics } = department;
@@ -137,7 +138,7 @@ export const getDirectRow = (
     if (headcount <= 0) return null;
     return {
         memberCount: directMetrics.memberCount,
-        breakdown: getPeopleBreakdown(directMetrics, headcount),
+        breakdown: getPeopleBreakdown(directMetrics, headcount, colourBy),
         reading: department.hasHeadcount
             ? {
                   kind: 'coverage',

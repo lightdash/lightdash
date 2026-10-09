@@ -1,10 +1,9 @@
 import { type ColourBy, type DotKind } from './geometry';
 
 export const DOT_LABELS: Record<DotKind, string> = {
-    active: 'Active in 30 days',
-    idle: 'Not active in 30 days',
-    lapsed: 'Active in 12 weeks',
-    inactive: 'No activity in 12 weeks',
+    healthy: 'Healthy',
+    atRisk: 'At risk',
+    lost: 'Lost',
     admin: 'Admin',
     editor: 'Editor',
     interactiveViewer: 'Interactive viewer',
@@ -12,28 +11,24 @@ export const DOT_LABELS: Record<DotKind, string> = {
     noAccount: 'No account',
 };
 
-// Drawn as a ring rather than a filled dot; people without an account are light grey rings,
-// so they differ from the filled teal and purple in lightness, not only in hue
+// Drawn as a ring rather than a filled dot: viewers, and people without an account as light grey rings, so
+// they differ from the filled dots in lightness, not only in hue
 export const OUTLINED_DOT_KINDS: ReadonlySet<DotKind> = new Set<DotKind>([
-    'idle',
-    'inactive',
     'viewer',
     'noAccount',
 ]);
 
-export const COLOUR_BY_OPTIONS: ColourBy[] = ['active', 'role', 'lastActive'];
+export const COLOUR_BY_OPTIONS: ColourBy[] = ['activity', 'role'];
 
 export const COLOUR_BY_LABELS: Record<ColourBy, string> = {
-    active: 'Active in 30 days',
+    activity: 'Activity',
     role: 'Role',
-    lastActive: 'Last active',
 };
 
 // Legend order, which is also the order dots are laid out from the centre
 export const LEGEND_KINDS: Record<ColourBy, DotKind[]> = {
-    active: ['active', 'idle', 'noAccount'],
+    activity: ['healthy', 'atRisk', 'lost', 'noAccount'],
     role: ['admin', 'editor', 'interactiveViewer', 'viewer', 'noAccount'],
-    lastActive: ['active', 'lapsed', 'inactive', 'noAccount'],
 };
 
 export const isColourBy = (value: string): value is ColourBy =>

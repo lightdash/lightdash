@@ -72,30 +72,35 @@ describe('getDotSegments', () => {
         headcount,
         metrics: metricsFixture(members, null, {
             activeCount30d: active,
-            activeCount12w: active + 1,
             roleSplit: {
                 viewers: members - 3,
                 interactiveViewers: 1,
                 editors: 1,
                 admins: 1,
             },
+            activitySplit: {
+                healthy: active,
+                atRisk: 1,
+                lost: members - active - 1,
+            },
         }),
     });
 
-    it('splits into active, idle and no account for the default colouring', () => {
-        expect(getDotSegments(bucket(10, 6, 4), 'active')).toEqual([
-            { kind: 'active', count: 4 },
-            { kind: 'idle', count: 2 },
+    it('splits into healthy, at risk, lost and no account for the default colouring', () => {
+        expect(getDotSegments(bucket(10, 6, 4), 'activity')).toEqual([
+            { kind: 'healthy', count: 4 },
+            { kind: 'atRisk', count: 1 },
+            { kind: 'lost', count: 1 },
             { kind: 'noAccount', count: 4 },
         ]);
     });
     it('draws no grey dots when accounts outnumber a stale headcount', () => {
-        const segments = getDotSegments(bucket(10, 12, 4), 'active');
+        const segments = getDotSegments(bucket(10, 12, 4), 'activity');
         expect(segments.find((s) => s.kind === 'noAccount')?.count).toBe(0);
         expect(expandDots(segments)).toHaveLength(12);
     });
     it('draws no grey dots without a headcount', () => {
-        const segments = getDotSegments(bucket(null, 6, 4), 'active');
+        const segments = getDotSegments(bucket(null, 6, 4), 'activity');
         expect(segments.find((s) => s.kind === 'noAccount')?.count).toBe(0);
     });
     it('splits by role', () => {
@@ -107,25 +112,17 @@ describe('getDotSegments', () => {
             { kind: 'noAccount', count: 4 },
         ]);
     });
-    it('splits by last active using the 30-day and 12-week counts', () => {
-        expect(getDotSegments(bucket(10, 6, 4), 'lastActive')).toEqual([
-            { kind: 'active', count: 4 },
-            { kind: 'lapsed', count: 1 },
-            { kind: 'inactive', count: 1 },
-            { kind: 'noAccount', count: 4 },
-        ]);
-    });
 });
 
 describe('expandDots', () => {
-    it('keeps segment order so active people form the core', () => {
+    it('keeps segment order so healthy people form the core', () => {
         expect(
             expandDots([
-                { kind: 'active', count: 2 },
-                { kind: 'idle', count: 1 },
+                { kind: 'healthy', count: 2 },
+                { kind: 'lost', count: 1 },
                 { kind: 'noAccount', count: 0 },
             ]),
-        ).toEqual(['active', 'active', 'idle']);
+        ).toEqual(['healthy', 'healthy', 'lost']);
     });
 });
 
@@ -346,35 +343,29 @@ describe('member dots', () => {
     });
 
     it('colours by activity', () => {
-        expect(getMemberDotKind(recent, 'active', NOW)).toBe('active');
-        expect(getMemberDotKind(lapsed, 'active', NOW)).toBe('idle');
-        expect(getMemberDotKind(never, 'active', NOW)).toBe('idle');
+        expect(getMemberDotKind(recent, 'activity')).toBe('healthy');
+        expect(getMemberDotKind(lapsed, 'activity')).toBe('atRisk');
+        expect(getMemberDotKind(never, 'activity')).toBe('lost');
     });
-    it('takes active in 30 days from the server flag, not from the timestamp', () => {
-        const flaggedIdle = memberFixture('x', NOW.toISOString());
-        const flaggedActive = memberFixture('y', '2020-01-01T00:00:00Z', {
-            isActive30d: true,
+    it("takes a person's activity bucket from the server, not from the timestamp", () => {
+        // The server reads activity with the bounds its counts were taken with; the map never recounts it
+        const flaggedLost = memberFixture('x', NOW.toISOString(), {
+            activity: 'lost',
         });
-        expect(getMemberDotKind(flaggedIdle, 'active', NOW)).toBe('idle');
-        expect(getMemberDotKind(flaggedIdle, 'lastActive', NOW)).toBe('lapsed');
-        expect(getMemberDotKind(flaggedActive, 'active', NOW)).toBe('active');
-        expect(getMemberDotKind(flaggedActive, 'lastActive', NOW)).toBe(
-            'active',
-        );
+        const flaggedHealthy = memberFixture('y', '2020-01-01T00:00:00Z', {
+            activity: 'healthy',
+        });
+        expect(getMemberDotKind(flaggedLost, 'activity')).toBe('lost');
+        expect(getMemberDotKind(flaggedHealthy, 'activity')).toBe('healthy');
     });
     it('colours by role with the same buckets as the role split', () => {
-        expect(getMemberDotKind(recent, 'role', NOW)).toBe('admin');
-        expect(getMemberDotKind(lapsed, 'role', NOW)).toBe('editor');
-        expect(getMemberDotKind(never, 'role', NOW)).toBe('viewer');
+        expect(getMemberDotKind(recent, 'role')).toBe('admin');
+        expect(getMemberDotKind(lapsed, 'role')).toBe('editor');
+        expect(getMemberDotKind(never, 'role')).toBe('viewer');
     });
-    it('colours by last active', () => {
-        expect(getMemberDotKind(recent, 'lastActive', NOW)).toBe('active');
-        expect(getMemberDotKind(lapsed, 'lastActive', NOW)).toBe('lapsed');
-        expect(getMemberDotKind(never, 'lastActive', NOW)).toBe('inactive');
-    });
-    it('orders active people first so they form the core', () => {
+    it('orders healthy people first so they form the core', () => {
         expect(
-            orderMembersForDots([never, lapsed, recent], 'lastActive', NOW).map(
+            orderMembersForDots([never, lapsed, recent], 'activity').map(
                 (m) => m.userUuid,
             ),
         ).toEqual(['recent', 'lapsed', 'never']);
@@ -401,7 +392,7 @@ describe('edge cases', () => {
                 headcount,
                 metrics: metricsFixture(members, null, { activeCount30d: 1 }),
             },
-            'active',
+            'activity',
         ).find((s) => s.kind === kind)?.count;
 
     it('never counts a negative no-account segment for a stale headcount', () => {
@@ -493,10 +484,11 @@ describe('large department', () => {
     it('counts every person once', () => {
         expect(countPeople(big)).toBe(3000);
         const segments = circle.people
-            ? getDotSegments(circle.people, 'active')
+            ? getDotSegments(circle.people, 'activity')
             : [];
         expect(expandDots(segments)).toHaveLength(3000);
-        expect(segments.map((s) => s.count)).toEqual([1500, 900, 600]);
+        // Healthy, at risk, lost and no account
+        expect(segments.map((s) => s.count)).toEqual([1500, 0, 900, 600]);
     });
 
     it('keeps every dot inside its circle with a margin, active first', () => {
@@ -1107,7 +1099,7 @@ describe('dots for 20,000 people in view', () => {
         expect(countPeople(circles)).toBe(SVG_DOT_LIMIT);
         const drawn = circles.reduce((sum, circle) => {
             if (circle.people === null) return sum;
-            const kinds = expandDots(getDotSegments(circle.people, 'active'));
+            const kinds = expandDots(getDotSegments(circle.people, 'activity'));
             const { dotRadius, positions } = layoutDots(kinds.length, circle.r);
             expect(
                 positions.every(

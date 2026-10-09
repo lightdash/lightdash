@@ -8,7 +8,12 @@ import {
     getDirectRow,
     getOrganizationBreakdown,
     getPeopleBreakdown,
+    type PeopleBreakdown,
 } from './peopleBreakdown';
+
+// Each part's count by the kind of dot it is drawn with
+const parts = (breakdown: PeopleBreakdown) =>
+    Object.fromEntries(breakdown.map(({ kind, count }) => [kind, count]));
 
 const d = (
     name: string,
@@ -31,29 +36,62 @@ const d = (
     });
 
 describe('getPeopleBreakdown', () => {
-    it('splits the headcount into active, on Lightdash but not active, and no account', () => {
-        expect(
-            getPeopleBreakdown({ memberCount: 187, activeCount30d: 115 }, 420),
-        ).toEqual({ active: 115, onLightdashNotActive: 72, noAccount: 233 });
+    const finance = metricsFixture(187, null, {
+        activeCount30d: 115,
+        activitySplit: { healthy: 115, atRisk: 40, lost: 32 },
+        roleSplit: {
+            viewers: 150,
+            interactiveViewers: 20,
+            editors: 15,
+            admins: 2,
+        },
+    });
+    it('splits the headcount into healthy, at risk, lost and no account when colouring by activity', () => {
+        expect(getPeopleBreakdown(finance, 420, 'activity')).toEqual([
+            { kind: 'healthy', count: 115 },
+            { kind: 'atRisk', count: 40 },
+            { kind: 'lost', count: 32 },
+            { kind: 'noAccount', count: 233 },
+        ]);
+    });
+    it('splits the people on Lightdash by role when colouring by role, the people without an account last', () => {
+        expect(parts(getPeopleBreakdown(finance, 420, 'role'))).toEqual({
+            admin: 2,
+            editor: 15,
+            interactiveViewer: 20,
+            viewer: 150,
+            noAccount: 233,
+        });
     });
     it('never counts a negative number without an account when the headcount is below the people on Lightdash', () => {
         // The server floors the headcount at the people on Lightdash, so this cannot arrive; it still reads 0
         expect(
-            getPeopleBreakdown({ memberCount: 9, activeCount30d: 9 }, 8),
-        ).toEqual({ active: 9, onLightdashNotActive: 0, noAccount: 0 });
+            parts(
+                getPeopleBreakdown(
+                    metricsFixture(9, null, { activeCount30d: 9 }),
+                    8,
+                    'activity',
+                ),
+            ),
+        ).toEqual({ healthy: 9, atRisk: 0, lost: 0, noAccount: 0 });
     });
     it('is all zeros for nobody on Lightdash and no headcount', () => {
         expect(
-            getPeopleBreakdown({ memberCount: 0, activeCount30d: 0 }, 0),
-        ).toEqual({ active: 0, onLightdashNotActive: 0, noAccount: 0 });
+            parts(getPeopleBreakdown(metricsFixture(0, null), 0, 'activity')),
+        ).toEqual({ healthy: 0, atRisk: 0, lost: 0, noAccount: 0 });
     });
 });
 
 describe('getDepartmentBreakdown', () => {
     it("reads the department's rolled-up people over its effective headcount", () => {
-        expect(getDepartmentBreakdown(d('Ops', null, 40, 13, 3, 4, 1))).toEqual(
-            { active: 3, onLightdashNotActive: 10, noAccount: 27 },
-        );
+        expect(
+            parts(
+                getDepartmentBreakdown(
+                    d('Ops', null, 40, 13, 3, 4, 1),
+                    'activity',
+                ),
+            ),
+        ).toEqual({ healthy: 3, atRisk: 0, lost: 10, noAccount: 27 });
     });
 });
 
@@ -78,34 +116,47 @@ describe('getDirectRow', () => {
             d('Stores', 'Ops', childHeadcounts[0], 6, 2),
             d('Depots', 'Ops', childHeadcounts[1], 3, 0),
         ]);
-        return getDirectRow(parent, children);
+        return getDirectRow(parent, children, 'activity');
     };
 
     it('counts the people directly in a department over what it keeps for them beside its sub-departments', () => {
         // Ops's 40 leaves 10 over Stores and Depots, for its 4 people, 1 of them active
-        expect(ops(40, 4, 1)).toEqual({
-            memberCount: 4,
-            breakdown: { active: 1, onLightdashNotActive: 3, noAccount: 6 },
-            reading: { kind: 'coverage', pct: 40 },
+        const row = ops(40, 4, 1);
+        expect(row?.memberCount).toBe(4);
+        expect(row && parts(row.breakdown)).toEqual({
+            healthy: 1,
+            atRisk: 0,
+            lost: 3,
+            noAccount: 6,
         });
+        expect(row?.reading).toEqual({ kind: 'coverage', pct: 40 });
     });
     it('keeps the people directly in a department whose headcount its sub-departments take up', () => {
         // The 30 entered is all Stores and Depots, so Ops counts 32 and keeps 2 for its own 2 people
-        expect(ops(30, 2, 0)).toEqual({
-            memberCount: 2,
-            breakdown: { active: 0, onLightdashNotActive: 2, noAccount: 0 },
-            reading: { kind: 'coverage', pct: 100 },
+        const row = ops(30, 2, 0);
+        expect(row?.memberCount).toBe(2);
+        expect(row && parts(row.breakdown)).toEqual({
+            healthy: 0,
+            atRisk: 0,
+            lost: 2,
+            noAccount: 0,
         });
+        expect(row?.reading).toEqual({ kind: 'coverage', pct: 100 });
     });
     it('reads as the other rows without a headcount when none is entered anywhere in the department', () => {
-        expect(ops(null, 4, 1, [null, null])).toEqual({
-            memberCount: 4,
-            breakdown: { active: 1, onLightdashNotActive: 3, noAccount: 0 },
-            reading: { kind: 'noHeadcount' },
+        const row = ops(null, 4, 1, [null, null]);
+        expect(row && parts(row.breakdown)).toEqual({
+            healthy: 1,
+            atRisk: 0,
+            lost: 3,
+            noAccount: 0,
         });
+        expect(row?.reading).toEqual({ kind: 'noHeadcount' });
     });
     it('gives no row without sub-departments, or where nothing is kept for the people directly in it', () => {
-        expect(getDirectRow(d('Finance', null, 8, 3, 2), [])).toBeNull();
+        expect(
+            getDirectRow(d('Finance', null, 8, 3, 2), [], 'activity'),
+        ).toBeNull();
         expect(ops(30, 0, 0)).toBeNull();
     });
 });
@@ -113,61 +164,82 @@ describe('getDirectRow', () => {
 describe('getOrganizationBreakdown', () => {
     it('adds up the top-level departments only, whose numbers already hold their sub-departments', () => {
         expect(
-            getOrganizationBreakdown(
-                withServerHeadcounts([
-                    d('Ops', null, 30, 9, 4, 0, 0),
-                    d('Stores', 'Ops', 20, 6, 4),
-                    d('Depots', 'Ops', 10, 3, 0),
-                    d('Finance', null, 8, 3, 2),
-                ]),
+            parts(
+                getOrganizationBreakdown(
+                    withServerHeadcounts([
+                        d('Ops', null, 30, 9, 4, 0, 0),
+                        d('Stores', 'Ops', 20, 6, 4),
+                        d('Depots', 'Ops', 10, 3, 0),
+                        d('Finance', null, 8, 3, 2),
+                    ]),
+                    'activity',
+                ),
             ),
-        ).toEqual({ active: 6, onLightdashNotActive: 6, noAccount: 26 });
+        ).toEqual({ healthy: 6, atRisk: 0, lost: 6, noAccount: 26 });
     });
     it('counts headcount entered on a department beyond its sub-departments as without an account', () => {
         expect(
-            getOrganizationBreakdown(
-                withServerHeadcounts([
-                    d('Ops', null, 40, 9, 4, 2, 1),
-                    d('Stores', 'Ops', 20, 5, 2),
-                    d('Depots', 'Ops', 10, 2, 1),
-                ]),
+            parts(
+                getOrganizationBreakdown(
+                    withServerHeadcounts([
+                        d('Ops', null, 40, 9, 4, 2, 1),
+                        d('Stores', 'Ops', 20, 5, 2),
+                        d('Depots', 'Ops', 10, 2, 1),
+                    ]),
+                    'role',
+                ),
             ).noAccount,
         ).toBe(31);
     });
     it('counts a department whose parent is gone at the top level, as the map draws it', () => {
         expect(
-            getOrganizationBreakdown([
-                d('Orphan', 'Deleted', 10, 4, 1),
-                d('Finance', null, 8, 3, 2),
-            ]),
-        ).toEqual({ active: 3, onLightdashNotActive: 4, noAccount: 11 });
+            parts(
+                getOrganizationBreakdown(
+                    [
+                        d('Orphan', 'Deleted', 10, 4, 1),
+                        d('Finance', null, 8, 3, 2),
+                    ],
+                    'activity',
+                ),
+            ),
+        ).toEqual({ healthy: 3, atRisk: 0, lost: 4, noAccount: 11 });
     });
     it('gives the people placed in the 6,000-headcount organization', () => {
-        const breakdown = getOrganizationBreakdown(deepOrganization);
-        expect(breakdown).toEqual({
-            active: 1076,
-            onLightdashNotActive: 687,
+        const breakdown = getOrganizationBreakdown(
+            deepOrganization,
+            'activity',
+        );
+        expect(parts(breakdown)).toEqual({
+            healthy: 1076,
+            atRisk: 256,
+            lost: 431,
             noAccount: 3824,
         });
         // 1,763 placed of 5,587 effective headcount
-        expect(
-            breakdown.active +
-                breakdown.onLightdashNotActive +
-                breakdown.noAccount,
-        ).toBe(5587);
+        expect(breakdown.reduce((sum, part) => sum + part.count, 0)).toBe(5587);
     });
-    it('is all zeros without departments', () => {
-        expect(getOrganizationBreakdown([])).toEqual({
-            active: 0,
-            onLightdashNotActive: 0,
-            noAccount: 0,
-        });
+    it('is all zeros without departments, in the order the legend lists the parts', () => {
+        expect(getOrganizationBreakdown([], 'activity')).toEqual([
+            { kind: 'healthy', count: 0 },
+            { kind: 'atRisk', count: 0 },
+            { kind: 'lost', count: 0 },
+            { kind: 'noAccount', count: 0 },
+        ]);
+        expect(
+            getOrganizationBreakdown([], 'role').map((part) => part.kind),
+        ).toEqual([
+            'admin',
+            'editor',
+            'interactiveViewer',
+            'viewer',
+            'noAccount',
+        ]);
     });
 });
 
 describe('getCoverageRows', () => {
     const names = (rows: DepartmentWithMetrics[]) =>
-        getCoverageRows(rows).map((row) => row.department.name);
+        getCoverageRows(rows, 'activity').map((row) => row.department.name);
 
     it('puts the lowest coverage first, and a department asking for a headcount with the zeros', () => {
         const departments = [
@@ -218,6 +290,7 @@ describe('getCoverageRows', () => {
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,
             ),
+            'activity',
         );
         expect(rows.map((row) => [row.department.name, row.reading])).toEqual([
             // Hub and Product would read 100% from their own people
@@ -229,10 +302,14 @@ describe('getCoverageRows', () => {
         ]);
     });
     it("gives each row its department's breakdown and rounded coverage", () => {
-        const [row] = getCoverageRows([d('Finance', null, 420, 187, 115)]);
-        expect(row.breakdown).toEqual({
-            active: 115,
-            onLightdashNotActive: 72,
+        const [row] = getCoverageRows(
+            [d('Finance', null, 420, 187, 115)],
+            'activity',
+        );
+        expect(parts(row.breakdown)).toEqual({
+            healthy: 115,
+            atRisk: 0,
+            lost: 72,
             noAccount: 233,
         });
         expect(row.reading).toEqual({ kind: 'coverage', pct: 45 });
@@ -248,6 +325,7 @@ describe('getCoverageRows', () => {
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,
             ),
+            'activity',
         );
         expect(
             Object.fromEntries(
@@ -260,7 +338,7 @@ describe('getCoverageRows', () => {
             (department) => department.parentDepartmentUuid === null,
         );
         expect(
-            getCoverageRows(topLevel).map((row) => [
+            getCoverageRows(topLevel, 'activity').map((row) => [
                 row.department.name,
                 row.reading.kind === 'coverage' ? row.reading.pct : null,
             ]),

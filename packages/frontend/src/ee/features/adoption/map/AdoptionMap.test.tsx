@@ -151,18 +151,18 @@ describe('AdoptionMap', () => {
     it('draws one circle per department and one dot per person', () => {
         const { container } = renderMap();
         expect(container.querySelectorAll('[data-department]')).toHaveLength(4);
-        // Stores 20 + Depots 10 + Finance 8, and the three swatches of each legend
+        // Stores 20 + Depots 10 + Finance 8, and the four swatches of each legend
         expect(container.querySelectorAll('[data-dot]')).toHaveLength(
-            38 + 3 + 3,
+            38 + 4 + 4,
         );
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(38);
         expect(
-            container.querySelectorAll('svg[role="img"] [data-dot="active"]'),
+            container.querySelectorAll('svg[role="img"] [data-dot="healthy"]'),
         ).toHaveLength(6);
         expect(
-            container.querySelectorAll('svg[role="img"] [data-dot="idle"]'),
+            container.querySelectorAll('svg[role="img"] [data-dot="lost"]'),
         ).toHaveLength(6);
         expect(
             container.querySelectorAll(
@@ -199,11 +199,25 @@ describe('AdoptionMap', () => {
         measured.mockRestore();
     });
 
+    it('offers exactly two colourings, Activity first and chosen, then Role', () => {
+        renderMap();
+        const options = within(
+            screen.getByRole('radiogroup', { name: 'Color by' }),
+        ).getAllByRole('radio');
+        expect(options.map((option) => option.getAttribute('value'))).toEqual([
+            'activity',
+            'role',
+        ]);
+        expect(screen.getByRole('radio', { name: 'Activity' })).toBeChecked();
+        expect(screen.getByRole('radio', { name: 'Role' })).not.toBeChecked();
+    });
+
     it('shows legend counts that add up to the people in view', async () => {
         renderMap();
         expect(legendCounts()).toEqual([
-            { label: 'Active in 30 days', count: 6 },
-            { label: 'Not active in 30 days', count: 6 },
+            { label: 'Healthy', count: 6 },
+            { label: 'At risk', count: 0 },
+            { label: 'Lost', count: 6 },
             { label: 'No account', count: 26 },
         ]);
         await userEvent.click(screen.getByRole('radio', { name: 'Role' }));
@@ -311,13 +325,14 @@ describe('AdoptionMap', () => {
         if (circle) fireEvent.pointerOver(circle);
         expect(texts('[data-label="own:Finance"]')).toEqual([
             'Finance',
-            '3 of 8',
+            '3 of 8 on Lightdash · 2 active',
         ]);
         expect(texts('[data-rest-label]')).toEqual([]);
         expect(screen.queryByText(/Directly in/)).toBeNull();
         expect(legendCounts()).toEqual([
-            { label: 'Active in 30 days', count: 2 },
-            { label: 'Not active in 30 days', count: 1 },
+            { label: 'Healthy', count: 2 },
+            { label: 'At risk', count: 0 },
+            { label: 'Lost', count: 1 },
             { label: 'No account', count: 5 },
         ]);
         await userEvent.click(
@@ -424,33 +439,48 @@ describe('AdoptionMap', () => {
         ['6,000-headcount', deepOrganization],
         ['enterprise-shaped', flatOrganization],
     ])(
-        'counts in the legend exactly the dots drawn of each kind across the %s organization',
+        'counts in the legend exactly the dots drawn of each bucket and each role across the %s organization',
         (_, departments) => {
             const { container } = renderMap(departments);
             const drawn = (kind: string) =>
                 container.querySelectorAll(
                     `svg[role="img"] [data-dot="${kind}"]`,
                 ).length;
-            expect(legendCounts()).toEqual([
-                { label: 'Active in 30 days', count: drawn('active') },
-                { label: 'Not active in 30 days', count: drawn('idle') },
-                { label: 'No account', count: drawn('noAccount') },
-            ]);
-            // And the panel beside the map gives the same three numbers
-            const [active, idle, noAccount] = legendCounts().map((entry) =>
-                entry.count.toLocaleString('en-US'),
-            );
-            expect(
+            // And the panel beside the map gives the same numbers, keyed the same way
+            const panelLines = () =>
                 within(screen.getByRole('complementary', { name: 'Details' }))
                     .getAllByText(
-                        /^(Active|On Lightdash, not active|No account) [\d,]+$/,
+                        /^(Healthy|At risk|Lost|Admin|Editor|Interactive viewer|Viewer|No account) [\d,]+$/,
                     )
-                    .map((node) => node.textContent),
-            ).toEqual([
-                `Active ${active}`,
-                `On Lightdash, not active ${idle}`,
-                `No account ${noAccount}`,
+                    .map((node) => node.textContent);
+            const asLines = () =>
+                legendCounts().map(
+                    (entry) =>
+                        `${entry.label} ${entry.count.toLocaleString('en-US')}`,
+                );
+            expect(legendCounts()).toEqual([
+                { label: 'Healthy', count: drawn('healthy') },
+                { label: 'At risk', count: drawn('atRisk') },
+                { label: 'Lost', count: drawn('lost') },
+                { label: 'No account', count: drawn('noAccount') },
             ]);
+            legendCounts().forEach((entry) =>
+                expect(entry.count).toBeGreaterThan(0),
+            );
+            expect(panelLines()).toEqual(asLines());
+
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(legendCounts()).toEqual([
+                { label: 'Admin', count: drawn('admin') },
+                { label: 'Editor', count: drawn('editor') },
+                {
+                    label: 'Interactive viewer',
+                    count: drawn('interactiveViewer'),
+                },
+                { label: 'Viewer', count: drawn('viewer') },
+                { label: 'No account', count: drawn('noAccount') },
+            ]);
+            expect(panelLines()).toEqual(asLines());
         },
     );
 
@@ -807,21 +837,23 @@ describe('AdoptionMap', () => {
         const panelLegend = () =>
             within(details())
                 .getAllByText(
-                    /^(Active|On Lightdash, not active|No account) [\d,]+$/,
+                    /^(Healthy|At risk|Lost|Admin|Editor|Interactive viewer|Viewer|No account) [\d,]+$/,
                 )
                 .map((node) => node.textContent);
-        // The share of a bar each coloured part takes; the rest is its track, the people without an account
+        // The share of a bar each coloured part takes, in order; the rest is its track, the people without an account
         const barShares = (bar: Element | null | undefined) =>
-            ['active', 'onLightdashNotActive'].map((part) =>
-                Number.parseFloat(
-                    bar
-                        ?.querySelector<HTMLElement>(`[data-part="${part}"]`)
-                        ?.style.getPropertyValue('--progress-section-size') ??
-                        'NaN',
-                ),
+            [...(bar?.querySelectorAll<HTMLElement>('[data-part]') ?? [])].map(
+                (part) =>
+                    Number.parseFloat(
+                        part.style.getPropertyValue('--progress-section-size'),
+                    ),
+            );
+        const barParts = (bar: Element | null | undefined) =>
+            [...(bar?.querySelectorAll('[data-part]') ?? [])].map((part) =>
+                part.getAttribute('data-part'),
             );
         const mainBar = () =>
-            details().querySelector('[data-part="active"]')?.parentElement;
+            details().querySelector('[data-part]')?.parentElement;
         const rowsUnder = (label: 'Departments' | 'Sub-departments') => [
             ...(within(details()).getByText(label).nextElementSibling
                 ?.children ?? []),
@@ -851,18 +883,116 @@ describe('AdoptionMap', () => {
             ).toBeInTheDocument();
             // Placed: Stores 6, Depots 3 and Finance 3, 6 of them active. Headcount: Ops 30 and Finance 8
             expect(panelLegend()).toEqual([
-                'Active 6',
-                'On Lightdash, not active 6',
+                'Healthy 6',
+                'At risk 0',
+                'Lost 6',
                 'No account 26',
             ]);
             expect(legendCounts()).toEqual([
-                { label: 'Active in 30 days', count: 6 },
-                { label: 'Not active in 30 days', count: 6 },
+                { label: 'Healthy', count: 6 },
+                { label: 'At risk', count: 0 },
+                { label: 'Lost', count: 6 },
                 { label: 'No account', count: 26 },
             ]);
-            const [active, notActive] = barShares(mainBar());
-            expect(active).toBeCloseTo((100 * 6) / 38);
-            expect(notActive).toBeCloseTo((100 * 6) / 38);
+            const [healthy, atRisk, lost] = barShares(mainBar());
+            expect(healthy).toBeCloseTo((100 * 6) / 38);
+            expect(atRisk).toBe(0);
+            expect(lost).toBeCloseTo((100 * 6) / 38);
+        });
+
+        it('splits the bars and the legend by the colouring chosen: health with Activity, roles with Role', async () => {
+            // Two of Stores' people and one of Depots' were active in the last 90 days but not the last 30
+            const split = (healthy: number, atRisk: number, lost: number) => ({
+                healthy,
+                atRisk,
+                lost,
+            });
+            const roles = (
+                admins: number,
+                editors: number,
+                viewers: number,
+            ) => ({
+                admins,
+                editors,
+                interactiveViewers: 0,
+                viewers,
+            });
+            renderMap([
+                d('Ops', null, 30, 9, 4, {
+                    metrics: metricsFixture(9, null, {
+                        activeCount30d: 4,
+                        activitySplit: split(4, 3, 2),
+                        roleSplit: roles(1, 3, 5),
+                    }),
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Stores', 'Ops', 20, 6, 4, {
+                    metrics: metricsFixture(6, null, {
+                        activeCount30d: 4,
+                        activitySplit: split(4, 2, 0),
+                        roleSplit: roles(1, 2, 3),
+                    }),
+                }),
+                d('Depots', 'Ops', 10, 3, 0, {
+                    metrics: metricsFixture(3, null, {
+                        activeCount30d: 0,
+                        activitySplit: split(0, 1, 2),
+                        roleSplit: roles(0, 1, 2),
+                    }),
+                }),
+            ]);
+            expect(barParts(mainBar())).toEqual(['healthy', 'atRisk', 'lost']);
+            expect(barShares(mainBar())).toEqual([
+                expect.closeTo((100 * 4) / 30),
+                expect.closeTo((100 * 3) / 30),
+                expect.closeTo((100 * 2) / 30),
+            ]);
+            expect(panelLegend()).toEqual([
+                'Healthy 4',
+                'At risk 3',
+                'Lost 2',
+                'No account 21',
+            ]);
+            expect(barParts(row('Ops'))).toEqual(['healthy', 'atRisk', 'lost']);
+
+            await userEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(barParts(mainBar())).toEqual([
+                'admin',
+                'editor',
+                'interactiveViewer',
+                'viewer',
+            ]);
+            expect(barShares(mainBar())).toEqual([
+                expect.closeTo((100 * 1) / 30),
+                expect.closeTo((100 * 3) / 30),
+                0,
+                expect.closeTo((100 * 5) / 30),
+            ]);
+            expect(panelLegend()).toEqual([
+                'Admin 1',
+                'Editor 3',
+                'Interactive viewer 0',
+                'Viewer 5',
+                'No account 21',
+            ]);
+            expect(barParts(row('Ops'))).toEqual([
+                'admin',
+                'editor',
+                'interactiveViewer',
+                'viewer',
+            ]);
+            // Each part keyed with the dot the map draws for it
+            expect(
+                [...details().querySelectorAll('li [data-dot]')].map((dot) =>
+                    dot.getAttribute('data-dot'),
+                ),
+            ).toEqual([
+                'admin',
+                'editor',
+                'interactiveViewer',
+                'viewer',
+                'noAccount',
+            ]);
         });
 
         it('counts the people placed, not everyone on Lightdash, and nothing more than the bar', () => {
@@ -872,8 +1002,9 @@ describe('AdoptionMap', () => {
                 }),
             });
             expect(panelLegend()).toEqual([
-                'Active 6',
-                'On Lightdash, not active 6',
+                'Healthy 6',
+                'At risk 0',
+                'Lost 6',
                 'No account 26',
             ]);
             expect(within(details()).queryByText(/1,951|1,181/)).toBeNull();
@@ -892,11 +1023,13 @@ describe('AdoptionMap', () => {
                 'Ops | 30%',
                 'Finance | 38%',
             ]);
-            const [active, notActive] = barShares(row('Finance'));
-            expect(active).toBeCloseTo(25);
-            expect(notActive).toBeCloseTo(12.5);
+            const [healthy, atRisk, lost] = barShares(row('Finance'));
+            expect(healthy).toBeCloseTo(25);
+            expect(atRisk).toBe(0);
+            expect(lost).toBeCloseTo(12.5);
             expect(barShares(row('Ops'))).toEqual([
                 expect.closeTo((100 * 4) / 30),
+                0,
                 expect.closeTo((100 * 5) / 30),
             ]);
         });
@@ -936,8 +1069,9 @@ describe('AdoptionMap', () => {
                 within(details()).getByText('Department'),
             ).toBeInTheDocument();
             expect(panelLegend()).toEqual([
-                'Active 4',
-                'On Lightdash, not active 5',
+                'Healthy 4',
+                'At risk 0',
+                'Lost 5',
                 'No account 21',
             ]);
             // Stores and Depots both 30%: the larger first
@@ -951,8 +1085,9 @@ describe('AdoptionMap', () => {
             ).toBeInTheDocument();
             expect(within(details()).getByText('Ops')).toBeInTheDocument();
             expect(panelLegend()).toEqual([
-                'Active 4',
-                'On Lightdash, not active 2',
+                'Healthy 4',
+                'At risk 0',
+                'Lost 2',
                 'No account 14',
             ]);
             expect(within(details()).queryByText('Sub-departments')).toBeNull();
@@ -998,16 +1133,18 @@ describe('AdoptionMap', () => {
             expect(within(details()).getByTitle('Directly in Ops · 4')).toBe(
                 directRow?.firstElementChild,
             );
-            expect(barShares(directRow)).toEqual([10, 30]);
+            expect(barShares(directRow)).toEqual([10, 0, 30]);
             // The department's own bar, the legend under the map and the rings drawn all count its 27
             expect(panelLegend()).toEqual([
-                'Active 3',
-                'On Lightdash, not active 10',
+                'Healthy 3',
+                'At risk 0',
+                'Lost 10',
                 'No account 27',
             ]);
             expect(legendCounts()).toEqual([
-                { label: 'Active in 30 days', count: 3 },
-                { label: 'Not active in 30 days', count: 10 },
+                { label: 'Healthy', count: 3 },
+                { label: 'At risk', count: 0 },
+                { label: 'Lost', count: 10 },
                 { label: 'No account', count: 27 },
             ]);
             expect(
@@ -1037,7 +1174,7 @@ describe('AdoptionMap', () => {
                 'Data | 11%',
             ]);
             // Its one person is on Lightdash and active, so the bar is full
-            expect(barShares(row('Product'))).toEqual([100, 0]);
+            expect(barShares(row('Product'))).toEqual([100, 0, 0]);
             await userEvent.click(
                 screen.getByRole('button', { name: /^Operations,/ }),
             );
@@ -1078,10 +1215,7 @@ describe('AdoptionMap', () => {
             expect(
                 within(details()).getByText('Add headcounts to see coverage'),
             ).toBeInTheDocument();
-            expect(panelLegend()).toEqual([
-                'Active 7',
-                'On Lightdash, not active 4',
-            ]);
+            expect(panelLegend()).toEqual(['Healthy 7', 'At risk 0', 'Lost 4']);
             expect(listed('Departments')).toEqual([
                 'Hub | Add headcount',
                 'Product | Add headcount',
@@ -1106,10 +1240,7 @@ describe('AdoptionMap', () => {
             expect(
                 within(details()).getByText('Add headcounts to see coverage'),
             ).toBeInTheDocument();
-            expect(panelLegend()).toEqual([
-                'Active 2',
-                'On Lightdash, not active 4',
-            ]);
+            expect(panelLegend()).toEqual(['Healthy 2', 'At risk 0', 'Lost 4']);
             unmount();
 
             // A headcount entered below the department is enough
@@ -1121,8 +1252,9 @@ describe('AdoptionMap', () => {
                 within(details()).queryByText('Add headcounts to see coverage'),
             ).toBeNull();
             expect(panelLegend()).toEqual([
-                'Active 1',
-                'On Lightdash, not active 3',
+                'Healthy 1',
+                'At risk 0',
+                'Lost 3',
                 'No account 6',
             ]);
         });
@@ -1140,7 +1272,7 @@ describe('AdoptionMap', () => {
                 'Finance | 38%',
             ]);
             // An empty track
-            expect(barShares(row('Legal'))).toEqual([0, 0]);
+            expect(barShares(row('Legal'))).toEqual([0, 0, 0]);
         });
 
         it('reads the people directly in a department without a headcount as the other rows without one do', async () => {
@@ -1190,7 +1322,7 @@ describe('AdoptionMap', () => {
                 [...details().querySelectorAll('li [data-dot]')].map((dot) =>
                     dot.getAttribute('data-dot'),
                 ),
-            ).toEqual(['active', 'idle', 'noAccount']);
+            ).toEqual(['healthy', 'atRisk', 'lost', 'noAccount']);
         });
 
         it('counts a headcount below its sub-departments as their total, so the panel, the legend and the dots agree', async () => {
@@ -1208,13 +1340,15 @@ describe('AdoptionMap', () => {
                 screen.getByRole('button', { name: /^Ops,/ }),
             );
             expect(panelLegend()).toEqual([
-                'Active 0',
-                'On Lightdash, not active 25',
+                'Healthy 0',
+                'At risk 0',
+                'Lost 25',
                 'No account 10',
             ]);
             expect(legendCounts()).toEqual([
-                { label: 'Active in 30 days', count: 0 },
-                { label: 'Not active in 30 days', count: 25 },
+                { label: 'Healthy', count: 0 },
+                { label: 'At risk', count: 0 },
+                { label: 'Lost', count: 25 },
                 { label: 'No account', count: 10 },
             ]);
             // Depots' 10
@@ -1238,8 +1372,9 @@ describe('AdoptionMap', () => {
                 d('Finance', null, 8, 3, 2),
             ]);
             expect(panelLegend()).toEqual([
-                'Active 5',
-                'On Lightdash, not active 11',
+                'Healthy 5',
+                'At risk 0',
+                'Lost 11',
                 'No account 32',
             ]);
             expect(
@@ -1271,11 +1406,12 @@ describe('AdoptionMap', () => {
                 screen.getByRole('button', { name: /^Data,/ }),
             );
             expect(panelLegend()).toEqual([
-                'Active 9',
-                'On Lightdash, not active 0',
+                'Healthy 9',
+                'At risk 0',
+                'Lost 0',
                 'No account 0',
             ]);
-            expect(barShares(mainBar())).toEqual([100, 0]);
+            expect(barShares(mainBar())).toEqual([100, 0, 0]);
             expect(
                 within(details()).queryByText(/More accounts than headcount/),
             ).toBeNull();
@@ -1302,8 +1438,9 @@ describe('AdoptionMap', () => {
                 screen.getByRole('button', { name: /^Finance,/ }),
             );
             expect(panelLegend()).toEqual([
-                'Active 2',
-                'On Lightdash, not active 1',
+                'Healthy 2',
+                'At risk 0',
+                'Lost 1',
                 'No account 7',
             ]);
             expect(
@@ -1389,7 +1526,7 @@ describe('AdoptionMap', () => {
         // The drawing is described in words as before; its names are not read out
         expect(
             screen.getByRole('img', {
-                name: 'Map of the organization: 2 departments, 38 people, 12 on Lightdash placed in a department, 6 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person. The List view has the same numbers as a table',
+                name: 'Map of the organization: 2 departments, 38 people, 12 on Lightdash placed in a department, 6 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 6 healthy, 0 at risk, 6 lost, 26 with no account. The List view has the same numbers as a table',
             }),
         ).toBeInTheDocument();
         const stores = container.querySelector(
@@ -1427,12 +1564,13 @@ describe('AdoptionMap', () => {
         const large = circles.filter((circle) => !isSmall(circle));
         expect(small.length).toBeGreaterThan(0);
         expect(large.length).toBeGreaterThan(0);
-        expect(small.filter((circle) => restLabelOf(circle) !== null)).toEqual(
-            [],
-        );
-        expect(large.filter((circle) => restLabelOf(circle) === null)).toEqual(
-            [],
-        );
+        expect(
+            small.filter((circle) => restLabelOf(circle) !== null),
+        ).toHaveLength(0);
+        // Where two names would overlap the smaller circle's is left for hover, so not every large one is named
+        const named = large.filter((circle) => restLabelOf(circle) !== null);
+        expect(named.length).toBeGreaterThan(0);
+        expect(named.length).toBeLessThanOrEqual(large.length);
 
         const shownFor = (circle: SVGCircleElement) =>
             [
@@ -1442,21 +1580,56 @@ describe('AdoptionMap', () => {
             ].map((node) => node.textContent);
         const [tiny] = small;
         fireEvent.pointerOver(tiny);
-        // In full, with its numbers on the line under it
+        // In full, with its fuller line of numbers under it
         expect(shownFor(tiny)).toEqual([
             tiny.dataset.department,
-            expect.stringMatching(/^3 of \d+$/),
+            expect.stringMatching(/^3 of \d+ on Lightdash · 2 active$/),
         ]);
         fireEvent.pointerOut(tiny);
         expect(shownFor(tiny)).toEqual([]);
 
-        const [largest] = large;
+        const [largest] = [...large].sort(
+            (a, b) => Number(b.getAttribute('r')) - Number(a.getAttribute('r')),
+        );
         fireEvent.pointerOver(largest);
         expect(shownFor(largest)).toHaveLength(2);
         expect(restLabelOf(largest)).toBeNull();
         fireEvent.pointerOut(largest);
         expect(shownFor(largest)).toEqual([]);
         expect(restLabelOf(largest)).not.toBeNull();
+    });
+
+    it('leaves the smaller of two overlapping names for hover, as on the 6,000-headcount organization at 480 px', () => {
+        const measured = vi
+            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockReturnValue(new DOMRect(0, 0, 480, 560));
+        try {
+            const { container } = renderMap(deepOrganization);
+            const texts = (selector: string) =>
+                [
+                    ...container.querySelectorAll(
+                        `svg[role="img"] ${selector}`,
+                    ),
+                ].map((node) => node.textContent);
+            // Product & Engineering's name would sit on that of Commercial, the larger circle
+            expect(texts('[data-rest-label="Commercial"]')).toEqual([
+                'Commercial',
+                '834 of 1,900',
+            ]);
+            expect(texts('[data-rest-label="Product & Engineering"]')).toEqual(
+                [],
+            );
+            const circle = container.querySelector(
+                'svg[role="img"] [data-department="Product & Engineering"]',
+            );
+            if (circle) fireEvent.pointerOver(circle);
+            expect(texts('[data-label="Product & Engineering"]')).toEqual([
+                'Product & Engineering',
+                '385 of 650 on Lightdash · 230 active · 3 sub-departments',
+            ]);
+        } finally {
+            measured.mockRestore();
+        }
     });
 
     it("shows a department's hover label in place of its name at rest while its control has keyboard focus", () => {
@@ -1477,7 +1650,7 @@ describe('AdoptionMap', () => {
                     'svg[role="img"] [data-label="Finance"]',
                 ),
             ].map((node) => node.textContent),
-        ).toEqual(['Finance', '3 of 8']);
+        ).toEqual(['Finance', '3 of 8 on Lightdash · 2 active']);
         expect(restLabel()).toBeNull();
         fireEvent.blur(control);
         expect(
@@ -1788,7 +1961,7 @@ describe('AdoptionMap', () => {
             );
             expect(
                 container.querySelectorAll(
-                    'svg[role="img"] [data-dot="active"]',
+                    'svg[role="img"] [data-dot="healthy"]',
                 ),
             ).toHaveLength(7);
             expect(isStill()).toBe(true);
