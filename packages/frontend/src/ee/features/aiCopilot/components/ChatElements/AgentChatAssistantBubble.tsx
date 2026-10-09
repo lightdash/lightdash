@@ -51,10 +51,7 @@ import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
-import {
-    type StepProgressMessage,
-    type StreamPart,
-} from '../../store/aiAgentThreadStreamSlice';
+import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import {
     clearPreview,
     selectArtifactPreview,
