@@ -40,6 +40,10 @@ import {
 import Logger from '../../logging/logger';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
+type RefreshTokenExpiry =
+    | { kind: 'reported'; expiresAt: Date }
+    | { kind: 'unreported' };
+
 type DeletedAiCredential = {
     warehouseType: WarehouseTypes;
     projectUuid: string | null;
@@ -934,10 +938,16 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
+        expiry?: RefreshTokenExpiry,
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             const row = await trx(UserWarehouseCredentialsTableName)
-                .select('name', 'warehouse_type', 'encrypted_credentials')
+                .select(
+                    'name',
+                    'warehouse_type',
+                    'encrypted_credentials',
+                    'expires_at',
+                )
                 .where(
                     'user_warehouse_credentials_uuid',
                     userWarehouseCredentialsUuid,
@@ -963,6 +973,27 @@ export class UserWarehouseCredentialsModel {
                 return false;
             }
 
+            let expiresAt: Date | null | undefined;
+            if (expiry) {
+                switch (expiry.kind) {
+                    case 'reported':
+                        expiresAt = expiry.expiresAt;
+                        break;
+                    case 'unreported':
+                        if (
+                            row.expires_at &&
+                            row.expires_at.getTime() <= Date.now()
+                        )
+                            expiresAt = null;
+                        break;
+                    default:
+                        assertUnreachable(
+                            expiry,
+                            'Unknown refresh token expiry',
+                        );
+                }
+            }
+
             (credentials as { refreshToken: string }).refreshToken =
                 newRefreshToken;
             const encryptedCredentials = this.encryptionUtil.encrypt(
@@ -973,6 +1004,9 @@ export class UserWarehouseCredentialsModel {
                     name: row.name,
                     warehouse_type: row.warehouse_type,
                     encrypted_credentials: encryptedCredentials,
+                    ...(expiresAt === undefined
+                        ? {}
+                        : { expires_at: expiresAt }),
                     updated_at: new Date(),
                 })
                 .where(
