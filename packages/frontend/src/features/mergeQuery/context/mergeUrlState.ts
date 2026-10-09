@@ -4,11 +4,7 @@ import {
     type Filters,
     type MergeTableCalculation,
 } from '@lightdash/common';
-import {
-    DEFAULT_ADDITIONAL_SOURCE_ID,
-    MAX_MERGE_SOURCES,
-    PRIMARY_SOURCE_ID,
-} from '../constants';
+import { DEFAULT_ADDITIONAL_SOURCE_ID, PRIMARY_SOURCE_ID } from '../constants';
 import {
     type MergeEditorSource,
     type MergeFocus,
@@ -39,6 +35,10 @@ type SerializedSource = {
     w: Filters;
     a?: MergeEditorSource['additionalMetrics'];
     c?: MergeEditorSource['customDimensions'];
+    tc?: MergeEditorSource['tableCalculations'];
+    mo?: MergeEditorSource['metricOverrides'];
+    do?: MergeEditorSource['dimensionOverrides'];
+    tz?: MergeEditorSource['timezone'];
 };
 
 /** Short keys because this rides beside the already-large chart URL state. */
@@ -104,6 +104,10 @@ export const serializeMergeState = (state: MergeUrlState): string =>
             w: source.filters,
             a: source.additionalMetrics,
             c: source.customDimensions,
+            tc: source.tableCalculations,
+            mo: source.metricOverrides,
+            do: source.dimensionOverrides,
+            tz: source.timezone,
         })),
         k: state.joinParts.map((part) => part.fieldIdBySourceId),
         ...(state.joinParts.some((part) => part.name)
@@ -134,6 +138,10 @@ const parseSource = (value: unknown): MergeEditorSource | null => {
         filters: asFilters(source.w),
         additionalMetrics: source.a,
         customDimensions: source.c,
+        ...(source.tc ? { tableCalculations: source.tc } : {}),
+        ...(source.mo ? { metricOverrides: source.mo } : {}),
+        ...(source.do ? { dimensionOverrides: source.do } : {}),
+        ...(source.tz ? { timezone: source.tz } : {}),
     };
 };
 
@@ -213,7 +221,6 @@ const parseCurrent = (value: Record<string, unknown>): MergeUrlState | null => {
     const additionalSourceIds = additionalSources.map((source) => source.id);
     if (
         additionalSources.length === 0 ||
-        additionalSources.length + 1 > MAX_MERGE_SOURCES ||
         additionalSourceIds.includes(PRIMARY_SOURCE_ID) ||
         new Set(additionalSourceIds).size !== additionalSourceIds.length
     ) {

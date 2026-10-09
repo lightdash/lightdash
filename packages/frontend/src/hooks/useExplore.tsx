@@ -1,5 +1,9 @@
 import { type ApiError, type ApiExploreResults } from '@lightdash/common';
-import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
+import {
+    useQueries,
+    useQuery,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
@@ -45,4 +49,25 @@ export const useExploreByProjectUuid = (
         retry: false,
         ...useQueryOptions,
     });
+};
+
+/** Loads every source through the same cache used by individual explore views. */
+export const useExploreQueries = (exploreNames: (string | undefined)[]) => {
+    const projectUuid = useProjectUuid();
+    const setErrorResponse = useQueryError();
+    const uniqueNames = [...new Set(exploreNames)];
+    const queries = useQueries({
+        queries: uniqueNames.map((name) => ({
+            queryKey: ['tables', name, projectUuid],
+            queryFn: () => getExplore(projectUuid!, name!),
+            enabled: !!name && !!projectUuid,
+            onError: (error: ApiError) => setErrorResponse(error),
+            retry: false,
+            refetchOnMount: false,
+        })),
+    });
+    const byName = new Map(
+        uniqueNames.map((name, index) => [name, queries[index]]),
+    );
+    return exploreNames.map((name) => byName.get(name)!);
 };
