@@ -79,25 +79,65 @@ describe('SSH tunnel save validation', () => {
             );
         },
     );
-    it('keeps a copied key without a lookup', async () => {
-        const { resolver, save, find } = fixture({
-            sshTunnelPrivateKey: 'COPY',
+    it.each([undefined, 'COPY'])(
+        'drops copy %s only from stored credentials without mutation',
+        async (sshTunnelPrivateKey) => {
+            const { resolver, save, find } = fixture({ sshTunnelPrivateKey });
+            const before = structuredClone(save);
+            const result = await resolver.validateOnSave(save);
+            expect(result.connection.sshTunnelPrivateKey).toBe(
+                sshTunnelPrivateKey ?? 'ORG-PRIVATE',
+            );
+            expect(result.stored).not.toHaveProperty('sshTunnelPrivateKey');
+            expect(find).toHaveBeenCalledExactlyOnceWith(publicKey);
+            expect(save).toEqual(before);
+        },
+    );
+    it.each(['missing', 'other-org', 'null-owner', 'null-context'])(
+        'keeps the copy for %s ownership',
+        async (scenario) => {
+            const { resolver, save, find } = fixture(
+                { sshTunnelPrivateKey: 'COPY' },
+                scenario === 'null-context' ? null : 'org',
+            );
+            find.mockResolvedValue(
+                scenario === 'missing'
+                    ? null
+                    : {
+                          publicKey,
+                          privateKey: 'PRIVATE',
+                          organizationUuid:
+                              scenario === 'null-owner' ? null : 'other',
+                      },
+            );
+            const before = structuredClone(save);
+            expect(await resolver.validateOnSave(save)).toEqual({
+                connection: save.connection,
+                stored: save.stored,
+            });
+            expect(save).toEqual(before);
+        },
+    );
+    it('resolves a saved credential without a copy using the organisation key', async () => {
+        const { resolver, save, selection } = fixture();
+        const { stored } = await resolver.validateOnSave(save);
+        expect(stored).not.toHaveProperty('sshTunnelPrivateKey');
+        let reloaded: typeof stored;
+        try {
+            reloaded = JSON.parse(JSON.stringify(stored));
+        } catch (error) {
+            throw new Error('Expected serializable credentials', {
+                cause: error,
+            });
+        }
+        const result = await resolver.resolve({
+            ...selection,
+            connection: reloaded,
+            stored: reloaded,
         });
-        const result = await resolver.validateOnSave(save);
-        expect(result).toEqual({
-            connection: save.connection,
-            stored: save.stored,
-        });
-        expect(find).not.toHaveBeenCalled();
-    });
-    it('copies the organisation key into both representations without mutation', async () => {
-        const { resolver, save, find } = fixture();
-        const before = structuredClone(save);
-        const result = await resolver.validateOnSave(save);
-        expect(result.connection.sshTunnelPrivateKey).toBe('ORG-PRIVATE');
-        expect(result.stored.sshTunnelPrivateKey).toBe('ORG-PRIVATE');
-        expect(find).toHaveBeenCalledExactlyOnceWith(publicKey);
-        expect(save).toEqual(before);
+        expect(result.clientCredentials.sshTunnelPrivateKey).toBe(
+            'ORG-PRIVATE',
+        );
     });
     it.each(['missing', 'other-org', 'null-owner', 'null-context'])(
         'rejects %s ownership',

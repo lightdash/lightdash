@@ -473,6 +473,7 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type CredentialOwner } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import { SshTunnelCredentialResolver } from '../WarehouseClientFactory/resolvers/SshTunnelCredentialResolver';
 import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
@@ -4551,6 +4552,7 @@ export class ProjectService
         return this.warehouseConnectionIdentityModel.copyConnectionsToPreview(
             upstreamProjectUuid,
             previewProjectUuid,
+            this.encryptionUtil,
         );
     }
 
@@ -5908,6 +5910,12 @@ export class ProjectService
         const mergedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             createProject,
             savedProject,
+            {
+                restoreSshTunnelPrivateKey:
+                    !SshTunnelCredentialResolver.matches(
+                        createProject.warehouseConnection,
+                    ),
+            },
         );
         const updatedProject = {
             ...mergedProject,
@@ -6089,6 +6097,12 @@ export class ProjectService
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
             resolvedData,
             savedProject,
+            {
+                restoreSshTunnelPrivateKey:
+                    !SshTunnelCredentialResolver.matches(
+                        resolvedData.warehouseConnection,
+                    ),
+            },
         );
 
         // extra security measure, let's remove all sensitive credentials when authentication type is NONE on Snowflake

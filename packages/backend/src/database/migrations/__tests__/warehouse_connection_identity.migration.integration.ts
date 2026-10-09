@@ -60,6 +60,19 @@ describe('Multi runtime identity on the real schema', () => {
     let queryHistoryModel: QueryHistoryModel;
     let projectModel: ProjectModel;
 
+    const credentialEncryption = new EncryptionUtil({
+        lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+    });
+    const extraCredentials = (name: string) => ({
+        type: WarehouseTypes.POSTGRES,
+        host: 'db',
+        port: 5432,
+        user: 'user',
+        password: 'password',
+        dbname: name,
+        schema: 'public',
+    });
+
     beforeAll(async () => {
         migrated = await createMigratedTestDatabase('connection_identity');
         database = migrated.database;
@@ -103,7 +116,9 @@ describe('Multi runtime identity on the real schema', () => {
                     is_original: false,
                     name,
                     warehouse_type: 'postgres',
-                    encrypted_credentials: Buffer.from(`ciphertext-${name}`),
+                    encrypted_credentials: credentialEncryption.encrypt(
+                        JSON.stringify(extraCredentials(name)),
+                    ),
                 })
                 .returning('warehouse_connection_uuid')
         )[0].warehouse_connection_uuid;
@@ -643,6 +658,7 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
             const rows = await Promise.all([
                 database('warehouse_credentials')
@@ -660,6 +676,70 @@ describe('Multi runtime identity on the real schema', () => {
             }
         });
 
+        test.each(['owned', 'missing', 'null-owner', 'other-org'])(
+            'preserves only the needed SSH key copy for %s ownership',
+            async (ownership) => {
+                const upstream = await createMultiProject();
+                const previewUuid = await createPreviewProject(upstream);
+                const publicKey = `ssh-public-${randomUUID()}`;
+                let organizationUuid: string | null = null;
+                if (ownership === 'owned')
+                    organizationUuid = upstream.organizationUuid;
+                if (ownership === 'other-org')
+                    organizationUuid = (await createMultiProject())
+                        .organizationUuid;
+                if (ownership !== 'missing')
+                    await database('ssh_key_pairs').insert({
+                        public_key: publicKey,
+                        private_key:
+                            credentialEncryption.encrypt('ORG-PRIVATE'),
+                        organization_uuid: organizationUuid,
+                    });
+                const credentials = {
+                    ...extraCredentials('analytics'),
+                    useSshTunnel: true,
+                    sshTunnelPublicKey: publicKey,
+                    sshTunnelPrivateKey: 'COPY',
+                };
+                await database('warehouse_connections')
+                    .where('warehouse_connection_uuid', upstream.extraUuid)
+                    .update({
+                        encrypted_credentials: credentialEncryption.encrypt(
+                            JSON.stringify(credentials),
+                        ),
+                    });
+                await identity.copyConnectionsToPreview(
+                    upstream.projectUuid,
+                    previewUuid,
+                    credentialEncryption,
+                );
+                const copied = await database('warehouse_connections')
+                    .where('project_uuid', previewUuid)
+                    .where('is_original', false)
+                    .first('encrypted_credentials');
+                let stored: Record<string, unknown>;
+                try {
+                    stored = JSON.parse(
+                        credentialEncryption.decrypt(
+                            copied.encrypted_credentials,
+                        ),
+                    );
+                } catch (error) {
+                    throw new Error('Expected decryptable credentials', {
+                        cause: error,
+                    });
+                }
+                if (ownership === 'owned')
+                    expect(stored).not.toHaveProperty('sshTunnelPrivateKey');
+                else
+                    expect(stored).toHaveProperty(
+                        'sshTunnelPrivateKey',
+                        'COPY',
+                    );
+                expect(stored.sshTunnelPublicKey).toBe(publicKey);
+            },
+        );
+
         test('copies the original row and every extra with new uuids, and makes the preview multi', async () => {
             const upstream = await createMultiProject();
             const secondExtra = await insertExtra(
@@ -671,6 +751,7 @@ describe('Multi runtime identity on the real schema', () => {
             const map = await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
 
             const copies = await database('warehouse_connections')
@@ -686,19 +767,21 @@ describe('Multi runtime identity on the real schema', () => {
                 copies.map(({ is_original, name, encrypted_credentials }) => ({
                     is_original,
                     name,
-                    ciphertext: encrypted_credentials?.toString() ?? null,
+                    ciphertext: encrypted_credentials
+                        ? credentialEncryption.decrypt(encrypted_credentials)
+                        : null,
                 })),
             ).toEqual([
                 { is_original: true, name: 'Original', ciphertext: null },
                 {
                     is_original: false,
                     name: 'Warehouse B',
-                    ciphertext: 'ciphertext-Warehouse B',
+                    ciphertext: JSON.stringify(extraCredentials('Warehouse B')),
                 },
                 {
                     is_original: false,
                     name: 'Warehouse C',
-                    ciphertext: 'ciphertext-Warehouse C',
+                    ciphertext: JSON.stringify(extraCredentials('Warehouse C')),
                 },
             ]);
             const byName = new Map(
@@ -752,6 +835,7 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
 
             const settings = (projectUuid: string) =>
@@ -792,12 +876,14 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
 
             await expect(
                 identity.copyConnectionsToPreview(
                     upstream.projectUuid,
                     previewUuid,
+                    credentialEncryption,
                 ),
             ).rejects.toThrow(ConflictError);
         });
@@ -814,6 +900,7 @@ describe('Multi runtime identity on the real schema', () => {
                 identity.copyConnectionsToPreview(
                     upstream.projectUuid,
                     previewUuid,
+                    credentialEncryption,
                 ),
             ).rejects.toThrow(ParameterError);
             expect(
@@ -829,6 +916,7 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
             const addedLater = await insertExtra(
                 upstream.projectUuid,
@@ -861,6 +949,7 @@ describe('Multi runtime identity on the real schema', () => {
                 await identity.copyConnectionsToPreview(
                     upstream.projectUuid,
                     previewUuid,
+                    credentialEncryption,
                 );
                 await database('warehouse_connections')
                     .where(
@@ -900,6 +989,7 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
 
             expect(
@@ -984,6 +1074,7 @@ describe('Multi runtime identity on the real schema', () => {
             const map = await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
             const boundChart = await createSqlChart(upstream, {
                 warehouseConnectionUuid: upstream.extraUuid,
@@ -1047,6 +1138,7 @@ describe('Multi runtime identity on the real schema', () => {
             await identity.copyConnectionsToPreview(
                 upstream.projectUuid,
                 previewUuid,
+                credentialEncryption,
             );
             const addedLater = await insertExtra(
                 upstream.projectUuid,

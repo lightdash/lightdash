@@ -223,9 +223,14 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import {
+    hasSshTunnelPrivateKey,
+    stripOwnedSshTunnelPrivateKey,
+} from '../../utils/sshTunnelCredentials';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { clearProjectExtraRoles } from '../roleSetUtils';
+import { SshKeyPairModel } from '../SshKeyPairModel';
 import {
     remapRowBinding,
     type WarehouseConnectionMap,
@@ -617,7 +622,13 @@ export class ProjectModel {
     static mergeMissingWarehouseSecrets<
         T extends CreateWarehouseCredentialsWithOptionalSecrets =
             CreateWarehouseCredentials,
-    >(incompleteConfig: T, completeConfig: CreateWarehouseCredentials): T {
+    >(
+        incompleteConfig: T,
+        completeConfig: CreateWarehouseCredentials,
+        {
+            restoreSshTunnelPrivateKey = true,
+        }: { restoreSshTunnelPrivateKey?: boolean } = {},
+    ): T {
         if (
             !hasSameWarehouseCredentialDestination(
                 incompleteConfig,
@@ -688,7 +699,10 @@ export class ProjectModel {
         return {
             ...incompleteConfig,
             ...sensitiveCredentialsFieldNames.reduce((sum, secretKey) => {
-                if (secretKey === 'sshTunnelPrivateKey' && !sshKeyUnchanged) {
+                if (
+                    secretKey === 'sshTunnelPrivateKey' &&
+                    (!sshKeyUnchanged || !restoreSshTunnelPrivateKey)
+                ) {
                     return sum;
                 }
                 const newConfigSecretValue = (incompleteConfig as AnyType)[
@@ -720,6 +734,7 @@ export class ProjectModel {
         completeProjectConfig: Project & {
             warehouseConnection?: CreateWarehouseCredentials;
         },
+        options: { restoreSshTunnelPrivateKey?: boolean } = {},
     ): UpdateProject {
         const incomingWarehouse = incompleteProjectConfig.warehouseConnection;
         const savedWarehouse = completeProjectConfig.warehouseConnection;
@@ -745,6 +760,7 @@ export class ProjectModel {
                 ? ProjectModel.mergeMissingWarehouseSecrets(
                       warehouseConnection,
                       savedWarehouse,
+                      options,
                   )
                 : warehouseConnection,
         };
@@ -962,6 +978,30 @@ export class ProjectModel {
         });
     }
 
+    private async prepareWarehouseCredentialsForStorage(
+        trx: Transaction,
+        projectId: number,
+        credentials: CreateWarehouseCredentials,
+    ): Promise<CreateWarehouseCredentials> {
+        if (!hasSshTunnelPrivateKey(credentials)) return credentials;
+        const organization = await trx('projects')
+            .innerJoin(
+                'organizations',
+                'organizations.organization_id',
+                'projects.organization_id',
+            )
+            .where('projects.project_id', projectId)
+            .first('organizations.organization_uuid');
+        return stripOwnedSshTunnelPrivateKey(
+            new SshKeyPairModel({
+                database: trx,
+                encryptionUtil: this.encryptionUtil,
+            }),
+            credentials,
+            organization?.organization_uuid ?? null,
+        );
+    }
+
     private async upsertWarehouseConnection(
         trx: Transaction,
         projectId: number,
@@ -973,7 +1013,11 @@ export class ProjectModel {
     ): Promise<void> {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
-        const credentials = normalizeWarehouseCredentials(data);
+        const credentials = await this.prepareWarehouseCredentialsForStorage(
+            trx,
+            projectId,
+            normalizeWarehouseCredentials(data),
+        );
         const signIn = getPersonSignIn(credentials);
         const subjectUserUuid = resolveSignInSubject({
             signIn,

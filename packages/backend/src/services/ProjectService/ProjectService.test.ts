@@ -432,7 +432,7 @@ const projectModel = {
     createWithOptionalCredentials: vi.fn(
         async () => 'created-preview-project-uuid',
     ),
-    update: vi.fn(async () => undefined),
+    update: vi.fn<ProjectModel['update']>(async () => undefined),
     delete: vi.fn(async () => undefined),
     deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
@@ -623,6 +623,7 @@ const getMockedProjectService = (
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
+            | 'sshKeyPairModel'
         >
     > = {},
 ) =>
@@ -646,7 +647,7 @@ const getMockedProjectService = (
         spaceModel:
             overrides.spaceModel ?? (spaceModel as unknown as SpaceModel),
         documentModel: documentModel as unknown as DocumentModel,
-        sshKeyPairModel: {} as SshKeyPairModel,
+        sshKeyPairModel: overrides.sshKeyPairModel ?? ({} as SshKeyPairModel),
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,
         s3CacheClient: {} as S3CacheClient,
@@ -2086,6 +2087,108 @@ describe('ProjectService', () => {
             });
         });
     });
+    describe('SSH private keys on update', () => {
+        const savedConnection: CreatePostgresCredentials = {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'user',
+            password: 'password',
+            dbname: 'analytics',
+            schema: 'public',
+            useSshTunnel: true,
+            sshTunnelPublicKey: 'PUBLIC',
+            sshTunnelPrivateKey: 'COPY',
+        };
+        for (const path of ['settings', 'credentials'] as const) {
+            it.each(['owned', 'legacy', 'regenerated', 'disabled'])(
+                `${path} preserves only the required key for %s`,
+                async (scenario) => {
+                    const savedProject = {
+                        ...projectWithSensitiveFields,
+                        dbtConnection: { type: DbtProjectType.NONE as const },
+                        warehouseConnection: {
+                            ...savedConnection,
+                            useSshTunnel: scenario !== 'disabled',
+                        },
+                    };
+                    projectModel.getWithSensitiveFields.mockResolvedValueOnce(
+                        savedProject,
+                    );
+                    const find = vi
+                        .fn<SshKeyPairModel['find']>()
+                        .mockResolvedValue(
+                            scenario === 'legacy' || scenario === 'disabled'
+                                ? null
+                                : {
+                                      organizationUuid:
+                                          savedProject.organizationUuid,
+                                      publicKey:
+                                          scenario === 'regenerated'
+                                              ? 'NEW'
+                                              : 'PUBLIC',
+                                      privateKey: 'ORG-PRIVATE',
+                                  },
+                        );
+                    const sshService = getMockedProjectService(
+                        lightdashConfigWithGoogleOAuthMock,
+                        {
+                            sshKeyPairModel: {
+                                find,
+                            } as unknown as SshKeyPairModel,
+                        },
+                    );
+                    const warehouseConnection = {
+                        ...savedConnection,
+                        password: '',
+                        useSshTunnel: scenario !== 'disabled',
+                        sshTunnelPrivateKey: undefined,
+                        sshTunnelPublicKey:
+                            scenario === 'regenerated' ? 'NEW' : 'PUBLIC',
+                    };
+                    if (path === 'settings')
+                        await sshService.updateAndScheduleAsyncWork(
+                            projectUuid,
+                            developerAccount,
+                            { ...savedProject, warehouseConnection },
+                            RequestMethod.WEB_APP,
+                        );
+                    else
+                        await sshService.updateWarehouseCredentials(
+                            projectUuid,
+                            developerAccount,
+                            { warehouseConnection },
+                        );
+                    expect(projectModel.update).toHaveBeenCalledWith(
+                        projectUuid,
+                        expect.objectContaining({
+                            warehouseConnection: expect.objectContaining({
+                                password: 'password',
+                            }),
+                        }),
+                        developerAccount.user.id,
+                    );
+                    const saved =
+                        projectModel.update.mock.lastCall![1]
+                            .warehouseConnection;
+                    if (scenario === 'legacy' || scenario === 'disabled')
+                        expect(saved).toHaveProperty(
+                            'sshTunnelPrivateKey',
+                            'COPY',
+                        );
+                    else
+                        expect(saved).not.toHaveProperty('sshTunnelPrivateKey');
+                    if (scenario === 'disabled')
+                        expect(find).not.toHaveBeenCalled();
+                    else
+                        expect(find).toHaveBeenCalledWith(
+                            scenario === 'regenerated' ? 'NEW' : 'PUBLIC',
+                        );
+                },
+            );
+        }
+    });
+
     describe('GitHub App connections on save', () => {
         const postgresWarehouseConnection: CreateWarehouseCredentials = {
             type: WarehouseTypes.POSTGRES,

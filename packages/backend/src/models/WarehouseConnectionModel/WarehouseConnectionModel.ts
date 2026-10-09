@@ -14,7 +14,9 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { stripOwnedSshTunnelPrivateKey } from '../../utils/sshTunnelCredentials';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
+import { SshKeyPairModel } from '../SshKeyPairModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -320,12 +322,23 @@ export class WarehouseConnectionModel {
         }
     }
 
-    private toCredentialColumns(source: WarehouseConnectionCredentialSource) {
+    private async toCredentialColumns(
+        source: WarehouseConnectionCredentialSource,
+        organizationUuid: string,
+        database: Knex,
+    ) {
         return source.kind === 'project'
             ? {
                   encrypted_credentials: this.encryptionUtil.encrypt(
                       JSON.stringify(
-                          normalizeWarehouseCredentials(source.credentials),
+                          await stripOwnedSshTunnelPrivateKey(
+                              new SshKeyPairModel({
+                                  database,
+                                  encryptionUtil: this.encryptionUtil,
+                              }),
+                              normalizeWarehouseCredentials(source.credentials),
+                              organizationUuid,
+                          ),
                       ),
                   ),
                   organization_warehouse_credentials_uuid: null,
@@ -376,7 +389,11 @@ export class WarehouseConnectionModel {
                     is_original: false,
                     name: input.name,
                     warehouse_type: input.warehouseType,
-                    ...this.toCredentialColumns(input.source),
+                    ...(await this.toCredentialColumns(
+                        input.source,
+                        project.organizationUuid,
+                        transaction,
+                    )),
                     list_all_databases: input.listAllDatabases,
                     additional_databases: input.additionalDatabases,
                     created_by_user_uuid: input.createdByUserUuid,
@@ -399,7 +416,11 @@ export class WarehouseConnectionModel {
             .where('warehouse_connection_uuid', warehouseConnectionUuid)
             .where('is_original', false)
             .update({
-                ...this.toCredentialColumns(source),
+                ...(await this.toCredentialColumns(
+                    source,
+                    project.organizationUuid,
+                    this.database,
+                )),
                 updated_at: this.database.fn.now(),
             });
     }
