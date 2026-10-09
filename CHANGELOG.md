@@ -1,3 +1,10 @@
+# [2.505.0](https://github.com/lightdash/lightdash/compare/2.504.2...2.505.0) (2026-10-09)
+
+
+### Features
+
+* **cli:** show link, expiry and waiting state in agent connect ([#30804](https://github.com/lightdash/lightdash/issues/30804)) ([460284a](https://github.com/lightdash/lightdash/commit/460284a8dbedb7dbc4340f58ff706009c4aad403))
+
 ## [2.504.2](https://github.com/lightdash/lightdash/compare/2.504.1...2.504.2) (2026-10-09)
 
 
