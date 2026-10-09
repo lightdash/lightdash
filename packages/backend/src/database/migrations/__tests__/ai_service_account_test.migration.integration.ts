@@ -127,6 +127,7 @@ const fixture = async () => {
             lightdashConfig: lightdashConfigMock,
         }),
         warehouseConnectionModel: new WarehouseConnectionModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel:

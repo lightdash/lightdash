@@ -209,6 +209,7 @@ import {
     defaultGoogleIdentityTokenSource,
     type GoogleIdentityTokenSource,
 } from '../../utils/awsWebIdentity/googleIdentityTokenSource';
+import { stripBigquerySsoClientSecretForPersistence } from '../../utils/bigquerySsoCredentials';
 import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
@@ -973,7 +974,10 @@ export class ProjectModel {
     ): Promise<void> {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
-        const credentials = normalizeWarehouseCredentials(data);
+        const credentials = stripBigquerySsoClientSecretForPersistence(
+            normalizeWarehouseCredentials(data),
+            this.lightdashConfig.auth.google,
+        );
         const signIn = getPersonSignIn(credentials);
         const subjectUserUuid = resolveSignInSubject({
             signIn,
@@ -5393,7 +5397,12 @@ export class ProjectModel {
             await trx(WarehouseCredentialTableName)
                 .update({
                     encrypted_credentials: this.encryptionUtil.encrypt(
-                        JSON.stringify(next),
+                        JSON.stringify(
+                            stripBigquerySsoClientSecretForPersistence(
+                                next,
+                                this.lightdashConfig.auth.google,
+                            ),
+                        ),
                     ),
                     credential_subject_user_uuid: resolveSignInSubject({
                         signIn: getPersonSignIn(next),
@@ -5499,7 +5508,12 @@ export class ProjectModel {
             await trx('warehouse_credentials')
                 .update({
                     encrypted_credentials: this.encryptionUtil.encrypt(
-                        JSON.stringify(next),
+                        JSON.stringify(
+                            stripBigquerySsoClientSecretForPersistence(
+                                next,
+                                this.lightdashConfig.auth.google,
+                            ),
+                        ),
                     ),
                     credential_subject_user_uuid: resolveSignInSubject({
                         signIn: getPersonSignIn(next),
@@ -5583,7 +5597,12 @@ export class ProjectModel {
                 .where('project_id', row.project_id)
                 .update({
                     encrypted_credentials: this.encryptionUtil.encrypt(
-                        JSON.stringify(next),
+                        JSON.stringify(
+                            stripBigquerySsoClientSecretForPersistence(
+                                next,
+                                this.lightdashConfig.auth.google,
+                            ),
+                        ),
                     ),
                     credential_subject_user_uuid: actorUserUuid,
                 });

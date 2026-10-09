@@ -1,6 +1,8 @@
 import {
     BIGQUERY_UNSUPPORTED_KEYFILE_MESSAGE,
+    BigqueryAuthenticationType,
     ParameterError,
+    WarehouseTypes,
     type CreateBigqueryCredentials,
 } from '@lightdash/common';
 import type { LightdashConfig } from '../config/parseConfig';
@@ -34,6 +36,47 @@ export const assertValidPersistedBigquerySsoKeyfile = (
             `BigQuery key file field "${nonStringField[0]}" must be a string`,
         );
     }
+};
+
+export const stripBigquerySsoClientSecretForPersistence = <
+    T extends {
+        type: WarehouseTypes;
+        authenticationType?: string;
+        keyfileContents?: CreateBigqueryCredentials['keyfileContents'];
+    },
+>(
+    credentials: T,
+    google: Pick<
+        LightdashConfig['auth']['google'],
+        'oauth2ClientId' | 'oauth2ClientSecret'
+    >,
+): T => {
+    if (
+        credentials.type !== WarehouseTypes.BIGQUERY ||
+        credentials.authenticationType !== BigqueryAuthenticationType.SSO ||
+        typeof credentials.keyfileContents !== 'object' ||
+        credentials.keyfileContents === null ||
+        Array.isArray(credentials.keyfileContents)
+    ) {
+        return credentials;
+    }
+    const keyfileContents = { ...credentials.keyfileContents };
+    if (
+        keyfileContents.client_id === google.oauth2ClientId &&
+        google.oauth2ClientSecret?.trim()
+    ) {
+        delete keyfileContents.client_secret;
+    }
+    for (const field of [
+        'access_token',
+        'expiry_date',
+        'token_type',
+        'id_token',
+        'scope',
+    ]) {
+        delete keyfileContents[field];
+    }
+    return { ...credentials, keyfileContents };
 };
 
 export const hydrateBigquerySsoKeyfile = (

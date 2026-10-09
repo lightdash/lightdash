@@ -2,11 +2,17 @@ import {
     ConflictError,
     NotFoundError,
     ParameterError,
+    UnexpectedServerError,
+    WarehouseTypes,
+    type CreateWarehouseCredentials,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { validate as isUuid } from 'uuid';
+import type { LightdashConfig } from '../../config/parseConfig';
+import { stripBigquerySsoClientSecretForPersistence } from '../../utils/bigquerySsoCredentials';
+import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -78,8 +84,58 @@ export const remapRowBinding = <Row extends object>(
 export class WarehouseConnectionIdentityModel {
     private readonly database: Knex;
 
-    constructor({ database }: { database: Knex }) {
+    constructor({
+        database,
+        encryptionUtil,
+        google,
+    }: {
+        database: Knex;
+        encryptionUtil: EncryptionUtil | null;
+        google: Pick<
+            LightdashConfig['auth']['google'],
+            'oauth2ClientId' | 'oauth2ClientSecret'
+        >;
+    }) {
         this.database = database;
+        this.encryptionUtil = encryptionUtil;
+        this.google = google;
+    }
+
+    private readonly google: Pick<
+        LightdashConfig['auth']['google'],
+        'oauth2ClientId' | 'oauth2ClientSecret'
+    >;
+
+    private readonly encryptionUtil: EncryptionUtil | null;
+
+    private credentialsForPreview(
+        connection: DbWarehouseConnectionCopy,
+    ): Buffer | null {
+        if (
+            connection.warehouse_type !== WarehouseTypes.BIGQUERY ||
+            connection.encrypted_credentials === null
+        )
+            return connection.encrypted_credentials;
+        if (this.encryptionUtil === null)
+            throw new UnexpectedServerError(
+                'Credential encryption is not configured',
+            );
+        try {
+            const credentials = JSON.parse(
+                this.encryptionUtil.decrypt(connection.encrypted_credentials),
+            ) as CreateWarehouseCredentials;
+            const stored = stripBigquerySsoClientSecretForPersistence(
+                credentials,
+                this.google,
+            );
+            return stored === credentials
+                ? connection.encrypted_credentials
+                : this.encryptionUtil.encrypt(JSON.stringify(stored));
+        } catch {
+            throw new UnexpectedServerError(
+                'Could not copy warehouse credentials',
+            );
+        }
     }
 
     private async assertConnectionInProject(
@@ -298,7 +354,7 @@ export class WarehouseConnectionIdentityModel {
                             name: connection.name,
                             warehouse_type: connection.warehouse_type,
                             encrypted_credentials:
-                                connection.encrypted_credentials,
+                                this.credentialsForPreview(connection),
                             organization_warehouse_credentials_uuid:
                                 connection.organization_warehouse_credentials_uuid,
                             list_all_databases: connection.list_all_databases,

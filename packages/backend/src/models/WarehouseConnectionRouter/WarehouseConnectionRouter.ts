@@ -54,6 +54,11 @@ export class WarehouseConnectionRouter {
         this.database = database;
         this.identityModel = new WarehouseConnectionIdentityModel({
             database,
+            encryptionUtil: null,
+            google: {
+                oauth2ClientId: undefined,
+                oauth2ClientSecret: undefined,
+            },
         });
     }
 

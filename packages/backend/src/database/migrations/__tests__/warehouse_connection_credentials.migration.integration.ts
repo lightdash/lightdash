@@ -640,11 +640,13 @@ describe('Extra connection credentials on the real schema', () => {
                 encryptionUtil,
             }),
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
             organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
                 organizationWarehouseCredentialsModel,
@@ -1225,6 +1227,7 @@ describe('Extra connection credentials on the real schema', () => {
             });
             await preferForConnection(organization.userUuid, extra, personal);
             await new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }).update(organization.userUuid, personal, {
@@ -1768,6 +1771,7 @@ describe('Extra connection credentials on the real schema', () => {
                 credentials: postgres,
             });
             const connectionModel = new WarehouseConnectionModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
                 organizationWarehouseCredentialsModel: organizationModel(),

@@ -176,6 +176,7 @@ describe('Enable multiple connections on the real schema', () => {
             warehouseConnectionModel: connectionModel,
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
@@ -375,11 +376,13 @@ describe('Enable multiple connections on the real schema', () => {
             encryptionUtil,
         });
         switchModel = new WarehouseConnectionSwitchModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel,
         });
         connectionModel = new WarehouseConnectionModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel,
@@ -1431,6 +1434,7 @@ describe('Enable multiple connections on the real schema', () => {
                 projectModel,
                 userWarehouseCredentialsModel:
                     new UserWarehouseCredentialsModel({
+                        lightdashConfig: lightdashConfigMock,
                         database,
                         encryptionUtil,
                     }),

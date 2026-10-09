@@ -5,6 +5,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import {
@@ -34,12 +35,15 @@ export type WarehouseConnectionSwitchEvent = {
 };
 
 type WarehouseConnectionSwitchModelArguments = {
+    lightdashConfig: LightdashConfig;
     database: Knex;
     encryptionUtil: EncryptionUtil;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 };
 
 export class WarehouseConnectionSwitchModel {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly database: Knex;
 
     private readonly encryptionUtil: EncryptionUtil;
@@ -48,6 +52,7 @@ export class WarehouseConnectionSwitchModel {
 
     constructor(args: WarehouseConnectionSwitchModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
         this.organizationWarehouseCredentialsModel =
             args.organizationWarehouseCredentialsModel;
@@ -62,6 +67,7 @@ export class WarehouseConnectionSwitchModel {
         return this.database.transaction((transaction) => {
             const args = {
                 database: transaction,
+                lightdashConfig: this.lightdashConfig,
                 encryptionUtil: this.encryptionUtil,
                 organizationWarehouseCredentialsModel:
                     this.organizationWarehouseCredentialsModel,

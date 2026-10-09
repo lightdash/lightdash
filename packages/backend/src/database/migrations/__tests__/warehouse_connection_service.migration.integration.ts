@@ -103,6 +103,7 @@ describe('WarehouseConnectionService on the real schema', () => {
                 encryptionUtil,
             }),
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
@@ -259,6 +260,7 @@ describe('WarehouseConnectionService on the real schema', () => {
             },
         } as never);
         model = new WarehouseConnectionModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel:
@@ -1824,6 +1826,7 @@ describe('WarehouseConnectionService on the real schema', () => {
             const fixture = await createProject({ mode: 'multi' });
             const holder = await database.transaction();
             await new WarehouseConnectionModel({
+                lightdashConfig: lightdashConfigMock,
                 database: holder,
                 encryptionUtil,
                 organizationWarehouseCredentialsModel: {} as never,

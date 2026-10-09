@@ -392,11 +392,13 @@ describe('Credential reads by connection binding on the real schema', () => {
             lightdashConfig: lightdashConfigMock,
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
             organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
                 organizationWarehouseCredentialsModel,
