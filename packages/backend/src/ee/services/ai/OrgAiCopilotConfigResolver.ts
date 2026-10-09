@@ -1,6 +1,7 @@
 import {
     BYO_AI_PROVIDERS,
     FeatureFlags,
+    getDefaultBedrockInferenceGeography,
     MissingConfigError,
     type AiOrgModelVisibility,
     type ByoAiApiKeyProvider,
@@ -42,8 +43,6 @@ export type CopilotConfig = AiCopilotConfigSchemaType;
 export type ResolvedCopilotConfig = CopilotConfig & {
     byoProviders: ByoAiProvider[];
 };
-
-const JAPAN_BEDROCK_REGIONS: string[] = ['ap-northeast-1', 'ap-northeast-3'];
 
 // Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
 // to serve it for reviews to run on the org's own key instead of being paused.
@@ -142,7 +141,8 @@ export const overlayOrgProviderApiKeys = (
     // It is also the one provider an org can bring without the instance running
     // it: the org supplies the region, so there is nothing to overlay onto.
     if (orgKeys.bedrock) {
-        const { apiKey, region, allowedModels } = orgKeys.bedrock;
+        const { apiKey, region, allowedModels, inferenceGeography } =
+            orgKeys.bedrock;
         return {
             ...config,
             defaultProvider: 'bedrock',
@@ -151,12 +151,15 @@ export const overlayOrgProviderApiKeys = (
                 bedrock: {
                     apiKey,
                     region,
-                    // Japan pins `jp`: the region-derived `apac` default may
-                    // serve from Sydney or Mumbai, which defeats the point of
-                    // choosing Tokyo or Osaka.
-                    ...(JAPAN_BEDROCK_REGIONS.includes(region)
-                        ? { inferenceProfilePrefix: 'jp' }
-                        : {}),
+                    // The profile, not the region, decides where inference
+                    // runs. Default to the narrowest geography the region
+                    // supports (Japan pins `jp`: the region-derived `apac`
+                    // profile may serve from Sydney or Mumbai, which defeats
+                    // the point of choosing Tokyo or Osaka); a stored
+                    // geography is the admin's explicit choice.
+                    inferenceProfilePrefix:
+                        inferenceGeography ??
+                        getDefaultBedrockInferenceGeography(region),
                     modelName: allowedModels[0],
                     availableModels: allowedModels,
                     embeddingModelName: DEFAULT_BEDROCK_EMBEDDING_MODEL,
