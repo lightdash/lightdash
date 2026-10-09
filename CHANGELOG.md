@@ -1,3 +1,11 @@
+# [2.531.0](https://github.com/lightdash/lightdash/compare/2.530.0...2.531.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** show a card for each AI service account warehouse in My agent connections ([#30851](https://github.com/lightdash/lightdash/issues/30851)) ([b84f789](https://github.com/lightdash/lightdash/commit/b84f7896a8ab9ed85692a3ca3e1cbf70f979f23a))
+* **agent-identity:** show the AI service account status first, with one layout on every warehouse ([#30853](https://github.com/lightdash/lightdash/issues/30853)) ([af8b4c5](https://github.com/lightdash/lightdash/commit/af8b4c5ac828ed6f30cff710d001142b28583f58))
+
 # [2.530.0](https://github.com/lightdash/lightdash/compare/2.529.0...2.530.0) (2026-10-09)
 
 
