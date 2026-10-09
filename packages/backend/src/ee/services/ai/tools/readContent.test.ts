@@ -108,4 +108,25 @@ describe('readContent tool', () => {
             expect.not.stringContaining('chartQuery'),
         );
     });
+
+    it('reads a chart when Document-only fields are null', async () => {
+        const readContent = vi.fn().mockResolvedValue(chartRead);
+        const tool = getReadContent({ readContent, documentsEnabled: true });
+
+        const output = await tool.execute!(
+            {
+                slug: 'orders-per-month',
+                type: 'chart',
+                documentUuid: null,
+                chartId: null,
+            },
+            options,
+        );
+
+        expect(readContent).toHaveBeenCalledWith({
+            slug: 'orders-per-month',
+            type: 'chart',
+        });
+        expect(output).toHaveProperty('metadata.status', 'success');
+    });
 });

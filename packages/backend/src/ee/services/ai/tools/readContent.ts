@@ -83,7 +83,11 @@ export const getReadContent = ({
         ...definition,
         inputSchema,
         execute: async (args) => {
-            const { slug, type, documentUuid, chartId } = args;
+            const { type } = args;
+            // Models send null for unused Document-only fields; treat it as absent.
+            const slug = args.slug ?? undefined;
+            const documentUuid = args.documentUuid ?? undefined;
+            const chartId = args.chartId ?? undefined;
             try {
                 (documentsEnabled
                     ? mcpReadContentArgsSchema
