@@ -127,6 +127,7 @@ import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaselin
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import * as winston from '../../logging/winston';
+import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -796,6 +797,73 @@ type RefreshForTest = <T>(
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
     const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
+
+    describe('synchronous AI slot cache isolation', () => {
+        test.each([
+            null,
+            aiServiceAccountPlanMock,
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: {
+                    ...snowflakeSecrets,
+                    account: 'account',
+                    database: 'database',
+                    schema: 'public',
+                },
+            },
+        ])('runs the real metric-query path with plan %j', async (aiPlan) => {
+            const configured = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                results: {
+                    ...lightdashConfigWithGoogleOAuthMock.results,
+                    cacheEnabled: true,
+                },
+            });
+            const getResultsMetadata = vi.fn(async () => undefined);
+            const uploadResults = vi.fn(async () => undefined);
+            Object.assign(configured, {
+                s3CacheClient: { getResultsMetadata, uploadResults },
+            });
+            const runQuery = vi.fn(async () => resultsWith1Row);
+            const testCredentials =
+                aiPlan?.credentials ?? warehouseClientMock.credentials;
+            vi.spyOn(
+                configured.warehouseClientFactory,
+                'withWarehouseClient',
+            ).mockImplementation(async (_ref, _context, consume) =>
+                consume({
+                    aiPlan,
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        credentials: testCredentials,
+                        runQuery,
+                    },
+                    warehouseCredentials: testCredentials,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                } as never),
+            );
+            const result = await configured.runMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                exploreName: validExplore.name,
+                explore: validExplore,
+                csvLimit: undefined,
+                context: QueryExecutionContext.AI,
+                queryTags: {},
+                chartUuid: undefined,
+            });
+            expect(result.cacheMetadata.cacheHit).toBe(false);
+            expect(runQuery).toHaveBeenCalledOnce();
+            expect(getResultsMetadata).toHaveBeenCalledTimes(
+                aiPlan === null ? 1 : 0,
+            );
+            expect(uploadResults).toHaveBeenCalledTimes(
+                aiPlan === null ? 1 : 0,
+            );
+        });
+    });
 
     describe('Document counts in legacy Space listing', () => {
         it.each([

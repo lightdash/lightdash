@@ -4,13 +4,14 @@ import {
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     ParameterError,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
-import { randomUUID } from 'node:crypto';
+import { createPrivateKey, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
     AiServiceAccountCredentialsTableName,
@@ -37,11 +38,23 @@ const databricksCredentialsSchema = z
         oauthClientSecret: nonEmptyIdentifier,
     })
     .strict();
+const snowflakeCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.SNOWFLAKE),
+        authenticationType: z.literal(SnowflakeAuthenticationType.PRIVATE_KEY),
+        user: nonEmptyIdentifier,
+        privateKey: z.string().min(1),
+        privateKeyPass: z.string().optional(),
+        role: nonEmptyIdentifier,
+        warehouse: nonEmptyIdentifier,
+    })
+    .strict();
 const credentialsSchema = z.discriminatedUnion('type', [
     bigqueryCredentialsSchema,
     databricksCredentialsSchema,
+    snowflakeCredentialsSchema,
 ]);
-const databricksVerificationSchema = z
+const verificationBaseSchema = z
     .object({
         ok: z.literal(true),
         principal: nonEmptyIdentifier,
@@ -53,11 +66,40 @@ const databricksVerificationSchema = z
         message: z.string(),
         checkedAt: z.coerce.date(),
     })
+    .strict();
+const databricksVerificationSchema = verificationBaseSchema.refine(
+    (value) => value.principal === value.observed.currentUser,
+);
+const snowflakeVerificationSchema = verificationBaseSchema
+    .extend({
+        observed: z
+            .object({
+                currentUser: nonEmptyIdentifier,
+                currentRole: nonEmptyIdentifier,
+            })
+            .strict(),
+    })
     .strict()
     .refine((value) => value.principal === value.observed.currentUser);
 const databricksPayloadSchema = databricksCredentialsSchema
     .extend({ verification: databricksVerificationSchema.optional() })
     .strict();
+
+const snowflakePayloadSchema = snowflakeCredentialsSchema
+    .extend({ verification: snowflakeVerificationSchema.optional() })
+    .strict();
+
+export type SnowflakeAiServiceAccountSecrets = z.infer<
+    typeof snowflakeCredentialsSchema
+>;
+
+const parseVerification = (
+    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS,
+    verification: AiServiceAccountTestResult,
+) =>
+    warehouseType === WarehouseTypes.SNOWFLAKE
+        ? snowflakeVerificationSchema.parse(verification)
+        : databricksVerificationSchema.parse(verification);
 
 export type BigqueryAiServiceAccountSecrets = z.infer<
     typeof bigqueryCredentialsSchema
@@ -78,6 +120,21 @@ export const parseAiServiceAccountSecrets = (
     }
     const credentials = result.data;
     switch (credentials.type) {
+        case WarehouseTypes.SNOWFLAKE:
+            try {
+                const key = createPrivateKey({
+                    key: credentials.privateKey,
+                    format: 'pem',
+                    passphrase: credentials.privateKeyPass,
+                });
+                if (key.asymmetricKeyType !== 'rsa') throw new Error();
+                key.export({ format: 'pem', type: 'pkcs8' });
+            } catch {
+                throw new ParameterError(
+                    'Provide a valid RSA private key and its passphrase, if encrypted.',
+                );
+            }
+            return credentials;
         case WarehouseTypes.DATABRICKS:
             return credentials;
         case WarehouseTypes.BIGQUERY:
@@ -162,10 +219,27 @@ export class AiServiceAccountCredentialsModel {
             const value: unknown = JSON.parse(
                 this.args.encryptionUtil.decrypt(row.encrypted_credentials),
             );
-            const payload =
-                row.warehouse_type === WarehouseTypes.DATABRICKS
-                    ? databricksPayloadSchema.parse(value)
-                    : null;
+            const payload = (() => {
+                switch (row.warehouse_type) {
+                    case WarehouseTypes.DATABRICKS:
+                        return databricksPayloadSchema.parse(value);
+                    case WarehouseTypes.SNOWFLAKE:
+                        return snowflakePayloadSchema.parse(value);
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.DUCKDB:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                        return null;
+                    default:
+                        return assertUnreachable(
+                            row.warehouse_type,
+                            'Unknown warehouse type',
+                        );
+                }
+            })();
             const { verification, ...credentials } = payload ?? {
                 verification: undefined,
             };
@@ -192,6 +266,24 @@ export class AiServiceAccountCredentialsModel {
         return this.decryptPayload(row).secrets;
     }
 
+    async getCredentialsReadable(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        expectedIdentityUuid: string | null,
+    ): Promise<boolean> {
+        if (expectedIdentityUuid === null) return false;
+        const row = await this.query(projectUuid, warehouseConnectionUuid)
+            .where('identity_uuid', expectedIdentityUuid)
+            .first();
+        if (!row) return false;
+        try {
+            this.decrypt(row);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
     async getVerification(
         projectUuid: string,
         warehouseConnectionUuid: string | null,
@@ -215,7 +307,10 @@ export class AiServiceAccountCredentialsModel {
         expectedIdentityUuid: string,
         verification: AiServiceAccountTestResult,
     ): Promise<void> {
-        const observation = databricksVerificationSchema.parse(verification);
+        z.union([
+            databricksVerificationSchema,
+            snowflakeVerificationSchema,
+        ]).parse(verification);
         await this.args.database.transaction(async (trx) => {
             const row = await this.query(
                 projectUuid,
@@ -227,7 +322,8 @@ export class AiServiceAccountCredentialsModel {
                 .first();
             if (!row) return;
             const secrets = this.decrypt(row);
-            if (secrets.type !== WarehouseTypes.DATABRICKS) return;
+            if (secrets.type === WarehouseTypes.BIGQUERY) return;
+            const observation = parseVerification(secrets.type, verification);
             await this.query(projectUuid, warehouseConnectionUuid, trx)
                 .where('identity_uuid', expectedIdentityUuid)
                 .update({
@@ -351,11 +447,13 @@ export class AiServiceAccountCredentialsModel {
     ): Promise<AiServiceAccountSlot> {
         const secrets = parseAiServiceAccountSecrets(credentials);
         const payload =
-            secrets.type === WarehouseTypes.DATABRICKS && verification !== null
+            secrets.type !== WarehouseTypes.BIGQUERY && verification !== null
                 ? {
                       ...secrets,
-                      verification:
-                          databricksVerificationSchema.parse(verification),
+                      verification: parseVerification(
+                          secrets.type,
+                          verification,
+                      ),
                   }
                 : secrets;
         return this.args.database.transaction(async (trx) => {

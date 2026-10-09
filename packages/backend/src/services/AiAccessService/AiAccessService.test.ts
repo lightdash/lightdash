@@ -44,6 +44,7 @@ import {
     type AiServiceAccountCredentialsModel,
     type AiServiceAccountSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
+import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
@@ -2390,7 +2391,6 @@ describe('organization agent identity rules', () => {
     );
 
     test.each([
-        [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
         [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
         [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
         [WarehouseTypes.POSTGRES, 'marked_person'],
@@ -2633,6 +2633,7 @@ const sourceCases = [
     { source: 'agent_sign_in', connection: snowflake },
     { source: 'marked_person', connection: bigquery },
     { source: 'ai_service_account', connection: bigquery },
+    { source: 'ai_service_account', connection: snowflake },
 ] as const;
 const resolutionCases = actorCases.flatMap((actor) =>
     sourceCases.flatMap((source) =>
@@ -2721,8 +2722,17 @@ describe('per-type execution identity resolution', () => {
                 source: scenario.source,
             });
             if (scenario.state !== 'missing') {
-                slots.getSecrets.mockResolvedValue({ slot, secrets });
-                slots.getSlot.mockResolvedValue(slot);
+                slots.getSecrets.mockResolvedValue({
+                    slot: { ...slot, warehouseType: scenario.connection.type },
+                    secrets:
+                        scenario.connection.type === WarehouseTypes.SNOWFLAKE
+                            ? snowflakeSecrets
+                            : secrets,
+                });
+                slots.getSlot.mockResolvedValue({
+                    ...slot,
+                    warehouseType: scenario.connection.type,
+                });
             }
             if (scenario.state === 'unreadable') {
                 slots.getSecrets.mockRejectedValue(
@@ -2830,7 +2840,9 @@ describe('per-type execution identity resolution', () => {
                 source: scenario.source,
             });
             slots.getSlot.mockResolvedValue(
-                scenario.state === 'missing' ? null : slot,
+                scenario.state === 'missing'
+                    ? null
+                    : { ...slot, warehouseType: scenario.connection.type },
             );
             slots.getSecrets.mockRejectedValue(new Error('must not decrypt'));
             if (scenario.state === 'missing')
@@ -3135,25 +3147,93 @@ describe('slot result composition and identity validation', () => {
         ).toHaveLength(1);
     });
 
-    test('reports invalid metadata without decrypting or emitting execution analytics', async () => {
-        const { service, organizationRules, slots, analytics } = setup();
-        organizationRules.get.mockResolvedValue({
-            source: 'ai_service_account',
-        });
-        slots.getSlot.mockResolvedValue({ ...slot, method: 'oauth_m2m' });
-        expect(
-            await service.getAiAccessForUser({ ...args, connection: bigquery }),
-        ).toMatchObject({
-            identity: 'ai_service_account',
-            source: 'ai_service_account',
-            principalKind: 'service_account',
-            refusal: {
-                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
-            },
-        });
-        expect(slots.getSecrets).not.toHaveBeenCalled();
-        expect(analytics.track).not.toHaveBeenCalled();
-    });
+    test.each([
+        {
+            connection: bigquery,
+            method: BigqueryAuthenticationType.PRIVATE_KEY,
+        },
+        {
+            connection: snowflake,
+            method: SnowflakeAuthenticationType.PRIVATE_KEY,
+        },
+        {
+            connection: {
+                type: WarehouseTypes.DATABRICKS,
+                serverHostName: 'workspace.example.com',
+                httpPath: '/sql/warehouse',
+                database: 'schema',
+            } satisfies CreateWarehouseCredentials,
+            method: DatabricksAuthenticationType.OAUTH_M2M,
+        },
+    ] as const)(
+        'accepts supported metadata for $connection.type with $method',
+        async ({ connection: warehouseConnection, method }) => {
+            const { service, organizationRules, slots, analytics } = setup();
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            slots.getSlot.mockResolvedValue({
+                ...slot,
+                warehouseType: warehouseConnection.type,
+                method,
+            });
+            expect(
+                await service.getAiAccessForUser({
+                    ...args,
+                    connection: warehouseConnection,
+                }),
+            ).toMatchObject({
+                enabled: true,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                principalKind: 'service_account',
+                refusal: null,
+            });
+            expect(slots.getSlot).toHaveBeenCalledExactlyOnceWith(
+                args.projectUuid,
+                args.warehouseConnectionUuid,
+            );
+            expect(slots.getSecrets).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
+        {
+            reason: 'unsupported method',
+            warehouseType: WarehouseTypes.BIGQUERY,
+            method: DatabricksAuthenticationType.OAUTH_M2M,
+        },
+        {
+            reason: 'mismatched warehouse',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            method: SnowflakeAuthenticationType.PRIVATE_KEY,
+        },
+    ] as const)(
+        'reports invalid metadata for $reason without decrypting or emitting execution analytics',
+        async ({ warehouseType, method }) => {
+            const { service, organizationRules, slots, analytics } = setup();
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            slots.getSlot.mockResolvedValue({ ...slot, warehouseType, method });
+            expect(
+                await service.getAiAccessForUser({
+                    ...args,
+                    connection: bigquery,
+                }),
+            ).toMatchObject({
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                principalKind: 'service_account',
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(slots.getSecrets).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('bounded stored result lineage', () => {
@@ -4673,4 +4753,120 @@ describe('Databricks AI service account runtime', () => {
             );
         },
     );
+});
+
+describe('Snowflake slot provenance and refusals', () => {
+    test.each([
+        [
+            QueryExecutionContext.AI,
+            QuerySurface.APP,
+            AgentActorSurface.IN_APP_AGENT,
+        ],
+        [
+            QueryExecutionContext.AI,
+            QuerySurface.SLACK,
+            AgentActorSurface.SLACK_AGENT,
+        ],
+        [
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+            AgentActorSurface.MCP,
+        ],
+    ] as const)(
+        'represents the person for %s %s without OAuth prerequisites',
+        async (context, surface, actorSurface) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.provider.configurationError.mockResolvedValue(
+                'OAuth is not configured',
+            );
+            f.slots.getSecrets.mockResolvedValue({
+                slot: { ...slot, warehouseType: WarehouseTypes.SNOWFLAKE },
+                secrets: snowflakeSecrets,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                connection: snowflake,
+                context,
+                evaluation: { kind: 'query', surface },
+                agentActor: { surface: actorSurface, clientId: 'client' },
+            });
+            expect(plan).toMatchObject({
+                identity: 'ai_service_account',
+                agentIdentity: {
+                    subject: { type: 'user', uuid: 'user' },
+                    act: { surface: actorSurface },
+                },
+                audit: {
+                    personUuid: 'user',
+                    queryTags: { agent: 'true', ai_principal: 'user' },
+                },
+                credentials: {
+                    ...snowflakeSecrets,
+                    account: 'account',
+                    database: 'test',
+                },
+            });
+            expect(plan?.assurances).not.toContainEqual({
+                kind: 'agent_session_active',
+            });
+            expect(f.provider.configurationError).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test('refuses a wrong-warehouse slot in execution and metadata without provider fallback', async () => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        f.slots.getSecrets.mockResolvedValue({ slot, secrets });
+        f.slots.getSlot.mockResolvedValue(slot);
+        await expect(
+            f.service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(
+            await f.service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            }),
+        ).toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(f.provider.mint).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledTimes(1);
+    });
+    test('reports missing Snowflake projects when the slot rule is saved', async () => {
+        const f = setup();
+        f.slots.findProjectsMissingSlot.mockResolvedValue([
+            { projectUuid: 'missing', name: 'Missing' },
+        ]);
+        const admin = buildAccount();
+        admin.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Organization' },
+        ]);
+        expect(
+            await f.service.updateOrganizationRule(
+                admin,
+                WarehouseTypes.SNOWFLAKE,
+                { source: 'ai_service_account' },
+            ),
+        ).toMatchObject({
+            source: 'ai_service_account',
+            projectsMissingAiServiceAccount: [
+                { projectUuid: 'missing', name: 'Missing' },
+            ],
+        });
+        expect(f.slots.findProjectsMissingSlot).toHaveBeenCalledWith(
+            admin.organization.organizationUuid,
+            WarehouseTypes.SNOWFLAKE,
+        );
+    });
 });

@@ -11,6 +11,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { BigQueryKeyFileInput } from '../../components/ProjectConnection/WarehouseForms/BigQueryKeyFileInput';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
+import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
 
 interface AiServiceAccountFormProps {
     projectUuid: string;
@@ -115,13 +116,18 @@ export const AiServiceAccountForm = ({
     warehouseType,
     ...props
 }: AiServiceAccountFormProps & {
-    warehouseType: WarehouseTypes.BIGQUERY | WarehouseTypes.DATABRICKS;
+    warehouseType:
+        | WarehouseTypes.BIGQUERY
+        | WarehouseTypes.DATABRICKS
+        | WarehouseTypes.SNOWFLAKE;
 }) => {
     switch (warehouseType) {
         case WarehouseTypes.BIGQUERY:
             return <BigqueryAiServiceAccountForm {...props} />;
         case WarehouseTypes.DATABRICKS:
             return <DatabricksAiServiceAccountForm {...props} />;
+        case WarehouseTypes.SNOWFLAKE:
+            return <SnowflakeAiServiceAccountForm {...props} />;
         default:
             return assertUnreachable(warehouseType, 'Unknown warehouse type');
     }

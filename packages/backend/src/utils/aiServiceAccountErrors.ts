@@ -79,3 +79,31 @@ export const isDatabricksServiceAccountAuthError = (
         isDatabricksServiceAccountAuthError(error[key], nextAncestors),
     );
 };
+
+const snowflakeKeyAuthCodes = new Set([
+    '390100',
+    '390144',
+    '394300',
+    '394301',
+    '394302',
+    '394303',
+    '394304',
+    '394305',
+    '394306',
+    '394307',
+    '404026',
+    '404027',
+    '404028',
+]);
+
+export const isSnowflakeServiceAccountAuthError = (
+    error: unknown,
+    ancestors = new Set<unknown>(),
+): boolean => {
+    if (!isRecord(error) || ancestors.has(error)) return false;
+    ancestors.add(error);
+    return (
+        snowflakeKeyAuthCodes.has(String(error.code)) ||
+        isSnowflakeServiceAccountAuthError(error.cause, ancestors)
+    );
+};

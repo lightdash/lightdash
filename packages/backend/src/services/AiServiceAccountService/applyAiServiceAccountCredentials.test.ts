@@ -6,6 +6,11 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import {
+    snowflakeEncryptedKey,
+    snowflakePassphrase,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
     applyAiServiceAccountCredentials,
     mergeAiServiceAccountCredentials,
 } from './applyAiServiceAccountCredentials';
@@ -79,7 +84,8 @@ it.each(
     Object.values(WarehouseTypes).filter(
         (type) =>
             type !== WarehouseTypes.BIGQUERY &&
-            type !== WarehouseTypes.DATABRICKS,
+            type !== WarehouseTypes.DATABRICKS &&
+            type !== WarehouseTypes.SNOWFLAKE,
     ),
 )('rejects unsupported %s connections', (type) => {
     expect(() =>
@@ -231,3 +237,55 @@ it.each(['oauthClientId', 'oauthClientSecret'] as const)(
         expect(mergeAiServiceAccountCredentials(saved, null)).toEqual(saved);
     },
 );
+
+describe('Snowflake replacement semantics', () => {
+    const saved = {
+        ...snowflakeSecrets,
+        privateKey: snowflakeEncryptedKey,
+        privateKeyPass: snowflakePassphrase,
+    };
+    const { privateKey: _key, ...partial } = snowflakeSecrets;
+    it('preserves omitted key and passphrase', () => {
+        expect(mergeAiServiceAccountCredentials(partial, saved)).toEqual(saved);
+    });
+    it('clears a passphrase explicitly when replacing with an unencrypted key', () => {
+        expect(
+            mergeAiServiceAccountCredentials(
+                { ...snowflakeSecrets, privateKeyPass: null },
+                saved,
+            ),
+        ).toEqual(snowflakeSecrets);
+    });
+    it('refuses to clear a passphrase for a still-encrypted key', () => {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                { ...partial, privateKeyPass: null },
+                saved,
+            ),
+        ).toThrow('valid RSA');
+    });
+    it('validates a new encrypted key with its supplied passphrase', () => {
+        expect(
+            mergeAiServiceAccountCredentials(saved, snowflakeSecrets),
+        ).toEqual(saved);
+    });
+    it.each([null, secrets])(
+        'does not borrow a missing key from %j',
+        (previous) => {
+            expect(() =>
+                mergeAiServiceAccountCredentials(partial, previous),
+            ).toThrow('complete');
+        },
+    );
+    it('does not inherit across methods', () => {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...partial,
+                    authenticationType: 'password',
+                } as unknown as AiServiceAccountCredentialInput,
+                saved,
+            ),
+        ).toThrow('complete');
+    });
+});

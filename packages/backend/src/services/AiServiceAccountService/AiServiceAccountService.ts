@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
+    assertUnreachable,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -205,8 +206,17 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
+        const credentialsReadable =
+            connection.type !== WarehouseTypes.BIGQUERY
+                ? await this.deps.aiServiceAccountCredentialsModel.getCredentialsReadable(
+                      projectUuid,
+                      warehouseConnectionUuid,
+                      results?.identityUuid ?? null,
+                  )
+                : results !== null;
         const verification =
-            connection.type === WarehouseTypes.DATABRICKS
+            connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? {
                       verification:
                           await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -232,7 +242,12 @@ export class AiServiceAccountService extends BaseService {
                       };
             });
         if (inherited === null)
-            return { results, parent: null, ...verification };
+            return {
+                results,
+                parent: null,
+                credentialsReadable,
+                ...verification,
+            };
         const parentUuid = inherited.sourceProjectUuid;
         const canView = this.createAuditedAbility(account).can(
             'view',
@@ -240,8 +255,10 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results,
+            credentialsReadable,
             ...verification,
             parent: {
+                credentialsReadable: inherited.slot.secrets !== null,
                 projectUuid: parentUuid,
                 projectName: canView
                     ? (await this.deps.projectModel.getSummary(parentUuid)).name
@@ -252,7 +269,8 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...(connection.type === WarehouseTypes.DATABRICKS
+                ...(connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE
                     ? {
                           verification:
                               await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -317,7 +335,8 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
-            connection.type === WarehouseTypes.DATABRICKS
+            connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? await this.testConnection(
                       account,
                       projectUuid,
@@ -369,7 +388,8 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...(connection.type === WarehouseTypes.DATABRICKS
+            ...(connection.type === WarehouseTypes.DATABRICKS ||
+            connection.type === WarehouseTypes.SNOWFLAKE
                 ? { verification }
                 : {}),
         };
@@ -461,6 +481,7 @@ export class AiServiceAccountService extends BaseService {
         onQuery: () => void,
     ): Promise<AiServiceAccountTestResult> {
         const databricks = connection.type === WarehouseTypes.DATABRICKS;
+        const snowflake = connection.type === WarehouseTypes.SNOWFLAKE;
         const context = connectionContextFromAccount(account, {
             organizationUuid,
             queryContext: QueryExecutionContext.API,
@@ -483,19 +504,35 @@ export class AiServiceAccountService extends BaseService {
                     agentSession: true,
                     projectUuid,
                     credentials,
-                    ...(databricks
+                    ...(databricks || snowflake
                         ? { clientOptions: { agentJobControls: true } }
                         : {}),
                 },
                 context,
                 ({ warehouseClient }) => {
                     onQuery();
-                    return warehouseClient.runQuery(
-                        databricks
-                            ? 'SELECT current_user() AS principal'
-                            : 'SELECT SESSION_USER() AS principal',
-                        {},
-                    );
+                    const query = (() => {
+                        switch (connection.type) {
+                            case WarehouseTypes.DATABRICKS:
+                                return 'SELECT current_user() AS principal';
+                            case WarehouseTypes.SNOWFLAKE:
+                                return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
+                            case WarehouseTypes.BIGQUERY:
+                            case WarehouseTypes.ATHENA:
+                            case WarehouseTypes.CLICKHOUSE:
+                            case WarehouseTypes.DUCKDB:
+                            case WarehouseTypes.POSTGRES:
+                            case WarehouseTypes.REDSHIFT:
+                            case WarehouseTypes.TRINO:
+                                return 'SELECT SESSION_USER() AS principal';
+                            default:
+                                return assertUnreachable(
+                                    connection,
+                                    'Unknown warehouse type',
+                                );
+                        }
+                    })();
+                    return warehouseClient.runQuery(query, {});
                 },
             );
         const row = Object.fromEntries(
@@ -504,9 +541,14 @@ export class AiServiceAccountService extends BaseService {
                 value,
             ]),
         );
-        const principalValue: unknown = row.principal;
+        const principalValue: unknown = snowflake ? row.user : row.principal;
         const principal =
             typeof principalValue === 'string' ? principalValue : null;
+        const role = typeof row.role === 'string' ? row.role : null;
+        if (snowflake && (!principal?.trim() || !role?.trim()))
+            throw new ParameterError(
+                'The session did not return its current user and role.',
+            );
         if (databricks && !principal?.trim())
             throw new ParameterError(
                 'The session did not return its current user.',
@@ -514,7 +556,27 @@ export class AiServiceAccountService extends BaseService {
         return {
             ok: true,
             principal,
-            observed: databricks ? { currentUser: principal } : { principal },
+            observed: ((): AiServiceAccountTestResult['observed'] => {
+                switch (connection.type) {
+                    case WarehouseTypes.SNOWFLAKE:
+                        return { currentUser: principal, currentRole: role };
+                    case WarehouseTypes.DATABRICKS:
+                        return { currentUser: principal };
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.DUCKDB:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                        return { principal };
+                    default:
+                        return assertUnreachable(
+                            connection,
+                            'Unknown warehouse type',
+                        );
+                }
+            })(),
             message:
                 principal === null
                     ? 'Connection checked; principal not observed.'
@@ -580,7 +642,8 @@ export class AiServiceAccountService extends BaseService {
             );
             if (
                 input === null &&
-                connection.type === WarehouseTypes.DATABRICKS &&
+                (connection.type === WarehouseTypes.DATABRICKS ||
+                    connection.type === WarehouseTypes.SNOWFLAKE) &&
                 testedGeneration !== null
             ) {
                 await this.deps.aiServiceAccountCredentialsModel.updateVerification(

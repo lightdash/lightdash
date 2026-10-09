@@ -109,7 +109,7 @@ const AgentIdentityRule = ({
                                     <Anchor
                                         component={Link}
                                         size="sm"
-                                        to={`/generalSettings/projectManagement/${project.projectUuid}/settings`}
+                                        to={`/generalSettings/projectManagement/${project.projectUuid}/agentIdentity`}
                                     >
                                         {project.name}
                                     </Anchor>

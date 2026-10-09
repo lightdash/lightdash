@@ -6,8 +6,19 @@ import {
 } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { generateKeyPairSync } from 'node:crypto';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel';
+import {
+    AiServiceAccountCredentialsModel,
+    parseAiServiceAccountSecrets,
+} from './AiServiceAccountCredentialsModel';
+import {
+    snowflakeEncryptedKey,
+    snowflakeKeyPair,
+    snowflakePassphrase,
+    snowflakeSecrets,
+    snowflakeVerification,
+} from './AiServiceAccountCredentialsModel.mock';
 
 const secrets = {
     type: WarehouseTypes.BIGQUERY,
@@ -135,7 +146,7 @@ const verification = {
 };
 describe('Databricks encrypted observations', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const tracker = getTracker();
+    let tracker: Tracker;
     const decrypt = vi.fn();
     const encrypt = vi.fn().mockReturnValue(Buffer.from('new-ciphertext'));
     const model = new AiServiceAccountCredentialsModel({
@@ -148,6 +159,7 @@ describe('Databricks encrypted observations', () => {
         authentication_method: 'oauth_m2m',
     };
     beforeEach(() => {
+        tracker = getTracker();
         tracker.reset();
         encrypt.mockClear();
         decrypt
@@ -302,5 +314,251 @@ describe('Databricks encrypted observations', () => {
         ).rejects.toThrow();
         expect(encrypt).not.toHaveBeenCalled();
         expect(tracker.history.select).toHaveLength(0);
+    });
+});
+
+describe('Snowflake credential payloads', () => {
+    it.each([
+        snowflakeSecrets,
+        {
+            ...snowflakeSecrets,
+            privateKey: snowflakeEncryptedKey,
+            privateKeyPass: snowflakePassphrase,
+        },
+    ])(
+        'accepts usable RSA private keys without changing stored material',
+        (credentials) => {
+            expect(parseAiServiceAccountSecrets(credentials)).toEqual(
+                credentials,
+            );
+        },
+    );
+    it.each([
+        { privateKey: 'malformed' },
+        {
+            privateKey: snowflakeKeyPair.publicKey
+                .export({ format: 'pem', type: 'spki' })
+                .toString(),
+        },
+        {
+            privateKey: generateKeyPairSync('ec', { namedCurve: 'prime256v1' })
+                .privateKey.export({ format: 'pem', type: 'pkcs8' })
+                .toString(),
+        },
+        { privateKey: snowflakeEncryptedKey },
+        { privateKey: snowflakeEncryptedKey, privateKeyPass: 'wrong' },
+        { user: ' ' },
+        { role: '' },
+        { warehouse: '\t' },
+        { account: 'routing' },
+        { database: 'routing' },
+        { token: 'unknown' },
+        { verification: snowflakeVerification },
+    ])(
+        'rejects invalid or non-credential fields without exposing values',
+        (override) => {
+            expect(() =>
+                parseAiServiceAccountSecrets({
+                    ...snowflakeSecrets,
+                    ...override,
+                }),
+            ).toThrow(ParameterError);
+            try {
+                parseAiServiceAccountSecrets({
+                    ...snowflakeSecrets,
+                    ...override,
+                });
+            } catch (error) {
+                expect(String(error)).not.toMatch(/BEGIN|wrong|routing/);
+            }
+        },
+    );
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    const decrypt = vi.fn();
+    const encrypt = vi.fn().mockReturnValue(Buffer.from('new-ciphertext'));
+    const model = new AiServiceAccountCredentialsModel({
+        database,
+        encryptionUtil: { decrypt, encrypt } as unknown as EncryptionUtil,
+    });
+    const snowRow = { ...row, warehouse_type: WarehouseTypes.SNOWFLAKE };
+    beforeEach(() => {
+        tracker.reset();
+        encrypt.mockClear();
+        decrypt.mockReset().mockReturnValue(
+            JSON.stringify({
+                ...snowflakeSecrets,
+                verification: snowflakeVerification,
+            }),
+        );
+    });
+    afterAll(async () => database.destroy());
+    it('projects the observation separately from execution secrets', async () => {
+        tracker.on.select('ai_service_account_credentials').response([snowRow]);
+        expect(await model.getSecrets('project', null)).toEqual(
+            snowflakeSecrets,
+        );
+        expect(
+            await model.getVerification('project', null, 'generation'),
+        ).toEqual(snowflakeVerification);
+    });
+    it.each([true, false])(
+        'reports readability without an observation, readable=%s',
+        async (readable) => {
+            decrypt.mockReturnValue(
+                readable ? JSON.stringify(snowflakeSecrets) : 'bad payload',
+            );
+            tracker.on
+                .select('ai_service_account_credentials')
+                .response([snowRow]);
+            expect(
+                await model.getCredentialsReadable(
+                    'project',
+                    null,
+                    'generation',
+                ),
+            ).toBe(readable);
+            expect(
+                await model.getVerification('project', null, 'generation'),
+            ).toBeNull();
+            expect(tracker.history.select[0].sql).toContain(
+                '"identity_uuid" =',
+            );
+            expect(tracker.history.select[0].bindings).toContain('generation');
+        },
+    );
+    it('reports absent or replaced credentials as unreadable', async () => {
+        expect(await model.getCredentialsReadable('project', null, null)).toBe(
+            false,
+        );
+        expect(tracker.history.select).toHaveLength(0);
+        tracker.on.select('ai_service_account_credentials').response([]);
+        expect(
+            await model.getCredentialsReadable(
+                'project',
+                null,
+                'old-generation',
+            ),
+        ).toBe(false);
+        expect(decrypt).not.toHaveBeenCalled();
+    });
+    it('reports inconsistent credential metadata as unreadable', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([{ ...snowRow, authentication_method: 'oauth_m2m' }]);
+        expect(
+            await model.getCredentialsReadable('project', null, 'generation'),
+        ).toBe(false);
+    });
+    it('propagates database errors while checking readability', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .simulateError('database unavailable');
+        await expect(
+            model.getCredentialsReadable('project', null, 'generation'),
+        ).rejects.toThrow('database unavailable');
+    });
+    it('reads a Snowflake payload without an observation', async () => {
+        decrypt.mockReturnValue(JSON.stringify(snowflakeSecrets));
+        tracker.on.select('ai_service_account_credentials').response([snowRow]);
+        expect(
+            await model.getVerification('project', null, 'generation'),
+        ).toBeNull();
+        expect(await model.getSecrets('project', null)).toEqual(
+            snowflakeSecrets,
+        );
+    });
+    it('keeps corrupt slots repairable but refuses execution', async () => {
+        decrypt.mockReturnValue('bad payload');
+        tracker.on.select('ai_service_account_credentials').response([snowRow]);
+        expect(
+            await model.getVerification('project', null, 'generation'),
+        ).toBeNull();
+        expect(await model.getReplaceableSecrets('project', null)).toBeNull();
+        expect(await model.getSlot('project', null)).toMatchObject({
+            uuid: 'slot',
+        });
+        await expect(model.getSecrets('project', null)).rejects.toThrow(
+            'could not be read',
+        );
+    });
+    it.each([false, true])(
+        'rotates generation only when credentials change: %s',
+        async (changed) => {
+            tracker.on
+                .select('projects')
+                .response([{ project_uuid: 'project' }]);
+            tracker.on
+                .select('ai_service_account_credentials')
+                .response([snowRow]);
+            tracker.on
+                .insert('ai_service_account_credentials')
+                .response([snowRow]);
+            await model.upsert(
+                'project',
+                null,
+                {
+                    ...snowflakeSecrets,
+                    role: changed ? 'NEW_ROLE' : snowflakeSecrets.role,
+                },
+                'actor',
+                { ...snowflakeVerification, checkedAt: new Date() },
+            );
+            const { bindings } = tracker.history.insert[0];
+            if (changed) expect(bindings).not.toContain('generation');
+            else expect(bindings).toContain('generation');
+            expect(bindings).not.toContain(snowflakeSecrets.privateKey);
+            expect(JSON.parse(encrypt.mock.calls[0][0])).toMatchObject({
+                privateKey: snowflakeSecrets.privateKey,
+                verification: { principal: 'OBSERVED_USER' },
+            });
+        },
+    );
+    it('writes observations under a generation lock without changing identity', async () => {
+        tracker.on.select('ai_service_account_credentials').response([snowRow]);
+        tracker.on.update('ai_service_account_credentials').response(1);
+        await model.updateVerification(
+            'project',
+            null,
+            'generation',
+            snowflakeVerification,
+        );
+        expect(tracker.history.select[0].sql).toContain('for update');
+        expect(tracker.history.select[0].bindings).toContain('generation');
+        expect(tracker.history.update[0].sql).toContain(
+            'set "encrypted_credentials" = $1',
+        );
+        expect(tracker.history.update[0].bindings).toContain('generation');
+    });
+    it('does not annotate a replacement after an old test completes', async () => {
+        tracker.on.select('ai_service_account_credentials').response([]);
+        await model.updateVerification(
+            'project',
+            null,
+            'old-generation',
+            snowflakeVerification,
+        );
+        expect(encrypt).not.toHaveBeenCalled();
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.select[0].bindings).toContain('old-generation');
+    });
+    it('requires the slot warehouse to match the original connection in missing-slot lookup', async () => {
+        tracker.on
+            .select('projects')
+            .response([{ projectUuid: 'missing', name: 'Missing' }]);
+        expect(
+            await model.findProjectsMissingSlot(
+                'org',
+                WarehouseTypes.SNOWFLAKE,
+            ),
+        ).toEqual([{ projectUuid: 'missing', name: 'Missing' }]);
+        expect(tracker.history.select[0].sql).toContain(
+            '"ai_service_account_credentials"."warehouse_type" = $4',
+        );
+        expect(
+            tracker.history.select[0].bindings.filter(
+                (value) => value === WarehouseTypes.SNOWFLAKE,
+            ),
+        ).toHaveLength(2);
     });
 });

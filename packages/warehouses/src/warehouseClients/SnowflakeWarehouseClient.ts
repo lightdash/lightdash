@@ -784,6 +784,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 agent_surface: tags.agent_surface,
                 agent_client: tags.agent_client,
             };
+            for (const key of ['ai_principal', 'user_uuid']) {
+                if (tags[key] !== undefined) prioritized[key] = tags[key];
+            }
             for (const [key, value] of Object.entries(tags).filter(
                 ([tagKey]) => !Object.hasOwn(prioritized, tagKey),
             )) {
@@ -1080,9 +1083,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
+            const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
+            if (this.agentJobControls) error.cause = e;
+            throw error;
         }
         return connection;
     }

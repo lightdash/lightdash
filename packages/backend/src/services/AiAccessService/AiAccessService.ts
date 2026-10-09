@@ -80,7 +80,10 @@ import {
     AiServiceAccountSlotResolver,
 } from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
-import { resolveAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
+import {
+    isSupportedAiServiceAccountSlot,
+    resolveAiServiceAccountCredentials,
+} from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
@@ -1383,7 +1386,13 @@ export class AiAccessService extends BaseService {
                         personUuid: args.userUuid,
                         userUuid: args.userUuid,
                         principalRef: saved.slot.slot.uuid,
-                        queryTags: { [AI_AGENT_TAG]: 'true' },
+                        queryTags: {
+                            [AI_AGENT_TAG]: 'true',
+                            ...(args.connection.type ===
+                            WarehouseTypes.SNOWFLAKE
+                                ? { ai_principal: args.userUuid }
+                                : {}),
+                        },
                     },
                 };
             }
@@ -1914,8 +1923,11 @@ export class AiAccessService extends BaseService {
                         );
                     }
                     if (
-                        slot.warehouseType !== WarehouseTypes.BIGQUERY ||
-                        slot.method !== 'private_key'
+                        slot.warehouseType !== args.connection.type ||
+                        !isSupportedAiServiceAccountSlot(
+                            slot.warehouseType,
+                            slot.method,
+                        )
                     ) {
                         throw new AiAccessRefusedError(
                             AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,

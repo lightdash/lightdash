@@ -9,7 +9,9 @@ const model = new OrganizationAgentIdentitySettingsModel({
     database,
     rulesModel: new OrganizationAgentIdentityRulesModel({ database }),
 });
-beforeEach(() => tracker.reset());
+beforeEach(() => {
+    tracker.reset();
+});
 afterAll(async () => database.destroy());
 
 test('defaults a missing organization row to false', async () => {
@@ -81,3 +83,25 @@ test.each([
         expect(tracker.history.insert[0].sql).not.toContain('"required"');
     },
 );
+
+test('legacy false replaces an AI slot rule and reports the actual prior source', async () => {
+    tracker.reset();
+    tracker.on.select('organizations').response([{ organization_uuid: 'org' }]);
+    tracker.on.select('organization_agent_identity_settings').response([
+        {
+            source: 'ai_service_account',
+            require_verified_agent_sessions: false,
+            timestamps_match: true,
+        },
+    ]);
+    tracker.on.insert('organization_agent_identity_rules').response([]);
+    tracker.on.insert('organization_agent_identity_settings').response([]);
+    expect(
+        await model.upsert('org', { requireVerifiedAgentSessions: false }),
+    ).toEqual({
+        settings: { requireVerifiedAgentSessions: false },
+        previousSource: 'ai_service_account',
+        changed: true,
+    });
+    expect(tracker.history.insert[0].bindings).toContain('marked_person');
+});

@@ -1,9 +1,9 @@
 import {
     assertUnreachable,
-    BigqueryAuthenticationType,
     ParameterError,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
-    type CreateBigqueryCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
     type SshTunnelConfiguration,
 } from '@lightdash/common';
@@ -21,49 +21,47 @@ import type {
 import { pickRoutingFields } from './aiServiceAccountRoutingFields';
 
 type Selection = CredentialSelection<
-    CreateBigqueryCredentials,
+    CreateSnowflakeCredentials,
     AiServiceAccountSecrets
 >;
 
-export class BigqueryAiServiceAccountCredentialResolver implements CredentialResolver<
-    CreateBigqueryCredentials,
+export class SnowflakeAiServiceAccountCredentialResolver implements CredentialResolver<
+    CreateSnowflakeCredentials,
     AiServiceAccountSecrets
 > {
     readonly supportedMethods = [
-        BigqueryAuthenticationType.PRIVATE_KEY,
+        SnowflakeAuthenticationType.PRIVATE_KEY,
     ] as const;
 
     buildCredentials(
         connection: CreateWarehouseCredentials & SshTunnelConfiguration,
         secrets: AiServiceAccountSecrets,
-    ): CreateBigqueryCredentials {
-        if (connection.type !== WarehouseTypes.BIGQUERY) {
+    ): CreateSnowflakeCredentials {
+        if (connection.type !== WarehouseTypes.SNOWFLAKE) {
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
-        if (credentials.type !== WarehouseTypes.BIGQUERY) {
+        if (credentials.type !== WarehouseTypes.SNOWFLAKE)
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
-        }
         return {
-            ...pickRoutingFields(WarehouseTypes.BIGQUERY, connection),
+            ...pickRoutingFields(WarehouseTypes.SNOWFLAKE, connection),
             ...credentials,
-            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
             requireUserCredentials: false,
-            allowUserCredentials: false,
         };
     }
 
     async validateOnSave(
         input: CredentialSaveInput<
-            CreateBigqueryCredentials,
+            CreateSnowflakeCredentials,
             AiServiceAccountSecrets
         >,
     ): Promise<
-        ValidatedCredential<CreateBigqueryCredentials, AiServiceAccountSecrets>
+        ValidatedCredential<CreateSnowflakeCredentials, AiServiceAccountSecrets>
     > {
         const { intent } = input;
         switch (intent.kind) {
@@ -88,7 +86,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
 
     async resolve(
         input: Selection,
-    ): Promise<CredentialResolution<CreateBigqueryCredentials>> {
+    ): Promise<CredentialResolution<CreateSnowflakeCredentials>> {
         if (input.owner !== null && input.owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
                 'Invalid AI service account credential owner.',

@@ -51,19 +51,24 @@ describe('identity source map', () => {
                 );
                 expect(actorSources.includes('ai_service_account')).toBe(
                     type === WarehouseTypes.BIGQUERY ||
-                        type === WarehouseTypes.DATABRICKS,
+                        type === WarehouseTypes.DATABRICKS ||
+                        type === WarehouseTypes.SNOWFLAKE,
                 );
             }
             expect(supportsAiServiceAccount(type)).toBe(
                 type === WarehouseTypes.BIGQUERY ||
-                    type === WarehouseTypes.DATABRICKS,
+                    type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.SNOWFLAKE,
             );
             expect(sources.person).toEqual(sources.service_account);
+            const expectedCount = {
+                [WarehouseTypes.SNOWFLAKE]: 3,
+                [WarehouseTypes.BIGQUERY]: 2,
+                [WarehouseTypes.DATABRICKS]: 2,
+            };
             expect(sources.person).toHaveLength(
-                type === WarehouseTypes.SNOWFLAKE ||
-                    type === WarehouseTypes.BIGQUERY ||
-                    type === WarehouseTypes.DATABRICKS
-                    ? 2
+                type in expectedCount
+                    ? expectedCount[type as keyof typeof expectedCount]
                     : 1,
             );
         },
@@ -145,7 +150,8 @@ describe('organization identity rules', () => {
                 isAllowedAgentIdentitySource(type, 'ai_service_account'),
             ).toBe(
                 type === WarehouseTypes.BIGQUERY ||
-                    type === WarehouseTypes.DATABRICKS,
+                    type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.SNOWFLAKE,
             );
         },
     );

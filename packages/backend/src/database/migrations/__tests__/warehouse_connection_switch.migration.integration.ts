@@ -1446,14 +1446,7 @@ describe('Enable multiple connections on the real schema', () => {
                         warehouseConnectionUuid: null;
                     };
                 }) => Promise<CreateWarehouseCredentials>;
-                refreshCredentials: (
-                    credentials: CreateWarehouseCredentials,
-                ) => Promise<CreateWarehouseCredentials>;
             };
-            vi.spyOn(
-                credentialsService,
-                'refreshCredentials',
-            ).mockImplementation(async (credentials) => credentials);
             const read = () =>
                 credentialsService.getWarehouseCredentials({
                     projectUuid: fixture.projectUuid,

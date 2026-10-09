@@ -41,6 +41,7 @@ import type {
 import {
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
+    isSnowflakeServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
 import {
     attributeClientErrors,
@@ -1060,7 +1061,9 @@ export class WarehouseClientFactory {
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.DATABRICKS &&
-                    isDatabricksServiceAccountAuthError(error))
+                    isDatabricksServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    isSnowflakeServiceAccountAuthError(error))
             )
         )
             throw error;

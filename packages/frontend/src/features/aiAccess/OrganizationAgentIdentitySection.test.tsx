@@ -687,10 +687,47 @@ describe('Organisation agent identity settings', () => {
             ).toBeEnabled(),
         );
     });
-    it.each([1, 2, 5])(
+    it('saves the Snowflake AI service account source without OAuth setup', async () => {
+        currentOverview.rules[0].source = 'marked_person';
+        mocks.configured = false;
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('combobox', {
+                name: 'Snowflake agent identity',
+            }),
+        );
+        fireEvent.click(
+            screen.getByRole('option', { name: 'The AI service account' }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/snowflake',
+                method: 'PUT',
+                body: JSON.stringify({ source: 'ai_service_account' }),
+            }),
+        );
+        expect(
+            screen.queryByText('Set up the Snowflake agent integration'),
+        ).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/org/agent-identity/snowflake/setup',
+            }),
+        );
+    });
+    it.each([
+        [1, 0],
+        [2, 0],
+        [5, 0],
+        [1, 1],
+        [2, 1],
+        [5, 1],
+    ])(
         'lists %s missing projects with settings links and a three-name limit',
-        async (count) => {
+        async (count, ruleIndex) => {
             const data = overview();
+            data.rules[ruleIndex].source = 'ai_service_account';
             const names = [
                 'Jaffle shop',
                 'Orders',
@@ -698,7 +735,7 @@ describe('Organisation agent identity settings', () => {
                 'Revenue',
                 'Products',
             ];
-            data.rules[1].projectsMissingAiServiceAccount = names
+            data.rules[ruleIndex].projectsMissingAiServiceAccount = names
                 .slice(0, count)
                 .map((name, index) => ({
                     projectUuid: `project-${index}`,
@@ -721,7 +758,7 @@ describe('Organisation agent identity settings', () => {
                 .forEach((name, index) =>
                     expect(screen.getByRole('link', { name })).toHaveAttribute(
                         'href',
-                        `/generalSettings/projectManagement/project-${index}/settings`,
+                        `/generalSettings/projectManagement/project-${index}/agentIdentity`,
                     ),
                 );
             expect(

@@ -7,6 +7,7 @@ import {
     type Project,
     type BigqueryCredentials,
     type DatabricksCredentials,
+    type SnowflakeCredentials,
     type AiServiceAccountTestResult,
     type ApiError,
     type AiServiceAccountSlot,
@@ -40,8 +41,13 @@ import {
 } from './api';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
 import { DatabricksAgentSetup } from './DatabricksAgentSetup';
+import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
+import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
 
-type AiServiceAccountConnection = BigqueryCredentials | DatabricksCredentials;
+type AiServiceAccountConnection =
+    | BigqueryCredentials
+    | DatabricksCredentials
+    | SnowflakeCredentials;
 
 const AiServiceAccountParentPrincipal = ({
     parent,
@@ -61,29 +67,75 @@ const AiServiceAccountParentPrincipal = ({
     );
 };
 
-const DatabricksAiServiceAccountDetails = ({
+const AiServiceAccountCredentialStatus = ({
+    credentialsReadable,
+    inherited,
+    testedPrincipal,
+    warehouseType,
+}: {
+    credentialsReadable: boolean;
+    inherited: boolean;
+    testedPrincipal: string | null;
+    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS;
+}) => {
+    if (!credentialsReadable) {
+        const message =
+            warehouseType === WarehouseTypes.SNOWFLAKE
+                ? inherited
+                    ? 'The parent AI service account cannot be read. Use a different key.'
+                    : 'The AI service account cannot be read. Use a different key.'
+                : inherited
+                  ? 'The parent AI service account cannot be read. Use different credentials.'
+                  : 'The AI service account cannot be read. Replace the credentials.';
+        return (
+            <Alert color="red" role="alert">
+                {message}
+            </Alert>
+        );
+    }
+    return testedPrincipal ? (
+        <Text size="sm" role="status">
+            Signs in as {testedPrincipal}
+        </Text>
+    ) : (
+        <Text size="sm" c="dimmed">
+            Not checked yet. Run Test to see who it signs in as.
+        </Text>
+    );
+};
+
+const VerifiedAiServiceAccountDetails = ({
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     observation,
+    warehouseType,
 }: {
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
+    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS;
 }) => {
     return (
         <Stack gap="xs">
-            <Text size="sm">Databricks service principal · OAuth M2M</Text>
-            {testedPrincipal ? (
-                <Text size="sm" role="status">
-                    Signs in as {testedPrincipal}
-                </Text>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    Not checked yet. Run Test to see who it signs in as.
-                </Text>
-            )}
+            <Text size="sm">
+                {warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? 'Snowflake key pair'
+                    : 'Databricks service principal · OAuth M2M'}
+            </Text>
+            <AiServiceAccountCredentialStatus
+                credentialsReadable={
+                    slot
+                        ? credentialsReadable
+                        : (parent?.credentialsReadable ?? false)
+                }
+                inherited={!slot}
+                testedPrincipal={testedPrincipal}
+                warehouseType={warehouseType}
+            />
             {(observation?.ok || slot) && (
                 <Text size="xs" c="dimmed">
                     {observation?.ok &&
@@ -118,22 +170,27 @@ const DatabricksAiServiceAccountDetails = ({
 
 const AiServiceAccountDetails = ({
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     warehouseType,
     observation,
 }: {
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     warehouseType: AiServiceAccountConnection['type'];
     observation: AiServiceAccountTestResult | null;
 }) => {
     switch (warehouseType) {
+        case WarehouseTypes.SNOWFLAKE:
         case WarehouseTypes.DATABRICKS:
             return (
-                <DatabricksAiServiceAccountDetails
+                <VerifiedAiServiceAccountDetails
+                    warehouseType={warehouseType}
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -194,7 +251,7 @@ const AiServiceAccountRemoveModal = ({
     onConfirm: () => void;
 }) => {
     const credentialLabel =
-        warehouseType === WarehouseTypes.BIGQUERY ? 'key' : 'credentials';
+        warehouseType === WarehouseTypes.DATABRICKS ? 'credentials' : 'key';
     return (
         <MantineModal
             opened={opened}
@@ -235,7 +292,7 @@ const AiServiceAccountTestFeedback = ({
             <Text
                 size="sm"
                 role={
-                    warehouseType === WarehouseTypes.DATABRICKS
+                    warehouseType !== WarehouseTypes.BIGQUERY
                         ? 'alert'
                         : 'status'
                 }
@@ -248,7 +305,7 @@ const AiServiceAccountTestFeedback = ({
                 {error.error.message}
             </Text>
         )}
-        {warehouseType === WarehouseTypes.DATABRICKS &&
+        {warehouseType !== WarehouseTypes.BIGQUERY &&
             observation?.ok &&
             (error || (result && !result.ok)) && (
                 <Text size="sm" c="dimmed">
@@ -261,6 +318,7 @@ const AiServiceAccountTestFeedback = ({
 const AiServiceAccountSummary = ({
     projectUuid,
     slot,
+    credentialsReadable,
     parent,
     testedPrincipal,
     observation,
@@ -270,6 +328,7 @@ const AiServiceAccountSummary = ({
 }: {
     projectUuid: string;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
@@ -291,6 +350,7 @@ const AiServiceAccountSummary = ({
             <Group justify="space-between">
                 <AiServiceAccountDetails
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -309,7 +369,9 @@ const AiServiceAccountSummary = ({
                             ? 'Replace'
                             : warehouseType === WarehouseTypes.BIGQUERY
                               ? 'Use a different key'
-                              : 'Use a different service principal'}
+                              : warehouseType === WarehouseTypes.SNOWFLAKE
+                                ? 'Use a different key'
+                                : 'Use a different service principal'}
                     </Button>
                     <Button
                         variant="default"
@@ -320,12 +382,20 @@ const AiServiceAccountSummary = ({
                                 { credentials: null },
                                 {
                                     onSuccess: (result) => {
-                                        const principal = result.principal;
+                                        const principal =
+                                            warehouseType ===
+                                            WarehouseTypes.SNOWFLAKE
+                                                ? getSnowflakeAiPrincipal(
+                                                      result,
+                                                  )
+                                                : result.principal;
                                         if (result.ok && principal)
                                             onTestSuccess(
                                                 principal,
                                                 warehouseType ===
-                                                    WarehouseTypes.DATABRICKS
+                                                    WarehouseTypes.DATABRICKS ||
+                                                    warehouseType ===
+                                                        WarehouseTypes.SNOWFLAKE
                                                     ? result
                                                     : null,
                                             );
@@ -344,9 +414,9 @@ const AiServiceAccountSummary = ({
                                     disabled={busy}
                                     onClick={() => setConfirmation('inherit')}
                                 >
-                                    {warehouseType === WarehouseTypes.BIGQUERY
-                                        ? "Use the parent's key"
-                                        : "Use the parent's credentials"}
+                                    {warehouseType === WarehouseTypes.DATABRICKS
+                                        ? "Use the parent's credentials"
+                                        : "Use the parent's key"}
                                 </Button>
                             )}
                             <Button
@@ -392,6 +462,7 @@ const AiServiceAccountSummary = ({
 const AiServiceAccountSettingsContent = ({
     projectUuid,
     slot,
+    credentialsReadable,
     parent,
     rule,
     testedPrincipal,
@@ -402,6 +473,7 @@ const AiServiceAccountSettingsContent = ({
 }: {
     projectUuid: string;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
@@ -432,6 +504,7 @@ const AiServiceAccountSettingsContent = ({
                 <AiServiceAccountSummary
                     projectUuid={projectUuid}
                     slot={slot}
+                    credentialsReadable={credentialsReadable}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
                     observation={observation}
@@ -472,11 +545,13 @@ const getAiPrincipalState = (
     const observation = currentTest?.verification ?? persistedVerification;
     const principal =
         currentTest?.principal ??
-        (warehouseType === WarehouseTypes.DATABRICKS
-            ? observation?.ok
-                ? observation.principal
-                : null
-            : null);
+        (warehouseType === WarehouseTypes.SNOWFLAKE
+            ? getSnowflakeAiPrincipal(observation)
+            : warehouseType === WarehouseTypes.DATABRICKS
+              ? observation?.ok
+                  ? observation.principal
+                  : null
+              : null);
     return { identityKey, observation, principal };
 };
 
@@ -506,6 +581,8 @@ const AiServiceAccountSetup = ({
                     tested={tested}
                 />
             );
+        case WarehouseTypes.SNOWFLAKE:
+            return <SnowflakeAiServiceAccountSetup hasKey={hasKey} />;
         default:
             return assertUnreachable(connection, 'Unknown warehouse type');
     }
@@ -515,6 +592,7 @@ const AiServiceAccountSettingsBody = ({
     projectUuid,
     connection,
     slot,
+    credentialsReadable,
     parent,
     rule,
     verification,
@@ -523,6 +601,7 @@ const AiServiceAccountSettingsBody = ({
     connection: AiServiceAccountConnection;
     verification: AiServiceAccountTestResult | null;
     slot: AiServiceAccountSlot | null;
+    credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
 }) => {
@@ -551,6 +630,7 @@ const AiServiceAccountSettingsBody = ({
                 }
                 projectUuid={projectUuid}
                 slot={slot}
+                credentialsReadable={credentialsReadable}
                 parent={parent}
                 rule={rule}
                 testedPrincipal={principal}
@@ -617,6 +697,7 @@ const AiServiceAccountSettings = ({
             connection={connection}
             verification={status.data.verification ?? null}
             slot={status.data.results}
+            credentialsReadable={status.data.credentialsReadable}
             parent={status.data.parent}
             rule={rule}
         />
@@ -629,7 +710,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     if (
         !project.projectUuid ||
         (project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
-            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS) ||
+            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS &&
+            project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE) ||
         !flag?.enabled ||
         !ability.can(
             'manage',
