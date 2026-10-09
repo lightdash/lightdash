@@ -10,6 +10,7 @@ import {
     getPersonSignIn,
     isAiAccessQueryContext,
     UnexpectedServerError,
+    UserWarehouseCredentialPurpose,
     usesAwsWebIdentity,
     WarehouseTypes,
     type AiExecutionPlan,
@@ -51,6 +52,13 @@ import {
     WarehouseCredentialKind,
     type ConnectionContext,
 } from './ConnectionContext';
+import {
+    credentialResolution,
+    type CredentialOwner,
+    type CredentialSelection,
+    type MaterializedCredentials,
+} from './CredentialResolver';
+import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import type {
     ResolvedWarehouseCredentials,
     WarehouseCredentialBase,
@@ -115,7 +123,7 @@ export type WarehouseClientRef =
     | WarehouseClientBypassRef;
 
 export type ResolvedWarehouseConnection = {
-    warehouseCredentials: CreateWarehouseCredentials & {
+    warehouseCredentials: MaterializedCredentials & {
         userWarehouseCredentialsUuid?: string;
     };
     aiPlan: AiExecutionPlan | null;
@@ -127,7 +135,7 @@ export type ResolvedWarehouseConnection = {
 export type ScopedWarehouseConnection = {
     warehouseClient: WarehouseClient;
     connectionCredentials: CreateWarehouseCredentials;
-    warehouseCredentials: CreateWarehouseCredentials & {
+    warehouseCredentials: MaterializedCredentials & {
         userWarehouseCredentialsUuid?: string;
     };
     aiPlan: AiExecutionPlan | null;
@@ -155,6 +163,7 @@ type WarehouseClientFactoryDependencies = {
     featureFlagModel: FeatureFlagModel;
     aiAccessService: AiAccessService;
     credentialSource: WarehouseCredentialSource;
+    credentialResolvers: CredentialResolverRegistry;
     logger: typeof Logger;
 };
 
@@ -169,6 +178,8 @@ export class WarehouseClientConstructionError extends Error {
 
 export class WarehouseClientFactory {
     warehouseClients: Record<string, WarehouseClient> = {};
+
+    readonly credentialResolvers: CredentialResolverRegistry;
 
     private readonly clientOptions = new WeakMap<
         object,
@@ -197,6 +208,7 @@ export class WarehouseClientFactory {
 
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
+        this.credentialResolvers = deps.credentialResolvers;
         this.projectModel = deps.projectModel;
         this.featureFlagModel = deps.featureFlagModel;
         this.aiAccessService = deps.aiAccessService;
@@ -256,15 +268,123 @@ export class WarehouseClientFactory {
               };
     }
 
+    async materializeCredentials(
+        credentials: CreateWarehouseCredentials,
+        context: WarehouseCredentialResolutionContext,
+        projectUuid: string | null,
+        warehouseConnectionUuid: string | null,
+        owner: CredentialOwner | null,
+        aiPlan: AiExecutionPlan | null = null,
+        legacyResolve: () => Promise<CreateWarehouseCredentials> = async () =>
+            credentials,
+    ): Promise<MaterializedCredentials> {
+        const selection: CredentialSelection<CreateWarehouseCredentials> = {
+            connection: credentials,
+            stored: credentials,
+            owner,
+            context,
+            projectUuid,
+            warehouseConnectionUuid,
+            aiPlan,
+            credentialKind:
+                owner?.kind === 'user' &&
+                aiPlan === null &&
+                context.purpose !== 'compile'
+                    ? WarehouseCredentialKind.PERSONAL
+                    : this.getCredentialKind(
+                          credentials,
+                          aiPlan,
+                          context.purpose,
+                      ),
+        };
+        return this.credentialResolvers.resolveCredentialSelection(
+            selection,
+            legacyResolve,
+        );
+    }
+
+    private getCredentialOwner(
+        credentials: ResolvedWarehouseConnection['warehouseCredentials'],
+        projectUuid: string | null,
+        warehouseConnectionUuid: string | null,
+        organizationCredentialUuid: string | null,
+        aiPlan: AiExecutionPlan | null,
+    ): CredentialOwner | null {
+        if (credentials.userWarehouseCredentialsUuid) {
+            return {
+                kind: 'user',
+                uuid: credentials.userWarehouseCredentialsUuid,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+            };
+        }
+        if (aiPlan?.identity === 'ai_service_account') {
+            return {
+                kind: 'aiServiceAccount',
+                uuid: getAiExecutionCredentialUuid(aiPlan)!,
+                identityUuid: aiPlan.identityUuid,
+            };
+        }
+        if (aiPlan?.identity === 'connected_person') {
+            return {
+                kind: 'user',
+                uuid: getAiExecutionCredentialUuid(aiPlan)!,
+                purpose: UserWarehouseCredentialPurpose.AI,
+            };
+        }
+        if (organizationCredentialUuid)
+            return { kind: 'organization', uuid: organizationCredentialUuid };
+        if (warehouseConnectionUuid)
+            return {
+                kind: 'warehouseConnection',
+                uuid: warehouseConnectionUuid,
+            };
+        return projectUuid ? { kind: 'project', uuid: projectUuid } : null;
+    }
+
+    private async materializeLoadedCredentials(
+        credentials: ResolvedWarehouseCredentials,
+        base: WarehouseCredentialBase,
+        context: WarehouseCredentialResolutionContext,
+    ): Promise<ResolvedWarehouseCredentials> {
+        const aiPlan = credentials.aiPlan ?? null;
+        const owner = this.getCredentialOwner(
+            credentials,
+            base.projectUuid,
+            base.warehouseConnectionUuid,
+            base.kind === 'final'
+                ? null
+                : base.organizationWarehouseCredentialsUuid,
+            aiPlan,
+        );
+        const materialized = await this.materializeCredentials(
+            credentials,
+            context,
+            base.projectUuid,
+            base.warehouseConnectionUuid,
+            owner,
+            aiPlan,
+        );
+        return {
+            ...materialized,
+            userWarehouseCredentialsUuid:
+                credentials.userWarehouseCredentialsUuid,
+            ...(aiPlan ? { aiPlan } : {}),
+        };
+    }
+
     async resolveLoadedCredentials(
         base: WarehouseCredentialBase,
         context: WarehouseCredentialResolutionContext,
     ): Promise<ResolvedWarehouseCredentials> {
         if (base.kind === 'final') {
-            return {
-                ...base.credentials,
-                userWarehouseCredentialsUuid: undefined,
-            };
+            return this.materializeLoadedCredentials(
+                {
+                    ...base.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                },
+                base,
+                context,
+            );
         }
         let aiPlan: AiExecutionPlan | null = null;
         if (
@@ -301,16 +421,24 @@ export class WarehouseClientFactory {
             getAiExecutionCredentialUuid(aiPlan) !== null &&
             aiPlan.identity !== 'marked_person'
         ) {
-            return {
-                ...aiPlan.credentials,
-                userWarehouseCredentialsUuid: undefined,
-                aiPlan,
-            };
+            return this.materializeLoadedCredentials(
+                {
+                    ...aiPlan.credentials,
+                    userWarehouseCredentialsUuid: undefined,
+                    aiPlan,
+                },
+                base,
+                context,
+            );
         }
         const credentials = await this.credentialSource.finish(base, context);
-        if (base.kind === 'extra' && context.purpose === 'compile')
-            return credentials;
-        return { ...credentials, ...(aiPlan ? { aiPlan } : {}) };
+        return this.materializeLoadedCredentials(
+            base.kind === 'extra' && context.purpose === 'compile'
+                ? credentials
+                : { ...credentials, ...(aiPlan ? { aiPlan } : {}) },
+            base,
+            context,
+        );
     }
 
     private getCredentialKind(
@@ -457,6 +585,23 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
+        warehouseCredentials = await this.materializeCredentials(
+            warehouseCredentials,
+            context,
+            ref.projectUuid,
+            warehouseConnectionUuid,
+            this.getCredentialOwner(
+                warehouseCredentials,
+                ref.projectUuid,
+                warehouseConnectionUuid,
+                null,
+                aiPlan,
+            ),
+            aiPlan,
+        );
+        const materialization = (
+            warehouseCredentials as MaterializedCredentials
+        )[credentialResolution];
         const refusalScope = {
             context,
             warehouseConnectionUuid,
@@ -478,12 +623,15 @@ export class WarehouseClientFactory {
                     refusalScope,
                     warehouseConnectionUuid,
                     cacheEnabled:
+                        (materialization?.cacheable ?? true) &&
                         ref.kind !== 'bypass' &&
                         ref.kind !== 'compile' &&
                         !(
                             ref.kind === 'resolved' &&
                             ref.cachePolicy === 'disabled'
                         ),
+                    resolverOptions: materialization?.clientOptions,
+                    cacheKeyIdentity: materialization?.cacheKeyIdentity,
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,
                     clientOptions:
@@ -495,7 +643,10 @@ export class WarehouseClientFactory {
                     wrapConstructionErrors:
                         ref.kind === 'bypass' && ref.mode === 'connection_test',
                 },
-            );
+            ).catch(async (error: unknown) => {
+                await materialization?.dispose();
+                throw error;
+            });
         const connectionCredentials = sshTunnel.overrideCredentials;
         const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
         let releasePromise: Promise<void> | null = null;
@@ -542,9 +693,14 @@ export class WarehouseClientFactory {
                 );
             },
             release: () => {
-                releasePromise ??= this.releaseSshTunnelOnScopeExit
-                    ? sshTunnel.disconnect()
-                    : Promise.resolve();
+                releasePromise ??= (async () => {
+                    try {
+                        if (this.releaseSshTunnelOnScopeExit)
+                            await sshTunnel.disconnect();
+                    } finally {
+                        await materialization?.dispose();
+                    }
+                })();
                 return releasePromise;
             },
         };
@@ -585,9 +741,13 @@ export class WarehouseClientFactory {
             clientOptions: requestedClientOptions,
             refusalScope,
             warehouseConnectionUuid = null,
+            cacheKeyIdentity,
+            resolverOptions,
         }: {
             cacheEnabled: boolean;
             wrapConstructionErrors: boolean;
+            cacheKeyIdentity?: readonly (string | null)[];
+            resolverOptions?: Partial<WarehouseClientOptions>;
             refusalScope?: {
                 context: ConnectionContext;
                 warehouseConnectionUuid: string | null;
@@ -604,7 +764,12 @@ export class WarehouseClientFactory {
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
 
-        const sshTunnel = new SshTunnel(credentials, tunnelOptions);
+        const { [credentialResolution]: _resolution, ...clientCredentials } =
+            credentials as MaterializedCredentials;
+        const sshTunnel = new SshTunnel(
+            _resolution ? clientCredentials : credentials,
+            tunnelOptions,
+        );
         let constructingClient = false;
         try {
             if (
@@ -654,6 +819,7 @@ export class WarehouseClientFactory {
                     ? (getAiExecutionCredentialUuid(aiPlan) ??
                       aiPlan.audit.personUuid)
                     : null,
+                ...(cacheKeyIdentity ?? []),
             ]);
 
             const existingClient = (
@@ -771,6 +937,7 @@ export class WarehouseClientFactory {
                 projectUuid: projectUuid ?? undefined,
                 logger: this.logger,
                 ...identityOptions,
+                ...resolverOptions,
                 ...requestedClientOptions,
             };
             const client = this.buildClient(

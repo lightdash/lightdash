@@ -8,6 +8,8 @@ import {
 import { UserRefreshClient } from 'google-auth-library';
 import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
+import type { LightdashConfig } from '../../config/parseConfig';
+import { hydrateBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 
 type BigquerySsoCredentials = {
     credentials: CreateBigqueryCredentials;
@@ -151,13 +153,15 @@ const isInvalidGrant = (error: unknown): boolean => {
     return response?.status === 400 && response.data?.error === 'invalid_grant';
 };
 
-export const checkGoogleRefreshToken: CheckGoogleRefreshToken = async (
-    keyfileContents,
-) => {
+export const checkGoogleRefreshToken = async (
+    keyfileContents: CreateBigqueryCredentials['keyfileContents'],
+    google: LightdashConfig['auth']['google'],
+): Promise<GoogleRefreshTokenStatus> => {
+    const hydrated = hydrateBigquerySsoKeyfile(keyfileContents, google);
     const client = new UserRefreshClient({
-        clientId: keyfileContents.client_id,
-        clientSecret: keyfileContents.client_secret,
-        refreshToken: keyfileContents.refresh_token,
+        clientId: hydrated.client_id,
+        clientSecret: hydrated.client_secret,
+        refreshToken: hydrated.refresh_token,
     });
     try {
         await client.getAccessToken();
@@ -176,19 +180,21 @@ const getRefreshTokenCacheKey = (
         .update(keyfileContents.refresh_token ?? '')
         .digest('hex');
 
-export const recheckGoogleRefreshToken: CheckGoogleRefreshToken = async (
-    keyfileContents,
-) => {
+export const recheckGoogleRefreshToken = async (
+    keyfileContents: CreateBigqueryCredentials['keyfileContents'],
+    google: LightdashConfig['auth']['google'],
+): Promise<GoogleRefreshTokenStatus> => {
     const key = getRefreshTokenCacheKey(keyfileContents);
     validRefreshTokens.del(key);
-    const status = await checkGoogleRefreshToken(keyfileContents);
+    const status = await checkGoogleRefreshToken(keyfileContents, google);
     if (status === 'valid') validRefreshTokens.set(key, true);
     return status;
 };
 
-export const checkGoogleRefreshTokenCached: CheckGoogleRefreshToken = async (
-    keyfileContents,
-) =>
+export const checkGoogleRefreshTokenCached = async (
+    keyfileContents: CreateBigqueryCredentials['keyfileContents'],
+    google: LightdashConfig['auth']['google'],
+): Promise<GoogleRefreshTokenStatus> =>
     validRefreshTokens.get(getRefreshTokenCacheKey(keyfileContents))
         ? 'valid'
-        : recheckGoogleRefreshToken(keyfileContents);
+        : recheckGoogleRefreshToken(keyfileContents, google);
