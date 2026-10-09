@@ -1,3 +1,10 @@
+# [2.532.0](https://github.com/lightdash/lightdash/compare/2.531.0...2.532.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** line up organization rule rows and use plain helper text ([#30852](https://github.com/lightdash/lightdash/issues/30852)) ([e67ccd9](https://github.com/lightdash/lightdash/commit/e67ccd9160dea52aef25b4715127bcbb315a1fa6))
+
 # [2.531.0](https://github.com/lightdash/lightdash/compare/2.530.0...2.531.0) (2026-10-09)
 
 
