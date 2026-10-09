@@ -1,16 +1,23 @@
 import {
     assertUnreachable,
     CustomFormatType,
+    evaluateConditionalFormatExpression,
+    formatExpressionHasParameters,
+    getCustomFormat,
+    getEffectiveSeparator,
+    hasValidFormatExpression,
     MetricType,
     TableCalculationTemplateType,
     type CustomFormat,
     type Metric,
+    type ParametersValuesMap,
     type TableCalculation,
 } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import {
     explorerActions,
+    selectParameters,
     selectSorts,
     selectTableCalculations,
     useExplorerDispatch,
@@ -31,6 +38,8 @@ type Props = {
 
 const getFormatForQuickCalculation = (
     templateType: TableCalculationTemplateType,
+    item: Metric,
+    parameters: ParametersValuesMap,
 ): CustomFormat | undefined => {
     switch (templateType) {
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
@@ -43,11 +52,31 @@ const getFormatForQuickCalculation = (
         case TableCalculationTemplateType.RANK_IN_COLUMN:
             return undefined;
         case TableCalculationTemplateType.RUNNING_TOTAL:
-        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
             return {
                 type: CustomFormatType.NUMBER,
                 round: 2,
             };
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS: {
+            if (hasValidFormatExpression(item)) {
+                const custom = evaluateConditionalFormatExpression(
+                    item.format,
+                    parameters,
+                );
+                if (
+                    formatExpressionHasParameters(custom) ||
+                    !hasValidFormatExpression({ ...item, format: custom })
+                ) {
+                    return { type: CustomFormatType.DEFAULT };
+                }
+                return {
+                    type: CustomFormatType.CUSTOM,
+                    custom,
+                    separator: getEffectiveSeparator(item),
+                };
+            }
+            const format = getCustomFormat(item);
+            return format ? { ...format } : undefined;
+        }
         case TableCalculationTemplateType.WINDOW_FUNCTION:
             return undefined; // Window functions not available in quick calcs TODO throw
         default:
@@ -113,6 +142,7 @@ const QuickCalculationMenuOptions: FC<Props> = ({
     );
 
     const sorts = useExplorerSelector(selectSorts);
+    const parameters = useExplorerSelector(selectParameters);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const orderWithoutTableCalculations = sorts.filter(
         (sort) => !tableCalculations.some((tc) => tc.name === sort.fieldId),
@@ -142,7 +172,11 @@ const QuickCalculationMenuOptions: FC<Props> = ({
             name: uniqueName,
             displayName: name,
             template,
-            format: getFormatForQuickCalculation(templateType),
+            format: getFormatForQuickCalculation(
+                templateType,
+                item,
+                parameters,
+            ),
         };
 
         handleAddTableCalculation(tableCalculation);
