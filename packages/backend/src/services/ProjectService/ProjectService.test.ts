@@ -2304,6 +2304,47 @@ describe('ProjectService', () => {
             },
         );
 
+        test('keeps upstream user credentials required when switching back to its Snowflake warehouse', async () => {
+            const incoming: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'snowflake-account',
+                user: 'preview-user',
+                password: 'preview-password',
+                database: 'analytics',
+                warehouse: 'warehouse-a',
+                schema: 'preview',
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            };
+            const { model, previewService } = setup(
+                {
+                    ...savedPreview,
+                    warehouseConnection: {
+                        ...incoming,
+                        warehouse: 'warehouse-b',
+                    },
+                },
+                { ...incoming, requireUserCredentials: true },
+            );
+
+            await previewService.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                { ...updateData, warehouseConnection: incoming },
+                RequestMethod.CLI,
+            );
+
+            expect(model.update).toHaveBeenCalledExactlyOnceWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        ...incoming,
+                        requireUserCredentials: true,
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+        });
+
         test('keeps an explicit saved tunnel opt-out', async () => {
             const { model, findKeyPair, previewService } = setup({
                 ...savedPreview,

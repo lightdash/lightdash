@@ -5862,21 +5862,20 @@ export class ProjectService
                     throw error;
                 });
             const savedCredentials = savedProject.warehouseConnection;
-            const inheritedCredentials =
-                upstreamCredentials && savedCredentials
-                    ? mergeWarehouseCredentials(
-                          upstreamCredentials,
-                          savedCredentials,
-                      )
-                    : (savedCredentials ?? upstreamCredentials);
+            const refreshedPreviewCredentials = savedCredentials
+                ? mergeWarehouseCredentials(
+                      savedCredentials,
+                      data.warehouseConnection,
+                  )
+                : data.warehouseConnection;
             updateData = {
                 ...data,
-                warehouseConnection: inheritedCredentials
+                warehouseConnection: upstreamCredentials
                     ? mergeWarehouseCredentials(
-                          inheritedCredentials,
-                          data.warehouseConnection,
+                          upstreamCredentials,
+                          refreshedPreviewCredentials,
                       )
-                    : data.warehouseConnection,
+                    : refreshedPreviewCredentials,
             };
             ProjectService.assertEmbeddedCredentialsAreInternal(
                 updateData.warehouseConnection,
