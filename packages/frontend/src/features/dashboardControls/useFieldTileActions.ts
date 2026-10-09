@@ -1,4 +1,5 @@
 import {
+    isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
@@ -14,6 +15,7 @@ import {
     getFieldScope,
     getFilterFields,
     getTileField,
+    getTilesOnTab,
     removeField,
     removeFieldFromAll,
     setTileField,
@@ -23,9 +25,8 @@ import {
     type FieldsByTile,
     type SqlColumnsByTile,
 } from './peers';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
-import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const SQL_COLUMN_LABEL = 'SQL column';
 
@@ -86,20 +87,24 @@ const getSqlColumnScope = (
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile,
 ): FieldScope => {
-    const columnsOnTiles = getSqlColumnTiles(
-        reference,
-        tiles,
-        sqlColumnsByTile,
-    ).map(
-        (tile) =>
-            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
-            null,
-    );
+    const withColumn = getSqlColumnTiles(reference, tiles, sqlColumnsByTile);
+    const getFieldIdOn = (tile: DashboardTile) =>
+        getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
+        null;
+    const columnsOnTiles = withColumn.map(getFieldIdOn);
     const replacedFieldIds = columnsOnTiles.filter(
         (onTile): onTile is string => onTile !== null && onTile !== reference,
     );
+    // On the column without returning it any more: still one of its tiles.
+    // A data app tile follows the rule and is never on a column
+    const onColumnOnly = tiles.filter(
+        (tile) =>
+            !withColumn.includes(tile) &&
+            !isDashboardDataAppTileType(tile) &&
+            getFieldIdOn(tile) === reference,
+    );
     return {
-        possible: columnsOnTiles.length,
+        possible: withColumn.length + onColumnOnly.length,
         applied: getFieldCount(
             rule,
             reference,
@@ -149,22 +154,23 @@ export type FieldTileActions = {
     forSqlColumn: (reference: string) => FieldTiles;
 };
 
-// What a field of the edited filter is on and what can be done about it, for
-// its card, the bar over the tiles and the tile cards. Null while there is no
-// field to act on
-export const useFieldTileActions = (): FieldTileActions | null => {
-    const {
-        editingRule,
-        isPlaceholder,
-        removeLastField,
-        updateFilter,
-        waitingFieldIds,
-        removeWaitingField,
-        highlightedFieldId,
-        setHighlightedFieldId,
-        hoveredFieldId,
-        setHoveredFieldId,
-    } = useControlsSidebar();
+// A field's counts and actions, for its card, the bar and the tile cards.
+// Null with no field to act on. Reads the context through selectors
+export const useFieldTileActions = (
+    sqlColumnsByTile: SqlColumnsByTile,
+): FieldTileActions | null => {
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const removeLastField = useControlsSidebarSelector(
+        (c) => c.removeLastField,
+    );
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    const waitingFieldIds = useControlsSidebarSelector(
+        (c) => c.waitingFieldIds,
+    );
+    const removeWaitingField = useControlsSidebarSelector(
+        (c) => c.removeWaitingField,
+    );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
@@ -172,161 +178,170 @@ export const useFieldTileActions = (): FieldTileActions | null => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useFilterableItemsMap();
-    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
 
-    const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
-    // Without two tabs there is no "this tab": every tile is one scope
-    const scopeTabUuid = dashboardTabs.length >= 2 ? activeTabUuid : undefined;
-    const thisTabTiles = useMemo(
-        () =>
+    return useMemo(() => {
+        if (editingRule === null || isPlaceholder) return null;
+
+        const tiles = dashboardTiles ?? [];
+        // Without two tabs there is no "this tab": every tile is one scope
+        const scopeTabUuid =
+            dashboardTabs.length >= 2 ? activeTabUuid : undefined;
+        const thisTabTiles =
             scopeTabUuid === undefined
                 ? null
-                : tiles.filter((tile) => tile.tabUuid === scopeTabUuid),
-        [tiles, scopeTabUuid],
-    );
-
-    const otherTabsTiles = useMemo(
-        () =>
-            scopeTabUuid === undefined
+                : getTilesOnTab(tiles, dashboardTabs, scopeTabUuid);
+        const otherTabsTiles =
+            thisTabTiles === null
                 ? []
-                : tiles.filter((tile) => tile.tabUuid !== scopeTabUuid),
-        [tiles, scopeTabUuid],
-    );
+                : tiles.filter((tile) => !thisTabTiles.includes(tile));
+        const tilesByScope: Record<TileScope, DashboardTile[]> = {
+            'this-tab': thisTabTiles ?? tiles,
+            'other-tabs': otherTabsTiles,
+            'every-tab': tiles,
+        };
+        const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
+        const getField = (fieldId: string): DashboardFilterableField | null =>
+            isSqlColumnFilter && fieldId === editingRule.target.fieldId
+                ? null
+                : toDashboardFilterableField(fieldsMap[fieldId]);
 
-    if (editingRule === null || isPlaceholder) return null;
+        const build = (fieldId: string, isSqlColumn: boolean): FieldTiles => {
+            const field = isSqlColumn ? null : getField(fieldId);
+            const isWaiting = waitingFieldIds.includes(fieldId);
+            const target =
+                getRuleFieldTarget(editingRule, fieldId) ??
+                (field === null ? null : { fieldId, tableName: field.table });
+            const getScope = (scopeTiles: DashboardTile[]) =>
+                (isSqlColumn ? getSqlColumnScope : getFieldScope)(
+                    editingRule,
+                    fieldId,
+                    scopeTiles,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                );
+            const thisTabScope =
+                thisTabTiles === null ? null : getScope(thisTabTiles);
+            const everyTabScope = getScope(tiles);
 
-    const tilesByScope: Record<TileScope, DashboardTile[]> = {
-        'this-tab': thisTabTiles ?? tiles,
-        'other-tabs': otherTabsTiles,
-        'every-tab': tiles,
-    };
-    const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
-    const getField = (fieldId: string): DashboardFilterableField | null =>
-        isSqlColumnFilter && fieldId === editingRule.target.fieldId
-            ? null
-            : toDashboardFilterableField(fieldsMap[fieldId]);
-
-    const build = (fieldId: string, isSqlColumn: boolean): FieldTiles => {
-        const field = isSqlColumn ? null : getField(fieldId);
-        const isWaiting = waitingFieldIds.includes(fieldId);
-        const target =
-            getRuleFieldTarget(editingRule, fieldId) ??
-            (field === null ? null : { fieldId, tableName: field.table });
-        const getScope = (scopeTiles: DashboardTile[]) =>
-            (isSqlColumn ? getSqlColumnScope : getFieldScope)(
-                editingRule,
-                fieldId,
-                scopeTiles,
-                fieldsByTile,
-                sqlColumnsByTile,
-            );
-        const thisTabScope =
-            thisTabTiles === null ? null : getScope(thisTabTiles);
-        const everyTabScope = getScope(tiles);
+            return {
+                field,
+                // Each time grain is a field of its own, so the name says which one
+                label: field?.label ?? fieldId,
+                tableLabel: isSqlColumn
+                    ? SQL_COLUMN_LABEL
+                    : (field?.tableLabel ?? target?.tableName ?? ''),
+                isWaiting,
+                thisTabScope,
+                everyTabScope,
+                replacedLabels: (
+                    thisTabScope ?? everyTabScope
+                ).replacedFieldIds.map(
+                    (replacedId) => getField(replacedId)?.label ?? replacedId,
+                ),
+                otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
+                addToUnfiltered: (tileScope) => {
+                    if (isSqlColumn) {
+                        updateFilter(
+                            applySqlColumn(
+                                editingRule,
+                                fieldId,
+                                tilesByScope[tileScope],
+                                fieldsByTile,
+                                sqlColumnsByTile,
+                                (onTile) => onTile === null,
+                            ),
+                        );
+                        return;
+                    }
+                    if (target === null) return;
+                    updateFilter(
+                        applyFieldToUnfilteredTiles(
+                            editingRule,
+                            target,
+                            tilesByScope[tileScope],
+                            fieldsByTile,
+                            sqlColumnsByTile,
+                        ),
+                    );
+                },
+                switchFromOthers: (tileScope) => {
+                    if (isSqlColumn) {
+                        updateFilter(
+                            applySqlColumn(
+                                editingRule,
+                                fieldId,
+                                tilesByScope[tileScope],
+                                fieldsByTile,
+                                sqlColumnsByTile,
+                                (onTile) =>
+                                    onTile !== null && onTile !== fieldId,
+                            ),
+                        );
+                        return;
+                    }
+                    if (target === null) return;
+                    updateFilter(
+                        switchTilesToField(
+                            editingRule,
+                            target,
+                            tilesByScope[tileScope],
+                            fieldsByTile,
+                            sqlColumnsByTile,
+                        ),
+                    );
+                },
+                clear: (tileScope) => {
+                    updateFilter(
+                        removeFieldFromAll(
+                            editingRule,
+                            fieldId,
+                            tilesByScope[tileScope],
+                            fieldsByTile,
+                        ),
+                    );
+                },
+                remove: () => {
+                    // Its last field: the control goes back to "pick a field",
+                    // waiting fields included, and keeps the field's name
+                    if (
+                        !isWaiting &&
+                        getFilterFields(editingRule).length === 1
+                    ) {
+                        removeLastField(field?.label ?? fieldId);
+                        return;
+                    }
+                    if (isWaiting) {
+                        removeWaitingField(fieldId);
+                        return;
+                    }
+                    updateFilter(
+                        removeField(editingRule, fieldId, tiles, fieldsByTile),
+                    );
+                    removeWaitingField(fieldId);
+                },
+            };
+        };
 
         return {
-            field,
-            // Each time grain is a field of its own, so the name says which one
-            label: field?.label ?? fieldId,
-            tableLabel: isSqlColumn
-                ? SQL_COLUMN_LABEL
-                : (field?.tableLabel ?? target?.tableName ?? ''),
-            isWaiting,
-            thisTabScope,
-            everyTabScope,
-            replacedLabels: (
-                thisTabScope ?? everyTabScope
-            ).replacedFieldIds.map(
-                (replacedId) => getField(replacedId)?.label ?? replacedId,
-            ),
-            otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
-            addToUnfiltered: (tileScope) => {
-                if (isSqlColumn) {
-                    updateFilter(
-                        applySqlColumn(
-                            editingRule,
-                            fieldId,
-                            tilesByScope[tileScope],
-                            fieldsByTile,
-                            sqlColumnsByTile,
-                            (onTile) => onTile === null,
-                        ),
-                    );
-                    return;
-                }
-                if (target === null) return;
-                updateFilter(
-                    applyFieldToUnfilteredTiles(
-                        editingRule,
-                        target,
-                        tilesByScope[tileScope],
-                        fieldsByTile,
-                        sqlColumnsByTile,
-                    ),
-                );
-            },
-            switchFromOthers: (tileScope) => {
-                if (isSqlColumn) {
-                    updateFilter(
-                        applySqlColumn(
-                            editingRule,
-                            fieldId,
-                            tilesByScope[tileScope],
-                            fieldsByTile,
-                            sqlColumnsByTile,
-                            (onTile) => onTile !== null && onTile !== fieldId,
-                        ),
-                    );
-                    return;
-                }
-                if (target === null) return;
-                updateFilter(
-                    switchTilesToField(
-                        editingRule,
-                        target,
-                        tilesByScope[tileScope],
-                        fieldsByTile,
-                        sqlColumnsByTile,
-                    ),
-                );
-            },
-            clear: (tileScope) => {
-                updateFilter(
-                    removeFieldFromAll(
-                        editingRule,
-                        fieldId,
-                        tilesByScope[tileScope],
-                        fieldsByTile,
-                    ),
-                );
-            },
-            remove: () => {
-                if (highlightedFieldId === fieldId) setHighlightedFieldId(null);
-                if (hoveredFieldId === fieldId) setHoveredFieldId(null);
-                // Its last field: the control goes back to "pick a field",
-                // waiting fields included
-                if (!isWaiting && getFilterFields(editingRule).length === 1) {
-                    removeLastField();
-                    return;
-                }
-                if (isWaiting) {
-                    removeWaitingField(fieldId);
-                    return;
-                }
-                updateFilter(
-                    removeField(editingRule, fieldId, tiles, fieldsByTile),
-                );
-                removeWaitingField(fieldId);
-            },
+            forField: (fieldId) =>
+                build(
+                    fieldId,
+                    isSqlColumnFilter && fieldId === editingRule.target.fieldId,
+                ),
+            forSqlColumn: (reference) => build(reference, true),
         };
-    };
-
-    return {
-        forField: (fieldId) =>
-            build(
-                fieldId,
-                isSqlColumnFilter && fieldId === editingRule.target.fieldId,
-            ),
-        forSqlColumn: (reference) => build(reference, true),
-    };
+    }, [
+        editingRule,
+        isPlaceholder,
+        dashboardTiles,
+        dashboardTabs,
+        activeTabUuid,
+        fieldsByTile,
+        fieldsMap,
+        sqlColumnsByTile,
+        waitingFieldIds,
+        updateFilter,
+        removeLastField,
+        removeWaitingField,
+    ]);
 };

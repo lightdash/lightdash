@@ -47,7 +47,9 @@ export type ControlsSidebarContextValue = {
      * Takes the edited control's fields away and leaves it open as a
      * placeholder with the same id and label. It was a control's last field.
      */
-    removeLastField: () => void;
+    removeLastField: (fieldLabel: string) => void;
+    /** The name of the field an emptied control lost, until it has one again. */
+    emptiedFieldLabel: string | null;
     /** Field whose tiles are outlined after a click on its row. */
     highlightedFieldId: string | null;
     setHighlightedFieldId: (fieldId: string | null) => void;

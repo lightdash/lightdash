@@ -1,6 +1,5 @@
-/* Floats at the bottom of the dashboard area, as wide as its content. Sticky
-   after the grid: it never moves a tile, and it is above the tile overlays
-   (z-index 2) and below the sticky tabs */
+/* Sticky after the grid, so it floats at the bottom and never moves a tile.
+   Above the tile overlays (z-index 2), below the sticky tabs */
 .host {
     position: sticky;
     bottom: var(--mantine-spacing-md);

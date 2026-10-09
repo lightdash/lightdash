@@ -94,6 +94,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         addFirstSqlColumn: vi.fn(),
         addFirstFieldOnTile: vi.fn(),
         removeLastField: vi.fn(),
+        emptiedFieldLabel: null,
         highlightedFieldId: null,
         setHighlightedFieldId: vi.fn(),
         clearHighlightedField: vi.fn(),
@@ -239,6 +240,25 @@ describe('ControlSidebar', () => {
         expect(
             screen.getByRole('button', { name: 'Discard changes' }),
         ).toBeInTheDocument();
+    });
+
+    it('keeps the title of an unlabelled filter left with no field', () => {
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            emptiedFieldLabel: 'Status',
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('heading', { name: 'Status' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Filter' }),
+        ).not.toBeInTheDocument();
     });
 
     it('disables Settings for a placeholder and says why', () => {

@@ -8,7 +8,14 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -39,7 +46,7 @@ type AddFieldSearchProps = {
     onDismiss: (byKeyboard: boolean) => void;
 };
 
-// Mounted while "Add a field" is open, focused with its list open. It is put
+// Mounted while "Add another field" is open, focused with its list open. It is put
 // away when its list closes (Escape, focus leaving, a pick)
 const AddFieldSearch: FC<AddFieldSearchProps> = ({
     onPick,
@@ -106,13 +113,17 @@ export const FieldsAndTiles: FC = () => {
     );
     const canCreateMetricFilters =
         metricFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const fieldTileActions = useFieldTileActions();
     const [isAdding, setIsAdding] = useState(false);
     const addButtonRef = useRef<HTMLButtonElement>(null);
+    const rowsRef = useRef<HTMLDivElement>(null);
+    const starterRef = useRef<HTMLDivElement>(null);
+    // The card whose trash can was pressed, until it has left the list
+    const removedRef = useRef<{ fieldId: string; index: number } | null>(null);
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
     const availableTileFilters = filterableFieldsByTileUuid ?? NO_TILE_FIELDS;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
 
     const dimensions = allFilterableFields ?? NO_FIELDS;
     const metrics = allFilterableMetrics ?? NO_FIELDS;
@@ -163,13 +174,31 @@ export const FieldsAndTiles: FC = () => {
         );
     }, [targetField, rowIds, dimensions, metrics, tileCountByFieldId]);
 
+    // The pressed trash can leaves with its card: focus goes to the card that
+    // took its place, else the last one, "Add another field" or the search
+    useLayoutEffect(() => {
+        const removed = removedRef.current;
+        if (removed === null || rowIds.includes(removed.fieldId)) return;
+        removedRef.current = null;
+        if (isPlaceholder) {
+            starterRef.current?.querySelector('input')?.focus();
+            return;
+        }
+        const names =
+            rowsRef.current?.querySelectorAll<HTMLElement>(
+                'button[aria-pressed]',
+            ) ?? [];
+        const next = names[Math.min(removed.index, names.length - 1)];
+        (next ?? addButtonRef.current)?.focus();
+    });
+
     if (editingRule === null) return null;
 
     if (isPlaceholder) {
         // As in the shipped "Add filter": columns only when no tile has fields
         const hasFields = starterFields.length > 0;
         return (
-            <Stack gap="xs">
+            <Stack gap="xs" ref={starterRef}>
                 {hasFields ? (
                     <FilterFieldSelect
                         fields={starterFields}
@@ -219,7 +248,7 @@ export const FieldsAndTiles: FC = () => {
 
     return (
         <Stack gap="lg">
-            <Stack gap="xs">
+            <Stack gap="xs" ref={rowsRef}>
                 <Stack gap={2}>
                     <Text fz="sm" fw={600}>
                         Tiles are filtered by
@@ -228,7 +257,7 @@ export const FieldsAndTiles: FC = () => {
                         Select a field to see and change its tiles.
                     </Text>
                 </Stack>
-                {rowIds.map((fieldId) => {
+                {rowIds.map((fieldId, index) => {
                     const row = fieldTileActions.forField(fieldId);
                     return (
                         <FieldRow
@@ -250,7 +279,14 @@ export const FieldsAndTiles: FC = () => {
                                 else if (hoveredFieldId === fieldId)
                                     setHoveredFieldId(null);
                             }}
-                            onRemove={row.remove}
+                            onRemove={() => {
+                                removedRef.current = { fieldId, index };
+                                if (highlightedFieldId === fieldId)
+                                    setHighlightedFieldId(null);
+                                if (hoveredFieldId === fieldId)
+                                    setHoveredFieldId(null);
+                                row.remove();
+                            }}
                         />
                     );
                 })}

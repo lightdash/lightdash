@@ -590,7 +590,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => hook.result.current.updateFilter(edited));
             act(() => hook.result.current.setHighlightedFieldId('orders_a'));
             act(() => hook.result.current.addWaitingField('orders_region'));
-            act(() => hook.result.current.removeLastField());
+            act(() => hook.result.current.removeLastField('A'));
             return hook;
         };
 
@@ -751,7 +751,7 @@ describe('ControlsSidebarProvider', () => {
             const id = result.current.editing?.filterId;
             act(() => result.current.addFirstField(statusField));
             mockTrack.mockClear();
-            act(() => result.current.removeLastField());
+            act(() => result.current.removeLastField('A'));
             expect(result.current.isPlaceholder).toBe(true);
             expect(latest.filters).toEqual(initialFilters);
 
@@ -759,17 +759,25 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.filters.dimensions[2].id).toBe(id);
             expect(mockTrack).not.toHaveBeenCalled();
 
-            act(() => result.current.removeLastField());
+            act(() => result.current.removeLastField('A'));
             act(() => result.current.close());
             expect(latest.filters).toEqual(initialFilters);
             expect(latest.changed).toBe(false);
+        });
+
+        it('remembers the name of the field it lost until it has one again', () => {
+            const { result } = openEmptied();
+            expect(result.current.emptiedFieldLabel).toBe('A');
+
+            act(() => result.current.addFirstField(statusField));
+            expect(result.current.emptiedFieldLabel).toBeNull();
         });
 
         it('does nothing on a control with no field yet', () => {
             const { result } = setup();
             act(() => result.current.openNew());
             const before = result.current.editingRule;
-            act(() => result.current.removeLastField());
+            act(() => result.current.removeLastField('A'));
             expect(result.current.editingRule).toBe(before);
         });
     });
