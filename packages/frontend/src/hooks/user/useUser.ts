@@ -6,14 +6,17 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { useAccount } from './useAccount';
 
 export type UserWithAbility = LightdashUserWithAbilityRules & {
     ability: Ability;
     impersonation: ImpersonationInfo | null;
 };
-const getUserState = async (): Promise<UserWithAbility> => {
+const getUserState = async (
+    lightdashApi: LightdashApi,
+): Promise<UserWithAbility> => {
     const user = await lightdashApi<
         LightdashUserWithAbilityRules & {
             impersonation: ImpersonationInfo | null;
@@ -31,11 +34,12 @@ const getUserState = async (): Promise<UserWithAbility> => {
 };
 
 const useUser = (isAuthenticated: boolean) => {
+    const lightdashApi = useLightdashApi();
     const { data: account } = useAccount();
 
     return useQuery<UserWithAbility, ApiError>({
         queryKey: ['user'],
-        queryFn: getUserState,
+        queryFn: () => getUserState(lightdashApi),
         enabled: isAuthenticated && account?.isRegisteredUser(),
         retry: false,
     });

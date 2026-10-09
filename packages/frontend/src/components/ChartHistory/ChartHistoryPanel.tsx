@@ -37,6 +37,7 @@ import {
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import { ExplorerSection } from '../../providers/Explorer/types';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import NoTableIcon from '../../svgs/emptystate-no-table.svg?react';
 import Callout from '../common/Callout';
 import { EmptyState } from '../common/EmptyState';
@@ -154,6 +155,7 @@ const ChartHistoryPanel: FC<Props> = ({
     withContainerHeight,
     withSidebarFooter,
 }) => {
+    const lightdashApi = useLightdashApi();
     const authoringEnabled = useContentAuthoringEnabled();
     const [userSelectedVersionUuid, selectVersionUuid] = useState<string>();
     const [isRollbackModalOpen, setIsRollbackModalOpen] = useState(false);
@@ -164,7 +166,9 @@ const ChartHistoryPanel: FC<Props> = ({
 
     const rollbackMutation = useChartVersionRollbackMutation(chart.uuid, {
         onSuccess: async () => {
-            onRestored(await getSavedQuery(chart.uuid, projectUuid));
+            onRestored(
+                await getSavedQuery(lightdashApi, chart.uuid, projectUuid),
+            );
         },
     });
 

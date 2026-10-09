@@ -1,9 +1,14 @@
 import { type ApiError, type Space } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
-const updateSpacePinning = async (projectUuid: string, spaceUuid: string) =>
+const updateSpacePinning = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    spaceUuid: string,
+) =>
     lightdashApi<Space>({
         url: `/projects/${projectUuid}/spaces/${spaceUuid}/pinning`,
         method: 'PATCH',
@@ -11,12 +16,13 @@ const updateSpacePinning = async (projectUuid: string, spaceUuid: string) =>
     });
 
 export const useSpacePinningMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<Space, ApiError, string>(
         (spaceUuid) =>
             projectUuid
-                ? updateSpacePinning(projectUuid, spaceUuid)
+                ? updateSpacePinning(lightdashApi, projectUuid, spaceUuid)
                 : Promise.reject(),
         {
             mutationKey: ['space_pinning_update'],

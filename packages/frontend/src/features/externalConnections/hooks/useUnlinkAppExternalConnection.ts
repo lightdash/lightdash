@@ -3,8 +3,9 @@ import {
     type AppExternalConnectionLinked,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UnlinkParams = {
     projectUuid: string;
@@ -16,6 +17,7 @@ const getAliases = (params: UnlinkParams) =>
     'aliases' in params ? params.aliases : [params.alias];
 
 const unlinkAppExternalConnection = async (
+    lightdashApi: LightdashApi,
     params: UnlinkParams,
 ): Promise<undefined> => {
     const { projectUuid, appUuid } = params;
@@ -42,6 +44,7 @@ const linksQueryKey = (projectUuid: string, appUuid: string) => [
 /** Unlinks optimistically and rolls back on failure. The app keeps calling
  *  removed aliases until it is rebuilt, so the toast points at the composer. */
 export const useUnlinkAppExternalConnection = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastInfo, showToastApiError } = useToaster();
     return useMutation<
@@ -50,7 +53,8 @@ export const useUnlinkAppExternalConnection = () => {
         UnlinkParams,
         { previousLinks: AppExternalConnectionLinked[] | undefined }
     >({
-        mutationFn: unlinkAppExternalConnection,
+        mutationFn: (params: UnlinkParams) =>
+            unlinkAppExternalConnection(lightdashApi, params),
         onMutate: async (params) => {
             const { projectUuid, appUuid } = params;
             const aliases = getAliases(params);

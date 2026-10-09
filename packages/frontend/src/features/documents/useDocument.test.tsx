@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useDocumentChartQuery } from './useDocument';
 
-const api = vi.hoisted(() => vi.fn());
-vi.mock('../../api', () => ({ lightdashApi: api }));
+const api = mockedLightdashApi;
+vi.mock('../../api');
 
 describe('saved Document chart query', () => {
     beforeEach(() => {

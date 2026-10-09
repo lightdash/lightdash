@@ -32,8 +32,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardChartReadyQuery } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { GenericDashboardChartTile } from './DashboardChartTile';
+
+mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
 
 const exportMocks = vi.hoisted(() => ({
     parameters: {} as Record<string, string | string[]>,
@@ -61,9 +64,7 @@ vi.mock('../../providers/Ability/useAbilityContext', () => ({
 }));
 
 // The tile is rendered with its data already resolved; nothing may reach the network.
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(() => new Promise(() => {})),
-}));
+vi.mock('../../api');
 vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
     useWorker: () => ({}),
@@ -639,7 +640,7 @@ describe('DashboardChartTile Google Sheets export', () => {
         await waitFor(() => {
             expect(gsheetMocks.uploadGsheet).toHaveBeenCalledTimes(1);
         });
-        expect(gsheetMocks.uploadGsheet.mock.calls[0][0].parameters).toEqual({
+        expect(gsheetMocks.uploadGsheet.mock.calls[0][1].parameters).toEqual({
             region: 'EU',
         });
     });

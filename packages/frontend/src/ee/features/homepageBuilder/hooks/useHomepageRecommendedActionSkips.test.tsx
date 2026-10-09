@@ -2,14 +2,13 @@ import { type ApiHomepageRecommendedActionSkipsResponse } from '@lightdash/commo
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type FC, type PropsWithChildren } from 'react';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
 import { createQueryClient } from '../../../../providers/ReactQuery/createQueryClient';
+import { mockedLightdashApi } from '../../../../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../../../../testing/testUtils';
 import { useHomepageRecommendedActionSkips } from './useHomepageRecommendedActionSkips';
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 const deferred = <T,>() => {
     let resolve: (value: T) => void = () => undefined;
@@ -45,7 +44,7 @@ const renderWithQueryClient = (
 
 describe('useHomepageRecommendedActionSkips', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
     });
 
     it('optimistically updates every cached context for organization actions', async () => {
@@ -57,7 +56,7 @@ describe('useHomepageRecommendedActionSkips', () => {
         ]);
         const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
         const mutation = deferred<undefined>();
-        vi.mocked(lightdashApi).mockReturnValueOnce(mutation.promise as never);
+        mockedLightdashApi.mockReturnValueOnce(mutation.promise as never);
 
         const { result } = renderWithQueryClient('project-uuid', queryClient);
 
@@ -72,7 +71,7 @@ describe('useHomepageRecommendedActionSkips', () => {
         expect(
             queryClient.getQueryData(queryKey('other-project-uuid')),
         ).toEqual(['add-semantic-layer', 'connect-slack']);
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/ee/homepage/recommended-action-skips?projectUuid=project-uuid',
             method: 'POST',
             body: JSON.stringify({ actionKey: 'connect-slack' }),
@@ -95,7 +94,7 @@ describe('useHomepageRecommendedActionSkips', () => {
             'connect-slack',
         ]);
         const mutation = deferred<undefined>();
-        vi.mocked(lightdashApi).mockReturnValueOnce(mutation.promise as never);
+        mockedLightdashApi.mockReturnValueOnce(mutation.promise as never);
 
         const { result } = renderWithQueryClient('project-uuid', queryClient);
 
@@ -118,7 +117,7 @@ describe('useHomepageRecommendedActionSkips', () => {
     });
 
     it('loads the null-project context without a project sentinel', async () => {
-        vi.mocked(lightdashApi).mockResolvedValueOnce([
+        mockedLightdashApi.mockResolvedValueOnce([
             'connect-source-control',
         ] satisfies ApiHomepageRecommendedActionSkipsResponse['results'] as never);
 
@@ -131,7 +130,7 @@ describe('useHomepageRecommendedActionSkips', () => {
                 'connect-source-control',
             ]),
         );
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/ee/homepage/recommended-action-skips',
             method: 'GET',
             body: undefined,

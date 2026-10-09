@@ -4,7 +4,8 @@ import {
     type ApiSuccessEmpty,
 } from '@lightdash/common';
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type AppThumbnailTarget = {
     projectUuid: string;
@@ -45,6 +46,7 @@ const uploadAppThumbnail = async ({
 };
 
 const fetchAppThumbnailUrl = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
 ): Promise<ApiAppThumbnailUrlResponse['results']> =>
@@ -55,6 +57,7 @@ const fetchAppThumbnailUrl = async (
     });
 
 const fetchAppVersionThumbnailUrl = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
     version: number,
@@ -65,11 +68,10 @@ const fetchAppVersionThumbnailUrl = async (
         body: undefined,
     });
 
-const deleteAppThumbnail = async ({
-    projectUuid,
-    appUuid,
-    version,
-}: AppThumbnailTarget): Promise<ApiSuccessEmpty['results']> =>
+const deleteAppThumbnail = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, version }: AppThumbnailTarget,
+): Promise<ApiSuccessEmpty['results']> =>
     lightdashApi<ApiSuccessEmpty['results']>({
         method: 'DELETE',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/thumbnail${versionQuery(version)}`,
@@ -87,10 +89,17 @@ export const useAppThumbnailUpload = () =>
 /**
  * Removes the thumbnail of one version of an app. Idempotent on the backend.
  */
-export const useAppThumbnailDelete = () =>
-    useMutation<ApiSuccessEmpty['results'], ApiError, AppThumbnailTarget>({
-        mutationFn: deleteAppThumbnail,
+export const useAppThumbnailDelete = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        AppThumbnailTarget
+    >({
+        mutationFn: (args: AppThumbnailTarget) =>
+            deleteAppThumbnail(lightdashApi, args),
     });
+};
 
 /**
  * Fetches an app's thumbnail URL: its latest ready version's. `enabled` gates the request so callers can,
@@ -100,14 +109,17 @@ export const useAppThumbnailUrl = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ApiAppThumbnailUrlResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAppThumbnailUrlResponse['results'], ApiError>({
         queryKey: ['app-thumbnail', projectUuid, appUuid],
-        queryFn: () => fetchAppThumbnailUrl(projectUuid!, appUuid!),
+        queryFn: () =>
+            fetchAppThumbnailUrl(lightdashApi, projectUuid!, appUuid!),
         enabled: enabled && !!projectUuid && !!appUuid,
         retry: false,
         refetchOnWindowFocus: false,
     });
+};
 
 // Signed URLs last 15 minutes.
 const VERSION_THUMBNAIL_STALE_TIME_MS = 10 * 60 * 1000;
@@ -119,16 +131,23 @@ export const useAppVersionThumbnailUrl = (
     appUuid: string | undefined,
     version: number | null,
     enabled: boolean,
-) =>
-    useQuery<ApiAppThumbnailUrlResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAppThumbnailUrlResponse['results'], ApiError>({
         queryKey: ['app-thumbnail', projectUuid, appUuid, version],
         queryFn: () =>
-            fetchAppVersionThumbnailUrl(projectUuid!, appUuid!, version!),
+            fetchAppVersionThumbnailUrl(
+                lightdashApi,
+                projectUuid!,
+                appUuid!,
+                version!,
+            ),
         enabled: enabled && !!projectUuid && !!appUuid && version !== null,
         retry: false,
         refetchOnWindowFocus: false,
         staleTime: VERSION_THUMBNAIL_STALE_TIME_MS,
     });
+};
 
 /**
  * Refreshes everything that shows an app's thumbnails after one was captured

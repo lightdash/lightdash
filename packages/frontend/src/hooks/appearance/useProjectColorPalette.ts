@@ -3,7 +3,8 @@ import {
     type ApiProjectColorPaletteResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 type ResolvedPalette = ApiProjectColorPaletteResponse['results'];
 
@@ -14,6 +15,7 @@ export type ProjectColorPaletteContext = {
 };
 
 const getProjectColorPalette = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     context: ProjectColorPaletteContext,
 ) => {
@@ -34,8 +36,9 @@ export const useProjectColorPalette = (
     projectUuid: string | undefined,
     context: ProjectColorPaletteContext = {},
     options: { enabled?: boolean } = {},
-) =>
-    useQuery<ResolvedPalette, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ResolvedPalette, ApiError>({
         queryKey: [
             'project',
             projectUuid,
@@ -44,6 +47,8 @@ export const useProjectColorPalette = (
             context.dashboardUuid ?? null,
             context.chartUuid ?? null,
         ],
-        queryFn: () => getProjectColorPalette(projectUuid!, context),
+        queryFn: () =>
+            getProjectColorPalette(lightdashApi, projectUuid!, context),
         enabled: Boolean(projectUuid) && options.enabled !== false,
     });
+};

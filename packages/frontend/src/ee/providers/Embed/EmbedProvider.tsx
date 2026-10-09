@@ -16,8 +16,10 @@ import {
     type FC,
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
+import { createLightdashApi } from '../../../api';
 import { useAccount } from '../../../hooks/user/useAccount';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
+import { LightdashApiContext } from '../../../providers/LightdashApi/LightdashApiContext';
 import {
     getFromInMemoryStorage,
     setToInMemoryStorage,
@@ -87,7 +89,7 @@ const decodeEmbedJwtPayload = (
     }
 };
 
-const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
+const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken: encodedToken,
     filters,
@@ -111,10 +113,17 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     // Only the AI-agent dashboard route carries this param.
     const dashboardUuid = params.agentDashboardUuid;
 
+    const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+
     // Synced during render, not in an effect: direct embeds strip the token hash
     // on first render, and the empty prop that follows must not wipe the store.
-    const storedEmbed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    // SDK components scope requests per instance instead (see SdkProviders).
+    const storedEmbed =
+        mode === 'direct'
+            ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
+            : undefined;
     if (
+        mode === 'direct' &&
         embedToken &&
         (storedEmbed?.token !== embedToken ||
             storedEmbed?.projectUuid !== projectUuid ||
@@ -142,14 +151,16 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const [embedTimezone] = useState(() =>
         encodedToken ? null : parseEmbedTimezoneParam(),
     );
-    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    const embed =
+        mode === 'direct'
+            ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
+            : undefined;
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
-    const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
     const tokenFromStorageOrProps = embedToken || embed?.token;
     const embedWriteContext =
         account && 'embedWriteContext' in account
@@ -278,5 +289,40 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         </EmbedProviderContext.Provider>
     );
 };
+
+// SDK requests carry this component's token and the dashboard an AI-agent
+// embed is viewing; the ref picks up token rotation and navigation.
+const SdkLightdashApiProvider: FC<
+    React.PropsWithChildren<{ embedToken: string; projectUuid?: string }>
+> = ({ children, embedToken, projectUuid: projectUuidFromProps }) => {
+    const params = useParams();
+    const embed: InMemoryEmbed = {
+        token: embedToken,
+        projectUuid: projectUuidFromProps || params.projectUuid,
+        dashboardUuid: params.agentDashboardUuid,
+    };
+    const embedRef = useRef(embed);
+    embedRef.current = embed;
+    const [lightdashApi] = useState(() =>
+        createLightdashApi(() => embedRef.current),
+    );
+    return (
+        <LightdashApiContext.Provider value={lightdashApi}>
+            {children}
+        </LightdashApiContext.Provider>
+    );
+};
+
+const EmbedProvider: FC<React.PropsWithChildren<Props>> = (props) =>
+    props.embedToken ? (
+        <SdkLightdashApiProvider
+            embedToken={props.embedToken}
+            projectUuid={props.projectUuid}
+        >
+            <EmbedProviderContent {...props} />
+        </SdkLightdashApiProvider>
+    ) : (
+        <EmbedProviderContent {...props} />
+    );
 
 export default EmbedProvider;

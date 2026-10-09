@@ -1,6 +1,6 @@
 import { type ApiError, type FeatureFlag } from '@lightdash/common';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 const FEATURE_FLAG_QUERY_KEY = 'feature-flag';
 
@@ -26,6 +26,7 @@ export const useServerFeatureFlag = (
     featureFlagId: string,
     options?: { retry?: number | boolean; enabled?: boolean },
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<FeatureFlag, ApiError>(
         [FEATURE_FLAG_QUERY_KEY, featureFlagId],
         () => {

@@ -7,7 +7,8 @@ import {
     useQueryClient,
     type QueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type RestoreAppVersionParams = {
     projectUuid: string;
@@ -17,11 +18,10 @@ type RestoreAppVersionParams = {
 
 type RestoreAppVersionResult = ApiRestoreAppVersionResponse['results'];
 
-const restoreAppVersion = ({
-    projectUuid,
-    appUuid,
-    version,
-}: RestoreAppVersionParams) =>
+const restoreAppVersion = (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid, version }: RestoreAppVersionParams,
+) =>
     lightdashApi<RestoreAppVersionResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions/${version}/restore`,
@@ -44,13 +44,15 @@ export const invalidateAppQueries = (
     ]);
 
 export const useRestoreAppVersion = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         RestoreAppVersionResult,
         ApiError,
         RestoreAppVersionParams
     >({
-        mutationFn: restoreAppVersion,
+        mutationFn: (args: RestoreAppVersionParams) =>
+            restoreAppVersion(lightdashApi, args),
         onSuccess: (_data, { projectUuid, appUuid }) => {
             void invalidateAppQueries(queryClient, projectUuid, appUuid);
         },

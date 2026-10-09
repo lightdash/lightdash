@@ -12,12 +12,13 @@ import {
     type QueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const aiProviderCredentialsQueryKey = ['ai-provider-credentials'] as const;
 
-const listAiProviderCredentials = async () =>
+const listAiProviderCredentials = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiAiProviderCredentialsResponse['results']>({
         url: `/ai/provider-credentials`,
         method: 'GET',
@@ -37,14 +38,17 @@ export const useAiProviderCredentials = (
         ApiAiProviderCredentialsResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiProviderCredentialsResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiAiProviderCredentialsResponse['results'], ApiError>({
         queryKey: aiProviderCredentialsQueryKey,
-        queryFn: listAiProviderCredentials,
+        queryFn: () => listAiProviderCredentials(lightdashApi),
         ...queryOptions,
     });
+};
 
 export const useCreateAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -72,6 +76,7 @@ export const useCreateAiProviderCredential = () => {
 };
 
 export const useUpdateAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -104,6 +109,7 @@ export const useUpdateAiProviderCredential = () => {
  * config and cannot read it.
  */
 export const useReplaceAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -131,6 +137,7 @@ export const useReplaceAiProviderCredential = () => {
 };
 
 export const useDeleteAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -161,6 +168,7 @@ export const useDeleteAiProviderCredential = () => {
  * existed can otherwise see that configuration but never edit or remove it.
  */
 export const useAdoptLegacyAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -184,6 +192,7 @@ export const useAdoptLegacyAiProviderCredential = () => {
 };
 
 export const useSetDefaultAiProviderCredential = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 

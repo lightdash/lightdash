@@ -9,7 +9,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { DashboardChartEditorActionsPortalId } from '../components/DashboardTiles/constants';
 import { AbilityContext } from '../providers/Ability/context';
 import {
@@ -40,7 +40,7 @@ const state = vi.hoisted(() => ({
     verified: false,
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));
@@ -308,6 +308,7 @@ vi.mock(
     () => ({ AskAiAgentMenuItem: () => null }),
 );
 
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import DashboardPage from './Dashboard';
 
@@ -377,8 +378,8 @@ describe('Dashboard in-dashboard chart editor url', () => {
         state.haveTilesChanged = false;
         state.verified = false;
         sessionStorage.clear();
-        vi.mocked(lightdashApi).mockClear();
-        vi.mocked(lightdashApi).mockImplementation((async ({ url, method }) => {
+        mockedLightdashApi.mockClear();
+        mockedLightdashApi.mockImplementation((async ({ url, method }) => {
             if (
                 method === 'GET' &&
                 url.startsWith(`/projects/${PROJECT_UUID}/saved/chart-uuid`)
@@ -386,7 +387,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
                 return editChart;
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
     });
 
     it('offers to save dashboard edits before navigating to the chart editor and can cancel', async () => {
@@ -410,7 +411,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         );
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
         expect(
@@ -429,7 +430,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
             tiles: [],
             tabs: [],
         };
-        vi.mocked(lightdashApi).mockImplementation((({ method }) => {
+        mockedLightdashApi.mockImplementation((({ method }) => {
             if (method === 'PATCH') {
                 return new Promise<unknown>((resolve, reject) => {
                     finishSave = resolve;
@@ -437,7 +438,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
                 });
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as typeof sharedLightdashApi);
         renderDashboard('/edit');
         await userEvent.click(
             screen.getByRole('button', { name: 'Tile actions' }),
@@ -466,7 +467,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         await userEvent.click(
             screen.getByRole('button', { name: 'Save and edit chart' }),
         );
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'PATCH',
                 body: expect.stringContaining('"tiles":[{"uuid":"copy-tile"'),
@@ -501,14 +502,14 @@ describe('Dashboard in-dashboard chart editor url', () => {
         ).toBeVisible();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
         await userEvent.click(
             screen.getByRole('button', { name: 'Save anyway' }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith(
+            expect(sharedLightdashApi).toHaveBeenCalledWith(
                 expect.objectContaining({
                     method: 'PATCH',
                     body: expect.stringContaining(
@@ -533,7 +534,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
     });
@@ -556,7 +557,7 @@ describe('Dashboard in-dashboard chart editor url', () => {
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         expect(
             vi
-                .mocked(lightdashApi)
+                .mocked(sharedLightdashApi)
                 .mock.calls.some(([request]) => request.method === 'PATCH'),
         ).toBe(false);
     });

@@ -26,6 +26,7 @@ import { useActiveAiAgentThreadStreamParts } from '../../ee/features/aiCopilot/s
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
+import { useLightdashApi } from '../LightdashApi/useLightdashApi';
 import {
     type DashboardAiAgentChartRef,
     type DashboardAiAgentChartTiles,
@@ -64,6 +65,7 @@ const isSameChartRef = (
 ) => a?.type === b?.type && a?.slug === b?.slug;
 
 const DashboardAiAgentContextBridge = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     // useDashboardQuery/saved_dashboard_query use UUID-or-slug; useDashboardChartReadyQuery/dashboard_chart_ready_query uses dashboard.uuid.
     const { dashboardUuid: dashboardUuidOrSlug, mode } = useParams();
@@ -194,7 +196,11 @@ const DashboardAiAgentContextBridge = () => {
                     const freshChart = await queryClient.fetchQuery({
                         queryKey,
                         queryFn: () =>
-                            getSavedQuery(savedChartUuid, projectUuid),
+                            getSavedQuery(
+                                lightdashApi,
+                                savedChartUuid,
+                                projectUuid,
+                            ),
                     });
 
                     queryClient.setQueryData(
@@ -213,7 +219,7 @@ const DashboardAiAgentContextBridge = () => {
                     ),
             });
         },
-        [currentDashboardUuid, projectUuid, queryClient],
+        [currentDashboardUuid, lightdashApi, projectUuid, queryClient],
     );
 
     // Tile results are keyed on the chart's last update, so refetching the chart reruns its results.
@@ -285,7 +291,12 @@ const DashboardAiAgentContextBridge = () => {
 
             const freshDashboard = await queryClient.fetchQuery({
                 queryKey: dashboardQueryKey,
-                queryFn: () => getDashboard(dashboardUuidOrSlug, projectUuid),
+                queryFn: () =>
+                    getDashboard(
+                        lightdashApi,
+                        dashboardUuidOrSlug,
+                        projectUuid,
+                    ),
             });
 
             setDashboardTiles(freshDashboard.tiles);
@@ -319,6 +330,7 @@ const DashboardAiAgentContextBridge = () => {
         [
             dashboardQueryKey,
             dashboardUuidOrSlug,
+            lightdashApi,
             projectUuid,
             queryClient,
             refreshSavedChartTiles,

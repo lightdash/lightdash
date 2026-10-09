@@ -2,11 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { useDataAppVisualizations } from './useDataAppVisualizations';
 
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
 }));
@@ -24,7 +25,7 @@ const createWrapper = () => {
 
 describe('useDataAppVisualizations', () => {
     beforeEach(() => {
-        vi.mocked(lightdashApi).mockReset();
+        mockedLightdashApi.mockReset();
         vi.mocked(useEmbed).mockReturnValue({} as ReturnType<typeof useEmbed>);
     });
 
@@ -34,7 +35,7 @@ describe('useDataAppVisualizations', () => {
             vi.mocked(useEmbed).mockReturnValue({
                 embedToken: isEmbedded ? 'embed-token' : undefined,
             } as ReturnType<typeof useEmbed>);
-            vi.mocked(lightdashApi).mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 data: [],
                 pagination: {
                     page: 1,
@@ -57,7 +58,7 @@ describe('useDataAppVisualizations', () => {
             const baseUrl = isEmbedded
                 ? '/embed/project-1/visualizations'
                 : '/ee/projects/project-1/apps/visualizations';
-            expect(lightdashApi).toHaveBeenLastCalledWith({
+            expect(sharedLightdashApi).toHaveBeenLastCalledWith({
                 method: 'GET',
                 url: `${baseUrl}?page=1&pageSize=6&sortBy=name&sortDirection=asc&search=bar+%26+line`,
                 body: undefined,
@@ -65,7 +66,7 @@ describe('useDataAppVisualizations', () => {
             await act(async () => {
                 await result.current.fetchNextPage();
             });
-            expect(lightdashApi).toHaveBeenLastCalledWith({
+            expect(sharedLightdashApi).toHaveBeenLastCalledWith({
                 method: 'GET',
                 url: `${baseUrl}?page=2&pageSize=6&sortBy=name&sortDirection=asc&search=bar+%26+line`,
                 body: undefined,
@@ -78,6 +79,6 @@ describe('useDataAppVisualizations', () => {
         renderHook(() => useDataAppVisualizations(undefined), {
             wrapper: createWrapper(),
         });
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

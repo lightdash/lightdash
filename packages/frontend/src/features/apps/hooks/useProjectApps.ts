@@ -1,10 +1,12 @@
 import { type ApiError, type EmbedProjectApp } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type ProjectAppKind = 'data_app' | 'project_chart_type';
 
 const getProjectApps = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     kind: ProjectAppKind,
 ): Promise<EmbedProjectApp[]> =>
@@ -19,15 +21,17 @@ const getProjectApps = async (
 export const useProjectAppsByKind = (
     projectUuid: string | undefined,
     kind: ProjectAppKind,
-) =>
-    useQuery<EmbedProjectApp[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<EmbedProjectApp[], ApiError>({
         queryKey: [
             kind === 'data_app' ? 'project-apps' : 'project-chart-types',
             projectUuid,
         ],
-        queryFn: () => getProjectApps(projectUuid!, kind),
+        queryFn: () => getProjectApps(lightdashApi, projectUuid!, kind),
         enabled: !!projectUuid,
     });
+};
 
 /**
  * Lists the project's (non-deleted) data apps — used to populate the embed

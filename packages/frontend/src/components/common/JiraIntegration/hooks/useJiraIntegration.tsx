@@ -8,8 +8,9 @@ import {
     type JiraSite,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api'; // pragma: allowlist secret
+// pragma: allowlist secret
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const INSTALLATION_KEY = ['jira_installation'];
 const SITES_KEY = ['jira_sites'];
@@ -26,6 +27,7 @@ const useJiraQueryError = () => {
 };
 
 export const useJiraInstallation = (options?: { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const queryError = useJiraQueryError();
     return useQuery<JiraInstallation, ApiError>({
         queryKey: INSTALLATION_KEY,
@@ -42,6 +44,7 @@ export const useJiraInstallation = (options?: { enabled?: boolean }) => {
 };
 
 export const useInstallJira = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<JiraInstallUrl, ApiError, JiraOAuthCredentials>({
         mutationFn: (credentials) =>
@@ -62,6 +65,7 @@ export const useInstallJira = () => {
 };
 
 export const useJiraSites = (options?: { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const queryError = useJiraQueryError();
     return useQuery<JiraSite[], ApiError>({
         queryKey: SITES_KEY,
@@ -78,6 +82,7 @@ export const useJiraSites = (options?: { enabled?: boolean }) => {
 };
 
 export const useSelectJiraSite = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<JiraInstallation, ApiError, string>({
@@ -101,6 +106,7 @@ export const useSelectJiraSite = () => {
 };
 
 export const useJiraProjects = (options?: { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const queryError = useJiraQueryError();
     return useQuery<JiraProject[], ApiError>({
         queryKey: PROJECTS_KEY,
@@ -120,6 +126,7 @@ export const useJiraIssueTypes = (options: {
     projectId: string | null;
     enabled?: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     const queryError = useJiraQueryError();
     return useQuery<JiraIssueType[], ApiError>({
         queryKey: [...ISSUE_TYPES_KEY, options.projectId],
@@ -138,6 +145,7 @@ export const useJiraIssueTypes = (options: {
 };
 
 export const useDeleteJiraInstallation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<void, ApiError, void>({

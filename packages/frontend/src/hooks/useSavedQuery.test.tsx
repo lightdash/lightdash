@@ -17,9 +17,7 @@ vi.mock('react-router', () => ({
     useParams: () => ({ savedQueryUuid: 'legacy-chart' }),
 }));
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('./toaster/useToaster', () => ({
     default: () => ({
@@ -33,7 +31,8 @@ vi.mock('./useSearchParams', () => ({
     default: () => undefined,
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import { useAddVersionMutation, useCreateMutation } from './useSavedQuery';
 
 const createWrapper = () => {
@@ -61,7 +60,7 @@ const createWrapper = () => {
 describe('useAddVersionMutation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             uuid: 'chart-uuid',
             slug: 'legacy-chart',
             projectUuid: 'project-uuid',
@@ -94,7 +93,7 @@ describe('useCreateMutation', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(lightdashApi).mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             uuid: 'chart-uuid',
             slug: 'new-chart',
             projectUuid: 'project-uuid',
@@ -109,7 +108,7 @@ describe('useCreateMutation', () => {
 
         await act(() => result.current.mutateAsync(payload));
 
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({ url: '/projects/project-uuid/saved' }),
         );
     });
@@ -126,7 +125,7 @@ describe('useCreateMutation', () => {
 
         await act(() => result.current.mutateAsync(payload));
 
-        expect(lightdashApi).toHaveBeenCalledWith(
+        expect(sharedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/other-project-uuid/saved',
             }),

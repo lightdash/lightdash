@@ -5,7 +5,8 @@ import {
 } from '@lightdash/common';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 type SpaceAccessQueryParams = {
     page?: number;
@@ -37,6 +38,7 @@ const getSpaceAccessQueryKey = (
 ];
 
 const getSpaceAccess = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     spaceUuid: string,
     params: SpaceAccessQueryParams,
@@ -78,13 +80,16 @@ export const useSpaceAccess = (
         directOnly?: boolean;
     },
     options?: { enabled?: boolean },
-) =>
-    useQuery<SpaceAccessPage, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<SpaceAccessPage, ApiError>({
         queryKey: getSpaceAccessQueryKey(projectUuid, spaceUuid, params),
-        queryFn: () => getSpaceAccess(projectUuid!, spaceUuid!, params),
+        queryFn: () =>
+            getSpaceAccess(lightdashApi, projectUuid!, spaceUuid!, params),
         enabled: !!projectUuid && !!spaceUuid && (options?.enabled ?? true),
         keepPreviousData: true,
     });
+};
 
 export const useSpaceAccessByUserUuids = (
     projectUuid: string | undefined,
@@ -95,6 +100,7 @@ export const useSpaceAccessByUserUuids = (
     isLoading: boolean;
     isError: boolean;
 } => {
+    const lightdashApi = useLightdashApi();
     const userUuidChunks = useMemo(
         () =>
             [...new Set(userUuids)].reduce<string[][]>((chunks, userUuid) => {
@@ -121,7 +127,7 @@ export const useSpaceAccessByUserUuids = (
                     sortedUserUuidChunk,
                 ],
                 queryFn: () =>
-                    getSpaceAccess(projectUuid!, spaceUuid!, {
+                    getSpaceAccess(lightdashApi, projectUuid!, spaceUuid!, {
                         userUuids: sortedUserUuidChunk,
                     }),
                 enabled: !!projectUuid && !!spaceUuid,
@@ -153,6 +159,7 @@ export const useSearchSpaceAccess = (
     projectUuid: string | undefined,
     spaceUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useCallback(
@@ -174,11 +181,17 @@ export const useSearchSpaceAccess = (
                     spaceUuid,
                     params,
                 ),
-                queryFn: () => getSpaceAccess(projectUuid, spaceUuid, params),
+                queryFn: () =>
+                    getSpaceAccess(
+                        lightdashApi,
+                        projectUuid,
+                        spaceUuid,
+                        params,
+                    ),
             });
 
             return page.data;
         },
-        [queryClient, projectUuid, spaceUuid],
+        [queryClient, projectUuid, spaceUuid, lightdashApi],
     );
 };

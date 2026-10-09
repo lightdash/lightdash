@@ -4,13 +4,15 @@ import {
     type ApiPreviewTokenResponse,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getPreviewTokenRefetchInterval,
     previewTokenQueryOptions,
 } from './previewTokenQueryOptions';
 
 const fetchPreviewToken = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     appUuid: string,
     version: number,
@@ -28,8 +30,9 @@ export const useAppPreviewToken = (
     appUuid: string | undefined,
     version: number | undefined,
     viewContext: DataAppViewContext = 'unknown',
-) =>
-    useQuery<string, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<string, ApiError>({
         queryKey: [
             'app-preview-token',
             projectUuid,
@@ -38,10 +41,17 @@ export const useAppPreviewToken = (
             viewContext,
         ],
         queryFn: () =>
-            fetchPreviewToken(projectUuid!, appUuid!, version!, viewContext),
+            fetchPreviewToken(
+                lightdashApi,
+                projectUuid!,
+                appUuid!,
+                version!,
+                viewContext,
+            ),
         enabled:
             !!projectUuid && !!appUuid && version !== undefined && version > 0,
         refetchInterval: (_data, query) =>
             getPreviewTokenRefetchInterval(query.state.error),
         ...previewTokenQueryOptions,
     });
+};

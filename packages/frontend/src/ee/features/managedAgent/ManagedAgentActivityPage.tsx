@@ -80,7 +80,7 @@ import {
     type FC,
 } from 'react';
 import { Link } from 'react-router';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import { AiMarkdown } from '../../../components/common/AiMarkdown';
 import { CategoryBadge } from '../../../components/common/CategoryBadge';
 import CalendarRangePicker from '../../../components/common/DatePickers/CalendarRangePicker';
@@ -102,6 +102,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     useManagedAgentActions,
     type ManagedAgentActionQueryFilters,
@@ -121,6 +122,7 @@ import { ToolActivityBadge } from './ToolActivityBadge';
 import { toPlainPreview } from './utils/runSummaryMarkdown';
 
 const reverseAction = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     actionUuid: string,
 ): Promise<ManagedAgentAction> =>
@@ -131,6 +133,7 @@ const reverseAction = async (
     });
 
 const updateSettings = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: {
         enabled?: boolean;
@@ -147,7 +150,7 @@ const updateSettings = async (
         body: JSON.stringify(body),
     });
 
-const runHeartbeat = async (projectUuid: string) =>
+const runHeartbeat = async (lightdashApi: LightdashApi, projectUuid: string) =>
     lightdashApi<undefined>({
         url: `/projects/${projectUuid}/managed-agent/run`,
         method: 'POST',
@@ -907,10 +910,12 @@ const DetailSidebar: FC<{
     action: ManagedAgentAction;
     onClose: () => void;
 }> = ({ action, onClose }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const revertMutation = useMutation<ManagedAgentAction, ApiError>({
-        mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
+        mutationFn: () =>
+            reverseAction(lightdashApi, action.projectUuid, action.actionUuid),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', action.projectUuid],
@@ -1322,6 +1327,7 @@ const SettingsSidebar: FC<{
     isLoading,
     onClose,
 }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
     const { data: spaceSummaries } = useSpaceSummaries(projectUuid, true);
@@ -1335,8 +1341,8 @@ const SettingsSidebar: FC<{
 
     const { showToastApiError: showSettingsApiError } = useToaster();
     const mutation = useMutation({
-        mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
-            updateSettings(projectUuid, body),
+        mutationFn: (body: Parameters<typeof updateSettings>[2]) =>
+            updateSettings(lightdashApi, projectUuid, body),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-settings', projectUuid],
@@ -2634,6 +2640,7 @@ const FilteredActionsView: FC<{
 };
 
 const ManagedAgentActivityPage: FC = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const queryClient = useQueryClient();
     const { user } = useApp();
@@ -2809,7 +2816,7 @@ const ManagedAgentActivityPage: FC = () => {
     );
 
     const runNowMutation = useMutation<undefined, ApiError>({
-        mutationFn: () => runHeartbeat(projectUuid!),
+        mutationFn: () => runHeartbeat(lightdashApi, projectUuid!),
         onSuccess: () => {
             showToastSuccess({
                 title: 'Autopilot run started',

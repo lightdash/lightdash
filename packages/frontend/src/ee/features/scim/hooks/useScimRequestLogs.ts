@@ -6,11 +6,13 @@ import {
     useInfiniteQuery,
     type UseInfiniteQueryResult,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export const SCIM_REQUEST_LOGS_QUERY_KEY = 'scim_request_logs';
 
 const getScimRequestLogs = async (
+    lightdashApi: LightdashApi,
     page: number,
     pageSize: number,
 ): Promise<ApiScimRequestLogListResponse['results']> => {
@@ -32,16 +34,26 @@ export const useScimRequestLogs = ({
 }): UseInfiniteQueryResult<
     ApiScimRequestLogListResponse['results'],
     ApiError
-> =>
-    useInfiniteQuery<ApiScimRequestLogListResponse['results'], ApiError>({
-        queryKey: [SCIM_REQUEST_LOGS_QUERY_KEY, pageSize],
-        queryFn: async ({ pageParam = 0 }) =>
-            getScimRequestLogs((pageParam as number) + 1, pageSize),
-        getNextPageParam: (lastGroup, groups) => {
-            const currentPage = groups.length - 1;
-            const totalPages = lastGroup.pagination?.totalPageCount ?? 0;
-            return currentPage < totalPages - 1 ? currentPage + 1 : undefined;
+> => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<ApiScimRequestLogListResponse['results'], ApiError>(
+        {
+            queryKey: [SCIM_REQUEST_LOGS_QUERY_KEY, pageSize],
+            queryFn: async ({ pageParam = 0 }) =>
+                getScimRequestLogs(
+                    lightdashApi,
+                    (pageParam as number) + 1,
+                    pageSize,
+                ),
+            getNextPageParam: (lastGroup, groups) => {
+                const currentPage = groups.length - 1;
+                const totalPages = lastGroup.pagination?.totalPageCount ?? 0;
+                return currentPage < totalPages - 1
+                    ? currentPage + 1
+                    : undefined;
+            },
+            keepPreviousData: true,
+            refetchOnWindowFocus: false,
         },
-        keepPreviousData: true,
-        refetchOnWindowFocus: false,
-    });
+    );
+};

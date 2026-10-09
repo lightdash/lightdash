@@ -21,8 +21,9 @@ import {
     useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
@@ -31,6 +32,7 @@ const PROJECT_AI_MCP_SERVER_TOOLS_KEY = 'projectAiMcpServerTools';
 const AGENT_AI_MCP_SERVER_TOOLS_KEY = 'agentAiMcpServerTools';
 
 const listProjectAiMcpServers = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
 ): Promise<ApiAiProjectMcpServerListResponse['results']> =>
     lightdashApi<ApiAiProjectMcpServerListResponse['results']>({
@@ -41,6 +43,7 @@ const listProjectAiMcpServers = async (
     });
 
 const renameProjectAiMcpServer = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
     data: ApiRenameAiMcpServerBody,
@@ -53,6 +56,7 @@ const renameProjectAiMcpServer = async (
     });
 
 const deleteProjectAiMcpServer = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
 ): Promise<ApiSuccessEmpty['results']> =>
@@ -64,6 +68,7 @@ const deleteProjectAiMcpServer = async (
     });
 
 const listAgentAiMcpServers = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
 ): Promise<ApiAiMcpServerListResponse['results']> =>
@@ -75,6 +80,7 @@ const listAgentAiMcpServers = async (
     });
 
 const createProjectAiMcpServer = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ApiCreateAiMcpServer,
 ): Promise<ApiAiMcpServerResponse['results']> =>
@@ -86,6 +92,7 @@ const createProjectAiMcpServer = async (
     });
 
 const updateProjectAiMcpServerCredential = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
     data: ApiUpdateAiMcpServerCredentialBody,
@@ -98,6 +105,7 @@ const updateProjectAiMcpServerCredential = async (
     });
 
 const getGithubMcpAvailability = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
 ): Promise<ApiAiMcpGithubAvailabilityResponse['results']> =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,6 +117,7 @@ const getGithubMcpAvailability = async (
     });
 
 const connectGithubMcpServer = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     body: ApiConnectGithubMcpServerBody,
 ): Promise<ApiAiMcpServerResponse['results']> =>
@@ -120,6 +129,7 @@ const connectGithubMcpServer = async (
     });
 
 const connectGithubMcpServerApp = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
 ): Promise<ApiAiMcpServerResponse['results']> =>
     lightdashApi<ApiAiMcpServerResponse['results']>({
@@ -130,6 +140,7 @@ const connectGithubMcpServerApp = async (
     });
 
 const listAgentAiMcpServerTools = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     mcpServerUuid: string,
@@ -142,6 +153,7 @@ const listAgentAiMcpServerTools = async (
     });
 
 const refreshProjectAiMcpServerTools = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
 ): Promise<ApiAiMcpServerToolListResponse['results']> =>
@@ -153,6 +165,7 @@ const refreshProjectAiMcpServerTools = async (
     });
 
 const updateAgentAiMcpServerTools = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     mcpServerUuid: string,
@@ -166,6 +179,7 @@ const updateAgentAiMcpServerTools = async (
     });
 
 const startProjectAiMcpOAuthConnection = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
     data?: ApiAiMcpOAuthCredentialRequest,
@@ -178,6 +192,7 @@ const startProjectAiMcpOAuthConnection = async (
     });
 
 const disconnectProjectAiMcpOAuthConnection = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
     data?: ApiAiMcpOAuthCredentialRequest,
@@ -190,10 +205,11 @@ const disconnectProjectAiMcpOAuthConnection = async (
     });
 
 const getProjectAiMcpServerConnectionStatus = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
 ) => {
-    const mcpServers = await listProjectAiMcpServers(projectUuid);
+    const mcpServers = await listProjectAiMcpServers(lightdashApi, projectUuid);
     return (
         mcpServers.find((server) => server.uuid === mcpServerUuid)
             ?.connectionStatus ?? null
@@ -201,6 +217,7 @@ const getProjectAiMcpServerConnectionStatus = async (
 };
 
 const waitForProjectAiMcpServerConnection = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     mcpServerUuid: string,
     options?: {
@@ -224,6 +241,7 @@ const waitForProjectAiMcpServerConnection = async (
         const poll = async () => {
             const connectionStatus =
                 await getProjectAiMcpServerConnectionStatus(
+                    lightdashApi,
                     projectUuid,
                     mcpServerUuid,
                 );
@@ -249,17 +267,20 @@ const waitForProjectAiMcpServerConnection = async (
     });
 };
 
-const openOAuthPopup = async ({
-    authorizationUrl,
-    projectUuid,
-    mcpServerUuid,
-    popupWindow,
-}: {
-    authorizationUrl: string;
-    projectUuid: string;
-    mcpServerUuid: string;
-    popupWindow?: Window | null;
-}) => {
+const openOAuthPopup = async (
+    lightdashApi: LightdashApi,
+    {
+        authorizationUrl,
+        projectUuid,
+        mcpServerUuid,
+        popupWindow,
+    }: {
+        authorizationUrl: string;
+        projectUuid: string;
+        mcpServerUuid: string;
+        popupWindow?: Window | null;
+    },
+) => {
     const oauthPopupWindow =
         popupWindow ??
         window.open('', 'mcp-oauth-popup', 'width=600,height=700');
@@ -271,6 +292,7 @@ const openOAuthPopup = async ({
     oauthPopupWindow.location.href = authorizationUrl;
 
     const result = await waitForProjectAiMcpServerConnection(
+        lightdashApi,
         projectUuid,
         mcpServerUuid,
     );
@@ -293,12 +315,14 @@ export const useProjectAiMcpServers = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiProjectMcpServerListResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
-        queryFn: () => listProjectAiMcpServers(projectUuid!),
+        queryFn: () => listProjectAiMcpServers(lightdashApi, projectUuid!),
         ...options,
         enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
         onError: (error) => {
@@ -316,12 +340,15 @@ export const useAgentAiMcpServers = (
     agentUuid: string | undefined,
     options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
         queryKey: [AGENT_AI_MCP_SERVERS_KEY, projectUuid, agentUuid],
-        queryFn: () => listAgentAiMcpServers(projectUuid!, agentUuid!),
+        queryFn: () =>
+            listAgentAiMcpServers(lightdashApi, projectUuid!, agentUuid!),
         ...options,
         enabled:
             !isEmbed &&
@@ -347,6 +374,8 @@ export const useAgentAiMcpServerTools = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentMcpServerToolListResponse['results'], ApiError>({
@@ -357,7 +386,12 @@ export const useAgentAiMcpServerTools = (
             mcpServerUuid,
         ],
         queryFn: () =>
-            listAgentAiMcpServerTools(projectUuid!, agentUuid!, mcpServerUuid!),
+            listAgentAiMcpServerTools(
+                lightdashApi,
+                projectUuid!,
+                agentUuid!,
+                mcpServerUuid!,
+            ),
         enabled:
             !!projectUuid &&
             !!agentUuid &&
@@ -375,6 +409,8 @@ export const useAgentAiMcpServerTools = (
 };
 
 export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -383,7 +419,8 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
         ApiError,
         ApiCreateAiMcpServer
     >({
-        mutationFn: (data) => createProjectAiMcpServer(projectUuid, data),
+        mutationFn: (data) =>
+            createProjectAiMcpServer(lightdashApi, projectUuid, data),
         onSuccess: async (result) => {
             showToastSuccess({
                 title: 'MCP server created successfully',
@@ -419,6 +456,8 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
 };
 
 export const useUpdateAiMcpServerCredentialMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -428,9 +467,14 @@ export const useUpdateAiMcpServerCredentialMutation = (projectUuid: string) => {
         { mcpServerUuid: string; bearerToken: string }
     >({
         mutationFn: ({ mcpServerUuid, bearerToken }) =>
-            updateProjectAiMcpServerCredential(projectUuid, mcpServerUuid, {
-                bearerToken,
-            }),
+            updateProjectAiMcpServerCredential(
+                lightdashApi,
+                projectUuid,
+                mcpServerUuid,
+                {
+                    bearerToken,
+                },
+            ),
         onSuccess: async () => {
             showToastSuccess({ title: 'Token updated' });
             await queryClient.invalidateQueries({
@@ -460,6 +504,8 @@ const invalidateMcpServerLists = (
     ]);
 
 export const useRenameAiMcpServerMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -469,7 +515,9 @@ export const useRenameAiMcpServerMutation = (projectUuid: string) => {
         { mcpServerUuid: string; name: string }
     >({
         mutationFn: ({ mcpServerUuid, name }) =>
-            renameProjectAiMcpServer(projectUuid, mcpServerUuid, { name }),
+            renameProjectAiMcpServer(lightdashApi, projectUuid, mcpServerUuid, {
+                name,
+            }),
         onSuccess: async () => {
             await invalidateMcpServerLists(queryClient, projectUuid);
         },
@@ -483,12 +531,14 @@ export const useRenameAiMcpServerMutation = (projectUuid: string) => {
 };
 
 export const useDeleteAiMcpServerMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<ApiSuccessEmpty['results'], ApiError, string>({
         mutationFn: (mcpServerUuid) =>
-            deleteProjectAiMcpServer(projectUuid, mcpServerUuid),
+            deleteProjectAiMcpServer(lightdashApi, projectUuid, mcpServerUuid),
         onSuccess: async () => {
             showToastSuccess({ title: 'MCP server deleted' });
             await invalidateMcpServerLists(queryClient, projectUuid);
@@ -511,16 +561,20 @@ export const useGithubMcpAvailability = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const isEmbed = useIsEmbedded();
     return useQuery<ApiAiMcpGithubAvailabilityResponse['results'], ApiError>({
         queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
-        queryFn: () => getGithubMcpAvailability(projectUuid!),
+        queryFn: () => getGithubMcpAvailability(lightdashApi, projectUuid!),
         ...options,
         enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
     });
 };
 
 export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -529,7 +583,8 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
         ApiError,
         ApiConnectGithubMcpServerBody
     >({
-        mutationFn: (body) => connectGithubMcpServer(projectUuid, body),
+        mutationFn: (body) =>
+            connectGithubMcpServer(lightdashApi, projectUuid, body),
         onSuccess: async (result) => {
             showToastSuccess({
                 title: 'GitHub connected',
@@ -552,11 +607,13 @@ export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
 };
 
 export const useConnectGithubMcpServerAppMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<ApiAiMcpServerResponse['results'], ApiError, void>({
-        mutationFn: () => connectGithubMcpServerApp(projectUuid),
+        mutationFn: () => connectGithubMcpServerApp(lightdashApi, projectUuid),
         onSuccess: async (result) => {
             showToastSuccess({
                 title: 'GitHub connected',
@@ -579,6 +636,8 @@ export const useConnectGithubMcpServerAppMutation = (projectUuid: string) => {
 };
 
 export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
@@ -592,7 +651,11 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
         }
     >({
         mutationFn: ({ mcpServerUuid }) =>
-            refreshProjectAiMcpServerTools(projectUuid, mcpServerUuid),
+            refreshProjectAiMcpServerTools(
+                lightdashApi,
+                projectUuid,
+                mcpServerUuid,
+            ),
         onSuccess: async (_, variables) => {
             if (variables.showSuccessToast) {
                 showToastSuccess({
@@ -644,6 +707,8 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
 };
 
 export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastError, showToastSuccess } =
         useToaster();
@@ -659,11 +724,12 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
     >({
         mutationFn: async ({ mcpServerUuid, credentialScope, popupWindow }) => {
             const { authorizationUrl } = await startProjectAiMcpOAuthConnection(
+                lightdashApi,
                 projectUuid,
                 mcpServerUuid,
                 credentialScope ? { credentialScope } : undefined,
             );
-            await openOAuthPopup({
+            await openOAuthPopup(lightdashApi, {
                 authorizationUrl,
                 projectUuid,
                 mcpServerUuid,
@@ -703,6 +769,8 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
 export const useDisconnectMcpOAuthConnectionMutation = (
     projectUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
 
@@ -716,6 +784,7 @@ export const useDisconnectMcpOAuthConnectionMutation = (
     >({
         mutationFn: async ({ mcpServerUuid, credentialScope }) => {
             await disconnectProjectAiMcpOAuthConnection(
+                lightdashApi,
                 projectUuid,
                 mcpServerUuid,
                 credentialScope ? { credentialScope } : undefined,
@@ -747,6 +816,8 @@ export const useUpdateAgentAiMcpServerToolsMutation = (
     agentUuid: string,
     mcpServerUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -757,6 +828,7 @@ export const useUpdateAgentAiMcpServerToolsMutation = (
     >(
         (data) =>
             updateAgentAiMcpServerTools(
+                lightdashApi,
                 projectUuid,
                 agentUuid,
                 mcpServerUuid,

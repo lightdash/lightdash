@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import DocumentPage from './Document';
 
 const mocks = vi.hoisted(() => ({
@@ -26,7 +27,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.unmock('@uiw/react-markdown-preview');
-vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../api');
 vi.mock('../features/documents/useCanEditDocument', () => ({
     useCanEditDocument: () => true,
 }));
@@ -260,8 +261,8 @@ describe('Document page', () => {
         mocks.canRequestReview = false;
         mocks.chartFails = false;
         mocks.chart.mockReset();
-        mocks.api.mockReset();
-        mocks.api.mockResolvedValue(document);
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockResolvedValue(document);
         mocks.flag = {
             data: { enabled: true },
             isInitialLoading: false,
@@ -300,7 +301,7 @@ describe('Document page', () => {
         mocks.flag.isInitialLoading = true;
         renderPage();
         expect(screen.getByText('Loading document')).toBeInTheDocument();
-        expect(mocks.api).not.toHaveBeenCalled();
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
     });
 
     test.each([
@@ -310,13 +311,13 @@ describe('Document page', () => {
         mocks.flag = flag;
         renderPage();
         expect(await screen.findByText('Project home')).toBeInTheDocument();
-        expect(mocks.api).not.toHaveBeenCalled();
+        expect(mockedLightdashApi).not.toHaveBeenCalled();
     });
 
     test('shows the document loading state until the request resolves', async () => {
-        mocks.api.mockReturnValue(new Promise(() => {}));
+        mockedLightdashApi.mockReturnValue(new Promise(() => {}));
         renderPage();
-        await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+        await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
         expect(screen.getByText('Loading document')).toBeInTheDocument();
     });
 
@@ -341,7 +342,7 @@ describe('Document page', () => {
         expect(
             screen.getByRole('navigation', { name: 'Report contents' }),
         ).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/document-uuid',
                 method: 'GET',
@@ -357,7 +358,7 @@ describe('Document page', () => {
     });
 
     test('shows the creator beside the edit timestamp without attributing the latest edit to them', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             createdBy: {
                 userUuid: 'original-author',
@@ -388,7 +389,7 @@ describe('Document page', () => {
     });
 
     test('identifies the opening section even when an introductory cell precedes it', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
@@ -411,7 +412,7 @@ describe('Document page', () => {
     });
 
     test('shows unavailable content without leaking the server error', async () => {
-        mocks.api.mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Internal detail', statusCode: 404 },
         });
         renderPage();
@@ -426,7 +427,7 @@ describe('Document page', () => {
     test('loads a document slug but passes resolved UUIDs to chart queries', async () => {
         renderPage(undefined, 'weekly-review');
         expect(await screen.findByTestId('document-chart')).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/weekly-review',
                 method: 'GET',
@@ -464,7 +465,7 @@ describe('Document page', () => {
     });
 
     test('omits chart names and Markdown H2s from the contents', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
@@ -506,7 +507,7 @@ describe('Document page', () => {
         const errorLog = vi
             .spyOn(console, 'error')
             .mockImplementation(() => {});
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
@@ -559,7 +560,7 @@ describe('Document page', () => {
 
     test('renders section titles as literal text rather than Markdown or HTML', async () => {
         const title = '<img src=x onerror=alert(1)> **Results**';
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
@@ -583,7 +584,7 @@ describe('Document page', () => {
     });
 
     test('renders an empty document explicitly', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: { ...document.version, content: toContent([]) },
         });
@@ -594,7 +595,7 @@ describe('Document page', () => {
     });
 
     test('shows an unknown tag as text and preserves neighboring content', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,
@@ -614,7 +615,7 @@ describe('Document page', () => {
     });
 
     test('returns to a validated internal research location', async () => {
-        mocks.api.mockRejectedValue({ error: { statusCode: 404 } });
+        mockedLightdashApi.mockRejectedValue({ error: { statusCode: 404 } });
         const { router } = renderPage(
             '/projects/project-uuid/research?run=123#report',
         );
@@ -625,7 +626,7 @@ describe('Document page', () => {
     });
 
     test('replaces an external return location with the canonical document list', async () => {
-        mocks.api.mockRejectedValue({ error: { statusCode: 404 } });
+        mockedLightdashApi.mockRejectedValue({ error: { statusCode: 404 } });
         renderPage('https://example.com/projects/project-uuid/research');
         expect(
             await screen.findByRole('link', { name: 'Back' }),
@@ -635,7 +636,7 @@ describe('Document page', () => {
     test.each(['Weekly review', 'A long document name '.repeat(20)])(
         'shows one document title with its actions and no Back: %s',
         async (name) => {
-            mocks.api.mockResolvedValue({ ...document, name });
+            mockedLightdashApi.mockResolvedValue({ ...document, name });
             renderPage('/projects/project-uuid/research');
             expect(
                 await screen.findByRole('heading', {
@@ -663,7 +664,7 @@ describe('Document page', () => {
     );
 
     test('renders real markdown without raw HTML or unsafe URL schemes', async () => {
-        mocks.api.mockResolvedValue({
+        mockedLightdashApi.mockResolvedValue({
             ...document,
             version: {
                 ...document.version,

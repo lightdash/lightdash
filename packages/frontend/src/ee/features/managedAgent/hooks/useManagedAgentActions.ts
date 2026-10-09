@@ -4,8 +4,9 @@ import {
     type ManagedAgentTargetType,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export type ManagedAgentActionQueryFilters = {
     search?: string;
@@ -16,6 +17,7 @@ export type ManagedAgentActionQueryFilters = {
 };
 
 const getActions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     runUuid?: string,
     filters?: ManagedAgentActionQueryFilters,
@@ -43,6 +45,7 @@ export const useManagedAgentActions = (
         filters?: ManagedAgentActionQueryFilters;
     } = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const isEnabled = opts.enabled ?? true;
     return useQuery<ManagedAgentAction[]>({
@@ -52,7 +55,8 @@ export const useManagedAgentActions = (
             ...(opts.runUuid ? [opts.runUuid] : []),
             ...(opts.filters ? [opts.filters] : []),
         ],
-        queryFn: () => getActions(projectUuid!, opts.runUuid, opts.filters),
+        queryFn: () =>
+            getActions(lightdashApi, projectUuid!, opts.runUuid, opts.filters),
         enabled: !!projectUuid && isEnabled,
         keepPreviousData: !!opts.filters,
         refetchInterval: isEnabled ? (opts.fastPoll ? 3000 : 30000) : false,

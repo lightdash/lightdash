@@ -4,15 +4,20 @@ import {
     type ApiJobStatusResponse,
 } from '@lightdash/common';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 
 // Recursively poll the job status until it is completed or errored
 const getIndexCatalogCompleteJob = async (
+    lightdashApi: LightdashApi,
     jobId: string,
 ): Promise<ApiJobStatusResponse['results']> => {
-    const job =
-        await getSchedulerJobStatus<ApiJobStatusResponse['results']>(jobId);
+    const job = await getSchedulerJobStatus<ApiJobStatusResponse['results']>(
+        lightdashApi,
+        jobId,
+    );
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job;
     }
@@ -29,7 +34,7 @@ const getIndexCatalogCompleteJob = async (
     }
     return new Promise((resolve) => {
         setTimeout(async () => {
-            resolve(await getIndexCatalogCompleteJob(jobId));
+            resolve(await getIndexCatalogCompleteJob(lightdashApi, jobId));
         }, 2000); // retry after 2 seconds
     });
 };
@@ -38,11 +43,12 @@ export const useIndexCatalogJob = (
     jobId: string | undefined,
     onSuccess: (job: ApiJobStatusResponse['results']) => void,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastError } = useToaster();
     const queryClient = useQueryClient();
     return useQuery<ApiJobStatusResponse['results'], ApiError>({
         queryKey: ['index-catalog-job', jobId],
-        queryFn: () => getIndexCatalogCompleteJob(jobId || ''),
+        queryFn: () => getIndexCatalogCompleteJob(lightdashApi, jobId || ''),
         enabled: !!jobId,
         staleTime: 0,
         onSuccess: async (job) => {

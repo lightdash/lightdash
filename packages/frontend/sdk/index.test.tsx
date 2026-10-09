@@ -4,15 +4,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockEmbedWriteContext: { canUpdateSavedChart: boolean } | undefined;
 
+const requestFromInstance = (lightdashApi: LightdashApi, url: string) =>
+    lightdashApi({ url, method: 'GET', body: undefined });
+
 vi.mock('../src/ee/pages/EmbedDashboard', async () => {
     const { default: useEmbed } =
         await import('../src/ee/providers/Embed/useEmbed');
+    const { useLightdashApi } =
+        await import('../src/providers/LightdashApi/useLightdashApi');
 
     return {
         default: function MockEmbedDashboard() {
             const { onExplore } = useEmbed();
+            const lightdashApi = useLightdashApi();
             return (
                 <div data-testid="embed-dashboard">
+                    <button
+                        data-testid="dashboard-request"
+                        onClick={() =>
+                            void requestFromInstance(lightdashApi, '/dashboard')
+                        }
+                    />
                     <button
                         data-testid="saved-chart-explore"
                         onClick={() =>
@@ -44,12 +56,21 @@ vi.mock('../src/components/MonacoEditor', () => ({
 vi.mock('../src/ee/pages/EmbedChart', async () => {
     const { default: useEmbed } =
         await import('../src/ee/providers/Embed/useEmbed');
+    const { useLightdashApi } =
+        await import('../src/providers/LightdashApi/useLightdashApi');
 
     return {
         default: function MockEmbedChart() {
             const { embedToken, onExplore } = useEmbed();
+            const lightdashApi = useLightdashApi();
             return (
                 <div data-testid="embed-chart-view" data-token={embedToken}>
+                    <button
+                        data-testid="chart-request"
+                        onClick={() =>
+                            void requestFromInstance(lightdashApi, '/chart')
+                        }
+                    />
                     <button
                         data-testid="chart-saved-explore"
                         onClick={() =>
@@ -349,7 +370,7 @@ import { FilterOperator } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { lightdashApi } from '../src/api';
+import { type LightdashApi } from '../src/api';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { EMBED_KEY, type InMemoryEmbed } from '../src/ee/providers/Embed/types';
 import {
@@ -1381,8 +1402,18 @@ describe('SDK token rotation', () => {
     const tokenB = `${header}.${payload}.signature-b`;
     const instanceUrl = 'http://localhost:3000';
     const originalLocation = window.location;
-    const storedToken = () =>
-        getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token;
+    const sentToken = (fetchMock: ReturnType<typeof vi.fn>) =>
+        fetchMock.mock.calls.at(-1)?.[1].headers['lightdash-embed-token'];
+    const stubFetch = () => {
+        const fetchMock = vi.fn().mockImplementation(
+            async () =>
+                new Response(JSON.stringify({ status: 'ok', results: {} }), {
+                    status: 200,
+                }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+        return fetchMock;
+    };
 
     beforeEach(() => {
         clearInMemoryStorage();
@@ -1400,29 +1431,24 @@ describe('SDK token rotation', () => {
     });
 
     it('sends the rotated token on the next request without remounting', async () => {
-        const fetchMock = vi.fn().mockResolvedValue(
-            new Response(JSON.stringify({ status: 'ok', results: {} }), {
-                status: 200,
-            }),
-        );
-        vi.stubGlobal('fetch', fetchMock);
+        const fetchMock = stubFetch();
 
         const { rerender, getByTestId } = render(
             <Dashboard token={tokenA} instanceUrl={instanceUrl} filters={[]} />,
         );
-        await waitFor(() => expect(storedToken()).toBe(tokenA));
+        await waitFor(() => getByTestId('embed-dashboard'));
+        fireEvent.click(getByTestId('dashboard-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenA));
         const mountedDashboard = getByTestId('embed-dashboard');
 
         rerender(
             <Dashboard token={tokenB} instanceUrl={instanceUrl} filters={[]} />,
         );
-        await waitFor(() => expect(storedToken()).toBe(tokenB));
-
+        await waitFor(() => getByTestId('embed-dashboard'));
         expect(getByTestId('embed-dashboard')).toBe(mountedDashboard);
 
-        await lightdashApi({ url: '/anything', method: 'GET' });
-        const [, requestInit] = fetchMock.mock.calls[0];
-        expect(requestInit.headers['lightdash-embed-token']).toBe(tokenB);
+        fireEvent.click(getByTestId('dashboard-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenB));
     });
 
     it('ignores an older token promise that resolves after a newer one', async () => {
@@ -1451,7 +1477,9 @@ describe('SDK token rotation', () => {
         });
 
         expect(getByTestId('embed-chart-view').dataset.token).toBe(tokenB);
-        expect(storedToken()).toBe(tokenB);
+        const fetchMock = stubFetch();
+        fireEvent.click(getByTestId('chart-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenB));
     });
 
     const renderProvider = (
@@ -1486,12 +1514,81 @@ describe('SDK token rotation', () => {
         window.location = { ...window.location, hash: `#${tokenA}` };
 
         const { rerender } = render(renderProvider(queryClient, undefined));
-        expect(storedToken()).toBe(tokenA);
+        expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
+            tokenA,
+        );
 
         window.location = { ...window.location, hash: '' };
         rerender(renderProvider(queryClient, undefined));
 
-        expect(storedToken()).toBe(tokenA);
+        expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
+            tokenA,
+        );
+    });
+});
+
+describe('SDK components with different tokens on one page', () => {
+    const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const payload =
+        'eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0';
+    const dashboardToken = `${header}.${payload}.dashboard`;
+    const chartToken = `${header}.${payload}.chart`;
+    const instanceUrl = 'http://localhost:3000';
+
+    beforeEach(() => {
+        clearInMemoryStorage();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('sends each component its own token, whichever rendered last', async () => {
+        const fetchMock = vi.fn().mockImplementation(
+            async () =>
+                new Response(JSON.stringify({ status: 'ok', results: {} }), {
+                    status: 200,
+                }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { getByTestId, rerender } = render(
+            <>
+                <Dashboard
+                    token={dashboardToken}
+                    instanceUrl={instanceUrl}
+                    filters={[]}
+                />
+                <Chart token={chartToken} instanceUrl={instanceUrl} id="c1" />
+            </>,
+        );
+        await waitFor(() => getByTestId('dashboard-request'));
+        await waitFor(() => getByTestId('chart-request'));
+        rerender(
+            <>
+                <Dashboard
+                    token={dashboardToken}
+                    instanceUrl={instanceUrl}
+                    filters={[]}
+                />
+                <Chart token={chartToken} instanceUrl={instanceUrl} id="c1" />
+            </>,
+        );
+
+        fireEvent.click(getByTestId('dashboard-request'));
+        fireEvent.click(getByTestId('chart-request'));
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        const tokenByUrl = Object.fromEntries(
+            fetchMock.mock.calls.map(([url, init]) => [
+                new URL(url).pathname,
+                init.headers['lightdash-embed-token'],
+            ]),
+        );
+        expect(tokenByUrl).toEqual({
+            '/api/v1/dashboard': dashboardToken,
+            '/api/v1/chart': chartToken,
+        });
     });
 });
 

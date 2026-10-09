@@ -10,11 +10,12 @@ import {
     type ResultColumns,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../../api';
+import { type LightdashApi } from '../../../../../api';
 import {
     pollForResults,
     readPivotQueryResults,
 } from '../../../../../features/queryRunner/executeQuery';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 
 export type ComposerPivotResult = {
     pivotChartData: PivotChartData;
@@ -35,6 +36,7 @@ const toPivotConfiguration = (
 
 /** Pivots a stored node result on the compose engine: one DuckDB node reading it by query id. No warehouse query. */
 const executeComposerPivot = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     layout: PivotChartLayout,
@@ -65,10 +67,15 @@ const executeComposerPivot = async (
     const submission = queries[0];
     if (!submission) throw new Error('Pivot query was not submitted');
 
-    const query = await pollForResults(projectUuid, submission.queryUuid);
+    const query = await pollForResults(
+        lightdashApi,
+        projectUuid,
+        submission.queryUuid,
+    );
     if (query.status === QueryHistoryStatus.EXPIRED)
         throw new ComposerPivotExpiredError(query.error ?? 'Results expired');
     const { originalColumns, ...pivotResults } = await readPivotQueryResults(
+        lightdashApi,
         projectUuid,
         query,
     );
@@ -92,8 +99,9 @@ export const useComposerPivot = ({
     projectUuid: string;
     queryUuid: string | null;
     layout: PivotChartLayout | null;
-}) =>
-    useQuery<ComposerPivotResult, Error>({
+}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ComposerPivotResult, Error>({
         queryKey: [
             'composerPivot',
             projectUuid,
@@ -102,9 +110,15 @@ export const useComposerPivot = ({
         ],
         queryFn: () =>
             queryUuid && layout
-                ? executeComposerPivot(projectUuid, queryUuid, layout)
+                ? executeComposerPivot(
+                      lightdashApi,
+                      projectUuid,
+                      queryUuid,
+                      layout,
+                  )
                 : Promise.reject(new Error('Nothing to pivot')),
         enabled: queryUuid !== null && layout !== null,
         staleTime: Infinity,
         retry: false,
     });
+};

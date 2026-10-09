@@ -4,19 +4,23 @@ import {
     type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
 const QUERY_KEY = ['organization_settings'];
 
-const getOrganizationSettings = async () =>
+const getOrganizationSettings = async (lightdashApi: LightdashApi) =>
     lightdashApi<OrganizationSettings>({
         url: '/org/settings',
         method: 'GET',
         body: undefined,
     });
 
-const updateOrganizationSettings = async (data: UpdateOrganizationSettings) =>
+const updateOrganizationSettings = async (
+    lightdashApi: LightdashApi,
+    data: UpdateOrganizationSettings,
+) =>
     lightdashApi<OrganizationSettings>({
         url: '/org/settings',
         method: 'PATCH',
@@ -25,31 +29,38 @@ const updateOrganizationSettings = async (data: UpdateOrganizationSettings) =>
 
 export const useOrganizationSettings = ({
     enabled = true,
-}: { enabled?: boolean } = {}) =>
-    useQuery<OrganizationSettings, ApiError>({
+}: { enabled?: boolean } = {}) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<OrganizationSettings, ApiError>({
         queryKey: QUERY_KEY,
-        queryFn: getOrganizationSettings,
+        queryFn: () => getOrganizationSettings(lightdashApi),
         enabled,
     });
+};
 
 export const useUpdateOrganizationSettings = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<
         OrganizationSettings,
         ApiError,
         UpdateOrganizationSettings
-    >(updateOrganizationSettings, {
-        mutationKey: ['organization_settings', 'update'],
-        onSuccess: async () => {
-            await queryClient.invalidateQueries(QUERY_KEY);
-            showToastSuccess({ title: 'Organization settings saved' });
+    >(
+        (data: UpdateOrganizationSettings) =>
+            updateOrganizationSettings(lightdashApi, data),
+        {
+            mutationKey: ['organization_settings', 'update'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(QUERY_KEY);
+                showToastSuccess({ title: 'Organization settings saved' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to save organization settings',
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to save organization settings',
-                apiError: error,
-            });
-        },
-    });
+    );
 };

@@ -12,17 +12,21 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import { pollJobStatus } from '../../../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
-const getFieldsForChart = async ({
-    projectUuid,
-    chartUuid,
-}: {
-    projectUuid: string;
-    chartUuid: string;
-}) => {
+const getFieldsForChart = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        chartUuid,
+    }: {
+        projectUuid: string;
+        chartUuid: string;
+    },
+) => {
     return lightdashApi<ApiRenameFieldsResponse['results']>({
         url: `/projects/${projectUuid}/rename/chart/${chartUuid}/fields`,
         method: 'GET',
@@ -31,10 +35,11 @@ const getFieldsForChart = async ({
 };
 
 export const useFieldsForChart = (projectUuid?: string, chartUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiRenameFieldsResponse['results'], ApiError>({
         queryKey: ['fields-for-chart', projectUuid, chartUuid],
         queryFn: () =>
-            getFieldsForChart({
+            getFieldsForChart(lightdashApi, {
                 projectUuid: projectUuid!,
                 chartUuid: chartUuid!,
             }),
@@ -42,14 +47,17 @@ export const useFieldsForChart = (projectUuid?: string, chartUuid?: string) => {
     });
 };
 
-const renameChart = async ({
-    projectUuid,
-    chartUuid,
-    from,
-    to,
-    fixAll,
-    type,
-}: ApiRenameChartBody & { projectUuid: string; chartUuid: string }) => {
+const renameChart = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        chartUuid,
+        from,
+        to,
+        fixAll,
+        type,
+    }: ApiRenameChartBody & { projectUuid: string; chartUuid: string },
+) => {
     return lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/projects/${projectUuid}/rename/chart/${chartUuid}`,
         method: 'POST',
@@ -64,6 +72,7 @@ const renameChart = async ({
 };
 
 export const useRenameChart = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError, showToastInfo } = useToaster();
     return useMutation<
         ApiRenameChartResponse['results'],
@@ -76,7 +85,7 @@ export const useRenameChart = () => {
     >({
         mutationKey: ['rename-chart'],
         mutationFn: (data) => {
-            return renameChart(data);
+            return renameChart(lightdashApi, data);
         },
 
         onSuccess: async (job, { fixAll, from, type, resourceUrl }) => {
@@ -101,7 +110,7 @@ export const useRenameChart = () => {
                     key: 'rename_references_toast',
                     title: `Updating ${type} "${from}" in other charts...`,
                 });
-                pollJobStatus(job.jobId)
+                pollJobStatus(lightdashApi, job.jobId)
                     .then((status) => {
                         const totalCharts =
                             status?.results?.charts?.length || 0;
@@ -131,13 +140,16 @@ export const useRenameChart = () => {
     });
 };
 
-const previewRename = async ({
-    projectUuid,
-    from,
-    to,
-    type,
-    model,
-}: ApiRenameBody & { projectUuid: string }) => {
+const previewRename = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        from,
+        to,
+        type,
+        model,
+    }: ApiRenameBody & { projectUuid: string },
+) => {
     return lightdashApi<ApiRenameResponse['results']>({
         url: `/projects/${projectUuid}/rename/preview`,
         method: 'POST',
@@ -146,25 +158,30 @@ const previewRename = async ({
 };
 
 export const usePreviewRename = () => {
+    const lightdashApi = useLightdashApi();
     return useMutation<
         ApiRenameResponse['results'],
         ApiError,
         ApiRenameBody & { projectUuid: string }
     >({
         mutationKey: ['preview-rename'],
-        mutationFn: previewRename,
+        mutationFn: (args: ApiRenameBody & { projectUuid: string }) =>
+            previewRename(lightdashApi, args),
     });
 };
 
-const getFieldsForDashboard = async ({
-    projectUuid,
-    dashboardUuid,
-    table,
-}: {
-    projectUuid: string;
-    dashboardUuid: string;
-    table?: string;
-}) => {
+const getFieldsForDashboard = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        dashboardUuid,
+        table,
+    }: {
+        projectUuid: string;
+        dashboardUuid: string;
+        table?: string;
+    },
+) => {
     const params = table ? `?table=${encodeURIComponent(table)}` : '';
     return lightdashApi<ApiRenameFieldsResponse['results']>({
         url: `/projects/${projectUuid}/rename/dashboard/${dashboardUuid}/fields${params}`,
@@ -178,10 +195,11 @@ export const useFieldsForDashboard = (
     dashboardUuid?: string,
     table?: string,
 ) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiRenameFieldsResponse['results'], ApiError>({
         queryKey: ['fields-for-dashboard', projectUuid, dashboardUuid, table],
         queryFn: () =>
-            getFieldsForDashboard({
+            getFieldsForDashboard(lightdashApi, {
                 projectUuid: projectUuid!,
                 dashboardUuid: dashboardUuid!,
                 table,
@@ -190,17 +208,20 @@ export const useFieldsForDashboard = (
     });
 };
 
-const renameDashboard = async ({
-    projectUuid,
-    dashboardUuid,
-    from,
-    to,
-    fixAll,
-    type,
-}: ApiRenameDashboardBody & {
-    projectUuid: string;
-    dashboardUuid: string;
-}) => {
+const renameDashboard = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        dashboardUuid,
+        from,
+        to,
+        fixAll,
+        type,
+    }: ApiRenameDashboardBody & {
+        projectUuid: string;
+        dashboardUuid: string;
+    },
+) => {
     return lightdashApi<ApiJobScheduledResponse['results']>({
         url: `/projects/${projectUuid}/rename/dashboard/${dashboardUuid}`,
         method: 'POST',
@@ -214,6 +235,7 @@ const renameDashboard = async ({
 };
 
 export const useRenameDashboard = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastError, showToastInfo } = useToaster();
     return useMutation<
         ApiRenameDashboardResponse['results'],
@@ -226,7 +248,7 @@ export const useRenameDashboard = () => {
     >({
         mutationKey: ['rename-dashboard'],
         mutationFn: (data) => {
-            return renameDashboard(data);
+            return renameDashboard(lightdashApi, data);
         },
 
         onSuccess: async (job, { fixAll, from, type, resourceUrl }) => {
@@ -251,7 +273,7 @@ export const useRenameDashboard = () => {
                     key: 'rename_dashboard_references_toast',
                     title: `Updating ${type} "${from}" in other charts and dashboards...`,
                 });
-                pollJobStatus(job.jobId)
+                pollJobStatus(lightdashApi, job.jobId)
                     .then((status) => {
                         const totalCharts =
                             status?.results?.charts?.length || 0;

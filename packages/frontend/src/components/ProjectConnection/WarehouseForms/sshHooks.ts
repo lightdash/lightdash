@@ -1,11 +1,12 @@
 import { type ApiError, type ApiSshKeyPairResponse } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const useCreateSshKeyPair = (
     options: UseMutationOptions<ApiSshKeyPairResponse['results'], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<ApiSshKeyPairResponse['results'], ApiError>(
         async () =>

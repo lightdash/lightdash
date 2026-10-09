@@ -11,7 +11,8 @@ import {
     useQuery,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 export type McpActivityArgs = {
     filters: McpActivityFilters;
@@ -35,6 +36,7 @@ function createQueryString(params: Record<string, unknown>): string {
 }
 
 const getMcpActivity = async (
+    lightdashApi: LightdashApi,
     args: McpActivityFilters & {
         sortField: McpActivitySort['field'];
         sortDirection: McpActivitySort['direction'];
@@ -52,7 +54,10 @@ const getMcpActivity = async (
     });
 };
 
-const getMcpActivityStats = async (filters: McpActivityStatsFilters) => {
+const getMcpActivityStats = async (
+    lightdashApi: LightdashApi,
+    filters: McpActivityStatsFilters,
+) => {
     const params = createQueryString(filters);
     return lightdashApi<ApiMcpActivityStatsResponse['results']>({
         version: 'v1',
@@ -62,12 +67,14 @@ const getMcpActivityStats = async (filters: McpActivityStatsFilters) => {
     });
 };
 
-export const useMcpActivityStats = (filters: McpActivityStatsFilters) =>
-    useQuery<ApiMcpActivityStatsResponse['results'], ApiError>({
+export const useMcpActivityStats = (filters: McpActivityStatsFilters) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiMcpActivityStatsResponse['results'], ApiError>({
         queryKey: ['mcp-activity-stats', filters],
-        queryFn: () => getMcpActivityStats(filters),
+        queryFn: () => getMcpActivityStats(lightdashApi, filters),
         keepPreviousData: true,
     });
+};
 
 export const useInfiniteMcpActivity = (
     args: McpActivityArgs,
@@ -76,10 +83,11 @@ export const useInfiniteMcpActivity = (
         ApiError
     > = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<ApiMcpActivityResponse['results'], ApiError>({
         queryKey: ['mcp-activity', args],
         queryFn: async ({ pageParam }) => {
-            return getMcpActivity({
+            return getMcpActivity(lightdashApi, {
                 ...args.filters,
                 sortField: args.sort.field,
                 sortDirection: args.sort.direction,

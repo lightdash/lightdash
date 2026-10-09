@@ -9,7 +9,8 @@ import {
     useQueryClient,
     type InfiniteData,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { updateMetricsCatalogQuery } from '../utils/updateMetricsCatalogQuery';
 
 type UpdateCatalogItemIconParams = {
@@ -18,11 +19,10 @@ type UpdateCatalogItemIconParams = {
     icon: CatalogItemIcon | null;
 };
 
-const updateCatalogItemIcon = async ({
-    projectUuid,
-    catalogSearchUuid,
-    icon,
-}: UpdateCatalogItemIconParams) => {
+const updateCatalogItemIcon = async (
+    lightdashApi: LightdashApi,
+    { projectUuid, catalogSearchUuid, icon }: UpdateCatalogItemIconParams,
+) => {
     return lightdashApi<ApiSuccessEmpty['results']>({
         url: `/projects/${projectUuid}/dataCatalog/${catalogSearchUuid}/icon`,
         method: 'PATCH',
@@ -34,6 +34,7 @@ const updateCatalogItemIcon = async ({
  * Update a catalog item's icon
  */
 export const useUpdateCatalogItemIcon = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty['results'],
@@ -44,7 +45,8 @@ export const useUpdateCatalogItemIcon = () => {
         }
     >({
         mutationKey: ['update-catalog-item-icon'],
-        mutationFn: updateCatalogItemIcon,
+        mutationFn: (args: UpdateCatalogItemIconParams) =>
+            updateCatalogItemIcon(lightdashApi, args),
         onMutate: async ({ catalogSearchUuid, icon, projectUuid }) => {
             await queryClient.cancelQueries({
                 queryKey: ['metrics-catalog', projectUuid],

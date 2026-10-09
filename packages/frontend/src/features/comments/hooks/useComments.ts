@@ -8,7 +8,8 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type CreateDashboardTileComment = Pick<
     Comment,
@@ -20,14 +21,17 @@ type CreateDashboardTileComment = Pick<
     replyTo?: string;
 };
 
-const createDashboardTileComment = async ({
-    dashboardUuid,
-    dashboardTileUuid,
-    text,
-    textHtml,
-    replyTo,
-    mentions,
-}: CreateDashboardTileComment) =>
+const createDashboardTileComment = async (
+    lightdashApi: LightdashApi,
+    {
+        dashboardUuid,
+        dashboardTileUuid,
+        text,
+        textHtml,
+        replyTo,
+        mentions,
+    }: CreateDashboardTileComment,
+) =>
     lightdashApi<ApiCreateComment['results']>({
         url: `/comments/dashboards/${dashboardUuid}/${dashboardTileUuid}`,
         method: 'POST',
@@ -40,6 +44,7 @@ const createDashboardTileComment = async ({
     });
 
 export const useCreateComment = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const params = useParams();
 
@@ -47,7 +52,7 @@ export const useCreateComment = () => {
         ApiCreateComment['results'],
         ApiError,
         CreateDashboardTileComment
-    >((data) => createDashboardTileComment(data), {
+    >((data) => createDashboardTileComment(lightdashApi, data), {
         mutationKey: ['create-comment'],
         onSuccess: async (_, { dashboardUuid }) => {
             await Promise.all([
@@ -61,13 +66,16 @@ export const useCreateComment = () => {
     });
 };
 
-const getDashboardComments = async ({
-    dashboardUuid,
-    projectUuid,
-    resolved,
-}: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'> & {
-    resolved: boolean;
-}) => {
+const getDashboardComments = async (
+    lightdashApi: LightdashApi,
+    {
+        dashboardUuid,
+        projectUuid,
+        resolved,
+    }: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'> & {
+        resolved: boolean;
+    },
+) => {
     const queryParams = new URLSearchParams({ resolved: String(resolved) });
     return lightdashApi<ApiGetComments['results']>({
         url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments?${queryParams.toString()}`,
@@ -82,13 +90,14 @@ const useDashboardComments = (
     projectUuid: string | undefined,
     enabled: boolean,
     resolved: boolean,
-) =>
-    useQuery<ApiGetComments['results'], ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiGetComments['results'], ApiError>(
         ['comments', dashboardUuid, projectUuid, { resolved }],
         async () => {
             if (!dashboardUuid) throw new Error('dashboardUuid is required');
             if (!projectUuid) throw new Error('projectUuid is required');
-            return getDashboardComments({
+            return getDashboardComments(lightdashApi, {
                 dashboardUuid,
                 projectUuid,
                 resolved,
@@ -101,6 +110,7 @@ const useDashboardComments = (
             enabled: enabled && !!dashboardUuid && !!projectUuid,
         },
     );
+};
 
 export const useGetComments = (
     dashboardUuid: string | undefined,
@@ -119,10 +129,10 @@ type RemoveCommentParams = { commentId: string } & Pick<
     'dashboardUuid'
 >;
 
-const removeComment = async ({
-    commentId,
-    dashboardUuid,
-}: RemoveCommentParams) =>
+const removeComment = async (
+    lightdashApi: LightdashApi,
+    { commentId, dashboardUuid }: RemoveCommentParams,
+) =>
     lightdashApi<ApiDeleteComment>({
         url: `/comments/dashboards/${dashboardUuid}/${commentId}`,
         method: 'DELETE',
@@ -130,11 +140,12 @@ const removeComment = async ({
     });
 
 export const useRemoveComment = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const params = useParams();
 
     return useMutation<ApiDeleteComment, ApiError, RemoveCommentParams>(
-        (data) => removeComment(data),
+        (data) => removeComment(lightdashApi, data),
         {
             mutationKey: ['remove-comment'],
             onSuccess: async (_, { dashboardUuid }) => {
@@ -155,11 +166,10 @@ type ResolveCommentParams = { commentId: string; resolved: boolean } & Pick<
     'dashboardUuid'
 >;
 
-const resolveComment = async ({
-    commentId,
-    dashboardUuid,
-    resolved,
-}: ResolveCommentParams) =>
+const resolveComment = async (
+    lightdashApi: LightdashApi,
+    { commentId, dashboardUuid, resolved }: ResolveCommentParams,
+) =>
     lightdashApi<ApiResolveComment>({
         url: `/comments/dashboards/${dashboardUuid}/${commentId}`,
         method: 'PATCH',
@@ -167,11 +177,12 @@ const resolveComment = async ({
     });
 
 export const useResolveComment = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const params = useParams();
 
     return useMutation<ApiResolveComment, ApiError, ResolveCommentParams>(
-        (data) => resolveComment(data),
+        (data) => resolveComment(lightdashApi, data),
         {
             mutationKey: ['resolve-comment'],
             onSuccess: async (_, { dashboardUuid }) => {

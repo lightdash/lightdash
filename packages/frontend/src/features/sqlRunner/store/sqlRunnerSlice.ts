@@ -16,6 +16,7 @@ import {
 import type { PayloadAction, SerializedError } from '@reduxjs/toolkit';
 import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
+import { sharedLightdashApi } from '../../../api';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { resolveSqlErrorPosition } from '../utils/sqlErrorPosition';
@@ -601,6 +602,8 @@ export const selectSqlRunnerResultsRunner = createSelector(
             sortBy,
             parameters: parameterValues,
             warehouseConnectionUuid: connectionUuidOf(connectionRoute),
+            // The SQL runner store is a page-level singleton, so it uses the shared client.
+            lightdashApi: sharedLightdashApi,
         });
     },
 );

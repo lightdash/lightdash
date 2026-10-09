@@ -3,13 +3,14 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const useDataAppVizDeleteImpact = (
     projectUuid: string,
     dataAppVizUuid: string,
-) =>
-    useQuery<ApiDataAppVizDeleteImpactResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiDataAppVizDeleteImpactResponse['results'], ApiError>({
         queryKey: ['data-app-viz-delete-impact', projectUuid, dataAppVizUuid],
         queryFn: () =>
             lightdashApi<ApiDataAppVizDeleteImpactResponse['results']>({
@@ -20,3 +21,4 @@ export const useDataAppVizDeleteImpact = (
         refetchOnMount: 'always',
         retry: false,
     });
+};

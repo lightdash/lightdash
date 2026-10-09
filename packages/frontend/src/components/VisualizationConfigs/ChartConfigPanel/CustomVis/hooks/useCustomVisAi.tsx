@@ -1,9 +1,11 @@
 import { type ApiError, type ItemsMap } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../../api';
+import { type LightdashApi } from '../../../../../api';
 import useToaster from '../../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 
 const getCustomVis = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     prompt: string,
     itemsMap: ItemsMap | undefined,
@@ -24,6 +26,7 @@ const getCustomVis = async (
     });
 
 export const useCustomVis = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useMutation<
         string,
@@ -39,6 +42,7 @@ export const useCustomVis = (projectUuid: string | undefined) => {
     >(
         (data) =>
             getCustomVis(
+                lightdashApi,
                 projectUuid!,
                 data.prompt,
                 data.itemsMap,

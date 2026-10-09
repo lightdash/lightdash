@@ -12,9 +12,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { type FC } from 'react';
 import { z } from 'zod';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineModal from '../MantineModal';
 import classes from './ContentSlugRenameModal.module.css';
 
@@ -37,6 +37,7 @@ const ContentSlugRenameModal: FC<Props> = ({
     currentSlug,
     resourceType,
 }) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const resourceLabel =
         resourceType === ContentType.CHART ? 'Chart' : 'Dashboard';

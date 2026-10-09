@@ -6,7 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { identityLabels } from './identityLabels';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
@@ -21,7 +22,7 @@ const mocks = vi.hoisted(() => ({
     toast: vi.fn(),
     errorToast: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         health: {
@@ -100,7 +101,7 @@ describe('Organisation agent identity settings', () => {
             healthLoading: false,
             healthError: false,
         });
-        vi.mocked(lightdashApi).mockResolvedValue(overview());
+        mockedLightdashApi.mockResolvedValue(overview());
     });
     it('shows two warehouse rows with shared copy and no switch or status badges', async () => {
         const { container } = renderSection();
@@ -132,7 +133,7 @@ describe('Organisation agent identity settings', () => {
         const { invalidate } = renderSection();
         await changeToMarkedPerson(name);
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: `/org/agent-identity/${warehouseType}`,
                 method: 'PUT',
@@ -149,7 +150,7 @@ describe('Organisation agent identity settings', () => {
     it('selects the AI service account without a requirement field', async () => {
         const data = overview();
         data.rules[1].source = 'marked_person';
-        vi.mocked(lightdashApi).mockResolvedValue(data);
+        mockedLightdashApi.mockResolvedValue(data);
         renderSection();
         fireEvent.click(
             await screen.findByRole('combobox', {
@@ -162,7 +163,7 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         await waitFor(() =>
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
                 url: '/org/agent-identity/bigquery',
                 method: 'PUT',
@@ -181,7 +182,7 @@ describe('Organisation agent identity settings', () => {
             mocks.configured = configured;
             const data = overview();
             data.rules[0].source = source;
-            vi.mocked(lightdashApi).mockResolvedValue(data);
+            mockedLightdashApi.mockResolvedValue(data);
             renderSection();
             await screen.findAllByRole('combobox');
             const missingNote = screen.queryByText(
@@ -247,7 +248,7 @@ describe('Organisation agent identity settings', () => {
                     projectUuid: `project-${index}`,
                     name,
                 }));
-            vi.mocked(lightdashApi).mockResolvedValue(data);
+            mockedLightdashApi.mockResolvedValue(data);
             renderSection();
             const line = await screen.findByText(
                 new RegExp(
@@ -278,7 +279,7 @@ describe('Organisation agent identity settings', () => {
         async (missing) => {
             const data = overview();
             data.rules[1].projectsMissingAiServiceAccount = missing;
-            vi.mocked(lightdashApi).mockResolvedValue(data);
+            mockedLightdashApi.mockResolvedValue(data);
             renderSection();
             await screen.findAllByRole('combobox');
             expect(
@@ -289,7 +290,7 @@ describe('Organisation agent identity settings', () => {
     it('disables only the saving row', async () => {
         renderSection();
         await screen.findAllByRole('combobox');
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         await changeToMarkedPerson('Snowflake');
         await waitFor(() =>
             expect(
@@ -303,26 +304,26 @@ describe('Organisation agent identity settings', () => {
         ).toBeEnabled();
     });
     it('waits for settings to load', () => {
-        vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
+        mockedLightdashApi.mockImplementation(() => new Promise(() => {}));
         renderSection();
         expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     });
     it('allows retry after a load failure', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         renderSection();
         expect(
             await screen.findByText('Could not load agent identity settings.'),
         ).toBeInTheDocument();
-        vi.mocked(lightdashApi).mockResolvedValue(overview());
+        mockedLightdashApi.mockResolvedValue(overview());
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await screen.findAllByRole('combobox')).toHaveLength(2);
     });
     it('reports failed saves and preserves the value', async () => {
         renderSection();
         await screen.findAllByRole('combobox');
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         await changeToMarkedPerson('Snowflake');
@@ -337,6 +338,6 @@ describe('Organisation agent identity settings', () => {
         mocks.canManage = mode !== 'non-admin';
         renderSection();
         expect(screen.queryByText('Agent identity')).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(sharedLightdashApi).not.toHaveBeenCalled();
     });
 });

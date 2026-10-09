@@ -4,8 +4,9 @@ import {
     type MergePullRequestResult,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 type MergeArgs = {
     prUrl: string;
@@ -14,6 +15,7 @@ type MergeArgs = {
 };
 
 const mergePullRequest = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     { prUrl, sha }: MergeArgs,
 ): Promise<MergePullRequestResult> =>
@@ -31,11 +33,12 @@ const mergePullRequest = (
  * toast.
  */
 export const useMergePullRequest = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
     return useMutation<MergePullRequestResult, ApiError, MergeArgs>({
-        mutationFn: (args) => mergePullRequest(projectUuid, args),
+        mutationFn: (args) => mergePullRequest(lightdashApi, projectUuid, args),
         onSuccess: (result, { prUrl }) => {
             // No success toast — the PR card flips to its "Merged" state with
             // confetti, which is feedback enough.

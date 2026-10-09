@@ -48,7 +48,7 @@ describe('following roadmap projects', () => {
         });
         showToastError.mockReset();
         vi.spyOn(roadmapApi, 'getProjects').mockImplementation(
-            async (query) => {
+            async (_lightdashApi, query) => {
                 const projects = [
                     { ...mockRoadmapProject('alpha'), hasDirectNeed },
                     { ...mockRoadmapProject('direct'), hasDirectNeed: true },
@@ -132,7 +132,7 @@ describe('following roadmap projects', () => {
                 screen.queryByRole('button', { name: 'Follow' }),
             ).not.toBeInTheDocument(),
         );
-        expect(follow).toHaveBeenCalledExactlyOnceWith({
+        expect(follow).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
             projectId: 'alpha',
             note,
         });

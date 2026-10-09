@@ -2,7 +2,7 @@ import { DbtProjectType } from '@lightdash/common';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import DbtSourcesPanel from './DbtSourcesPanel';
 
@@ -13,9 +13,7 @@ const jobObserver = vi.hoisted(() => ({
         | undefined,
 }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: true } }),
@@ -31,7 +29,7 @@ vi.mock('../../hooks/useRefreshServer', () => ({
     },
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const sourcesUrl = '/projects/project-uuid/dbt-sources';
 const bindingsUrl =

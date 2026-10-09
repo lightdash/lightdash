@@ -51,7 +51,7 @@ const mocks = vi.hoisted(() => ({
     lightdashApi: vi.fn(),
 }));
 
-vi.mock('../../../../../api', () => ({ lightdashApi: mocks.lightdashApi }));
+vi.mock('../../../../../api');
 
 // The actions menu's project lookup would otherwise surface the rejected
 // `lightdashApi` as an error toast.
@@ -106,6 +106,7 @@ vi.mock('../../store/hooks', () => ({
     useAiAgentStoreDispatch: () => mocks.dispatch,
 }));
 
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import { AiDataAppPreviewPanel } from './AiDataAppPreviewPanel';
 
@@ -176,7 +177,7 @@ describe('AiDataAppPreviewPanel versions', () => {
         mocks.canManageApp = true;
         mocks.dispatch.mockReset();
         mocks.iframePreview.mockClear();
-        mocks.lightdashApi.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.previewToken.mockClear();
         window.localStorage.clear();
     });
@@ -321,7 +322,7 @@ describe('AiDataAppPreviewPanel versions', () => {
         });
 
         it('restores through the thread and moves the preview to the new version', async () => {
-            mocks.lightdashApi.mockResolvedValue({
+            mockedLightdashApi.mockResolvedValue({
                 appUuid: 'app-uuid',
                 version: 4,
                 restoredFromVersion: 1,
@@ -346,7 +347,7 @@ describe('AiDataAppPreviewPanel versions', () => {
                     }),
                 ),
             );
-            expect(mocks.lightdashApi).toHaveBeenCalledWith({
+            expect(mockedLightdashApi).toHaveBeenCalledWith({
                 url: '/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/data-app-restores',
                 method: 'POST',
                 body: JSON.stringify({ appUuid: 'app-uuid', version: 1 }),
@@ -359,7 +360,7 @@ describe('AiDataAppPreviewPanel versions', () => {
         });
 
         it('keeps the modal open and shows the error when the restore is refused', async () => {
-            mocks.lightdashApi.mockRejectedValue({
+            mockedLightdashApi.mockRejectedValue({
                 error: {
                     message: 'A version is already building for this app',
                 },

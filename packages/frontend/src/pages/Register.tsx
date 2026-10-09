@@ -11,7 +11,7 @@ import { Anchor, Divider, Stack, Text } from '@mantine/core';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import AuthLayout from '../components/common/AuthLayout';
 import { useAuthLayoutVariant } from '../components/common/AuthLayout/useAuthLayoutVariant';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
@@ -23,11 +23,15 @@ import { useEmailStatus } from '../hooks/useEmailVerification';
 import { useFlashMessages } from '../hooks/useFlashMessages';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import { sanitizeRedirectUrl } from '../utils/redirectUrl';
 
-const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
+const registerQuery = async (
+    lightdashApi: LightdashApi,
+    data: CreateUserArgs | CreateEmailOnlyUserArgs,
+) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'POST',
@@ -90,6 +94,7 @@ const RegisterTermsFooter: FC<{ isNewLayout: boolean }> = ({ isNewLayout }) =>
     );
 
 const Register: FC = () => {
+    const lightdashApi = useLightdashApi();
     const location = useLocation();
     const { health } = useApp();
     const emailStatus = useEmailStatus(
@@ -123,19 +128,23 @@ const Register: FC = () => {
         LightdashUser,
         ApiError,
         CreateUserArgs | CreateEmailOnlyUserArgs
-    >(registerQuery, {
-        mutationKey: ['login'],
-        onSuccess: (data) => {
-            identify({ id: data.userUuid });
-            window.location.href = redirectUrl;
+    >(
+        (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
+            registerQuery(lightdashApi, data),
+        {
+            mutationKey: ['login'],
+            onSuccess: (data) => {
+                identify({ id: data.userUuid });
+                window.location.href = redirectUrl;
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to create user`,
+                    apiError: error,
+                });
+            },
         },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: `Failed to create user`,
-                apiError: error,
-            });
-        },
-    });
+    );
 
     if (
         health.isInitialLoading ||

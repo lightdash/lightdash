@@ -1,13 +1,14 @@
 import type { ApiError, RecentContentEntry } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { recentContentQueryKey } from './useRecordContentView';
 
 export function useRecentContent(
     projectUuid: string | undefined,
     enabled = true,
 ) {
+    const lightdashApi = useLightdashApi();
     const { user } = useApp();
     const userUuid = user.data?.userUuid;
     return useQuery<RecentContentEntry[], ApiError>({

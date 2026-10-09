@@ -18,8 +18,9 @@ import {
     type UseMutationOptions,
 } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useApp from '../providers/App/useApp';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
 export type ContentArgs = {
@@ -60,7 +61,7 @@ function createQueryString(params: Record<string, any>): string {
     }
     return query.toString();
 }
-const getContent = async (args: ContentArgs) => {
+const getContent = async (lightdashApi: LightdashApi, args: ContentArgs) => {
     const params = createQueryString(args);
     return lightdashApi<ApiContentResponse['results']>({
         version: 'v2',
@@ -77,10 +78,11 @@ export const useInfiniteContent = (
         ApiError
     > = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<ApiContentResponse['results'], ApiError>({
         queryKey: ['content', args],
         queryFn: async ({ pageParam }) => {
-            return getContent({
+            return getContent(lightdashApi, {
                 ...args,
                 page: pageParam ?? 1,
             });
@@ -97,13 +99,16 @@ export const useInfiniteContent = (
     });
 };
 
-const postContentAction = async ({
-    projectUuid,
-    body,
-}: {
-    projectUuid: string;
-    body: ApiContentActionBody;
-}) => {
+const postContentAction = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        body,
+    }: {
+        projectUuid: string;
+        body: ApiContentActionBody;
+    },
+) => {
     return lightdashApi<ApiSuccessEmpty>({
         version: 'v2',
         url: `/content/${projectUuid}/${body.action.type}`,
@@ -112,13 +117,16 @@ const postContentAction = async ({
     });
 };
 
-const postContentBulkAction = async ({
-    projectUuid,
-    body,
-}: {
-    projectUuid: string;
-    body: ApiContentBulkActionBody;
-}) => {
+const postContentBulkAction = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        body,
+    }: {
+        projectUuid: string;
+        body: ApiContentBulkActionBody;
+    },
+) => {
     return lightdashApi<ApiSuccessEmpty>({
         version: 'v2',
         url: `/content/bulk-action/${projectUuid}/${body.action.type}`,
@@ -155,6 +163,7 @@ export const useContentAction = (
         ApiContentActionBody
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -167,7 +176,7 @@ export const useContentAction = (
                 throw new Error('Project UUID is required');
             }
 
-            return postContentAction({
+            return postContentAction(lightdashApi, {
                 projectUuid,
                 body,
             });
@@ -246,6 +255,7 @@ export const useContentBulkAction = (
         ApiContentBulkActionBody
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
@@ -257,7 +267,7 @@ export const useContentBulkAction = (
             if (!projectUuid) {
                 throw new Error('Project UUID is required');
             }
-            return postContentBulkAction({
+            return postContentBulkAction(lightdashApi, {
                 projectUuid,
                 body,
             });

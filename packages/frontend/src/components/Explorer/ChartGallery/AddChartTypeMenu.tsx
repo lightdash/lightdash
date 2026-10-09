@@ -14,12 +14,14 @@ import {
 } from '../../../features/explorer/store';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { ProvenanceGlyph } from './ChartTypeGallery';
 
 const AddChartTypeMenu: FC = () => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
     const dispatch = useExplorerDispatch();
     const store = useExplorerStore();
@@ -171,6 +173,7 @@ const AddChartTypeMenu: FC = () => {
                                 ],
                                 queryFn: () =>
                                     getDataAppVisualization(
+                                        lightdashApi,
                                         projectUuid,
                                         appUuid,
                                         null,

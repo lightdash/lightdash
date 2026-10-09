@@ -1,7 +1,8 @@
 import { type ApiError } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { uniqueAliasFromName } from '../utils/aliasFromName';
 import { getAppExternalConnections } from './useAppExternalConnections';
 
@@ -14,11 +15,16 @@ type LinkParams = {
 };
 
 const linkAppExternalConnection = async (
+    lightdashApi: LightdashApi,
     params: LinkParams,
 ): Promise<undefined> => {
     const { projectUuid, appUuid, externalConnectionUuid, connectionName } =
         params;
-    const existingLinks = await getAppExternalConnections(projectUuid, appUuid);
+    const existingLinks = await getAppExternalConnections(
+        lightdashApi,
+        projectUuid,
+        appUuid,
+    );
     const alias = uniqueAliasFromName(
         connectionName,
         existingLinks.map((link) => link.alias),
@@ -32,11 +38,13 @@ const linkAppExternalConnection = async (
 };
 
 export const useLinkAppExternalConnection = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     return useMutation<undefined, ApiError, LinkParams>({
-        mutationFn: linkAppExternalConnection,
+        mutationFn: (params: LinkParams) =>
+            linkAppExternalConnection(lightdashApi, params),
         onSuccess: (_data, { appName, connectionName }) => {
             showToastSuccess({
                 title: `Linked ${connectionName}`,

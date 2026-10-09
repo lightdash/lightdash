@@ -6,8 +6,8 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     BASE_API_URL,
-    lightdashApi,
-    lightdashApiStream,
+    createLightdashApi,
+    sharedLightdashApi,
     networkHistory,
 } from './api';
 import { EMBED_KEY } from './ee/providers/Embed/types';
@@ -31,7 +31,7 @@ describe('api', () => {
                 results: 'test',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -54,7 +54,7 @@ describe('api', () => {
                 results: 'another test',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -82,7 +82,7 @@ describe('api', () => {
                 results: 'token headers',
             });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -113,7 +113,7 @@ describe('api', () => {
             .query({ projectUuid: 'project-uuid' })
             .reply(200, { status: 'ok', results: 'dashboard' });
 
-        const result = await lightdashApi({
+        const result = await sharedLightdashApi({
             method: 'POST',
             url: '/embed/project-uuid/dashboard',
             body: '{}',
@@ -137,7 +137,7 @@ describe('api', () => {
             .query({ projectUuid: 'project-uuid' })
             .reply(200, 'stream response');
 
-        const result = await lightdashApiStream({
+        const result = await sharedLightdashApi.stream({
             method: 'POST',
             url: '/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
             body: JSON.stringify({}),
@@ -150,6 +150,69 @@ describe('api', () => {
         expect(scope.isDone()).toBe(true);
 
         clearInMemoryStorage();
+    });
+});
+
+describe('createLightdashApi', () => {
+    beforeEach(() => {
+        clearInMemoryStorage();
+        setToInMemoryStorage(EMBED_KEY, { token: 'shared token' });
+    });
+
+    afterEach(() => {
+        clearInMemoryStorage();
+    });
+
+    it('sends each client its own token, not the shared one', async () => {
+        const dashboardApi = createLightdashApi(() => ({
+            token: 'dashboard token',
+            projectUuid: 'project-uuid',
+        }));
+        const chartApi = createLightdashApi(() => ({
+            token: 'chart token',
+            projectUuid: 'project-uuid',
+        }));
+        const dashboardScope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'dashboard token')
+            .get('/api/v1/dashboard')
+            .query(true)
+            .reply(200, { status: 'ok', results: 'dashboard' });
+        const chartScope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'chart token')
+            .get('/api/v1/chart')
+            .query(true)
+            .reply(200, { status: 'ok', results: 'chart' })
+            .get('/api/v1/chart-stream')
+            .query(true)
+            .reply(200, 'stream');
+
+        await expect(
+            dashboardApi({ method: 'GET', url: '/dashboard' }),
+        ).resolves.toEqual('dashboard');
+        await expect(
+            chartApi({ method: 'GET', url: '/chart' }),
+        ).resolves.toEqual('chart');
+        await expect(
+            chartApi.stream({ method: 'GET', url: '/chart-stream' }),
+        ).resolves.toHaveProperty('ok', true);
+        expect(dashboardScope.isDone()).toBe(true);
+        expect(chartScope.isDone()).toBe(true);
+    });
+
+    it('reads the token on every request so rotation needs no new client', async () => {
+        let token = 'first token';
+        const api = createLightdashApi(() => ({ token }));
+        const scope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'second token')
+            .get('/api/v1/test')
+            .reply(200, { status: 'ok', results: 'rotated' });
+
+        token = 'second token';
+
+        await expect(api({ method: 'GET', url: '/test' })).resolves.toEqual(
+            'rotated',
+        );
+        expect(scope.isDone()).toBe(true);
     });
 });
 
@@ -166,7 +229,7 @@ describe('networkHistory redaction', () => {
                 results: { token: 'secret-response' },
             });
 
-        await lightdashApi({
+        await sharedLightdashApi({
             method: 'POST',
             url: '/login',
             body: JSON.stringify({ email: 'a@b.com', password: 'hunter2' }),
@@ -201,7 +264,7 @@ describe('networkHistory redaction', () => {
             });
 
         await expect(
-            lightdashApi({
+            sharedLightdashApi({
                 method: 'POST',
                 url: '/login',
                 body: JSON.stringify({
@@ -232,7 +295,7 @@ describe('networkHistory redaction', () => {
             results: 'visible',
         });
 
-        await lightdashApi({
+        await sharedLightdashApi({
             method: 'POST',
             url: '/test',
             body: JSON.stringify({ foo: 'bar' }),
@@ -268,7 +331,7 @@ describe('network error messages', () => {
         new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
 
     const request = () =>
-        lightdashApi({
+        sharedLightdashApi({
             method: 'PATCH',
             url: '/projects/abc',
             body: JSON.stringify({}),
@@ -282,7 +345,7 @@ describe('network error messages', () => {
             .mockResolvedValueOnce(healthOk());
 
         await expect(
-            lightdashApi({
+            sharedLightdashApi({
                 method: 'GET',
                 url: '/user',
                 body: undefined,
@@ -485,7 +548,7 @@ describe('network error messages', () => {
         );
 
         await expect(
-            lightdashApiStream({
+            sharedLightdashApi.stream({
                 method: 'POST',
                 url: '/stream',
                 body: JSON.stringify({}),
@@ -516,7 +579,7 @@ describe('fetch binding', () => {
         const stub = vi.fn().mockResolvedValue(okResponse('late-bound'));
         globalThis.fetch = stub;
 
-        const results = await lightdashApi({
+        const results = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,
@@ -546,7 +609,7 @@ describe('fetch binding', () => {
         saved = null;
         globalThis.fetch = restored;
 
-        const results = await lightdashApi({
+        const results = await sharedLightdashApi({
             method: 'GET',
             url: '/test',
             body: null,

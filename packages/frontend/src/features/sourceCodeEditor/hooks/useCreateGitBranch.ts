@@ -4,9 +4,11 @@ import {
     type CreateGitBranchRequest,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const createGitBranch = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     params: CreateGitBranchRequest,
 ) =>
@@ -18,6 +20,7 @@ const createGitBranch = async (
     });
 
 export const useCreateGitBranch = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -25,7 +28,8 @@ export const useCreateGitBranch = (projectUuid: string) => {
         ApiError,
         CreateGitBranchRequest
     >({
-        mutationFn: (params) => createGitBranch(projectUuid, params),
+        mutationFn: (params) =>
+            createGitBranch(lightdashApi, projectUuid, params),
         onSuccess: async () => {
             await queryClient.invalidateQueries({
                 queryKey: ['gitBranches', projectUuid],

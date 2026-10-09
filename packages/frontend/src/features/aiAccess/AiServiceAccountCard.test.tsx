@@ -12,8 +12,9 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import UpdateProjectConnection from '../../components/ProjectConnection/UpdateProjectConnection';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 
@@ -32,7 +33,7 @@ const project = {
     warehouseConnection: { type: WarehouseTypes.BIGQUERY },
     dbtConnection: { type: DbtProjectType.NONE },
 } as Project;
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
 }));
@@ -137,7 +138,7 @@ describe('AI service account card', () => {
         mocks.canManage = true;
         source = 'marked_person';
         slot = null;
-        vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
+        mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url === '/org/agent-identity')
                 return {
                     requireVerifiedAgentSessions: false,
@@ -180,7 +181,7 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText('AI service account'),
             ).not.toBeInTheDocument();
-            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(sharedLightdashApi).not.toHaveBeenCalled();
         },
     );
     it('shows an empty slot and the read-only organisation rule', async () => {
@@ -227,7 +228,7 @@ describe('AI service account card', () => {
         expect(
             await screen.findByText('Signs in as tested-principal'),
         ).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
             method: 'POST',
@@ -252,7 +253,7 @@ describe('AI service account card', () => {
         expect(
             await within(dialog).findByText('Signs in as tested-principal'),
         ).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account/test',
             method: 'POST',
@@ -287,7 +288,7 @@ describe('AI service account card', () => {
         expect(
             screen.queryByText('Signs in as tested-principal'),
         ).not.toBeInTheDocument();
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
         );
     });
@@ -350,13 +351,13 @@ describe('AI service account card', () => {
                     await waitFor(() => expect(testButton).toBeEnabled());
                 } else {
                     if (scenario === 'failed retest')
-                        vi.mocked(lightdashApi).mockResolvedValueOnce({
+                        mockedLightdashApi.mockResolvedValueOnce({
                             ok: false,
                             principal: null,
                             message: 'Access denied.',
                         });
                     else
-                        vi.mocked(lightdashApi).mockRejectedValueOnce({
+                        mockedLightdashApi.mockRejectedValueOnce({
                             error: { message: 'Access denied.' },
                         });
                     fireEvent.click(testButton);
@@ -413,7 +414,7 @@ describe('AI service account card', () => {
         upload();
         const testButton = within(dialog).getByRole('button', { name: 'Test' });
         await waitFor(() => expect(testButton).toBeEnabled());
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             ok: true,
             principal: 'replacement-principal',
             message: 'Connection works.',
@@ -458,7 +459,7 @@ describe('AI service account card', () => {
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
             method: 'PUT',
@@ -484,7 +485,7 @@ describe('AI service account card', () => {
         const confirmation = await screen.findByRole('dialog', {
             name: 'Remove AI service account',
         });
-        expect(lightdashApi).not.toHaveBeenCalledWith(
+        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
         fireEvent.click(
@@ -495,7 +496,7 @@ describe('AI service account card', () => {
                 name: 'Add an AI service account',
             }),
         ).toBeInTheDocument();
-        expect(lightdashApi).toHaveBeenCalledWith({
+        expect(sharedLightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
             method: 'DELETE',
@@ -522,7 +523,7 @@ describe('AI service account card', () => {
         upload();
         const testButton = within(dialog).getByRole('button', { name: 'Test' });
         await waitFor(() => expect(testButton).toBeEnabled());
-        vi.mocked(lightdashApi).mockResolvedValueOnce({
+        mockedLightdashApi.mockResolvedValueOnce({
             ok: false,
             principal: null,
             message: 'Access denied.',
@@ -561,7 +562,7 @@ describe('AI service account card', () => {
         const button = within(dialog).getByRole('button', { name: 'Save' });
         await waitFor(() => expect(button).toBeEnabled());
         const error = { message: 'Could not save credentials.' };
-        vi.mocked(lightdashApi).mockRejectedValueOnce({ error });
+        mockedLightdashApi.mockRejectedValueOnce({ error });
         fireEvent.click(button);
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
@@ -580,7 +581,7 @@ describe('AI service account card', () => {
             name: 'Remove AI service account',
         });
         const error = { message: 'Could not remove credentials.' };
-        vi.mocked(lightdashApi).mockRejectedValueOnce({ error });
+        mockedLightdashApi.mockRejectedValueOnce({ error });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
@@ -597,7 +598,7 @@ describe('AI service account card', () => {
         slot = savedSlot;
         setup();
         const button = await screen.findByRole('button', { name: 'Test' });
-        vi.mocked(lightdashApi).mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: { message: 'The connection is unavailable.' },
         });
         fireEvent.click(button);
@@ -611,7 +612,7 @@ describe('AI service account card', () => {
         ).toBeInTheDocument();
     });
     it('reports a load failure instead of offering to overwrite an unknown slot', async () => {
-        vi.mocked(lightdashApi).mockRejectedValue({
+        mockedLightdashApi.mockRejectedValue({
             error: { message: 'Unavailable' },
         });
         setup();

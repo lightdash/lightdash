@@ -9,16 +9,17 @@ import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as api from '../../../../../api';
 import { aiAccessApi } from '../../../../../features/aiAccess/api';
 import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useUserWarehouseCredentialsDeleteMutation } from '../../../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { mockedLightdashApi } from '../../../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiAccessGate } from './AiAccessGate';
 
 const flag = vi.hoisted(() => ({ enabled: true, isLoading: false }));
 const composerRender = vi.fn();
 
+vi.mock('../../../../../api');
 vi.mock('../../../../../providers/App/useApp', () => ({
     default: () => ({
         health: { data: undefined },
@@ -293,9 +294,7 @@ describe('AiAccessGate', () => {
             ['ai-access', 'project-1', null, 'me'],
             accessResult(false),
         );
-        const deleteRequest = vi
-            .spyOn(api, 'lightdashApi')
-            .mockResolvedValue(null);
+        const deleteRequest = mockedLightdashApi.mockResolvedValue(null);
         let resolveAccess!: (value: AiAccessForUser) => void;
         vi.spyOn(aiAccessApi, 'me').mockReturnValue(
             new Promise((resolve) => {

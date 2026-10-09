@@ -4,9 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../features/scheduler/hooks/useScheduler', () => ({
     pollJobStatus: vi.fn(),
@@ -43,14 +41,14 @@ vi.mock('react-router', () => ({
     useParams: () => ({}),
 }));
 
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import {
     useExportDashboardContentPreview,
     useUpdateDashboard,
 } from './useDashboard';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const mockPollJobStatus = pollJobStatus as unknown as Mock;
 
 const dashboard = {
@@ -113,6 +111,7 @@ describe('useExportDashboardContentPreview', () => {
             }),
         );
         expect(mockPollJobStatus).toHaveBeenCalledWith(
+            expect.anything(),
             'job-1',
             dashboard.projectUuid,
         );

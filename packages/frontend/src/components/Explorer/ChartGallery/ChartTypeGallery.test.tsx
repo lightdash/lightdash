@@ -10,9 +10,10 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../../api';
+import { sharedLightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useDataAppVisualizations } from '../../../features/chartTypes/hooks/useDataAppVisualizations';
+import { mockedLightdashApi } from '../../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { EventName } from '../../../types/Events';
 import ExplorerChartTypeGallery, {
@@ -85,7 +86,7 @@ const BUILT_IN_LABELS = [
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualizations');
-vi.mock('../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../api');
 vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     default: vi.fn(() => ({})),
 }));
@@ -829,7 +830,7 @@ describe('ExplorerChartTypeGallery', () => {
                 embedToken: 'embed-token',
                 projectUuid: 'project-uuid',
             } as ReturnType<typeof useEmbed>);
-            vi.mocked(lightdashApi).mockImplementation(({ url }) =>
+            mockedLightdashApi.mockImplementation(({ url }) =>
                 url.startsWith('/ee/')
                     ? Promise.reject({
                           status: 'error',
@@ -848,7 +849,7 @@ describe('ExplorerChartTypeGallery', () => {
             );
             expect(screen.queryByRole('alert')).not.toBeInTheDocument();
             expect(screen.getByRole('button', { name: 'Table' })).toBeVisible();
-            expect(lightdashApi).toHaveBeenCalledWith({
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
                 method: 'GET',
                 url: '/embed/project-uuid/visualizations?page=1&pageSize=6&sortBy=name&sortDirection=asc',
                 body: undefined,

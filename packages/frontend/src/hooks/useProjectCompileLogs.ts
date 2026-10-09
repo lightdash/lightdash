@@ -11,11 +11,13 @@ import {
     type UseInfiniteQueryResult,
     type UseQueryResult,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 export type { ProjectCompileLog };
 
 const getProjectCompileLogs = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     paginateArgs: KnexPaginateArgs,
     sortBy?: 'created_at',
@@ -68,6 +70,7 @@ export const useProjectCompileLogs = ({
     ApiProjectCompileLogsResponse['results'],
     ApiError
 > => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<ApiProjectCompileLogsResponse['results'], ApiError>(
         {
             queryKey: [
@@ -80,6 +83,7 @@ export const useProjectCompileLogs = ({
             ],
             queryFn: async ({ pageParam = 0 }) => {
                 return getProjectCompileLogs(
+                    lightdashApi,
                     projectUuid,
                     {
                         page: (pageParam as number) + 1,
@@ -105,6 +109,7 @@ export const useProjectCompileLogs = ({
 };
 
 const getProjectCompileLogByJob = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     jobUuid: string,
 ): Promise<ProjectCompileLog | undefined> => {
@@ -126,8 +131,10 @@ export const useProjectCompileLogByJob = ({
     projectUuid: string;
     jobUuid: string;
 }): UseQueryResult<ProjectCompileLog | undefined, ApiError> => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ProjectCompileLog | undefined, ApiError>({
         queryKey: ['projectCompileLogByJob', projectUuid, jobUuid],
-        queryFn: () => getProjectCompileLogByJob(projectUuid, jobUuid),
+        queryFn: () =>
+            getProjectCompileLogByJob(lightdashApi, projectUuid, jobUuid),
     });
 };

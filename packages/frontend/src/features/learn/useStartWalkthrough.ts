@@ -7,6 +7,7 @@ import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
 import useApp from '../../providers/App/useApp';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { type LearnStartSource } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -27,6 +28,7 @@ import { useLearnProgress, useLearnProgressActions } from './progress';
 export const useStartWalkthrough = (
     trainingProjectUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
     const queryClient = useQueryClient();
@@ -39,7 +41,7 @@ export const useStartWalkthrough = (
         CreateTrainingPreviewResults,
         ApiError,
         { scope: string }
-    >(() => createTrainingPreview(trainingProjectUuid!), {
+    >(() => createTrainingPreview(lightdashApi, trainingProjectUuid!), {
         onMutate: ({ scope }) => setOpening(scope),
         onError: ({ error }) => {
             setOpening(null);

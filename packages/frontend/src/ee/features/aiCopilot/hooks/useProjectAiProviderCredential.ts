@@ -3,14 +3,15 @@ import {
     type ApiProjectAiCredentialResponse,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const projectAiCredentialQueryKey = (projectUuid: string) =>
     ['project-ai-credential', projectUuid] as const;
 
-export const useProjectAiProviderCredential = (projectUuid: string) =>
-    useQuery<ApiProjectAiCredentialResponse['results'], ApiError>({
+export const useProjectAiProviderCredential = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiProjectAiCredentialResponse['results'], ApiError>({
         queryKey: projectAiCredentialQueryKey(projectUuid),
         queryFn: () =>
             lightdashApi({
@@ -19,8 +20,10 @@ export const useProjectAiProviderCredential = (projectUuid: string) =>
                 body: undefined,
             }),
     });
+};
 
 export const useSetProjectAiProviderCredential = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 

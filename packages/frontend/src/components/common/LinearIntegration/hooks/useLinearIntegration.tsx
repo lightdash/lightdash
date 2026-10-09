@@ -5,14 +5,17 @@ import {
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api'; // pragma: allowlist secret
+import { type LightdashApi } from '../../../../api'; // pragma: allowlist secret
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const LINEAR_INSTALLATION_QUERY_KEY = ['linear_installation'];
 const LINEAR_TEAMS_QUERY_KEY = ['linear_teams'];
 const LINEAR_PROJECTS_QUERY_KEY = ['linear_projects'];
 
-const getLinearInstallation = async (): Promise<LinearInstallation> =>
+const getLinearInstallation = async (
+    lightdashApi: LightdashApi,
+): Promise<LinearInstallation> =>
     lightdashApi<LinearInstallation>({
         // pragma: allowlist secret
         url: `/linear/`,
@@ -21,11 +24,12 @@ const getLinearInstallation = async (): Promise<LinearInstallation> =>
     });
 
 export const useLinearInstallation = (options?: { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useQuery<LinearInstallation, ApiError>({
         queryKey: LINEAR_INSTALLATION_QUERY_KEY,
-        queryFn: getLinearInstallation,
+        queryFn: () => getLinearInstallation(lightdashApi),
         retry: false,
         enabled: options?.enabled ?? true,
         onError: ({ error }) => {
@@ -39,7 +43,9 @@ export const useLinearInstallation = (options?: { enabled?: boolean }) => {
     });
 };
 
-const getLinearTeams = async (): Promise<LinearTeam[]> =>
+const getLinearTeams = async (
+    lightdashApi: LightdashApi,
+): Promise<LinearTeam[]> =>
     lightdashApi<LinearTeam[]>({
         // pragma: allowlist secret
         url: `/linear/teams`,
@@ -48,11 +54,12 @@ const getLinearTeams = async (): Promise<LinearTeam[]> =>
     });
 
 export const useLinearTeams = (options?: { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
 
     return useQuery<LinearTeam[], ApiError>({
         queryKey: LINEAR_TEAMS_QUERY_KEY,
-        queryFn: getLinearTeams,
+        queryFn: () => getLinearTeams(lightdashApi),
         retry: false,
         enabled: options?.enabled ?? true,
         onError: ({ error }) => {
@@ -66,7 +73,10 @@ export const useLinearTeams = (options?: { enabled?: boolean }) => {
     });
 };
 
-const getLinearProjects = async (teamId: string): Promise<LinearProject[]> =>
+const getLinearProjects = async (
+    lightdashApi: LightdashApi,
+    teamId: string,
+): Promise<LinearProject[]> =>
     lightdashApi<LinearProject[]>({
         // pragma: allowlist secret
         url: `/linear/projects?teamId=${encodeURIComponent(teamId)}`,
@@ -78,12 +88,13 @@ export const useLinearProjects = (options: {
     enabled?: boolean;
     teamId: string | null;
 }) => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     const { teamId } = options;
 
     return useQuery<LinearProject[], ApiError>({
         queryKey: [...LINEAR_PROJECTS_QUERY_KEY, teamId],
-        queryFn: () => getLinearProjects(teamId!),
+        queryFn: () => getLinearProjects(lightdashApi, teamId!),
         retry: false,
         enabled: !!teamId && (options.enabled ?? true),
         onError: ({ error }) => {
@@ -97,7 +108,9 @@ export const useLinearProjects = (options: {
     });
 };
 
-const deleteLinearInstallation = async (): Promise<void> =>
+const deleteLinearInstallation = async (
+    lightdashApi: LightdashApi,
+): Promise<void> =>
     lightdashApi<undefined>({
         // pragma: allowlist secret
         url: `/linear/uninstall`,
@@ -106,11 +119,12 @@ const deleteLinearInstallation = async (): Promise<void> =>
     });
 
 export const useDeleteLinearInstallationMutation = () => {
+    const lightdashApi = useLightdashApi();
     const { showToastApiError, showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
 
     return useMutation<void, ApiError, void>({
-        mutationFn: deleteLinearInstallation,
+        mutationFn: () => deleteLinearInstallation(lightdashApi),
         onSuccess: async () => {
             await queryClient.invalidateQueries(LINEAR_INSTALLATION_QUERY_KEY);
             await queryClient.invalidateQueries(LINEAR_TEAMS_QUERY_KEY);

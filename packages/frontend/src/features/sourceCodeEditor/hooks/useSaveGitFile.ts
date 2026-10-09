@@ -1,6 +1,7 @@
 import { type ApiError, type ApiGitFileSavedResponse } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type SaveGitFileParams = {
     branch: string;
@@ -10,7 +11,11 @@ type SaveGitFileParams = {
     message?: string;
 };
 
-const saveGitFile = async (projectUuid: string, params: SaveGitFileParams) =>
+const saveGitFile = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    params: SaveGitFileParams,
+) =>
     lightdashApi<ApiGitFileSavedResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/git/branches/${encodeURIComponent(params.branch)}/files`,
@@ -24,6 +29,7 @@ const saveGitFile = async (projectUuid: string, params: SaveGitFileParams) =>
     });
 
 export const useSaveGitFile = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -31,7 +37,7 @@ export const useSaveGitFile = (projectUuid: string) => {
         ApiError,
         SaveGitFileParams
     >({
-        mutationFn: (params) => saveGitFile(projectUuid, params),
+        mutationFn: (params) => saveGitFile(lightdashApi, projectUuid, params),
         onSuccess: async (data, variables) => {
             await queryClient.invalidateQueries({
                 queryKey: [

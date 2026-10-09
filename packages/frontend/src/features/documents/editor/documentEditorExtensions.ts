@@ -4,6 +4,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
+import { type LightdashApi } from '../../../api';
 import { createMentionMarkdownExtension } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
 import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/SlashCommandExtension';
 import {
@@ -29,10 +30,10 @@ const DocumentWithCharts = Document.extend({
     content: `(block | ${DOCUMENT_CHART_NODE})+`,
 });
 
-export const createDocumentEditorExtensions = ({
-    projectUuid,
-    editing,
-}: DocumentEditorExtensionOptions): Extensions => [
+export const createDocumentEditorExtensions = (
+    lightdashApi: LightdashApi,
+    { projectUuid, editing }: DocumentEditorExtensionOptions,
+): Extensions => [
     DocumentWithCharts,
     StarterKit.configure({
         document: false,
@@ -48,7 +49,7 @@ export const createDocumentEditorExtensions = ({
         transformPastedText: true,
         transformCopiedText: true,
     }),
-    createMentionMarkdownExtension(projectUuid),
+    createMentionMarkdownExtension(lightdashApi, projectUuid),
     DocumentHeadingIds,
     DocumentChartNode.configure({
         onEditChart: editing?.onEditChart ?? null,

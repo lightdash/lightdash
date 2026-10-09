@@ -28,8 +28,9 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -98,6 +99,7 @@ export const getAsyncQueryError = (message: string | null): ApiError => {
 };
 
 const executeAsyncMetricQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
     options: {
@@ -121,6 +123,7 @@ const executeAsyncMetricQuery = async (
 };
 
 const executeAsyncSavedChartQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
     options: { signal?: AbortSignal },
@@ -135,6 +138,7 @@ const executeAsyncSavedChartQuery = async (
 };
 
 export const scheduleDownloadQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     options: DownloadOptions = {},
@@ -160,11 +164,13 @@ export const scheduleDownloadQuery = async (
 };
 
 const executeAsyncQuery = (
+    lightdashApi: LightdashApi,
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
 ) => {
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
+            lightdashApi,
             data.projectUuid,
             {
                 context: QueryExecutionContext.CHART_HISTORY,
@@ -179,6 +185,7 @@ const executeAsyncQuery = (
         );
     } else if (data?.chartUuid) {
         return executeAsyncSavedChartQuery(
+            lightdashApi,
             data.projectUuid,
             {
                 context: QueryExecutionContext.CHART,
@@ -202,6 +209,7 @@ const executeAsyncQuery = (
         }
 
         return executeAsyncMetricQuery(
+            lightdashApi,
             data.projectUuid,
             {
                 context: data.context ?? QueryExecutionContext.EXPLORE,
@@ -232,13 +240,18 @@ const executeAsyncQuery = (
 };
 
 export const executeQueryAndWaitForResults = async (
+    lightdashApi: LightdashApi,
     data?: QueryResultsProps | null,
 ) => {
     if (!data) throw new Error('Missing data');
 
-    const query = await executeAsyncQuery(data, undefined);
+    const query = await executeAsyncQuery(lightdashApi, data, undefined);
 
-    const results = await pollForResults(data.projectUuid, query.queryUuid);
+    const results = await pollForResults(
+        lightdashApi,
+        data.projectUuid,
+        query.queryUuid,
+    );
 
     if (
         results.status === QueryHistoryStatus.ERROR ||
@@ -263,6 +276,7 @@ export const useGetReadyQueryResults = (
     data: QueryResultsProps | null,
     missingRequiredParameters: string[] | null,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
 
     const isEnabled = useMemo(() => {
@@ -281,6 +295,7 @@ export const useGetReadyQueryResults = (
         refetchOnMount: false,
         queryFn: ({ signal }) => {
             return executeAsyncQuery(
+                lightdashApi,
                 data
                     ? {
                           ...data,
@@ -306,6 +321,7 @@ export const useGetReadyQueryResults = (
  * Get single results page
  */
 const getResultsPage = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     page: number = 1,
@@ -362,6 +378,7 @@ export const useInfiniteQueryResults = (
     queryUuid?: string,
     chartName?: string,
 ): InfiniteQueryResults => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
@@ -449,6 +466,7 @@ export const useInfiniteQueryResults = (
         queryFn: async () => {
             const startTime = performance.now();
             const results = await getResultsPage(
+                lightdashApi,
                 fetchArgs.projectUuid!,
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
@@ -640,6 +658,7 @@ export const useInfiniteQueryResults = (
 };
 
 export const useCancelQuery = (projectUuid?: string, queryUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     return useMutation({
         mutationKey: ['cancel-query', projectUuid, queryUuid],
         mutationFn: () => {

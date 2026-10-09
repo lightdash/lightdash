@@ -9,7 +9,7 @@ import {
     type QueryHistoryListItem,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 /**
  * Maps a persisted request-parameters union back to the execute endpoint that
@@ -44,6 +44,7 @@ type RerunResults =
 
 /** Replays the run's original request with the cache invalidated. */
 export const useRerunQuery = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<RerunResults, ApiError, QueryHistoryListItem>({
         mutationFn: async (item) => {
