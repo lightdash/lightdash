@@ -1047,6 +1047,20 @@ describe('FieldTilesBar', () => {
         expect(result.current).toBe(first);
     });
 
+    it('never empties a field filter from a SQL column, which is not its field', () => {
+        setSidebar(rule('orders_status'));
+        const columns = {};
+        const { result } = renderHook(() => useFieldTileActions(columns));
+
+        result.current?.forSqlColumn('country').remove();
+
+        expect(removeLastField).not.toHaveBeenCalled();
+        expect(updateFilter).not.toHaveBeenCalled();
+        // Its own field still goes that way
+        result.current?.forField('orders_status').remove();
+        expect(removeLastField).toHaveBeenCalledWith('Status');
+    });
+
     describe('while the tile fields are not loaded', () => {
         it('switches Clear off, and switches it back on once they are there', () => {
             const fields =

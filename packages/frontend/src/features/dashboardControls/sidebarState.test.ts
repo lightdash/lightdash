@@ -15,6 +15,7 @@ import {
     removeFilterRule,
     replaceFilterRule,
     restoreFilterRule,
+    restoreFilterRules,
     withFilterRuleLabel,
 } from './sidebarState';
 
@@ -99,6 +100,34 @@ describe('sidebarState', () => {
         // A metric goes back among the metrics
         const noMetric = { ...filters, metrics: [] };
         expect(restoreFilterRule(noMetric, filters, 'm')).toEqual(filters);
+    });
+
+    it('restoring a rule that moved to the other list takes it back to its own', () => {
+        const snapshot: DashboardFilters = {
+            ...filters,
+            dimensions: [rule('a', ['1']), rule('b', ['2'])],
+        };
+        // a was emptied and came back on a metric; b on a dimension, as a metric rule would
+        const current: DashboardFilters = {
+            ...snapshot,
+            dimensions: [snapshot.dimensions[1], rule('m', ['as a dimension'])],
+            metrics: [rule('a', ['as a metric'])],
+        };
+
+        expect(restoreFilterRule(current, snapshot, 'a')).toEqual({
+            ...current,
+            dimensions: [snapshot.dimensions[0], ...current.dimensions],
+            metrics: [],
+        });
+        expect(restoreFilterRule(current, snapshot, 'm')).toEqual({
+            ...current,
+            dimensions: [snapshot.dimensions[1]],
+            metrics: [snapshot.metrics[0], ...current.metrics],
+        });
+        // The same for a rule the editor wrote beside the edited one
+        expect(restoreFilterRules(current, snapshot, ['a', 'gone'])).toEqual(
+            restoreFilterRule(current, snapshot, 'a'),
+        );
     });
 
     it('restoring a rule the snapshot does not hold removes it', () => {

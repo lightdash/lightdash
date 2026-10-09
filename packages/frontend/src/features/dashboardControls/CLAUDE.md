@@ -145,8 +145,10 @@ In `FilterConfiguration/`:
   shipped bar does.
 - `discard()` and `removeFilter()` undo what the editor wrote and nothing
   else. `discard()` puts the edited rule back as the snapshot holds it
-  (`restoreFilterRule`: where it was when it has left the filters, as after
-  `removeLastField`), or takes it out when it was new; `removeFilter()` takes
+  (`restoreFilterRule`: in the list and at the place the snapshot holds it,
+  when it has left the filters or came back in the other list, as after
+  `removeLastField` and a field of the other kind), or takes it out when it
+  was new; `removeFilter()` takes
   it out. Both also put back the other rules the editor itself wrote
   (`restoreFilterRules` over `touchedFilterIds`). Every rule written from
   outside the editor keeps that write (a duplicated tile, a tab, a lock on
@@ -166,8 +168,9 @@ In `FilterConfiguration/`:
   meanwhile (a temporary filter) is never lowered.
 - `isSidebarOpen` is derived: a control is being edited and its rule is
   still in the dashboard filters. A rule that something else removed closes
-  the sidebar at once; the next `open` or `openNew` starts over. Nothing is
-  reset in an effect. The dashboard filters can reach the provider a render
+  the sidebar at once; the next `open` or `openNew` starts over: `close()`
+  only resets then, so the rule stays away and the flag is left alone.
+  Nothing is reset in an effect. The dashboard filters can reach the provider a render
   after a write, so the rule a first field just wrote (`writtenRule`) stands
   in for `editingRule` until they hold it: "not visible yet" never reads as
   "gone". It is dropped the moment the filters hold the rule, so a later

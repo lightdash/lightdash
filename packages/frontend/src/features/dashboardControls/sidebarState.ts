@@ -54,27 +54,39 @@ export const isFilterRuleDirty = (
         findFilterRule(current, filterId),
     );
 
-// Undoes one rule: back to what the snapshot holds, where it was if it has
-// left the filters since, or out when the snapshot does not hold it
+// Puts a rule of the snapshot back in the list the snapshot holds it in: in
+// place when it is still there, else out of any other list and at its index
+const putBackFilterRule = (
+    filters: DashboardFilters,
+    snapshot: DashboardFilters,
+    saved: DashboardFilterRule,
+): DashboardFilters => {
+    const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
+    if (filters[group].some((rule) => rule.id === saved.id))
+        return replaceFilterRule(filters, saved);
+    const others = removeFilterRule(filters, saved.id);
+    const index = snapshot[group].indexOf(saved);
+    return {
+        ...others,
+        [group]: [
+            ...others[group].slice(0, index),
+            saved,
+            ...others[group].slice(index),
+        ],
+    };
+};
+
+// Undoes one rule: back to what the snapshot holds, or out when the snapshot
+// does not hold it. Every other rule keeps what was written since
 export const restoreFilterRule = (
     filters: DashboardFilters,
     snapshot: DashboardFilters,
     filterId: string,
 ): DashboardFilters => {
     const saved = findFilterRule(snapshot, filterId);
-    if (saved === null) return removeFilterRule(filters, filterId);
-    if (findFilterRule(filters, filterId) !== null)
-        return replaceFilterRule(filters, saved);
-    const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
-    const index = snapshot[group].indexOf(saved);
-    return {
-        ...filters,
-        [group]: [
-            ...filters[group].slice(0, index),
-            saved,
-            ...filters[group].slice(index),
-        ],
-    };
+    return saved === null
+        ? removeFilterRule(filters, filterId)
+        : putBackFilterRule(filters, snapshot, saved);
 };
 
 // Undoes the editor's writes to other rules. A rule that is not in the
@@ -87,7 +99,11 @@ export const restoreFilterRules = (
     filterIds
         .map((filterId) => findFilterRule(snapshot, filterId))
         .filter((saved): saved is DashboardFilterRule => saved !== null)
-        .reduce(replaceFilterRule, filters);
+        .filter((saved) => findFilterRule(filters, saved.id) !== null)
+        .reduce(
+            (next, saved) => putBackFilterRule(next, snapshot, saved),
+            filters,
+        );
 
 // What the dashboard's "changed" flag is once the editor is done
 export const haveFiltersChangedSince = (

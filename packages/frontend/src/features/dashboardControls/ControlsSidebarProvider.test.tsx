@@ -79,6 +79,17 @@ const mockTemporaryFilters = vi.hoisted(() => ({
     current: null as DashboardFilters | null,
 }));
 
+const revenueField: DashboardFilterableField = {
+    fieldType: FieldType.METRIC,
+    type: MetricType.SUM,
+    name: 'revenue',
+    label: 'Revenue',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: 'x',
+    hidden: false,
+};
+
 const latest: {
     filters: DashboardFilters;
     changed: boolean;
@@ -472,6 +483,21 @@ describe('ControlsSidebarProvider', () => {
             ).toEqual({ applied: 3, possible: 3 });
         });
 
+        it('picked on a tile does nothing while the tile fields are not loaded', () => {
+            const { result } = start();
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: undefined,
+            };
+            // Any change hands the provider the fields as they are now
+            act(() => result.current.setHoveredFieldId('x'));
+
+            act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
+
+            expect(result.current.isPlaceholder).toBe(true);
+            expect(latest.filters).toEqual(initialFilters);
+        });
+
         it('picked on a tile does nothing once the control has a field', () => {
             const { result } = start();
             act(() => result.current.addFirstFieldOnTile(statusField, 't2'));
@@ -699,10 +725,34 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.editingRule).toBeNull();
             expect(result.current.isSidebarOpen).toBe(false);
 
-            // The next open starts over
+            // The next open starts over, and the rule that was taken away
+            // stays away
             act(() => result.current.open('b'));
             expect(result.current.editing).toEqual({ filterId: 'b' });
             expect(result.current.isSidebarOpen).toBe(true);
+            expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
+            expect(latest.changed).toBe(true);
+        });
+
+        it('are kept by Add after they took the edited rule away', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('a', ['1']),
+                    label: 'x',
+                }),
+            );
+            writeOutsideTheEditor((filters) => ({
+                ...filters,
+                dimensions: filters.dimensions.filter((r) => r.id !== 'a'),
+            }));
+
+            act(() => result.current.openNew());
+
+            expect(result.current.isPlaceholder).toBe(true);
+            expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
+            expect(latest.changed).toBe(true);
         });
     });
 
@@ -1160,6 +1210,48 @@ describe('ControlsSidebarProvider', () => {
             );
             expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
             expect(latest.filters.metrics.map((r) => r.id)).toEqual(['a']);
+        });
+
+        it('Discard takes a dimension control that got a metric back among the dimensions', () => {
+            const { result } = openEmptied();
+            act(() => result.current.addFirstField(revenueField));
+            expect(latest.filters.metrics.map((r) => r.id)).toEqual(['a']);
+
+            act(() => result.current.discard());
+
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+        });
+
+        it('Discard takes a metric control that got a dimension back among the metrics', () => {
+            const metricRule = rule('m', ['9']);
+            saved.filters = { ...initialFilters, metrics: [metricRule] };
+            const { result } = setup();
+            act(() => result.current.open('m'));
+            act(() => result.current.removeLastField('Revenue'));
+            act(() => result.current.addFirstField(statusField));
+            expect(latest.filters.metrics).toEqual([]);
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
+                'a',
+                'b',
+                'm',
+            ]);
+
+            act(() => result.current.discard());
+
+            expect(latest.filters).toEqual(saved.filters);
+            expect(latest.filters.metrics[0]).toBe(metricRule);
+            expect(latest.changed).toBe(false);
+        });
+
+        it('Remove takes it out of the list it moved to', () => {
+            const { result } = openEmptied();
+            act(() => result.current.addFirstField(revenueField));
+
+            act(() => result.current.removeFilter());
+
+            expect(latest.filters.metrics).toEqual([]);
+            expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
         });
 
         it('carries the locks, and not "required" where no viewer could meet it', () => {

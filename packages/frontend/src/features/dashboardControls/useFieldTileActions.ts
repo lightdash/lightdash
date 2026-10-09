@@ -320,7 +320,12 @@ export const useFieldTileActions = (
                     );
                 },
                 remove: () => {
-                    if (!canAct) return;
+                    // A column on a field filter is no row of it to remove
+                    const isRow =
+                        !isSqlColumn ||
+                        (isSqlColumnFilter &&
+                            fieldId === editingRule.target.fieldId);
+                    if (!canAct || !isRow) return;
                     // Its last field: the control goes back to "pick a field",
                     // waiting fields included, and keeps the field's name
                     if (
