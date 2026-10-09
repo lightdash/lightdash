@@ -126,19 +126,27 @@ describe('UserWarehouseCredentialsModel', () => {
 
     describe('hasOrganizationAiSnowflakeCredential', () => {
         test.each([true, false])(
-            'returns %s for matching activation evidence without reading secrets',
+            'returns %s for matching activation evidence',
             async (exists) => {
                 tracker.on.select('user_warehouse_credentials').response(
                     exists
                         ? [
                               {
                                   user_warehouse_credentials_uuid: 'credential',
+                                  encrypted_credentials: Buffer.from(
+                                      JSON.stringify({
+                                          type: WarehouseTypes.SNOWFLAKE,
+                                      }),
+                                  ),
                               },
                           ]
                         : [],
                 );
                 await expect(
-                    credentialModel.hasOrganizationAiSnowflakeCredential('org'),
+                    credentialModel.hasOrganizationAiSnowflakeCredential(
+                        'org',
+                        null,
+                    ),
                 ).resolves.toBe(exists);
                 const query = tracker.history.select[0];
                 expect(query.sql).toContain(
@@ -153,15 +161,76 @@ describe('UserWarehouseCredentialsModel', () => {
                 expect(query.sql).toContain(
                     'where "organizations"."organization_uuid" = $1 and "user_warehouse_credentials"."warehouse_type" = $2 and "user_warehouse_credentials"."purpose" = $3',
                 );
-                expect(query.sql).not.toContain('encrypted_credentials');
+                expect(query.sql).toContain(
+                    'select "user_warehouse_credentials".*',
+                );
                 expect(query.bindings).toEqual([
                     'org',
                     WarehouseTypes.SNOWFLAKE,
                     UserWarehouseCredentialPurpose.AI,
-                    1,
                 ]);
             },
         );
+    });
+
+    test.each([
+        [null, null, true],
+        [null, 'version', false],
+        [
+            { organizationUuid: 'org', clientVersion: 'version' },
+            'version',
+            true,
+        ],
+        [{ organizationUuid: 'org', clientVersion: 'old' }, 'version', false],
+        [{ organizationUuid: 'other-org', clientVersion: null }, null, false],
+    ] as const)(
+        'checks client binding %j against version %s',
+        async (binding, version, expected) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                makeRow('credential', {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    ...(binding ? { aiClientBinding: binding } : {}),
+                }),
+            ]);
+            expect(
+                await credentialModel.hasOrganizationAiSnowflakeCredential(
+                    'org',
+                    version,
+                ),
+            ).toBe(expected);
+        },
+    );
+
+    test('strips internal client binding from secret-bearing and public warehouse credentials', async () => {
+        const aiClientBinding = {
+            organizationUuid: 'org',
+            clientVersion: 'version',
+        };
+        const credentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: 'person',
+            authenticationType: SnowflakeAuthenticationType.SSO,
+            refreshToken: 'token',
+        };
+        tracker.on
+            .select('user_warehouse_credentials')
+            .response([
+                makeRow('credential', { ...credentials, aiClientBinding }),
+            ]);
+        const ai = await credentialModel.findAiCredentialWithSecrets({
+            userUuid: 'user-1',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        expect(ai?.aiClientBinding).toEqual(aiClientBinding);
+        expect(ai?.credentials).toEqual(credentials);
+        const secretResult =
+            await credentialModel.getByUuidWithSecrets('credential');
+        expect(secretResult).not.toHaveProperty('aiClientBinding');
+        expect(secretResult.credentials).toEqual(credentials);
+        const publicResult =
+            await credentialModel.getAiCredentialsByUserUuid('user-1');
+        expect(JSON.stringify(publicResult)).not.toContain('aiClientBinding');
+        expect(JSON.stringify(publicResult)).not.toContain('clientVersion');
     });
 
     describe('deleteAiCredential', () => {
@@ -497,11 +566,13 @@ describe('UserWarehouseCredentialsModel', () => {
                 'user-1',
                 'first-token',
                 new Date('2030-01-01T00:00:00Z'),
+                { organizationUuid: 'org', clientVersion: 'version' },
             );
             const second = await model.upsertAiSnowflakeCredential(
                 'user-1',
                 'second-token',
                 null,
+                { organizationUuid: 'org', clientVersion: 'version' },
             );
             expect(builder.insert.mock.calls[0][0].expires_at).toEqual(
                 new Date('2030-01-01T00:00:00Z'),
@@ -509,6 +580,18 @@ describe('UserWarehouseCredentialsModel', () => {
             expect(merge.mock.calls[0][0].expires_at).toEqual(
                 new Date('2030-01-01T00:00:00Z'),
             );
+            expect(
+                JSON.parse(
+                    passthroughEncryption.decrypt(
+                        builder.insert.mock.calls[0][0].encrypted_credentials,
+                    ),
+                ),
+            ).toMatchObject({
+                aiClientBinding: {
+                    organizationUuid: 'org',
+                    clientVersion: 'version',
+                },
+            });
             expect(builder.insert.mock.calls[1][0].expires_at).toBeNull();
             expect(merge.mock.calls[1][0].expires_at).toBeNull();
             expect(first).not.toBe(second);

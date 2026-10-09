@@ -92,9 +92,6 @@ test.each([
         const existing = row();
         if (change === 'corrupt')
             existing.encrypted_client_secret = Buffer.from('corrupt');
-        tracker.on
-            .select('organizations')
-            .response([{ organization_uuid: 'org' }]);
         tracker.on.select(table).response(change === 'new' ? [] : [existing]);
         tracker.on.insert(table).response([existing]);
         const changed = {
@@ -103,7 +100,18 @@ test.each([
                 ? { [change]: 'replacement' }
                 : {}),
         };
-        await model.upsert(changed);
+        const result = await model.upsert(changed);
+        const actions = {
+            new: 'created',
+            identical: 'unchanged',
+            accountUrl: 'replaced',
+            clientId: 'replaced',
+            clientSecret: 'replaced',
+            corrupt: 'replaced',
+        };
+        expect(result.action).toBe(actions[change]);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).toContain(table);
         const query = tracker.history.insert[0];
         const ciphertext = query.bindings.find((binding) =>
             Buffer.isBuffer(binding),

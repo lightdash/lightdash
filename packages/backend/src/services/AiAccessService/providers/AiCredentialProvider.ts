@@ -9,7 +9,7 @@ import { type AiAccessEvaluation } from '../AiAccessService';
 export type AiMintArgs<T extends CreateWarehouseCredentials> = {
     silentRefresh: boolean;
     connection: T;
-    person: { userUuid: string; email: string };
+    person: { organizationUuid: string; userUuid: string; email: string };
 };
 
 export type AiMintedCredentials<T extends CreateWarehouseCredentials> = {
@@ -55,7 +55,7 @@ export interface AiCredentialProvider<
     T extends CreateWarehouseCredentials = CreateWarehouseCredentials,
 > {
     readonly warehouseType: T['type'];
-    configurationError(): string | null;
+    configurationError(organizationUuid: string): Promise<string | null>;
     missingPrerequisite(
         args: AiMintArgs<T>,
     ): Promise<AiAccessRefusalReason | null>;

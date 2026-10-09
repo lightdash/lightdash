@@ -1,3 +1,4 @@
+import { ParameterError } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
@@ -83,11 +84,12 @@ test('returns null for incomplete environment settings', async () => {
 
 test('does not fall back to environment settings if decryption fails', async () => {
     const { resolver, model } = setup();
-    model.getWithSecret.mockRejectedValue(new Error('Cannot decrypt'));
+    model.getWithSecret.mockRejectedValue(new ParameterError('Cannot decrypt'));
     await expect(resolver.resolve('org')).rejects.toThrow('Cannot decrypt');
-    await expect(resolver.isConfigured('org')).rejects.toThrow(
-        'Cannot decrypt',
-    );
+    await expect(resolver.isConfigured('org')).resolves.toBe(false);
+    await expect(resolver.getMissingSettings('org')).resolves.toEqual([
+        'Snowflake client secret (replace it)',
+    ]);
 });
 
 test('independent resolvers both see a replacement without caching', async () => {

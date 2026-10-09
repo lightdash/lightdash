@@ -42,6 +42,20 @@ import Logger from '../../logging/logger';
 import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
+export type SnowflakeAiClientBinding = {
+    organizationUuid: string;
+    clientVersion: string | null;
+};
+
+export type AiUserWarehouseCredentials = UserWarehouseCredentialsWithSecrets & {
+    aiClientBinding?: SnowflakeAiClientBinding | null;
+};
+
+type StoredWarehouseCredentials =
+    UserWarehouseCredentialsWithSecrets['credentials'] & {
+        aiClientBinding?: SnowflakeAiClientBinding;
+    };
+
 type RefreshTokenExpiry =
     | { kind: 'reported'; expiresAt: Date }
     | { kind: 'unreported' };
@@ -71,19 +85,25 @@ export class UserWarehouseCredentialsModel {
         this.encryptionUtil = args.encryptionUtil;
     }
 
-    private convertToUserWarehouseCredentialsWithSecrets(
-        data: DbUserWarehouseCredentials,
-    ): UserWarehouseCredentialsWithSecrets {
-        let credentials: UserWarehouseCredentialsWithSecrets['credentials'];
+    private decryptCredentials(
+        data: Pick<DbUserWarehouseCredentials, 'encrypted_credentials'>,
+    ): StoredWarehouseCredentials {
         try {
-            credentials = JSON.parse(
+            return JSON.parse(
                 this.encryptionUtil.decrypt(data.encrypted_credentials),
-            ) as UpsertUserWarehouseCredentials['credentials'];
-        } catch (e) {
+            ) as StoredWarehouseCredentials;
+        } catch {
             throw new UnexpectedServerError(
                 'Failed to parse warehouse credentials',
             );
         }
+    }
+
+    private convertToUserWarehouseCredentialsWithSecrets(
+        data: DbUserWarehouseCredentials,
+    ): UserWarehouseCredentialsWithSecrets {
+        const { aiClientBinding, ...credentials } =
+            this.decryptCredentials(data);
         return {
             uuid: data.user_warehouse_credentials_uuid,
             expiresAt: data.expires_at,
@@ -225,7 +245,7 @@ export class UserWarehouseCredentialsModel {
     }: {
         userUuid: string;
         warehouseType: WarehouseTypes;
-    }): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
+    }): Promise<AiUserWarehouseCredentials | undefined> {
         const row = await this.database(UserWarehouseCredentialsTableName)
             .where({
                 user_uuid: userUuid,
@@ -234,14 +254,19 @@ export class UserWarehouseCredentialsModel {
             })
             .first();
         return row
-            ? this.convertToUserWarehouseCredentialsWithSecrets(row)
+            ? {
+                  ...this.convertToUserWarehouseCredentialsWithSecrets(row),
+                  aiClientBinding:
+                      this.decryptCredentials(row).aiClientBinding ?? null,
+              }
             : undefined;
     }
 
     async hasOrganizationAiSnowflakeCredential(
         organizationUuid: string,
+        clientVersion: string | null,
     ): Promise<boolean> {
-        const row = await this.database(UserWarehouseCredentialsTableName)
+        const rows = await this.database(UserWarehouseCredentialsTableName)
             .join(
                 'users',
                 'users.user_uuid',
@@ -264,27 +289,39 @@ export class UserWarehouseCredentialsModel {
                 'user_warehouse_credentials.purpose':
                     UserWarehouseCredentialPurpose.AI,
             })
-            .first(
-                'user_warehouse_credentials.user_warehouse_credentials_uuid',
-            );
-        return row !== undefined;
+            .select('user_warehouse_credentials.*');
+        return rows.some((row) => {
+            try {
+                const { aiClientBinding } = this.decryptCredentials(row);
+                return (
+                    (aiClientBinding?.clientVersion ?? null) ===
+                        clientVersion &&
+                    (!aiClientBinding ||
+                        aiClientBinding.organizationUuid === organizationUuid)
+                );
+            } catch {
+                return false;
+            }
+        });
     }
 
     async upsertAiSnowflakeCredential(
         userUuid: string,
         refreshToken: string,
         expiresAt: Date | null,
+        aiClientBinding: SnowflakeAiClientBinding,
     ): Promise<string> {
         if (!refreshToken) {
             throw new ParameterError(
                 'Snowflake AI sign-in requires a refresh token',
             );
         }
-        const credentials: UpsertUserWarehouseCredentials['credentials'] = {
+        const credentials: StoredWarehouseCredentials = {
             type: WarehouseTypes.SNOWFLAKE,
             user: userUuid,
             authenticationType: SnowflakeAuthenticationType.SSO,
             refreshToken,
+            aiClientBinding,
         };
         const encryptedCredentials = this.encryptionUtil.encrypt(
             JSON.stringify(credentials),

@@ -1,4 +1,7 @@
-import { type SnowflakeAgentClientSource } from '@lightdash/common';
+import {
+    ParameterError,
+    type SnowflakeAgentClientSource,
+} from '@lightdash/common';
 import { type LightdashConfig } from '../../config/parseConfig';
 import {
     getSnowflakeAgentMissingOAuthSettings,
@@ -65,9 +68,27 @@ export class SnowflakeAgentClientResolver {
         };
     }
 
-    async getMissingSettings(organizationUuid: string): Promise<string[]> {
+    async getMissingSettings(
+        organizationUuid: string,
+        client?: ResolvedSnowflakeAgentClient | null,
+    ): Promise<string[]> {
+        let resolved: ResolvedSnowflakeAgentClient | null;
+        try {
+            resolved =
+                client === undefined
+                    ? await this.resolve(organizationUuid)
+                    : client;
+        } catch (error) {
+            if (!(error instanceof ParameterError)) throw error;
+            return [
+                'Snowflake client secret (replace it)',
+                ...(this.args.lightdashConfig.license.licenseKey === undefined
+                    ? ['Enterprise licence']
+                    : []),
+            ];
+        }
         return [
-            ...((await this.resolve(organizationUuid))
+            ...(resolved
                 ? []
                 : getSnowflakeAgentMissingOAuthSettings(
                       this.args.lightdashConfig.auth.snowflakeAi,

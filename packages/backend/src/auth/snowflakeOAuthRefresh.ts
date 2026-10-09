@@ -1,5 +1,6 @@
-import refresh from 'passport-oauth2-refresh';
 import { z } from 'zod';
+import { createSnowflakeAiPassportStrategy } from '../controllers/authentication/strategies/snowflakeAiStrategy';
+import { type ResolvedSnowflakeAgentClient } from '../services/AiAccessService/SnowflakeAgentClientResolver';
 
 export type SnowflakeRefreshResult = {
     accessToken: string;
@@ -57,20 +58,52 @@ const expiryFromSeconds = (value: unknown, now: Date): Date | null => {
     return Number.isFinite(expiresAt.getTime()) ? expiresAt : null;
 };
 
+type RefreshCallback = (
+    error: unknown,
+    accessToken?: string,
+    refreshToken?: string,
+    results?: unknown,
+) => void;
+
+export const snowflakeOAuthRefreshClient = {
+    requestNewAccessToken(
+        client: ResolvedSnowflakeAgentClient,
+        refreshToken: string,
+        callback: RefreshCallback,
+    ): void {
+        const strategy = createSnowflakeAiPassportStrategy(
+            client,
+        ) as unknown as {
+            _oauth2: {
+                getOAuthAccessToken(
+                    token: string,
+                    params: { grant_type: string },
+                    done: RefreshCallback,
+                ): void;
+            };
+        };
+        strategy._oauth2.getOAuthAccessToken(
+            refreshToken,
+            { grant_type: 'refresh_token' },
+            callback,
+        );
+    },
+};
+
 export const exchangeSnowflakeRefreshToken = ({
-    strategyName,
+    client,
     refreshToken,
     now,
-    requestNewAccessToken = refresh.requestNewAccessToken.bind(refresh),
+    requestNewAccessToken = snowflakeOAuthRefreshClient.requestNewAccessToken,
 }: {
-    strategyName: string;
+    client: ResolvedSnowflakeAgentClient;
     refreshToken: string;
     now: Date;
-    requestNewAccessToken?: typeof refresh.requestNewAccessToken;
+    requestNewAccessToken?: typeof snowflakeOAuthRefreshClient.requestNewAccessToken;
 }): Promise<SnowflakeRefreshResult> =>
     new Promise((resolve, reject) => {
         requestNewAccessToken(
-            strategyName,
+            client,
             refreshToken,
             (error, accessToken, newRefreshToken, results: unknown) => {
                 if (error || !accessToken) {

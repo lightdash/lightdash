@@ -66,7 +66,10 @@ export class OrganizationAgentIdentityController extends BaseController {
         };
     }
 
-    /** @summary Save the organization's Snowflake agent OAuth client. */
+    /**
+     * Saves the organization's Snowflake agent OAuth client.
+     * @summary Save Snowflake client
+     */
     @Put('/snowflake/client')
     @OperationId('updateOrganizationSnowflakeAgentClient')
     @SuccessResponse('200', 'Success')

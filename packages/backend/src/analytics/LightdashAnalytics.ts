@@ -4747,7 +4747,7 @@ export type AgentIdentitySnowflakeClientSavedEvent = AgentIdentityTrack & {
         organizationId: string;
         userId: string;
         warehouseType: WarehouseTypes.SNOWFLAKE;
-        source: 'organization';
+        action: 'created' | 'replaced' | 'unchanged';
     };
 };
 

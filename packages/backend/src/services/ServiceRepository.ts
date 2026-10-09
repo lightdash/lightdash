@@ -23,6 +23,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
+import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
@@ -992,6 +993,12 @@ export class ServiceRepository
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
+                        snowflakeAgentClientResolver:
+                            new SnowflakeAgentClientResolver({
+                                lightdashConfig: this.context.lightdashConfig,
+                                organizationSnowflakeAgentClientModel:
+                                    this.models.getOrganizationSnowflakeAgentClientModel(),
+                            }),
                         lightdashConfig: this.context.lightdashConfig,
                         userWarehouseCredentialsModel:
                             this.models.getUserWarehouseCredentialsModel(),

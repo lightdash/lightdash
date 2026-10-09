@@ -208,6 +208,10 @@ export class AiAccessService extends BaseService {
         this.providerRegistry = providerRegistry;
     }
 
+    async resolveSnowflakeAgentClient(organizationUuid: string) {
+        return this.snowflakeAgentClientResolver.resolve(organizationUuid);
+    }
+
     async assertFeatureEnabled(
         user: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
     ): Promise<void> {
@@ -257,7 +261,7 @@ export class AiAccessService extends BaseService {
             );
         const reason = await provider.missingPrerequisite({
             connection,
-            person: { userUuid, email: user.email ?? '' },
+            person: { organizationUuid, userUuid, email: user.email ?? '' },
             silentRefresh: await this.isSilentRefreshEnabled(
                 { userUuid, organizationUuid },
                 provider.warehouseType,
@@ -334,17 +338,17 @@ export class AiAccessService extends BaseService {
         const redirectUri = getSnowflakeAgentRedirectUri(
             this.lightdashConfig.siteUrl,
         );
-        const resolved =
-            await this.snowflakeAgentClientResolver.resolve(organizationUuid);
         const metadata =
-            resolved?.source === 'organization'
-                ? await this.organizationSnowflakeAgentClientModel.getMetadata(
-                      organizationUuid,
-                  )
-                : null;
+            await this.organizationSnowflakeAgentClientModel.getMetadata(
+                organizationUuid,
+            );
+        const resolved = metadata
+            ? null
+            : await this.snowflakeAgentClientResolver.resolve(organizationUuid);
         const missingSettings =
             await this.snowflakeAgentClientResolver.getMissingSettings(
                 organizationUuid,
+                metadata ? undefined : resolved,
             );
         return {
             redirectUri,
@@ -352,10 +356,14 @@ export class AiAccessService extends BaseService {
             missingSettings,
             configured: missingSettings.length === 0,
             client: {
-                source: resolved?.source ?? null,
-                accountUrl: resolved?.accessUrl ?? null,
-                clientId: resolved?.clientId ?? null,
-                hasClientSecret: resolved !== null,
+                source: metadata ? 'organization' : (resolved?.source ?? null),
+                accountUrl: metadata?.accountUrl ?? resolved?.accessUrl ?? null,
+                clientId: metadata?.clientId ?? resolved?.clientId ?? null,
+                hasClientSecret: metadata
+                    ? !missingSettings.includes(
+                          'Snowflake client secret (replace it)',
+                      )
+                    : resolved !== null,
                 updatedAt: metadata?.updatedAt ?? null,
             },
         };
@@ -374,14 +382,15 @@ export class AiAccessService extends BaseService {
         if (!clientId || !body.clientSecret.trim()) {
             throw new ParameterError('Provide a client ID and client secret.');
         }
-        await this.organizationSnowflakeAgentClientModel.upsert({
-            organizationUuid,
-            accountUrl,
-            accountIdentifier,
-            clientId,
-            clientSecret: body.clientSecret,
-            userUuid: account.user.id,
-        });
+        const { action } =
+            await this.organizationSnowflakeAgentClientModel.upsert({
+                organizationUuid,
+                accountUrl,
+                accountIdentifier,
+                clientId,
+                clientSecret: body.clientSecret,
+                userUuid: account.user.id,
+            });
         trackSafely(() =>
             this.analytics.track({
                 userId: account.user.id,
@@ -390,7 +399,7 @@ export class AiAccessService extends BaseService {
                     organizationId: organizationUuid,
                     userId: account.user.id,
                     warehouseType: WarehouseTypes.SNOWFLAKE,
-                    source: 'organization',
+                    action,
                 },
             }),
         );
@@ -477,10 +486,12 @@ export class AiAccessService extends BaseService {
             }
         }
         checks.push(endpointCheck);
-        const hasAgentSession =
-            await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
-                organizationUuid,
-            );
+        const hasAgentSession = resolved
+            ? await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
+                  organizationUuid,
+                  resolved.clientVersion,
+              )
+            : false;
         checks.push({
             id: 'agent_session',
             label: 'Agent session',
@@ -1067,7 +1078,9 @@ export class AiAccessService extends BaseService {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
             );
-        const configurationError = provider.configurationError();
+        const configurationError = await provider.configurationError(
+            args.organizationUuid,
+        );
         if (configurationError)
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
@@ -1348,7 +1361,11 @@ export class AiAccessService extends BaseService {
                     connection: args.connection,
                     organizationUuid: args.organizationUuid,
                     evaluationKind: args.evaluation.kind,
-                    person: { userUuid: args.userUuid, email },
+                    person: {
+                        organizationUuid: args.organizationUuid,
+                        userUuid: args.userUuid,
+                        email,
+                    },
                     silentRefresh: await this.isSilentRefreshEnabled(
                         args,
                         provider.warehouseType,
@@ -1866,7 +1883,11 @@ export class AiAccessService extends BaseService {
                         );
                     const missing = await provider.missingPrerequisite({
                         connection: args.connection,
-                        person: { userUuid: args.userUuid, email },
+                        person: {
+                            organizationUuid: args.organizationUuid,
+                            userUuid: args.userUuid,
+                            email,
+                        },
                         silentRefresh: await this.isSilentRefreshEnabled(
                             args,
                             provider.warehouseType,

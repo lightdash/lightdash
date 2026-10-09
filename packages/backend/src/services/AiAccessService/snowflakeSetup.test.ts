@@ -49,6 +49,7 @@ const setup = () => {
         }),
     };
     const settings = {
+        get: vi.fn().mockResolvedValue({ requireVerifiedAgentSessions: false }),
         upsert: vi.fn().mockResolvedValue({
             settings: { requireVerifiedAgentSessions: true },
             previousSource: 'marked_person',
@@ -210,7 +211,7 @@ describe('Snowflake integration setup', () => {
         const result = await service.verifySnowflakeSetup(account);
         expect(
             credentials.hasOrganizationAiSnowflakeCredential,
-        ).toHaveBeenCalledWith(account.organization?.organizationUuid);
+        ).toHaveBeenCalledWith(account.organization?.organizationUuid, null);
         expect(result.checks[2]).toMatchObject({
             status: 'passed',
             required: false,
@@ -348,6 +349,7 @@ describe('organization Snowflake client', () => {
         clients.upsert.mockImplementation(async () => {
             clients.getWithSecret.mockResolvedValue(organizationClient);
             clients.getMetadata.mockResolvedValue(organizationClient);
+            return { ...organizationClient, action: 'created' };
         });
         const result = await service.saveSnowflakeAgentClient(account, {
             ...clientBody,
@@ -377,7 +379,7 @@ describe('organization Snowflake client', () => {
                 organizationId: account.organization.organizationUuid,
                 userId: account.user.id,
                 warehouseType: WarehouseTypes.SNOWFLAKE,
-                source: 'organization',
+                action: 'created',
             },
         });
         expect(JSON.stringify(analytics.track.mock.calls)).not.toContain(
@@ -473,4 +475,44 @@ it('verifies a resolved client while still reporting a missing licence', async (
         'Using the client saved for this organisation.',
     );
     expect(result.checks[0].detail).toContain('Enterprise licence');
+});
+
+it('keeps unreadable organization clients editable without falling back to the environment', async () => {
+    const { service, clients, account } = setup();
+    clients.getMetadata.mockResolvedValue(organizationClient);
+    clients.getWithSecret.mockRejectedValue(
+        new ParameterError('Cannot decrypt'),
+    );
+    await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject({
+        configured: false,
+        missingSettings: ['Snowflake client secret (replace it)'],
+        client: {
+            source: 'organization',
+            accountUrl: organizationClient.accountUrl,
+            clientId: organizationClient.clientId,
+            hasClientSecret: false,
+            updatedAt: organizationClient.updatedAt,
+        },
+    });
+    await expect(
+        service.getOrganizationSettings(account),
+    ).resolves.toMatchObject({ snowflakeConfigured: false });
+});
+
+it('resolves an environment client only once when reading setup', async () => {
+    const { service, clients, account } = setup();
+    await service.getSnowflakeSetup(account);
+    expect(clients.getWithSecret).toHaveBeenCalledOnce();
+});
+
+it('scopes activation evidence to the current organization client version', async () => {
+    const { service, clients, credentials, account } = setup();
+    clients.getWithSecret.mockResolvedValue(organizationClient);
+    await service.verifySnowflakeSetup(account);
+    expect(
+        credentials.hasOrganizationAiSnowflakeCredential,
+    ).toHaveBeenCalledWith(
+        account.organization.organizationUuid,
+        organizationClient.clientVersion,
+    );
 });

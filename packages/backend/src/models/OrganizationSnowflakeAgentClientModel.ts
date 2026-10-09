@@ -83,11 +83,6 @@ export class OrganizationSnowflakeAgentClientModel {
         userUuid: string;
     }) {
         return this.args.database.transaction(async (trx) => {
-            await trx('organizations')
-                .select('organization_uuid')
-                .where('organization_uuid', organizationUuid)
-                .forUpdate()
-                .first();
             const existing = await trx(
                 OrganizationSnowflakeAgentClientsTableName,
             )
@@ -128,7 +123,13 @@ export class OrganizationSnowflakeAgentClientModel {
                 .onConflict('organization_uuid')
                 .merge(values)
                 .returning('*');
-            return toMetadata(row);
+            let action: 'created' | 'replaced' | 'unchanged' = 'created';
+            if (existing)
+                action =
+                    clientVersion === existing.client_version
+                        ? 'unchanged'
+                        : 'replaced';
+            return { ...toMetadata(row), action };
         });
     }
 }

@@ -142,7 +142,10 @@ import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
-import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    UserWarehouseCredentialsModel,
+    type SnowflakeAiClientBinding,
+} from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
 import {
@@ -3349,13 +3352,10 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
-        purpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
-                purpose === UserWarehouseCredentialPurpose.AI
-                    ? 'snowflake-ai'
-                    : 'snowflake',
+                'snowflake',
                 refreshToken,
                 (
                     err: AnyType,
@@ -3535,11 +3535,13 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
         expiresAt: Date | null,
+        binding: SnowflakeAiClientBinding,
     ): Promise<void> {
         await this.userWarehouseCredentialsModel.upsertAiSnowflakeCredential(
             user.userUuid,
             refreshToken,
             expiresAt,
+            binding,
         );
     }
 
