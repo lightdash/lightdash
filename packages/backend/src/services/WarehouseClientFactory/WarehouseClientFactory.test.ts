@@ -37,6 +37,8 @@ import {
     AthenaClient,
     GetQueryExecutionCommand,
     GetQueryResultsCommand,
+    GetTableMetadataCommand,
+    ListDatabasesCommand,
     StartQueryExecutionCommand,
 } from '../../../../warehouses/node_modules/@aws-sdk/client-athena';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
@@ -2246,6 +2248,62 @@ describe('AI service account factory scopes', () => {
                 ).not.toHaveBeenCalled();
             }
             expect(athenaSdk.send).toHaveBeenCalledOnce();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+        },
+    );
+    test.each(['getFields', 'listDatabases'] as const)(
+        'attributes expired Athena keys from %s without fallback',
+        async (operation) => {
+            const { factory, aiAccessService, projectModel, credentialSource } =
+                buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await athenaPlan());
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                warehouseClientFromCredentials,
+            );
+            athenaSdk.send.mockReset().mockRejectedValue(
+                Object.assign(new Error('safe'), {
+                    name: 'ExpiredToken',
+                    $metadata: { httpStatusCode: 403 },
+                }),
+            );
+
+            const result = factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => {
+                    if (operation === 'getFields') {
+                        return warehouseClient.getFields(
+                            'orders',
+                            'analytics',
+                            'AwsDataCatalog',
+                        );
+                    }
+                    return warehouseClient.listDatabases();
+                },
+            );
+
+            await expect(result).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(
+                aiAccessService.trackQueryRefusal,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.anything(),
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                'parent',
+            );
+            expect(athenaSdk.send).toHaveBeenCalledOnce();
+            expect(athenaSdk.send.mock.calls[0][0]).toBeInstanceOf(
+                operation === 'getFields'
+                    ? GetTableMetadataCommand
+                    : ListDatabasesCommand,
+            );
             expect(credentialSource.finish).not.toHaveBeenCalled();
             expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
             expect(

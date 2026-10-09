@@ -225,10 +225,12 @@ const translateAthenaError = (
         (awsErrorName !== undefined &&
             AWS_AUTH_ERROR_NAMES.has(awsErrorName)) ||
         httpStatusCode === 401;
-    if (isAuthError || options.defaultErrorClass === 'connection') {
-        return new WarehouseConnectionError(fullMessage);
-    }
-    return new WarehouseQueryError(fullMessage);
+    const translatedError =
+        isAuthError || options.defaultErrorClass === 'connection'
+            ? new WarehouseConnectionError(fullMessage)
+            : new WarehouseQueryError(fullMessage);
+    translatedError.cause = error;
+    return translatedError;
 };
 
 export class AthenaSqlBuilder extends WarehouseBaseSqlBuilder {
