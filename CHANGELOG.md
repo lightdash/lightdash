@@ -1,3 +1,10 @@
+# [2.507.0](https://github.com/lightdash/lightdash/compare/2.506.0...2.507.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** record the agent and the person it ran for on every agent query ([#30799](https://github.com/lightdash/lightdash/issues/30799)) ([662ab7f](https://github.com/lightdash/lightdash/commit/662ab7f24d4d9313f1c0e192ac553637d93cbf56))
+
 # [2.506.0](https://github.com/lightdash/lightdash/compare/2.505.1...2.506.0) (2026-10-09)
 
 
