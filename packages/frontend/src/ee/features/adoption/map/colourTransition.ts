@@ -12,7 +12,7 @@ import styles from './DepartmentMap.module.css';
 export type ColourTransition = 'sweep' | 'reflow';
 
 // How people's dots and squares change when the colouring changes
-export const COLOUR_TRANSITION: ColourTransition = 'sweep';
+export const COLOUR_TRANSITION: ColourTransition = 'reflow';
 
 // Each mark's fade to its new colour; the marks' CSS transition reads it while a change runs
 const FADE_MS = 380;

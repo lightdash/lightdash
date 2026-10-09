@@ -122,7 +122,7 @@ export const groupSquares = (
 };
 
 // Reflow glides every person's square at once, which stalls the page with more squares than this in view
-export const REFLOW_SQUARE_LIMIT = 2000;
+export const REFLOW_SQUARE_LIMIT = 10000;
 
 // The transition a change of colouring uses: the constant's, but a sweep where a reflow would move too many squares
 export const chooseTransition = (
