@@ -1,3 +1,10 @@
+# [2.517.0](https://github.com/lightdash/lightdash/compare/2.516.0...2.517.0) (2026-10-09)
+
+
+### Features
+
+* **table-calculations:** add difference from previous quick calculation ([#30821](https://github.com/lightdash/lightdash/issues/30821)) ([e1b095f](https://github.com/lightdash/lightdash/commit/e1b095fd72111dee492cdd32bb2309ceb549a8d0))
+
 # [2.516.0](https://github.com/lightdash/lightdash/compare/2.515.0...2.516.0) (2026-10-09)
 
 

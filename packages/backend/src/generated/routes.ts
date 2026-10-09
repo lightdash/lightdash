@@ -2296,6 +2296,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS': {
+        dataType: 'refEnum',
+        enums: ['difference_from_previous'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS': {
         dataType: 'refEnum',
         enums: ['percent_change_from_previous'],
@@ -2387,6 +2392,48 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        partitionBy: {
+                            dataType: 'array',
+                            array: { dataType: 'string' },
+                        },
+                        orderBy: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    order: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['asc'],
+                                            },
+                                            {
+                                                dataType: 'enum',
+                                                enums: ['desc'],
+                                            },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                        required: true,
+                                    },
+                                    fieldId: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            required: true,
+                        },
+                        fieldId: { dataType: 'string', required: true },
+                        type: {
+                            ref: 'TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS',
+                            required: true,
+                        },
+                    },
+                },
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
