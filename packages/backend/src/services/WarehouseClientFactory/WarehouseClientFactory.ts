@@ -323,8 +323,9 @@ export class WarehouseClientFactory {
         if (aiPlan?.identity === 'ai_service_account') {
             return {
                 kind: 'aiServiceAccount',
-                uuid: getAiExecutionCredentialUuid(aiPlan)!,
+                uuid: aiPlan.credentialUuid,
                 identityUuid: aiPlan.identityUuid,
+                sourceProjectUuid: aiPlan.sourceProjectUuid,
             };
         }
         if (aiPlan?.identity === 'connected_person') {

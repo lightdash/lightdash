@@ -12,7 +12,12 @@ export type CredentialOwner =
     | { kind: 'organization'; uuid: string }
     | { kind: 'user'; uuid: string; purpose: UserWarehouseCredentialPurpose }
     | { kind: 'warehouseConnection'; uuid: string }
-    | { kind: 'aiServiceAccount'; uuid: string; identityUuid: string };
+    | {
+          kind: 'aiServiceAccount';
+          uuid: string;
+          identityUuid: string;
+          sourceProjectUuid: string;
+      };
 
 export type CredentialSelection<C, S = C> = {
     connection: C;

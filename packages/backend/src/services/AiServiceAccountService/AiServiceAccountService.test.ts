@@ -14,6 +14,11 @@ import {
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
+import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../WarehouseClientFactory/CredentialResolver';
 import { AiServiceAccountService } from './AiServiceAccountService';
 
 const secrets = {
@@ -930,3 +935,44 @@ it('records the parent generation when Test uses an inherited key', async () => 
     });
     audit.mockRestore();
 });
+
+it('validates the merged slot through the registry before saving', async () => {
+    const f = setup();
+    const validation = vi
+        .spyOn(aiServiceAccountCredentialResolvers, 'validateOnSave')
+        .mockRejectedValueOnce(new ParameterError('invalid slot'));
+    try {
+        await expect(
+            f.service.upsert(f.account, 'project', null, input),
+        ).rejects.toThrow('invalid slot');
+        expect(validation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stored: secrets,
+                intent: { kind: 'preserve' },
+                owner: null,
+            }),
+            'ai_service_account',
+        );
+        expect(f.model.upsert).not.toHaveBeenCalled();
+    } finally {
+        validation.mockRestore();
+    }
+});
+
+it.each([true, false])(
+    'passes plain bypass credentials with submitted=%s',
+    async (submitted) => {
+        const f = setup();
+        await f.service.test(
+            f.account,
+            'project',
+            null,
+            submitted ? input : null,
+        );
+        const tested = f.withWarehouseClient.mock.calls[0][0]
+            .credentials as MaterializedCredentials;
+        expect(Object.getOwnPropertySymbols(tested)).not.toContain(
+            credentialResolution,
+        );
+    },
+);

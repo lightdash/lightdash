@@ -21,12 +21,10 @@ import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import { type WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
-import {
-    applyAiServiceAccountCredentials,
-    mergeAiServiceAccountCredentials,
-} from './applyAiServiceAccountCredentials';
+import { mergeAiServiceAccountCredentials } from './applyAiServiceAccountCredentials';
 
 type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
@@ -193,7 +191,7 @@ export const testAgentAccess = async (
             throw new NotFoundError(
                 'The connection has no AI service account.',
             );
-        const credentials = applyAiServiceAccountCredentials(
+        const credentials = buildAiServiceAccountCredentials(
             connection,
             secrets,
         );

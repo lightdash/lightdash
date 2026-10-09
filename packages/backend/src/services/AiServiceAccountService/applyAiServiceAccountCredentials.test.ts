@@ -171,3 +171,38 @@ it('rejects a method change rather than retaining secrets for it', () => {
         'complete',
     );
 });
+
+it('allows routing and transport fields while dropping unrecognised connection identities', () => {
+    const routing = {
+        threads: 4,
+        startOfWeek: 1,
+        dataTimezone: 'Europe/London',
+        accessUrl: 'https://warehouse.test',
+        useSshTunnel: true,
+        sshTunnelHost: 'tunnel',
+        sshTunnelPort: 22,
+        sshTunnelUser: 'transport-user',
+        sshTunnelPublicKey: 'public',
+        sshTunnelPrivateKey: 'transport-key',
+    } as const;
+    const poisoned = {
+        ...connection,
+        ...routing,
+        role: 'admin',
+        dbGroups: ['privileged'],
+        autoCreate: true,
+        assumeRoleArn: 'arn:connection',
+        externalId: 'connection-id',
+        userWarehouseCredentialsUuid: 'person',
+        sslcert: 'person-cert',
+        sslkey: 'person-key',
+        unknownIdentity: 'future-auth',
+    };
+    expect(applyAiServiceAccountCredentials(poisoned, secrets)).toEqual({
+        ...connection,
+        ...routing,
+        ...secrets,
+        requireUserCredentials: false,
+        allowUserCredentials: false,
+    });
+});

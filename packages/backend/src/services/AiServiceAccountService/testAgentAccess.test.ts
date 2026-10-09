@@ -11,6 +11,10 @@ import {
     BigqueryWarehouseClient,
 } from '@lightdash/warehouses';
 import { buildAccount } from '../../auth/account/account.mock';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../WarehouseClientFactory/CredentialResolver';
 import { testAgentAccess } from './testAgentAccess';
 
 const connection = {
@@ -434,3 +438,24 @@ describe('testAgentAccess', () => {
         );
     });
 });
+
+it.each([true, false])(
+    'passes plain access-report bypass credentials with submitted=%s',
+    async (submitted) => {
+        const f = setup();
+        if (submitted) {
+            f.input.request.credentials =
+                await f.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets();
+        }
+        try {
+            await f.run();
+            const tested = f.withWarehouseClient.mock.calls[0][0]
+                .credentials as MaterializedCredentials;
+            expect(Object.getOwnPropertySymbols(tested)).not.toContain(
+                credentialResolution,
+            );
+        } finally {
+            vi.restoreAllMocks();
+        }
+    },
+);
