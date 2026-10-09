@@ -136,10 +136,20 @@ export const DepartmentForm: FC<FormProps> = ({
     const setMembers = useSetDepartmentMembers();
     const { data: users = [] } = useOrganizationUsers();
     const { data: groups = [] } = useOrganizationGroups({});
-    // With the department page's people to hand, everyone else loads only once the people picker opens
+    // The department page's people leave out anyone who counts elsewhere, so an assigned person missing there needs everyone's list
+    const isAssignedPersonUnlisted = useMemo(() => {
+        if (department === null || members === null) return false;
+        const listed = new Set(members.map((member) => member.userUuid));
+        return department.explicitMemberUuids.some(
+            (userUuid) => !listed.has(userUuid),
+        );
+    }, [department, members]);
+    // Everyone loads for the index's list of people, for an unlisted assigned person, or once the people picker opens
     const [hasOpenedPeoplePicker, setHasOpenedPeoplePicker] = useState(false);
     const { data: everyone } = useDepartmentMembership(
-        members === null || hasOpenedPeoplePicker,
+        (department !== null &&
+            (members === null || isAssignedPersonUnlisted)) ||
+            hasOpenedPeoplePicker,
     );
     const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -258,13 +268,9 @@ export const DepartmentForm: FC<FormProps> = ({
             ),
         [everyone, members, departments, department, parentDepartmentUuid],
     );
-    const userNames = useMemo(
-        () =>
-            new Map(userOptions.map((option) => [option.value, option.label])),
-        [userOptions],
-    );
     // A chosen person's chip says where else they are, as assigning here keeps them there too
     const renderPersonChip = ({
+        option,
         value,
         onRemove,
         disabled,
@@ -273,7 +279,8 @@ export const DepartmentForm: FC<FormProps> = ({
         const elsewhere = alsoIn.get(userUuid);
         return (
             <Pill withRemoveButton onRemove={onRemove} disabled={disabled}>
-                {userNames.get(userUuid) ?? userUuid}
+                {/* No option comes for someone no longer offered, such as a person who left the organization */}
+                {option?.label ?? userUuid}
                 {elsewhere !== undefined && (
                     <Text span inherit c="dimmed">
                         {`, also in ${elsewhere.join(', ')}`}

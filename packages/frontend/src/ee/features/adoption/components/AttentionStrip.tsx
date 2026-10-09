@@ -26,11 +26,11 @@ export const AttentionStrip: FC<Props> = ({
     const hasUnassigned = unassignedCount > 0;
     const hasShared = sharedCount > 0;
     if (!hasUnassigned && !hasShared) return null;
-    // Being in several departments is information, so it only warns when someone is in none
-    // Mantine's Alert carries role="alert", so screen readers announce it
+    // Being in several departments is information: it neither warns nor interrupts a screen reader
     return (
         <Callout
             variant={hasUnassigned ? 'warning' : 'neutral'}
+            role={hasUnassigned ? 'alert' : 'status'}
             icon={
                 <MantineIcon
                     icon={hasUnassigned ? IconUserQuestion : IconUsers}

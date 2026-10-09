@@ -2,10 +2,12 @@ import {
     OrganizationMemberRole,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import type * as OrgDepartmentsModule from '../../../hooks/useOrgDepartments';
 import { dept } from '../utils/adoptionFixtures';
 import { type MembershipTab } from '../utils/attention';
 import { MembershipModal } from './MembershipModal';
@@ -54,17 +56,29 @@ const membership: DepartmentMembership[] = [
 let isPlacing = false;
 let primarySaving: { userUuid: string; departmentUuid: string | null } | null =
     null;
-vi.mock('../../../hooks/useOrgDepartments', () => ({
-    useDepartmentMembership: () => ({
-        data: membership,
-        isInitialLoading: false,
-    }),
-    useSetDepartmentMembers: () => ({ mutate, isLoading: isPlacing }),
-    useSetPrimaryDepartment: () => ({
+// A stand-in while a save is in flight, or the real hook against the mocked API, to see what a failure leaves
+let isPrimaryHookReal = false;
+const showToastApiError = vi.fn();
+vi.mock('../../../hooks/useOrgDepartments', async (importOriginal) => {
+    const actual = await importOriginal<typeof OrgDepartmentsModule>();
+    const stub = () => ({
         mutate: setPrimary,
         isLoading: primarySaving !== null,
         variables: primarySaving ?? undefined,
-    }),
+    });
+    return {
+        useDepartmentMembership: () => ({
+            data: membership,
+            isInitialLoading: false,
+        }),
+        useSetDepartmentMembers: () => ({ mutate, isLoading: isPlacing }),
+        useSetPrimaryDepartment: () =>
+            (isPrimaryHookReal ? actual.useSetPrimaryDepartment : stub)(),
+    };
+});
+vi.mock('../../../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError, showToastSuccess: vi.fn() }),
 }));
 
 const departments = [
@@ -86,8 +100,11 @@ describe('MembershipModal', () => {
     beforeEach(() => {
         mutate.mockReset();
         setPrimary.mockReset();
+        showToastApiError.mockReset();
+        vi.mocked(lightdashApi).mockReset();
         isPlacing = false;
         primarySaving = null;
+        isPrimaryHookReal = false;
     });
 
     const renderModal = (
@@ -377,6 +394,40 @@ describe('MembershipModal', () => {
             expect(countsIn('Cat Test')).toBeDisabled();
             expect(countsIn('Eve Test')).toHaveValue('Finance');
             expect(countsIn('Eve Test')).toBeDisabled();
+        });
+
+        it('shows where the person counted before and says why when a save fails', async () => {
+            isPrimaryHookReal = true;
+            const failure = {
+                status: 'error' as const,
+                error: {
+                    name: 'ParameterError',
+                    statusCode: 400,
+                    message: 'User u3 is not in department Ops',
+                    data: {},
+                },
+            };
+            let reject: (reason: unknown) => void = () => {};
+            vi.mocked(lightdashApi).mockReturnValueOnce(
+                new Promise<never>((_resolve, rejectSave) => {
+                    reject = rejectSave;
+                }),
+            );
+            renderModal('shared');
+            await place('Counts in for Cat Test', 'Ops');
+            // While it saves, the choice shows and nothing else can change
+            expect(countsIn('Cat Test')).toHaveValue('Ops');
+            expect(countsIn('Eve Test')).toBeDisabled();
+            reject(failure);
+            await waitFor(() =>
+                expect(showToastApiError).toHaveBeenCalledWith({
+                    title: 'Failed to update where this person counts',
+                    apiError: failure.error,
+                }),
+            );
+            await waitFor(() => expect(countsIn('Cat Test')).toBeEnabled());
+            expect(countsIn('Cat Test')).toHaveValue('Everywhere');
+            expect(countsIn('Eve Test')).toBeEnabled();
         });
 
         it('narrows by name or email when searching', () => {

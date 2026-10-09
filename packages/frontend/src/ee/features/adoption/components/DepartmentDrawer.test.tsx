@@ -653,7 +653,7 @@ describe('DepartmentForm', () => {
             expect(chipsOf(/^Assigned people/)).toEqual(['Bob Test']);
         });
 
-        it('on a new department, names every department a chosen person is in', async () => {
+        it('on a new department, loads everyone once the picker opens and names every department a chosen person is in', async () => {
             membership = [placedIn('u2', 'Bob', ['Finance', 'Stores'])];
             renderWithProviders(
                 <DepartmentForm
@@ -663,7 +663,10 @@ describe('DepartmentForm', () => {
                     onClose={vi.fn()}
                 />,
             );
+            expect(membershipEnabled).toHaveBeenCalledWith(false);
+            expect(membershipEnabled).not.toHaveBeenCalledWith(true);
             await pick(/^Assigned people/, 'Bob Test');
+            expect(membershipEnabled).toHaveBeenLastCalledWith(true);
             expect(chipsOf(/^Assigned people/)).toEqual([
                 'Bob Test, also in Finance, Stores',
             ]);
@@ -710,6 +713,45 @@ describe('DepartmentForm', () => {
                 'Ann Test, also in Finance',
                 'Bob Test, also in Finance',
             ]);
+        });
+
+        it('on the department page, loads everyone at once when an assigned person counts elsewhere', () => {
+            // Bob is assigned here but counts in Finance, so the page's people leave him out
+            membership = [
+                placedIn('u1', 'Ann', ['Ops']),
+                {
+                    ...placedIn('u2', 'Bob', ['Finance', 'Ops']),
+                    primaryDepartmentUuid: 'Finance',
+                    countedDepartmentUuids: ['Finance'],
+                },
+            ];
+            renderWithProviders(
+                <DepartmentForm
+                    department={dept('Ops', null, 10, {
+                        headcount: 40,
+                        explicitMemberUuids: ['u1', 'u2'],
+                    })}
+                    departments={departments}
+                    members={[
+                        memberFixture('u1', null, {
+                            firstName: 'Ann',
+                            lastName: 'Test',
+                            departmentUuid: 'Ops',
+                            departmentName: 'Ops',
+                        }),
+                    ]}
+                    onClose={vi.fn()}
+                />,
+            );
+            expect(membershipEnabled).toHaveBeenLastCalledWith(true);
+            expect(chipsOf(/^Assigned people/)).toEqual([
+                'Ann Test',
+                'Bob Test, also in Finance',
+            ]);
+            // The list of people is still the page's own
+            expect(
+                screen.getByText('1 person in this department'),
+            ).toBeInTheDocument();
         });
     });
 

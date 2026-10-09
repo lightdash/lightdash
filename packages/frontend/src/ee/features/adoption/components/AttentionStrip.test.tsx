@@ -75,6 +75,21 @@ describe('AttentionStrip', () => {
         expect(screen.queryByText(/in no department/)).not.toBeInTheDocument();
     });
 
+    it('interrupts screen readers only when someone is in no department', () => {
+        const { unmount } = renderStrip({ unassignedCount: 0 });
+        // Information alone is announced politely
+        expect(screen.getByRole('status')).toHaveTextContent(
+            '48 people are in more than one department',
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        unmount();
+        renderStrip();
+        expect(screen.getByRole('alert')).toHaveTextContent(
+            /^140 people are in no department/,
+        );
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
     it('leaves the link out when nobody is in more than one department', () => {
         renderStrip({ sharedCount: 0 });
         expect(
@@ -88,6 +103,7 @@ describe('AttentionStrip', () => {
     it('shows nothing when everyone is in exactly one department', () => {
         renderStrip({ unassignedCount: 0, sharedCount: 0 });
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
         expect(screen.queryByText(/department/)).not.toBeInTheDocument();
     });
 

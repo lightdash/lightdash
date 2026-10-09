@@ -1,4 +1,5 @@
-import { waitFor } from '@testing-library/react';
+import { useQueryClient } from '@tanstack/react-query';
+import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { renderHookWithProviders } from '../../testing/testUtils';
@@ -11,6 +12,10 @@ import {
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
+}));
+const showToastApiError = vi.fn();
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastApiError, showToastSuccess: vi.fn() }),
 }));
 
 const DEPARTMENT = '11111111-2222-4333-8444-555555555555';
@@ -127,6 +132,65 @@ describe('useSetPrimaryDepartment', () => {
     beforeEach(() => {
         vi.mocked(lightdashApi).mockReset();
         vi.mocked(lightdashApi).mockResolvedValue(undefined as never);
+        showToastApiError.mockReset();
+    });
+
+    const MEMBERSHIP_KEY = ['org-adoption', 'membership'];
+    const SUMMARY_KEY = ['org-adoption', 'summary'];
+    // The hook beside the client it shares, with the adoption data already cached
+    const renderWithCachedAdoption = () => {
+        const rendered = renderHookWithProviders(() => ({
+            client: useQueryClient(),
+            setPrimary: useSetPrimaryDepartment(),
+        }));
+        const { client } = rendered.result.current;
+        client.setQueryData(MEMBERSHIP_KEY, []);
+        client.setQueryData(SUMMARY_KEY, {});
+        return rendered;
+    };
+    const isStale = (
+        client: ReturnType<typeof useQueryClient>,
+        key: string[],
+    ) => client.getQueryState(key)?.isInvalidated;
+
+    it('marks the adoption data stale before the save completes', async () => {
+        const { result } = renderWithCachedAdoption();
+        const { client } = result.current;
+        expect(isStale(client, MEMBERSHIP_KEY)).toBe(false);
+        await act(() =>
+            result.current.setPrimary.mutateAsync({
+                userUuid: PERSON,
+                departmentUuid: SALES,
+            }),
+        );
+        expect(isStale(client, MEMBERSHIP_KEY)).toBe(true);
+        expect(isStale(client, SUMMARY_KEY)).toBe(true);
+        expect(showToastApiError).not.toHaveBeenCalled();
+    });
+
+    it('says why a save failed and leaves the adoption data alone', async () => {
+        const failure = {
+            status: 'error',
+            error: {
+                name: 'ParameterError',
+                statusCode: 400,
+                message: `User ${PERSON} is not in department ${SALES}`,
+                data: {},
+            },
+        };
+        vi.mocked(lightdashApi).mockRejectedValue(failure);
+        const { result } = renderWithCachedAdoption();
+        result.current.setPrimary.mutate({
+            userUuid: PERSON,
+            departmentUuid: SALES,
+        });
+        await waitFor(() =>
+            expect(showToastApiError).toHaveBeenCalledWith({
+                title: 'Failed to update where this person counts',
+                apiError: failure.error,
+            }),
+        );
+        expect(isStale(result.current.client, MEMBERSHIP_KEY)).toBe(false);
     });
 
     it('sets the department a person counts in', async () => {
