@@ -1,3 +1,10 @@
+# [2.534.0](https://github.com/lightdash/lightdash/compare/2.533.0...2.534.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** resolve the Snowflake agent sign-in through a credential resolver ([#30855](https://github.com/lightdash/lightdash/issues/30855)) ([bb40dc8](https://github.com/lightdash/lightdash/commit/bb40dc88775a2858c2482f99b25183b6d1c63928))
+
 # [2.533.0](https://github.com/lightdash/lightdash/compare/2.532.0...2.533.0) (2026-10-09)
 
 

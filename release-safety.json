@@ -1,25 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.533.0",
-  "previousVersion": "2.532.0",
-  "releaseDate": "2026-10-09T23:31:52.951Z",
+  "version": "2.534.0",
+  "previousVersion": "2.533.0",
+  "releaseDate": "2026-10-09T23:46:44.548Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261009223647_create_credentials_tables.ts",
-        "edition": "core",
-        "tables": [],
-        "heaviness": {
-          "locksTable": "unknown",
-          "rewritesTable": "unknown",
-          "scansTable": "unknown"
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
