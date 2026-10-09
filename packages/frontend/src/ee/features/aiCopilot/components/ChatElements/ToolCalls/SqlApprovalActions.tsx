@@ -171,9 +171,13 @@ const SqlApprovalButtons: FC<{
     );
 
     // Modal footers end with the primary action.
-    return placement === 'modal'
-        ? [reject, approveAlways, approve]
-        : [approve, approveAlways, reject];
+    return (
+        <>
+            {placement === 'modal'
+                ? [reject, approveAlways, approve]
+                : [approve, approveAlways, reject]}
+        </>
+    );
 };
 
 const noop = () => undefined;
