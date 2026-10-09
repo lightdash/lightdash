@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     ForbiddenError,
+    NotFoundError,
     SnowflakeAuthenticationType,
     SnowflakeTokenError,
     UserWarehouseCredentialPurpose,
@@ -9,12 +10,17 @@ import {
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
 import {
+    OAUTH_REQUEST_TIMEOUT_MS,
+    OAuthRequestTimeoutError,
+} from '../../../auth/oauthRequestDeadline';
+import {
     createDatabase,
     deferred,
 } from '../../../models/RefreshTokenRotation/fakeKnex.mock';
 import {
     RefreshTokenLockTimeoutError,
     RefreshTokenRotation,
+    RefreshTokenSourceChangedError,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { UserService } from '../../UserService';
 import {
@@ -58,7 +64,7 @@ const selection = (): CredentialSelection<CreateSnowflakeCredentials> => ({
     aiPlan: null,
 });
 const setup = (enabled = true) => {
-    const { database, transaction } = createDatabase();
+    const { database, transaction, raw } = createDatabase();
     const coordinator = new RefreshTokenRotation({ database });
     const run = vi.spyOn(coordinator, 'run');
     const project = {
@@ -72,7 +78,7 @@ const setup = (enabled = true) => {
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue(project),
-            getWarehouseCredentialsForProjectUncached: vi
+            getOwnWarehouseCredentialsForProject: vi
                 .fn()
                 .mockResolvedValue(credentials),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
@@ -89,7 +95,7 @@ const setup = (enabled = true) => {
         },
         warehouseConnectionModel: {
             getProject: vi.fn().mockResolvedValue(project),
-            getCredentials: vi.fn().mockResolvedValue(credentials),
+            getOwnCredentials: vi.fn().mockResolvedValue(credentials),
             rotateRefreshToken: vi.fn().mockResolvedValue(true),
         },
         userOAuthGrantsModel: {
@@ -113,7 +119,7 @@ const setup = (enabled = true) => {
             accessToken: 'fresh-access',
             refreshToken: 'new-refresh',
         });
-    return { resolver, deps, exchange, run, transaction, project };
+    return { resolver, deps, exchange, run, transaction, project, raw };
 };
 afterEach(() => vi.restoreAllMocks());
 
@@ -215,6 +221,8 @@ describe('SnowflakeOAuthCredentialResolver', () => {
                 'row',
                 'old-refresh',
                 'new-refresh',
+                ...(kind === 'user' ? [undefined] : []),
+                { raw: f.raw },
             );
             expect(f.run).toHaveBeenCalledTimes(1);
         },
@@ -222,17 +230,21 @@ describe('SnowflakeOAuthCredentialResolver', () => {
 
     test('uses the current row token under the lock', async () => {
         const f = setup();
-        f.deps.projectModel.getWarehouseCredentialsForProjectUncached.mockResolvedValue(
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
             { ...credentials, refreshToken: 'current-refresh' },
         );
         await f.resolver.resolve(selection());
-        expect(f.exchange).toHaveBeenCalledExactlyOnceWith('current-refresh');
+        expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
+            'current-refresh',
+            OAUTH_REQUEST_TIMEOUT_MS,
+        );
         expect(
             f.deps.projectModel.rotateRefreshToken,
         ).toHaveBeenCalledExactlyOnceWith(
             'project',
             'current-refresh',
             'new-refresh',
+            { raw: f.raw },
         );
     });
 
@@ -300,7 +312,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             const input = selection();
             if (source === 'input') input.connection.refreshToken = undefined;
             else
-                f.deps.projectModel.getWarehouseCredentialsForProjectUncached.mockResolvedValue(
+                f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
                     { ...credentials, refreshToken: undefined },
                 );
             await expect(f.resolver.resolve(input)).rejects.toThrow(
@@ -310,12 +322,93 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         },
     );
 
+    test.each(['transport', 'pool'] as const)(
+        'keeps %s timeouts retryable',
+        async (source) => {
+            const f = setup();
+            if (source === 'transport')
+                f.exchange.mockRejectedValue(new OAuthRequestTimeoutError());
+            else
+                f.transaction.mockRejectedValue(
+                    Object.assign(new Error('Pool exhausted'), {
+                        name: 'KnexTimeoutError',
+                    }),
+                );
+            await expect(
+                f.resolver.resolve(selection()),
+            ).rejects.toBeInstanceOf(RefreshTokenLockTimeoutError);
+            expect(
+                f.deps.projectModel.rotateRefreshToken,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
     test('keeps lock timeouts retryable', async () => {
         const f = setup();
         const error = new RefreshTokenLockTimeoutError();
         f.run.mockRejectedValue(error);
         await expect(f.resolver.resolve(selection())).rejects.toBe(error);
     });
+
+    test.each([
+        'project',
+        'warehouseConnection',
+        'organization',
+        'user',
+    ] as const)(
+        'refuses a changed or removed %s source without exchanging or writing',
+        async (kind) => {
+            const f = setup();
+            const readers = {
+                project:
+                    f.deps.projectModel.getOwnWarehouseCredentialsForProject,
+                warehouseConnection:
+                    f.deps.warehouseConnectionModel.getOwnCredentials,
+                organization:
+                    f.deps.organizationWarehouseCredentialsModel
+                        .getByUuidWithSensitiveData,
+                user: f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
+            };
+            const acquired = deferred<void>();
+            f.raw
+                .mockResolvedValueOnce(undefined)
+                .mockImplementationOnce(() => acquired.promise);
+            const pending = f.resolver.resolve({
+                ...selection(),
+                owner:
+                    kind === 'user'
+                        ? {
+                              kind,
+                              uuid: 'row',
+                              purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                          }
+                        : { kind, uuid: 'row' },
+            });
+            await vi.waitFor(() => expect(f.raw).toHaveBeenCalledTimes(2));
+            expect(readers[kind]).not.toHaveBeenCalled();
+            readers[kind].mockRejectedValue(
+                kind === 'organization' || kind === 'user'
+                    ? new NotFoundError('Credential removed')
+                    : new RefreshTokenSourceChangedError(),
+            );
+            acquired.resolve();
+            await expect(pending).rejects.toMatchObject({
+                data: {
+                    code: 'warehouse_oauth_refresh_failed',
+                    retryable: true,
+                },
+            });
+            expect(f.exchange).not.toHaveBeenCalled();
+            for (const model of [
+                f.deps.projectModel,
+                f.deps.warehouseConnectionModel,
+                f.deps.organizationWarehouseCredentialsModel,
+                f.deps.userWarehouseCredentialsModel,
+            ]) {
+                expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+            }
+        },
+    );
 
     test('owner null exchanges without a flag read, lock or write', async () => {
         const f = setup();
@@ -396,7 +489,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         await f.resolver.resolve(selection());
         expect(f.run).not.toHaveBeenCalled();
         expect(
-            f.deps.projectModel.getWarehouseCredentialsForProjectUncached,
+            f.deps.projectModel.getOwnWarehouseCredentialsForProject,
         ).not.toHaveBeenCalled();
         expect(f.exchange).toHaveBeenCalledExactlyOnceWith('old-refresh');
         expect(
@@ -461,6 +554,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
                 'shared-row',
                 'old-refresh',
                 'shared-refresh',
+                { raw: f.raw },
             );
         },
     );
@@ -511,6 +605,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
                 firstInput.owner!.uuid,
                 'old-refresh',
                 'rotated-refresh',
+                { raw: f.raw },
             );
             expect(f.transaction).toHaveBeenCalledTimes(1);
         },
@@ -538,7 +633,7 @@ describe('Snowflake OAuth refresh concurrency', () => {
     test('rereads the rotated token for a caller after the first refresh completes', async () => {
         const f = setup();
         let stored = credentials;
-        f.deps.projectModel.getWarehouseCredentialsForProjectUncached.mockImplementation(
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockImplementation(
             async () => stored,
         );
         f.deps.projectModel.rotateRefreshToken.mockImplementation(
@@ -550,8 +645,8 @@ describe('Snowflake OAuth refresh concurrency', () => {
         await f.resolver.resolve(selection());
         await f.resolver.resolve(selection());
         expect(f.exchange.mock.calls).toEqual([
-            ['old-refresh'],
-            ['new-refresh'],
+            ['old-refresh', OAUTH_REQUEST_TIMEOUT_MS],
+            ['new-refresh', OAUTH_REQUEST_TIMEOUT_MS],
         ]);
         expect(f.transaction).toHaveBeenCalledTimes(2);
     });

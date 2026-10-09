@@ -37,6 +37,41 @@ const startedRun = (uuid = 'row-1') => {
 describe('RefreshTokenRotation', () => {
     afterEach(() => vi.useRealTimers());
 
+    test('passes the lock transaction to the reread and persistence', async () => {
+        const { database, raw } = createDatabase();
+        const run = createRun();
+        await new RefreshTokenRotation({ database }).run(run);
+        expect(run.readCurrentRefreshToken).toHaveBeenCalledExactlyOnceWith({
+            raw,
+        });
+        expect(run.persist).toHaveBeenCalledExactlyOnceWith({
+            lockedRefreshToken: 'current-token',
+            result: { token: 'access-token' },
+            trx: { raw },
+        });
+    });
+
+    test('maps a pool acquisition timeout and releases admission for a retry', async () => {
+        const { database, transaction } = createDatabase();
+        transaction.mockRejectedValueOnce(
+            Object.assign(new Error('Pool exhausted'), {
+                name: 'KnexTimeoutError',
+            }),
+        );
+        const coordinator = new RefreshTokenRotation({
+            database,
+            maxConcurrent: 1,
+        });
+        const run = createRun();
+        await expect(coordinator.run(run)).rejects.toBeInstanceOf(
+            RefreshTokenLockTimeoutError,
+        );
+        expect(run.exchange).not.toHaveBeenCalled();
+        await expect(coordinator.run(run)).resolves.toMatchObject({
+            result: { token: 'access-token' },
+        });
+    });
+
     test('shares one exchange and write across coordinator instances until persistence finishes', async () => {
         const { database, raw, transaction } = createDatabase();
         const leader = new RefreshTokenRotation({ database });
@@ -67,6 +102,7 @@ describe('RefreshTokenRotation', () => {
         expect(run.persist).toHaveBeenCalledExactlyOnceWith({
             lockedRefreshToken: 'current-token',
             result,
+            trx: { raw },
         });
         persisted.resolve();
         const values = await Promise.all([first, second, third]);
@@ -340,6 +376,11 @@ describe('RefreshTokenRotation', () => {
     test('scales the refresh cap with the database pool', () => {
         const withPool = (max: unknown) =>
             ({ client: { config: { pool: { max } } } }) as unknown as Knex;
+        for (const max of [1, 2, 3, 4, 5, 6, 7]) {
+            expect(RefreshTokenRotation.maxConcurrentFor(withPool(max))).toBe(
+                1,
+            );
+        }
         expect(RefreshTokenRotation.maxConcurrentFor(withPool(10))).toBe(2);
         expect(RefreshTokenRotation.maxConcurrentFor(withPool(40))).toBe(10);
         expect(RefreshTokenRotation.maxConcurrentFor(withPool(undefined))).toBe(

@@ -8,6 +8,10 @@ import {
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
+import {
+    OAUTH_REQUEST_TIMEOUT_MS,
+    OAuthRequestTimeoutError,
+} from '../../../auth/oauthRequestDeadline';
 import * as refreshModule from '../../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
@@ -98,6 +102,23 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('Snowflake agent refresh locking', () => {
     test.each([true, false])(
+        'keeps the transport deadline retryable with silent refresh %s',
+        async (silentRefresh) => {
+            const f = setup();
+            f.exchange.mockRejectedValue(new OAuthRequestTimeoutError());
+            await expect(
+                f.provider.mint({ ...args, silentRefresh }),
+            ).rejects.toMatchObject({
+                data: {
+                    code: 'warehouse_oauth_refresh_failed',
+                    retryable: true,
+                },
+            });
+            expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([true, false])(
         'shares an exchange and guarded write with silent refresh %s',
         async (silentRefresh) => {
             const f = setup();
@@ -146,6 +167,7 @@ describe('Snowflake agent refresh locking', () => {
                     'old-refresh',
                     'new-refresh',
                     { kind: 'unreported' },
+                    { raw: f.raw },
                 );
             } else {
                 expect(
@@ -154,6 +176,8 @@ describe('Snowflake agent refresh locking', () => {
                     'credential',
                     'old-refresh',
                     'new-refresh',
+                    undefined,
+                    { raw: f.raw },
                 );
             }
             expect(f.transaction).toHaveBeenCalledTimes(1);
@@ -294,12 +318,14 @@ describe('Snowflake agent refresh locking', () => {
             client: snowflakeAgentClientMock,
             refreshToken: 'rotated-refresh',
             now: expect.any(Date),
+            requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS,
         });
         expect(f.model.rotateRefreshToken).toHaveBeenCalledExactlyOnceWith(
             'credential',
             'rotated-refresh',
             'new-refresh',
             { kind: 'unreported' },
+            { raw: f.raw },
         );
     });
 
@@ -483,6 +509,7 @@ describe('Snowflake agent refresh locking', () => {
                     reported
                         ? { kind: 'reported', expiresAt: reported }
                         : { kind: 'unreported' },
+                    { raw: f.raw },
                 );
             else expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
         },

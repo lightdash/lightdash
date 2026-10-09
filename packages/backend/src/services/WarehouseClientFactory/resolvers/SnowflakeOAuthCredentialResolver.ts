@@ -14,12 +14,19 @@ import {
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
+import {
+    OAUTH_REQUEST_TIMEOUT_MS,
+    OAuthRequestTimeoutError,
+} from '../../../auth/oauthRequestDeadline';
 import type Logger from '../../../logging/logger';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import {
+    RefreshTokenLockTimeoutError,
     RefreshTokenRowMissingError,
+    RefreshTokenSourceChangedError,
     type RefreshTokenRotation,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
@@ -47,7 +54,7 @@ type Dependencies = {
     projectModel: Pick<
         ProjectModel,
         | 'getSummary'
-        | 'getWarehouseCredentialsForProjectUncached'
+        | 'getOwnWarehouseCredentialsForProject'
         | 'rotateRefreshToken'
     >;
     organizationWarehouseCredentialsModel: Pick<
@@ -60,7 +67,7 @@ type Dependencies = {
     >;
     warehouseConnectionModel: Pick<
         WarehouseConnectionModel,
-        'getProject' | 'getCredentials' | 'rotateRefreshToken'
+        'getProject' | 'getOwnCredentials' | 'rotateRefreshToken'
     >;
     userOAuthGrantsModel: Pick<UserOAuthGrantsModel, 'getRefreshToken'>;
     logger: Pick<typeof Logger, 'debug' | 'error'>;
@@ -226,8 +233,12 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                                           : null,
                               },
                               shareKey: 'snowflake-personal',
-                              readCurrentRefreshToken: () =>
-                                  this.readCurrentRefreshToken(input, owner),
+                              readCurrentRefreshToken: (trx) =>
+                                  this.readCurrentRefreshToken(
+                                      input,
+                                      owner,
+                                      trx,
+                                  ),
                           }
                         : null,
                 exchange: (refreshToken) => {
@@ -236,9 +247,14 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                     );
                     return UserService.generateSnowflakeAccessToken(
                         refreshToken,
+                        ...(lockEnabled ? [OAUTH_REQUEST_TIMEOUT_MS] : []),
                     );
                 },
-                persist: async ({ lockedRefreshToken, result: refreshed }) => {
+                persist: async ({
+                    lockedRefreshToken,
+                    result: refreshed,
+                    trx,
+                }) => {
                     if (
                         persistOwner !== null &&
                         refreshed.refreshToken &&
@@ -249,6 +265,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                             persistOwner,
                             lockedRefreshToken,
                             refreshed.refreshToken,
+                            trx,
                         );
                     }
                 },
@@ -263,6 +280,9 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 cacheable: true,
             };
         } catch (error) {
+            if (error instanceof OAuthRequestTimeoutError) {
+                throw new RefreshTokenLockTimeoutError();
+            }
             if (policy.errorPolicy === 'raw') throw error;
             const mapped = this.mapError(error);
             if (owner?.kind === 'project') {
@@ -312,6 +332,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
     private async readCurrentRefreshToken(
         input: SnowflakeSelection,
         owner: PersonalOwner,
+        trx: Knex,
     ): Promise<string | null> {
         try {
             let credentials: Pick<CreateWarehouseCredentials, 'type'> & {
@@ -321,14 +342,16 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
             switch (owner.kind) {
                 case 'project':
                     credentials =
-                        await this.deps.projectModel.getWarehouseCredentialsForProjectUncached(
+                        await this.deps.projectModel.getOwnWarehouseCredentialsForProject(
                             owner.uuid,
+                            trx,
                         );
                     break;
                 case 'organization':
                     credentials = (
                         await this.deps.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
                             owner.uuid,
+                            trx,
                         )
                     ).credentials;
                     break;
@@ -336,15 +359,17 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                     credentials = (
                         await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
                             owner.uuid,
+                            trx,
                         )
                     ).credentials;
                     break;
                 case 'warehouseConnection': {
-                    const project = await this.getConnectionProject(input);
+                    const project = await this.getConnectionProject(input, trx);
                     credentials =
-                        await this.deps.warehouseConnectionModel.getCredentials(
+                        await this.deps.warehouseConnectionModel.getOwnCredentials(
                             project,
                             owner.uuid,
+                            trx,
                         );
                     break;
                 }
@@ -360,18 +385,20 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 ? (credentials.refreshToken ?? null)
                 : null;
         } catch (error) {
-            if (error instanceof NotFoundError) return null;
+            if (error instanceof NotFoundError)
+                throw new RefreshTokenSourceChangedError();
             throw error;
         }
     }
 
-    private async getConnectionProject(input: SnowflakeSelection) {
+    private async getConnectionProject(input: SnowflakeSelection, trx?: Knex) {
         if (input.projectUuid === null)
             throw new ForbiddenError(
                 'Warehouse connection credentials require a project',
             );
         const project = await this.deps.warehouseConnectionModel.getProject(
             input.projectUuid,
+            trx,
         );
         if (
             input.context.organizationUuid !== null &&
@@ -389,6 +416,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
         owner: PersonalOwner,
         oldRefreshToken: string,
         newRefreshToken: string,
+        trx?: Knex,
     ): Promise<void> {
         try {
             switch (owner.kind) {
@@ -397,6 +425,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                         owner.uuid,
                         oldRefreshToken,
                         newRefreshToken,
+                        ...(trx ? [trx] : []),
                     );
                     break;
                 case 'organization':
@@ -404,21 +433,33 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                         owner.uuid,
                         oldRefreshToken,
                         newRefreshToken,
+                        ...(trx ? [trx] : []),
                     );
                     break;
                 case 'user':
-                    await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
-                        owner.uuid,
-                        oldRefreshToken,
-                        newRefreshToken,
-                    );
+                    if (trx) {
+                        await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                            owner.uuid,
+                            oldRefreshToken,
+                            newRefreshToken,
+                            undefined,
+                            trx,
+                        );
+                    } else {
+                        await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                            owner.uuid,
+                            oldRefreshToken,
+                            newRefreshToken,
+                        );
+                    }
                     break;
                 case 'warehouseConnection':
                     await this.deps.warehouseConnectionModel.rotateRefreshToken(
-                        await this.getConnectionProject(input),
+                        await this.getConnectionProject(input, trx),
                         owner.uuid,
                         oldRefreshToken,
                         newRefreshToken,
+                        ...(trx ? [trx] : []),
                     );
                     break;
                 default:

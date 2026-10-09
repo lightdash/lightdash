@@ -1,3 +1,4 @@
+import { type Knex } from 'knex';
 import type {
     RefreshRowKey,
     RefreshRun,
@@ -22,10 +23,14 @@ export class SnowflakeOAuthRefresher {
         row: {
             key: RefreshRowKey;
             shareKey: string;
-            readCurrentRefreshToken: () => Promise<string | null>;
+            readCurrentRefreshToken: RefreshRun<R>['readCurrentRefreshToken'];
         } | null;
         exchange: RefreshRun<R>['exchange'];
-        persist: RefreshRun<R>['persist'];
+        persist: (args: {
+            lockedRefreshToken: string;
+            result: R;
+            trx?: Knex;
+        }) => Promise<void>;
     }): Promise<R> {
         if (row !== null) {
             const { result } = await this.rotation.run({

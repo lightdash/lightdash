@@ -107,8 +107,14 @@ import {
 } from '../analytics/LightdashAnalytics';
 import { trackSafely } from '../analytics/trackSafely';
 import * as AccountFactory from '../auth/account';
+import {
+    requestOAuthRefreshWithDeadline,
+    type OAuthRefreshCallback,
+} from '../auth/oauthRequestDeadline';
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { lightdashConfig as configuredLightdashConfig } from '../config/lightdashConfig';
 import { LightdashConfig } from '../config/parseConfig';
+import { createSnowflakePassportStrategy } from '../controllers/authentication/strategies/snowflakeStrategy';
 import { UserOAuthGrantProvider } from '../database/entities/userOAuthGrants';
 import {
     createAuditLogEvent,
@@ -3365,26 +3371,46 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
+        requestTimeoutMs?: number,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
-            refresh.requestNewAccessToken(
-                'snowflake',
-                refreshToken,
-                (
-                    err: AnyType,
-                    accessToken: string,
-                    newRefreshToken: string | undefined,
-                ) => {
-                    if (err || !accessToken) {
-                        reject(err);
-                        return;
-                    }
-                    resolve({
-                        accessToken,
-                        refreshToken: newRefreshToken || refreshToken,
-                    });
-                },
-            );
+            const callback: OAuthRefreshCallback = (
+                err,
+                accessToken,
+                newRefreshToken,
+            ) => {
+                if (err || !accessToken) {
+                    reject(err);
+                    return;
+                }
+                resolve({
+                    accessToken,
+                    refreshToken: newRefreshToken || refreshToken,
+                });
+            };
+            if (requestTimeoutMs !== undefined) {
+                const strategy = createSnowflakePassportStrategy();
+                if (
+                    !strategy ||
+                    !configuredLightdashConfig.auth.snowflake.tokenEndpoint
+                ) {
+                    reject(new Error('Snowflake OAuth is not configured'));
+                    return;
+                }
+                requestOAuthRefreshWithDeadline(
+                    strategy,
+                    configuredLightdashConfig.auth.snowflake.tokenEndpoint,
+                    refreshToken,
+                    callback,
+                    requestTimeoutMs,
+                );
+            } else {
+                refresh.requestNewAccessToken(
+                    'snowflake',
+                    refreshToken,
+                    callback,
+                );
+            }
         });
     }
 

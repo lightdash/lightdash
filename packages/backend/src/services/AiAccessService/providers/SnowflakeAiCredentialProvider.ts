@@ -15,6 +15,10 @@ import {
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
 } from '@lightdash/warehouses';
 import {
+    OAUTH_REQUEST_TIMEOUT_MS,
+    OAuthRequestTimeoutError,
+} from '../../../auth/oauthRequestDeadline';
+import {
     classifySnowflakeRefreshError,
     exchangeSnowflakeRefreshToken,
     type SnowflakeRefreshResult,
@@ -25,6 +29,7 @@ import { withCause } from '../../../logging/withCause';
 import {
     RefreshTokenLockTimeoutError,
     RefreshTokenRowMissingError,
+    RefreshTokenSourceChangedError,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type AiUserWarehouseCredentials } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { SnowflakeOAuthRefresher } from '../../OAuthRefresh/SnowflakeOAuthRefresher';
@@ -294,20 +299,21 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                         client.clientVersion,
                         silentRefresh,
                     ]),
-                    readCurrentRefreshToken: async () => {
+                    readCurrentRefreshToken: async (trx) => {
                         const current =
                             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                                 {
                                     userUuid,
                                     warehouseType: WarehouseTypes.SNOWFLAKE,
                                 },
+                                trx,
                             );
                         if (current && !this.matchesClient(current, client))
                             throw new AiAccessRefusedError(
                                 AiAccessRefusalReason.SIGN_IN_EXPIRED,
                             );
                         if (!current || current.uuid !== credential.uuid)
-                            return null;
+                            throw new RefreshTokenSourceChangedError();
                         if (
                             !silentRefresh &&
                             current.expiresAt &&
@@ -334,12 +340,13 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                             client,
                             refreshToken: currentRefreshToken,
                             now: new Date(),
+                            requestTimeoutMs: OAUTH_REQUEST_TIMEOUT_MS,
                         });
                     } catch (error) {
                         throw new AgentRefreshExchangeError(error);
                     }
                 },
-                persist: async ({ lockedRefreshToken, result }) => {
+                persist: async ({ lockedRefreshToken, result, trx }) => {
                     Logger.info('Agent sign-in refreshed', {
                         userUuid,
                         organizationUuid,
@@ -368,11 +375,14 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                                                 result.refreshTokenExpiresAt,
                                         }
                                       : { kind: 'unreported' },
+                                  trx,
                               )
                             : await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
                                   credential.uuid,
                                   lockedRefreshToken,
                                   result.refreshToken,
+                                  undefined,
+                                  trx,
                               );
                         if (tokenChanged)
                             Logger[rotated ? 'info' : 'debug'](
@@ -385,7 +395,10 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 },
             });
         } catch (error) {
-            if (error instanceof RefreshTokenRowMissingError)
+            if (
+                error instanceof RefreshTokenRowMissingError ||
+                error instanceof RefreshTokenSourceChangedError
+            )
                 throw withCause(
                     new AiAccessRefusedError(
                         AiAccessRefusalReason.NEEDS_SIGN_IN,
@@ -403,6 +416,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     : error;
             if (
                 !silentRefresh &&
+                !(cause instanceof OAuthRequestTimeoutError) &&
                 !(error instanceof RefreshTokenLockTimeoutError)
             ) {
                 const detail = cause as {

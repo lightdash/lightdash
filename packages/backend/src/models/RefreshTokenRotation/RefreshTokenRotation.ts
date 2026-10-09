@@ -11,9 +11,13 @@ export type RefreshRowKey = {
 export type RefreshRun<R> = {
     key: RefreshRowKey;
     shareKey: string;
-    readCurrentRefreshToken: () => Promise<string | null>;
+    readCurrentRefreshToken: (trx: Knex) => Promise<string | null>;
     exchange: (refreshToken: string) => Promise<R>;
-    persist: (args: { lockedRefreshToken: string; result: R }) => Promise<void>;
+    persist: (args: {
+        lockedRefreshToken: string;
+        result: R;
+        trx: Knex;
+    }) => Promise<void>;
 };
 
 type RefreshResult<R> = { result: R; refreshTokenUsed: string };
@@ -36,6 +40,16 @@ export class RefreshTokenRowMissingError extends Error {
     constructor() {
         super('The warehouse credential row or refresh token is missing.');
         this.name = 'RefreshTokenRowMissingError';
+    }
+}
+
+export class RefreshTokenSourceChangedError extends UnexpectedServerError {
+    constructor() {
+        super('The warehouse credential source changed. Try again.', {
+            code: 'warehouse_oauth_refresh_failed',
+            retryable: true,
+        });
+        this.name = 'RefreshTokenSourceChangedError';
     }
 }
 
@@ -134,7 +148,7 @@ export class RefreshTokenRotation {
             )?.config?.pool?.max,
         );
         return Number.isInteger(poolMax) && poolMax > 0
-            ? Math.max(2, Math.floor(poolMax / 4))
+            ? Math.max(1, Math.floor(poolMax / 4))
             : 2;
     }
 
@@ -186,12 +200,17 @@ export class RefreshTokenRotation {
                     }
                     throw error;
                 }
-                const current = await run.readCurrentRefreshToken();
+                const current = await run.readCurrentRefreshToken(trx);
                 if (!current) throw new RefreshTokenRowMissingError();
                 const result = await run.exchange(current);
-                await run.persist({ lockedRefreshToken: current, result });
+                await run.persist({ lockedRefreshToken: current, result, trx });
                 return { result, refreshTokenUsed: current };
             });
+        } catch (error) {
+            if (error instanceof Error && error.name === 'KnexTimeoutError') {
+                throw new RefreshTokenLockTimeoutError();
+            }
+            throw error;
         } finally {
             this.admission.release();
         }

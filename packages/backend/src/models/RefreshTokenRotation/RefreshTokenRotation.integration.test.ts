@@ -1,4 +1,4 @@
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { getTestContext } from '../../vitest.setup.integration';
 import { RefreshTokenRotation, type RefreshRun } from './RefreshTokenRotation';
@@ -27,6 +27,55 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
         await database.schema.dropTableIfExists(tableName);
     });
 
+    test('refreshes with a pool of one using the held connection for the read and savepoint', async () => {
+        const singleConnection = knex({
+            ...database.client.config,
+            pool: { min: 0, max: 1 },
+            acquireConnectionTimeout: 500,
+        });
+        const uuid = randomUUID();
+        try {
+            await singleConnection(tableName).insert({
+                uuid,
+                refresh_token: 'before',
+            });
+            const rotation = RefreshTokenRotation.forDatabase(singleConnection);
+            const exchange = vi.fn().mockResolvedValue('after');
+            await rotation.run({
+                key: { kind: 'project', uuid, purpose: null },
+                shareKey: 'single-connection',
+                readCurrentRefreshToken: async (trx) => {
+                    const row = await trx<{
+                        uuid: string;
+                        refresh_token: string;
+                    }>(tableName)
+                        .where({ uuid })
+                        .first();
+                    return row?.refresh_token ?? null;
+                },
+                exchange,
+                persist: async ({ lockedRefreshToken, result, trx }) => {
+                    await trx.transaction(async (savepoint) => {
+                        expect(
+                            await savepoint(tableName)
+                                .where({
+                                    uuid,
+                                    refresh_token: lockedRefreshToken,
+                                })
+                                .update({ refresh_token: result }),
+                        ).toBe(1);
+                    });
+                },
+            });
+            expect(exchange).toHaveBeenCalledExactlyOnceWith('before');
+            expect(
+                await singleConnection(tableName).where({ uuid }).first(),
+            ).toMatchObject({ refresh_token: 'after' });
+        } finally {
+            await singleConnection.destroy();
+        }
+    });
+
     test('serializes separate in-process maps and rereads the committed rotation', async () => {
         const uuid = randomUUID();
         await database(tableName).insert({ uuid, refresh_token: 'token-1' });
@@ -46,8 +95,8 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
         const run: RefreshRun<string> = {
             key: { kind: 'project', uuid, purpose: null },
             shareKey: 'test-client',
-            readCurrentRefreshToken: async () => {
-                const row = await database<{
+            readCurrentRefreshToken: async (trx) => {
+                const row = await trx<{
                     uuid: string;
                     refresh_token: string;
                 }>(tableName)
@@ -66,9 +115,9 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
                 activeExchanges -= 1;
                 return token === 'token-1' ? 'token-2' : 'token-3';
             },
-            persist: async ({ lockedRefreshToken, result }) => {
-                await database.transaction(async (trx) => {
-                    const updated = await trx(tableName)
+            persist: async ({ lockedRefreshToken, result, trx }) => {
+                await trx.transaction(async (savepoint) => {
+                    const updated = await savepoint(tableName)
                         .where({ uuid, refresh_token: lockedRefreshToken })
                         .update({ refresh_token: result });
                     expect(updated).toBe(1);

@@ -55,7 +55,7 @@ const setup = (
     };
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue(project),
-        getWarehouseCredentialsForProjectUncached: vi
+        getOwnWarehouseCredentialsForProject: vi
             .fn()
             .mockResolvedValue(credentials),
         rotateRefreshToken: vi.fn().mockResolvedValue(true),
@@ -142,6 +142,7 @@ describe('ProjectService Snowflake resolver entry points', () => {
             ).toBeDefined();
             expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
                 'stored-refresh',
+                ...(enabled ? [30_000] : []),
             );
             expect(f.run).toHaveBeenCalledTimes(enabled ? 1 : 0);
             expect(
@@ -154,6 +155,7 @@ describe('ProjectService Snowflake resolver entry points', () => {
                     'org-row',
                     'stored-refresh',
                     'rotated-refresh',
+                    expect.objectContaining({ raw: expect.any(Function) }),
                 );
         },
     );
@@ -185,6 +187,9 @@ describe('ProjectService Snowflake resolver entry points', () => {
                 enabled ? 'org-row' : 'project',
                 'stored-refresh',
                 'rotated-refresh',
+                ...(enabled
+                    ? [expect.objectContaining({ raw: expect.any(Function) })]
+                    : []),
             );
         },
     );

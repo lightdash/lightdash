@@ -263,9 +263,10 @@ Callers resolve the flag for the credential's organisation, without a user
 UUID, so personal overrides do not apply. Instance defaults, organisation
 overrides and the generic ENV precedence apply.
 
-At most a quarter of the database pool (minimum two) holds a refresh lock at
+At most a quarter of the pool, minimum one, holds a refresh lock at
 one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the row lock; a timeout returns a retryable refresh error.
+5 seconds for the row lock. Token requests close their sockets after 30 seconds
+of inactivity. A timeout returns a retryable refresh error.
 
 Console changes apply to the next refresh. Turning the flag off restores the
 previous refresh path. It does not undo rotations. ENV changes need a process

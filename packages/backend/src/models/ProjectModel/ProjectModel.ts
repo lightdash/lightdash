@@ -225,6 +225,7 @@ import {
 } from '../../utils/SlugUtils';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
+import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
     remapRowBinding,
@@ -5207,6 +5208,48 @@ export class ProjectModel {
         return credentials;
     }
 
+    async getOwnWarehouseCredentialsForProject(
+        projectUuid: string,
+        trx?: Knex,
+    ): Promise<CreateWarehouseCredentials> {
+        const row = await (trx ?? this.database)('warehouse_credentials')
+            .innerJoin(
+                'projects',
+                'warehouse_credentials.project_id',
+                'projects.project_id',
+            )
+            .select<{
+                encrypted_credentials: Buffer | null;
+                organization_warehouse_credentials_uuid: string | null;
+                playground_bundle_version: string | null;
+            }>(
+                'warehouse_credentials.encrypted_credentials',
+                'projects.organization_warehouse_credentials_uuid',
+                'projects.playground_bundle_version',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first();
+        if (
+            !row ||
+            row.organization_warehouse_credentials_uuid !== null ||
+            !row.encrypted_credentials
+        ) {
+            throw new RefreshTokenSourceChangedError();
+        }
+        const credentials = this.decryptWarehouseCredentials(
+            row.encrypted_credentials,
+        );
+        if (!credentials) {
+            throw new UnexpectedServerError(
+                'Unexpected error: failed to parse warehouse credentials',
+            );
+        }
+        return ProjectModel.withPlaygroundBundleVersion(
+            credentials,
+            row.playground_bundle_version,
+        );
+    }
+
     async getWarehouseCredentialsForProjectUncached(
         projectUuid: string,
     ): Promise<CreateWarehouseCredentials> {
@@ -5273,54 +5316,60 @@ export class ProjectModel {
         projectUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
+        trx?: Knex,
     ): Promise<boolean> {
-        const swapped = await this.database.transaction(async (trx) => {
-            const row = await trx('warehouse_credentials')
-                .innerJoin(
-                    'projects',
-                    'warehouse_credentials.project_id',
-                    'projects.project_id',
-                )
-                .where('projects.project_uuid', projectUuid)
-                .select<
-                    { project_id: number; encrypted_credentials: Buffer }[]
-                >([
-                    'warehouse_credentials.project_id',
-                    'warehouse_credentials.encrypted_credentials',
-                ])
-                .forUpdate()
-                .first();
-            if (!row) {
-                return false;
-            }
+        const swapped = await (trx ?? this.database).transaction(
+            async (transaction) => {
+                const row = await transaction('warehouse_credentials')
+                    .innerJoin(
+                        'projects',
+                        'warehouse_credentials.project_id',
+                        'projects.project_id',
+                    )
+                    .where('projects.project_uuid', projectUuid)
+                    .select<
+                        { project_id: number; encrypted_credentials: Buffer }[]
+                    >([
+                        'warehouse_credentials.project_id',
+                        'warehouse_credentials.encrypted_credentials',
+                    ])
+                    .forUpdate()
+                    .first();
+                if (!row) {
+                    return false;
+                }
 
-            let credentials: CreateWarehouseCredentials;
-            try {
-                credentials = normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(row.encrypted_credentials),
-                    ) as CreateWarehouseCredentials,
+                let credentials: CreateWarehouseCredentials;
+                try {
+                    credentials = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                row.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    );
+                } catch {
+                    return false;
+                }
+
+                const stored = (
+                    credentials as Partial<{ refreshToken: string }>
+                ).refreshToken;
+                if (stored !== expectedOldRefreshToken) {
+                    return false;
+                }
+
+                (credentials as { refreshToken: string }).refreshToken =
+                    newRefreshToken;
+                const encryptedCredentials = this.encryptionUtil.encrypt(
+                    JSON.stringify(credentials),
                 );
-            } catch {
-                return false;
-            }
-
-            const stored = (credentials as Partial<{ refreshToken: string }>)
-                .refreshToken;
-            if (stored !== expectedOldRefreshToken) {
-                return false;
-            }
-
-            (credentials as { refreshToken: string }).refreshToken =
-                newRefreshToken;
-            const encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(credentials),
-            );
-            await trx('warehouse_credentials')
-                .update({ encrypted_credentials: encryptedCredentials })
-                .where('project_id', row.project_id);
-            return true;
-        });
+                await transaction('warehouse_credentials')
+                    .update({ encrypted_credentials: encryptedCredentials })
+                    .where('project_id', row.project_id);
+                return true;
+            },
+        );
 
         if (swapped) {
             warehouseCredentialsCache?.del(projectUuid);
