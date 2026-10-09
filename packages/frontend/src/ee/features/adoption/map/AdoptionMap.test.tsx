@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState, type ComponentProps, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -21,6 +22,7 @@ import {
 import { getSweepDelay } from '../utils/sweepDelay';
 import { AdoptionMap } from './AdoptionMap';
 import styles from './DepartmentMap.module.css';
+import { type ColourBy } from './geometry';
 import { estimateTextWidth } from './mapLayout';
 import { deepOrganization, flatOrganization } from './organizationFixtures';
 
@@ -85,6 +87,26 @@ const summary = (
     };
 };
 
+// The page holds the department selected and the colouring; here a stand-in does
+const MapOnPage: FC<
+    Omit<
+        ComponentProps<typeof AdoptionMap>,
+        'selectedUuid' | 'onSelect' | 'colourBy' | 'onColourByChange'
+    >
+> = (props) => {
+    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    return (
+        <AdoptionMap
+            {...props}
+            selectedUuid={selectedUuid}
+            onSelect={setSelectedUuid}
+            colourBy={colourBy}
+            onColourByChange={setColourBy}
+        />
+    );
+};
+
 const renderMap = (
     departments: DepartmentWithMetrics[] = tree,
     {
@@ -96,7 +118,7 @@ const renderMap = (
 ) =>
     renderWithProviders(
         <MemoryRouter>
-            <AdoptionMap
+            <MapOnPage
                 summary={summary(departments, organization, placed)}
                 canManage={canManage}
                 onEdit={onEdit}
@@ -261,6 +283,37 @@ describe('AdoptionMap', () => {
         );
         expect(
             screen.getByRole('button', { name: /^Finance,/ }),
+        ).toBeInTheDocument();
+    });
+
+    it('opens the department the page selects, asks the page to select another, and shows the organization for one not in it', () => {
+        const onSelect = vi.fn();
+        const props = {
+            summary: summary(tree),
+            canManage: true,
+            onSelect,
+            colourBy: 'activity' as const,
+            onColourByChange: vi.fn(),
+            onEdit: vi.fn(),
+            measureText: estimateTextWidth,
+        };
+        const { rerender } = renderWithProviders(
+            <MemoryRouter>
+                <AdoptionMap {...props} selectedUuid="Ops" />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('img', { name: /^Map of Ops:/ }),
+        ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /^Stores,/ }));
+        expect(onSelect).toHaveBeenLastCalledWith('Stores');
+        rerender(
+            <MemoryRouter>
+                <AdoptionMap {...props} selectedUuid="Deleted" />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('img', { name: /^Map of the organization:/ }),
         ).toBeInTheDocument();
     });
 
@@ -2249,7 +2302,7 @@ describe('AdoptionMap', () => {
             expect(isStill()).toBe(true);
             rerender(
                 <MemoryRouter>
-                    <AdoptionMap
+                    <MapOnPage
                         summary={summary([
                             ...tree.slice(0, 3),
                             d('Finance', null, 8, 3, 3),

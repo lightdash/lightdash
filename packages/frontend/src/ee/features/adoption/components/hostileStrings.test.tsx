@@ -6,11 +6,13 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState, type FC } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
+import { type ColourBy } from '../map/geometry';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
 import { DotSwatch } from '../map/MapLegend';
@@ -202,6 +204,29 @@ const expectNothingInjected = () => {
         );
 };
 
+// The map with the selection and the colouring the page would hold for it
+const MapOnPage: FC = () => {
+    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    return (
+        <AdoptionMap
+            summary={{
+                organization: metricsFixture(7, null),
+                placed: placedMetricsFixture(7, 0),
+                departments: [hostileDepartment, child],
+                attention: { unassignedCount: 0, sharedCount: 0 },
+            }}
+            canManage
+            selectedUuid={selectedUuid}
+            onSelect={setSelectedUuid}
+            colourBy={colourBy}
+            onColourByChange={setColourBy}
+            onEdit={vi.fn()}
+            measureText={estimateTextWidth}
+        />
+    );
+};
+
 describe('typed strings render as text', () => {
     afterEach(() => {
         hooks.membership = [];
@@ -361,17 +386,7 @@ describe('typed strings render as text', () => {
         };
         const { container } = renderWithProviders(
             <MemoryRouter>
-                <AdoptionMap
-                    summary={{
-                        organization: metricsFixture(7, null),
-                        placed: placedMetricsFixture(7, 0),
-                        departments: [hostileDepartment, child],
-                        attention: { unassignedCount: 0, sharedCount: 0 },
-                    }}
-                    canManage
-                    onEdit={vi.fn()}
-                    measureText={estimateTextWidth}
-                />
+                <MapOnPage />
             </MemoryRouter>,
         );
         const drawn = (selector: string) =>

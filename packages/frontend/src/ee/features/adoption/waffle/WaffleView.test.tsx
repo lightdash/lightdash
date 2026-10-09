@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState, type ComponentProps, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -51,6 +52,26 @@ const summary = (
     attention: { unassignedCount: 0, sharedCount: 0 },
 });
 
+// The page holds the department selected and the colouring; here a stand-in does
+const WaffleOnPage: FC<
+    Omit<
+        ComponentProps<typeof WaffleView>,
+        'selectedUuid' | 'onSelect' | 'colourBy' | 'onColourByChange'
+    >
+> = (props) => {
+    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    return (
+        <WaffleView
+            {...props}
+            selectedUuid={selectedUuid}
+            onSelect={setSelectedUuid}
+            colourBy={colourBy}
+            onColourByChange={setColourBy}
+        />
+    );
+};
+
 const renderWaffle = (
     departments: DepartmentWithMetrics[],
     {
@@ -61,7 +82,7 @@ const renderWaffle = (
 ) =>
     renderWithProviders(
         <MemoryRouter>
-            <WaffleView
+            <WaffleOnPage
                 summary={summary(departments, placed)}
                 canManage={canManage}
                 onEdit={onEdit}
@@ -371,6 +392,30 @@ describe('WaffleView', () => {
         // Everyone in the fixture is a viewer
         expect(drawnSquares(container, 'healthy')).toHaveLength(0);
         expect(drawnSquares(container, 'viewer').length).toBeGreaterThan(0);
+    });
+
+    it('marks the department the page selects and asks the page to select the one chosen', async () => {
+        const onSelect = vi.fn();
+        renderWithProviders(
+            <MemoryRouter>
+                <WaffleView
+                    summary={summary(deepOrganization)}
+                    canManage
+                    selectedUuid="Finance"
+                    onSelect={onSelect}
+                    colourBy="activity"
+                    onColourByChange={vi.fn()}
+                    onEdit={vi.fn()}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('button', { name: /^Finance,/ }),
+        ).toHaveAttribute('aria-current', 'true');
+        await userEvent.click(
+            screen.getByRole('button', { name: /^Supply Chain,/ }),
+        );
+        expect(onSelect).toHaveBeenLastCalledWith('Supply Chain');
     });
 
     it('selects a department from its block, as a click on its circle on the map does, and goes back from the breadcrumb', async () => {
@@ -831,7 +876,7 @@ describe('WaffleView', () => {
             const redraw = (departments: DepartmentWithMetrics[]) =>
                 rerender(
                     <MemoryRouter>
-                        <WaffleView
+                        <WaffleOnPage
                             summary={summary(departments)}
                             canManage
                             onEdit={vi.fn()}

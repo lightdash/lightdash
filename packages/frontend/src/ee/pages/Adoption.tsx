@@ -15,10 +15,14 @@ import { DepartmentDrawer } from '../features/adoption/components/DepartmentDraw
 import { DepartmentsTable } from '../features/adoption/components/DepartmentsTable';
 import { MembershipModal } from '../features/adoption/components/MembershipModal';
 import { AdoptionMap } from '../features/adoption/map/AdoptionMap';
+import { type ColourBy } from '../features/adoption/map/geometry';
 import {
     ADOPTION_VIEW_LABELS,
     ADOPTION_VIEWS,
+    getSelectedDepartment,
     parseAdoptionView,
+    VIEW_PARAM,
+    withSelectedDepartment,
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
 import { type MembershipTab } from '../features/adoption/utils/attention';
@@ -30,8 +34,6 @@ import {
 } from '../features/adoption/utils/viewPreference';
 import { WaffleView } from '../features/adoption/waffle/WaffleView';
 import { useOrgAdoptionSummary } from '../hooks/useOrgDepartments';
-
-const VIEW_PARAM = 'view';
 
 type DrawerState =
     | { opened: false }
@@ -54,6 +56,10 @@ const Adoption: FC = () => {
         searchParams.get(VIEW_PARAM),
         readStoredView(viewStorageKey),
     );
+    // The link names the department selected, so a selection can be shared and survives a reload
+    const selectedUuid = getSelectedDepartment(searchParams);
+    // The views and the selected department colour people the same way
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
     const [isPlacingPeople, setIsPlacingPeople] = useState(false);
     // Kept apart from opened, so the dialog keeps its tab while it closes
@@ -74,6 +80,16 @@ const Adoption: FC = () => {
             { replace: true },
         );
     };
+    // Each selection is a step in the browser's history, as opening a department page was
+    const select = useCallback(
+        (departmentUuid: string | null) => {
+            if (departmentUuid === selectedUuid) return;
+            setSearchParams((previous) =>
+                withSelectedDepartment(previous, departmentUuid),
+            );
+        },
+        [selectedUuid, setSearchParams],
+    );
     const openCreate = useCallback(
         () => setDrawer({ opened: true, departmentUuid: null }),
         [],
@@ -194,6 +210,10 @@ const Adoption: FC = () => {
                         <AdoptionMap
                             summary={summary.data}
                             canManage={canManage}
+                            selectedUuid={selectedUuid}
+                            onSelect={select}
+                            colourBy={colourBy}
+                            onColourByChange={setColourBy}
                             onEdit={openEdit}
                         />
                     )}
@@ -208,6 +228,10 @@ const Adoption: FC = () => {
                         <WaffleView
                             summary={summary.data}
                             canManage={canManage}
+                            selectedUuid={selectedUuid}
+                            onSelect={select}
+                            colourBy={colourBy}
+                            onColourByChange={setColourBy}
                             onEdit={openEdit}
                         />
                     )}

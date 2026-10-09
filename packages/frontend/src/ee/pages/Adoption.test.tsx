@@ -1,7 +1,8 @@
 import { type OrganizationAdoptionSummary } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { type FC } from 'react';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import {
@@ -18,10 +19,36 @@ vi.mock('../hooks/useOrgDepartments', () => ({
     useSetDepartmentMembers: () => ({ mutate: vi.fn(), isLoading: false }),
     useSetPrimaryDepartment: () => ({ mutate: vi.fn(), isLoading: false }),
 }));
-// The map draws with real layout, which jsdom does not have
+// The map draws with real layout, which jsdom does not have; this one shows what the page gives it
+const { mapSelection } = vi.hoisted(() => ({ mapSelection: vi.fn() }));
 vi.mock('../features/adoption/map/AdoptionMap', () => ({
-    AdoptionMap: () => null,
+    AdoptionMap: ({
+        selectedUuid,
+        onSelect,
+    }: {
+        selectedUuid: string | null;
+        onSelect: (departmentUuid: string | null) => void;
+    }) => {
+        mapSelection(selectedUuid);
+        return (
+            <>
+                <button type="button" onClick={() => onSelect('Operations')}>
+                    Select Operations on the map
+                </button>
+                <button type="button" onClick={() => onSelect(null)}>
+                    Select the organization on the map
+                </button>
+            </>
+        );
+    },
 }));
+
+// Where the page has taken the browser, so a test can read the link it wrote
+const Location: FC = () => {
+    const { pathname, search } = useLocation();
+    return <span data-testid="location">{`${pathname}${search}`}</span>;
+};
+const location = () => screen.getByTestId('location');
 
 // Someone who can manage departments, so the page offers to place people
 const MANAGER: Parameters<typeof renderWithProviders>[1] = {
@@ -55,6 +82,7 @@ const organizationSummary = (
 const renderPage = (
     data: OrganizationAdoptionSummary,
     appMocks?: Parameters<typeof renderWithProviders>[1],
+    path = '/generalSettings/adoption',
 ) => {
     summary.mockReturnValue({
         isInitialLoading: false,
@@ -63,8 +91,9 @@ const renderPage = (
         error: null,
     });
     renderWithProviders(
-        <MemoryRouter initialEntries={['/generalSettings/adoption']}>
+        <MemoryRouter initialEntries={[path]}>
             <Adoption />
+            <Location />
         </MemoryRouter>,
         appMocks,
     );
@@ -79,6 +108,7 @@ const storedViews = () =>
 describe('Adoption', () => {
     beforeEach(() => {
         summary.mockReset();
+        mapSelection.mockReset();
     });
     afterEach(() => {
         window.localStorage.clear();
@@ -213,5 +243,68 @@ describe('Adoption', () => {
             }),
         ).toBeInTheDocument();
         expect(screen.getByRole('radio', { name: 'Waffle' })).toBeChecked();
+    });
+
+    describe('the department selected', () => {
+        it('is the one the link names when the page opens', () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=map&department=Operations',
+            );
+            expect(mapSelection).toHaveBeenLastCalledWith('Operations');
+        });
+
+        it('is none without one in the link, or with an empty one', () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=map&department=',
+            );
+            expect(mapSelection).toHaveBeenLastCalledWith(null);
+        });
+
+        it('goes into the link when chosen and comes out when the organization is chosen, keeping the view', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=map',
+            );
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Select Operations on the map',
+                }),
+            );
+            expect(location()).toHaveTextContent(
+                '/generalSettings/adoption?view=map&department=Operations',
+            );
+            expect(mapSelection).toHaveBeenLastCalledWith('Operations');
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Select the organization on the map',
+                }),
+            );
+            expect(location()).toHaveTextContent(
+                /^\/generalSettings\/adoption\?view=map$/,
+            );
+            expect(mapSelection).toHaveBeenLastCalledWith(null);
+        });
+
+        it('stays selected when the view changes', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                '/generalSettings/adoption?view=map&department=Operations',
+            );
+            await userEvent.click(
+                screen.getByRole('radio', { name: 'Waffle' }),
+            );
+            expect(location()).toHaveTextContent(
+                '/generalSettings/adoption?view=waffle&department=Operations',
+            );
+            expect(
+                screen.getByRole('button', { name: /^Operations,/ }),
+            ).toHaveAttribute('aria-current', 'true');
+        });
     });
 });

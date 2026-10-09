@@ -58,6 +58,11 @@ const FALLBACK_SIZE = { width: MAP_SIZE, height: 560 };
 type Props = {
     summary: OrganizationAdoptionSummary;
     canManage: boolean;
+    // The department selected on the page, which the map opens; null for the whole organization
+    selectedUuid: string | null;
+    onSelect: (departmentUuid: string | null) => void;
+    colourBy: ColourBy;
+    onColourByChange: (colourBy: ColourBy) => void;
     onEdit: (department: DepartmentWithMetrics) => void;
     // Label widths; measured with the page's own font unless one is supplied
     measureText?: TextMeasurer;
@@ -66,16 +71,18 @@ type Props = {
 export const AdoptionMap: FC<Props> = ({
     summary,
     canManage,
+    selectedUuid,
+    onSelect,
+    colourBy,
+    onColourByChange,
     onEdit,
     measureText,
 }) => {
     const { departments } = summary;
-    const [focusUuid, setFocusUuid] = useState<string | null>(null);
     const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
         null,
     );
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
 
     // Labels are measured in the font they are drawn in, again once web fonts have loaded
@@ -106,8 +113,9 @@ export const AdoptionMap: FC<Props> = ({
         () => new Map(departments.map((d) => [d.departmentUuid, d])),
         [departments],
     );
-    // A department deleted while focused falls back to the whole organization
-    const focus = focusUuid === null ? null : (byUuid.get(focusUuid) ?? null);
+    // A department deleted while selected, or one not in the organization, falls back to the whole organization
+    const focus =
+        selectedUuid === null ? null : (byUuid.get(selectedUuid) ?? null);
     const focusedUuid = focus?.departmentUuid ?? null;
     const focusName = focus?.name ?? null;
     const visibleDepartments = useMemo(
@@ -203,12 +211,15 @@ export const AdoptionMap: FC<Props> = ({
     // Whether the last thing the person did in the map was a key press or a pointer press
     const lastInputRef = useRef<'keyboard' | 'pointer'>('pointer');
     const shouldMoveFocusRef = useRef(false);
-    const focusOn = useCallback((departmentUuid: string | null) => {
-        shouldMoveFocusRef.current = lastInputRef.current === 'keyboard';
-        setFocusUuid(departmentUuid);
-        setSelectedUserUuid(null);
-        setHighlightedUuid(null);
-    }, []);
+    const focusOn = useCallback(
+        (departmentUuid: string | null) => {
+            shouldMoveFocusRef.current = lastInputRef.current === 'keyboard';
+            onSelect(departmentUuid);
+            setSelectedUserUuid(null);
+            setHighlightedUuid(null);
+        },
+        [onSelect],
+    );
 
     // The control that was pressed is gone after a change of level, so keyboard focus moves to the
     // breadcrumb's current item. A pointer press leaves focus, and the page's scroll position, alone.
@@ -257,7 +268,7 @@ export const AdoptionMap: FC<Props> = ({
                 currentCrumbRef={currentCrumbRef}
                 onCrumbClick={focusOn}
                 colourBy={colourBy}
-                onColourByChange={setColourBy}
+                onColourByChange={onColourByChange}
             />
 
             <Box className={styles.body}>

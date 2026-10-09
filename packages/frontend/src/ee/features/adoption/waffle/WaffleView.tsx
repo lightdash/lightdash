@@ -9,7 +9,6 @@ import {
     useLayoutEffect,
     useMemo,
     useRef,
-    useState,
     type FC,
 } from 'react';
 import mapStyles from '../map/AdoptionMap.module.css';
@@ -63,6 +62,11 @@ const px = (value: number): string => `${value}px`;
 type Props = {
     summary: OrganizationAdoptionSummary;
     canManage: boolean;
+    // The department selected on the page; null for the whole organization
+    selectedUuid: string | null;
+    onSelect: (departmentUuid: string | null) => void;
+    colourBy: ColourBy;
+    onColourByChange: (colourBy: ColourBy) => void;
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
@@ -195,17 +199,23 @@ const WaffleLegend: FC<{
 
 // Every top-level department as a block sized by headcount, its sub-departments stacked inside, and one square per
 // person grouped by colour. Selecting a block shows its department in the panel, as selecting a circle on the map does
-export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
+export const WaffleView: FC<Props> = ({
+    summary,
+    canManage,
+    selectedUuid,
+    onSelect,
+    colourBy,
+    onColourByChange,
+    onEdit,
+}) => {
     const { departments } = summary;
-    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const { ref, width } = useContainerSize(FALLBACK_SIZE);
 
     const byUuid = useMemo(
         () => new Map(departments.map((d) => [d.departmentUuid, d])),
         [departments],
     );
-    // A department deleted while selected falls back to the whole organization
+    // A department deleted while selected, or one not in the organization, falls back to the whole organization
     const selected =
         selectedUuid === null ? null : (byUuid.get(selectedUuid) ?? null);
     const selectedDepartmentUuid = selected?.departmentUuid ?? null;
@@ -343,9 +353,6 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         [departments, selectedDepartmentUuid, colourBy],
     );
 
-    const select = useCallback((departmentUuid: string | null) => {
-        setSelectedUuid(departmentUuid);
-    }, []);
     const clearMember = useCallback(() => {}, []);
 
     // A crumb or a row in the panel is gone once used, so focus moves to the new current crumb, as on the map
@@ -353,7 +360,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
     const shouldFocusCrumbRef = useRef(false);
     const selectAndFocusCrumb = (departmentUuid: string | null) => {
         shouldFocusCrumbRef.current = true;
-        select(departmentUuid);
+        onSelect(departmentUuid);
     };
     useEffect(() => {
         if (!shouldFocusCrumbRef.current) return;
@@ -391,7 +398,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                 currentCrumbRef={currentCrumbRef}
                 onCrumbClick={selectAndFocusCrumb}
                 colourBy={colourBy}
-                onColourByChange={setColourBy}
+                onColourByChange={onColourByChange}
             />
 
             <Box className={mapStyles.body}>
@@ -439,7 +446,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                                                     : null
                                             }
                                             canManage={canManage}
-                                            onSelect={select}
+                                            onSelect={onSelect}
                                         />
                                     );
                                 })}
