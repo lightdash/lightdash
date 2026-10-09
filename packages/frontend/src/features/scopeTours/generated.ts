@@ -2110,9 +2110,9 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: ['[data-tour-nav="browse"]'],
             },
             {
-                target: '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                target: '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
-                title: 'Open Orders over time',
+                title: 'Open Top customers',
                 body: '',
                 interactive: true,
                 advanceOnTargetClick: true,
@@ -2133,7 +2133,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                 ],
             },
             {
@@ -2147,7 +2147,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                 ],
             },
@@ -2162,7 +2162,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                     '[data-tour-anchor="verify-chart"]',
                 ],
@@ -2178,7 +2178,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                     '[data-tour-anchor="verify-chart"]',
                     '[data-tour-anchor="edit-chart"]',
@@ -2195,7 +2195,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                     '[data-tour-anchor="verify-chart"]',
                     '[data-tour-anchor="edit-chart"]',
@@ -2213,7 +2213,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                     '[data-tour-anchor="verify-chart"]',
                     '[data-tour-anchor="edit-chart"]',
@@ -2232,7 +2232,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 via: [
                     '[data-tour-nav="browse"]',
                     '[data-tour-nav="all-charts"]',
-                    '[data-tour-anchor="chart-row"][data-tour-value="Orders over time"]',
+                    '[data-tour-anchor="chart-row"][data-tour-value="Top customers"]',
                     '[data-tour-anchor="chart-actions"]',
                     '[data-tour-anchor="verify-chart"]',
                     '[data-tour-anchor="edit-chart"]',

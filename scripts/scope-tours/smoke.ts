@@ -13,6 +13,10 @@ import { getTrainingProjectScopes } from '@lightdash/common';
  *   SMOKE_BASE_URL   (default http://localhost:3030)
  *   SMOKE_EMAIL / SMOKE_PASSWORD   (required: a learner account on that instance)
  *   SMOKE_SCOPES     comma-separated subset (default every generated tour)
+ *   SMOKE_SAME_COPY=1  every tour runs in the one copy the learner keeps,
+ *                    in curriculum order, as a learner working through the
+ *                    library does; by default each tour starts in a fresh
+ *                    copy, so a failure is the tour's own
  *   SMOKE_THUMBNAIL_STEP optional 1-based step to capture with --thumbnails
  *
  * With --thumbnails, the page as the learner sees it at the action step is
@@ -27,12 +31,14 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { CURRICULUM } from '../../packages/frontend/src/features/scopeTours/curriculum';
 import { SCOPE_TOURS } from '../../packages/frontend/src/features/scopeTours/generated';
 import { root } from './lib';
 
 type Page = import('playwright').Page;
 
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:3030';
+const SAME_COPY = process.env.SMOKE_SAME_COPY === '1';
 const EMAIL = process.env.SMOKE_EMAIL;
 const PASSWORD = process.env.SMOKE_PASSWORD;
 if (!EMAIL || !PASSWORD) {
@@ -145,12 +151,16 @@ const runTour = async (
         url.pathname.includes(trainingSlug);
     const steps = SCOPE_TOURS[scope].steps;
     // A copy left by an earlier run (one that failed mid-tour) is removed
-    // first, so the start below makes a fresh one from a clean slate.
-    await page.evaluate(async (uuid) => {
-        await fetch(`/api/v1/projects/${uuid}/training-previews`, {
-            method: 'DELETE',
-        });
-    }, trainingUuid);
+    // first, so the start below makes a fresh one from a clean slate. In
+    // same-copy mode the copy is the point: the start hands it back, with
+    // what the earlier tours built in it.
+    if (!SAME_COPY) {
+        await page.evaluate(async (uuid) => {
+            await fetch(`/api/v1/projects/${uuid}/training-previews`, {
+                method: 'DELETE',
+            });
+        }, trainingUuid);
+    }
     await page.goto(
         `${BASE}/projects/${trainingUuid}/home?tour=${encodeURIComponent(scope)}`,
     );
@@ -452,9 +462,19 @@ const main = async () => {
     // A lesson that covers several scopes is one lesson: by default it runs
     // once, under the scope it was declared on. Naming a covered scope in
     // SMOKE_SCOPES still runs it under that name.
-    const scopes = Object.keys(SCOPE_TOURS).filter((s) =>
+    const selected = Object.keys(SCOPE_TOURS).filter((s) =>
         wanted ? wanted.includes(s) : SCOPE_TOURS[s].coveredBy === undefined,
     );
+    // In one copy the order matters: the library's order, with anything the
+    // curriculum does not place (docs lessons) after it, as declared.
+    const rank = (scope: string) => {
+        const at = CURRICULUM.indexOf(scope);
+        return at === -1 ? CURRICULUM.length : at;
+    };
+    const scopes = SAME_COPY
+        ? [...selected].sort((a, b) => rank(a) - rank(b))
+        : selected;
+    if (SAME_COPY) console.log(`same copy for ${scopes.length} tour(s)`);
     if (THUMBNAIL_STEP !== null) {
         if (scopes.length === 0)
             throw new Error(
@@ -608,15 +628,19 @@ const main = async () => {
                 );
                 await page.screenshot({ path: shot }).catch(() => undefined);
                 console.log(`FAIL ${scope}: ${message} (screenshot ${shot})`);
-                // Leave any copy behind us before the next tour.
-                await page
-                    .evaluate(async (uuid) => {
-                        await fetch(
-                            `/api/v1/projects/${uuid}/training-previews`,
-                            { method: 'DELETE' },
-                        );
-                    }, training.projectUuid)
-                    .catch(() => undefined);
+                // Leave any copy behind us before the next tour; in
+                // same-copy mode the next tour carries on in it, as a
+                // learner would after a stuck one.
+                if (!SAME_COPY) {
+                    await page
+                        .evaluate(async (uuid) => {
+                            await fetch(
+                                `/api/v1/projects/${uuid}/training-previews`,
+                                { method: 'DELETE' },
+                            );
+                        }, training.projectUuid)
+                        .catch(() => undefined);
+                }
             }
         }
     } finally {
