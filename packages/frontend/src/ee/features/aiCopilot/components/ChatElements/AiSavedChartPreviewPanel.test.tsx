@@ -81,6 +81,8 @@ const renderPanel = ({
                     onExplore: mocks.onExplore,
                     t: () => undefined,
                     backDestination: 'aiAgent',
+                    dispatchEmbedEvent: () => false,
+                    isEmbedEventReady: false,
                     mode: 'direct',
                     theme: 'light',
                     backgroundColor: null,

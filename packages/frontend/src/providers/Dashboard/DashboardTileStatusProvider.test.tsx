@@ -20,10 +20,8 @@ vi.mock('../App/useApp', () => ({
     default: () => ({ health: { data: undefined } }),
 }));
 vi.mock('../../ee/providers/Embed/useEmbed', () => ({
-    default: () => ({ embedToken: undefined }),
-}));
-vi.mock('../../ee/features/embed/hooks/useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({
+    default: () => ({
+        embedToken: undefined,
         dispatchEmbedEvent: vi.fn(),
         isEmbedEventReady: false,
     }),

@@ -43,6 +43,7 @@ import useDashboardContext from '../../../../../providers/Dashboard/useDashboard
 import useDashboardTileStatusContext from '../../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { LightdashEventType } from '../../events/types';
 import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
 import {
@@ -343,6 +344,7 @@ const EmbedDashboard: FC<{
 
     const {
         dashboardUuid: embedDashboardUuid,
+        dispatchEmbedEvent,
         embedToken,
         embedWriteContext,
         languageMap,
@@ -411,8 +413,12 @@ const EmbedDashboard: FC<{
             setHaveTabsChanged(false);
             setHaveFiltersChanged(false);
             setIsEditMode(false);
+            dispatchEmbedEvent(LightdashEventType.DashboardSaved, {
+                dashboardUuid: updatedDashboard.uuid,
+            });
         },
         [
+            dispatchEmbedEvent,
             setDashboardTabs,
             setDashboardTiles,
             setHaveFiltersChanged,

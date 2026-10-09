@@ -5,6 +5,7 @@ import {
     LightdashEventType,
     type AllTilesLoadedPayload,
     type ChartSavedPayload,
+    type DashboardSavedPayload,
     type FilterChangedPayload,
     type TabChangedPayload,
 } from './types';
@@ -365,6 +366,23 @@ describe('LightdashUiEvent', () => {
             expect(postMessageSpy).toHaveBeenCalledWith(
                 {
                     type: 'lightdash:chartSaved',
+                    payload,
+                    timestamp: expect.any(Number),
+                },
+                'https://example.com',
+            );
+        });
+
+        it('should dispatch DashboardSaved event after a successful dashboard save', () => {
+            const payload: DashboardSavedPayload = {
+                dashboardUuid: 'dashboard-uuid',
+            };
+
+            eventSystem.dispatch(LightdashEventType.DashboardSaved, payload);
+
+            expect(postMessageSpy).toHaveBeenCalledWith(
+                {
+                    type: 'lightdash:dashboardSaved',
                     payload,
                     timestamp: expect.any(Number),
                 },

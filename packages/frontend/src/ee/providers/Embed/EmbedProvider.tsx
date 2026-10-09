@@ -27,8 +27,9 @@ import { getEmbedBackDestination } from '../../features/embed/embedNavigation';
 import {
     LightdashEventType,
     type ChartSavedAction,
+    type LightdashEventHandler,
 } from '../../features/embed/events/types';
-import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
+import { useCreateEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
 import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
@@ -55,7 +56,7 @@ type Props = {
     ) => void;
     // Defaults to the destination implied by the token's content type
     backDestination?: EmbedBackDestination;
-    onChartSaved?: (chart: SavedChart, action: ChartSavedAction) => void;
+    onEvent?: LightdashEventHandler;
     savedChart?: EmbedExploreChart;
     customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
@@ -96,7 +97,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onExplore,
     onBackToDashboard,
     backDestination,
-    onChartSaved,
+    onEvent,
     savedChart,
     customSqlProvenanceChartUuid,
     savedQueryUuid,
@@ -145,8 +146,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+    const { dispatchEmbedEvent, isEmbedEventReady } =
+        useCreateEmbedEventEmitter(mode, onEvent);
     const tokenFromStorageOrProps = embedToken || embed?.token;
     const embedWriteContext =
         account && 'embedWriteContext' in account
@@ -158,16 +160,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     );
     const handleChartSaved = useCallback(
         (chart: SavedChart, action: ChartSavedAction) => {
-            onChartSaved?.(chart, action);
-
-            if (mode === 'direct') {
-                dispatchEmbedEvent(LightdashEventType.ChartSaved, {
-                    chartUuid: chart.uuid,
-                    action,
-                });
-            }
+            dispatchEmbedEvent(LightdashEventType.ChartSaved, {
+                chartUuid: chart.uuid,
+                action,
+            });
         },
-        [dispatchEmbedEvent, mode, onChartSaved],
+        [dispatchEmbedEvent],
     );
 
     // Remove the token from the URL.
@@ -225,6 +223,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             languageMap: contentOverrides,
             onExplore,
             onChartSaved: handleChartSaved,
+            dispatchEmbedEvent,
+            isEmbedEventReady,
             savedChart,
             customSqlProvenanceChartUuid,
             savedQueryUuid,
@@ -254,6 +254,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         uiOverrides,
         onExplore,
         handleChartSaved,
+        dispatchEmbedEvent,
+        isEmbedEventReady,
         savedChart,
         customSqlProvenanceChartUuid,
         savedQueryUuid,

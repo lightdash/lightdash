@@ -8,6 +8,8 @@ export enum LightdashEventType {
     Error = 'error',
     AllTilesLoaded = 'allTilesLoaded',
     ChartSaved = 'chartSaved',
+    DashboardSaved = 'dashboardSaved',
+    Notification = 'notification',
 }
 
 /**
@@ -67,13 +69,36 @@ export type ChartSavedPayload = {
     action: ChartSavedAction;
 };
 
+/**
+ * Payload for DashboardSaved events.
+ * Sent after the user saves changes to an embedded dashboard.
+ */
+export type DashboardSavedPayload = {
+    dashboardUuid: string;
+};
+
+/**
+ * Payload for Notification events.
+ * SDK embeds don't render toasts, so they are sent to the host instead.
+ * Notifications sharing an id update the same toast (e.g. loading → success).
+ */
+export type NotificationPayload = {
+    id: string;
+    variant: 'success' | 'error' | 'info' | 'warning';
+    title: string | null;
+    // Markdown when sent as a toast subtitle
+    message: string | null;
+};
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | TabChangedPayload
     | ErrorPayload
     | AllTilesLoadedPayload
     | LocationChangedPayload
-    | ChartSavedPayload;
+    | ChartSavedPayload
+    | DashboardSavedPayload
+    | NotificationPayload;
 
 /**
  * Generic event structure for all Lightdash events
@@ -86,3 +111,35 @@ export type LightdashEmbedEvent<T extends LightdashEventPayload | undefined> = {
     /** Timestamp of event dispatch */
     timestamp: number;
 };
+
+type LightdashEventPayloads = {
+    [LightdashEventType.LocationChanged]: LocationChangedPayload;
+    [LightdashEventType.FilterChanged]: FilterChangedPayload;
+    [LightdashEventType.TabChanged]: TabChangedPayload;
+    [LightdashEventType.Error]: ErrorPayload;
+    [LightdashEventType.AllTilesLoaded]: AllTilesLoadedPayload;
+    [LightdashEventType.ChartSaved]: ChartSavedPayload;
+    [LightdashEventType.DashboardSaved]: DashboardSavedPayload;
+    [LightdashEventType.Notification]: NotificationPayload;
+};
+
+export type LightdashEventPayloadFor<K extends LightdashEventType> =
+    LightdashEventPayloads[K];
+
+/**
+ * Event delivered to an SDK host's onEvent callback.
+ * Same types and payloads as the iframe postMessage events.
+ */
+export type LightdashEvent = {
+    [K in LightdashEventType]: {
+        type: `${K}`;
+        payload: LightdashEventPayloads[K];
+    };
+}[LightdashEventType];
+
+export type LightdashEventHandler = (event: LightdashEvent) => void;
+
+export type DispatchEmbedEvent = <K extends LightdashEventType>(
+    eventType: K,
+    payload: LightdashEventPayloadFor<K>,
+) => boolean;

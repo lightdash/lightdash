@@ -18,6 +18,8 @@ import { v4 as uuid } from 'uuid';
 import MantineIcon, {
     type MantineIconSize,
 } from '../../components/common/MantineIcon';
+import { LightdashEventType } from '../../ee/features/embed/events/types';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import ApiErrorDisplay from './ApiErrorDisplay';
 import MultipleToastBody from './MultipleToastBody';
 import {
@@ -62,9 +64,30 @@ const TOAST_VARIANTS: Record<
     },
 };
 
+const getToastText = (value: NotificationData['title']) =>
+    typeof value === 'string' ? value : null;
+
 const useToaster = () => {
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
+    const { mode, dispatchEmbedEvent } = useEmbed();
+    const isSdkEmbed = mode === 'sdk';
+
+    // SDK embeds don't render toasts; the host receives them via onEvent
+    const sendSdkNotification = useCallback(
+        (
+            variant: ToastVariant,
+            { key = uuid(), title, subtitle, apiError }: NotificationData,
+        ) => {
+            dispatchEmbedEvent(LightdashEventType.Notification, {
+                id: key,
+                variant,
+                title: getToastText(title),
+                message: getToastText(subtitle) ?? apiError?.message ?? null,
+            });
+        },
+        [dispatchEmbedEvent],
+    );
 
     const showToast = useCallback(
         (
@@ -84,6 +107,15 @@ const useToaster = () => {
                 shouldSuppressSharedSignInToast(rest.apiError, projectUuid)
             )
                 return;
+            if (isSdkEmbed) {
+                sendSdkNotification(variant, {
+                    key,
+                    subtitle,
+                    projectUuid,
+                    ...rest,
+                });
+                return;
+            }
             const variantConfig = TOAST_VARIANTS[variant];
 
             const commonProps = {
@@ -172,7 +204,7 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [],
+        [isSdkEmbed, sendSdkNotification],
     );
 
     const showToastSuccess = useCallback(
@@ -299,6 +331,10 @@ const useToaster = () => {
                 )
             )
                 return;
+            if (isSdkEmbed) {
+                sendSdkNotification('error', notificationData);
+                return;
+            }
             const {
                 // By default errors will be grouped under 'error-list'.
                 // Consumers can override this by passing a custom key.
@@ -359,7 +395,7 @@ const useToaster = () => {
 
             renderGroupedErrors(key);
         },
-        [renderGroupedErrors],
+        [isSdkEmbed, renderGroupedErrors, sendSdkNotification],
     );
 
     return {

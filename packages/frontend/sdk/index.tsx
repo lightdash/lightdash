@@ -29,6 +29,10 @@ import { createPortal } from 'react-dom';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
+import {
+    type LightdashEvent,
+    type LightdashEventHandler,
+} from '../src/ee/features/embed/events/types';
 import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
@@ -76,6 +80,7 @@ import {
 } from './errors';
 import { useLightdashAiAgentThreads, useLightdashContent } from './hooks';
 import { SDK_SCOPE_CLASS } from './styles/scope.json';
+
 const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
     '__lightdash_sdk_instance_url';
 const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
@@ -93,6 +98,7 @@ type BaseProps = {
     uiOverrides?: SdkUiOverrides;
     onExplore?: (options: { chart: SavedChart }) => void;
     onError?: SdkErrorHandler;
+    onEvent?: LightdashEventHandler;
 };
 
 type DashboardProps = BaseProps & {
@@ -112,7 +118,12 @@ type ChartProps = Omit<BaseProps, 'filters'> & {
 
 type AiAgentProps = Omit<
     BaseProps,
-    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore' | 'onError'
+    | 'contentOverrides'
+    | 'uiOverrides'
+    | 'filters'
+    | 'onExplore'
+    | 'onError'
+    | 'onEvent'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
@@ -513,6 +524,7 @@ const Dashboard: FC<DashboardProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     paletteUuid,
     isEditMode,
     onEditModeChange,
@@ -539,6 +551,7 @@ const Dashboard: FC<DashboardProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
@@ -683,6 +696,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     paletteUuid,
     isEditMode,
     onEditModeChange,
@@ -710,6 +724,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
@@ -754,6 +769,7 @@ const Explore: FC<
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     exploreId,
     savedChart,
 }) => {
@@ -784,6 +800,7 @@ const Explore: FC<
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 filters={filters}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
@@ -876,6 +893,7 @@ const Chart: FC<ChartProps> = ({
     uiOverrides,
     onExplore,
     onError,
+    onEvent,
     id,
     isEditMode,
 }) => {
@@ -911,6 +929,7 @@ const Chart: FC<ChartProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 contentOverrides={contentOverrides}
                 uiOverrides={uiOverrides}
                 savedQueryUuid={id}
@@ -1013,6 +1032,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
     token: tokenOrTokenPromise,
     hiddenFilters,
     onError,
+    onEvent,
 }) => {
     const tokenContext = useEmbedTokenContext(
         instanceUrl,
@@ -1035,6 +1055,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
             <EmbedProvider
                 embedToken={tokenContext.token}
                 projectUuid={tokenContext.projectUuid}
+                onEvent={onEvent}
                 onExplore={({ chart }) => setExploreChart(chart)}
                 onBackToDashboard={() => setExploreChart(undefined)}
             >
@@ -1090,6 +1111,8 @@ export {
 };
 export type {
     MetricsCatalogFilter,
+    LightdashEvent,
+    LightdashEventHandler,
     SdkError,
     SdkErrorKind,
     SdkUiOverrides,

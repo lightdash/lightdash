@@ -55,7 +55,6 @@ import {
     shouldDeferSdkFilters,
 } from '../../ee/features/embed/EmbedDashboard/utils';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
-import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     useGetComments,
@@ -258,8 +257,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     // Event system for filter change tracking
-    const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const embed = useEmbed();
+    const { dispatchEmbedEvent } = embed;
     const previousFiltersRef = useRef<DashboardFilters | null>(null);
     const appliedSdkFiltersRef = useRef<
         | {
