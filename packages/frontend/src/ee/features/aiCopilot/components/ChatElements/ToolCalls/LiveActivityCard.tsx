@@ -676,20 +676,24 @@ export const LiveActivityCard: FC<Props> = ({
     // A call waiting on approval keeps the card "live" so its SQL is reachable.
     const isActive = isLive || hasPendingApproval;
 
-    // Remember the group whose approval was just decided; its SQL was already reviewed.
-    const [wasAwaitingApproval, setWasAwaitingApproval] =
-        useState(hasPendingApproval);
-    const [approvedKeyId, setApprovedKeyId] = useState<string | null>(null);
-    if (wasAwaitingApproval !== hasPendingApproval) {
-        setWasAwaitingApproval(hasPendingApproval);
-        if (!hasPendingApproval) setApprovedKeyId(latestGroup?.keyId ?? null);
+    // Remember calls whose approval was decided; their SQL was already reviewed.
+    const [prevPendingIds, setPrevPendingIds] = useState(pendingApprovalIds);
+    const [decidedCallIds, setDecidedCallIds] = useState<string[]>([]);
+    if (prevPendingIds.join() !== pendingApprovalIds.join()) {
+        setPrevPendingIds(pendingApprovalIds);
+        const decided = prevPendingIds.filter(
+            (id) => !pendingApprovalIds.includes(id),
+        );
+        if (decided.length > 0)
+            setDecidedCallIds((ids) => [...ids, ...decided]);
     }
     const approvalDecided =
-        approvedKeyId !== null && approvedKeyId === latestGroup?.keyId;
+        latestGroup?.calls.some((call) =>
+            decidedCallIds.includes(call.toolCallId),
+        ) ?? false;
 
     // runSql expands by default; composer only while active (the artifact panel
-    // shows the pipeline once done); both collapse once their approval is decided.
-    // A user toggle wins until expandKey changes.
+    // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
         hasPendingApproval ||
         (!approvalDecided &&

@@ -285,6 +285,47 @@ describe('LiveActivityCard runSql', () => {
         ).toHaveAttribute('aria-expanded', 'false');
     });
 
+    it('keeps a group that streams in as the approval clears expanded', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const nextGroup: LiveActivityToolGroup = {
+            keyId: 'sql-call-2',
+            toolName: 'runSql',
+            calls: [
+                {
+                    toolCallId: 'sql-call-2',
+                    toolName: 'runSql',
+                    toolArgs: { sql: 'select 2 as two', limit: 10 },
+                },
+            ],
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{ ...approval, pendingToolCallIds: ['sql-call'] }}
+                />
+            </Provider>,
+        );
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={[...sqlToolGroups, nextGroup]}
+                    approval={{ ...approval, pendingToolCallIds: [] }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'true');
+    });
+
     it('keeps a user collapse when the stream ends', async () => {
         const { rerender } = renderWithProviders(
             <LiveActivityCard isLive toolGroups={sqlToolGroups} />,
