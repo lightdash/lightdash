@@ -48,6 +48,7 @@ const TOKYO = {
     allowedModels: ['claude-sonnet-4-5'],
     apiKeyHint: 'ABSK...3f2a',
     isDefault: true,
+    inferenceGeography: 'jp' as const,
 };
 
 const US = {
@@ -56,6 +57,7 @@ const US = {
     label: 'US (Virginia)',
     region: 'us-east-1',
     isDefault: false,
+    inferenceGeography: 'us' as const,
 };
 
 const renderPanel = ({

@@ -629,6 +629,30 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(result.providers.bedrock?.inferenceProfilePrefix).toBe('jp');
         });
 
+        // Widening is an explicit admin choice stored on the credential; it
+        // must win over the region-derived default.
+        it('honours an explicitly stored inference geography', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                defaultCredential: credential({
+                    config: {
+                        apiKey: 'cred-bedrock-key',
+                        region: 'ap-northeast-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                        inferenceGeography: 'global',
+                    },
+                }),
+            }).getCopilotConfig({
+                organizationUuid: 'org-uuid',
+                projectUuid: null,
+                credentialUuid: null,
+            });
+
+            expect(result.providers.bedrock?.inferenceProfilePrefix).toBe(
+                'global',
+            );
+        });
+
         // The whole point of the resolution type: an unreadable credential must
         // not degrade to the legacy key or the instance provider, because both
         // can be a different region than the one the org pinned.
@@ -930,7 +954,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             expect(bedrockApiKey(result)).toBe('us-key');
         });
 
-        it('leaves the region-derived profile for a non-Japan credential', async () => {
+        it('pins the region-default profile for a non-Japan credential', async () => {
             const result = await makeResolver({
                 orgKeys: null,
                 defaultCredential: credential({
@@ -946,9 +970,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 credentialUuid: null,
             });
 
-            expect(
-                result.providers.bedrock?.inferenceProfilePrefix,
-            ).toBeUndefined();
+            expect(result.providers.bedrock?.inferenceProfilePrefix).toBe('us');
         });
     });
 
