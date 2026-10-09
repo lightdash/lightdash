@@ -91,7 +91,7 @@ const SnowflakeAgentClientForm = ({
                     />
                 </SimpleGrid>
                 <Text id={secretHintId} size="xs" c="dimmed">
-                    Stored encrypted for your organisation. Only organisation
+                    Stored encrypted for your organization. Only organization
                     admins can replace it; it is never shown again.
                 </Text>
                 {save.error && (

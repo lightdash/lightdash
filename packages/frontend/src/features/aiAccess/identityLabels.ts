@@ -6,15 +6,15 @@ export const identityLabels: Record<
 > = {
     marked_person: {
         label: 'Same credentials as the user',
-        helper: "Queries are tagged as agent queries. Warehouse policies can't act on the tag.",
+        helper: "Agents get the same access as the person asking. Agent queries are labelled, but warehouse rules can't use the label.",
     },
     agent_sign_in: {
         label: 'A separate agent sign-in for each person',
-        helper: 'Each person connects once. Snowflake verifies these sessions.',
+        helper: 'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your Snowflake policies can limit them.',
     },
     ai_service_account: {
         label: 'The AI service account',
-        helper: "Admins add it on each project connection. Everyone's agent gets that account's access.",
+        helper: "Agents run as one account that a project admin adds to each project. Everyone's agent gets that account's access.",
     },
 };
 
@@ -23,6 +23,3 @@ export const identityWarehouseNames = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
     [WarehouseTypes.DATABRICKS]: 'Databricks',
 };
-
-export const agentIdentitySentence = (warehouseName: string) =>
-    `When AI agents query ${warehouseName}, they run as`;

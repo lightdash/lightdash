@@ -14,6 +14,7 @@ import {
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
+import settingsClasses from '../../components/common/Settings/SettingsCard.module.css';
 import { renderWithProviders } from '../../testing/testUtils';
 import { identityLabels } from './identityLabels';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
@@ -255,6 +256,67 @@ describe('Organisation agent identity settings', () => {
                 /Postgres|Databricks|marked_person|ai_service_account|agent_sign_in/,
             ),
         ).not.toBeInTheDocument();
+    });
+    it('uses the settings grid for warehouse labels and equal-width controls', async () => {
+        currentOverview.rules.push({
+            warehouseType: WarehouseTypes.DATABRICKS,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        });
+        const { container } = renderSection();
+        expect(await screen.findAllByRole('combobox')).toHaveLength(3);
+        expect(
+            screen.getByText('Choose who AI agents run as on each warehouse.'),
+        ).toBeInTheDocument();
+        for (const [warehouseType, warehouseName] of [
+            [WarehouseTypes.SNOWFLAKE, 'Snowflake'],
+            [WarehouseTypes.BIGQUERY, 'BigQuery'],
+            [WarehouseTypes.DATABRICKS, 'Databricks'],
+        ]) {
+            const row = screen.getByTestId(
+                `${warehouseType}-agent-identity-rule`,
+            );
+            expect(row).toHaveClass(settingsClasses.settingsGrid);
+            expect(row.children).toHaveLength(2);
+            const [labelColumn, controlColumn] = Array.from(row.children);
+            expect(
+                within(labelColumn as HTMLElement).getByText(warehouseName),
+            ).toBeVisible();
+            const select = within(controlColumn as HTMLElement).getByRole(
+                'combobox',
+                {
+                    name: `${warehouseName} agent identity`,
+                },
+            );
+            expect(select.closest('.mantine-Select-root')).toHaveStyle({
+                width: 'calc(21.25rem * var(--mantine-scale))',
+            });
+        }
+        for (const helper of [
+            "Agents get the same access as the person asking. Agent queries are labelled, but warehouse rules can't use the label.",
+            'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your Snowflake policies can limit them.',
+            "Agents run as one account that a project admin adds to each project. Everyone's agent gets that account's access.",
+        ]) {
+            expect(screen.getByText(helper)).toBeVisible();
+        }
+        expect(
+            screen.queryByText(/When AI agents query/),
+        ).not.toBeInTheDocument();
+        expect(container).not.toHaveTextContent(/organisation/i);
+    });
+    it('uses organization spelling in the expanded Snowflake setup', async () => {
+        mocks.configured = false;
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'View setup' }),
+        );
+        expect(
+            await screen.findByLabelText('Client secret'),
+        ).toBeInTheDocument();
+        expect(document.body).toHaveTextContent(
+            'Stored encrypted for your organization. Only organization admins can replace it; it is never shown again.',
+        );
+        expect(document.body).not.toHaveTextContent(/organisation/i);
     });
     it.each([
         ['Snowflake', 'snowflake'],
@@ -1102,6 +1164,14 @@ describe('Organisation agent identity settings', () => {
                     ? 'Agents are refused on it until a project admin adds one.'
                     : 'Agents are refused on them until a project admin adds one.',
             );
+            const status = screen.getByRole('status');
+            expect(status).toContainElement(line);
+            expect(
+                status.querySelector('.tabler-icon-alert-triangle'),
+            ).toBeInTheDocument();
+            expect(line).toHaveStyle({
+                color: 'var(--mantine-color-orange-text)',
+            });
             names
                 .slice(0, Math.min(count, 3))
                 .forEach((name, index) =>
@@ -1129,6 +1199,29 @@ describe('Organisation agent identity settings', () => {
             ).not.toBeInTheDocument();
         },
     );
+    it('shows a green status when every Databricks project has an AI service account', async () => {
+        currentOverview.rules.push({
+            warehouseType: WarehouseTypes.DATABRICKS,
+            source: 'ai_service_account',
+            projectsMissingAiServiceAccount: [],
+        });
+        renderSection();
+        const status = await screen.findByRole('status');
+        const message = within(status).getByText(
+            'Every Databricks project has an AI service account.',
+        );
+        expect(message).toHaveStyle({
+            color: 'var(--mantine-color-green-text)',
+        });
+        expect(status.querySelector('.tabler-icon-check')).toBeInTheDocument();
+        const row = screen.getByTestId('databricks-agent-identity-rule');
+        expect(row.children[1]).toContainElement(status);
+    });
+    it('shows no rule status when the missing-project lists are null', async () => {
+        renderSection();
+        await screen.findAllByRole('combobox');
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
     it('disables only the saving row', async () => {
         renderSection();
         await screen.findAllByRole('combobox');
