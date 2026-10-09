@@ -28,7 +28,7 @@ const toContentReadKey = (input: unknown): ContentReadKey | null => {
     if (!parsed.success) return null;
     const { type, slug, documentUuid, chartId } = parsed.data;
     const item = slug ?? documentUuid;
-    if (item === undefined) return null;
+    if (item == null) return null;
     return { type, item: chartId ? `${item}#${chartId}` : item };
 };
 
