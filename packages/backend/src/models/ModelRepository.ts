@@ -56,6 +56,7 @@ import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
+import { OrganizationSnowflakeAgentClientModel } from './OrganizationSnowflakeAgentClientModel';
 import { OrganizationSsoModel } from './OrganizationSsoModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
@@ -180,6 +181,7 @@ export type ModelManifest = {
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
+    organizationSnowflakeAgentClientModel: OrganizationSnowflakeAgentClientModel;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
@@ -991,6 +993,17 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     userModel: this.getUserModel(),
+                }),
+        );
+    }
+
+    public getOrganizationSnowflakeAgentClientModel(): OrganizationSnowflakeAgentClientModel {
+        return this.getModel(
+            'organizationSnowflakeAgentClientModel',
+            () =>
+                new OrganizationSnowflakeAgentClientModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }

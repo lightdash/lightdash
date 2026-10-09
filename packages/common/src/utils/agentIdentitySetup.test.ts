@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { ParameterError } from '../types/errors';
 import {
     buildBigQueryAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
     getSnowflakeAgentRedirectUri,
+    parseSnowflakeAccountUrl,
     SNOWFLAKE_AGENT_OAUTH_SETTINGS,
 } from './agentIdentitySetup';
 
@@ -110,5 +112,63 @@ describe('BigQuery AI service account commands', () => {
         ).toBe(
             "bq query \\\n  --project_id=data \\\n  --nouse_legacy_sql \\\n  'GRANT `roles/bigquery.dataViewer` ON SCHEMA `data`.`odd\\`'\"'\"'$(id)` TO \"serviceAccount:lightdash-agents@data.iam.gserviceaccount.com\"'",
         );
+    });
+});
+
+describe('parseSnowflakeAccountUrl', () => {
+    it.each([
+        ['abc-xy12345.snowflakecomputing.com', 'abc-xy12345'],
+        ['https://ABC-XY12345.snowflakecomputing.com/', 'abc-xy12345'],
+        [
+            'https://abc.eu-west-1.aws.snowflakecomputing.com:443',
+            'abc.eu-west-1.aws',
+        ],
+        [
+            'https://abc.eu-west-1.privatelink.snowflakecomputing.com',
+            'abc.eu-west-1',
+        ],
+        ['  https://org-account.snowflakecomputing.com  ', 'org-account'],
+    ])('normalizes %s', (input, accountIdentifier) => {
+        const result = parseSnowflakeAccountUrl(input);
+        expect(result.accountIdentifier).toBe(accountIdentifier);
+        expect(result.accountUrl).toBe(
+            `https://${input
+                .trim()
+                .replace(/^https:\/\//i, '')
+                .replace(/\/$/, '')
+                .replace(/:443$/, '')
+                .toLowerCase()}`,
+        );
+        expect(result.authorizationEndpoint).toBe(
+            `${result.accountUrl}/oauth/authorize`,
+        );
+        expect(result.tokenEndpoint).toBe(
+            `${result.accountUrl}/oauth/token-request`,
+        );
+    });
+    it.each([
+        '',
+        'http://abc.snowflakecomputing.com',
+        'ftp://abc.snowflakecomputing.com',
+        'https://snowflakecomputing.com',
+        'https://notsnowflakecomputing.com',
+        'https://abc.snowflakecomputing.com.evil.test',
+        'https://.snowflakecomputing.com',
+        'https://abc.snowflakecomputing.com:444',
+        'https://user@abc.snowflakecomputing.com',
+        'https://user:secret@abc.snowflakecomputing.com',
+        'https://abc.snowflakecomputing.com/path',
+        'https://abc.snowflakecomputing.com/path/..',
+        'https://abc.snowflakecomputing.com/%2e',
+        'https://abc.snowflakecomputing.com?',
+        'https://abc.snowflakecomputing.com#',
+        'https://abc.snowflakecomputing.com?x=1',
+        'https://abc.snowflakecomputing.com#fragment',
+        'https://abc.snowflakecomputing.com\\evil',
+        'https://a b.snowflakecomputing.com',
+        'https://-abc.snowflakecomputing.com',
+        'https://abc..snowflakecomputing.com',
+    ])('rejects %s', (input) => {
+        expect(() => parseSnowflakeAccountUrl(input)).toThrow(ParameterError);
     });
 });

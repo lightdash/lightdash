@@ -44,6 +44,7 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type QueryHistoryModel,
@@ -246,6 +247,9 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         })),
     };
     const service = new AiAccessService({
+        organizationSnowflakeAgentClientModel: {
+            getWithSecret: vi.fn().mockResolvedValue(null),
+        } as unknown as OrganizationSnowflakeAgentClientModel,
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
         userWarehouseCredentialsModel:
@@ -2276,6 +2280,7 @@ describe('organization agent identity rules', () => {
             requireVerifiedAgentSessions: false,
         });
         expect(await service.getOrganizationSettings(member)).toEqual({
+            snowflakeConfigured: true,
             requireVerifiedAgentSessions: false,
             rules: [
                 {
@@ -2442,7 +2447,11 @@ describe('organization agent identity rules', () => {
                 await service.updateOrganizationSettings(admin, {
                     requireVerifiedAgentSessions: required,
                 }),
-            ).toEqual({ requireVerifiedAgentSessions: required, rules });
+            ).toEqual({
+                requireVerifiedAgentSessions: required,
+                snowflakeConfigured: true,
+                rules,
+            });
             expect(organizationSettings.upsert).toHaveBeenCalledWith(
                 admin.organization.organizationUuid,
                 { requireVerifiedAgentSessions: required },

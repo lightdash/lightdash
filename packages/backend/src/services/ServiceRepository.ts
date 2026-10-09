@@ -1001,6 +1001,8 @@ export class ServiceRepository
                         this.models.getOrganizationAgentIdentityRulesModel(),
                     organizationAgentIdentitySettingsModel:
                         this.models.getOrganizationAgentIdentitySettingsModel(),
+                    organizationSnowflakeAgentClientModel:
+                        this.models.getOrganizationSnowflakeAgentClientModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),

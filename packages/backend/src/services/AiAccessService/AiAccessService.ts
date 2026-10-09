@@ -12,6 +12,7 @@ import {
     AiAccessRefusedError,
     AiAgentMarkerLevel,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
     buildSnowflakeAgentIntegrationSql,
@@ -25,6 +26,7 @@ import {
     isAllowedAgentIdentitySource,
     NotFoundError,
     ParameterError,
+    parseSnowflakeAccountUrl,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
@@ -46,6 +48,7 @@ import {
     type QueryHistory,
     type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
+    type UpdateOrganizationSnowflakeAgentClient,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
 import {
@@ -54,10 +57,6 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
-import {
-    getSnowflakeAgentMissingSettings,
-    isSnowflakeAgentConfigured,
-} from '../../config/snowflakeAgentConfiguration';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { redactCredentialError } from '../../logging/redactCredentialError';
@@ -67,6 +66,7 @@ import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAcc
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type QueryHistoryModel,
@@ -95,6 +95,7 @@ import {
     getQueryIdentityLineage,
     getQuerySourceParameters,
 } from './queryResultLineage';
+import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
 export type AgentConnectAttempt = Omit<
     AgentIdentityConnectProperties,
@@ -128,6 +129,7 @@ type AiAccessServiceArguments = {
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
+    organizationSnowflakeAgentClientModel: OrganizationSnowflakeAgentClientModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
@@ -146,6 +148,10 @@ export class AiAccessService extends BaseService {
     private readonly organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
 
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
+
+    private readonly organizationSnowflakeAgentClientModel: OrganizationSnowflakeAgentClientModel;
+
+    private readonly snowflakeAgentClientResolver: SnowflakeAgentClientResolver;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -168,6 +174,7 @@ export class AiAccessService extends BaseService {
         aiServiceAccountCredentialsModel,
         organizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel,
+        organizationSnowflakeAgentClientModel,
         lightdashConfig,
         featureFlagModel,
         userModel,
@@ -185,6 +192,12 @@ export class AiAccessService extends BaseService {
             organizationAgentIdentityRulesModel;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
+        this.organizationSnowflakeAgentClientModel =
+            organizationSnowflakeAgentClientModel;
+        this.snowflakeAgentClientResolver = new SnowflakeAgentClientResolver({
+            lightdashConfig,
+            organizationSnowflakeAgentClientModel,
+        });
         this.lightdashConfig = lightdashConfig;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
@@ -277,6 +290,10 @@ export class AiAccessService extends BaseService {
         );
         return {
             ...settings,
+            snowflakeConfigured:
+                await this.snowflakeAgentClientResolver.isConfigured(
+                    organizationUuid,
+                ),
             rules: await Promise.all(
                 rules.map(async (rule) => ({
                     ...rule,
@@ -313,37 +330,102 @@ export class AiAccessService extends BaseService {
     async getSnowflakeSetup(
         account: Account,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
-        await this.authorizeSnowflakeSetup(account);
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
         const redirectUri = getSnowflakeAgentRedirectUri(
             this.lightdashConfig.siteUrl,
         );
+        const resolved =
+            await this.snowflakeAgentClientResolver.resolve(organizationUuid);
+        const metadata =
+            resolved?.source === 'organization'
+                ? await this.organizationSnowflakeAgentClientModel.getMetadata(
+                      organizationUuid,
+                  )
+                : null;
+        const missingSettings =
+            await this.snowflakeAgentClientResolver.getMissingSettings(
+                organizationUuid,
+            );
         return {
             redirectUri,
             integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
-            missingSettings: getSnowflakeAgentMissingSettings(
-                this.lightdashConfig,
-            ),
-            configured: isSnowflakeAgentConfigured(this.lightdashConfig),
+            missingSettings,
+            configured: missingSettings.length === 0,
+            client: {
+                source: resolved?.source ?? null,
+                accountUrl: resolved?.accessUrl ?? null,
+                clientId: resolved?.clientId ?? null,
+                hasClientSecret: resolved !== null,
+                updatedAt: metadata?.updatedAt ?? null,
+            },
         };
+    }
+
+    async saveSnowflakeAgentClient(
+        account: Account,
+        body: UpdateOrganizationSnowflakeAgentClient,
+    ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
+        assertRegisteredAccount(account);
+        const { accountUrl, accountIdentifier } = parseSnowflakeAccountUrl(
+            body.accountUrl,
+        );
+        const clientId = body.clientId.trim();
+        if (!clientId || !body.clientSecret.trim()) {
+            throw new ParameterError('Provide a client ID and client secret.');
+        }
+        await this.organizationSnowflakeAgentClientModel.upsert({
+            organizationUuid,
+            accountUrl,
+            accountIdentifier,
+            clientId,
+            clientSecret: body.clientSecret,
+            userUuid: account.user.id,
+        });
+        trackSafely(() =>
+            this.analytics.track({
+                userId: account.user.id,
+                event: 'agent_identity.snowflake_client_saved',
+                properties: {
+                    organizationId: organizationUuid,
+                    userId: account.user.id,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'organization',
+                },
+            }),
+        );
+        return this.getSnowflakeSetup(account);
     }
 
     async verifySnowflakeSetup(
         account: Account,
     ): Promise<OrganizationAgentIdentitySnowflakeVerify> {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
-        const missingSettings = getSnowflakeAgentMissingSettings(
-            this.lightdashConfig,
-        );
-        const configured = isSnowflakeAgentConfigured(this.lightdashConfig);
+        const resolved =
+            await this.snowflakeAgentClientResolver.resolve(organizationUuid);
+        const missingSettings =
+            await this.snowflakeAgentClientResolver.getMissingSettings(
+                organizationUuid,
+            );
+        const configured = missingSettings.length === 0;
+        const clientSourceDetail =
+            resolved?.source === 'organization'
+                ? 'Using the client saved for this organisation.'
+                : 'Using the instance SNOWFLAKE_AI_OAUTH_* settings.';
+        const missingSettingsDetail = configured
+            ? ''
+            : `Missing: ${missingSettings.join(', ')}.`;
         const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
             {
                 id: 'oauth_client',
                 label: 'OAuth client settings',
                 required: true,
-                status: configured ? 'passed' : 'failed',
-                detail: configured
-                    ? 'All OAuth client settings are set.'
-                    : `Missing: ${missingSettings.join(', ')}.`,
+                status: resolved ? 'passed' : 'failed',
+                detail: resolved
+                    ? [clientSourceDetail, missingSettingsDetail]
+                          .filter(Boolean)
+                          .join(' ')
+                    : missingSettingsDetail,
             },
         ];
         const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
@@ -354,12 +436,9 @@ export class AiAccessService extends BaseService {
                 status: 'not_checked',
                 detail: 'Set the missing OAuth client settings before checking the endpoint.',
             };
-        if (configured) {
+        if (resolved) {
             try {
-                const endpoint = new URL(
-                    this.lightdashConfig.auth.snowflakeAi
-                        .authorizationEndpoint!,
-                );
+                const endpoint = new URL(resolved.authorizationEndpoint);
                 endpoint.username = '';
                 endpoint.password = '';
                 endpoint.search = '';
@@ -374,12 +453,16 @@ export class AiAccessService extends BaseService {
                 ].includes(response.status)
                     ? 'passed'
                     : 'failed';
+                const endpointHint =
+                    resolved.source === 'organization'
+                        ? ' Check the Snowflake account URL.'
+                        : ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.';
                 endpointCheck.detail =
                     endpointCheck.status === 'passed'
                         ? `Snowflake answered (HTTP ${response.status}).`
                         : `The authorization endpoint returned HTTP ${response.status}.${
                               [404, 405].includes(response.status)
-                                  ? ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.'
+                                  ? endpointHint
                                   : ''
                           }`;
                 await response.body?.cancel();
@@ -409,15 +492,23 @@ export class AiAccessService extends BaseService {
         });
         return {
             checkedAt: new Date(),
-            passed: checks.every(
-                (check) => !check.required || check.status === 'passed',
-            ),
+            passed:
+                configured &&
+                checks.every(
+                    (check) => !check.required || check.status === 'passed',
+                ),
             checks,
         };
     }
 
-    private assertSnowflakeAgentConfigured(): void {
-        if (!isSnowflakeAgentConfigured(this.lightdashConfig)) {
+    private async assertSnowflakeAgentConfigured(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (
+            !(await this.snowflakeAgentClientResolver.isConfigured(
+                organizationUuid,
+            ))
+        ) {
             throw new ParameterError(
                 'The Snowflake agent integration is not configured on this instance',
             );
@@ -443,7 +534,7 @@ export class AiAccessService extends BaseService {
             throw new ForbiddenError();
         }
         if (settings.requireVerifiedAgentSessions)
-            this.assertSnowflakeAgentConfigured();
+            await this.assertSnowflakeAgentConfigured(organizationUuid);
         const {
             settings: savedSettings,
             previousSource,
@@ -485,6 +576,10 @@ export class AiAccessService extends BaseService {
         }
         return {
             ...savedSettings,
+            snowflakeConfigured:
+                await this.snowflakeAgentClientResolver.isConfigured(
+                    organizationUuid,
+                ),
             rules: await this.organizationAgentIdentityRulesModel.list(
                 organizationUuid,
             ),
@@ -522,7 +617,7 @@ export class AiAccessService extends BaseService {
             warehouseType === WarehouseTypes.SNOWFLAKE &&
             rule.source === 'agent_sign_in'
         ) {
-            this.assertSnowflakeAgentConfigured();
+            await this.assertSnowflakeAgentConfigured(organizationUuid);
         }
         const { previousSource, changed } =
             await this.organizationAgentIdentityRulesModel.set(

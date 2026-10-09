@@ -4741,7 +4741,18 @@ export type AgentIdentityExpiredEvent = AgentIdentityTrack & {
     };
 };
 
+export type AgentIdentitySnowflakeClientSavedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.snowflake_client_saved';
+    properties: {
+        organizationId: string;
+        userId: string;
+        warehouseType: WarehouseTypes.SNOWFLAKE;
+        source: 'organization';
+    };
+};
+
 type AgentIdentityEvent =
+    | AgentIdentitySnowflakeClientSavedEvent
     | AgentIdentityRuleUpdatedEvent
     | AgentQueryRefusedEvent
     | AgentIdentityConnectStartedEvent
