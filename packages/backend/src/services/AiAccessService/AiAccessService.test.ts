@@ -254,6 +254,21 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             ...lightdashConfigMock,
             ai: { ...lightdashConfigMock.ai, agentResultIdentityCheckEnabled },
             siteUrl: 'https://lightdash.example',
+            license: {
+                ...lightdashConfigMock.license,
+                licenseKey: 'test-license',
+            },
+            auth: {
+                ...lightdashConfigMock.auth,
+                snowflakeAi: {
+                    ...lightdashConfigMock.auth.snowflakeAi,
+                    clientId: 'test-client',
+                    clientSecret: 'test-secret',
+                    authorizationEndpoint:
+                        'https://snowflake.example/authorize',
+                    tokenEndpoint: 'https://snowflake.example/token',
+                },
+            },
         } as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,

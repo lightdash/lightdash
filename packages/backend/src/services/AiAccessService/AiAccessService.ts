@@ -13,11 +13,13 @@ import {
     assertIsAccountWithOrg,
     assertUnreachable,
     buildAgentIdentityClaim,
+    buildSnowflakeAgentIntegrationSql,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
     getAgentIdentityWarehouseTypes,
     getAiExecutionCredentialUuid,
+    getSnowflakeAgentRedirectUri,
     isAiAccessQueryContext,
     isAllowedAgentIdentitySource,
     ParameterError,
@@ -36,6 +38,8 @@ import {
     type OrganizationAgentIdentityOverview,
     type OrganizationAgentIdentityRule,
     type OrganizationAgentIdentitySettings,
+    type OrganizationAgentIdentitySnowflakeSetup,
+    type OrganizationAgentIdentitySnowflakeVerify,
     type QueryHistory,
     type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
@@ -47,6 +51,10 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
+import {
+    getSnowflakeAgentMissingSettings,
+    isSnowflakeAgentConfigured,
+} from '../../config/snowflakeAgentConfiguration';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
@@ -273,6 +281,128 @@ export class AiAccessService extends BaseService {
         };
     }
 
+    private async authorizeSnowflakeSetup(account: Account): Promise<string> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return organizationUuid;
+    }
+
+    async getSnowflakeSetup(
+        account: Account,
+    ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
+        await this.authorizeSnowflakeSetup(account);
+        const redirectUri = getSnowflakeAgentRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            redirectUri,
+            integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
+            missingSettings: getSnowflakeAgentMissingSettings(
+                this.lightdashConfig,
+            ),
+            configured: isSnowflakeAgentConfigured(this.lightdashConfig),
+        };
+    }
+
+    async verifySnowflakeSetup(
+        account: Account,
+    ): Promise<OrganizationAgentIdentitySnowflakeVerify> {
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
+        const missingSettings = getSnowflakeAgentMissingSettings(
+            this.lightdashConfig,
+        );
+        const configured = isSnowflakeAgentConfigured(this.lightdashConfig);
+        const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
+            {
+                id: 'oauth_client',
+                label: 'OAuth client settings',
+                required: true,
+                status: configured ? 'passed' : 'failed',
+                detail: configured
+                    ? 'All OAuth client settings are set.'
+                    : `Missing: ${missingSettings.join(', ')}.`,
+            },
+        ];
+        const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
+            {
+                id: 'authorize_endpoint',
+                label: 'Authorization endpoint',
+                required: true,
+                status: 'not_checked',
+                detail: 'Set the missing OAuth client settings before checking the endpoint.',
+            };
+        if (configured) {
+            try {
+                const endpoint = new URL(
+                    this.lightdashConfig.auth.snowflakeAi
+                        .authorizationEndpoint!,
+                );
+                endpoint.username = '';
+                endpoint.password = '';
+                endpoint.search = '';
+                endpoint.hash = '';
+                const response = await fetch(endpoint.href, {
+                    method: 'GET',
+                    redirect: 'manual',
+                    signal: AbortSignal.timeout(5000),
+                });
+                endpointCheck.status =
+                    response.status < 500 ? 'passed' : 'failed';
+                endpointCheck.detail = `Snowflake answered (HTTP ${response.status}).`;
+                await response.body?.cancel();
+            } catch (error) {
+                endpointCheck.status = 'failed';
+                endpointCheck.detail =
+                    error instanceof Error &&
+                    (error.name === 'TimeoutError' ||
+                        error.name === 'AbortError')
+                        ? 'The authorization endpoint did not respond within 5 seconds.'
+                        : 'Could not reach the authorization endpoint.';
+            }
+        }
+        checks.push(endpointCheck);
+        const hasAgentSession =
+            await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
+                organizationUuid,
+            );
+        checks.push({
+            id: 'agent_session',
+            label: 'Agent session',
+            required: false,
+            status: hasAgentSession ? 'passed' : 'not_checked',
+            detail: hasAgentSession
+                ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
+                : 'No one has connected their agent yet. Connect your own agent in My warehouse connections to confirm Snowflake marks sessions as agent sessions.',
+        });
+        return {
+            checkedAt: new Date(),
+            passed: checks.every(
+                (check) => !check.required || check.status === 'passed',
+            ),
+            checks,
+        };
+    }
+
+    private assertSnowflakeAgentConfigured(): void {
+        if (!isSnowflakeAgentConfigured(this.lightdashConfig)) {
+            throw new ParameterError(
+                'The Snowflake agent integration is not configured on this instance',
+            );
+        }
+    }
+
     async updateOrganizationSettings(
         account: Account,
         settings: OrganizationAgentIdentitySettings,
@@ -291,6 +421,8 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        if (settings.requireVerifiedAgentSessions)
+            this.assertSnowflakeAgentConfigured();
         const {
             settings: savedSettings,
             previousSource,
@@ -358,6 +490,12 @@ export class AiAccessService extends BaseService {
             throw new ParameterError(
                 'This identity source is not supported for the warehouse type',
             );
+        }
+        if (
+            warehouseType === WarehouseTypes.SNOWFLAKE &&
+            rule.source === 'agent_sign_in'
+        ) {
+            this.assertSnowflakeAgentConfigured();
         }
         const { previousSource, changed } =
             await this.organizationAgentIdentityRulesModel.set(

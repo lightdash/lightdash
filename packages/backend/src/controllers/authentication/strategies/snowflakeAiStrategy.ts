@@ -1,6 +1,7 @@
 import {
     AgentIdentityConnectFailureReason,
     ForbiddenError,
+    getSnowflakeAgentRedirectUri,
     ParameterError,
 } from '@lightdash/common';
 import {
@@ -48,10 +49,9 @@ export const snowflakeAiPassportStrategy = !(
               tokenURL: config.tokenEndpoint,
               clientID: config.clientId,
               clientSecret: config.clientSecret,
-              callbackURL: new URL(
-                  `/api/v1${config.callbackPath}`,
+              callbackURL: getSnowflakeAgentRedirectUri(
                   lightdashConfig.siteUrl,
-              ).href,
+              ),
               passReqToCallback: true,
               state: true,
               sessionKey: 'oauth2:snowflake-ai',

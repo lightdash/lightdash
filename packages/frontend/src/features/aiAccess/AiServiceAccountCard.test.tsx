@@ -30,9 +30,17 @@ const project = {
     organizationUuid: 'org',
     name: 'Project',
     type: ProjectType.DEFAULT,
-    warehouseConnection: { type: WarehouseTypes.BIGQUERY },
+    warehouseConnection: {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'data-project',
+        executionProject: 'job-project',
+        dataset: 'analytics',
+    },
     dbtConnection: { type: DbtProjectType.NONE },
 } as Project;
+vi.mock('../../components/common/CodeBlock/CodeBlock', () => ({
+    default: ({ code }: { code: string }) => <pre>{code}</pre>,
+}));
 vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
@@ -234,6 +242,56 @@ describe('AI service account card', () => {
             expect(lightdashApi).not.toHaveBeenCalled();
         },
     );
+    it('renders setup commands from the connection, including its execution project and dataset', async () => {
+        setup();
+        const code = await screen.findByText(
+            /gcloud iam service-accounts create/,
+        );
+        expect(code).toHaveTextContent(
+            'gcloud iam service-accounts create lightdash-agents --project=data-project',
+        );
+        expect(code).toHaveTextContent(
+            'gcloud projects add-iam-policy-binding job-project',
+        );
+        expect(code).toHaveTextContent(
+            'serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com',
+        );
+        expect(code).toHaveTextContent('bq query --project_id=job-project');
+        expect(code).toHaveTextContent('ON SCHEMA `data-project`.analytics');
+        expect(
+            screen.getByText('Grant only the data every agent user may see.'),
+        ).toBeInTheDocument();
+    });
+    it('omits the dataset command when no dataset is set', async () => {
+        setup({
+            ...project,
+            warehouseConnection: {
+                ...project.warehouseConnection,
+                dataset: '',
+            },
+        } as Project);
+        expect(
+            await screen.findByText(
+                'Grant Data Viewer on each dataset agents may read.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(/gcloud iam service-accounts create/),
+        ).not.toHaveTextContent('bq query');
+    });
+    it('collapses setup for a saved key and marks upload and successful Test steps done', async () => {
+        slot = savedSlot;
+        setup();
+        const control = await screen.findByRole('button', {
+            name: 'Set up the AI service account',
+        });
+        expect(control).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(control);
+        expect(screen.getByLabelText('Step 2 done')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        expect(await screen.findByLabelText('Step 3 done')).toBeInTheDocument();
+    });
     it('shows an empty slot without repeating the organization rule', async () => {
         setup();
         expect(

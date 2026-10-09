@@ -19,6 +19,7 @@ import {
     exchangeSnowflakeRefreshToken,
     type SnowflakeRefreshResult,
 } from '../../../auth/snowflakeOAuthRefresh';
+import { getSnowflakeAgentMissingOAuthSettings } from '../../../config/snowflakeAgentConfiguration';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
 import { UserService } from '../../UserService';
 import {
@@ -41,12 +42,9 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
     constructor(private readonly deps: AiCredentialProviderDependencies) {}
 
     configurationError(): string | null {
-        const { clientId, clientSecret, authorizationEndpoint, tokenEndpoint } =
-            this.deps.lightdashConfig.auth.snowflakeAi;
-        return clientId &&
-            clientSecret &&
-            authorizationEndpoint &&
-            tokenEndpoint
+        return getSnowflakeAgentMissingOAuthSettings(
+            this.deps.lightdashConfig.auth.snowflakeAi,
+        ).length === 0
             ? null
             : 'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.';
     }

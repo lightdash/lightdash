@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
     formatDate,
     type Project,
+    type BigqueryCredentials,
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
@@ -23,6 +24,7 @@ import {
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
+import { BigQueryAgentSetup } from './BigQueryAgentSetup';
 import { useTestAgentAccess } from './useTestAgentAccess';
 
 const AiServiceAccountSlotSummary = ({
@@ -203,7 +205,13 @@ const AiServiceAccountSettingsContent = ({
     );
 };
 
-const AiServiceAccountSettings = ({ projectUuid }: { projectUuid: string }) => {
+const AiServiceAccountSettings = ({
+    projectUuid,
+    connection,
+}: {
+    projectUuid: string;
+    connection: BigqueryCredentials;
+}) => {
     const [editing, setEditing] = useState(false);
     const [testedPrincipal, setTestedPrincipal] = useState<{
         identityUuid: string;
@@ -229,6 +237,14 @@ const AiServiceAccountSettings = ({ projectUuid }: { projectUuid: string }) => {
 
     return (
         <>
+            <BigQueryAgentSetup
+                connection={connection}
+                hasKey={!!slot.data}
+                tested={
+                    !!slot.data &&
+                    testedPrincipal?.identityUuid === slot.data.identityUuid
+                }
+            />
             <AiServiceAccountSettingsContent
                 key={
                     slot.data
@@ -295,6 +311,7 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
                 <AiServiceAccountSettings
                     key={project.projectUuid}
                     projectUuid={project.projectUuid}
+                    connection={project.warehouseConnection}
                 />
             </Stack>
         </SettingsCard>
