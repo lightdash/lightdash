@@ -1,3 +1,15 @@
+# [2.511.0](https://github.com/lightdash/lightdash/compare/2.510.0...2.511.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **dashboards:** fix the review findings on the field bar ([#30816](https://github.com/lightdash/lightdash/issues/30816)) ([b85b911](https://github.com/lightdash/lightdash/commit/b85b911bb87f1a2d09db7f44fdeddf0032f8b3c9))
+
+
+### Features
+
+* **agent-identity:** My agent connections page under Your settings ([#30814](https://github.com/lightdash/lightdash/issues/30814)) ([2fc0a48](https://github.com/lightdash/lightdash/commit/2fc0a4849c3e857a15df2a0baa7fcd0da94d5e4e))
+
 # [2.510.0](https://github.com/lightdash/lightdash/compare/2.509.0...2.510.0) (2026-10-09)
 
 
