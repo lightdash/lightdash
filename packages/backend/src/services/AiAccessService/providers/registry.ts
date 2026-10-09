@@ -1,5 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type SnowflakeAgentClientResolver } from '../SnowflakeAgentClientResolver';
 import { type AiCredentialProvider } from './AiCredentialProvider';
@@ -11,6 +13,8 @@ export type AiCredentialProviderRegistry = (
 
 export type AiCredentialProviderDependencies = {
     lightdashConfig: LightdashConfig;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+    refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
     snowflakeAgentClientResolver: Pick<SnowflakeAgentClientResolver, 'resolve'>;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 };

@@ -2925,6 +2925,10 @@ describe('Snowflake revocation with a warm agent client', () => {
                 },
             };
             const provider = new SnowflakeAiCredentialProvider({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
+                refreshTokenRotation: { run: vi.fn() },
                 lightdashConfig: config,
                 userWarehouseCredentialsModel: model,
                 snowflakeAgentClientResolver: new SnowflakeAgentClientResolver({

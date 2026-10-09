@@ -2,8 +2,10 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
+    FeatureFlags,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AiAssurance,
     type CreateSnowflakeCredentials,
@@ -20,7 +22,12 @@ import {
 import Logger from '../../../logging/logger';
 import { redactCredentialError } from '../../../logging/redactCredentialError';
 import { withCause } from '../../../logging/withCause';
+import {
+    RefreshTokenLockTimeoutError,
+    RefreshTokenRowMissingError,
+} from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type AiUserWarehouseCredentials } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { SnowflakeOAuthRefresher } from '../../OAuthRefresh/SnowflakeOAuthRefresher';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
 import { type AiAccessEvaluation } from '../AiAccessService';
 import { type ResolvedSnowflakeAgentClient } from '../SnowflakeAgentClientResolver';
@@ -32,6 +39,12 @@ import {
     type AiSessionProbeResult,
 } from './AiCredentialProvider';
 import { type AiCredentialProviderDependencies } from './registry';
+
+class AgentRefreshExchangeError extends Error {
+    constructor(readonly original: unknown) {
+        super('Agent sign-in refresh failed');
+    }
+}
 
 const waitForRefreshRotation = () =>
     new Promise<void>((resolve) => {
@@ -137,6 +150,22 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             !merged.refreshToken
         )
             throw new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
+        const { enabled: lockEnabled } = await this.deps.featureFlagModel.get({
+            user: { organizationUuid: person.organizationUuid },
+            featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
+        });
+        if (lockEnabled) {
+            return this.mintWithRefreshLock({
+                refreshToken: merged.refreshToken,
+                connection,
+                credential,
+                client,
+                silentRefresh,
+                userUuid: person.userUuid,
+                organizationUuid,
+                evaluationKind,
+            });
+        }
         if (silentRefresh) {
             const refreshed = await this.refreshCredential(
                 connection,
@@ -223,6 +252,249 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 { kind: 'result_cache_off' },
             ],
             expiresAt: new Date(Date.now() + 8 * 60 * 1000),
+        };
+    }
+
+    private async mintWithRefreshLock({
+        refreshToken,
+        connection,
+        credential,
+        client,
+        silentRefresh,
+        userUuid,
+        organizationUuid,
+        evaluationKind,
+    }: {
+        refreshToken: string;
+        connection: CreateSnowflakeCredentials;
+        credential: AiUserWarehouseCredentials;
+        client: ResolvedSnowflakeAgentClient;
+        silentRefresh: boolean;
+        userUuid: string;
+        organizationUuid: string;
+        evaluationKind: AiAccessEvaluation['kind'];
+    }): Promise<AiMintedCredentials<CreateSnowflakeCredentials>> {
+        let currentCredential = credential;
+        const refresher = new SnowflakeOAuthRefresher(
+            this.deps.refreshTokenRotation,
+        );
+        let tokens: SnowflakeRefreshResult;
+        try {
+            tokens = await refresher.refresh({
+                refreshToken,
+                row: {
+                    key: {
+                        kind: 'user',
+                        uuid: credential.uuid,
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    },
+                    shareKey: JSON.stringify([
+                        'snowflake-agent',
+                        client.organizationUuid,
+                        client.clientVersion,
+                        silentRefresh,
+                    ]),
+                    readCurrentRefreshToken: async () => {
+                        const current =
+                            await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                                {
+                                    userUuid,
+                                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                                },
+                            );
+                        if (current && !this.matchesClient(current, client))
+                            throw new AiAccessRefusedError(
+                                AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                            );
+                        if (!current || current.uuid !== credential.uuid)
+                            return null;
+                        if (
+                            !silentRefresh &&
+                            current.expiresAt &&
+                            current.expiresAt.getTime() <= Date.now()
+                        )
+                            throw new AiAccessRefusedError(
+                                AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                            );
+                        currentCredential = current;
+                        const merged = mergePersonalWarehouseCredentials(
+                            connection,
+                            current,
+                        );
+                        return merged.type === WarehouseTypes.SNOWFLAKE &&
+                            merged.authenticationType ===
+                                SnowflakeAuthenticationType.SSO
+                            ? (merged.refreshToken ?? null)
+                            : null;
+                    },
+                },
+                exchange: async (currentRefreshToken) => {
+                    try {
+                        return await exchangeSnowflakeRefreshToken({
+                            client,
+                            refreshToken: currentRefreshToken,
+                            now: new Date(),
+                        });
+                    } catch (error) {
+                        throw new AgentRefreshExchangeError(error);
+                    }
+                },
+                persist: async ({ lockedRefreshToken, result }) => {
+                    Logger.info('Agent sign-in refreshed', {
+                        userUuid,
+                        organizationUuid,
+                    });
+                    const tokenChanged =
+                        result.refreshToken !== lockedRefreshToken;
+                    if (
+                        tokenChanged ||
+                        (silentRefresh &&
+                            ((result.refreshTokenExpiresAt &&
+                                result.refreshTokenExpiresAt.getTime() !==
+                                    currentCredential.expiresAt?.getTime()) ||
+                                (currentCredential.expiresAt &&
+                                    currentCredential.expiresAt.getTime() <=
+                                        Date.now())))
+                    ) {
+                        const rotated = silentRefresh
+                            ? await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                                  credential.uuid,
+                                  lockedRefreshToken,
+                                  result.refreshToken,
+                                  result.refreshTokenExpiresAt
+                                      ? {
+                                            kind: 'reported',
+                                            expiresAt:
+                                                result.refreshTokenExpiresAt,
+                                        }
+                                      : { kind: 'unreported' },
+                              )
+                            : await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                                  credential.uuid,
+                                  lockedRefreshToken,
+                                  result.refreshToken,
+                              );
+                        if (tokenChanged)
+                            Logger[rotated ? 'info' : 'debug'](
+                                rotated
+                                    ? 'Agent sign-in refresh token rotated'
+                                    : 'Agent sign-in refresh token rotation skipped',
+                                { userUuid, organizationUuid },
+                            );
+                    }
+                },
+            });
+        } catch (error) {
+            if (error instanceof RefreshTokenRowMissingError)
+                throw withCause(
+                    new AiAccessRefusedError(
+                        AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    ),
+                    error,
+                );
+            if (
+                !(error instanceof AgentRefreshExchangeError) &&
+                !(error instanceof RefreshTokenLockTimeoutError)
+            )
+                throw error;
+            const cause =
+                error instanceof AgentRefreshExchangeError
+                    ? error.original
+                    : error;
+            if (
+                !silentRefresh &&
+                !(error instanceof RefreshTokenLockTimeoutError)
+            ) {
+                const detail = cause as {
+                    data?: string;
+                    message?: string;
+                } | null;
+                const invalidGrant = /\binvalid_grant\b/.test(
+                    `${detail?.data ?? ''} ${detail?.message ?? ''}`,
+                );
+                const reason = invalidGrant
+                    ? AiAccessRefusalReason.SIGN_IN_EXPIRED
+                    : AiAccessRefusalReason.NEEDS_SIGN_IN;
+                Logger[evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
+                    'Agent sign-in refresh failed',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        reason,
+                        ...redactCredentialError(cause),
+                    },
+                );
+                throw withCause(new AiAccessRefusedError(reason), cause);
+            }
+            const failure = classifySnowflakeRefreshError(cause);
+            Logger[evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
+                'Agent sign-in refresh failed',
+                {
+                    userUuid,
+                    organizationUuid,
+                    kind: failure.kind,
+                    ...redactCredentialError(cause),
+                },
+            );
+            switch (failure.kind) {
+                case 'grant_gone':
+                    throw withCause(
+                        new AiAccessRefusedError(
+                            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                        ),
+                        cause,
+                    );
+                case 'temporary':
+                    throw withCause(
+                        new UnexpectedServerError(
+                            'The warehouse sign-in could not be refreshed. Try again in a moment.',
+                            {
+                                code: 'warehouse_oauth_refresh_failed',
+                                retryable: true,
+                            },
+                        ),
+                        cause,
+                    );
+                case 'configuration':
+                    throw withCause(
+                        new AiAccessRefusedError(
+                            AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                            {
+                                message:
+                                    'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                            },
+                        ),
+                        cause,
+                    );
+                default:
+                    return assertUnreachable(
+                        failure,
+                        'Unknown Snowflake refresh failure',
+                    );
+            }
+        }
+        const merged = mergePersonalWarehouseCredentials(
+            connection,
+            currentCredential,
+        );
+        if (merged.type !== WarehouseTypes.SNOWFLAKE)
+            throw new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
+        return {
+            identityUuid: credential.uuid,
+            credentials: {
+                ...merged,
+                token: tokens.accessToken,
+                refreshToken: tokens.refreshToken,
+                requireAgentSession: true,
+                requireUserCredentials: false,
+            },
+            assurances: [
+                { kind: 'agent_session_active' },
+                { kind: 'result_cache_off' },
+            ],
+            expiresAt:
+                (silentRefresh && tokens.accessTokenExpiresAt) ||
+                new Date(Date.now() + 8 * 60 * 1000),
         };
     }
 

@@ -1,31 +1,13 @@
 import { UnexpectedServerError } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
+import { createDatabase, deferred } from './fakeKnex.mock';
 import {
     RefreshTokenLockTimeoutError,
     RefreshTokenRotation,
     RefreshTokenRowMissingError,
     type RefreshRun,
 } from './RefreshTokenRotation';
-
-const deferred = <T>() => {
-    let resolve!: (value: T) => void;
-    let reject!: (reason: Error) => void;
-    const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-        resolve = resolvePromise;
-        reject = rejectPromise;
-    });
-    return { promise, resolve, reject };
-};
-
-const createDatabase = () => {
-    const raw = vi.fn().mockResolvedValue(undefined);
-    const transaction = vi.fn(
-        async (callback: (trx: Knex.Transaction) => unknown) =>
-            callback({ raw } as unknown as Knex.Transaction),
-    );
-    return { database: { transaction } as unknown as Knex, transaction, raw };
-};
 
 const createRun = (uuid = 'row-1') => ({
     key: { kind: 'project' as const, uuid, purpose: null },

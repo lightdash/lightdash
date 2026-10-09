@@ -8,7 +8,10 @@ import {
     type AiExecutionPlan,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
-import type { Knex } from 'knex';
+import {
+    createDatabase,
+    deferred,
+} from '../../../models/RefreshTokenRotation/fakeKnex.mock';
 import {
     RefreshTokenLockTimeoutError,
     RefreshTokenRotation,
@@ -54,14 +57,8 @@ const selection = (): CredentialSelection<CreateSnowflakeCredentials> => ({
     aiPlan: null,
 });
 const setup = (enabled = true) => {
-    const raw = vi.fn().mockResolvedValue(undefined);
-    const transaction = vi.fn(
-        async (callback: (trx: Knex.Transaction) => unknown) =>
-            callback({ raw } as unknown as Knex.Transaction),
-    );
-    const coordinator = new RefreshTokenRotation({
-        database: { transaction } as unknown as Knex,
-    });
+    const { database, transaction } = createDatabase();
+    const coordinator = new RefreshTokenRotation({ database });
     const run = vi.spyOn(coordinator, 'run');
     const project = {
         projectUuid: 'project',
@@ -463,4 +460,95 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             );
         },
     );
+});
+
+describe('Snowflake OAuth refresh concurrency', () => {
+    test.each(['project', 'organization'] as const)(
+        'shares an exchange and write for concurrent callers on one %s row',
+        async (kind) => {
+            const f = setup();
+            const exchanged = deferred<{
+                accessToken: string;
+                refreshToken: string;
+            }>();
+            f.exchange.mockReturnValue(exchanged.promise);
+            const firstInput = selection();
+            const secondInput = selection();
+            if (kind === 'organization') {
+                firstInput.owner = { kind, uuid: 'shared-org-row' };
+                secondInput.owner = { kind, uuid: 'shared-org-row' };
+                secondInput.projectUuid = 'another-project';
+            }
+            secondInput.connection = {
+                ...secondInput.connection,
+                warehouse: 'other-warehouse',
+            };
+            const first = f.resolver.resolve(firstInput);
+            await vi.waitFor(() => expect(f.exchange).toHaveBeenCalledTimes(1));
+            const second = f.resolver.resolve(secondInput);
+            await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
+            expect(f.exchange).toHaveBeenCalledTimes(1);
+            exchanged.resolve({
+                accessToken: 'shared-access',
+                refreshToken: 'rotated-refresh',
+            });
+            const results = await Promise.all([first, second]);
+            expect(
+                results.map((result) => result.clientCredentials.token),
+            ).toEqual(['shared-access', 'shared-access']);
+            expect(
+                results.map((result) => result.clientCredentials.warehouse),
+            ).toEqual(['warehouse', 'other-warehouse']);
+            const model =
+                kind === 'project'
+                    ? f.deps.projectModel
+                    : f.deps.organizationWarehouseCredentialsModel;
+            expect(model.rotateRefreshToken).toHaveBeenCalledExactlyOnceWith(
+                firstInput.owner!.uuid,
+                'old-refresh',
+                'rotated-refresh',
+            );
+            expect(f.transaction).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    test('exchanges independently for different project rows', async () => {
+        const f = setup();
+        const exchanged = deferred<{
+            accessToken: string;
+            refreshToken: string;
+        }>();
+        f.exchange.mockReturnValue(exchanged.promise);
+        const first = f.resolver.resolve(selection());
+        const second = f.resolver.resolve({
+            ...selection(),
+            owner: { kind: 'project', uuid: 'other-project' },
+        });
+        await vi.waitFor(() => expect(f.exchange).toHaveBeenCalledTimes(2));
+        exchanged.resolve({ accessToken: 'access', refreshToken: 'rotated' });
+        await Promise.all([first, second]);
+        expect(f.deps.projectModel.rotateRefreshToken).toHaveBeenCalledTimes(2);
+        expect(f.transaction).toHaveBeenCalledTimes(2);
+    });
+
+    test('rereads the rotated token for a caller after the first refresh completes', async () => {
+        const f = setup();
+        let stored = credentials;
+        f.deps.projectModel.getWarehouseCredentialsForProjectUncached.mockImplementation(
+            async () => stored,
+        );
+        f.deps.projectModel.rotateRefreshToken.mockImplementation(
+            async (_uuid, _old, next) => {
+                stored = { ...stored, refreshToken: next };
+                return true;
+            },
+        );
+        await f.resolver.resolve(selection());
+        await f.resolver.resolve(selection());
+        expect(f.exchange.mock.calls).toEqual([
+            ['old-refresh'],
+            ['new-refresh'],
+        ]);
+        expect(f.transaction).toHaveBeenCalledTimes(2);
+    });
 });

@@ -993,6 +993,9 @@ export class ServiceRepository
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
+                        featureFlagModel: this.models.getFeatureFlagModel(),
+                        refreshTokenRotation:
+                            this.models.getRefreshTokenRotation(),
                         snowflakeAgentClientResolver:
                             new SnowflakeAgentClientResolver({
                                 lightdashConfig: this.context.lightdashConfig,
