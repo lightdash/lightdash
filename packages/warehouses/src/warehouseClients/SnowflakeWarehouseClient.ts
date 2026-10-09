@@ -805,6 +805,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     private interactiveConnectionPromise?: Promise<Connection>;
 
+    private readonly agentJobControls: boolean;
+
     private readonly privateKey: string | undefined;
 
     private readonly privateKeyPassphrase: string | undefined;
@@ -815,6 +817,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         credentials: CreateSnowflakeCredentials,
         options?: {
             agentSession?: boolean;
+            agentJobControls?: boolean;
             logger?: {
                 info: (
                     message: string,
@@ -829,6 +832,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             options,
         );
         this.logger = options?.logger;
+        this.agentJobControls = options?.agentJobControls ?? false;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -960,6 +964,8 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 activeRestrictedSessionScopes:
                     session.activeRestrictedSessionScopes,
             });
+        }
+        if (this.credentials.requireAgentSession || this.agentJobControls) {
             try {
                 await disableSnowflakeCachedResult(connection);
             } catch {

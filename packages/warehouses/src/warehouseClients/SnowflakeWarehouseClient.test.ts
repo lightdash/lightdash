@@ -149,6 +149,50 @@ describe('SnowflakeWarehouseClient', () => {
         executeMock.mockImplementation(defaultExecute);
     });
 
+    it.each([true, false, undefined])(
+        'sets result caching without requiring activation for agent job controls %s',
+        async (agentJobControls) => {
+            const warehouse = new SnowflakeWarehouseClient(
+                { ...credentials, requireAgentSession: false },
+                { agentJobControls },
+            );
+            await warehouse.streamQuery('SELECT 1', () => {}, {});
+            const statements = executeMock.mock.calls.map(
+                ([options]) => options.sqlText,
+            );
+            expect(
+                statements.some((sql) => sql.includes('IS_AGENT_ACTIVATED')),
+            ).toBe(false);
+            if (agentJobControls) {
+                expect(statements[0]).toBe(
+                    'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+                );
+            } else {
+                expect(statements).not.toContain(
+                    'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+                );
+            }
+            expect(statements).toContain('SELECT 1');
+        },
+    );
+
+    it('destroys the connection when disabling the result cache fails without activation', async () => {
+        executeMock.mockImplementationOnce(({ complete }) => {
+            complete(new Error('cannot disable cache'));
+        });
+        const warehouse = new SnowflakeWarehouseClient(
+            { ...credentials, requireAgentSession: false },
+            { agentJobControls: true },
+        );
+        await expect(
+            warehouse.streamQuery('SELECT 1', () => {}, {}),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(
+            vi.mocked(createConnection).mock.results[0].value.destroy,
+        ).toHaveBeenCalledOnce();
+        expect(executeMock).toHaveBeenCalledOnce();
+    });
+
     it('checks an AI session before the first statement', async () => {
         executeMock.mockImplementationOnce(({ complete }) => {
             complete(undefined, {}, [

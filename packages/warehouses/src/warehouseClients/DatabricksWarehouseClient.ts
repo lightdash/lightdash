@@ -485,9 +485,11 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     private readonly enableTimeouts: boolean;
 
+    private readonly agentJobControls: boolean;
+
     constructor(
         credentials: CreateDatabricksCredentials,
-        options?: { agentSession?: boolean },
+        options?: { agentSession?: boolean; agentJobControls?: boolean },
     ) {
         super(
             credentials,
@@ -495,6 +497,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             options,
         );
         this.schema = credentials.database;
+        this.agentJobControls = options?.agentJobControls ?? false;
         this.catalog = credentials.catalog;
         this.enableTimeouts = process.env.DATABRICKS_ENABLE_TIMEOUTS === 'true';
 
@@ -558,6 +561,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             session = await connection.openSession({
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
+                ...(this.agentJobControls
+                    ? { configuration: { use_cached_result: 'false' } }
+                    : {}),
             });
         } catch (e: unknown) {
             try {

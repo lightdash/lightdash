@@ -2041,9 +2041,56 @@ describe('AI service account factory scopes', () => {
         },
     };
 
-    test.each([null, markedPlan, slotPlan])(
-        'sets BigQuery agent job controls only for a resolved plan: %j',
-        async (aiPlan) => {
+    const cacheControlCredentials: CreateWarehouseCredentials[] = [
+        slotPlan.credentials,
+        credentials,
+        { ...credentials, type: WarehouseTypes.REDSHIFT },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            serverHostName: 'warehouse.internal',
+            httpPath: '/warehouse',
+            personalAccessToken: 'token',
+            database: 'database',
+        },
+        {
+            type: WarehouseTypes.CLICKHOUSE,
+            host: 'warehouse.internal',
+            port: 8123,
+            user: 'user',
+            password: 'password',
+            schema: 'default',
+            secure: false,
+        },
+        {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'user',
+            password: 'password',
+            database: 'database',
+            schema: 'public',
+            warehouse: 'warehouse',
+        },
+    ];
+
+    test.each(
+        cacheControlCredentials.flatMap((warehouseCredentials) =>
+            [
+                { aiPlan: null, queryContext: QueryExecutionContext.EXPLORE },
+                { aiPlan: null, queryContext: QueryExecutionContext.AI },
+                { aiPlan: markedPlan, queryContext: QueryExecutionContext.AI },
+                { aiPlan: slotPlan, queryContext: QueryExecutionContext.AI },
+            ].map(({ aiPlan, queryContext }) => ({
+                warehouseCredentials,
+                aiPlan:
+                    aiPlan === null
+                        ? null
+                        : { ...aiPlan, credentials: warehouseCredentials },
+                queryContext,
+            })),
+        ),
+    )(
+        'sets $warehouseCredentials.type job controls only for a resolved plan: $queryContext $aiPlan.identity',
+        async ({ warehouseCredentials, aiPlan, queryContext }) => {
             const {
                 factory,
                 projectModel,
@@ -2053,25 +2100,24 @@ describe('AI service account factory scopes', () => {
             } = buildFixture();
             credentialSource.loadBase.mockResolvedValue({
                 ...base,
-                credentials: slotPlan.credentials,
+                credentials: warehouseCredentials,
             });
             credentialSource.finish.mockResolvedValue({
-                ...slotPlan.credentials,
+                ...warehouseCredentials,
                 userWarehouseCredentialsUuid: undefined,
             });
             aiAccessService.resolvePlan.mockResolvedValue(aiPlan);
             await factory.withWarehouseClient(
                 bindingRef,
-                contextFor(QueryExecutionContext.AI),
+                contextFor(queryContext),
                 async () => undefined,
             );
-            expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
             expect(
                 projectModel.getWarehouseClientFromCredentials,
             ).toHaveBeenCalledWith(
-                expect.objectContaining(slotPlan.credentials),
+                expect.objectContaining(warehouseCredentials),
                 expect.objectContaining({
-                    agentSession: true,
+                    agentSession: queryContext === QueryExecutionContext.AI,
                     agentJobControls: aiPlan !== null,
                 }),
             );
@@ -3235,7 +3281,10 @@ describe('resolver cache identity and lifecycle', () => {
                 return {
                     ...(await originalResolve.call(this, input)),
                     cacheable: false,
-                    clientOptions: { maxOpenConnections: 7 },
+                    clientOptions: {
+                        maxOpenConnections: 7,
+                        agentJobControls: true,
+                    },
                 };
             },
         );
@@ -3259,7 +3308,7 @@ describe('resolver cache identity and lifecycle', () => {
         ).toHaveBeenCalledTimes(2);
         expect(
             projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
-        ).toMatchObject({ maxOpenConnections: 7 });
+        ).toMatchObject({ maxOpenConnections: 7, agentJobControls: false });
         expect(Object.keys(factory.warehouseClients)).toHaveLength(0);
     });
 

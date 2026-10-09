@@ -3,12 +3,19 @@ import {
     WarehouseTypes,
     type CreateRedshiftCredentials,
 } from '@lightdash/common';
+import * as pg from 'pg';
+import { Readable } from 'stream';
 import { PostgresClient } from './PostgresWarehouseClient';
 import { mintRedshiftIamCredentials } from './redshiftIamCredentials';
 import { RedshiftWarehouseClient } from './RedshiftWarehouseClient';
 
 vi.mock('./redshiftIamCredentials', () => ({
     mintRedshiftIamCredentials: vi.fn(),
+}));
+
+vi.mock('pg', async () => ({
+    ...(await vi.importActual<{ default: typeof import('pg') }>('pg')).default,
+    Pool: vi.fn(),
 }));
 
 const credentials: CreateRedshiftCredentials = {
@@ -28,6 +35,105 @@ const redshiftVersion = {
     ],
     fields: {},
 };
+
+describe('RedshiftWarehouseClient result cache', () => {
+    const cacheStatement = 'SET enable_result_cache_for_session TO off';
+
+    const mockConnection = (
+        prepareCache: () => Promise<void> = async () => {},
+    ) => {
+        const query = vi.fn((statement: unknown) => {
+            if (statement === cacheStatement) return prepareCache();
+            if (typeof statement === 'string') return Promise.resolve();
+            return Readable.from([], { objectMode: true });
+        });
+        const release = vi.fn();
+        const end = vi.fn(async () => {});
+        vi.mocked(pg.Pool).mockImplementationOnce(
+            class MockPool {
+                connect = vi.fn((callback) =>
+                    callback(null, { query, on: vi.fn() }, release),
+                );
+
+                on = vi.fn();
+
+                end = end;
+            } as unknown as typeof pg.Pool,
+        );
+        return { query, release, end };
+    };
+
+    it.each([true, false, undefined])(
+        'prepares every query connection for agent job controls %s',
+        async (agentJobControls) => {
+            const warehouse = new RedshiftWarehouseClient(credentials, {
+                agentJobControls,
+            });
+            await Promise.all(
+                ['SELECT 1', 'SELECT 2'].map(async (sql) => {
+                    const { query, release, end } = mockConnection();
+                    await warehouse.runQuery(sql);
+                    expect(
+                        query.mock.calls.map(([statement]) => statement),
+                    ).toEqual([
+                        'SET statement_timeout = 540000',
+                        ...(agentJobControls ? [cacheStatement] : []),
+                        expect.objectContaining({
+                            cursor: expect.objectContaining({ text: sql }),
+                        }),
+                    ]);
+                    expect(release).toHaveBeenCalledOnce();
+                    expect(end).toHaveBeenCalledOnce();
+                }),
+            );
+        },
+    );
+
+    it('awaits cache setup before executing the query', async () => {
+        const cacheSetup = Promise.withResolvers<void>();
+        const cacheStarted = Promise.withResolvers<void>();
+        const { query, release } = mockConnection(() => {
+            cacheStarted.resolve();
+            return cacheSetup.promise;
+        });
+        const warehouse = new RedshiftWarehouseClient(credentials, {
+            agentJobControls: true,
+        });
+        const result = warehouse.runQuery('SELECT 1');
+        await cacheStarted.promise;
+        expect(query.mock.calls.map(([statement]) => statement)).toEqual([
+            'SET statement_timeout = 540000',
+            cacheStatement,
+        ]);
+        expect(release).not.toHaveBeenCalled();
+        cacheSetup.resolve();
+        await result;
+        expect(query).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                cursor: expect.objectContaining({ text: 'SELECT 1' }),
+            }),
+        );
+        expect(release).toHaveBeenCalledOnce();
+    });
+
+    it('rejects and releases the connection when cache setup fails', async () => {
+        const { query, release, end } = mockConnection(async () => {
+            throw new Error('cannot disable result cache');
+        });
+        const warehouse = new RedshiftWarehouseClient(credentials, {
+            agentJobControls: true,
+        });
+        await expect(warehouse.runQuery('SELECT 1')).rejects.toThrow(
+            'cannot disable result cache',
+        );
+        expect(query.mock.calls.map(([statement]) => statement)).toEqual([
+            'SET statement_timeout = 540000',
+            cacheStatement,
+        ]);
+        expect(release).toHaveBeenCalledOnce();
+        expect(end).toHaveBeenCalledOnce();
+    });
+});
 
 describe('RedshiftWarehouseClient', () => {
     it.each([false, true])(

@@ -298,6 +298,7 @@ export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
 
 export type ClickhouseWarehouseClientOptions = {
     agentSession?: boolean;
+    agentJobControls?: boolean;
     /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
     maxOpenConnections?: number;
 };
@@ -326,6 +327,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
+            ...(options?.agentJobControls
+                ? { clickhouse_settings: { use_query_cache: 0 as const } }
+                : {}),
             max_open_connections: getMaxOpenConnections(
                 options?.maxOpenConnections,
             ),

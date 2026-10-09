@@ -937,15 +937,13 @@ export class WarehouseClientFactory {
                 : {};
             const clientOptions: WarehouseClientOptions = {
                 agentSession,
-                ...(credentialsWithOverrides.type === WarehouseTypes.BIGQUERY
-                    ? { agentJobControls: !!aiPlan }
-                    : {}),
                 enableInstanceCache,
                 projectUuid: projectUuid ?? undefined,
                 logger: this.logger,
                 ...identityOptions,
                 ...resolverOptions,
                 ...requestedClientOptions,
+                agentJobControls: aiPlan !== null,
             };
             const client = this.buildClient(
                 credentialsWithOverrides,
