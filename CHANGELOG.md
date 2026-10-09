@@ -1,3 +1,10 @@
+## [2.495.3](https://github.com/lightdash/lightdash/compare/2.495.2...2.495.3) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai:** keep the launcher thread composer inline with a model status row ([#30776](https://github.com/lightdash/lightdash/issues/30776)) ([21e4176](https://github.com/lightdash/lightdash/commit/21e417649a4bc2f39c092afae24beb197d688d00))
+
 ## [2.495.2](https://github.com/lightdash/lightdash/compare/2.495.1...2.495.2) (2026-10-08)
 
 
