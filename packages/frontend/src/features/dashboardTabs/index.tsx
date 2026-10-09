@@ -337,6 +337,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const dashboardIdentifier = getDashboardUrlIdentifier({
         routeDashboardUuidOrSlug,
         dashboardSlug: dashboard?.slug,
+        isEditMode,
     });
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();

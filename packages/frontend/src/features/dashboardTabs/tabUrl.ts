@@ -1,15 +1,17 @@
 type DashboardUrlIdentifierArgs = {
     routeDashboardUuidOrSlug: string | undefined;
     dashboardSlug: string | undefined;
+    isEditMode: boolean;
 };
 
-// Tab navigation stays inside one dashboard, so it must not change the
-// identifier form: the page keys its provider on the route param.
+// The page keys its provider on the route param, so a tab click in edit mode
+// must keep its form or unsaved edits are lost. View mode links use the slug.
 export const getDashboardUrlIdentifier = ({
     routeDashboardUuidOrSlug,
     dashboardSlug,
+    isEditMode,
 }: DashboardUrlIdentifierArgs): string | undefined =>
-    routeDashboardUuidOrSlug ?? dashboardSlug;
+    isEditMode ? (routeDashboardUuidOrSlug ?? dashboardSlug) : dashboardSlug;
 
 type DashboardTabPathArgs = {
     projectUrlIdentifier: string | undefined;
