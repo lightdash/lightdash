@@ -49,8 +49,9 @@ In `FilterConfiguration/`:
   (`usePinnedSidebarTop`, `getPinnedSidebarTop`): the navbar until it has
   scrolled away, plus the banner, which never scrolls. Whether there is a
   banner is the navbar's own answer, read from `data-has-banner` on
-  `#navbar-header` and watched, since it can arrive after the page. In
-  fullscreen (`useFullscreen`) there is no navbar.
+  `#navbar-header` and watched, since it can arrive after the page.
+  Fullscreen is not handled: its toggle only exists in view mode, and the
+  editor only opens in edit mode.
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its one opening,
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
   button. In edit mode it holds `AddControl`, `FilterPills` and the shipped
