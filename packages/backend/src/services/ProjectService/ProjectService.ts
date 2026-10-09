@@ -6945,6 +6945,11 @@ export class ProjectService
                     cachePolicy: 'disabled',
                 };
             } else {
+                this.assertCanUseOrganizationWarehouseCredentials(
+                    account,
+                    connectionOrganizationUuid,
+                    { warehouseConnection: body.credentials },
+                );
                 const { warehouseConnection } =
                     await this._resolveWarehouseClientCredentials(
                         { warehouseConnection: body.credentials },
