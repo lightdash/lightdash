@@ -40,9 +40,10 @@ describe('app preview CSP browser image origins', () => {
             }),
         );
 
-        // The iframe sandbox grants allow-forms so submit handlers fire;
-        // this directive keeps a native (un-prevented) submission from
-        // navigating anywhere, closing the exfiltration channel.
+
+        // form-action 'none' prevents native submissions from
+        // navigating externally
+
         expect(directives['form-action']).toEqual(["'none'"]);
     });
 });
