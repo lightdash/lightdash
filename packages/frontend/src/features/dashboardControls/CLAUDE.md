@@ -246,7 +246,18 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile is `available`, and it always gets a card so the mapping can be
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
-- Counts (`getTabCounts`) use every tile on the tab or
+- `TabTargets` is the sidebar's "Tabs" section, for a filter on a dashboard
+  with two tabs or more: one checkbox per tab with the tab badge's count. The
+  state is over the tiles the filter can reach on the tab (the ones it is on,
+  the ones the switch could turn on, SQL chart tiles with a column): checked when all are filtered, indeterminate when some are. A click
+  is one `updateFilter` write (`setTabTargets`). As in the shipped popover, a
+  checked or indeterminate tab switches off (`setTileField(..., null)` for
+  every tile on it) and an unchecked one switches on. On, each unfiltered tile
+  gets the filter's first field when it offers it, else the shipped best
+  match among the filter's own fields it offers (`getDefaultField`: same name
+  and type, then same type); a field the filter does not have is never added, a data app
+  tile follows the rule again, and a SQL chart tile is left alone.
+- Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
 - A tile's look answers two questions only: is it filtered by this control, and, if a field is active, is it on that field. Whether the tile
   could take the active field never changes the look. `data-highlighted` is:
@@ -277,6 +288,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `[data-highlighted='mapped']` tile into view when none of them is visible.
   A clicked field that is on no tile scrolls nothing.
 - A waiting field's row carries `data-waiting` and a dashed border.
+- A tab with a count badge keeps its natural width (`TabCounts.module.css`),
+  so the tab strip scrolls instead of cutting the names.
 - The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
   and read no context. The list component derives each
   tile's props, the highlight string included, and passes primitives, stable
@@ -332,8 +345,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   The clear button works on the stand-in button without mounting the `Select`,
   and it is a named tab stop, since it is the only way to clear.
 - `TileOverlays` portals a veil and a "Filtered by" card into each
-  `[data-tile-uuid]` grid item on the active tab. It resolves targets with
-  `usePortalTargets`.
+  `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
+  "x of N" badge into each tab node. Both resolve targets with
+  `usePortalTargets`. `TabCounts` renders nothing for a placeholder.
 - A veiled tile is locked three ways, and none of them stops an event. Every
   overlay root (`TileOverlay`) carries the
   grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
@@ -369,7 +383,7 @@ Rules:
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
   count in a sidebar row, the footer status, the `.confirm` line on a tile
-  card). The editor's
+  card). Tab badges do not replay: they change on every hover. The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo

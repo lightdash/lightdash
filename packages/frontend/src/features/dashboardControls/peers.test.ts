@@ -16,11 +16,14 @@ import {
     getFilterFields,
     getMissingTileFieldId,
     getTabCounts,
+    getTabCountsForField,
+    getTabTargetState,
     getTileField,
     isTileChanged,
     canTileTakeFilter,
     removeField,
     removeFieldFromAll,
+    setTabTargets,
     setTileField,
     toSqlColumnTarget,
     type SqlColumnsByTile,
@@ -220,6 +223,43 @@ describe('peers', () => {
             t2: { applied: 1, total: 3 },
         });
     });
+
+    it('counts tiles per tab that use one field of the filter', () => {
+        const r = rule({ c: PAYMENTS });
+        expect(
+            getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
+        ).toEqual({
+            t1: { applied: 2, total: 2 },
+            t2: { applied: 0, total: 3 },
+        });
+        expect(
+            getTabCountsForField(
+                r,
+                'payments_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 0, total: 2 },
+            t2: { applied: 1, total: 3 },
+        });
+    });
+
+    it('does not count a tile whose filter is disabled', () => {
+        expect(
+            getTabCountsForField(
+                rule({ a: false }),
+                'orders_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 1, total: 2 },
+            t2: { applied: 0, total: 3 },
+        });
+    });
 });
 
 describe('peers with SQL chart tiles', () => {
@@ -302,6 +342,16 @@ describe('peers with SQL chart tiles', () => {
                 sqlColumns,
             ).t2,
         ).toEqual({ total: 4, applied: 1 });
+        expect(
+            getTabCountsForField(
+                rule({ s: SQL_STATUS }),
+                'status',
+                allTiles,
+                tabs,
+                fieldsByTile,
+                sqlColumns,
+            ).t2,
+        ).toEqual({ total: 4, applied: 1 });
     });
 
     it('counts every tile on the tab, even a SQL tile without a column of the kind', () => {
@@ -350,6 +400,15 @@ describe('peers with data app tiles', () => {
         expect(
             getFieldCount(rule(), 'orders_status', allTiles, fieldsByTile),
         ).toEqual({ applied: 2, possible: 2 });
+        expect(
+            getTabCountsForField(
+                rule(),
+                'orders_status',
+                allTiles,
+                tabs,
+                fieldsByTile,
+            ).t2,
+        ).toEqual({ applied: 0, total: 4 });
     });
 
     it('stays as it is when a field is cleared from its tiles or removed', () => {
@@ -374,6 +433,13 @@ describe('peers with data app tiles', () => {
             fieldsByTile,
         );
         expect(getTileField(off, appTile, fieldsByTile)).toBe(null);
+    });
+
+    it('follows its tab when the tab is switched on or off', () => {
+        const off = setTabTargets(rule(), 't2', false, allTiles, fieldsByTile);
+        expect(off.tileTargets).toEqual({ app: false });
+        const on = setTabTargets(off, 't2', true, allTiles, fieldsByTile);
+        expect(on.tileTargets).toBeUndefined();
     });
 });
 
@@ -437,5 +503,162 @@ describe('a tile mapped to a field it no longer offers', () => {
             applied: 2,
             total: 2,
         });
+        expect(getTabTargetState(r, 't1', tiles, fieldsByTile).checked).toBe(
+            'all',
+        );
+    });
+});
+
+describe('switching a whole tab on or off', () => {
+    it('leaves every tile on the tab out, and no tile on another tab', () => {
+        const next = setTabTargets(
+            rule({ c: PAYMENTS }),
+            't1',
+            false,
+            tiles,
+            fieldsByTile,
+        );
+        expect(next.tileTargets).toEqual({ a: false, b: false, c: PAYMENTS });
+    });
+
+    it('writes nothing for a tile the filter was not on', () => {
+        const next = setTabTargets(rule(), 't2', false, tiles, fieldsByTile);
+        expect(next.tileTargets).toBeUndefined();
+    });
+
+    it("gives each unfiltered tile the filter's first field when it offers it", () => {
+        const next = setTabTargets(
+            rule({ a: false, b: false, c: PAYMENTS }),
+            't1',
+            true,
+            tiles,
+            fieldsByTile,
+        );
+        expect(next.tileTargets).toEqual({ c: PAYMENTS });
+    });
+
+    it('keeps the field of a tile that is already filtered', () => {
+        const next = setTabTargets(
+            rule({ a: false, b: PAYMENTS, c: PAYMENTS }),
+            't1',
+            true,
+            tiles,
+            fieldsByTile,
+        );
+        expect(next.tileTargets).toEqual({ b: PAYMENTS, c: PAYMENTS });
+    });
+
+    it('falls back to another field of the filter that the tile offers', () => {
+        const next = setTabTargets(
+            rule({ b: PAYMENTS, c: false }),
+            't2',
+            true,
+            tiles,
+            fieldsByTile,
+        );
+        expect(next.tileTargets).toEqual({ b: PAYMENTS, c: PAYMENTS });
+    });
+
+    it('never adds a field the filter does not have', () => {
+        // c offers payments_status, which is not a field of this filter
+        const next = setTabTargets(rule(), 't2', true, tiles, fieldsByTile);
+        expect(next).toEqual(rule());
+    });
+
+    it('picks among several fields in the shipped order: same name before same type', () => {
+        const typed = (table: string, name: string) =>
+            ({
+                table,
+                name,
+                type: DimensionType.STRING,
+            }) as DashboardFilterableField;
+        const typedFields: Record<string, DashboardFilterableField[]> = {
+            a: [typed('orders', 'status')],
+            b: [typed('users', 'city'), typed('payments', 'status')],
+            c: [typed('users', 'city'), typed('payments', 'status')],
+            d: [typed('users', 'city')],
+        };
+        const CITY: DashboardFieldTarget = {
+            fieldId: 'users_city',
+            tableName: 'users',
+        };
+        const next = setTabTargets(
+            rule({ b: CITY, c: false, d: PAYMENTS }),
+            't2',
+            true,
+            tiles,
+            typedFields,
+        );
+        expect(next.tileTargets?.c).toEqual(PAYMENTS);
+    });
+
+    it('leaves a SQL chart tile alone when switching on and out when switching off', () => {
+        const sqlTile = {
+            uuid: 's',
+            tabUuid: 't2',
+            type: DashboardTileTypes.SQL_CHART,
+        } as DashboardTile;
+        const sqlColumns: SqlColumnsByTile = {
+            s: [{ reference: 'status', type: DimensionType.STRING }],
+        };
+        const withSql = [...tiles, sqlTile];
+        expect(
+            setTabTargets(
+                rule(),
+                't2',
+                true,
+                withSql,
+                fieldsByTile,
+                sqlColumns,
+            ),
+        ).toEqual(rule());
+
+        const mapped = rule({ s: toSqlColumnTarget('status') });
+        expect(
+            setTabTargets(mapped, 't2', true, withSql, fieldsByTile, sqlColumns)
+                .tileTargets,
+        ).toEqual(mapped.tileTargets);
+        const off = setTabTargets(
+            mapped,
+            't2',
+            false,
+            withSql,
+            fieldsByTile,
+            sqlColumns,
+        );
+        expect(getTileField(off, sqlTile, fieldsByTile, sqlColumns)).toBe(null);
+        // It can still be reached, so the tab is not fully filtered
+        expect(
+            getTabTargetState(rule(), 't2', withSql, fieldsByTile, sqlColumns),
+        ).toEqual({ checked: 'none', canSwitchOn: false });
+    });
+
+    it('reports all, some or none of the tiles the filter can reach', () => {
+        expect(getTabTargetState(rule(), 't1', tiles, fieldsByTile)).toEqual({
+            checked: 'all',
+            canSwitchOn: false,
+        });
+        expect(
+            getTabTargetState(rule({ a: false }), 't1', tiles, fieldsByTile),
+        ).toEqual({ checked: 'some', canSwitchOn: true });
+        expect(
+            getTabTargetState(
+                rule({ a: false, b: false }),
+                't1',
+                tiles,
+                fieldsByTile,
+            ),
+        ).toEqual({ checked: 'none', canSwitchOn: true });
+    });
+
+    it('ignores tiles the filter could only reach through a new field', () => {
+        // t2: c offers another field of the kind, d and e offer nothing
+        expect(getTabTargetState(rule(), 't2', tiles, fieldsByTile)).toEqual({
+            checked: 'none',
+            canSwitchOn: false,
+        });
+        expect(
+            getTabTargetState(rule({ c: PAYMENTS }), 't2', tiles, fieldsByTile),
+        ).toEqual({ checked: 'all', canSwitchOn: false });
     });
 });

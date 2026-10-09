@@ -34,6 +34,8 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 const mockSqlColumnsByTile = vi.hoisted(() => ({
     current: {} as Record<string, { reference: string; type: string }[]>,
 }));
+// The Tabs section has its own tests
+vi.mock('./TabTargets', () => ({ TabTargets: () => null }));
 vi.mock('./useSqlColumnsByTile', () => ({
     useSqlColumnsByTile: () => mockSqlColumnsByTile.current,
 }));
