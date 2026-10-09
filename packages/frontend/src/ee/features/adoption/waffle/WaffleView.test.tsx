@@ -1,6 +1,7 @@
 import {
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
+    type RoleSplit,
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -19,8 +20,11 @@ import {
 import {
     dept,
     metricsFixture,
+    placedFixture,
+    placedMetricsFixture,
     seededOrganization,
     withServerHeadcounts,
+    withSharedPeople,
 } from '../utils/adoptionFixtures';
 import { getSweepDelay } from '../utils/sweepDelay';
 import type * as Layout from './layout';
@@ -35,23 +39,30 @@ vi.mock('./layout', async (importOriginal) => {
     return { ...actual, getSquareOffset };
 });
 
-// The departments with their effective headcounts as the server works them out
+// The departments with their effective headcounts as the server works them out, and the people placed: the top-level
+// departments added up, as when nobody is in two of them, unless a test gives its own
 const summary = (
     departments: DepartmentWithMetrics[],
+    placed: OrganizationAdoptionSummary['placed'] = placedFixture(departments),
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(0, null),
+    placed,
     departments: withServerHeadcounts(departments),
-    attention: { conflictCount: 0, unassignedCount: 0 },
+    attention: { unassignedCount: 0, sharedCount: 0 },
 });
 
 const renderWaffle = (
     departments: DepartmentWithMetrics[],
-    { canManage = true, onEdit = vi.fn() } = {},
+    {
+        canManage = true,
+        onEdit = vi.fn(),
+        placed = placedFixture(departments),
+    } = {},
 ) =>
     renderWithProviders(
         <MemoryRouter>
             <WaffleView
-                summary={summary(departments)}
+                summary={summary(departments, placed)}
                 canManage={canManage}
                 onEdit={onEdit}
             />
@@ -78,33 +89,46 @@ const d = (
         }),
     });
 
-// Roles and 12-week activity spread over the people on Lightdash, so every colouring draws every kind
+// Roles spread over each department's own people and rolled up as the server rolls them, so with the fixtures'
+// activity buckets every colouring draws every kind
 const withEveryKind = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] => {
-    const spread = (metrics: DepartmentWithMetrics['metrics']) => {
-        const members = metrics.memberCount;
+    const spread = (members: number): RoleSplit => {
         const admins = Math.round(members * 0.05);
         const editors = Math.round(members * 0.2);
         const interactiveViewers = Math.round(members * 0.25);
         return {
-            ...metrics,
-            activeCount12w: Math.min(
-                members,
-                Math.round(metrics.activeCount30d * 1.4),
-            ),
-            roleSplit: {
-                admins,
-                editors,
-                interactiveViewers,
-                viewers: members - admins - editors - interactiveViewers,
-            },
+            admins,
+            editors,
+            interactiveViewers,
+            viewers: members - admins - editors - interactiveViewers,
         };
     };
+    const rollUp = (department: DepartmentWithMetrics): RoleSplit =>
+        departments
+            .filter(
+                (child) =>
+                    child.parentDepartmentUuid === department.departmentUuid,
+            )
+            .map(rollUp)
+            .reduce(
+                (sum, split) => ({
+                    admins: sum.admins + split.admins,
+                    editors: sum.editors + split.editors,
+                    interactiveViewers:
+                        sum.interactiveViewers + split.interactiveViewers,
+                    viewers: sum.viewers + split.viewers,
+                }),
+                spread(department.directMetrics.memberCount),
+            );
     return departments.map((department) => ({
         ...department,
-        metrics: spread(department.metrics),
-        directMetrics: spread(department.directMetrics),
+        metrics: { ...department.metrics, roleSplit: rollUp(department) },
+        directMetrics: {
+            ...department.directMetrics,
+            roleSplit: spread(department.directMetrics.memberCount),
+        },
     }));
 };
 
@@ -191,11 +215,11 @@ describe('WaffleView', () => {
             'Product, 1 on Lightdash, 1 active, no headcount set',
         ]);
         expect(drawnSquares(container)).toHaveLength(80 + 40 + 40 + 32 + 9 + 1);
-        expect(drawnSquares(container, 'active')).toHaveLength(3);
+        expect(drawnSquares(container, 'healthy')).toHaveLength(3);
         expect(drawnSquares(container, 'noAccount')).toHaveLength(199);
     });
 
-    it.each(['active', 'role', 'lastActive'] as ColourBy[])(
+    it.each(['activity', 'role'] as ColourBy[])(
         'counts in the legend exactly the squares drawn of each kind when colouring by %s',
         async (colourBy) => {
             const { container } = renderWaffle(withEveryKind(flatOrganization));
@@ -215,21 +239,23 @@ describe('WaffleView', () => {
         },
     );
 
-    it('gives the panel the same three numbers as the legend', () => {
+    it('gives the panel the same numbers as the legend', () => {
         renderWaffle(flatOrganization);
-        const [active, idle, noAccount] = legendCounts().map((entry) =>
-            entry.count.toLocaleString('en-US'),
-        );
         expect(
             within(panel())
-                .getAllByText(
-                    /^(Active|On Lightdash, not active|No account) [\d,]+$/,
-                )
+                .getAllByText(/^(Healthy|At risk|Lost|No account) [\d,]+$/)
                 .map((node) => node.textContent),
-        ).toEqual([
-            `Active ${active}`,
-            `On Lightdash, not active ${idle}`,
-            `No account ${noAccount}`,
+        ).toEqual(
+            legendCounts().map(
+                ({ label, count }) =>
+                    `${label} ${count.toLocaleString('en-US')}`,
+            ),
+        );
+        expect(legendCounts().map((entry) => entry.label)).toEqual([
+            'Healthy',
+            'At risk',
+            'Lost',
+            'No account',
         ]);
         expect(
             screen.getByText('Legend counts people placed in a department'),
@@ -257,13 +283,35 @@ describe('WaffleView', () => {
         expect(drawnSquares(container)).toHaveLength(33);
     });
 
-    it("sets the map's shared colours on its root, which the panel's bars and keys read", () => {
+    it("sets the map's colours on its root, which the squares, the panel's bars and the keys read", () => {
         const { container } = renderWaffle(seededOrganization());
-        expect(
-            container.querySelector(`.${adoptionMapStyles.root}`),
-        ).toContainElement(
+        const root = container.querySelector(`.${adoptionMapStyles.root}`);
+        expect(root).toContainElement(
             screen.getByRole('complementary', { name: 'Details' }),
         );
+        expect(root).toContainElement(
+            screen.getByRole('group', { name: 'Departments in the waffle' }),
+        );
+    });
+
+    it('counts a person in two departments once in the legend and the panel, from the people placed, as the map does', () => {
+        // Ada counts in Sales and in Support, so each block draws her; the summary places her once
+        const { container } = renderWaffle(
+            [
+                withSharedPeople(d('Sales', null, 4, 2, 2), 1),
+                withSharedPeople(d('Support', null, 3, 1, 1), 1),
+            ],
+            { placed: placedMetricsFixture(2, 2) },
+        );
+        expect(drawnSquares(container, 'healthy')).toHaveLength(3);
+        expect(drawnSquares(container, 'noAccount')).toHaveLength(4);
+        expect(legendCounts()).toEqual([
+            { label: 'Healthy', count: 2 },
+            { label: 'At risk', count: 0 },
+            { label: 'Lost', count: 0 },
+            { label: 'No account', count: 4 },
+        ]);
+        expect(within(panel()).getByText('Healthy 2')).toBeInTheDocument();
     });
 
     it('is as tall as its content rather than a fixed drawing', () => {
@@ -294,15 +342,13 @@ describe('WaffleView', () => {
         };
         const byActivity = readingOrder(engineering);
         expect(byActivity).toHaveLength(452);
-        expect(isInLegendOrder(byActivity, LEGEND_KINDS.active)).toBe(true);
+        expect(isInLegendOrder(byActivity, LEGEND_KINDS.activity)).toBe(true);
         expect(new Set(byActivity)).toEqual(
-            new Set(['active', 'idle', 'noAccount']),
+            new Set(['healthy', 'atRisk', 'lost', 'noAccount']),
         );
-        await userEvent.click(
-            screen.getByRole('radio', { name: 'Last active' }),
-        );
+        await userEvent.click(screen.getByRole('radio', { name: 'Role' }));
         expect(
-            isInLegendOrder(readingOrder(engineering), LEGEND_KINDS.lastActive),
+            isInLegendOrder(readingOrder(engineering), LEGEND_KINDS.role),
         ).toBe(true);
     });
 
@@ -313,7 +359,7 @@ describe('WaffleView', () => {
             screen
                 .getAllByRole('radio')
                 .map((radio) => radio.getAttribute('value')),
-        ).toEqual(['active', 'role', 'lastActive']);
+        ).toEqual(['activity', 'role']);
         await userEvent.click(screen.getByRole('radio', { name: 'Role' }));
         expect(legendCounts().map((entry) => entry.label)).toEqual([
             'Admin',
@@ -323,7 +369,7 @@ describe('WaffleView', () => {
             'No account',
         ]);
         // Everyone in the fixture is a viewer
-        expect(drawnSquares(container, 'active')).toHaveLength(0);
+        expect(drawnSquares(container, 'healthy')).toHaveLength(0);
         expect(drawnSquares(container, 'viewer').length).toBeGreaterThan(0);
     });
 
@@ -477,8 +523,9 @@ describe('WaffleView', () => {
             ...panel().querySelectorAll<HTMLElement>(`.${styles.mark}`),
         ];
         expect(keys.map((key) => key.dataset.kind)).toEqual([
-            'active',
-            'idle',
+            'healthy',
+            'atRisk',
+            'lost',
             'noAccount',
         ]);
         expect(panel().querySelector('circle')).toBeNull();
@@ -578,12 +625,12 @@ describe('WaffleView', () => {
                 (segment as HTMLElement).style.flexGrow,
             ]);
         expect(segments(bars[0])).toEqual([
-            ['active', '5'],
-            ['idle', '5'],
+            ['healthy', '5'],
+            ['lost', '5'],
             ['noAccount', '19990'],
         ]);
         // Kinds nobody holds are left out
-        expect(segments(bars[1])).toEqual([['active', '1']]);
+        expect(segments(bars[1])).toEqual([['healthy', '1']]);
         expect(
             screen.getByText(
                 'Departments are drawn as bars above 20,000 people',
@@ -698,7 +745,7 @@ describe('WaffleView', () => {
         it('sweeps the new colours across the squares from the top-left corner, then leaves no delay on any square', () => {
             const { container } = renderWaffle(flatOrganization);
             const before = wave(container).squares;
-            fireEvent.click(screen.getByRole('radio', { name: 'Last active' }));
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
             const during = wave(container);
             expect(during.squares).toHaveLength(2339);
             // Every place keeps its element and only changes colour
@@ -722,9 +769,7 @@ describe('WaffleView', () => {
 
             vi.advanceTimersByTime(1500);
             expect(isStill(container)).toBe(true);
-            expect(drawnSquares(container, 'inactive').length).toBeGreaterThan(
-                0,
-            );
+            expect(drawnSquares(container, 'viewer').length).toBeGreaterThan(0);
         });
 
         it("keeps every place's element under the sweep, so nobody moves and only the colours change", () => {
@@ -776,11 +821,9 @@ describe('WaffleView', () => {
                 dispatchEvent: vi.fn(),
             })) as unknown as typeof window.matchMedia;
             const { container } = renderWaffle(flatOrganization);
-            fireEvent.click(screen.getByRole('radio', { name: 'Last active' }));
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
             expect(isStill(container)).toBe(true);
-            expect(drawnSquares(container, 'inactive').length).toBeGreaterThan(
-                0,
-            );
+            expect(drawnSquares(container, 'viewer').length).toBeGreaterThan(0);
         });
 
         it('ends the sweep at once when new numbers arrive, and animates nothing else: new numbers, selection or hover', () => {

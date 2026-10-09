@@ -11,10 +11,10 @@ import {
     type WaffleSquare,
 } from './groupSquares';
 
-// Ten people: 4 active in 30 days and 2 more in 12 weeks; 1 admin, 3 editors, 2 interactive viewers, 4 viewers
+// Ten people: 4 healthy, 2 at risk and 4 lost; 1 admin, 3 editors, 2 interactive viewers, 4 viewers
 const metrics = metricsFixture(10, null, {
     activeCount30d: 4,
-    activeCount12w: 6,
+    activitySplit: { healthy: 4, atRisk: 2, lost: 4 },
     roleSplit: { admins: 1, editors: 3, interactiveViewers: 2, viewers: 4 },
 });
 
@@ -30,9 +30,9 @@ const inReadingOrder = (squares: WaffleSquare[]): DotKind[] =>
         .sort((a, b) => a.position - b.position)
         .map((square) => square.kind);
 
-const person = (id: string, active: DotKind): WafflePerson => ({
+const person = (id: string, activity: DotKind): WafflePerson => ({
     id,
-    kinds: { active, role: 'viewer', lastActive: active },
+    kinds: { activity, role: 'viewer' },
 });
 
 describe('getPartPeople', () => {
@@ -46,14 +46,10 @@ describe('getPartPeople', () => {
     });
 
     it('gives each colouring exactly the counts in the summary', () => {
-        expect(countKinds(people.map((p) => p.kinds.active))).toEqual({
-            active: 4,
-            idle: 6,
-        });
-        expect(countKinds(people.map((p) => p.kinds.lastActive))).toEqual({
-            active: 4,
-            lapsed: 2,
-            inactive: 4,
+        expect(countKinds(people.map((p) => p.kinds.activity))).toEqual({
+            healthy: 4,
+            atRisk: 2,
+            lost: 4,
         });
         expect(countKinds(people.map((p) => p.kinds.role))).toEqual({
             admin: 1,
@@ -63,12 +59,12 @@ describe('getPartPeople', () => {
         });
     });
 
-    it('keeps a person active in 30 days active when colouring by last activity', () => {
-        people.forEach((p) =>
-            expect(p.kinds.active === 'active').toBe(
-                p.kinds.lastActive === 'active',
-            ),
-        );
+    it('puts the activity buckets in order: healthy, then at risk, then lost', () => {
+        expect(people.map((p) => p.kinds.activity)).toEqual([
+            ...Array(4).fill('healthy'),
+            ...Array(2).fill('atRisk'),
+            ...Array(4).fill('lost'),
+        ]);
     });
 
     it('spreads the roles through the people rather than giving the most active one role', () => {
@@ -102,7 +98,7 @@ describe('getPartPeople', () => {
 describe('groupSquares', () => {
     const people = getPartPeople('sales', metrics);
 
-    it.each(['active', 'role', 'lastActive'] as ColourBy[])(
+    it.each(['activity', 'role'] as ColourBy[])(
         'groups the people in legend order when colouring by %s',
         (colourBy) => {
             const kinds = inReadingOrder(groupSquares(people, colourBy, 10));
@@ -124,7 +120,7 @@ describe('groupSquares', () => {
     });
 
     it('adds a grey square after the people for everyone in the headcount without an account', () => {
-        const squares = groupSquares(people, 'active', 14);
+        const squares = groupSquares(people, 'activity', 14);
         expect(squares).toHaveLength(14);
         expect(squares.slice(10)).toEqual([
             { key: 'none:0', kind: 'noAccount', position: 10 },
@@ -138,29 +134,29 @@ describe('groupSquares', () => {
     });
 
     it('draws every person even where the headcount is below them, with no grey squares', () => {
-        expect(groupSquares(people, 'active', 6)).toHaveLength(10);
+        expect(groupSquares(people, 'activity', 6)).toHaveLength(10);
     });
 
     it('draws a person listed twice once', () => {
         const squares = groupSquares(
             [
-                person('ada', 'idle'),
-                person('grace', 'active'),
-                person('ada', 'idle'),
+                person('ada', 'lost'),
+                person('grace', 'healthy'),
+                person('ada', 'lost'),
             ],
-            'active',
+            'activity',
             4,
         );
         expect(squares).toEqual([
-            { key: 'ada', kind: 'idle', position: 1 },
-            { key: 'grace', kind: 'active', position: 0 },
+            { key: 'ada', kind: 'lost', position: 1 },
+            { key: 'grace', kind: 'healthy', position: 0 },
             { key: 'none:0', kind: 'noAccount', position: 2 },
             { key: 'none:1', kind: 'noAccount', position: 3 },
         ]);
     });
 
     it("returns the squares in the people's own order whatever the colouring, so only their places change", () => {
-        const byActivity = groupSquares(people, 'active', 12);
+        const byActivity = groupSquares(people, 'activity', 12);
         const byRole = groupSquares(people, 'role', 12);
         expect(byRole.map((square) => square.key)).toEqual(
             byActivity.map((square) => square.key),

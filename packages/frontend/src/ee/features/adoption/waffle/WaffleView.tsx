@@ -198,7 +198,7 @@ const WaffleLegend: FC<{
 export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
     const { departments } = summary;
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('active');
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const { ref, width } = useContainerSize(FALLBACK_SIZE);
 
     const byUuid = useMemo(
@@ -317,28 +317,30 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         transition,
     ]);
 
-    // The legend counts the people drawn, from the same numbers as the panel; the panel shows the selection
+    // The legend counts the whole organization as the map's legend and the panel do, each person once from the
+    // placed splits; the panel shows the selection
     const organizationBreakdown = useMemo(
-        () => getOrganizationBreakdown(departments),
-        [departments],
+        () => getOrganizationBreakdown(summary, colourBy),
+        [summary, colourBy],
     );
     const legendCounts = useMemo(
-        () => getLegendCounts(organizationBreakdown, parts, colourBy, null),
-        [organizationBreakdown, parts, colourBy],
+        () => getLegendCounts(organizationBreakdown),
+        [organizationBreakdown],
     );
     const breakdown = useMemo(
         () =>
             selected === null
                 ? organizationBreakdown
-                : getDepartmentBreakdown(selected),
-        [selected, organizationBreakdown],
+                : getDepartmentBreakdown(selected, colourBy),
+        [selected, organizationBreakdown, colourBy],
     );
     const rows = useMemo(
         () =>
             getCoverageRows(
                 getVisibleDepartments(departments, selectedDepartmentUuid),
+                colourBy,
             ),
-        [departments, selectedDepartmentUuid],
+        [departments, selectedDepartmentUuid, colourBy],
     );
 
     const select = useCallback((departmentUuid: string | null) => {
@@ -457,6 +459,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                     department={selected}
                     parentName={trail[trail.length - 2]?.name ?? null}
                     breakdown={breakdown}
+                    colourBy={colourBy}
                     rows={rows}
                     member={null}
                     canManage={canManage}

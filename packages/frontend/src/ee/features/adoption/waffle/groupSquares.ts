@@ -44,15 +44,15 @@ const spreadRoles = (counts: number[], total: number): DotKind[] => {
     });
 };
 
-// A part's people on Lightdash from its counts, which say how many are active or in each role but not who: activity
-// runs in order and roles are spread through it. Ids are places, so the same counts give the same people
+// A part's people on Lightdash from its counts, which say how many are in each bucket and role but not who: healthy,
+// at risk then lost in order, with roles spread through them. Ids are places, so the same counts give the same people
 export const getPartPeople = (
     partId: string,
     metrics: AdoptionMetrics,
 ): WafflePerson[] => {
     const total = Math.max(metrics.memberCount, 0);
-    const active = clamp(metrics.activeCount30d, 0, total);
-    const recent = clamp(metrics.activeCount12w, active, total);
+    const healthy = clamp(metrics.activitySplit.healthy, 0, total);
+    const atRisk = clamp(metrics.activitySplit.atRisk, 0, total - healthy);
     const { admins, editors, interactiveViewers, viewers } = metrics.roleSplit;
     const roles = spreadRoles(
         [admins, editors, interactiveViewers, viewers].map((count) =>
@@ -63,14 +63,13 @@ export const getPartPeople = (
     return roles.map((role, index) => ({
         id: `${partId}:${index}`,
         kinds: {
-            active: index < active ? 'active' : 'idle',
+            activity:
+                index < healthy
+                    ? 'healthy'
+                    : index < healthy + atRisk
+                      ? 'atRisk'
+                      : 'lost',
             role,
-            lastActive:
-                index < active
-                    ? 'active'
-                    : index < recent
-                      ? 'lapsed'
-                      : 'inactive',
         },
     }));
 };

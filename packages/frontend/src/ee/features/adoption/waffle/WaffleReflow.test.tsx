@@ -11,6 +11,7 @@ import mapStyles from '../map/DepartmentMap.module.css';
 import {
     dept,
     metricsFixture,
+    placedFixture,
     withServerHeadcounts,
 } from '../utils/adoptionFixtures';
 import { WaffleView } from './WaffleView';
@@ -21,7 +22,8 @@ vi.mock('../map/colourTransition', async (importOriginal) => ({
     COLOUR_TRANSITION: 'reflow',
 }));
 
-// Twelve people: ten on Lightdash, the first four active; five admins and five viewers, spread through them
+// Twelve people: ten on Lightdash, the first four healthy and the rest lost; five admins and five viewers, spread
+// through them
 const team: DepartmentWithMetrics = dept('Team', null, null, {
     headcount: 12,
     metrics: metricsFixture(10, null, {
@@ -41,8 +43,9 @@ const summaryOf = (
     departments: DepartmentWithMetrics[],
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(0, null),
+    placed: placedFixture(departments),
     departments: withServerHeadcounts(departments),
-    attention: { conflictCount: 0, unassignedCount: 0 },
+    attention: { unassignedCount: 0, sharedCount: 0 },
 });
 
 // A department of `headcount` people, half of them on Lightdash: two in five of those active, half of them admins
@@ -95,8 +98,8 @@ describe('WaffleView with the reflow transition', () => {
         expect(squares).toHaveLength(12);
         const places = squares.map((square) => square.style.transform);
         expect(squares.map((square) => square.dataset.kind)).toEqual([
-            ...Array(4).fill('active'),
-            ...Array(6).fill('idle'),
+            ...Array(4).fill('healthy'),
+            ...Array(6).fill('lost'),
             'noAccount',
             'noAccount',
         ]);
