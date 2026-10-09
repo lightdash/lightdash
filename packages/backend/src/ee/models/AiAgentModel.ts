@@ -7488,7 +7488,6 @@ export class AiAgentModel {
         await trx(AiPromptContextTableName).insert(rows);
     }
 
-    /** The Document most recently pinned to any prompt in the thread. */
     /** Slug of the Document most recently pinned in the thread, or null if none or deleted. */
     async findThreadDocumentSlug(threadUuid: string): Promise<string | null> {
         const row = await this.database(AiPromptContextTableName)
