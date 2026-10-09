@@ -120,6 +120,25 @@
             "required": ["type", "sql", "table", "name"],
             "type": "object"
         },
+        "AllVizChartConfig": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/VizBarChartConfig"
+                },
+                {
+                    "$ref": "#/$defs/VizLineChartConfig"
+                },
+                {
+                    "$ref": "#/$defs/VizPieChartConfig"
+                },
+                {
+                    "$ref": "#/$defs/VizBigNumberConfig"
+                },
+                {
+                    "$ref": "#/$defs/VizTableConfig"
+                }
+            ]
+        },
         "AndFilterGroup": {
             "properties": {
                 "and": {
@@ -193,6 +212,10 @@
                 }
             },
             "type": "object"
+        },
+        "AxisSide": {
+            "enum": [0, 1],
+            "type": "number"
         },
         "BaseFilterRule_FilterOperator.number-or-string_": {
             "properties": {
@@ -424,12 +447,450 @@
             "required": ["type"],
             "type": "object"
         },
+        "CartesianChartDisplay": {
+            "properties": {
+                "legend": {
+                    "properties": {
+                        "align": {
+                            "enum": ["start", "center", "end"],
+                            "type": "string"
+                        },
+                        "position": {
+                            "enum": ["top", "bottom", "left", "right"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["align", "position"],
+                    "type": "object"
+                },
+                "series": {
+                    "additionalProperties": {
+                        "properties": {
+                            "color": {
+                                "type": "string"
+                            },
+                            "format": {
+                                "$ref": "#/$defs/Format"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/$defs/CartesianSeriesType.LINE"
+                                    },
+                                    {
+                                        "$ref": "#/$defs/CartesianSeriesType.BAR"
+                                    }
+                                ]
+                            },
+                            "valueLabelColor": {
+                                "type": "string"
+                            },
+                            "valueLabelPosition": {
+                                "$ref": "#/$defs/ValueLabelPositionOptions"
+                            },
+                            "whichYAxis": {
+                                "$ref": "#/$defs/AxisSide"
+                            },
+                            "yAxisIndex": {
+                                "format": "double",
+                                "type": "number"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "properties": {},
+                    "type": "object"
+                },
+                "seriesOrder": {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "stack": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "$ref": "#/$defs/StackType"
+                        }
+                    ]
+                },
+                "xAxis": {
+                    "properties": {
+                        "dateFormat": {
+                            "type": "string"
+                        },
+                        "label": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/VizIndexType"
+                        }
+                    },
+                    "type": "object"
+                },
+                "yAxis": {
+                    "items": {
+                        "properties": {
+                            "format": {
+                                "$ref": "#/$defs/Format"
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "position": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": "array"
+                }
+            },
+            "type": "object"
+        },
         "CartesianChartLayout": {
             "$ref": "#/$defs/Partial_CompleteCartesianChartLayout_"
         },
         "CartesianSeriesType": {
             "enum": ["line", "bar", "scatter", "area"],
             "type": "string"
+        },
+        "CartesianSeriesType.BAR": {
+            "enum": ["bar"],
+            "type": "string"
+        },
+        "CartesianSeriesType.LINE": {
+            "enum": ["line"],
+            "type": "string"
+        },
+        "ChartAsCode": {
+            "additionalProperties": false,
+            "description": "A semantic layer chart: queries an explore with tableName and metricQuery",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/ContentAsCodeDirectAccess",
+                    "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
+                },
+                "chartConfig": {
+                    "discriminator": {
+                        "propertyName": "type"
+                    },
+                    "oneOf": [
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/BigNumber",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "big_number",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/CartesianChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "cartesian",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/CustomVis",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "custom",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/PieChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "pie",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/FunnelChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "funnel",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/TableChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "table",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/TreemapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "treemap",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/GaugeChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "gauge",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/MapChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "map",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/SankeyChart",
+                                    "description": "Chart-type-specific configuration"
+                                },
+                                "type": {
+                                    "const": "sankey",
+                                    "description": "Type of chart visualization"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        },
+                        {
+                            "properties": {
+                                "config": {
+                                    "$ref": "#/$defs/DataAppVizChartAsCode"
+                                },
+                                "type": {
+                                    "const": "data_app_viz"
+                                }
+                            },
+                            "required": ["type"],
+                            "type": "object"
+                        }
+                    ],
+                    "type": "object"
+                },
+                "contentType": {
+                    "$ref": "#/$defs/ContentAsCodeType.CHART",
+                    "description": "Content type discriminator"
+                },
+                "dashboardSlug": {
+                    "description": "Slug of the dashboard this chart belongs to (if any)",
+                    "oneOf": [
+                        {
+                            "pattern": "^[a-z0-9-]+$",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "description": {
+                    "description": "Optional description of what this chart displays",
+                    "type": "string"
+                },
+                "downloadedAt": {
+                    "description": "Timestamp when this chart was downloaded from Lightdash",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "merge": {
+                    "anyOf": [
+                        {
+                            "anyOf": [
+                                {
+                                    "$ref": "#/$defs/SavedMergeDefinition"
+                                },
+                                {
+                                    "$ref": "#/$defs/SavedMergeQuery"
+                                }
+                            ]
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "metricQuery": {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/Omit_MetricQuery.filters_"
+                        },
+                        {
+                            "properties": {
+                                "filters": {
+                                    "$ref": "#/$defs/FiltersInput"
+                                }
+                            },
+                            "required": ["filters"],
+                            "type": "object"
+                        }
+                    ]
+                },
+                "name": {
+                    "description": "Display name of the chart",
+                    "type": "string"
+                },
+                "parameters": {
+                    "$ref": "#/$defs/ParametersValuesMap",
+                    "description": "Parameter values for the chart query"
+                },
+                "pivotConfig": {
+                    "description": "Pivot table configuration",
+                    "properties": {
+                        "columns": {
+                            "description": "Fields to use as pivot columns",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "rows": {
+                            "description": "Ordered fields to render on the pivot row axis",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["columns"],
+                    "type": "object"
+                },
+                "slug": {
+                    "description": "Unique identifier slug for this chart",
+                    "type": "string"
+                },
+                "spaceSlug": {
+                    "description": "Slug of the space containing this chart",
+                    "type": "string"
+                },
+                "tableConfig": {
+                    "description": "Table configuration. Defaults to empty column order if omitted.",
+                    "properties": {
+                        "columnOrder": {
+                            "description": "Order of columns in table view",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "required": ["columnOrder"],
+                    "type": "object"
+                },
+                "tableName": {
+                    "description": "The explore/table name this chart queries from",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted.",
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "verification": {
+                    "anyOf": [
+                        {
+                            "allOf": [
+                                {
+                                    "$ref": "#/$defs/ContentVerificationInfo"
+                                }
+                            ],
+                            "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ]
+                },
+                "verified": {
+                    "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified.",
+                    "type": "boolean"
+                },
+                "version": {
+                    "const": 1,
+                    "description": "Schema version for this chart configuration",
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "name",
+                "tableName",
+                "slug",
+                "spaceSlug",
+                "version",
+                "chartConfig",
+                "metricQuery"
+            ],
+            "type": "object"
         },
         "ChartAsCodeConfig": {
             "anyOf": [
@@ -468,6 +929,47 @@
                 }
             ],
             "description": "ChartConfig as serialized in chart YAML: viz bindings are slug-based.\nEnumerated rather than Exclude<ChartConfig, DataAppVizChartConfig> —\nTSOA cannot resolve Exclude over object unions, which corrupts the\ngenerated chart-as-code JSON schema. Keep in sync with ChartConfig."
+        },
+        "ChartKind": {
+            "enum": [
+                "line",
+                "horizontal_bar",
+                "vertical_bar",
+                "scatter",
+                "area",
+                "mixed",
+                "pie",
+                "table",
+                "big_number",
+                "funnel",
+                "custom",
+                "treemap",
+                "gauge",
+                "map",
+                "sankey",
+                "data_app_viz"
+            ],
+            "type": "string"
+        },
+        "ChartKind.BIG_NUMBER": {
+            "enum": ["big_number"],
+            "type": "string"
+        },
+        "ChartKind.LINE": {
+            "enum": ["line"],
+            "type": "string"
+        },
+        "ChartKind.PIE": {
+            "enum": ["pie"],
+            "type": "string"
+        },
+        "ChartKind.TABLE": {
+            "enum": ["table"],
+            "type": "string"
+        },
+        "ChartKind.VERTICAL_BAR": {
+            "enum": ["vertical_bar"],
+            "type": "string"
         },
         "ChartType.BIG_NUMBER": {
             "enum": ["big_number"],
@@ -977,6 +1479,10 @@
         },
         "ContentAsCodeType.CHART": {
             "enum": ["chart"],
+            "type": "string"
+        },
+        "ContentAsCodeType.SQL_CHART": {
+            "enum": ["sql_chart"],
             "type": "string"
         },
         "ContentVerificationInfo": {
@@ -1531,6 +2037,30 @@
                 "notInBetween",
                 "inPeriodToDate"
             ],
+            "type": "string"
+        },
+        "FilterOperator.EQUALS": {
+            "enum": ["equals"],
+            "type": "string"
+        },
+        "FilterOperator.GREATER_THAN": {
+            "enum": ["greaterThan"],
+            "type": "string"
+        },
+        "FilterOperator.GREATER_THAN_OR_EQUAL": {
+            "enum": ["greaterThanOrEqual"],
+            "type": "string"
+        },
+        "FilterOperator.LESS_THAN": {
+            "enum": ["lessThan"],
+            "type": "string"
+        },
+        "FilterOperator.LESS_THAN_OR_EQUAL": {
+            "enum": ["lessThanOrEqual"],
+            "type": "string"
+        },
+        "FilterOperator.NOT_EQUALS": {
+            "enum": ["notEquals"],
             "type": "string"
         },
         "FilterRule": {
@@ -3035,6 +3565,67 @@
             "enum": ["hidden", "inside", "outside"],
             "type": "string"
         },
+        "PivotChartLayout": {
+            "properties": {
+                "groupBy": {
+                    "items": {
+                        "properties": {
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["reference"],
+                        "type": "object"
+                    },
+                    "type": "array"
+                },
+                "sortBy": {
+                    "items": {
+                        "$ref": "#/$defs/VizSortBy"
+                    },
+                    "type": "array"
+                },
+                "stack": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "$ref": "#/$defs/StackType"
+                        }
+                    ]
+                },
+                "x": {
+                    "properties": {
+                        "reference": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/VizIndexType"
+                        }
+                    },
+                    "required": ["type", "reference"],
+                    "type": "object"
+                },
+                "y": {
+                    "items": {
+                        "properties": {
+                            "aggregation": {
+                                "$ref": "#/$defs/VizAggregationOptions"
+                            },
+                            "reference": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["aggregation", "reference"],
+                        "type": "object"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["y"],
+            "type": "object"
+        },
         "PivotReference": {
             "properties": {
                 "field": {
@@ -3607,6 +4198,10 @@
             "required": ["color"],
             "type": "object"
         },
+        "SortByDirection": {
+            "enum": ["ASC", "DESC"],
+            "type": "string"
+        },
         "SortField": {
             "properties": {
                 "descending": {
@@ -3636,6 +4231,72 @@
             "enum": ["viewer", "editor", "admin"],
             "type": "string"
         },
+        "SqlChartAsCode": {
+            "additionalProperties": false,
+            "description": "A SQL chart: runs the sql query and visualizes its results",
+            "properties": {
+                "access": {
+                    "$ref": "#/$defs/ContentAsCodeDirectAccess",
+                    "description": "Direct user/group grants. Omission leaves the existing policy unchanged on upload."
+                },
+                "chartKind": {
+                    "$ref": "#/$defs/ChartKind"
+                },
+                "config": {
+                    "$ref": "#/$defs/AllVizChartConfig"
+                },
+                "connection": {
+                    "type": "string"
+                },
+                "contentType": {
+                    "$ref": "#/$defs/ContentAsCodeType.SQL_CHART"
+                },
+                "description": {
+                    "type": ["string", "null"]
+                },
+                "downloadedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "limit": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "slug": {
+                    "type": "string"
+                },
+                "spaceSlug": {
+                    "type": "string"
+                },
+                "sql": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                },
+                "version": {
+                    "const": 1,
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": [
+                "config",
+                "limit",
+                "description",
+                "name",
+                "slug",
+                "sql",
+                "chartKind",
+                "spaceSlug",
+                "version"
+            ],
+            "type": "object"
+        },
         "SqlTableCalculation": {
             "allOf": [
                 {
@@ -3652,6 +4313,10 @@
                     "type": "object"
                 }
             ]
+        },
+        "StackType": {
+            "enum": ["none", "stack", "stack100"],
+            "type": "string"
         },
         "TableCalculation": {
             "anyOf": [
@@ -4114,6 +4779,314 @@
             "required": ["type"],
             "type": "object"
         },
+        "ValueLabelPositionOptions": {
+            "enum": ["hidden", "top", "bottom", "left", "right", "inside"],
+            "type": "string"
+        },
+        "VizAggregationOptions": {
+            "enum": ["sum", "count", "avg", "min", "max", "any"],
+            "type": "string"
+        },
+        "VizBarChartConfig": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/VizBaseConfig"
+                },
+                {
+                    "properties": {
+                        "display": {
+                            "$ref": "#/$defs/CartesianChartDisplay"
+                        },
+                        "fieldConfig": {
+                            "$ref": "#/$defs/PivotChartLayout"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/ChartKind.VERTICAL_BAR"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "VizBaseConfig": {
+            "properties": {
+                "metadata": {
+                    "properties": {
+                        "version": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "required": ["version"],
+                    "type": "object"
+                },
+                "type": {
+                    "$ref": "#/$defs/ChartKind"
+                }
+            },
+            "required": ["type", "metadata"],
+            "type": "object"
+        },
+        "VizBigNumberConditionalOperator": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/FilterOperator.EQUALS"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.NOT_EQUALS"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.LESS_THAN"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.LESS_THAN_OR_EQUAL"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.GREATER_THAN"
+                },
+                {
+                    "$ref": "#/$defs/FilterOperator.GREATER_THAN_OR_EQUAL"
+                }
+            ],
+            "description": "Operators a big number threshold can be expressed with."
+        },
+        "VizBigNumberConditionalRule": {
+            "properties": {
+                "color": {
+                    "description": "Applied in the light colour scheme, and in dark when darkColor is unset.",
+                    "type": "string"
+                },
+                "darkColor": {
+                    "type": "string"
+                },
+                "operator": {
+                    "$ref": "#/$defs/VizBigNumberConditionalOperator"
+                },
+                "value": {
+                    "format": "double",
+                    "type": "number"
+                }
+            },
+            "required": ["color", "value", "operator"],
+            "type": "object"
+        },
+        "VizBigNumberConfig": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/VizBaseConfig"
+                },
+                {
+                    "properties": {
+                        "display": {
+                            "$ref": "#/$defs/VizBigNumberDisplay"
+                        },
+                        "fieldConfig": {
+                            "$ref": "#/$defs/PivotChartLayout",
+                            "description": "Big numbers aggregate every row, so `x` is always undefined and `y`\nholds the value field followed by the optional comparison field."
+                        },
+                        "type": {
+                            "$ref": "#/$defs/ChartKind.BIG_NUMBER"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "VizBigNumberDisplay": {
+            "properties": {
+                "comparisonFormat": {
+                    "$ref": "#/$defs/ComparisonFormatTypes"
+                },
+                "comparisonLabel": {
+                    "type": "string"
+                },
+                "conditionalFormatting": {
+                    "description": "Colours the value; the first matching rule wins.",
+                    "items": {
+                        "$ref": "#/$defs/VizBigNumberConditionalRule"
+                    },
+                    "type": "array"
+                },
+                "flipColors": {
+                    "description": "Colours an increase red and a decrease green.",
+                    "type": "boolean"
+                },
+                "label": {
+                    "description": "Custom label rendered under the value. Falls back to the field name.",
+                    "type": "string"
+                },
+                "showComparison": {
+                    "description": "Compares the value against the second selected field.",
+                    "type": "boolean"
+                },
+                "showLabel": {
+                    "type": "boolean"
+                },
+                "style": {
+                    "$ref": "#/$defs/CompactOrAlias",
+                    "description": "Compact notation applied to the value (K/M/B/T)."
+                }
+            },
+            "type": "object"
+        },
+        "VizColumnConfig": {
+            "properties": {
+                "aggregation": {
+                    "$ref": "#/$defs/VizAggregationOptions"
+                },
+                "barConfig": {
+                    "properties": {
+                        "color": {
+                            "type": "string"
+                        },
+                        "max": {
+                            "format": "double",
+                            "type": "number"
+                        },
+                        "min": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    "type": "object"
+                },
+                "displayStyle": {
+                    "enum": ["text", "bar"],
+                    "type": "string"
+                },
+                "frozen": {
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "order": {
+                    "format": "double",
+                    "type": "number"
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                }
+            },
+            "required": ["frozen", "label", "reference", "visible"],
+            "type": "object"
+        },
+        "VizColumnsConfig": {
+            "additionalProperties": {
+                "$ref": "#/$defs/VizColumnConfig"
+            },
+            "properties": {},
+            "type": "object"
+        },
+        "VizIndexType": {
+            "enum": ["time", "category"],
+            "type": "string"
+        },
+        "VizLineChartConfig": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/VizBaseConfig"
+                },
+                {
+                    "properties": {
+                        "display": {
+                            "$ref": "#/$defs/CartesianChartDisplay"
+                        },
+                        "fieldConfig": {
+                            "$ref": "#/$defs/PivotChartLayout"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/ChartKind.LINE"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "VizPieChartConfig": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/VizBaseConfig"
+                },
+                {
+                    "properties": {
+                        "display": {
+                            "$ref": "#/$defs/VizPieChartDisplay"
+                        },
+                        "fieldConfig": {
+                            "$ref": "#/$defs/PivotChartLayout"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/ChartKind.PIE"
+                        }
+                    },
+                    "required": ["type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "VizPieChartDisplay": {
+            "properties": {
+                "isDonut": {
+                    "type": "boolean"
+                }
+            },
+            "type": "object"
+        },
+        "VizSortBy": {
+            "properties": {
+                "direction": {
+                    "$ref": "#/$defs/SortByDirection"
+                },
+                "nullsFirst": {
+                    "type": "boolean"
+                },
+                "pivotValues": {
+                    "description": "Pins the row-sort anchor to a specific pivot column.",
+                    "items": {
+                        "$ref": "#/$defs/PivotSortAnchor"
+                    },
+                    "type": "array"
+                },
+                "reference": {
+                    "type": "string"
+                }
+            },
+            "required": ["direction", "reference"],
+            "type": "object"
+        },
+        "VizTableConfig": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/VizBaseConfig"
+                },
+                {
+                    "properties": {
+                        "columns": {
+                            "$ref": "#/$defs/VizColumnsConfig"
+                        },
+                        "display": {
+                            "$ref": "#/$defs/VizTableDisplay"
+                        },
+                        "type": {
+                            "$ref": "#/$defs/ChartKind.TABLE"
+                        }
+                    },
+                    "required": ["columns", "type"],
+                    "type": "object"
+                }
+            ]
+        },
+        "VizTableDisplay": {
+            "properties": {},
+            "type": "object"
+        },
         "WindowFunctionType": {
             "enum": [
                 "row_number",
@@ -4169,326 +5142,38 @@
     },
     "$id": "https://schemas.lightdash.com/lightdash/chart-as-code.json",
     "$schema": "http://json-schema.org/draft-07/schema#",
-    "additionalProperties": false,
-    "description": "From T, pick a set of properties whose keys are in the union K",
-    "properties": {
-        "access": {
-            "$ref": "#/$defs/ContentAsCodeDirectAccess",
-            "description": "Direct user/group grants on this chart. Only independently saved charts\ncarry one — dashboard-owned chart definitions are not grantable.\nOmission leaves the existing policy unchanged on upload."
-        },
-        "chartConfig": {
-            "discriminator": {
-                "propertyName": "type"
+    "description": "Schema for defining Lightdash charts (semantic layer charts and SQL charts) in YAML format for version control",
+    "else": {
+        "$ref": "#/$defs/ChartAsCode"
+    },
+    "if": {
+        "anyOf": [
+            {
+                "properties": {
+                    "contentType": {
+                        "const": "sql_chart"
+                    }
+                },
+                "required": ["contentType"]
             },
-            "oneOf": [
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/BigNumber",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "big_number",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/CartesianChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "cartesian",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/CustomVis",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "custom",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/PieChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "pie",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/FunnelChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "funnel",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/TableChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "table",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/TreemapChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "treemap",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/GaugeChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "gauge",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/MapChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "map",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/SankeyChart",
-                            "description": "Chart-type-specific configuration"
-                        },
-                        "type": {
-                            "const": "sankey",
-                            "description": "Type of chart visualization"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                },
-                {
-                    "properties": {
-                        "config": {
-                            "$ref": "#/$defs/DataAppVizChartAsCode"
-                        },
-                        "type": {
-                            "const": "data_app_viz"
-                        }
-                    },
-                    "required": ["type"],
-                    "type": "object"
-                }
-            ],
-            "type": "object"
-        },
-        "contentType": {
-            "$ref": "#/$defs/ContentAsCodeType.CHART",
-            "description": "Content type discriminator"
-        },
-        "dashboardSlug": {
-            "description": "Slug of the dashboard this chart belongs to (if any)",
-            "oneOf": [
-                {
-                    "pattern": "^[a-z0-9-]+$",
-                    "type": "string"
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "description": {
-            "description": "Optional description of what this chart displays",
-            "type": "string"
-        },
-        "downloadedAt": {
-            "description": "Timestamp when this chart was downloaded from Lightdash",
-            "format": "date-time",
-            "type": "string"
-        },
-        "merge": {
-            "anyOf": [
-                {
+            {
+                "not": {
                     "anyOf": [
                         {
-                            "$ref": "#/$defs/SavedMergeDefinition"
+                            "required": ["contentType"]
                         },
                         {
-                            "$ref": "#/$defs/SavedMergeQuery"
+                            "required": ["tableName"]
                         }
                     ]
                 },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "metricQuery": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/Omit_MetricQuery.filters_"
-                },
-                {
-                    "properties": {
-                        "filters": {
-                            "$ref": "#/$defs/FiltersInput"
-                        }
-                    },
-                    "required": ["filters"],
-                    "type": "object"
-                }
-            ]
-        },
-        "name": {
-            "description": "Display name of the chart",
-            "type": "string"
-        },
-        "parameters": {
-            "$ref": "#/$defs/ParametersValuesMap",
-            "description": "Parameter values for the chart query"
-        },
-        "pivotConfig": {
-            "description": "Pivot table configuration",
-            "properties": {
-                "columns": {
-                    "description": "Fields to use as pivot columns",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                "rows": {
-                    "description": "Ordered fields to render on the pivot row axis",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": ["columns"],
-            "type": "object"
-        },
-        "slug": {
-            "description": "Unique identifier slug for this chart",
-            "type": "string"
-        },
-        "spaceSlug": {
-            "description": "Slug of the space containing this chart",
-            "type": "string"
-        },
-        "tableConfig": {
-            "description": "Table configuration. Defaults to empty column order if omitted.",
-            "properties": {
-                "columnOrder": {
-                    "description": "Order of columns in table view",
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": ["columnOrder"],
-            "type": "object"
-        },
-        "tableName": {
-            "description": "The explore/table name this chart queries from",
-            "type": "string"
-        },
-        "updatedAt": {
-            "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted.",
-            "format": "date-time",
-            "type": "string"
-        },
-        "verification": {
-            "anyOf": [
-                {
-                    "allOf": [
-                        {
-                            "$ref": "#/$defs/ContentVerificationInfo"
-                        }
-                    ],
-                    "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                },
-                {
-                    "type": "null"
-                }
-            ]
-        },
-        "verified": {
-            "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified.",
-            "type": "boolean"
-        },
-        "version": {
-            "const": 1,
-            "description": "Schema version for this chart configuration",
-            "format": "double",
-            "type": "number"
-        }
+                "required": ["sql"]
+            }
+        ]
     },
-    "required": [
-        "name",
-        "tableName",
-        "slug",
-        "spaceSlug",
-        "version",
-        "chartConfig",
-        "metricQuery"
-    ],
+    "then": {
+        "$ref": "#/$defs/SqlChartAsCode"
+    },
     "title": "Lightdash Chart as Code",
     "type": "object"
 }

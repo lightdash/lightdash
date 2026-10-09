@@ -1,7 +1,8 @@
 import {
     assertUnreachable,
-    chartAsCodeSchema,
+    ContentAsCodeType,
     dashboardAsCodeSchema,
+    getChartAsCodeBranchSchema,
     ParameterError,
 } from '@lightdash/common';
 import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
@@ -159,7 +160,9 @@ export class AiAgentContentValidation {
         }
 
         this.validators = {
-            chart: this.ajv.compile(chartAsCodeSchema),
+            chart: this.ajv.compile(
+                getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
+            ),
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
         };
 

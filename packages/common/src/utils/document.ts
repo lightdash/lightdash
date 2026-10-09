@@ -29,15 +29,17 @@ export const getDocumentUrl = (
             : documentUuidOrSlug,
     )}`;
 
+const semanticChartProperties = chartAsCodeSchema.$defs.ChartAsCode.properties;
+
 const chartProperties = {
-    name: chartAsCodeSchema.properties.name,
-    description: chartAsCodeSchema.properties.description,
-    tableName: chartAsCodeSchema.properties.tableName,
-    metricQuery: chartAsCodeSchema.properties.metricQuery,
-    chartConfig: chartAsCodeSchema.properties.chartConfig,
-    tableConfig: chartAsCodeSchema.properties.tableConfig,
-    pivotConfig: chartAsCodeSchema.properties.pivotConfig,
-    parameters: chartAsCodeSchema.properties.parameters,
+    name: semanticChartProperties.name,
+    description: semanticChartProperties.description,
+    tableName: semanticChartProperties.tableName,
+    metricQuery: semanticChartProperties.metricQuery,
+    chartConfig: semanticChartProperties.chartConfig,
+    tableConfig: semanticChartProperties.tableConfig,
+    pivotConfig: semanticChartProperties.pivotConfig,
+    parameters: semanticChartProperties.parameters,
 };
 
 const chartSchema = (merge: boolean) => ({
