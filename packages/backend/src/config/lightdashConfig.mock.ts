@@ -88,6 +88,7 @@ export const lightdashConfigMock: LightdashConfig = {
         snowflakeAi: {
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
+            testAccountUrlOrigin: null,
         },
         databricks: {
             loginPath: '/login/databricks',

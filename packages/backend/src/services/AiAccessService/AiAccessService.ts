@@ -414,9 +414,16 @@ export class AiAccessService extends BaseService {
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
         assertRegisteredAccount(account);
-        const { accountUrl, accountIdentifier } = parseSnowflakeAccountUrl(
-            body.accountUrl,
-        );
+        const { testAccountUrlOrigin } = this.lightdashConfig.auth.snowflakeAi;
+        const submittedAccountUrl = body.accountUrl.trim().replace(/\/$/, '');
+        const { accountUrl, accountIdentifier } =
+            testAccountUrlOrigin !== null &&
+            submittedAccountUrl === testAccountUrlOrigin
+                ? {
+                      accountUrl: testAccountUrlOrigin,
+                      accountIdentifier: new URL(testAccountUrlOrigin).hostname,
+                  }
+                : parseSnowflakeAccountUrl(body.accountUrl);
         const clientId = body.clientId.trim();
         if (!clientId || !body.clientSecret.trim()) {
             throw new ParameterError('Provide a client ID and client secret.');

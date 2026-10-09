@@ -23,11 +23,18 @@ const organizationClient = {
     updatedAt: new Date(),
 };
 
-const setup = (saved = true) => {
+const setup = (saved = true, testAccountUrlOrigin: string | null = null) => {
     const config = {
         ...lightdashConfigMock,
         siteUrl: 'https://instance.example/nested/path/',
         license: { ...lightdashConfigMock.license, licenseKey: 'test-license' },
+        auth: {
+            ...lightdashConfigMock.auth,
+            snowflakeAi: {
+                ...lightdashConfigMock.auth.snowflakeAi,
+                testAccountUrlOrigin,
+            },
+        },
     };
     const account = buildAccount();
     account.user.ability = new Ability<PossibleAbilities>([
@@ -353,6 +360,87 @@ const clientBody = {
 };
 
 describe('organization Snowflake client', () => {
+    const testOrigin = 'http://snowflake-ai-stub:3900';
+
+    it.each([testOrigin, `${testOrigin}/`, `  ${testOrigin}/  `])(
+        'saves the allowed test origin from %s with normal endpoint derivation',
+        async (accountUrl) => {
+            const { service, account, clients } = setup(false, testOrigin);
+            clients.upsert.mockImplementation(async (input) => {
+                clients.getWithSecret.mockResolvedValue({
+                    ...organizationClient,
+                    ...input,
+                });
+                return { action: 'created' };
+            });
+            const result = await service.saveSnowflakeAgentClient(account, {
+                ...clientBody,
+                accountUrl,
+            });
+            expect(clients.upsert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    accountUrl: testOrigin,
+                    accountIdentifier: 'snowflake-ai-stub',
+                }),
+            );
+            expect(result.client.accountUrl).toBe(testOrigin);
+            expect(
+                await service.resolveSnowflakeAgentClient(
+                    account.organization.organizationUuid!,
+                ),
+            ).toMatchObject({
+                account: 'snowflake-ai-stub',
+                authorizationEndpoint: `${testOrigin}/oauth/authorize`,
+                tokenEndpoint: `${testOrigin}/oauth/token-request`,
+            });
+        },
+    );
+
+    it.each([
+        'http://other-stub:3900',
+        'http://snowflake-ai-stub:3901',
+        'https://snowflake-ai-stub:3900',
+        `${testOrigin}/oauth/authorize`,
+        `${testOrigin}/segment/`,
+        `${testOrigin}//`,
+        `${testOrigin}?query=value`,
+        `${testOrigin}#fragment`,
+        'http://user:secret@snowflake-ai-stub:3900',
+        'http://SNOWFLAKE-AI-STUB:3900',
+    ])('rejects %s when the test origin is set', async (accountUrl) => {
+        const { service, account, clients } = setup(false, testOrigin);
+        await expect(
+            service.saveSnowflakeAgentClient(account, {
+                ...clientBody,
+                accountUrl,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(clients.upsert).not.toHaveBeenCalled();
+    });
+
+    it('rejects the stub origin when the allowance is unset', async () => {
+        const { service, account, clients } = setup(false);
+        await expect(
+            service.saveSnowflakeAgentClient(account, {
+                ...clientBody,
+                accountUrl: testOrigin,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(clients.upsert).not.toHaveBeenCalled();
+    });
+
+    it('still accepts normal Snowflake URLs when the test origin is set', async () => {
+        const { service, account, clients } = setup(true, testOrigin);
+        clients.upsert.mockResolvedValue({ action: 'updated' });
+        await service.saveSnowflakeAgentClient(account, clientBody);
+        expect(clients.upsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                accountUrl: organizationClient.accountUrl,
+                accountIdentifier: organizationClient.accountIdentifier,
+            }),
+        );
+    });
+
     it('saves canonical settings and returns metadata without a secret', async () => {
         const { service, account, clients, analytics } = setup();
         clients.upsert.mockImplementation(async () => {

@@ -2498,9 +2498,24 @@ type AuthSnowflakeConfig = {
     loginPath: string;
 };
 
+const parseSnowflakeAiTestAccountUrlOrigin = (): string | null => {
+    const value = process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN;
+    if (!value) return null;
+    try {
+        if (new URL(value).origin !== value || value.includes('*'))
+            throw new Error('Invalid origin');
+        return value;
+    } catch {
+        throw new ParseError(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN must be an exact URL origin with no wildcard, trailing slash, path, credentials, query or fragment.',
+        );
+    }
+};
+
 type AuthSnowflakeAiConfig = {
     loginPath: string;
     callbackPath: string;
+    testAccountUrlOrigin: string | null;
 };
 
 type AuthDatabricksConfig = {
@@ -3242,6 +3257,14 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const snowflakeAiTestAccountUrlOrigin =
+        parseSnowflakeAiTestAccountUrlOrigin();
+    if (snowflakeAiTestAccountUrlOrigin !== null) {
+        console.warn(
+            'WARNING: SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN is set. This account URL allowance is for tests only.',
+        );
+    }
+
     return {
         mode,
         mobile: {
@@ -3509,6 +3532,7 @@ export const parseConfig = (): LightdashConfig => {
             snowflakeAi: {
                 loginPath: '/login/snowflake-ai',
                 callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
+                testAccountUrlOrigin: snowflakeAiTestAccountUrlOrigin,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,

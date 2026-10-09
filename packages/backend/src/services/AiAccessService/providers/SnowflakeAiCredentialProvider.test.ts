@@ -6,7 +6,6 @@ import {
     WarehouseTypes,
     type AiAssurance,
     type CreateSnowflakeCredentials,
-    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
@@ -42,7 +41,7 @@ const connection: CreateSnowflakeCredentials = {
     token: 'access-token',
     requireUserCredentials: true,
 };
-const credential: UserWarehouseCredentialsWithSecrets = {
+const credential: AiUserWarehouseCredentials = {
     uuid: 'credential',
     aiClientBinding: { organizationUuid: 'org', clientVersion: 'version-1' },
     expiresAt: null,

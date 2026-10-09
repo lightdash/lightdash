@@ -23,7 +23,6 @@ import {
     type CreatePostgresCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
-    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -41,6 +40,7 @@ import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
+import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
@@ -3114,11 +3114,7 @@ describe('Snowflake revocation with a warm agent client', () => {
             };
             const model = {
                 findAiCredentialWithSecrets: vi
-                    .fn<
-                        () => Promise<
-                            UserWarehouseCredentialsWithSecrets | undefined
-                        >
-                    >()
+                    .fn<() => Promise<AiUserWarehouseCredentials | undefined>>()
                     .mockResolvedValue({
                         uuid: 'agent-credential',
                         aiClientBinding: {
