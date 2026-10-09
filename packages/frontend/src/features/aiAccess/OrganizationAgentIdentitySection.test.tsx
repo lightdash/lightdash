@@ -679,7 +679,9 @@ describe('Organisation agent identity settings', () => {
         mocks.enabled = mode !== 'flag-off';
         mocks.canManage = mode !== 'non-admin';
         renderSection();
-        expect(screen.queryByText('Agent identity')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Choose who AI agents run as/),
+        ).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalled();
     });
 });

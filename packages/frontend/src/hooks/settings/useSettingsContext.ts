@@ -236,6 +236,12 @@ export const useSettingsContext = (): SettingsContext => {
         (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
         isWarehouseCredentialsFeatureFlagEnabled;
 
+    const {
+        data: agentIdentityFlag,
+        isInitialLoading: isAgentIdentityFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
+
     return {
         showMyAgentConnections,
         isMyAgentConnectionsLoading:
@@ -276,6 +282,8 @@ export const useSettingsContext = (): SettingsContext => {
         hasSocialLogin,
         isGroupManagementEnabled,
         isWarehouseCredentialsEnabled,
+        isAgentIdentityEnabled,
+        isAgentIdentityFlagLoading,
         isGitProject,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,

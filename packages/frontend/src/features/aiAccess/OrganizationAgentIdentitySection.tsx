@@ -4,7 +4,7 @@ import {
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import { Anchor, Group, Select, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Group, Select, Stack, Text } from '@mantine/core';
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -180,13 +180,10 @@ const OrganizationAgentIdentitySection = () => {
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Stack gap="xs">
-                    <Title order={5}>Agent identity</Title>
-                    <Text size="sm" c="dimmed">
-                        Choose who AI agents run as for each warehouse in your
-                        organisation.
-                    </Text>
-                </Stack>
+                <Text size="sm" c="dimmed">
+                    Choose who AI agents run as for each warehouse in your
+                    organisation.
+                </Text>
                 <AgentIdentitySettings />
             </Stack>
         </SettingsCard>

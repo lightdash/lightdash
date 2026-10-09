@@ -2270,8 +2270,7 @@ describe('AI service account factory scopes', () => {
                         refusal: {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
-                            settingsUrl:
-                                '/generalSettings/warehouseCredentials',
+                            settingsUrl: '/generalSettings/agentIdentity',
                             connectUrl: null,
                         },
                     });

@@ -2037,7 +2037,7 @@ describe('AiAccessService', () => {
             ).toMatchObject({
                 refusal: {
                     action: 'ask_admin',
-                    settingsUrl: '/generalSettings/warehouseCredentials',
+                    settingsUrl: '/generalSettings/agentIdentity',
                     connectUrl: null,
                 },
             });
@@ -2181,7 +2181,7 @@ describe('AiAccessService', () => {
             refusal: {
                 reason: 'principal_failed',
                 action: 'ask_admin',
-                settingsUrl: '/generalSettings/warehouseCredentials',
+                settingsUrl: '/generalSettings/agentIdentity',
                 connectUrl: null,
             },
         });
@@ -2896,7 +2896,7 @@ describe('per-type execution identity resolution', () => {
                 refusal: {
                     reason,
                     action: 'ask_admin',
-                    settingsUrl: '/generalSettings/warehouseCredentials',
+                    settingsUrl: '/generalSettings/agentIdentity',
                     connectUrl: null,
                 },
             });

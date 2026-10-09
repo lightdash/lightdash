@@ -55,6 +55,8 @@ const settingsContext = (
     hasSocialLogin: false,
     isGroupManagementEnabled: false,
     isWarehouseCredentialsEnabled: false,
+    isAgentIdentityEnabled: false,
+    isAgentIdentityFlagLoading: false,
     isGitProject: false,
     projectSettingsAccess: { type: 'none', defaultPage: null },
     isProjectSettingsAccessLoading: false,

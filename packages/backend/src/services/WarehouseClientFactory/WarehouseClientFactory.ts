@@ -1,4 +1,5 @@
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
@@ -888,7 +889,7 @@ export class WarehouseClientFactory {
             );
         }
         throw new AiAccessRefusedError(reason, {
-            settingsUrl: '/generalSettings/warehouseCredentials',
+            settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
         });
     }
 

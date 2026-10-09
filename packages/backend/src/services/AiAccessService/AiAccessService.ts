@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AgentActorSurface,
+    AGENT_IDENTITY_SETTINGS_PATH,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
@@ -949,7 +950,7 @@ export class AiAccessService extends BaseService {
         ) {
             return new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
-                settingsUrl: '/generalSettings/warehouseCredentials',
+                settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
             });
         }
         return error;

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, FeatureFlags } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -94,6 +94,7 @@ export const useSettingsNavigation = (
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -656,6 +657,23 @@ export const useSettingsNavigation = (
                 aiAgentIcon: true,
                 keywords: ['copilot', 'agents', 'ai'],
                 children: aiChildren,
+            });
+        }
+
+        if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
+            organizationItems.push({
+                label: 'Agent identity',
+                to: AGENT_IDENTITY_SETTINGS_PATH,
+                icon: IconIdBadge2,
+                keywords: [
+                    'agents',
+                    'identity',
+                    'warehouse',
+                    'snowflake',
+                    'bigquery',
+                ],
+                children: [],
+                exact: true,
             });
         }
 
@@ -1299,6 +1317,7 @@ export const useSettingsNavigation = (
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
