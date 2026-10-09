@@ -397,6 +397,7 @@ type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
         result: 'success' | 'failure';
         failureReason: 'connection_failed' | 'query_failed' | null;
         credentialSource: 'submitted' | 'saved';
+        inheritedFromProjectUuid: string | null;
     };
 };
 
@@ -676,6 +677,7 @@ export type WarehouseConnectionAnalyticsProperties = {
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
+        inheritedFromProjectUuid: string | null;
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
@@ -699,6 +701,7 @@ type QueryExecutionSource =
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -713,6 +716,7 @@ type QueryReadyEvent = BaseTrack & {
 type QueryErrorEvent = BaseTrack & {
     event: 'query.error';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -729,6 +733,7 @@ type QueryErrorEvent = BaseTrack & {
 export type QueryCompletedEvent = BaseTrack & {
     event: 'query.completed';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -4681,6 +4686,7 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
 };
 
 export type AgentQueryRefusedProperties = {
+    inheritedFromProjectUuid: string | null;
     actor: { surface: AgentActorSurface; clientId: string | null } | null;
     organizationId: string;
     projectId: string;
@@ -4741,7 +4747,18 @@ export type AgentIdentityExpiredEvent = AgentIdentityTrack & {
     };
 };
 
+export type AgentIdentitySnowflakeClientSavedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.snowflake_client_saved';
+    properties: {
+        organizationId: string;
+        userId: string;
+        warehouseType: WarehouseTypes.SNOWFLAKE;
+        action: 'created' | 'replaced' | 'unchanged';
+    };
+};
+
 type AgentIdentityEvent =
+    | AgentIdentitySnowflakeClientSavedEvent
     | AgentIdentityRuleUpdatedEvent
     | AgentQueryRefusedEvent
     | AgentIdentityConnectStartedEvent

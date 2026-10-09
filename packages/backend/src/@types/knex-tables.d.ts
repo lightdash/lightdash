@@ -266,6 +266,10 @@ import {
     OrganizationSettingsTableName,
 } from '../database/entities/organizationSettings';
 import {
+    OrganizationSnowflakeAgentClientsTable,
+    OrganizationSnowflakeAgentClientsTableName,
+} from '../database/entities/organizationSnowflakeAgentClients';
+import {
     OrganizationSsoConfigurationsTable,
     OrganizationSsoConfigurationsTableName,
 } from '../database/entities/organizationSsoConfigurations';
@@ -720,6 +724,7 @@ declare module 'knex/types/tables' {
     interface Tables {
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
+        [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
         [InviteLinkTableName]: InviteLinkTable;

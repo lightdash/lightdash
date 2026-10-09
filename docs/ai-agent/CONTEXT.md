@@ -77,8 +77,8 @@ only; nothing is persisted.
 _Avoid_: subscription, poll registration, tracked build
 
 **Agent default**:
-The model picker entry that drops an explicit model pick so the composer
-follows the agent's current model again. Shown as selected whenever no pick is
+The model picker entry that drops an explicit model pick so new threads
+follow the agent's current model again. Shown as selected whenever no pick is
 stored for that agent in this browser. See
 [ai-agent-model-resolution.md](../ai-agent-model-resolution.md) for the
 resolution order.

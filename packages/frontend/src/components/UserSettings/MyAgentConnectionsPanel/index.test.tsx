@@ -2,7 +2,7 @@ import {
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AiIdentitySource,
-    type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,13 +17,14 @@ let warehouses: (WarehouseTypes | undefined)[] = [
     WarehouseTypes.BIGQUERY,
 ];
 let configured = true;
-let credentials: UserWarehouseCredentials[] = [];
+let credentials: UserWarehouseCredentialsWithAgentStatus[] = [];
 let isInitialLoading = false;
 let isError = false;
 
 vi.mock('../../../features/aiAccess/api', () => ({
     useOrganizationAgentIdentitySettings: () => ({
         data: {
+            snowflakeConfigured: configured,
             rules: [
                 {
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -46,7 +47,7 @@ vi.mock('../../../hooks/useProjects', () => ({
 }));
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
-        data: { auth: { snowflakeAi: { enabled: configured } } },
+        data: { auth: { snowflakeAi: { enabled: !configured } } },
     }),
 }));
 vi.mock(
@@ -133,6 +134,12 @@ describe('MyAgentConnectionsPanel', () => {
             ).toBe(visible);
         },
     );
+    it('allows an organisation client to connect when instance health is unconfigured', () => {
+        renderWithProviders(<MyAgentConnectionsPanel />);
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+    });
     it('shows unavailable setup instead of the empty state for a required Snowflake sign-in', () => {
         configured = false;
         warehouses = [WarehouseTypes.SNOWFLAKE];
@@ -173,6 +180,24 @@ describe('MyAgentConnectionsPanel', () => {
         credentials = [...credentials, credential];
         rerender(<MyAgentConnectionsPanel />);
         expect(screen.getByText('Connected')).toBeInTheDocument();
+    });
+    it('offers reconnection for an unexpired credential from the previous client', () => {
+        credentials = [
+            {
+                ...credential,
+                expiresAt: new Date(Date.now() + 86400000),
+                agentClientCurrent: false,
+            },
+        ];
+        renderWithProviders(<MyAgentConnectionsPanel />);
+        expect(screen.getByText('Expired')).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+        expect(
+            screen.queryByRole('button', { name: 'Disconnect' }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Connected')).not.toBeInTheDocument();
     });
     it('waits for data before showing cards or the empty state', () => {
         isInitialLoading = true;

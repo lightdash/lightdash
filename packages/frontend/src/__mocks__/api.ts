@@ -8,6 +8,7 @@ const actual = await vi.importActual<typeof Api>('../api');
 export const { BASE_API_URL, createLightdashApi, networkHistory } = actual;
 
 export const sharedLightdashApi = Object.assign(vi.fn(), {
+    response: vi.fn(),
     stream: vi.fn(),
     getResultsFromStream: vi.fn(),
 });

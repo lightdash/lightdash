@@ -29,8 +29,8 @@ import {
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import refresh from 'passport-oauth2-refresh';
 import { expectTypeOf } from 'vitest';
+import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -38,6 +38,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
+import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     connectionContextFromUser,
@@ -1978,6 +1979,8 @@ describe('AI service account factory scopes', () => {
         { identity: 'ai_service_account' }
     > = {
         identity: 'ai_service_account',
+        sourceProjectUuid: 'project',
+        inheritedFromProjectUuid: null,
         identityUuid: 'generation-a',
         credentialUuid: 'slot-row',
         credentials: {
@@ -2042,6 +2045,23 @@ describe('AI service account factory scopes', () => {
         },
     );
 
+    test('passes the slot row and source project as the credential owner', async () => {
+        const { factory, aiAccessService } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        const materialize = vi.spyOn(factory, 'materializeCredentials');
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        expect(materialize.mock.calls[0][4]).toEqual({
+            kind: 'aiServiceAccount',
+            uuid: slotPlan.credentialUuid,
+            identityUuid: slotPlan.identityUuid,
+            sourceProjectUuid: slotPlan.sourceProjectUuid,
+        });
+    });
+
     test('uses slot credentials before finishing and identifies their kind', async () => {
         const { factory, credentialSource, aiAccessService } = buildFixture();
         aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
@@ -2065,6 +2085,43 @@ describe('AI service account factory scopes', () => {
         expect(credentialSource.finish).not.toHaveBeenCalled();
     });
 
+    test('uses inherited authentication on the preview connection', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        const inheritedPlan = {
+            ...slotPlan,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: {
+                ...slotPlan.credentials,
+                project: 'preview-warehouse',
+                dataset: 'preview-dataset',
+            },
+        };
+        aiAccessService.resolvePlan.mockResolvedValue(inheritedPlan);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async (resolved) => {
+                expect(resolved.aiPlan).toBe(inheritedPlan);
+                expect(resolved.warehouseCredentials).toMatchObject({
+                    project: 'preview-warehouse',
+                    dataset: 'preview-dataset',
+                    keyfileContents: {
+                        type: 'service_account',
+                        private_key: 'saved-key',
+                        client_email: 'agent@example.com',
+                    },
+                });
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining(inheritedPlan.credentials),
+            expect.anything(),
+        );
+    });
+
     test('separates ordinary, marked, agent sign-in, slot generations and connections even with equal credentials', async () => {
         const { factory, projectModel } = buildFixture();
         const identities = [
@@ -2079,6 +2136,11 @@ describe('AI service account factory scopes', () => {
             { ...plan, identityUuid: slotPlan.identityUuid },
             slotPlan,
             { ...slotPlan, identityUuid: 'generation-b' },
+            {
+                ...slotPlan,
+                sourceProjectUuid: 'parent',
+                inheritedFromProjectUuid: 'parent',
+            },
         ];
         const clients = await Promise.all(
             identities.map((aiPlan) => {
@@ -2097,7 +2159,7 @@ describe('AI service account factory scopes', () => {
                 );
             }),
         );
-        expect(new Set(clients).size).toBe(5);
+        expect(new Set(clients).size).toBe(6);
         const ref: Extract<WarehouseClientRef, { kind: 'resolved' }> = {
             kind: 'resolved',
             projectUuid: 'project-uuid',
@@ -2123,7 +2185,7 @@ describe('AI service account factory scopes', () => {
         );
         expect(
             projectModel.getWarehouseClientFromCredentials,
-        ).toHaveBeenCalledTimes(5);
+        ).toHaveBeenCalledTimes(6);
         expect(again.credentials).toEqual(clients[3].credentials);
         await factory.withWarehouseClient(
             { ...ref, warehouseConnectionUuid: 'extra' },
@@ -2132,7 +2194,7 @@ describe('AI service account factory scopes', () => {
         );
         expect(
             projectModel.getWarehouseClientFromCredentials,
-        ).toHaveBeenCalledTimes(6);
+        ).toHaveBeenCalledTimes(7);
     });
 
     test.each([
@@ -2195,6 +2257,7 @@ describe('AI service account factory scopes', () => {
                 event: 'query.refused',
                 userId: 'user-uuid',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     organizationId: 'org-uuid',
                     projectId: 'project-uuid',
                     userId: 'user-uuid',
@@ -2357,6 +2420,7 @@ describe('AI service account factory scopes', () => {
                     warehouseType: WarehouseTypes.BIGQUERY,
                 },
                 'ai_service_account_invalid',
+                null,
             );
             expect(
                 JSON.stringify(aiAccessService.trackQueryRefusal.mock.calls),
@@ -2746,6 +2810,12 @@ describe('Snowflake revocation with a warm agent client', () => {
             const provider = new SnowflakeAiCredentialProvider({
                 lightdashConfig: config,
                 userWarehouseCredentialsModel: model,
+                snowflakeAgentClientResolver: new SnowflakeAgentClientResolver({
+                    lightdashConfig: config,
+                    organizationSnowflakeAgentClientModel: {
+                        getWithSecret: vi.fn().mockResolvedValue(null),
+                    },
+                }),
             } as unknown as ConstructorParameters<
                 typeof SnowflakeAiCredentialProvider
             >[0]);
@@ -2773,7 +2843,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                 credentials: connection,
             });
             const refreshToken = vi
-                .spyOn(refresh, 'requestNewAccessToken')
+                .spyOn(snowflakeOAuthRefreshClient, 'requestNewAccessToken')
                 .mockImplementation((_strategy, _token, callback) => {
                     callback(null, 'access-token', 'refresh-token', {});
                 });

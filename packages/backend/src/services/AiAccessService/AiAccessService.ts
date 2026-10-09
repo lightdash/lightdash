@@ -12,6 +12,7 @@ import {
     AiAccessRefusedError,
     AiAgentMarkerLevel,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     assertUnreachable,
     buildAgentIdentityClaim,
     buildSnowflakeAgentIntegrationSql,
@@ -25,6 +26,7 @@ import {
     isAllowedAgentIdentitySource,
     NotFoundError,
     ParameterError,
+    parseSnowflakeAccountUrl,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
@@ -46,6 +48,7 @@ import {
     type QueryHistory,
     type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
+    type UpdateOrganizationSnowflakeAgentClient,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
 import {
@@ -54,10 +57,6 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
-import {
-    getSnowflakeAgentMissingSettings,
-    isSnowflakeAgentConfigured,
-} from '../../config/snowflakeAgentConfiguration';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { redactCredentialError } from '../../logging/redactCredentialError';
@@ -67,6 +66,7 @@ import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAcc
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type QueryHistoryModel,
@@ -75,8 +75,12 @@ import {
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
+import {
+    AiServiceAccountSlotResolutionError,
+    AiServiceAccountSlotResolver,
+} from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
+import { resolveAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
@@ -95,6 +99,7 @@ import {
     getQueryIdentityLineage,
     getQuerySourceParameters,
 } from './queryResultLineage';
+import { SnowflakeAgentClientResolver } from './SnowflakeAgentClientResolver';
 
 export type AgentConnectAttempt = Omit<
     AgentIdentityConnectProperties,
@@ -128,6 +133,7 @@ type AiAccessServiceArguments = {
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
+    organizationSnowflakeAgentClientModel: OrganizationSnowflakeAgentClientModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
     projectModel: ProjectModel;
@@ -146,6 +152,10 @@ export class AiAccessService extends BaseService {
     private readonly organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
 
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
+
+    private readonly organizationSnowflakeAgentClientModel: OrganizationSnowflakeAgentClientModel;
+
+    private readonly snowflakeAgentClientResolver: SnowflakeAgentClientResolver;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -168,6 +178,7 @@ export class AiAccessService extends BaseService {
         aiServiceAccountCredentialsModel,
         organizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel,
+        organizationSnowflakeAgentClientModel,
         lightdashConfig,
         featureFlagModel,
         userModel,
@@ -185,6 +196,12 @@ export class AiAccessService extends BaseService {
             organizationAgentIdentityRulesModel;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
+        this.organizationSnowflakeAgentClientModel =
+            organizationSnowflakeAgentClientModel;
+        this.snowflakeAgentClientResolver = new SnowflakeAgentClientResolver({
+            lightdashConfig,
+            organizationSnowflakeAgentClientModel,
+        });
         this.lightdashConfig = lightdashConfig;
         this.featureFlagModel = featureFlagModel;
         this.userModel = userModel;
@@ -193,6 +210,10 @@ export class AiAccessService extends BaseService {
         this.queryHistoryModel = queryHistoryModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
         this.providerRegistry = providerRegistry;
+    }
+
+    async resolveSnowflakeAgentClient(organizationUuid: string) {
+        return this.snowflakeAgentClientResolver.resolve(organizationUuid);
     }
 
     async assertFeatureEnabled(
@@ -244,7 +265,7 @@ export class AiAccessService extends BaseService {
             );
         const reason = await provider.missingPrerequisite({
             connection,
-            person: { userUuid, email: user.email ?? '' },
+            person: { organizationUuid, userUuid, email: user.email ?? '' },
             silentRefresh: await this.isSilentRefreshEnabled(
                 { userUuid, organizationUuid },
                 provider.warehouseType,
@@ -277,6 +298,10 @@ export class AiAccessService extends BaseService {
         );
         return {
             ...settings,
+            snowflakeConfigured:
+                await this.snowflakeAgentClientResolver.isConfigured(
+                    organizationUuid,
+                ),
             rules: await Promise.all(
                 rules.map(async (rule) => ({
                     ...rule,
@@ -313,37 +338,107 @@ export class AiAccessService extends BaseService {
     async getSnowflakeSetup(
         account: Account,
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
-        await this.authorizeSnowflakeSetup(account);
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
         const redirectUri = getSnowflakeAgentRedirectUri(
             this.lightdashConfig.siteUrl,
         );
+        const metadata =
+            await this.organizationSnowflakeAgentClientModel.getMetadata(
+                organizationUuid,
+            );
+        const resolved = metadata
+            ? null
+            : await this.snowflakeAgentClientResolver.resolve(organizationUuid);
+        const missingSettings =
+            await this.snowflakeAgentClientResolver.getMissingSettings(
+                organizationUuid,
+                metadata ? undefined : resolved,
+            );
         return {
             redirectUri,
             integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
-            missingSettings: getSnowflakeAgentMissingSettings(
-                this.lightdashConfig,
-            ),
-            configured: isSnowflakeAgentConfigured(this.lightdashConfig),
+            missingSettings,
+            configured: missingSettings.length === 0,
+            client: {
+                source: metadata ? 'organization' : (resolved?.source ?? null),
+                accountUrl: metadata?.accountUrl ?? resolved?.accessUrl ?? null,
+                clientId: metadata?.clientId ?? resolved?.clientId ?? null,
+                hasClientSecret: metadata
+                    ? !missingSettings.includes(
+                          'Snowflake client secret (replace it)',
+                      )
+                    : resolved !== null,
+                updatedAt: metadata?.updatedAt ?? null,
+            },
         };
+    }
+
+    async saveSnowflakeAgentClient(
+        account: Account,
+        body: UpdateOrganizationSnowflakeAgentClient,
+    ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
+        assertRegisteredAccount(account);
+        const { accountUrl, accountIdentifier } = parseSnowflakeAccountUrl(
+            body.accountUrl,
+        );
+        const clientId = body.clientId.trim();
+        if (!clientId || !body.clientSecret.trim()) {
+            throw new ParameterError('Provide a client ID and client secret.');
+        }
+        const { action } =
+            await this.organizationSnowflakeAgentClientModel.upsert({
+                organizationUuid,
+                accountUrl,
+                accountIdentifier,
+                clientId,
+                clientSecret: body.clientSecret,
+                userUuid: account.user.id,
+            });
+        trackSafely(() =>
+            this.analytics.track({
+                userId: account.user.id,
+                event: 'agent_identity.snowflake_client_saved',
+                properties: {
+                    organizationId: organizationUuid,
+                    userId: account.user.id,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    action,
+                },
+            }),
+        );
+        return this.getSnowflakeSetup(account);
     }
 
     async verifySnowflakeSetup(
         account: Account,
     ): Promise<OrganizationAgentIdentitySnowflakeVerify> {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
-        const missingSettings = getSnowflakeAgentMissingSettings(
-            this.lightdashConfig,
-        );
-        const configured = isSnowflakeAgentConfigured(this.lightdashConfig);
+        const resolved =
+            await this.snowflakeAgentClientResolver.resolve(organizationUuid);
+        const missingSettings =
+            await this.snowflakeAgentClientResolver.getMissingSettings(
+                organizationUuid,
+            );
+        const configured = missingSettings.length === 0;
+        const clientSourceDetail =
+            resolved?.source === 'organization'
+                ? 'Using the client saved for this organisation.'
+                : 'Using the instance SNOWFLAKE_AI_OAUTH_* settings.';
+        const missingSettingsDetail = configured
+            ? ''
+            : `Missing: ${missingSettings.join(', ')}.`;
         const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
             {
                 id: 'oauth_client',
                 label: 'OAuth client settings',
                 required: true,
-                status: configured ? 'passed' : 'failed',
-                detail: configured
-                    ? 'All OAuth client settings are set.'
-                    : `Missing: ${missingSettings.join(', ')}.`,
+                status: resolved ? 'passed' : 'failed',
+                detail: resolved
+                    ? [clientSourceDetail, missingSettingsDetail]
+                          .filter(Boolean)
+                          .join(' ')
+                    : missingSettingsDetail,
             },
         ];
         const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
@@ -354,12 +449,9 @@ export class AiAccessService extends BaseService {
                 status: 'not_checked',
                 detail: 'Set the missing OAuth client settings before checking the endpoint.',
             };
-        if (configured) {
+        if (resolved) {
             try {
-                const endpoint = new URL(
-                    this.lightdashConfig.auth.snowflakeAi
-                        .authorizationEndpoint!,
-                );
+                const endpoint = new URL(resolved.authorizationEndpoint);
                 endpoint.username = '';
                 endpoint.password = '';
                 endpoint.search = '';
@@ -374,12 +466,16 @@ export class AiAccessService extends BaseService {
                 ].includes(response.status)
                     ? 'passed'
                     : 'failed';
+                const endpointHint =
+                    resolved.source === 'organization'
+                        ? ' Check the Snowflake account URL.'
+                        : ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.';
                 endpointCheck.detail =
                     endpointCheck.status === 'passed'
                         ? `Snowflake answered (HTTP ${response.status}).`
                         : `The authorization endpoint returned HTTP ${response.status}.${
                               [404, 405].includes(response.status)
-                                  ? ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.'
+                                  ? endpointHint
                                   : ''
                           }`;
                 await response.body?.cancel();
@@ -394,10 +490,12 @@ export class AiAccessService extends BaseService {
             }
         }
         checks.push(endpointCheck);
-        const hasAgentSession =
-            await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
-                organizationUuid,
-            );
+        const hasAgentSession = resolved
+            ? await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
+                  organizationUuid,
+                  resolved.clientVersion,
+              )
+            : false;
         checks.push({
             id: 'agent_session',
             label: 'Agent session',
@@ -409,15 +507,23 @@ export class AiAccessService extends BaseService {
         });
         return {
             checkedAt: new Date(),
-            passed: checks.every(
-                (check) => !check.required || check.status === 'passed',
-            ),
+            passed:
+                configured &&
+                checks.every(
+                    (check) => !check.required || check.status === 'passed',
+                ),
             checks,
         };
     }
 
-    private assertSnowflakeAgentConfigured(): void {
-        if (!isSnowflakeAgentConfigured(this.lightdashConfig)) {
+    private async assertSnowflakeAgentConfigured(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (
+            !(await this.snowflakeAgentClientResolver.isConfigured(
+                organizationUuid,
+            ))
+        ) {
             throw new ParameterError(
                 'The Snowflake agent integration is not configured on this instance',
             );
@@ -443,7 +549,7 @@ export class AiAccessService extends BaseService {
             throw new ForbiddenError();
         }
         if (settings.requireVerifiedAgentSessions)
-            this.assertSnowflakeAgentConfigured();
+            await this.assertSnowflakeAgentConfigured(organizationUuid);
         const {
             settings: savedSettings,
             previousSource,
@@ -485,6 +591,10 @@ export class AiAccessService extends BaseService {
         }
         return {
             ...savedSettings,
+            snowflakeConfigured:
+                await this.snowflakeAgentClientResolver.isConfigured(
+                    organizationUuid,
+                ),
             rules: await this.organizationAgentIdentityRulesModel.list(
                 organizationUuid,
             ),
@@ -522,7 +632,7 @@ export class AiAccessService extends BaseService {
             warehouseType === WarehouseTypes.SNOWFLAKE &&
             rule.source === 'agent_sign_in'
         ) {
-            this.assertSnowflakeAgentConfigured();
+            await this.assertSnowflakeAgentConfigured(organizationUuid);
         }
         const { previousSource, changed } =
             await this.organizationAgentIdentityRulesModel.set(
@@ -873,6 +983,10 @@ export class AiAccessService extends BaseService {
         context: QueryExecutionContext;
     }): void {
         this.logger.info('Agent query', {
+            inheritedFromProjectUuid:
+                plan.identity === 'ai_service_account'
+                    ? plan.inheritedFromProjectUuid
+                    : null,
             queryUuid,
             projectUuid,
             warehouseConnectionUuid,
@@ -972,7 +1086,9 @@ export class AiAccessService extends BaseService {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
             );
-        const configurationError = provider.configurationError();
+        const configurationError = await provider.configurationError(
+            args.organizationUuid,
+        );
         if (configurationError)
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
@@ -1015,6 +1131,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1026,6 +1143,7 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
                 settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
         }
@@ -1055,6 +1173,7 @@ export class AiAccessService extends BaseService {
             | 'isServiceAccount'
         > & { warehouseType: WarehouseTypes },
         reason: AiAccessRefusalReason,
+        inheritedFromProjectUuid: string | null = null,
     ): void {
         if (args.evaluation.kind === 'query') {
             const userId = this.analyticsUserId(args);
@@ -1070,6 +1189,7 @@ export class AiAccessService extends BaseService {
                 surface: args.evaluation.surface,
                 warehouseType: args.warehouseType,
                 reason,
+                inheritedFromProjectUuid,
                 actor:
                     args.agentActor !== undefined
                         ? args.agentActor
@@ -1108,11 +1228,13 @@ export class AiAccessService extends BaseService {
         args: AccessArgs,
         error: AiAccessRefusedError,
         level: 'warn' | 'debug' = 'warn',
+        inheritedFromProjectUuid: string | null = null,
     ): void {
         const sessionCheckError =
             error.cause instanceof AgentSessionCheckError ? error.cause : null;
         const cause = sessionCheckError?.cause ?? error.cause;
         this.logger[level]('AI access query refused', {
+            inheritedFromProjectUuid,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             userUuid: args.userUuid,
@@ -1167,6 +1289,15 @@ export class AiAccessService extends BaseService {
         };
     }
 
+    private get slotResolver() {
+        return new AiServiceAccountSlotResolver({
+            projectModel: this.projectModel,
+            warehouseConnectionModel: this.warehouseConnectionModel,
+            aiServiceAccountCredentialsModel:
+                this.aiServiceAccountCredentialsModel,
+        });
+    }
+
     private async resolveEnabledPlan(
         args: ResolvePlanArgs,
     ): Promise<AiExecutionPlan> {
@@ -1175,6 +1306,7 @@ export class AiAccessService extends BaseService {
             args.connection.type,
             this.actorKind(args),
         );
+        let inheritedFromProjectUuid: string | null = null;
         try {
             if (rule.source === 'marked_person')
                 return await this.markedPlan(args);
@@ -1186,15 +1318,20 @@ export class AiAccessService extends BaseService {
             if (rule.source === 'ai_service_account') {
                 let saved;
                 try {
-                    saved =
-                        await this.aiServiceAccountCredentialsModel.getSecrets(
-                            args.projectUuid,
-                            args.warehouseConnectionUuid,
-                            true,
-                        );
-                } catch {
+                    saved = await this.slotResolver.resolve({
+                        projectUuid: args.projectUuid,
+                        connection: args.warehouseConnectionUuid,
+                    });
+                    inheritedFromProjectUuid = saved?.inherited
+                        ? saved.sourceProjectUuid
+                        : null;
+                } catch (error) {
+                    if (error instanceof AiServiceAccountSlotResolutionError)
+                        inheritedFromProjectUuid =
+                            error.inheritedFromProjectUuid;
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 if (saved === null) {
@@ -1204,19 +1341,34 @@ export class AiAccessService extends BaseService {
                 }
                 let credentials;
                 try {
-                    credentials = applyAiServiceAccountCredentials(
-                        args.connection,
-                        saved.secrets,
-                    );
+                    credentials = await resolveAiServiceAccountCredentials({
+                        connection: args.connection,
+                        stored: saved.slot.secrets,
+                        owner: {
+                            kind: 'aiServiceAccount',
+                            uuid: saved.slot.slot.uuid,
+                            identityUuid: saved.slot.slot.identityUuid,
+                            sourceProjectUuid: saved.sourceProjectUuid,
+                        },
+                        context: connectionContextFromUser(args, {
+                            organizationUuid: args.organizationUuid,
+                            queryContext: args.context,
+                        }),
+                        projectUuid: args.projectUuid,
+                        warehouseConnectionUuid: args.warehouseConnectionUuid,
+                    });
                 } catch {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        { inheritedFromProjectUuid },
                     );
                 }
                 return {
                     identity: 'ai_service_account',
-                    identityUuid: saved.slot.identityUuid,
-                    credentialUuid: saved.slot.uuid,
+                    sourceProjectUuid: saved.sourceProjectUuid,
+                    inheritedFromProjectUuid,
+                    identityUuid: saved.slot.slot.identityUuid,
+                    credentialUuid: saved.slot.slot.uuid,
                     credentials,
                     assurances: [
                         {
@@ -1230,7 +1382,7 @@ export class AiAccessService extends BaseService {
                         actorKind: this.actorKind(args),
                         personUuid: args.userUuid,
                         userUuid: args.userUuid,
-                        principalRef: saved.slot.uuid,
+                        principalRef: saved.slot.slot.uuid,
                         queryTags: { [AI_AGENT_TAG]: 'true' },
                     },
                 };
@@ -1253,7 +1405,11 @@ export class AiAccessService extends BaseService {
                     connection: args.connection,
                     organizationUuid: args.organizationUuid,
                     evaluationKind: args.evaluation.kind,
-                    person: { userUuid: args.userUuid, email },
+                    person: {
+                        organizationUuid: args.organizationUuid,
+                        userUuid: args.userUuid,
+                        email,
+                    },
                     silentRefresh: await this.isSilentRefreshEnabled(
                         args,
                         provider.warehouseType,
@@ -1297,10 +1453,12 @@ export class AiAccessService extends BaseService {
                     args,
                     refusalError,
                     args.evaluation.kind === 'diagnostic' ? 'debug' : 'warn',
+                    inheritedFromProjectUuid,
                 );
                 this.trackQueryRefusal(
                     { ...args, warehouseType: args.connection.type },
                     refusalError.refusal.reason,
+                    inheritedFromProjectUuid,
                 );
                 throw refusalError;
             }
@@ -1635,6 +1793,9 @@ export class AiAccessService extends BaseService {
                             isServiceAccount: account.isServiceAccount(),
                         },
                         AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        plan.identity === 'ai_service_account'
+                            ? plan.inheritedFromProjectUuid
+                            : null,
                     );
                     throw refuse(uuid, 'credential_generation_mismatch');
                 }
@@ -1678,6 +1839,9 @@ export class AiAccessService extends BaseService {
                         isServiceAccount: account.isServiceAccount(),
                     },
                     AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    plan.identity === 'ai_service_account'
+                        ? plan.inheritedFromProjectUuid
+                        : null,
                 );
                 throw refuse(uuid, 'source_generation_mismatch');
             }
@@ -1739,11 +1903,11 @@ export class AiAccessService extends BaseService {
                 case 'ai_service_account': {
                     result.identity = 'ai_service_account';
                     result.principalKind = 'service_account';
-                    const slot =
-                        await this.aiServiceAccountCredentialsModel.getSlot(
-                            args.projectUuid,
-                            args.warehouseConnectionUuid,
-                        );
+                    const resolved = await this.slotResolver.resolveMetadata({
+                        projectUuid: args.projectUuid,
+                        connection: args.warehouseConnectionUuid,
+                    });
+                    const slot = resolved?.slot ?? null;
                     if (slot === null) {
                         throw new AiAccessRefusedError(
                             AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
@@ -1771,7 +1935,11 @@ export class AiAccessService extends BaseService {
                         );
                     const missing = await provider.missingPrerequisite({
                         connection: args.connection,
-                        person: { userUuid: args.userUuid, email },
+                        person: {
+                            organizationUuid: args.organizationUuid,
+                            userUuid: args.userUuid,
+                            email,
+                        },
                         silentRefresh: await this.isSilentRefreshEnabled(
                             args,
                             provider.warehouseType,
@@ -1804,7 +1972,12 @@ export class AiAccessService extends BaseService {
                 args.projectUuid,
                 AgentIdentityConnectEntryPoint.UNKNOWN,
             );
-            this.logRefusal(args, refusalError, 'debug');
+            this.logRefusal(
+                args,
+                refusalError,
+                'debug',
+                refusalError.inheritedFromProjectUuid,
+            );
             result.refusal = refusalError.refusal;
         }
         return result;

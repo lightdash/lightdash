@@ -27,9 +27,11 @@ const pickedModel: AiAgentModelConfig = {
 const buildService = ({
     agentModelConfig,
     organizationModelConfig,
+    threadModelConfig = null,
 }: {
     agentModelConfig: AiAgentModelConfig | null;
     organizationModelConfig: AiAgentModelConfig | null;
+    threadModelConfig?: AiAgentModelConfig | null;
 }) => {
     const createPrompt = vi.fn(
         async (_args: { modelConfig: AiAgentModelConfig | null }) => promptUuid,
@@ -46,6 +48,10 @@ const buildService = ({
             createSlackThread: vi.fn(async () => threadUuid),
             createSlackPrompt: createPrompt,
             existsSlackPromptByChannelIdAndPromptTs: vi.fn(async () => false),
+            findThreadUuidBySlackChannelIdAndThreadTs: vi.fn(
+                async () => threadUuid,
+            ),
+            findThreadModelConfig: vi.fn(async () => threadModelConfig),
             getThread: vi.fn(async () => ({
                 uuid: threadUuid,
                 user: { uuid: userUuid },
@@ -183,6 +189,75 @@ describe.each(Object.entries(sendOnEachPath))(
                 modelProvider: 'anthropic',
                 modelName: 'claude-sonnet-5-5',
             });
+        });
+    },
+);
+
+const threadModel: AiAgentModelConfig = {
+    modelProvider: 'anthropic',
+    modelName: 'thread-model',
+};
+
+const followUpOnEachPath = {
+    'web app follow-up': sendOnEachPath['follow-up'],
+    'Slack follow-up': (
+        service: AiAgentService,
+        modelConfig: AiAgentModelConfig | undefined,
+    ) =>
+        service.createSlackPrompt({
+            userUuid,
+            projectUuid,
+            slackUserId: 'slack-user',
+            slackChannelId: 'slack-channel',
+            slackThreadTs: '1700000000.000001',
+            prompt: 'hi',
+            promptSlackTs: '1700000000.000100',
+            agentUuid,
+            modelConfig,
+        }),
+};
+
+describe.each(Object.entries(followUpOnEachPath))(
+    'thread model on %s',
+    (_, send) => {
+        it("keeps the thread's model when the user picked another one", async () => {
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: threadModel,
+            });
+
+            await send(service, pickedModel);
+
+            expect(storedModelConfig()).toEqual(threadModel);
+        });
+
+        it("keeps the thread's model after the agent moved to another model", async () => {
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: threadModel,
+            });
+
+            await send(service, undefined);
+
+            expect(storedModelConfig()).toEqual(threadModel);
+        });
+
+        it("keeps the thread's model when it is deprecated", async () => {
+            const deprecatedModel: AiAgentModelConfig = {
+                modelProvider: 'anthropic',
+                modelName: 'claude-sonnet-5',
+            };
+            const { service, storedModelConfig } = buildService({
+                agentModelConfig: agentModel,
+                organizationModelConfig: organizationModel,
+                threadModelConfig: deprecatedModel,
+            });
+
+            await send(service, undefined);
+
+            expect(storedModelConfig()).toEqual(deprecatedModel);
         });
     },
 );

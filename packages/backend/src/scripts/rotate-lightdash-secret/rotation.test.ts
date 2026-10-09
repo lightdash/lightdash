@@ -49,10 +49,11 @@ afterEach(() => {
 });
 
 describe('ciphertext registry', () => {
-    test('contains the full 26-field inventory', () => {
+    test('contains the full 29-field inventory', () => {
         expect(
             CIPHERTEXT_REGISTRY.map((e) => `${e.table}.${e.column}`),
         ).toEqual([
+            'organization_snowflake_agent_clients.encrypted_client_secret',
             'ai_service_account_credentials.encrypted_credentials',
             'projects.dbt_connection',
             'warehouse_credentials.encrypted_credentials',

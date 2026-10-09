@@ -78,12 +78,15 @@ export class FeatureNotEnabledError extends ForbiddenError {
 export class AiAccessRefusedError extends ForbiddenError {
     readonly refusal: AiAccessRefusal;
 
+    readonly inheritedFromProjectUuid: string | null;
+
     constructor(
         reason: AiAccessRefusalReason,
         options: {
             message?: string;
             settingsUrl?: string | null;
             connectUrl?: string | null;
+            inheritedFromProjectUuid?: string | null;
         } = {},
     ) {
         const refusal: AiAccessRefusal = {
@@ -96,6 +99,8 @@ export class AiAccessRefusedError extends ForbiddenError {
         };
         super(refusal.message, refusal);
         this.refusal = refusal;
+        this.inheritedFromProjectUuid =
+            options.inheritedFromProjectUuid ?? null;
     }
 }
 

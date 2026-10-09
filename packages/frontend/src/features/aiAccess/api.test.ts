@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderHookWithProviders } from '../../testing/testUtils';
-import { aiAccessApi, useOrganizationAgentIdentitySettings } from './api';
+import {
+    aiAccessApi,
+    useAiServiceAccount,
+    useOrganizationAgentIdentitySettings,
+} from './api';
 
 let flagEnabled: boolean | undefined = false;
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -70,5 +74,35 @@ describe('Organization agent identity request gating', () => {
                 body: undefined,
             }),
         );
+    });
+});
+
+describe('AI service account status', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockedLightdashApi.mockResolvedValue({});
+    });
+    it('retains parent metadata when there is no own slot', async () => {
+        flagEnabled = true;
+        const status = {
+            status: 'ok' as const,
+            results: null,
+            parent: {
+                projectUuid: 'parent',
+                projectName: null,
+                principal: 'agent@example.test',
+            },
+        };
+        mockedLightdashApi.response.mockResolvedValue(status);
+        const { result } = renderHookWithProviders(() =>
+            useAiServiceAccount('preview'),
+        );
+        await waitFor(() => expect(result.current.data).toEqual(status));
+        expect(sharedLightdashApi.response).toHaveBeenCalledExactlyOnceWith({
+            version: 'v2',
+            url: '/projects/preview/ai-access/service-account',
+            method: 'GET',
+            body: undefined,
+        });
     });
 });

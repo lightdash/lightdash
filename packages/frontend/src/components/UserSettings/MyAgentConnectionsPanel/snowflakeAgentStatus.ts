@@ -1,4 +1,4 @@
-import { type UserWarehouseCredentials } from '@lightdash/common';
+import { type UserWarehouseCredentialsWithAgentStatus } from '@lightdash/common';
 
 export type SnowflakeAgentStatus =
     | 'unavailable'
@@ -8,7 +8,7 @@ export type SnowflakeAgentStatus =
     | 'failing';
 
 export const getSnowflakeAgentStatus = (
-    credential: UserWarehouseCredentials | null,
+    credential: UserWarehouseCredentialsWithAgentStatus | null,
     hasLoginError: boolean,
     now: number,
     snowflakeConfigured: boolean,
@@ -17,6 +17,7 @@ export const getSnowflakeAgentStatus = (
     if (!snowflakeConfigured) return 'unavailable';
     if (hasLoginError) return 'failing';
     if (!credential) return 'not_connected';
+    if (credential.agentClientCurrent === false) return 'expired';
     if (
         !silentRefreshEnabled &&
         credential.expiresAt &&

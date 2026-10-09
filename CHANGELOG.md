@@ -1,3 +1,38 @@
+# [2.521.0](https://github.com/lightdash/lightdash/compare/2.520.0...2.521.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** resolve the AI service account through a credential resolver ([#30834](https://github.com/lightdash/lightdash/issues/30834)) ([50f8bae](https://github.com/lightdash/lightdash/commit/50f8bae0cbc4eb099f724c253606fda03304f5ce))
+
+# [2.520.0](https://github.com/lightdash/lightdash/compare/2.519.0...2.520.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** preview projects use the parent project's AI service account ([#30830](https://github.com/lightdash/lightdash/issues/30830)) ([d082aca](https://github.com/lightdash/lightdash/commit/d082aca86af36e5814b00f413f0fdd0337de690f))
+
+# [2.519.0](https://github.com/lightdash/lightdash/compare/2.518.1...2.519.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** organisation admins paste the Snowflake agent OAuth client in settings ([#30831](https://github.com/lightdash/lightdash/issues/30831)) ([2008240](https://github.com/lightdash/lightdash/commit/2008240b4fe207fdd225627a76c5713a0fc2db74))
+
+## [2.518.1](https://github.com/lightdash/lightdash/compare/2.518.0...2.518.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** a thread keeps its model and warns when that model is deprecated ([#30829](https://github.com/lightdash/lightdash/issues/30829)) ([7fc7b0a](https://github.com/lightdash/lightdash/commit/7fc7b0a4f2bdcd995f17d088eb99ec79e79ab866))
+
+# [2.518.0](https://github.com/lightdash/lightdash/compare/2.517.0...2.518.0) (2026-10-09)
+
+
+### Features
+
+* **embed:** add SDK onEvent callback for embed events ([#30828](https://github.com/lightdash/lightdash/issues/30828)) ([b048fec](https://github.com/lightdash/lightdash/commit/b048fec805f9e8fabdf40d5c0bf29fff1d08b340))
+
 # [2.517.0](https://github.com/lightdash/lightdash/compare/2.516.0...2.517.0) (2026-10-09)
 
 

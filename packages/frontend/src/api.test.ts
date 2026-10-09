@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     BASE_API_URL,
     createLightdashApi,
-    sharedLightdashApi,
     networkHistory,
+    sharedLightdashApi,
 } from './api';
 import { EMBED_KEY } from './ee/providers/Embed/types';
 import {
@@ -42,6 +42,28 @@ describe('api', () => {
 
         expect(result).toEqual('test');
         expect(scope.isDone()).toBe(true);
+    });
+
+    it('preserves metadata outside results when the full response is requested', async () => {
+        const response = {
+            status: 'ok',
+            results: null,
+            parent: {
+                projectUuid: 'parent',
+                projectName: null,
+                principal: 'agent@example.test',
+            },
+        };
+        const scope = nock(BASE_API_URL)
+            .get('/api/v2/projects/preview/ai-access/service-account')
+            .reply(200, response);
+        const result = await sharedLightdashApi.response({
+            version: 'v2',
+            method: 'GET',
+            url: '/projects/preview/ai-access/service-account',
+        });
+        scope.done();
+        expect(result).toEqual(response);
     });
 
     it('should allow custom headers', async () => {

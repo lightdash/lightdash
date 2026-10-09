@@ -50170,6 +50170,64 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserWarehouseCredentialsWithAgentStatus: {
+        dataType: 'refObject',
+        properties: {
+            project: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'UserWarehouseCredentialsProject' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            credentials: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        ref: 'Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_',
+                    },
+                    {
+                        ref: 'Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_',
+                    },
+                    {
+                        ref: 'Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_',
+                    },
+                    { ref: 'Pick_CreateBigqueryCredentials.type_' },
+                    { ref: 'Pick_CreateDatabricksCredentials.type_' },
+                    {
+                        ref: 'Pick_CreateAthenaCredentials.type-or-accessKeyId_',
+                    },
+                    { ref: 'Pick_CreateDuckdbCredentials.type_' },
+                ],
+                required: true,
+            },
+            expiresAt: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'datetime' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            updatedAt: { dataType: 'datetime', required: true },
+            createdAt: { dataType: 'datetime', required: true },
+            name: { dataType: 'string', required: true },
+            userUuid: { dataType: 'string', required: true },
+            purpose: { ref: 'UserWarehouseCredentialPurpose', required: true },
+            uuid: { dataType: 'string', required: true },
+            agentClientCurrent: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'boolean' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateRedshiftCredentials.type-or-user-or-password_': {
         dataType: 'refAlias',
         type: {
@@ -69666,6 +69724,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                snowflakeConfigured: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -69686,6 +69745,18 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SnowflakeAgentClientSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['organization'] },
+                { dataType: 'enum', enums: ['environment'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationAgentIdentitySnowflakeSetup: {
         dataType: 'refAlias',
         type: {
@@ -69699,6 +69770,48 @@ const models: TsoaRoute.Models = {
                 },
                 integrationSql: { dataType: 'string', required: true },
                 redirectUri: { dataType: 'string', required: true },
+                client: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        updatedAt: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'datetime' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        hasClientSecret: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                        clientId: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        accountUrl: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        source: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'SnowflakeAgentClientSource' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -69714,6 +69827,34 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateOrganizationSnowflakeAgentClientResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'OrganizationAgentIdentitySnowflakeSetup',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateOrganizationSnowflakeAgentClient: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                clientSecret: { dataType: 'string', required: true },
+                clientId: { dataType: 'string', required: true },
+                accountUrl: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -71465,6 +71606,34 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiServiceAccountParent: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                principal: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                identityUuid: { dataType: 'string', required: true },
+                projectName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                projectUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseServiceAuthMethod: {
         dataType: 'refAlias',
         type: {
@@ -71540,6 +71709,30 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiServiceAccountStatusResponse: {
+        dataType: 'refObject',
+        properties: {
+            results: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountSlot' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            parent: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountParent' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+        },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiServiceAccountSlotResponse: {
@@ -136058,6 +136251,70 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getSnowflakeSetup',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationAgentIdentityController_saveSnowflakeAgentClient: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateOrganizationSnowflakeAgentClient',
+        },
+    };
+    app.put(
+        '/api/v2/org/agent-identity/snowflake/client',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationAgentIdentityController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationAgentIdentityController.prototype
+                .saveSnowflakeAgentClient,
+        ),
+
+        async function OrganizationAgentIdentityController_saveSnowflakeAgentClient(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationAgentIdentityController_saveSnowflakeAgentClient,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationAgentIdentityController>(
+                        OrganizationAgentIdentityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'saveSnowflakeAgentClient',
                     controller,
                     response,
                     next,

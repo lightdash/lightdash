@@ -221,6 +221,14 @@ export let networkHistory: AnyType[] = [];
 
 const request = async <T extends ApiResponse['results']>(
     embed: InMemoryEmbed | undefined,
+    props: LightdashApiProps,
+): Promise<T> => {
+    const response = await requestResponse<ApiResponse<T>>(embed, props);
+    return (response.results ?? null) as T;
+};
+
+const requestResponse = async <T extends ApiResponse>(
+    embed: InMemoryEmbed | undefined,
     {
         method,
         url,
@@ -295,9 +303,7 @@ const request = async <T extends ApiResponse['results']>(
         .then((d: ApiResponse | ApiError) => {
             switch (d.status) {
                 case 'ok':
-                    // make sure we return null instead of undefined
-                    // otherwise react-query will crash
-                    return (d.results ?? null) as T;
+                    return d as T;
                 case 'error':
                     throw d;
                 default:
@@ -400,6 +406,8 @@ const requestStream = (
 
 export type LightdashApi = {
     <T extends ApiResponse['results']>(props: LightdashApiProps): Promise<T>;
+    // The whole response envelope, for endpoints that return more than results
+    response: <T extends ApiResponse>(props: LightdashApiProps) => Promise<T>;
     stream: (props: LightdashApiProps) => Promise<Response>;
     getResultsFromStream: <T>(url: string | undefined) => Promise<T[]>;
 };
@@ -412,6 +420,8 @@ export const createLightdashApi = (
         <T extends ApiResponse['results']>(props: LightdashApiProps) =>
             request<T>(getEmbed(), props),
         {
+            response: <T extends ApiResponse>(props: LightdashApiProps) =>
+                requestResponse<T>(getEmbed(), props),
             stream: (props: LightdashApiProps) =>
                 requestStream(getEmbed(), props),
             getResultsFromStream: <T>(url: string | undefined) =>

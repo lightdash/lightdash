@@ -14,6 +14,7 @@ import {
     getAiExecutionCredentialUuid,
     NotFoundError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
@@ -28,10 +29,10 @@ import {
     type QueryHistory,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
+import { snowflakeOAuthRefreshClient as refresh } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -44,6 +45,7 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type QueryHistoryModel,
@@ -53,6 +55,10 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { sessionUser } from '../UserService.mock';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../WarehouseClientFactory/CredentialResolver';
 import { agentExecutionContext } from './agentExecutionContext';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import {
@@ -69,6 +75,7 @@ import {
 } from './providers/AiCredentialProvider';
 import { createAiCredentialProviderRegistry } from './providers/registry';
 import { SnowflakeAiCredentialProvider } from './providers/SnowflakeAiCredentialProvider';
+import { snowflakeAgentClientMock } from './SnowflakeAgentClientResolver.mock';
 
 const connection: CreateWarehouseCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -117,7 +124,7 @@ const viewer = {
 const setup = (agentResultIdentityCheckEnabled = true) => {
     const provider = {
         warehouseType: WarehouseTypes.SNOWFLAKE,
-        configurationError: vi.fn((): string | null => null),
+        configurationError: vi.fn(async (): Promise<string | null> => null),
         missingPrerequisite: vi.fn(
             async (): Promise<AiAccessRefusalReason | null> => null,
         ),
@@ -144,13 +151,17 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         getAllByOrganizationUuid: vi.fn(async () => [
             { projectUuid: 'project', warehouseType: WarehouseTypes.SNOWFLAKE },
         ]),
-        getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
+        getSummary: vi.fn(async (_uuid: string) => ({
+            organizationUuid: 'org',
+        })),
         getWarehouseCredentialsForBinding: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
     };
     const connections = {
         getProject: vi.fn(async () => ({ projectUuid: 'project' })),
+        get: vi.fn().mockResolvedValue({ isOriginal: false }),
+        list: vi.fn().mockResolvedValue([]),
         getCredentials: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
@@ -230,7 +241,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         ),
         getSecrets: vi
             .fn<
-                () => Promise<{
+                (uuid: string) => Promise<{
                     slot: AiServiceAccountSlot;
                     secrets: AiServiceAccountSecrets;
                 } | null>
@@ -246,6 +257,9 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         })),
     };
     const service = new AiAccessService({
+        organizationSnowflakeAgentClientModel: {
+            getWithSecret: vi.fn().mockResolvedValue(null),
+        } as unknown as OrganizationSnowflakeAgentClientModel,
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
         userWarehouseCredentialsModel:
@@ -594,7 +608,7 @@ describe('AiAccessService', () => {
         ])('tracks %s with exact properties', async (reason) => {
             const { service, provider, analytics } = setup();
             if (reason === AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED) {
-                provider.configurationError.mockReturnValue(
+                provider.configurationError.mockResolvedValue(
                     'private configuration',
                 );
             } else if (reason === AiAccessRefusalReason.PRINCIPAL_FAILED) {
@@ -630,6 +644,7 @@ describe('AiAccessService', () => {
                     : { userId: 'user' }),
                 event: 'query.refused',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     ...properties,
                     userId: anonymous ? null : 'user',
                     reason,
@@ -685,6 +700,7 @@ describe('AiAccessService', () => {
                 userId: 'user',
                 event: 'query.refused',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     ...properties,
                     warehouseConnectionId: 'extra',
                     surface: QuerySurface.SLACK,
@@ -1099,7 +1115,11 @@ describe('AiAccessService', () => {
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
                 silentRefresh: true,
                 connection: snowflake,
-                person: { userUuid: 'user', email: user.email },
+                person: {
+                    organizationUuid: 'org',
+                    userUuid: 'user',
+                    email: user.email,
+                },
             });
         });
 
@@ -1267,6 +1287,7 @@ describe('AiAccessService', () => {
                             warehouseConnectionUuid: 'extra',
                         }),
                         AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        null,
                     );
                 } else {
                     await expect(reading).resolves.toMatchObject({
@@ -2018,7 +2039,11 @@ describe('AiAccessService', () => {
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
             expect.objectContaining({
-                person: { userUuid: 'user', email: 'a.b+tag@example.test' },
+                person: {
+                    organizationUuid: 'org',
+                    userUuid: 'user',
+                    email: 'a.b+tag@example.test',
+                },
             }),
         );
         expect(provider.mint).not.toHaveBeenCalled();
@@ -2057,6 +2082,9 @@ describe('AiAccessService', () => {
     });
     test('registers Snowflake', () => {
         const registry = createAiCredentialProviderRegistry({
+            snowflakeAgentClientResolver: {
+                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
+            },
             lightdashConfig: lightdashConfigMock,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         });
@@ -2109,6 +2137,7 @@ describe('AiAccessService', () => {
                 context: QueryExecutionContext.AI,
             });
             expect(info).toHaveBeenCalledExactlyOnceWith('Agent query', {
+                inheritedFromProjectUuid: null,
                 actorSurface: null,
                 actorClientId: null,
                 queryUuid: 'query',
@@ -2198,6 +2227,9 @@ describe('AiAccessService', () => {
     });
     test('does not register separate-principal providers', () => {
         const registry = createAiCredentialProviderRegistry({
+            snowflakeAgentClientResolver: {
+                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
+            },
             lightdashConfig: lightdashConfigMock,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         });
@@ -2276,6 +2308,7 @@ describe('organization agent identity rules', () => {
             requireVerifiedAgentSessions: false,
         });
         expect(await service.getOrganizationSettings(member)).toEqual({
+            snowflakeConfigured: true,
             requireVerifiedAgentSessions: false,
             rules: [
                 {
@@ -2442,7 +2475,11 @@ describe('organization agent identity rules', () => {
                 await service.updateOrganizationSettings(admin, {
                     requireVerifiedAgentSessions: required,
                 }),
-            ).toEqual({ requireVerifiedAgentSessions: required, rules });
+            ).toEqual({
+                requireVerifiedAgentSessions: required,
+                snowflakeConfigured: true,
+                rules,
+            });
             expect(organizationSettings.upsert).toHaveBeenCalledWith(
                 admin.organization.organizationUuid,
                 { requireVerifiedAgentSessions: required },
@@ -2725,6 +2762,7 @@ describe('per-type execution identity resolution', () => {
                         ? { userId: 'user' }
                         : { anonymousId: LightdashAnalytics.anonymousId }),
                     properties: {
+                        inheritedFromProjectUuid: null,
                         actor: {
                             surface: 'in_app_agent',
                             clientId: 'lightdash-chat',
@@ -2915,6 +2953,7 @@ describe('per-type execution identity resolution', () => {
                 event: 'query.refused',
                 userId: 'user',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     organizationId: 'org',
                     projectId: 'project',
                     userId: 'user',
@@ -4228,6 +4267,11 @@ describe('silent refresh routing', () => {
             };
             registry.mockReturnValue(
                 new SnowflakeAiCredentialProvider({
+                    snowflakeAgentClientResolver: {
+                        resolve: vi
+                            .fn()
+                            .mockResolvedValue(snowflakeAgentClientMock),
+                    },
                     lightdashConfig: {
                         ...lightdashConfigMock,
                         auth: {
@@ -4338,4 +4382,133 @@ describe('silent refresh routing', () => {
             );
         },
     );
+});
+
+describe('preview AI service account inheritance', () => {
+    const previewSetup = () => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        f.projects.getSummary.mockImplementation(async (uuid: string) => ({
+            organizationUuid: 'org',
+            type:
+                uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+            upstreamProjectUuid: uuid === 'project' ? 'parent' : undefined,
+        }));
+        f.projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+            bigquery,
+        );
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { slot: { ...slot, projectUuid: 'parent' }, secrets }
+                : null,
+        );
+        return f;
+    };
+    test('carries parent generation and keeps preview settings and actor', async () => {
+        const f = previewSetup();
+        expect(
+            await f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).toMatchObject({
+            identity: 'ai_service_account',
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: {
+                project: bigquery.project,
+                dataset: bigquery.dataset,
+                keyfileContents: secrets.keyfileContents,
+            },
+            audit: { personUuid: args.userUuid },
+        });
+    });
+    test('attributes an unreadable parent key refusal to the parent', async () => {
+        const f = previewSetup();
+        f.slots.getSecrets
+            .mockResolvedValueOnce(null)
+            .mockRejectedValueOnce(new Error('broken parent key'));
+        await expect(
+            f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).rejects.toMatchObject({
+            inheritedFromProjectUuid: 'parent',
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.refused',
+                properties: expect.objectContaining({
+                    projectId: 'project',
+                    inheritedFromProjectUuid: 'parent',
+                }),
+            }),
+        );
+    });
+    test('reports inherited slot metadata without decrypting', async () => {
+        const f = previewSetup();
+        f.slots.getSlot.mockResolvedValueOnce(null).mockResolvedValueOnce(slot);
+        expect(
+            await f.service.getAiAccessForUser({
+                ...args,
+                connection: bigquery,
+            }),
+        ).toMatchObject({ identity: 'ai_service_account', refusal: null });
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        expect(f.slots.getSlot).toHaveBeenLastCalledWith('parent', null);
+    });
+    test('does not resolve inherited credentials when the flag is off', async () => {
+        const f = previewSetup();
+        f.flags.get.mockResolvedValue({ enabled: false });
+        expect(
+            await f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).toBeNull();
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+    });
+    test('compares stored lineage with the current parent generation', async () => {
+        const f = previewSetup();
+        const history = {
+            queryUuid: 'query',
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+        } as QueryHistory;
+        expect(
+            await f.service.assertCanReadResults(account, 'project', history),
+        ).toMatchObject({
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+        });
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { slot: { ...slot, identityUuid: 'replaced' }, secrets }
+                : null,
+        );
+        await expect(
+            f.service.assertCanReadResults(account, 'project', history),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            },
+        });
+    });
+});
+
+it('materializes the plan with the slot row, generation and source project', async () => {
+    const f = setup();
+    f.organizationRules.get.mockResolvedValue({ source: 'ai_service_account' });
+    f.slots.getSecrets.mockResolvedValue({ slot, secrets });
+    const plan = await f.service.resolvePlan({ ...args, connection: bigquery });
+    if (plan?.identity !== 'ai_service_account') {
+        throw new Error('Expected an AI service account plan');
+    }
+    const credentials = plan.credentials as MaterializedCredentials;
+    expect(credentials[credentialResolution]?.cacheKeyIdentity).toEqual([
+        'ai-service-account-v1',
+        WarehouseTypes.BIGQUERY,
+        slot.uuid,
+        slot.identityUuid,
+        args.projectUuid,
+    ]);
 });

@@ -53,6 +53,8 @@ export const aiServiceAccountPlanMock: Extract<
     { identity: 'ai_service_account' }
 > = {
     identity: 'ai_service_account',
+    sourceProjectUuid: 'project',
+    inheritedFromProjectUuid: null,
     identityUuid: 'slot-generation',
     credentialUuid: 'slot-row',
     credentials: {

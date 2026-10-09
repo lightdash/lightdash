@@ -4,8 +4,11 @@ import {
     ApiOrganizationAgentIdentityRuleResponse,
     ApiOrganizationAgentIdentitySnowflakeSetupResponse,
     ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
+    ApiUpdateOrganizationSnowflakeAgentClientResponse,
+    assertRegisteredAccount,
     OrganizationAgentIdentitySettings,
     UpdateOrganizationAgentIdentityRule,
+    UpdateOrganizationSnowflakeAgentClient,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -60,6 +63,26 @@ export class OrganizationAgentIdentityController extends BaseController {
             results: await this.services
                 .getAiAccessService()
                 .getSnowflakeSetup(req.account!),
+        };
+    }
+
+    /**
+     * Saves the organization's Snowflake agent OAuth client.
+     * @summary Save Snowflake client
+     */
+    @Put('/snowflake/client')
+    @OperationId('updateOrganizationSnowflakeAgentClient')
+    @SuccessResponse('200', 'Success')
+    async saveSnowflakeAgentClient(
+        @Request() req: express.Request,
+        @Body() body: UpdateOrganizationSnowflakeAgentClient,
+    ): Promise<ApiUpdateOrganizationSnowflakeAgentClientResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .saveSnowflakeAgentClient(req.account, body),
         };
     }
 

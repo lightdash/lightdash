@@ -10,6 +10,7 @@ import {
     startStub,
     type SnowflakeAiStub,
 } from '../../../../../api-tests/stub/snowflake-ai-stub';
+import { snowflakeAgentClientMock } from '../../../services/AiAccessService/SnowflakeAgentClientResolver.mock';
 
 const settings = vi.hoisted(() => ({ url: '' }));
 vi.mock('../../../config/lightdashConfig', async () => {
@@ -34,9 +35,18 @@ vi.mock('../../../config/lightdashConfig', async () => {
     };
 });
 
-type Strategy = NonNullable<
-    (typeof import('./snowflakeAiStrategy'))['snowflakeAiPassportStrategy']
+type Strategy = ReturnType<
+    (typeof import('./snowflakeAiStrategy'))['createSnowflakeAiPassportStrategy']
 >;
+const resolvedClient = () => ({
+    ...snowflakeAgentClientMock,
+    account: 'stub',
+    clientId: 'stub-client',
+    clientSecret: 'stub-secret',
+    accessUrl: settings.url,
+    authorizationEndpoint: `${settings.url}/oauth/authorize`,
+    tokenEndpoint: `${settings.url}/oauth/token-request`,
+});
 
 describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
     let stub: SnowflakeAiStub;
@@ -45,11 +55,19 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
         vi.unstubAllGlobals();
         stub = await startStub();
         settings.url = stub.url;
-        strategy = (await import('./snowflakeAiStrategy'))
-            .snowflakeAiPassportStrategy!;
+        const { AiAccessService } =
+            await import('../../../services/AiAccessService/AiAccessService');
+        vi.spyOn(
+            AiAccessService.prototype,
+            'resolveSnowflakeAgentClient',
+        ).mockImplementation(async () => resolvedClient());
+        strategy = (
+            await import('./snowflakeAiStrategy')
+        ).createSnowflakeAiPassportStrategy(resolvedClient());
     });
     afterAll(async () => {
         await stub?.close();
+        vi.restoreAllMocks();
     });
 
     const signIn = async (code?: string) => {
@@ -89,7 +107,11 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
                 session,
                 user,
                 services: {
-                    getAiAccessService: () => ({ assertFeatureEnabled }),
+                    getAiAccessService: () => ({
+                        assertFeatureEnabled,
+                        resolveSnowflakeAgentClient: async () =>
+                            resolvedClient(),
+                    }),
                     getUserService: () => ({ upsertAiSnowflakeCredential }),
                 },
             });
@@ -343,6 +365,7 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
             result.user,
             expect.stringMatching(/^refresh-/),
             expect.any(Date),
+            { organizationUuid: 'org-uuid', clientVersion: null },
         );
         const expiresAt = result.upsertAiSnowflakeCredential.mock.calls[0][2]!;
         expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 7776000000);

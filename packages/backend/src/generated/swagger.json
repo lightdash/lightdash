@@ -48499,6 +48499,86 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "UserWarehouseCredentialsWithAgentStatus": {
+                "properties": {
+                    "project": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/UserWarehouseCredentialsProject"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "credentials": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-authenticationType_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateDuckdbCredentials.type_"
+                            }
+                        ]
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "purpose": {
+                        "$ref": "#/components/schemas/UserWarehouseCredentialPurpose"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "agentClientCurrent": {
+                        "type": "boolean",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "project",
+                    "credentials",
+                    "expiresAt",
+                    "updatedAt",
+                    "createdAt",
+                    "name",
+                    "userUuid",
+                    "purpose",
+                    "uuid",
+                    "agentClientCurrent"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "Pick_CreateRedshiftCredentials.type-or-user-or-password_": {
                 "properties": {
                     "type": {
@@ -68129,9 +68209,16 @@
                     },
                     "requireVerifiedAgentSessions": {
                         "type": "boolean"
+                    },
+                    "snowflakeConfigured": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["rules", "requireVerifiedAgentSessions"],
+                "required": [
+                    "rules",
+                    "requireVerifiedAgentSessions",
+                    "snowflakeConfigured"
+                ],
                 "type": "object"
             },
             "ApiOrganizationAgentIdentityOverviewResponse": {
@@ -68147,6 +68234,10 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "SnowflakeAgentClientSource": {
+                "type": "string",
+                "enum": ["organization", "environment"]
             },
             "OrganizationAgentIdentitySnowflakeSetup": {
                 "properties": {
@@ -68164,13 +68255,50 @@
                     },
                     "redirectUri": {
                         "type": "string"
+                    },
+                    "client": {
+                        "properties": {
+                            "updatedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            },
+                            "clientId": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "accountUrl": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "source": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SnowflakeAgentClientSource"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": [
+                            "updatedAt",
+                            "hasClientSecret",
+                            "clientId",
+                            "accountUrl",
+                            "source"
+                        ],
+                        "type": "object"
                     }
                 },
                 "required": [
                     "configured",
                     "missingSettings",
                     "integrationSql",
-                    "redirectUri"
+                    "redirectUri",
+                    "client"
                 ],
                 "type": "object"
             },
@@ -68186,6 +68314,35 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpdateOrganizationSnowflakeAgentClientResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySnowflakeSetup"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateOrganizationSnowflakeAgentClient": {
+                "properties": {
+                    "clientSecret": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    },
+                    "accountUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["clientSecret", "clientId", "accountUrl"],
                 "type": "object"
             },
             "OrganizationAgentIdentitySnowflakeVerify": {
@@ -70057,6 +70214,31 @@
                 "type": "string",
                 "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             },
+            "AiServiceAccountParent": {
+                "properties": {
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "identityUuid": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "principal",
+                    "identityUuid",
+                    "projectName",
+                    "projectUuid"
+                ],
+                "type": "object"
+            },
             "WarehouseServiceAuthMethod": {
                 "type": "string",
                 "enum": [
@@ -70138,6 +70320,34 @@
                     "uuid"
                 ],
                 "type": "object"
+            },
+            "ApiAiServiceAccountStatusResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountSlot"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "parent": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountParent"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["results", "status", "parent"],
+                "type": "object",
+                "additionalProperties": true
             },
             "ApiAiServiceAccountSlotResponse": {
                 "properties": {
@@ -70781,7 +70991,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.517.0",
+        "version": "2.521.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -89766,7 +89976,7 @@
                                     "properties": {
                                         "results": {
                                             "items": {
-                                                "$ref": "#/components/schemas/UserWarehouseCredentials"
+                                                "$ref": "#/components/schemas/UserWarehouseCredentialsWithAgentStatus"
                                             },
                                             "type": "array"
                                         },
@@ -112023,6 +112233,48 @@
                 "parameters": []
             }
         },
+        "/api/v2/org/agent-identity/snowflake/client": {
+            "put": {
+                "operationId": "updateOrganizationSnowflakeAgentClient",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpdateOrganizationSnowflakeAgentClientResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Saves the organization's Snowflake agent OAuth client.",
+                "summary": "Save Snowflake client",
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationSnowflakeAgentClient"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/org/agent-identity/snowflake/verify": {
             "post": {
                 "operationId": "verifyOrganizationAgentIdentitySnowflakeSetup",
@@ -113906,7 +114158,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountStatusResponse"
                                 }
                             }
                         }

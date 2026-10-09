@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
@@ -13,6 +14,11 @@ import {
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
+import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../WarehouseClientFactory/CredentialResolver';
 import { AiServiceAccountService } from './AiServiceAccountService';
 
 const secrets = {
@@ -50,7 +56,10 @@ const setup = () => {
             uuid: 'slot',
             identityUuid: 'generation-before',
         }),
-        getSecrets: vi.fn().mockResolvedValue(secrets),
+        getSecrets: vi.fn().mockResolvedValue({
+            slot: { uuid: 'slot', identityUuid: 'generation-before' },
+            secrets,
+        }),
         getReplaceableSecrets: vi.fn().mockResolvedValue(secrets),
         upsert: vi.fn().mockResolvedValue({
             uuid: 'slot',
@@ -73,15 +82,16 @@ const setup = () => {
         callback({ warehouseClient: { runQuery } }),
     );
     const analytics = { track: vi.fn<LightdashAnalytics['track']>() };
+    const getSummary = vi.fn().mockResolvedValue({
+        organizationUuid: account.organization.organizationUuid,
+        name: 'Original warehouse',
+    });
     const service = new AiServiceAccountService({
         analytics,
         aiServiceAccountCredentialsModel: model,
         featureFlagModel: { get: flag },
         projectModel: {
-            getSummary: vi.fn().mockResolvedValue({
-                organizationUuid: account.organization.organizationUuid,
-                name: 'Original warehouse',
-            }),
+            getSummary,
             getWarehouseCredentialsForBinding: load,
         },
         warehouseConnectionModel: {
@@ -105,6 +115,7 @@ const setup = () => {
         runQuery,
         withWarehouseClient,
         service,
+        getSummary,
     };
 };
 
@@ -414,6 +425,7 @@ describe('AI service account analytics', () => {
                     result: 'success',
                     failureReason: null,
                     credentialSource,
+                    inheritedFromProjectUuid: null,
                 },
             });
             expectNoSecrets(f);
@@ -442,6 +454,7 @@ describe('AI service account analytics', () => {
                     result: 'failure',
                     failureReason,
                     credentialSource: 'saved',
+                    inheritedFromProjectUuid: null,
                 },
             });
             expectNoSecrets(f);
@@ -515,6 +528,7 @@ describe('testAccess boundaries', () => {
     });
     it('normalises an original connection UUID before loading the saved key', async () => {
         const f = setup();
+        f.model.getSecrets.mockResolvedValue(secrets);
         f.getConnection.mockResolvedValue({ isOriginal: true });
         await f.service.testAccess(
             f.account,
@@ -758,3 +772,207 @@ it('gets the original slot without resolving its audit name', async () => {
     expect(f.getProject).not.toHaveBeenCalled();
     expect(f.listConnections).not.toHaveBeenCalled();
 });
+
+const previewFixture = () => {
+    const f = setup();
+    f.getSummary.mockImplementation(async (uuid: string) => ({
+        projectUuid: uuid,
+        organizationUuid: f.account.organization.organizationUuid,
+        type: uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+        upstreamProjectUuid: uuid === 'project' ? 'parent' : undefined,
+        name: uuid === 'parent' ? 'Parent project' : 'Preview',
+    }));
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        uuid === 'parent'
+            ? {
+                  slot: {
+                      uuid: 'parent-slot',
+                      identityUuid: 'parent-generation',
+                  },
+                  secrets,
+              }
+            : null,
+    );
+    return f;
+};
+it.each([true, false])(
+    'returns parent principal with parent view=%s without exposing secrets',
+    async (canView) => {
+        const f = previewFixture();
+        f.account.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Project',
+                conditions: { projectUuid: 'project' },
+            },
+            ...(canView
+                ? [
+                      {
+                          action: 'view' as const,
+                          subject: 'Project' as const,
+                          conditions: { projectUuid: 'parent' },
+                      },
+                  ]
+                : []),
+        ]);
+        expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
+            results: { uuid: 'slot', identityUuid: 'generation-before' },
+            parent: {
+                projectUuid: 'parent',
+                projectName: canView ? 'Parent project' : null,
+                identityUuid: 'parent-generation',
+                principal: 'agent@example.com',
+            },
+        });
+    },
+);
+it.each([true, false])(
+    'returns status with an unreadable parent key and own slot=%s',
+    async (hasOwnSlot) => {
+        const f = previewFixture();
+        const ownSlot = hasOwnSlot ? { uuid: 'slot' } : null;
+        f.model.getSlot.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { uuid: 'parent-slot', identityUuid: 'parent-generation' }
+                : ownSlot,
+        );
+        f.model.getSecrets.mockRejectedValue(new Error('unreadable key'));
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toEqual({
+            results: ownSlot,
+            parent: {
+                projectUuid: 'parent',
+                projectName: 'Parent project',
+                identityUuid: 'parent-generation',
+                principal: null,
+            },
+        });
+        expect(f.model.getSlot).toHaveBeenLastCalledWith('parent', null);
+    },
+);
+it('propagates unexpected errors while loading parent status', async () => {
+    const f = previewFixture();
+    const error = new Error('project lookup failed');
+    f.getSummary
+        .mockResolvedValueOnce({
+            organizationUuid: f.account.organization.organizationUuid,
+        })
+        .mockRejectedValueOnce(error);
+    await expect(f.service.getStatus(f.account, 'project', null)).rejects.toBe(
+        error,
+    );
+});
+it('returns no parent on a non-preview status response', async () => {
+    const f = setup();
+    expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
+        results: { uuid: 'slot', identityUuid: 'generation-before' },
+        parent: null,
+    });
+});
+it('deletes only the preview slot when a parent key exists', async () => {
+    const f = previewFixture();
+    await f.service.delete(f.account, 'project', null);
+    expect(f.model.delete).toHaveBeenCalledExactlyOnceWith('project', null);
+    expect(f.model.getSecrets).not.toHaveBeenCalled();
+});
+it('tests inherited secrets against preview connection settings', async () => {
+    const f = previewFixture();
+    expect(
+        await f.service.test(f.account, 'project', null, null),
+    ).toMatchObject({ ok: true });
+    expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+        projectUuid: 'project',
+        credentials: {
+            project: connection.project,
+            dataset: connection.dataset,
+            keyfileContents: secrets.keyfileContents,
+        },
+    });
+    expect(f.analytics.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+            properties: expect.objectContaining({
+                inheritedFromProjectUuid: 'parent',
+            }),
+        }),
+    );
+});
+it('never merges submitted credentials with a parent key', async () => {
+    const f = previewFixture();
+    f.model.getReplaceableSecrets.mockResolvedValue(null);
+    await expect(
+        f.service.test(f.account, 'project', null, input),
+    ).rejects.toBeInstanceOf(ParameterError);
+    expect(f.model.getSecrets).not.toHaveBeenCalled();
+});
+
+it('records the parent generation when Test uses an inherited key', async () => {
+    const f = previewFixture();
+    f.model.getSlot.mockResolvedValue(null);
+    const audit = vi
+        .spyOn(auditLogger, 'logAuditEvent')
+        .mockImplementation(() => {});
+    await expect(
+        f.service.test(f.account, 'project', null, null),
+    ).resolves.toMatchObject({ ok: true });
+    expect(
+        audit.mock.calls.find(
+            ([entry]) => entry.resource.type === 'AiServiceAccount',
+        )?.[0],
+    ).toMatchObject({
+        action: 'test',
+        resource: {
+            type: 'AiServiceAccount',
+            projectUuid: 'project',
+            metadata: {
+                event: 'agent_identity.service_account_tested',
+                previousGeneration: 'parent-generation',
+                generation: 'parent-generation',
+                inheritedFromProjectUuid: 'parent',
+                result: 'success',
+            },
+        },
+    });
+    audit.mockRestore();
+});
+
+it('validates the merged slot through the registry before saving', async () => {
+    const f = setup();
+    const validation = vi
+        .spyOn(aiServiceAccountCredentialResolvers, 'validateOnSave')
+        .mockRejectedValueOnce(new ParameterError('invalid slot'));
+    try {
+        await expect(
+            f.service.upsert(f.account, 'project', null, input),
+        ).rejects.toThrow('invalid slot');
+        expect(validation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stored: secrets,
+                intent: { kind: 'preserve' },
+                owner: null,
+            }),
+            'ai_service_account',
+        );
+        expect(f.model.upsert).not.toHaveBeenCalled();
+    } finally {
+        validation.mockRestore();
+    }
+});
+
+it.each([true, false])(
+    'passes plain bypass credentials with submitted=%s',
+    async (submitted) => {
+        const f = setup();
+        await f.service.test(
+            f.account,
+            'project',
+            null,
+            submitted ? input : null,
+        );
+        const tested = f.withWarehouseClient.mock.calls[0][0]
+            .credentials as MaterializedCredentials;
+        expect(Object.getOwnPropertySymbols(tested)).not.toContain(
+            credentialResolution,
+        );
+    },
+);

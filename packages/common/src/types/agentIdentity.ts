@@ -121,6 +121,7 @@ export type UpdateOrganizationAgentIdentityRule = {
 };
 
 export type OrganizationAgentIdentityOverview = {
+    snowflakeConfigured: boolean;
     requireVerifiedAgentSessions: boolean;
     rules: OrganizationAgentIdentityRule[];
 };
@@ -203,6 +204,17 @@ export type AiServiceAccountTestResult = {
     checkedAt: Date;
 };
 
+export type AiServiceAccountParent = {
+    projectUuid: string;
+    projectName: string | null;
+    identityUuid: string;
+    principal: string | null;
+};
+
+export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
+    parent: AiServiceAccountParent | null;
+}
+
 export type ApiAiServiceAccountSlotResponse = {
     status: 'ok';
     results: AiServiceAccountSlot | null;
@@ -213,7 +225,27 @@ export type ApiAiServiceAccountTestResponse = {
     results: AiServiceAccountTestResult;
 };
 
+export type SnowflakeAgentClientSource = 'organization' | 'environment';
+
+export type UpdateOrganizationSnowflakeAgentClient = {
+    accountUrl: string;
+    clientId: string;
+    clientSecret: string;
+};
+
+export type ApiUpdateOrganizationSnowflakeAgentClientResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentitySnowflakeSetup;
+};
+
 export type OrganizationAgentIdentitySnowflakeSetup = {
+    client: {
+        source: SnowflakeAgentClientSource | null;
+        accountUrl: string | null;
+        clientId: string | null;
+        hasClientSecret: boolean;
+        updatedAt: Date | null;
+    };
     redirectUri: string;
     integrationSql: string;
     missingSettings: string[];

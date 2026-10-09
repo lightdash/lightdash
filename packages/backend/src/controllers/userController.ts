@@ -38,6 +38,7 @@ import {
     validatePassword,
     WarehouseTypes,
     type MobileLoginOptions,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import {
     Body,
@@ -493,7 +494,7 @@ export class UserController extends BaseController {
     @OperationId('getWarehouseCredentials')
     async getWarehouseCredentials(@Request() req: express.Request): Promise<{
         status: 'ok';
-        results: UserWarehouseCredentials[];
+        results: UserWarehouseCredentialsWithAgentStatus[];
     }> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
