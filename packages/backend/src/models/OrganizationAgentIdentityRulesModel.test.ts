@@ -1,6 +1,6 @@
 import { ParameterError, WarehouseTypes } from '@lightdash/common';
 import knex from 'knex';
-import { getTracker, MockClient } from 'knex-mock-client';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 
 const database = knex({ client: 'pg' });
@@ -58,9 +58,12 @@ test('persists the Databricks source for both actor kinds', async () => {
 
 describe('Snowflake persisted rules', () => {
     const db = knex({ client: MockClient, dialect: 'pg' });
-    const tracker = getTracker();
+    let tracker: Tracker;
     const rules = new OrganizationAgentIdentityRulesModel({ database: db });
-    beforeEach(() => tracker.reset());
+    beforeEach(() => {
+        tracker = getTracker();
+        tracker.reset();
+    });
     afterAll(async () => db.destroy());
     test.each([
         ['marked_person', true, true, 'agent_sign_in'],

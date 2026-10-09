@@ -1265,6 +1265,44 @@ describe('Snowflake slots', () => {
         });
         return f;
     };
+    it.each(['save', 'test_saved', 'test_submitted'] as const)(
+        'requests agent job controls before the Snowflake %s probe SQL',
+        async (operation) => {
+            const f = prepare();
+            f.runQuery.mockImplementation(async () => {
+                expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    agentSession: true,
+                    clientOptions: { agentJobControls: true },
+                });
+                return {
+                    rows: [{ USER: 'OBSERVED_USER', ROLE: 'OBSERVED_ROLE' }],
+                };
+            });
+            if (operation === 'save') {
+                await f.service.upsert(
+                    f.account,
+                    'project',
+                    null,
+                    snowflakeSecrets,
+                );
+            } else {
+                await expect(
+                    f.service.test(
+                        f.account,
+                        'project',
+                        null,
+                        operation === 'test_saved' ? null : snowflakeSecrets,
+                    ),
+                ).resolves.toMatchObject({ ok: true });
+            }
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"',
+                {},
+            );
+        },
+    );
     it.each([
         { USER: 'OBSERVED_USER', ROLE: 'OBSERVED_ROLE' },
         { User: 'OBSERVED_USER', Role: 'OBSERVED_ROLE' },

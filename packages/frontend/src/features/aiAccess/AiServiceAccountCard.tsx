@@ -67,6 +67,43 @@ const AiServiceAccountParentPrincipal = ({
     );
 };
 
+const AiServiceAccountCredentialStatus = ({
+    credentialsReadable,
+    inherited,
+    testedPrincipal,
+    warehouseType,
+}: {
+    credentialsReadable: boolean;
+    inherited: boolean;
+    testedPrincipal: string | null;
+    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS;
+}) => {
+    if (!credentialsReadable) {
+        const message =
+            warehouseType === WarehouseTypes.SNOWFLAKE
+                ? inherited
+                    ? 'The parent AI service account cannot be read. Use a different key.'
+                    : 'The AI service account cannot be read. Use a different key.'
+                : inherited
+                  ? 'The parent AI service account cannot be read. Use different credentials.'
+                  : 'The AI service account cannot be read. Replace the credentials.';
+        return (
+            <Alert color="red" role="alert">
+                {message}
+            </Alert>
+        );
+    }
+    return testedPrincipal ? (
+        <Text size="sm" role="status">
+            Signs in as {testedPrincipal}
+        </Text>
+    ) : (
+        <Text size="sm" c="dimmed">
+            Not checked yet. Run Test to see who it signs in as.
+        </Text>
+    );
+};
+
 const VerifiedAiServiceAccountDetails = ({
     slot,
     credentialsReadable,
@@ -89,25 +126,16 @@ const VerifiedAiServiceAccountDetails = ({
                     ? 'Snowflake key pair'
                     : 'Databricks service principal · OAuth M2M'}
             </Text>
-            {!(slot ? credentialsReadable : parent?.credentialsReadable) ? (
-                <Alert color="red" role="alert">
-                    {warehouseType === WarehouseTypes.SNOWFLAKE
-                        ? slot
-                            ? 'The AI service account cannot be read. Use a different key.'
-                            : 'The parent AI service account cannot be read. Use a different key.'
-                        : slot
-                          ? 'The AI service account cannot be read. Replace the credentials.'
-                          : 'The parent AI service account cannot be read. Use different credentials.'}
-                </Alert>
-            ) : testedPrincipal ? (
-                <Text size="sm" role="status">
-                    Signs in as {testedPrincipal}
-                </Text>
-            ) : (
-                <Text size="sm" c="dimmed">
-                    Not checked yet. Run Test to see who it signs in as.
-                </Text>
-            )}
+            <AiServiceAccountCredentialStatus
+                credentialsReadable={
+                    slot
+                        ? credentialsReadable
+                        : (parent?.credentialsReadable ?? false)
+                }
+                inherited={!slot}
+                testedPrincipal={testedPrincipal}
+                warehouseType={warehouseType}
+            />
             {(observation?.ok || slot) && (
                 <Text size="xs" c="dimmed">
                     {observation?.ok &&
@@ -366,8 +394,8 @@ const AiServiceAccountSummary = ({
                                                 principal,
                                                 warehouseType ===
                                                     WarehouseTypes.DATABRICKS ||
-                                                warehouseType ===
-                                                    WarehouseTypes.SNOWFLAKE
+                                                    warehouseType ===
+                                                        WarehouseTypes.SNOWFLAKE
                                                     ? result
                                                     : null,
                                             );

@@ -146,7 +146,7 @@ const verification = {
 };
 describe('Databricks encrypted observations', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const tracker = getTracker();
+    let tracker: Tracker;
     const decrypt = vi.fn();
     const encrypt = vi.fn().mockReturnValue(Buffer.from('new-ciphertext'));
     const model = new AiServiceAccountCredentialsModel({
@@ -159,6 +159,7 @@ describe('Databricks encrypted observations', () => {
         authentication_method: 'oauth_m2m',
     };
     beforeEach(() => {
+        tracker = getTracker();
         tracker.reset();
         encrypt.mockClear();
         decrypt
