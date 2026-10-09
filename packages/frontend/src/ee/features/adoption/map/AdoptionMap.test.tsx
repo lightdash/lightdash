@@ -6,7 +6,7 @@ import {
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import {
     dept,
@@ -14,7 +14,9 @@ import {
     metricsFixture,
     seededOrganization,
 } from '../utils/adoptionFixtures';
+import { getSweepDelay } from '../utils/sweepDelay';
 import { AdoptionMap } from './AdoptionMap';
+import styles from './DepartmentMap.module.css';
 import { estimateTextWidth } from './mapLayout';
 import { deepOrganization, flatOrganization } from './organizationFixtures';
 
@@ -1376,5 +1378,170 @@ describe('AdoptionMap', () => {
     it('labels the color control in American English', () => {
         renderMap();
         expect(screen.getByText('Color by')).toBeInTheDocument();
+    });
+
+    describe('changing the colouring', () => {
+        const drawing = (container: HTMLElement) => {
+            const svg = container.querySelector('svg[role="img"]');
+            const dots = [
+                ...container.querySelectorAll<SVGCircleElement>(
+                    'svg[role="img"] [data-dot]',
+                ),
+            ];
+            return {
+                area: {
+                    width: Number(svg?.getAttribute('width')),
+                    height: Number(svg?.getAttribute('height')),
+                },
+                dots,
+                delays: dots.map((dot) => dot.style.transitionDelay),
+                fade: dots[0]?.parentElement?.style.getPropertyValue(
+                    '--colour-fade',
+                ),
+                band: container.querySelector(`.${styles.sweepBand}`),
+            };
+        };
+
+        let matchMedia: typeof window.matchMedia;
+        beforeEach(() => {
+            ({ matchMedia } = window);
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+            window.matchMedia = matchMedia;
+        });
+
+        it('sweeps the new colours across the dots from the top-left corner, then leaves no delay on any dot', () => {
+            const { container } = renderMap();
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            const during = drawing(container);
+            expect(during.dots).toHaveLength(38);
+            // Each dot waits for the sweep to reach it on screen
+            expect(during.delays).toEqual(
+                during.dots.map(
+                    (dot) =>
+                        `${getSweepDelay(
+                            {
+                                x: Number(dot.getAttribute('cx')),
+                                y: Number(dot.getAttribute('cy')),
+                            },
+                            during.area,
+                        )}ms`,
+                ),
+            );
+            expect(new Set(during.delays).size).toBeGreaterThan(1);
+            expect(during.fade).toBe('380ms');
+            expect(during.band).not.toBeNull();
+
+            vi.advanceTimersByTime(1500);
+            const after = drawing(container);
+            expect(after.delays.every((delay) => delay === '')).toBe(true);
+            expect(after.fade).toBe('');
+            expect(after.band).toBeNull();
+            expect(
+                container.querySelector('svg[role="img"] [data-dot="viewer"]'),
+            ).not.toBeNull();
+        });
+
+        it('changes the colours at once for people who prefer reduced motion', () => {
+            window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+                matches: query === '(prefers-reduced-motion: reduce)',
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            })) as unknown as typeof window.matchMedia;
+            const { container } = renderMap();
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            const { delays, fade, band } = drawing(container);
+            expect(delays.every((delay) => delay === '')).toBe(true);
+            expect(fade).toBe('');
+            expect(band).toBeNull();
+            expect(
+                container.querySelector('svg[role="img"] [data-dot="viewer"]'),
+            ).not.toBeNull();
+        });
+
+        it('ends the sweep at once when a person is selected during it, so the selection shows straight away', () => {
+            loadMembers('Finance', [
+                memberFixture('ada', new Date().toISOString(), {
+                    isActive30d: true,
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    departmentUuid: 'Finance',
+                    departmentName: 'Finance',
+                }),
+                memberFixture('grace', null, {
+                    firstName: 'Grace',
+                    lastName: 'Hopper',
+                    departmentUuid: 'Finance',
+                    departmentName: 'Finance',
+                }),
+            ]);
+            const { container } = renderMap();
+            fireEvent.click(screen.getByRole('button', { name: /^Finance,/ }));
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(
+                drawing(container).delays.some((delay) => delay !== ''),
+            ).toBe(true);
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Grace Hopper' }),
+            );
+            const { delays, fade, band } = drawing(container);
+            expect(delays.every((delay) => delay === '')).toBe(true);
+            expect(fade).toBe('');
+            expect(band).toBeNull();
+            expect(
+                container.querySelectorAll('svg[role="img"] [data-selected]'),
+            ).toHaveLength(1);
+        });
+
+        it('animates nothing else that changes the dots: zooming, new numbers or opening a department', () => {
+            const { container, rerender } = renderMap();
+            const isStill = () => {
+                const { delays, fade, band } = drawing(container);
+                return (
+                    delays.every((delay) => delay === '') &&
+                    fade === '' &&
+                    band === null
+                );
+            };
+            const viewport = () =>
+                container
+                    .querySelector('svg[role="img"] > g')
+                    ?.getAttribute('transform');
+            const fitted = viewport();
+            fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+            expect(viewport()).not.toBe(fitted);
+            expect(isStill()).toBe(true);
+            rerender(
+                <MemoryRouter>
+                    <AdoptionMap
+                        summary={summary([
+                            ...tree.slice(0, 3),
+                            d('Finance', null, 8, 3, 3),
+                        ])}
+                        canManage
+                        onEdit={vi.fn()}
+                        measureText={estimateTextWidth}
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                container.querySelectorAll(
+                    'svg[role="img"] [data-dot="active"]',
+                ),
+            ).toHaveLength(7);
+            expect(isStill()).toBe(true);
+            fireEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+            expect(
+                screen.getByRole('heading', { name: 'Ops' }),
+            ).toBeInTheDocument();
+            expect(isStill()).toBe(true);
+        });
     });
 });

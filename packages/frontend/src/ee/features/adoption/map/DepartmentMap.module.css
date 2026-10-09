@@ -135,6 +135,16 @@
     vector-effect: non-scaling-stroke;
 }
 
+/* A change of colouring fades each dot to its new look after the delay written on it. The fade has
+   a length only while that change runs, so nothing else that changes a dot ever fades */
+.dots circle {
+    transition-property: fill, fill-opacity, stroke, stroke-width, r;
+    transition-duration: var(--colour-fade, 0ms);
+    transition-timing-function: ease;
+    /* A ring's stroke comes or goes halfway through the fade rather than at its start */
+    transition-behavior: allow-discrete;
+}
+
 .label {
     pointer-events: none;
     paint-order: stroke;
@@ -174,6 +184,41 @@
 
 .personName {
     fill: var(--mantine-color-text);
+}
+
+/* Over the map and empty but for the band while the colouring changes; it never takes the pointer */
+.sweepLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* A soft white band slanted like the sweep's front, brightening what it passes over in either scheme */
+.sweepBand {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgb(255 255 255 / 35%),
+        transparent
+    );
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    animation: sweepAcross linear forwards;
+}
+
+@keyframes sweepAcross {
+    from {
+        transform: translateX(var(--sweep-from)) rotate(var(--sweep-angle));
+    }
+
+    to {
+        transform: translateX(var(--sweep-to)) rotate(var(--sweep-angle));
+    }
 }
 
 .controls {

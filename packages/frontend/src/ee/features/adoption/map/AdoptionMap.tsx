@@ -347,6 +347,7 @@ export const AdoptionMap: FC<Props> = ({
                                 circles={circles}
                                 info={info}
                                 dots={dots}
+                                colourBy={colourBy}
                                 showNames={showNames}
                                 ariaLabel={buildMapAriaLabel({
                                     scopeName: focusName,

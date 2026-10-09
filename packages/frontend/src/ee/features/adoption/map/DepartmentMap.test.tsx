@@ -60,6 +60,7 @@ const draw = (
             circles={circles}
             info={info}
             dots={[]}
+            colourBy="active"
             showNames={false}
             ariaLabel="Map"
             measureText={estimateTextWidth}

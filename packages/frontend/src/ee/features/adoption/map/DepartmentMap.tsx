@@ -1,4 +1,4 @@
-import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Button, Group, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus } from '@tabler/icons-react';
 import { select } from 'd3-selection';
 import {
@@ -13,6 +13,7 @@ import {
     memo,
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -21,8 +22,9 @@ import {
     type PointerEvent,
 } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { COLOUR_TRANSITION, startColourTransition } from './colourTransition';
 import styles from './DepartmentMap.module.css';
-import { truncateLabel, type PackedCircle } from './geometry';
+import { truncateLabel, type ColourBy, type PackedCircle } from './geometry';
 import {
     getHoverLabel,
     getTopLevelGroups,
@@ -71,6 +73,8 @@ type Props = {
     circles: PackedCircle[];
     info: Map<string, CircleInfo>;
     dots: MapDot[];
+    // What the dots are coloured by; a change of it sweeps the new colours across the map
+    colourBy: ColourBy;
     showNames: boolean;
     ariaLabel: string;
     measureText: TextMeasurer;
@@ -272,6 +276,7 @@ export const DepartmentMap: FC<Props> = ({
     circles,
     info,
     dots,
+    colourBy,
     showNames,
     ariaLabel,
     measureText,
@@ -284,6 +289,10 @@ export const DepartmentMap: FC<Props> = ({
     const svgRef = useRef<SVGSVGElement | null>(null);
     const zoomRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
     const pressRef = useRef<{ x: number; y: number } | null>(null);
+    const dotsRef = useRef<SVGGElement | null>(null);
+    const sweepLayerRef = useRef<HTMLDivElement | null>(null);
+    // The colouring the dots were last drawn in; nothing else that changes them is animated
+    const drawnColourByRef = useRef(colourBy);
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     // Read by the gesture filter, which runs outside React
     const scaleRef = useRef(1);
@@ -344,6 +353,28 @@ export const DepartmentMap: FC<Props> = ({
     useEffect(() => {
         resetView();
     }, [resetView, layoutKey, width, height]);
+
+    // Runs before the browser works out the new colours, so each waits for the sweep to reach its dot.
+    // Zooming, resizing, new data or a selection during the sweep ends it, so they show at once.
+    useLayoutEffect(() => {
+        if (drawnColourByRef.current === colourBy) return undefined;
+        drawnColourByRef.current = colourBy;
+        const dotsLayer = dotsRef.current;
+        const bandLayer = sweepLayerRef.current;
+        if (!dotsLayer || !bandLayer) return undefined;
+        return startColourTransition(
+            {
+                dotsLayer,
+                points: dots.map((dot) => ({
+                    x: view.transform.applyX(dot.x),
+                    y: view.transform.applyY(dot.y),
+                })),
+                area: { width, height },
+                bandLayer,
+            },
+            COLOUR_TRANSITION,
+        );
+    }, [colourBy, dots, view.transform, width, height, selectedUserUuid]);
 
     const { k } = view.transform;
     const circlesById = useMemo(
@@ -453,7 +484,11 @@ export const DepartmentMap: FC<Props> = ({
                             highlightedUuid={highlightedUuid}
                         />
                     </g>
-                    <g className={styles.dots} onClick={handleDotClick}>
+                    <g
+                        ref={dotsRef}
+                        className={styles.dots}
+                        onClick={handleDotClick}
+                    >
                         <DotsLayer
                             dots={dots}
                             selectedUserUuid={selectedUserUuid}
@@ -472,6 +507,8 @@ export const DepartmentMap: FC<Props> = ({
                     />
                 </g>
             </svg>
+            {/* Empty but for the band that crosses the map while its colouring changes */}
+            <Box ref={sweepLayerRef} className={styles.sweepLayer} />
             <Group gap={4} className={styles.controls}>
                 <Tooltip label="Zoom in">
                     <ActionIcon

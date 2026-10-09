@@ -106,6 +106,7 @@ describe.each([
                     circles={circles}
                     info={info}
                     dots={[]}
+                    colourBy="active"
                     showNames={false}
                     ariaLabel="Map"
                     measureText={estimateTextWidth}
