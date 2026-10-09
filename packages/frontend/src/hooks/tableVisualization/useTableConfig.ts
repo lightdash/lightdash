@@ -102,6 +102,10 @@ const useTableConfig = (
             : tableChartConfig.hideRowNumbers,
     );
 
+    const [hideMetricNames, setHideMetricNames] = useState<boolean>(
+        tableChartConfig?.hideMetricNames ?? false,
+    );
+
     const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
         tableChartConfig?.metricsAsRows || false,
     );
@@ -639,6 +643,8 @@ const useTableConfig = (
             showRowGrouping,
             columns: columnProperties,
             hideRowNumbers,
+            // Only saved when on, so existing table configs stay unchanged
+            ...(hideMetricNames && { hideMetricNames }),
             conditionalFormattings,
             metricsAsRows: effectiveMetricsAsRows,
             rowLimit,
@@ -647,6 +653,7 @@ const useTableConfig = (
             showColumnCalculation,
             showRowCalculation,
             hideRowNumbers,
+            hideMetricNames,
             showTableNames,
             showResultsTotal,
             showSubtotals,
@@ -671,7 +678,9 @@ const useTableConfig = (
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
+            hideMetricNames,
             setHideRowNumbers,
+            setHideMetricNames,
             showResultsTotal,
             setShowResultsTotal,
             showSubtotals,
@@ -729,7 +738,9 @@ const useTableConfig = (
             showTableNames,
             setShowTableNames,
             hideRowNumbers,
+            hideMetricNames,
             setHideRowNumbers,
+            setHideMetricNames,
             showResultsTotal,
             setShowResultsTotal,
             showSubtotals,

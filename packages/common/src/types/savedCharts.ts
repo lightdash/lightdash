@@ -441,6 +441,12 @@ export type TableChart = {
     showTableNames?: boolean;
     /** Hide row number column */
     hideRowNumbers?: boolean;
+    /**
+     * Hide the metric name header row in pivoted tables, along with the
+     * pivoted dimension names, so column headers show only dimension values.
+     * Defaults to false.
+     */
+    hideMetricNames?: boolean;
     /** Show total results count */
     showResultsTotal?: boolean;
     /** Show subtotal rows */

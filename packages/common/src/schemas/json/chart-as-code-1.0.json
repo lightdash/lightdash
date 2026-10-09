@@ -4603,6 +4603,10 @@
                     },
                     "type": "array"
                 },
+                "hideMetricNames": {
+                    "description": "Hide the metric name header row in pivoted tables, along with the\npivoted dimension names, so column headers show only dimension values.\nDefaults to false.",
+                    "type": "boolean"
+                },
                 "hideRowNumbers": {
                     "description": "Hide row number column",
                     "type": "boolean"

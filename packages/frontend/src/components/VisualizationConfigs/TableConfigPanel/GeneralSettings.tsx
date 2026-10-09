@@ -1,8 +1,10 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
 import { isPivotRowValue } from '@lightdash/visualization/editor';
-import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
+import { Box, Checkbox, Group, Stack, Switch, Tooltip } from '@mantine/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import MantineIcon from '../../common/MantineIcon';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -208,8 +210,10 @@ const GeneralSettings: FC = () => {
         isColumnVisible,
         canUseSubtotals,
         hideRowNumbers,
+        hideMetricNames,
         metricsAsRows,
         setHideRowNumbers,
+        setHideMetricNames,
         setShowColumnCalculation,
         setShowResultsTotal,
         setShowRowCalculation,
@@ -341,6 +345,27 @@ const GeneralSettings: FC = () => {
                         setHideRowNumbers(!hideRowNumbers);
                     }}
                 />
+                {isPivotTableEnabled && (
+                    <Group gap="two">
+                        <Checkbox
+                            size="xs"
+                            label="Hide metric names"
+                            disabled={metricsAsRows}
+                            checked={hideMetricNames}
+                            onChange={() =>
+                                setHideMetricNames(!hideMetricNames)
+                            }
+                        />
+                        <Tooltip
+                            label="Also hides the pivoted dimension name, so column headers show only its values"
+                            position="right"
+                            multiline
+                            w={220}
+                        >
+                            <MantineIcon icon={IconInfoCircle} color="dimmed" />
+                        </Tooltip>
+                    </Group>
+                )}
             </Config.Section>
 
             {!isPivotTableEnabled && (
