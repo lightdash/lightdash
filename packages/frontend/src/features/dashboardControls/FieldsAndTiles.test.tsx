@@ -137,6 +137,7 @@ const setHighlightedFieldId = vi.fn();
 const setHoveredFieldId = vi.fn();
 const addWaitingField = vi.fn();
 const removeWaitingField = vi.fn();
+const removeLastField = vi.fn();
 
 const setSidebar = (
     editingRule: DashboardFilterRule,
@@ -158,6 +159,7 @@ const setSidebar = (
         waitingFieldIds: [],
         addWaitingField,
         removeWaitingField,
+        removeLastField,
         ...overrides,
     };
 };
@@ -177,8 +179,8 @@ const Editor = () => {
     );
 };
 
-const openRowMenu = (label: string) =>
-    fireEvent.click(screen.getByLabelText(`More actions for ${label}`));
+const removeButtonOf = (label: string) =>
+    screen.getByLabelText(`Remove field ${label}`);
 
 const getUpdatedRule = (): DashboardFilterRule => {
     expect(updateFilter).toHaveBeenCalledTimes(1);
@@ -393,14 +395,14 @@ describe('FieldsAndTiles', () => {
 
         expect(screen.getByText('Fields in this filter')).toBeVisible();
         expect(
-            screen.getByText('Choose which field each tile is filtered by.'),
+            screen.getByText('Select a field to change its tiles.'),
         ).toBeVisible();
         expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
         expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
         expect(screen.getByRole('button', { name: 'Region' })).toBeVisible();
         expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
-        expect(screen.getByText('Apply to all 2')).toBeVisible();
-        expect(screen.queryByText('Apply to all 1')).not.toBeInTheDocument();
+        expect(removeButtonOf('Status')).toBeInTheDocument();
+        expect(removeButtonOf('Region')).toBeInTheDocument();
         expect(fieldSearch()).not.toBeInTheDocument();
     });
 
@@ -513,34 +515,13 @@ describe('FieldsAndTiles', () => {
             expect(screen.getByText('SQL column · 1 of 2 tiles')).toBeVisible();
         });
 
-        it('adds the column to the tiles that have it and are not filtered', () => {
+        it('removes the column, its only field', async () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
 
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Add country to the 1 unfiltered tile',
-                }),
-            );
-            const next = getUpdatedRule();
-            expect(Object.keys(next.tileTargets ?? {})).toEqual([
-                'sql-1',
-                'sql-2',
-            ]);
-            expect(next.tileTargets?.['sql-2']).toMatchObject({
-                fieldId: 'country',
-                isSqlColumn: true,
-            });
-        });
-
-        it('clears the column from its tiles', async () => {
-            setSidebar(sqlRule({ 'sql-1': COUNTRY, 'sql-2': COUNTRY }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            openRowMenu('country');
-            fireEvent.click(await screen.findByText('Clear from tiles'));
-            // A SQL chart tile with no entry is not filtered
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
+            await userEvent.click(removeButtonOf('country'));
+            expect(removeLastField).toHaveBeenCalledTimes(1);
+            expect(updateFilter).not.toHaveBeenCalled();
         });
 
         it('has no other field to add', () => {
@@ -559,9 +540,7 @@ describe('FieldsAndTiles', () => {
 
         expect(screen.getByText('orders_gone')).toBeVisible();
         expect(screen.getByText('orders · 0 of 0 tiles')).toBeVisible();
-        expect(
-            screen.queryByLabelText('More actions for orders_gone'),
-        ).toBeInTheDocument();
+        expect(removeButtonOf('orders_gone')).toBeInTheDocument();
     });
 
     it('highlights a field on click and on hover', async () => {
@@ -587,33 +566,37 @@ describe('FieldsAndTiles', () => {
         expect(setHoveredFieldId).toHaveBeenLastCalledWith(null);
     });
 
-    it('offers "Show all tiles" on the clicked field only', async () => {
+    it('has a trash can on each card, and no eye or menu', async () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
-        const { rerender } = renderWithProviders(<FieldsAndTiles />);
+        renderWithProviders(<FieldsAndTiles />);
+
         expect(
-            screen.queryByRole('button', { name: 'Show all tiles' }),
+            screen.queryByRole('button', { name: /^Show only tiles/ }),
         ).not.toBeInTheDocument();
-
-        setSidebar(rule('orders_status', { 'tile-1': REGION }), {
-            highlightedFieldId: 'orders_region',
-        });
-        rerender(<FieldsAndTiles />);
-        const showAll = screen.getByRole('button', { name: 'Show all tiles' });
-        const region = screen.getByRole('button', { name: 'Region' });
-        // A labelled button right after the name, with no icon
-        expect(showAll).toHaveTextContent('Show all tiles');
-        expect(showAll.querySelector('svg')).toBeNull();
-        expect(showAll.previousElementSibling).toBe(region);
-        expect(showAll).not.toHaveAttribute('tabindex', '-1');
         expect(
-            screen.getAllByRole('button', { name: 'Show all tiles' }),
-        ).toHaveLength(1);
+            screen.queryByRole('button', { name: /^Apply to/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
-        await userEvent.click(showAll);
-        expect(clearHighlightedField).toHaveBeenCalledTimes(1);
+        await userEvent.hover(removeButtonOf('Region'));
+        expect(await screen.findByText('Remove field')).toBeInTheDocument();
+        // The trash can never toggles the card
+        await userEvent.click(removeButtonOf('Region'));
         expect(setHighlightedFieldId).not.toHaveBeenCalled();
-        // The button is about to leave: focus goes to the row
-        expect(region).toHaveFocus();
+        expect(clearHighlightedField).not.toHaveBeenCalled();
+    });
+
+    it('has no "Show all tiles" button and no scope switch', () => {
+        setSidebar(rule('orders_status'), {
+            highlightedFieldId: 'orders_status',
+        });
+        renderWithProviders(<FieldsAndTiles />);
+
+        expect(screen.queryByText('Show all tiles')).not.toBeInTheDocument();
+        expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('More actions for Status'),
+        ).not.toBeInTheDocument();
     });
 
     it('highlights a field when any part of its card is hovered', async () => {
@@ -624,137 +607,9 @@ describe('FieldsAndTiles', () => {
         expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
     });
 
-    describe('the actions of a field', () => {
-        const actionNames = () =>
-            screen
-                .getAllByRole('button')
-                .map((button) => button.textContent)
-                .filter((text) =>
-                    /^(Add to|All|Apply to all) \d/.test(text ?? ''),
-                );
-
-        it('has none when every tile that offers the field is on it', () => {
-            setSidebar(rule('orders_status'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
-            expect(actionNames()).toEqual([]);
-        });
-
-        it('applies a field that is on no tile to every tile that offers it', () => {
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(screen.getByText('Orders · 0 of 2 tiles')).toBeVisible();
-            expect(actionNames()).toEqual(['Apply to all 2']);
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('adds a field to the tiles that are not filtered yet', () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
-            expect(actionNames()).toEqual(['Add to 1 unfiltered']);
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Add Status to the 1 unfiltered tile',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('offers the safe action first when "all" would replace a field', () => {
-            setSidebar(
-                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(actionNames()).toEqual(['Add to 1 unfiltered', 'All 2']);
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Add Status to the 1 unfiltered tile',
-                }),
-            );
-            // tile-1 keeps Region
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-1': REGION });
-
-            updateFilter.mockClear();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles. Replaces Region on 1 tile',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('says which field it replaces before the click', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': REGION }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(actionNames()).toEqual(['Apply to all 2']);
-            const all = screen.getByRole('button', {
-                name: 'Apply Status to all 2 tiles. Replaces Region on 1 tile',
-            });
-            await userEvent.hover(all);
-            expect(
-                await screen.findByText('Replaces Region on 1 tile'),
-            ).toBeInTheDocument();
-
-            fireEvent.click(all);
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('names every field it replaces', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTiles: [tile('tile-1'), tile('tile-2')],
-                allFilterableFields: [status, region, city],
-                allFilterableFieldsMap: {
-                    orders_status: status,
-                    orders_region: region,
-                    customers_city: city,
-                },
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status, city],
-                },
-            };
-            setSidebar(
-                rule('orders_status', {
-                    'tile-1': REGION,
-                    'tile-2': {
-                        fieldId: 'customers_city',
-                        tableName: 'customers',
-                    },
-                }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(
-                screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles. Replaces Region and City on 2 tiles',
-                }),
-            ).toBeVisible();
-        });
-    });
-
     describe('on a dashboard with tabs', () => {
         const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
         const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
-        const scopeSwitch = () =>
-            screen.queryByRole('radiogroup', {
-                name: 'Where field actions apply',
-            });
-        const pickScope = (name: string) =>
-            fireEvent.click(screen.getByRole('radio', { name }));
         const setTabs = (activeTab: typeof TAB_1) => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
@@ -775,182 +630,15 @@ describe('FieldsAndTiles', () => {
 
         beforeEach(() => setTabs(TAB_1));
 
-        it('has no scope switch with fewer than two tabs', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardTabs: [TAB_1],
-            };
+        it('counts every tab on the card, whatever the active tab', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(scopeSwitch()).not.toBeInTheDocument();
-            // Every tile is in scope
-            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
-            expect(
-                screen.getByRole('button', {
-                    name: 'Add Status to the 1 unfiltered tile',
-                }),
-            ).toBeVisible();
-        });
-
-        it('starts on "This tab" and counts the tiles of the active tab', () => {
-            setSidebar(rule('orders_status'));
             const { rerender } = renderWithProviders(<FieldsAndTiles />);
+            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
 
-            expect(scopeSwitch()).toBeInTheDocument();
-            expect(
-                screen.getByRole('radio', { name: 'This tab' }),
-            ).toBeChecked();
-            expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
-
-            // It follows the dashboard tab
             setTabs(TAB_2);
             rerender(<FieldsAndTiles />);
-            expect(
-                screen.getByRole('radio', { name: 'This tab' }),
-            ).toBeChecked();
-            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
-
-            pickScope('Every tab');
-            expect(
-                screen.getByRole('radio', { name: 'Every tab' }),
-            ).toBeChecked();
-            expect(screen.getByText('Orders · 3 of 3 tiles')).toBeVisible();
+            expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
         });
-
-        it('says so when no tile on this tab offers the field', () => {
-            setTabs(TAB_2);
-            setSidebar(rule('orders_status', { 'tile-1': REGION }));
-            renderWithProviders(<FieldsAndTiles />);
-
-            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
-            expect(
-                screen.getByText('Orders · no tiles on this tab'),
-            ).toBeVisible();
-            expect(
-                screen.queryByRole('button', { name: /^(Add|Apply) Region/ }),
-            ).not.toBeInTheDocument();
-
-            pickScope('Every tab');
-            expect(
-                screen.queryByText('Orders · no tiles on this tab'),
-            ).not.toBeInTheDocument();
-            expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
-        });
-
-        it('adds a field on this tab only, then on every tab', () => {
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-3': false }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Add Status to the 1 unfiltered tile on this tab',
-                }),
-            );
-            // The other tab keeps what it had
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
-
-            updateFilter.mockClear();
-            pickScope('Every tab');
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Add Status to the 2 unfiltered tiles on every tab',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('replaces a field on this tab only', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                filterableFieldsByTileUuid: {
-                    'tile-1': [status, region],
-                    'tile-2': [status],
-                    'tile-3': [status, region],
-                },
-            };
-            setSidebar(
-                rule('orders_status', { 'tile-1': REGION, 'tile-3': REGION }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Apply Status to all 2 tiles on this tab. Replaces Region on 1 tile',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': REGION });
-
-            updateFilter.mockClear();
-            pickScope('Every tab');
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Apply Status to all 3 tiles on every tab. Replaces Region on 2 tiles',
-                }),
-            );
-            expect(getUpdatedRule().tileTargets).toBeUndefined();
-        });
-
-        it('clears a field from this tab, or from every tab', async () => {
-            setSidebar(rule('orders_status'));
-            renderWithProviders(<FieldsAndTiles />);
-
-            openRowMenu('Status');
-            expect(
-                screen.queryByText('Clear from tiles'),
-            ).not.toBeInTheDocument();
-            fireEvent.click(await screen.findByText('Clear from this tab'));
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-1': false,
-                'tile-2': false,
-            });
-
-            updateFilter.mockClear();
-            pickScope('Every tab');
-            openRowMenu('Status');
-            fireEvent.click(await screen.findByText('Clear from every tab'));
-            expect(getUpdatedRule().tileTargets).toEqual({
-                'tile-1': false,
-                'tile-2': false,
-                'tile-3': false,
-            });
-        });
-
-        it('hides the clear action when the field is on no tile of this tab', async () => {
-            setSidebar(
-                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
-            );
-            renderWithProviders(<FieldsAndTiles />);
-
-            openRowMenu('Status');
-            expect(await screen.findByText('Remove field')).toBeInTheDocument();
-            expect(
-                screen.queryByText('Clear from this tab'),
-            ).not.toBeInTheDocument();
-        });
-    });
-
-    it('clears a field from its tiles', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<FieldsAndTiles />);
-
-        openRowMenu('Status');
-        fireEvent.click(await screen.findByText('Clear from tiles'));
-        expect(getUpdatedRule().tileTargets).toEqual({
-            'tile-1': false,
-            'tile-2': false,
-        });
-    });
-
-    it('hides the clear action for a field on no tile', async () => {
-        setSidebar(rule('orders_status', { 'tile-1': false, 'tile-2': false }));
-        renderWithProviders(<FieldsAndTiles />);
-
-        openRowMenu('Status');
-        expect(await screen.findByText('Remove field')).toBeInTheDocument();
-        expect(screen.queryByText('Clear from tiles')).not.toBeInTheDocument();
     });
 
     it('removes one of several fields', async () => {
@@ -959,8 +647,7 @@ describe('FieldsAndTiles', () => {
         });
         renderWithProviders(<FieldsAndTiles />);
 
-        openRowMenu('Region');
-        fireEvent.click(await screen.findByText('Remove field'));
+        fireEvent.click(removeButtonOf('Region'));
         const next = getUpdatedRule();
         expect(next.target.fieldId).toBe('orders_status');
         expect(next.tileTargets).toBeUndefined();
@@ -971,44 +658,39 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
         renderWithProviders(<FieldsAndTiles />);
 
-        openRowMenu('Status');
-        fireEvent.click(await screen.findByText('Remove field'));
+        fireEvent.click(removeButtonOf('Status'));
         const next = getUpdatedRule();
         expect(next.target).toEqual(REGION);
         expect(next.tileTargets).toBeUndefined();
     });
 
-    it('does not remove the only field of a filter, and says where to go', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<FieldsAndTiles />);
+    it.each([false, true])(
+        'removes the only field of a filter, leaving the control empty (new: %s)',
+        async (isNew) => {
+            setSidebar(rule('orders_status'), {
+                isNew,
+                highlightedFieldId: 'orders_status',
+            });
+            renderWithProviders(<FieldsAndTiles />);
 
-        openRowMenu('Status');
-        const item = await screen.findByRole('menuitem', {
-            name: 'Remove field',
+            expect(removeButtonOf('Status')).toBeEnabled();
+            await userEvent.click(removeButtonOf('Status'));
+            expect(removeLastField).toHaveBeenCalledTimes(1);
+            expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeWaitingField).not.toHaveBeenCalled();
+            expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
+        },
+    );
+
+    it('empties the control when its last field goes while another waits', async () => {
+        setSidebar(rule('orders_status'), {
+            waitingFieldIds: ['orders_region'],
         });
-        expect(item).toHaveAttribute('aria-disabled', 'true');
-        await userEvent.hover(item);
-        expect(
-            await screen.findByText(
-                'Remove the filter from More actions instead',
-            ),
-        ).toBeInTheDocument();
-        await userEvent.click(item);
-        expect(updateFilter).not.toHaveBeenCalled();
-        expect(removeWaitingField).not.toHaveBeenCalled();
-    });
-
-    it('points a new filter with one field to Discard', async () => {
-        setSidebar(rule('orders_status'), { isNew: true });
         renderWithProviders(<FieldsAndTiles />);
 
-        openRowMenu('Status');
-        await userEvent.hover(
-            await screen.findByRole('menuitem', { name: 'Remove field' }),
-        );
-        expect(
-            await screen.findByText('Discard the control instead'),
-        ).toBeInTheDocument();
+        await userEvent.click(removeButtonOf('Status'));
+        expect(removeLastField).toHaveBeenCalledTimes(1);
+        expect(updateFilter).not.toHaveBeenCalled();
     });
 
     it('puts "Add a field" away on Escape and when focus leaves it', async () => {
@@ -1160,7 +842,6 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<FieldsAndTiles />);
 
             expect(screen.getByText('Orders · 0 of 1 tile')).toBeVisible();
-            expect(screen.getByText('Apply to all 1')).toBeVisible();
             expect(
                 screen
                     .getByRole('button', { name: 'Region' })
@@ -1172,10 +853,10 @@ describe('FieldsAndTiles', () => {
                     .closest('[data-waiting]'),
             ).toBeNull();
 
-            openRowMenu('Region');
-            await userEvent.click(await screen.findByText('Remove field'));
+            await userEvent.click(removeButtonOf('Region'));
             expect(removeWaitingField).toHaveBeenCalledWith('orders_region');
             expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeLastField).not.toHaveBeenCalled();
         });
 
         it('offers a field again once one of its tiles is left out', async () => {

@@ -2,6 +2,7 @@ import { type ComponentProps, type FC } from 'react';
 import Page from '../../components/common/Page/Page';
 import { ControlSidebar } from './ControlSidebar';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { FieldTilesBar } from './FieldTilesBar';
 import { LinkPrompts } from './LinkPrompts';
 import { TabCounts } from './TabCounts';
 import { TileOverlays } from './TileOverlay';
@@ -35,5 +36,6 @@ export const ControlsSidebarPage: FC<Props> = (props) => (
         <TileOverlays />
         <LinkPrompts />
         <TabCounts />
+        <FieldTilesBar />
     </ControlsSidebarProvider>
 );

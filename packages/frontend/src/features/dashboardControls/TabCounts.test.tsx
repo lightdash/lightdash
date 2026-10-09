@@ -172,7 +172,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 3');
+        expect(badgeText('tab-1')).toBe('0 of 1');
         expect(isBadgeReached('tab-1')).toBe('false');
         expect(isBadgeReached('tab-2')).toBe('true');
     });
@@ -222,7 +222,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 3');
+        expect(badgeText('tab-1')).toBe('0 of 1');
         expect(badgeText('tab-2')).toBe('1 of 1');
 
         await userEvent.hover(screen.getByText('1 of 1'));
@@ -264,7 +264,7 @@ describe('TabCounts', () => {
         setSidebar({ activeFieldId: 'orders_status' });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('1 of 2');
+        expect(badgeText('tab-1')).toBe('1 of 1');
     });
 
     it('renders nothing for a placeholder', () => {

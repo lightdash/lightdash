@@ -9,10 +9,19 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Switch, Text, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Switch,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconAlertTriangle, IconFilter } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, useRef, type FC } from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -23,6 +32,7 @@ import {
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
+import { pluralizeTiles } from './fieldLabels';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
@@ -42,6 +52,7 @@ import {
     WAVE_BUCKETS,
 } from './tileSelector';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useFieldTileActions, type TileScope } from './useFieldTileActions';
 import { focusLabelInput } from './useLabelDraft';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
@@ -58,6 +69,18 @@ const DATA_APP_ON = 'on';
 const SEARCH_THRESHOLD = 8;
 
 type FieldsMap = Record<string, DashboardFilterableField>;
+
+// The last tile changed from its card, and what that change was: the card
+// then offers the same for the rest of the tab. Kept as it was made; whether
+// it still applies is worked out on each render
+type FollowUp = {
+    ruleId: string;
+    tabUuid: string | null;
+    tileUuid: string;
+    fieldId: string;
+    isSqlColumn: boolean;
+    kind: 'filter' | 'clear';
+};
 
 // The fields a new control can start from, by tile
 const NO_STARTERS_BY_TILE: Record<string, string[]> = {};
@@ -129,7 +152,11 @@ type TileOverlayProps = {
     scrollFieldId: string | null;
     // Bucket for the arrival wave
     wave: number;
+    // Offers the change just made here for the rest of the tab, or null
+    followUpLabel: string | null;
+    followUpName: string | null;
     onSelect: (tileUuid: string, value: string | null) => void;
+    onFollowUp: () => void;
 };
 
 const TileOverlay = memo<TileOverlayProps>(
@@ -148,7 +175,10 @@ const TileOverlay = memo<TileOverlayProps>(
         highlight,
         scrollFieldId,
         wave,
+        followUpLabel,
+        followUpName,
         onSelect,
+        onFollowUp,
     }) => {
         const overlayRef = useRef<HTMLDivElement>(null);
         useScrollToHighlightedTile(
@@ -299,6 +329,18 @@ const TileOverlay = memo<TileOverlayProps>(
                                 value={tileFieldId}
                                 onChange={(value) => onSelect(tileUuid, value)}
                             />
+                            {followUpLabel !== null && (
+                                <Box className={classes.followUp}>
+                                    <Button
+                                        variant="subtle"
+                                        size="compact-xs"
+                                        aria-label={followUpName ?? undefined}
+                                        onClick={onFollowUp}
+                                    >
+                                        {followUpLabel}
+                                    </Button>
+                                </Box>
+                            )}
                         </Stack>
                     )}
                 </Paper>
@@ -308,7 +350,13 @@ const TileOverlay = memo<TileOverlayProps>(
     areTilePropsEqual,
 );
 
+// Mounted while a control is edited, so what it remembers ends with the editor
 export const TileOverlays: FC = () => {
+    const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
+    return isEditing ? <EditedTileOverlays /> : null;
+};
+
+const EditedTileOverlays: FC = () => {
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
     const highlightedFieldId = useControlsSidebarSelector(
@@ -342,6 +390,9 @@ export const TileOverlays: FC = () => {
         metricFiltersFlag.data?.enabled ?? import.meta.env.DEV;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const isActive = editingRule !== null;
+    const fieldTileActions = useFieldTileActions();
+    const [followUp, setFollowUp] = useState<FollowUp | null>(null);
+    const activeTabUuid = activeTab?.uuid ?? null;
 
     const tiles = useMemo(
         () =>
@@ -382,6 +433,24 @@ export const TileOverlays: FC = () => {
             }
             const isSqlTile =
                 (sqlColumnsByTile[tileUuid] ?? NO_COLUMNS).length > 0;
+            const previousFieldId =
+                getTileField(editingRule, tile, fieldsByTile, sqlColumnsByTile)
+                    ?.fieldId ?? null;
+            // The follow-up moves to the tile changed last; a data app tile
+            // is on no field, so it gets none
+            const followedFieldId = value ?? previousFieldId;
+            setFollowUp(
+                isDashboardDataAppTileType(tile) || followedFieldId === null
+                    ? null
+                    : {
+                          ruleId: editingRule.id,
+                          tabUuid: activeTabUuid,
+                          tileUuid,
+                          fieldId: followedFieldId,
+                          isSqlColumn: isSqlTile,
+                          kind: value === null ? 'clear' : 'filter',
+                      },
+            );
             // A data app tile switched on follows the rule, as it does by
             // default
             const field =
@@ -403,6 +472,64 @@ export const TileOverlays: FC = () => {
             );
         },
     );
+
+    // Another control or another tab ends it for good: going back does not
+    // bring it back
+    if (
+        followUp !== null &&
+        (followUp.ruleId !== editingRule?.id ||
+            followUp.tabUuid !== activeTabUuid)
+    )
+        setFollowUp(null);
+
+    // The follow-up as it stands now: only for the control and tab it was made
+    // on, while its tile is still as the change left it and other tiles remain
+    const getShownFollowUp = () => {
+        if (
+            followUp === null ||
+            editingRule === null ||
+            isPlaceholder ||
+            fieldTileActions === null ||
+            followUp.ruleId !== editingRule.id ||
+            followUp.tabUuid !== activeTabUuid
+        )
+            return null;
+        const tile = tiles.find(
+            (candidate) => candidate.uuid === followUp.tileUuid,
+        );
+        if (tile === undefined) return null;
+        const tileFieldId =
+            getTileField(editingRule, tile, fieldsByTile, sqlColumnsByTile)
+                ?.fieldId ?? null;
+        const isFilter = followUp.kind === 'filter';
+        if (tileFieldId !== (isFilter ? followUp.fieldId : null)) return null;
+        const fieldTiles = followUp.isSqlColumn
+            ? fieldTileActions.forSqlColumn(followUp.fieldId)
+            : fieldTileActions.forField(followUp.fieldId);
+        const hasTabs = fieldTiles.thisTabScope !== null;
+        const scope = fieldTiles.thisTabScope ?? fieldTiles.everyTabScope;
+        const count = isFilter ? scope.unfiltered : scope.applied;
+        if (count === 0) return null;
+        const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
+        const where = hasTabs ? ' on this tab' : '';
+        return {
+            tileUuid: followUp.tileUuid,
+            label: `${isFilter ? 'Filter' : 'Clear'} the other ${count}${where} too`,
+            name: isFilter
+                ? `Filter the other ${count} unfiltered ${pluralizeTiles(count)}${where} by ${fieldTiles.label}`
+                : `Clear ${fieldTiles.label} from the other ${count} ${pluralizeTiles(count)}${where}`,
+            run: () =>
+                isFilter
+                    ? fieldTiles.addToUnfiltered(tileScope)
+                    : fieldTiles.clear(tileScope),
+        };
+    };
+    const shownFollowUp = getShownFollowUp();
+    const handleFollowUp = useCallbackRef(() => {
+        if (shownFollowUp === null) return;
+        shownFollowUp.run();
+        setFollowUp(null);
+    });
 
     // A waiting field is offered on every tile that could take it
     const filterFieldIds =
@@ -480,7 +607,10 @@ export const TileOverlays: FC = () => {
                             highlight={isReachable ? 'available' : null}
                             scrollFieldId={null}
                             wave={index % WAVE_BUCKETS}
+                            followUpLabel={null}
+                            followUpName={null}
                             onSelect={handleSelect}
+                            onFollowUp={handleFollowUp}
                         />,
                         element,
                         tile.uuid,
@@ -566,7 +696,18 @@ export const TileOverlays: FC = () => {
                                 : null
                         }
                         wave={index % WAVE_BUCKETS}
+                        followUpLabel={
+                            shownFollowUp?.tileUuid === tile.uuid
+                                ? shownFollowUp.label
+                                : null
+                        }
+                        followUpName={
+                            shownFollowUp?.tileUuid === tile.uuid
+                                ? shownFollowUp.name
+                                : null
+                        }
                         onSelect={handleSelect}
+                        onFollowUp={handleFollowUp}
                     />,
                     element,
                     tile.uuid,

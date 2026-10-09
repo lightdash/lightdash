@@ -1,0 +1,41 @@
+/* Floats at the bottom of the dashboard area, as wide as its content. Sticky
+   after the grid: it never moves a tile, and it is above the tile overlays
+   (z-index 2) and below the sticky tabs */
+.host {
+    position: sticky;
+    bottom: var(--mantine-spacing-md);
+    z-index: 3;
+    width: fit-content;
+    max-width: calc(100% - 2 * var(--mantine-spacing-md));
+    margin: var(--mantine-spacing-xs) auto 0;
+}
+
+.bar {
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    animation: barEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+.count {
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes barEnter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bar {
+        animation: none;
+    }
+}

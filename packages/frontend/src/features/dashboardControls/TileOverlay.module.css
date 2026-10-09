@@ -133,6 +133,12 @@
     animation-delay: calc(var(--controls-wave-step) * 5);
 }
 
+/* The change just made on this tile, offered for the rest of the tab */
+.followUp {
+    padding-top: var(--mantine-spacing-xs);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
 /* Replays when the tile's choice changes: it is keyed by that choice */
 .confirm {
     position: absolute;

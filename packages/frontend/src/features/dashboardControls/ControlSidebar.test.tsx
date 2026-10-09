@@ -93,6 +93,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         addFirstField: vi.fn(),
         addFirstSqlColumn: vi.fn(),
         addFirstFieldOnTile: vi.fn(),
+        removeLastField: vi.fn(),
         highlightedFieldId: null,
         setHighlightedFieldId: vi.fn(),
         clearHighlightedField: vi.fn(),
@@ -219,6 +220,27 @@ describe('ControlSidebar', () => {
         expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+    });
+
+    it('keeps the name of an existing control left with no field', () => {
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            editingRule: makeRule({
+                label: 'Order status',
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(screen.queryByText('New control')).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/^Label/)).toHaveValue('Order status');
+        expect(
+            screen.getByText('Add a field to keep this control'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        ).toBeInTheDocument();
     });
 
     it('disables Settings for a placeholder and says why', () => {
