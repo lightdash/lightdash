@@ -122,7 +122,10 @@ export const executeSqlQuery = async (
     };
 };
 
-const getPivotQueryResults = async (projectUuid: string, queryUuid: string) =>
+export const getPivotQueryResults = async (
+    projectUuid: string,
+    queryUuid: string,
+) =>
     readPivotQueryResults(
         projectUuid,
         await pollForResults(projectUuid, queryUuid),

@@ -1,5 +1,6 @@
 import {
     ARTIFACT_CHART_TAG,
+    ChartKind,
     ChartType,
     DOCUMENT_CHART_TAG,
     DOCUMENT_CONVERSATION_TAGS,
@@ -12,7 +13,10 @@ import {
     type McpDocumentAsCode,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
-import type { ArtifactChartExportAccess } from './artifactChartAsCode';
+import type {
+    ArtifactChartExportAccess,
+    ArtifactSqlResult,
+} from './artifactChartAsCode';
 import type { PreparedChartAsCode } from './chartAsCode';
 
 const QUERY_RESULT_DISPLAYS = ['table', 'big_number'] as const;
@@ -59,6 +63,38 @@ const toDocumentChart = (
                 parameters: prepared.parameters,
             }),
         ),
+    };
+};
+
+/**
+ * A SQL result as a SQL table; its columns are unknown until it runs, so an
+ * empty column config shows them all.
+ */
+const toSqlDocumentChart = (
+    tag: DocumentTag,
+    result: ArtifactSqlResult,
+): McpDocumentAsCode['charts'][string] => {
+    if ((tag.attributes.display ?? 'table') !== 'table') {
+        throw new ParameterError(
+            `SQL results can only be placed as a table: use <${QUERY_RESULT_TAG}> without display`,
+        );
+    }
+    const { title, description } = tag.attributes;
+    return {
+        source: 'sql',
+        chart: {
+            name: title ?? result.title ?? 'SQL query results',
+            ...(description === undefined ? {} : { description }),
+            sql: result.sql,
+            limit: result.limit,
+            chartKind: ChartKind.TABLE,
+            config: {
+                type: ChartKind.TABLE,
+                metadata: { version: 1 },
+                columns: {},
+                display: {},
+            },
+        },
     };
 };
 
@@ -112,10 +148,16 @@ export const resolveDocumentConversationTags = async (
             while (Object.hasOwn(charts, `artifact-${next}`)) next += 1;
             const key = `artifact-${next}`;
             next += 1;
-            charts[key] = toDocumentChart(
-                block.tag,
-                await artifacts.prepareVersion(version),
-            );
+            const sqlResult =
+                block.tag.name === QUERY_RESULT_TAG
+                    ? await artifacts.prepareSqlVersion(version)
+                    : null;
+            charts[key] = sqlResult
+                ? toSqlDocumentChart(block.tag, sqlResult)
+                : toDocumentChart(
+                      block.tag,
+                      await artifacts.prepareVersion(version),
+                  );
             return {
                 type: 'tag',
                 tag: { name: DOCUMENT_CHART_TAG, attributes: { id: key } },

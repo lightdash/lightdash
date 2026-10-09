@@ -1,7 +1,10 @@
-import type { ApiExecuteAsyncMetricQueryResults } from './api';
+import type {
+    ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
+} from './api';
 import type { ApiSuccess } from './api/success';
 import type { ContentAsCodeUpsertAction } from './contentAsCode/base';
-import type { ChartAsCode } from './contentAsCode/charts';
+import type { ChartAsCode, SqlChartAsCode } from './contentAsCode/charts';
 import type { ContentVerificationInfo } from './contentVerification';
 import type { DashboardOwner } from './dashboard';
 import type { SavedMergeQuery } from './mergeQuery';
@@ -37,9 +40,37 @@ export type DocumentMergeChartContent = {
     chart: MergeChartAsCode;
 };
 
+/** A SQL Runner chart owned by the Document, in its content-as-code shape. */
+export type DocumentSqlChart = Pick<
+    SqlChartAsCode,
+    'name' | 'sql' | 'limit' | 'config' | 'chartKind'
+> & {
+    description?: string;
+    /** The warehouse connection's name; omitted for the project's default connection. */
+    connection?: string;
+    /** The stored identity of `connection`, set by the server; dropped as code. */
+    warehouseConnectionUuid?: string;
+};
+
+export type DocumentSqlChartContent = {
+    source: 'sql';
+    chart: DocumentSqlChart;
+};
+
 export type DocumentChartContent =
     | DocumentSemanticChartContent
-    | DocumentMergeChartContent;
+    | DocumentMergeChartContent
+    | DocumentSqlChartContent;
+
+/** Charts that run a metric query against an Explore. */
+export type DocumentExploreChartContent = Exclude<
+    DocumentChartContent,
+    DocumentSqlChartContent
+>;
+
+export const isDocumentExploreChart = (
+    content: DocumentChartContent,
+): content is DocumentExploreChartContent => content.source !== 'sql';
 
 /** Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …). */
 export type DocumentCharts = Record<string, DocumentChartContent>;
@@ -180,5 +211,7 @@ export type DocumentQueryReference = {
     chartId: string;
 };
 
-export type ApiDocumentChartQueryResponse =
-    ApiSuccess<ApiExecuteAsyncMetricQueryResults>;
+/** SQL charts answer with SQL results; the others with metric query results. */
+export type ApiDocumentChartQueryResponse = ApiSuccess<
+    ApiExecuteAsyncMetricQueryResults | ApiExecuteAsyncSqlQueryResults
+>;

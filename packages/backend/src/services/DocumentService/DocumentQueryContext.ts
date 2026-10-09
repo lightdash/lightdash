@@ -1,10 +1,11 @@
 import {
     buildMergeQueryFromSaved,
     ForbiddenError,
+    isDocumentExploreChart,
     NotFoundError,
     ParameterError,
     type Account,
-    type DocumentChartContent,
+    type DocumentExploreChartContent,
     type DocumentQueryReference,
     type MergeQuery,
     type MetricQuery,
@@ -24,12 +25,13 @@ export class DocumentQueryContext {
         private readonly accountUserUuid: string,
         readonly projectUuid: string,
         readonly reference: DocumentQueryReference,
-        readonly content: DocumentChartContent,
+        readonly content: DocumentExploreChartContent,
         readonly metricQuery: MetricQuery,
         readonly mergeQuery: MergeQuery | undefined,
         private readonly sourceRowCap: number,
     ) {}
 
+    /** Loads an Explore chart through Document authorization. */
     static async authorize({
         documentService,
         account,
@@ -48,6 +50,34 @@ export class DocumentQueryContext {
             projectUuid,
             reference,
         );
+        if (!isDocumentExploreChart(content)) {
+            throw new ParameterError(
+                `Document chart "${reference.chartId}" does not query an Explore`,
+            );
+        }
+        return DocumentQueryContext.fromChart({
+            account,
+            projectUuid,
+            reference,
+            content,
+            sourceRowCap,
+        });
+    }
+
+    /** Binds execution to an Explore chart already loaded through Document authorization. */
+    static fromChart({
+        account,
+        projectUuid,
+        reference,
+        content,
+        sourceRowCap,
+    }: {
+        account: RegisteredAccount;
+        projectUuid: string;
+        reference: DocumentQueryReference;
+        content: DocumentExploreChartContent;
+        sourceRowCap: number;
+    }): DocumentQueryContext {
         const metricQuery = {
             ...content.chart.metricQuery,
             filters: normalizeFilterIds(content.chart.metricQuery.filters),

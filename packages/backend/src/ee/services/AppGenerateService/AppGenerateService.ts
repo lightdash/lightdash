@@ -10655,11 +10655,17 @@ export class AppGenerateService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
 
-        const { chart } = await this.documentService.getChart(
+        const content = await this.documentService.getChart(
             account,
             projectUuid,
             reference,
         );
+        if (content.source === 'sql') {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+        const { chart } = content;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid

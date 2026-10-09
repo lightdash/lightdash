@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    ChartKind,
     ChartType,
     ConflictError,
     ForbiddenError,
@@ -188,7 +189,7 @@ const makeAccount = (role = OrganizationMemberRole.EDITOR): RegisteredAccount =>
         isServiceAccount: () => false,
     }) as unknown as RegisteredAccount;
 
-const setup = () => {
+const setup = (dependencies: Record<string, unknown> = {}) => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
@@ -237,6 +238,7 @@ const setup = () => {
         organizationMemberProfileModel,
         spacePermissionService,
         projectService,
+        ...dependencies,
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
@@ -335,6 +337,7 @@ describe('DocumentService mutation analytics', () => {
             chartCount: 2,
             customChartCount: 0,
             mergeChartCount: 1,
+            sqlChartCount: 0,
             markdownLength: toContent([markdown, semantic, merge]).markdown
                 .length,
         });
@@ -1416,5 +1419,191 @@ describe('DocumentService ownership', () => {
             }),
         ).rejects.toThrow('Documents are not enabled');
         expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+    });
+});
+
+describe('DocumentService SQL charts', () => {
+    const sqlChart: ChartBlock = {
+        type: 'chart',
+        content: {
+            source: 'sql',
+            chart: {
+                name: 'Orders by status',
+                sql: 'select status, count(*) as orders from orders group by 1',
+                limit: 100,
+                chartKind: ChartKind.TABLE,
+                config: {
+                    type: ChartKind.TABLE,
+                    metadata: { version: 1 },
+                    columns: {},
+                    display: {},
+                },
+            },
+        },
+    };
+    const withContent = (content: DocumentContent): Document => ({
+        ...document,
+        version: { ...document.version, content },
+    });
+
+    test('adding one needs SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        const input = { ...createInput, content: toContent([sqlChart]) };
+
+        await expect(
+            service.create(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                input,
+            ),
+        ).rejects.toThrow('You need SQL Runner access');
+        await service.create(
+            makeAccount(OrganizationMemberRole.DEVELOPER),
+            projectUuid,
+            input,
+        );
+        expect(documentModel.create).toHaveBeenCalledTimes(1);
+    });
+
+    test('editing the text around one does not', async () => {
+        const { service, documentModel } = setup();
+        documentModel.get.mockResolvedValue(withContent(toContent([sqlChart])));
+
+        await service.updateContent(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            documentUuid,
+            { baseVersionUuid, content: toContent([markdown, sqlChart]) },
+        );
+        expect(documentModel.updateContent).toHaveBeenCalledTimes(1);
+    });
+
+    test('duplicating a Document keeps its SQL charts without SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        documentModel.getBySlug.mockResolvedValue(
+            withContent(toContent([sqlChart])),
+        );
+
+        await service.duplicate(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            document.slug,
+            { name: 'Copy', spaceUuid },
+        );
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ content: toContent([sqlChart]) }),
+        );
+    });
+
+    test('changing one needs SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        documentModel.get.mockResolvedValue(withContent(toContent([sqlChart])));
+        const changed: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: {
+                    ...sqlChart.content.chart,
+                    sql: 'select 1 as orders',
+                },
+            } as DocumentChartContent,
+        };
+
+        await expect(
+            service.updateContent(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                documentUuid,
+                { baseVersionUuid, content: toContent([changed]) },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.updateContent).not.toHaveBeenCalled();
+    });
+
+    test('stores a named connection by uuid and reads its name back', async () => {
+        const connections = [
+            {
+                name: 'analytics',
+                warehouseConnectionUuid: 'connection-uuid',
+                isOriginal: false,
+            },
+        ];
+        const { service, documentModel } = setup({
+            projectModel: {
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ projectUuid, organizationUuid }),
+                getConnectionRoute: vi.fn().mockResolvedValue('multi'),
+            },
+            warehouseConnectionModel: {
+                getProject: vi.fn().mockResolvedValue({}),
+                list: vi.fn().mockResolvedValue(connections),
+            },
+        });
+        const named: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: { ...sqlChart.content.chart, connection: 'analytics' },
+            } as DocumentChartContent,
+        };
+        const stored = toContent([
+            {
+                type: 'chart',
+                content: {
+                    ...sqlChart.content,
+                    chart: {
+                        ...sqlChart.content.chart,
+                        warehouseConnectionUuid: 'connection-uuid',
+                    },
+                } as DocumentChartContent,
+            },
+        ]);
+        documentModel.create.mockResolvedValue(withContent(stored));
+
+        const created = await service.create(
+            makeAccount(OrganizationMemberRole.DEVELOPER),
+            projectUuid,
+            { ...createInput, content: toContent([named]) },
+        );
+
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ content: stored }),
+        );
+        expect(created.version.content.charts.c1).toEqual({
+            source: 'sql',
+            chart: {
+                ...sqlChart.content.chart,
+                connection: 'analytics',
+                warehouseConnectionUuid: 'connection-uuid',
+            },
+        });
+    });
+
+    test('rejects a connection this project does not have', async () => {
+        const { service } = setup({
+            projectModel: {
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ projectUuid, organizationUuid }),
+                getConnectionRoute: vi.fn().mockResolvedValue('original'),
+            },
+            warehouseConnectionModel: { getProject: vi.fn(), list: vi.fn() },
+        });
+        const named: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: { ...sqlChart.content.chart, connection: 'missing' },
+            } as DocumentChartContent,
+        };
+
+        await expect(
+            service.create(
+                makeAccount(OrganizationMemberRole.DEVELOPER),
+                projectUuid,
+                { ...createInput, content: toContent([named]) },
+            ),
+        ).rejects.toThrow('no connection named "missing"');
     });
 });
