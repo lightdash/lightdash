@@ -5,9 +5,11 @@ const EDITOR_ATTRIBUTE = 'data-controls-editor';
 // Marks an input that handles Escape itself while its list is closed
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
 
-// An open list, menu or popover owns Escape; so does a modal
+// An open list, menu or popover owns Escape; so does a modal. A Mantine
+// combobox target is marked `data-expanded` while its list is open
 const OPEN_LAYER_SELECTOR = [
     '[aria-expanded="true"][aria-haspopup]',
+    '[data-expanded][aria-haspopup]',
     '[aria-expanded="true"][role="combobox"]',
     '[aria-modal="true"]',
 ].join(',');

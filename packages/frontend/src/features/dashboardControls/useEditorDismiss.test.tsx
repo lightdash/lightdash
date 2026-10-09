@@ -175,6 +175,21 @@ describe('dismissing in the controls editor', () => {
             target.remove();
         });
 
+        it('is left to a combobox marked open by data-expanded', () => {
+            const target = document.createElement('input');
+            target.setAttribute('aria-haspopup', 'listbox');
+            target.setAttribute('data-expanded', 'true');
+            document.body.appendChild(target);
+
+            escape(label());
+            expect(value().isSidebarOpen).toBe(true);
+
+            target.removeAttribute('data-expanded');
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+            target.remove();
+        });
+
         it('is left to a modal', () => {
             const modal = document.createElement('div');
             modal.setAttribute('aria-modal', 'true');

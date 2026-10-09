@@ -33,8 +33,7 @@ All are in `features/dashboardFilters/`.
 In `FilterConfiguration/`:
 
 - `FilterSettings`: `hideLabel`, `hideRequiredCard` (both default false).
-- `FilterFieldSelect`: `defaultOpened` (default false). Its input also sets
-  `aria-expanded`, for everyone.
+- `FilterFieldSelect`: `defaultOpened` (default false).
 - `SqlColumnSelect`: the "Select a column to filter" select, moved out of
   `index.tsx`.
 - `utils`: `getDefaultField`, `getUniqueSqlColumns`,
@@ -102,7 +101,8 @@ In `FilterConfiguration/`:
 
 - Escape is one capture listener on `document`, attached while the editor is
   open, so one press does one thing. In order: an open list, menu or popover
-  (`aria-expanded="true"` on its target) or a modal owns the press; an input
+  (`aria-expanded="true"` on its target, or `data-expanded` on a Mantine
+  combobox target) or a modal owns the press; an input
   marked `data-own-escape` owns it (nothing carries it today);
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
