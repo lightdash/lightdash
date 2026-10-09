@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
@@ -11,6 +12,7 @@ import {
     AiAgentMarkerLevel,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildAgentIdentityClaim,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -59,6 +61,11 @@ import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCr
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
 import { BaseService } from '../BaseService';
+import {
+    connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
+    getAgentActor,
+} from '../WarehouseClientFactory/ConnectionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
@@ -85,6 +92,8 @@ export type ResolvePlanArgs = {
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
+    serviceAccountUuid?: string | null;
+    agentActor?: { surface: AgentActorSurface; clientId: string | null } | null;
 };
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
@@ -649,6 +658,8 @@ export class AiAccessService extends BaseService {
                     : plan.audit.userUuid,
             identity: plan.identity,
             actorKind: plan.audit.actorKind,
+            actorSurface: plan.agentIdentity?.act.surface ?? null,
+            actorClientId: plan.agentIdentity?.act.client_id ?? null,
             principalKind:
                 plan.identity === 'ai_service_account'
                     ? 'service_account'
@@ -794,6 +805,7 @@ export class AiAccessService extends BaseService {
     trackQueryRefusal(
         args: Pick<
             ResolvePlanArgs,
+            | 'agentActor'
             | 'evaluation'
             | 'organizationUuid'
             | 'projectUuid'
@@ -818,6 +830,17 @@ export class AiAccessService extends BaseService {
                 surface: args.evaluation.surface,
                 warehouseType: args.warehouseType,
                 reason,
+                actor:
+                    args.agentActor !== undefined
+                        ? args.agentActor
+                        : getAgentActor({
+                              surface: connectionSurfaceFromQuerySurface(
+                                  args.evaluation.surface,
+                                  null,
+                              ),
+                              person: null,
+                              aiClient: null,
+                          }),
             };
             trackSafely(() =>
                 this.analytics.track({
@@ -858,7 +881,47 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
-        return this.resolveEnabledPlan(args);
+        const actor =
+            args.agentActor !== undefined
+                ? args.agentActor
+                : getAgentActor(
+                      connectionContextFromUser(args, {
+                          organizationUuid: args.organizationUuid,
+                          queryContext: args.context,
+                          ...(args.evaluation.kind === 'query'
+                              ? {
+                                    surface: connectionSurfaceFromQuerySurface(
+                                        args.evaluation.surface,
+                                        args.context,
+                                    ),
+                                }
+                              : {}),
+                      }).actor,
+                  );
+        const plan = await this.resolveEnabledPlan({
+            ...args,
+            agentActor: actor,
+        });
+        const subjectUuid = args.isServiceAccount
+            ? args.serviceAccountUuid
+            : args.userUuid;
+        return {
+            ...plan,
+            agentIdentity:
+                actor &&
+                subjectUuid &&
+                (args.isRegisteredUser || args.isServiceAccount)
+                    ? buildAgentIdentityClaim({
+                          subject: {
+                              type: args.isServiceAccount
+                                  ? 'service_account'
+                                  : 'user',
+                              uuid: subjectUuid,
+                          },
+                          ...actor,
+                      })
+                    : null,
+        };
     }
 
     private async resolveEnabledPlan(

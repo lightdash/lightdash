@@ -2,6 +2,8 @@ import { expectTypeOf } from 'vitest';
 import { assertValidBigqueryKeyfile } from '../utils/bigqueryKeyfile';
 import {
     AGENT_IDENTITY_SOURCES,
+    AgentActorSurface,
+    buildAgentIdentityClaim,
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
@@ -222,4 +224,36 @@ describe('AI execution credential generation', () => {
             expect(getAiExecutionCredentialUuid(plan)).toBe(expected);
         },
     );
+});
+
+describe('buildAgentIdentityClaim', () => {
+    test.each(['user', 'service_account'] as const)(
+        'identifies a %s subject independently of the agent',
+        (type) => {
+            expect(
+                buildAgentIdentityClaim({
+                    subject: { type, uuid: 'subject-uuid' },
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                }),
+            ).toEqual({
+                sub: `${type}:subject-uuid`,
+                subject: { type, uuid: 'subject-uuid' },
+                act: {
+                    sub: 'in_app_agent:lightdash-chat',
+                    surface: 'in_app_agent',
+                    client_id: 'lightdash-chat',
+                },
+            });
+        },
+    );
+    test('retains null for an unknown client', () => {
+        expect(
+            buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'user' },
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            }).act,
+        ).toEqual({ sub: 'mcp:unknown', surface: 'mcp', client_id: null });
+    });
 });

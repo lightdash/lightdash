@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
@@ -229,6 +230,11 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             .fn<() => Promise<AiServiceAccountSlot | null>>()
             .mockResolvedValue(null),
     };
+    const users = {
+        getUserDetailsByUuid: vi.fn(async () => ({
+            email: 'a.b+tag@example.test',
+        })),
+    };
     const service = new AiAccessService({
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
@@ -249,14 +255,11 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         queryHistoryModel: historyModel as unknown as QueryHistoryModel,
         warehouseConnectionModel:
             connections as unknown as WarehouseConnectionModel,
-        userModel: {
-            getUserDetailsByUuid: vi.fn(async () => ({
-                email: 'a.b+tag@example.test',
-            })),
-        } as unknown as UserModel,
+        userModel: users as unknown as UserModel,
         providerRegistry: registry,
     });
     return {
+        users,
         analytics,
         service,
         slots,
@@ -273,6 +276,159 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
 };
 
 describe('AiAccessService', () => {
+    test('builds the chat claim after the existing flag check', async () => {
+        const { service, flags, organizationRules } = setup();
+        expect((await service.resolvePlan(args))?.agentIdentity).toEqual({
+            sub: 'user:user',
+            subject: { type: 'user', uuid: 'user' },
+            act: {
+                sub: 'in_app_agent:lightdash-chat',
+                surface: 'in_app_agent',
+                client_id: 'lightdash-chat',
+            },
+        });
+        expect(flags.get).toHaveBeenCalledOnce();
+        expect(organizationRules.get).toHaveBeenCalledOnce();
+    });
+    test('uses the service account UUID instead of its backing user', async () => {
+        const { service } = setup();
+        const plan = await service.resolvePlan({
+            ...args,
+            isServiceAccount: true,
+            serviceAccountUuid: 'service-account',
+        });
+        expect(plan?.agentIdentity?.subject).toEqual({
+            type: 'service_account',
+            uuid: 'service-account',
+        });
+        expect(plan?.agentIdentity?.sub).toBe(
+            'service_account:service-account',
+        );
+    });
+    test('omits the claim and all model reads when the flag is off', async () => {
+        const {
+            service,
+            flags,
+            organizationRules,
+            credentials,
+            slots,
+            projects,
+            connections,
+            historyModel,
+            registry,
+            users,
+        } = setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        expect(await service.resolvePlan(args)).toBeNull();
+        expect(flags.get).toHaveBeenCalledOnce();
+        for (const model of [
+            organizationRules,
+            credentials,
+            slots,
+            projects,
+            connections,
+            historyModel,
+            users,
+        ]) {
+            for (const method of Object.values(model))
+                expect(method).not.toHaveBeenCalled();
+        }
+        expect(registry).not.toHaveBeenCalled();
+    });
+    test.each([QuerySurface.MCP, QuerySurface.SLACK, QuerySurface.API])(
+        'records an explicit refusal actor for %s',
+        (surface) => {
+            const { service, analytics } = setup();
+            service.trackQueryRefusal(
+                {
+                    ...args,
+                    evaluation: { kind: 'query', surface },
+                    warehouseType: WarehouseTypes.POSTGRES,
+                },
+                AiAccessRefusalReason.NEEDS_SIGN_IN,
+            );
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        actor:
+                            surface === QuerySurface.API
+                                ? null
+                                : {
+                                      surface:
+                                          surface === QuerySurface.MCP
+                                              ? 'mcp'
+                                              : 'slack_agent',
+                                      clientId: null,
+                                  },
+                    }),
+                }),
+            );
+        },
+    );
+    test('keeps a supplied actor client on the claim, log and refusal event', async () => {
+        const { service, analytics } = setup();
+        const agentActor = {
+            surface: AgentActorSurface.MCP,
+            clientId: 'oauth-client',
+        };
+        const plan = await service.resolvePlan({ ...args, agentActor });
+        expect(plan?.agentIdentity?.act).toEqual({
+            sub: 'mcp:oauth-client',
+            surface: AgentActorSurface.MCP,
+            client_id: 'oauth-client',
+        });
+        const info = vi
+            .spyOn(service['logger'], 'info')
+            .mockImplementation(() => service['logger']);
+        service.recordQuery({
+            queryUuid: 'query',
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            plan: plan!,
+            context: args.context,
+        });
+        expect(info).toHaveBeenCalledWith(
+            'Agent query',
+            expect.objectContaining({
+                actorSurface: AgentActorSurface.MCP,
+                actorClientId: 'oauth-client',
+            }),
+        );
+        info.mockRestore();
+        service.trackQueryRefusal(
+            { ...args, agentActor, warehouseType: connection.type },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({ actor: agentActor }),
+            }),
+        );
+    });
+    test('does not misidentify an unknown service account as its backing user', async () => {
+        const { service } = setup();
+        expect(
+            (await service.resolvePlan({ ...args, isServiceAccount: true }))
+                ?.agentIdentity,
+        ).toBeNull();
+    });
+    test('preserves an explicitly unknown refusal actor', () => {
+        const { service, analytics } = setup();
+        service.trackQueryRefusal(
+            {
+                ...args,
+                agentActor: null,
+                evaluation: { kind: 'query', surface: QuerySurface.MCP },
+                warehouseType: connection.type,
+            },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({ actor: null }),
+            }),
+        );
+    });
     describe('query refusal analytics', () => {
         const queryArgs: ResolvePlanArgs = { ...args, connection: snowflake };
         const properties = {
@@ -282,6 +438,7 @@ describe('AiAccessService', () => {
             warehouseConnectionId: null,
             surface: QuerySurface.APP,
             warehouseType: WarehouseTypes.SNOWFLAKE,
+            actor: { surface: 'in_app_agent', clientId: 'lightdash-chat' },
         };
 
         test.each([
@@ -387,6 +544,7 @@ describe('AiAccessService', () => {
                     ...properties,
                     warehouseConnectionId: 'extra',
                     surface: QuerySurface.SLACK,
+                    actor: { surface: 'slack_agent', clientId: null },
                     reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
                 },
             });
@@ -1802,6 +1960,8 @@ describe('AiAccessService', () => {
                 context: QueryExecutionContext.AI,
             });
             expect(info).toHaveBeenCalledExactlyOnceWith('Agent query', {
+                actorSurface: null,
+                actorClientId: null,
                 queryUuid: 'query',
                 projectUuid: 'project',
                 warehouseConnectionUuid: 'connection',
@@ -2412,6 +2572,10 @@ describe('per-type execution identity resolution', () => {
                         ? { userId: 'user' }
                         : { anonymousId: LightdashAnalytics.anonymousId }),
                     properties: {
+                        actor: {
+                            surface: 'in_app_agent',
+                            clientId: 'lightdash-chat',
+                        },
                         organizationId: 'org',
                         projectId: 'project',
                         userId: scenario.actor === 'person' ? 'user' : null,
@@ -2603,6 +2767,13 @@ describe('per-type execution identity resolution', () => {
                     userId: 'user',
                     warehouseConnectionId: null,
                     surface,
+                    actor:
+                        surface === QuerySurface.MCP
+                            ? { surface: 'mcp', clientId: null }
+                            : {
+                                  surface: 'in_app_agent',
+                                  clientId: 'lightdash-chat',
+                              },
                     warehouseType: WarehouseTypes.BIGQUERY,
                     reason,
                 },

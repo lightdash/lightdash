@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
@@ -8,6 +9,7 @@ import {
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryTokenError,
+    buildAgentIdentityClaim,
     ChartType,
     CreateWarehouseCredentials,
     DashboardTileTypes,
@@ -1306,6 +1308,7 @@ describe('AsyncQueryService', () => {
                             userId: sessionAccount.user.id,
                             warehouseConnectionId: null,
                             surface: QuerySurface.MCP,
+                            actor: { surface: 'mcp', clientId: null },
                             warehouseType: WarehouseTypes.BIGQUERY,
                             reason,
                         },
@@ -4712,8 +4715,36 @@ describe('AsyncQueryService', () => {
                         },
                         aiPlan:
                             scenario === 'slot'
-                                ? aiServiceAccountPlanMock
-                                : aiExecutionPlanMock,
+                                ? {
+                                      ...aiServiceAccountPlanMock,
+                                      agentIdentity: {
+                                          sub: 'service_account:subject',
+                                          subject: {
+                                              type: 'service_account',
+                                              uuid: 'subject',
+                                          },
+                                          act: {
+                                              sub: 'mcp:unknown',
+                                              surface: 'mcp',
+                                              client_id: null,
+                                          },
+                                      },
+                                  }
+                                : {
+                                      ...aiExecutionPlanMock,
+                                      agentIdentity: {
+                                          sub: 'user:subject',
+                                          subject: {
+                                              type: 'user',
+                                              uuid: 'subject',
+                                          },
+                                          act: {
+                                              sub: 'in_app_agent:lightdash-chat',
+                                              surface: 'in_app_agent',
+                                              client_id: 'lightdash-chat',
+                                          },
+                                      },
+                                  },
                     });
                 }
                 if (scenario === 'denied')
@@ -4793,6 +4824,12 @@ describe('AsyncQueryService', () => {
                 if (scenario === 'principal' || scenario === 'slot') {
                     expect(execute).toHaveBeenCalledWith(
                         expect.objectContaining({
+                            agentIdentity: expect.objectContaining({
+                                sub:
+                                    scenario === 'slot'
+                                        ? 'service_account:subject'
+                                        : 'user:subject',
+                            }),
                             aiPrincipalUuid:
                                 scenario === 'slot'
                                     ? aiServiceAccountPlanMock.identityUuid
@@ -5676,6 +5713,7 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            agentIdentity: null,
         });
 
         test('personalises a stored error when a member polls it', async () => {
@@ -5813,6 +5851,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                agentIdentity: null,
             });
 
             serviceWithCache.getExplore = vi
@@ -6057,6 +6096,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                agentIdentity: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -6182,6 +6222,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                agentIdentity: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -6285,6 +6326,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                agentIdentity: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -6354,6 +6396,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: 'duckdb',
                 preAggregateFallbackReason: 'duckdb_execution_error',
                 processingStartedAt: null,
+                agentIdentity: null,
             };
 
             serviceWithCache.queryHistoryModel.get = vi
@@ -6635,6 +6678,7 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
+                agentIdentity: null,
                 ...overrides,
             }) as QueryHistory;
 
@@ -7241,6 +7285,7 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            agentIdentity: null,
         });
 
         const getPollArgs = (
@@ -7418,6 +7463,7 @@ describe('AsyncQueryService', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
+        agentIdentity: null,
     });
 
     describe('prepareQueuedQueryForExecution', () => {
@@ -7486,6 +7532,11 @@ describe('AsyncQueryService', () => {
                 user_id: { reference: 'user_id', type: DimensionType.STRING },
                 amount: { reference: 'amount', type: DimensionType.NUMBER },
             };
+            const agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'service_account', uuid: 'service-account' },
+                surface: AgentActorSurface.MCP,
+                clientId: 'oauth-client',
+            });
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
                 service.queryHistoryModel
@@ -7493,6 +7544,7 @@ describe('AsyncQueryService', () => {
             ).mockResolvedValue({
                 ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
                 originalColumns: mockOriginalColumns,
+                agentIdentity,
             });
             const runAsyncWarehouseQuerySpy = vi
                 .spyOn(service, 'runAsyncWarehouseQuery')
@@ -7507,6 +7559,7 @@ describe('AsyncQueryService', () => {
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledWith(
                 expect.objectContaining({
                     originalColumns: mockOriginalColumns,
+                    agentIdentity,
                 }),
             );
         });
@@ -7543,6 +7596,85 @@ describe('AsyncQueryService', () => {
                     expiresAt: undefined,
                 }));
         });
+
+        test.each([true, false])(
+            'stores the flag-gated claim at submission (enabled=%s)',
+            async (enabled) => {
+                const flags = { get: vi.fn(async () => ({ enabled })) };
+                const rules = {
+                    get: vi.fn(async () => ({ source: 'marked_person' })),
+                };
+                const users = {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'person@example.test',
+                    })),
+                };
+                const access = new AiAccessService({
+                    featureFlagModel: flags,
+                    organizationAgentIdentityRulesModel: rules,
+                    userModel: users,
+                } as unknown as ConstructorParameters<
+                    typeof AiAccessService
+                >[0]);
+                const plan = await access.resolvePlan({
+                    evaluation: { kind: 'query', surface: QuerySurface.APP },
+                    projectUuid,
+                    organizationUuid: 'org',
+                    warehouseConnectionUuid: null,
+                    connection: warehouseCredentialsMock,
+                    context: QueryExecutionContext.AI,
+                    userUuid: sessionAccount.user.id,
+                    isRegisteredUser: true,
+                    isServiceAccount: false,
+                });
+                const run = vi
+                    .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
+                    .mockResolvedValue(undefined);
+                await serviceWithCache['executeAsyncQuery'](
+                    {
+                        aiPrincipalUuid: null,
+                        agentIdentity: plan?.agentIdentity ?? null,
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.AI,
+                        queryTags: { query_context: QueryExecutionContext.AI },
+                        invalidateCache: false,
+                        queryComposer: createQueryComposerMock(),
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                    },
+                    { query: metricQueryMock },
+                );
+                const inserted = vi
+                    .mocked(serviceWithCache.queryHistoryModel.create)
+                    .mock.calls.at(-1)![1];
+                if (enabled) {
+                    expect(inserted.agentIdentity).toEqual(
+                        buildAgentIdentityClaim({
+                            subject: {
+                                type: 'user',
+                                uuid: sessionAccount.user.id,
+                            },
+                            surface: AgentActorSurface.IN_APP_AGENT,
+                            clientId: 'lightdash-chat',
+                        }),
+                    );
+                    expect(run).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            agentIdentity: inserted.agentIdentity,
+                        }),
+                    );
+                } else {
+                    expect(inserted).not.toHaveProperty('agentIdentity');
+                }
+                expect(flags.get).toHaveBeenCalledOnce();
+                expect(rules.get).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                expect(users.getUserDetailsByUuid).toHaveBeenCalledTimes(
+                    enabled ? 1 : 0,
+                );
+                run.mockRestore();
+            },
+        );
 
         test('should store original columns when provided', async () => {
             const mockCacheResult: MissCacheResult = {
@@ -12094,6 +12226,7 @@ describe('saved chart query result access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            agentIdentity: null,
         };
         const getChart = vi.fn().mockResolvedValue({
             uuid: 'source-chart-uuid',
@@ -14554,6 +14687,7 @@ describe('executeAsyncMergeQuery over a result source', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
+        agentIdentity: null,
     });
 
     const mergeQuery: MergeQuery = {
@@ -15363,6 +15497,7 @@ describe('chart embed token query history access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            agentIdentity: null,
         };
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);
@@ -15559,6 +15694,7 @@ describe('embedded AI agent result downloads', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
+            agentIdentity: null,
         };
         const service = getMockedAsyncQueryService(lightdashConfigMock);
         service.queryHistoryModel.get = vi.fn().mockResolvedValue(history);

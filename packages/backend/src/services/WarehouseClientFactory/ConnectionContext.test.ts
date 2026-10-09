@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     QueryExecutionContext,
     QuerySurface,
     type Account,
@@ -9,6 +10,7 @@ import {
     connectionContextFromUser,
     ConnectionSurface,
     connectionSurfaceFromQuerySurface,
+    getAgentActor,
     querySurfaceFromConnectionSurface,
     surfaceFromQueryContext,
     type ConnectionAiClient,
@@ -153,6 +155,7 @@ describe('ConnectionContext', () => {
         'the account builder overrides %s without changing the AI client',
         (surface) => {
             const account = {
+                authentication: { type: 'session' },
                 user: { id: 'user-uuid' },
                 isRegisteredUser: () => true,
                 isServiceAccount: () => false,
@@ -178,6 +181,7 @@ describe('ConnectionContext', () => {
         { isRegisteredUser: false, isServiceAccount: false },
     ])('the account builder calls the account helpers for %o', (flags) => {
         const account = {
+            authentication: { type: 'session' },
             user: { id: 'user-uuid' },
             isRegisteredUser: vi.fn(() => flags.isRegisteredUser),
             isServiceAccount: vi.fn(() => flags.isServiceAccount),
@@ -198,5 +202,68 @@ describe('ConnectionContext', () => {
         expect(context.purpose).toBe('compile');
         expect(account.isRegisteredUser).toHaveBeenCalledOnce();
         expect(account.isServiceAccount).toHaveBeenCalledOnce();
+    });
+});
+
+describe('connection actor identity', () => {
+    test('carries the service account UUID from authentication', () => {
+        const account = {
+            authentication: {
+                type: 'service-account',
+                serviceAccountUuid: 'service-account',
+            },
+            user: { id: 'backing-user' },
+            isRegisteredUser: () => true,
+            isServiceAccount: () => true,
+        } as Account;
+        expect(
+            connectionContextFromAccount(account, {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.AI,
+            }).actor.person,
+        ).toEqual({
+            userUuid: 'backing-user',
+            isRegisteredUser: true,
+            isServiceAccount: true,
+            serviceAccountUuid: 'service-account',
+        });
+    });
+    test.each([
+        [
+            ConnectionSurface.IN_APP_AGENT,
+            AgentActorSurface.IN_APP_AGENT,
+            'lightdash-chat',
+        ],
+        [
+            ConnectionSurface.DATA_APP,
+            AgentActorSurface.DATA_APP,
+            'lightdash-data-app',
+        ],
+        [ConnectionSurface.SLACK_AGENT, AgentActorSurface.SLACK_AGENT, null],
+        [ConnectionSurface.MCP, AgentActorSurface.MCP, null],
+    ] as const)(
+        'derives the default identity for %s',
+        (surface, agentSurface, clientId) => {
+            expect(
+                getAgentActor({ surface, person: null, aiClient: null }),
+            ).toEqual({ surface: agentSurface, clientId });
+        },
+    );
+    test('reconstructs the stored actor without replacing its client', () => {
+        const context = connectionContextFromUser(
+            { userUuid: 'user' },
+            {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.AI,
+                agentActor: {
+                    surface: AgentActorSurface.AI_SUMMARY,
+                    clientId: 'lightdash-ai-summary',
+                },
+            },
+        );
+        expect(getAgentActor(context.actor)).toEqual({
+            surface: AgentActorSurface.AI_SUMMARY,
+            clientId: 'lightdash-ai-summary',
+        });
     });
 });

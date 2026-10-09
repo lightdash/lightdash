@@ -1081,6 +1081,8 @@ describe('WarehouseClientFactory', () => {
         );
         expect(credentialSource.finish).not.toHaveBeenCalled();
         expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith({
+            agentActor: { surface: 'in_app_agent', clientId: 'lightdash-chat' },
+            serviceAccountUuid: undefined,
             evaluation: { kind: 'query', surface: QuerySurface.APP },
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
@@ -2190,6 +2192,13 @@ describe('AI service account factory scopes', () => {
                     userId: 'user-uuid',
                     warehouseConnectionId: 'extra',
                     surface: expectedSurface,
+                    actor: {
+                        surface,
+                        clientId:
+                            surface === ConnectionSurface.IN_APP_AGENT
+                                ? 'lightdash-chat'
+                                : null,
+                    },
                     warehouseType: WarehouseTypes.BIGQUERY,
                     reason: 'ai_service_account_invalid',
                 },
@@ -2287,6 +2296,10 @@ describe('AI service account factory scopes', () => {
                 aiAccessService.trackQueryRefusal,
             ).toHaveBeenCalledExactlyOnceWith(
                 {
+                    agentActor: {
+                        surface: 'in_app_agent',
+                        clientId: 'lightdash-chat',
+                    },
                     organizationUuid: 'org-uuid',
                     projectUuid: 'project-uuid',
                     userUuid: 'user-uuid',

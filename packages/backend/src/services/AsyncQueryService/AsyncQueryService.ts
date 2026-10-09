@@ -125,6 +125,7 @@ import {
     WarehouseQueryError,
     WarehouseTypes,
     withAgentMarkerTag,
+    type AgentIdentityClaim,
     type AiExecutionPlan,
     type ApiCompiledMergeQueryResults,
     type ApiDownloadAsyncQueryResults,
@@ -534,6 +535,7 @@ type ExecuteAsyncQueryArgs = Pick<
     routingTarget?: PreAggregationRoutingDecision['target'];
     preAggregationRoute?: PreAggregationRoute;
     aiPrincipalUuid: string | null;
+    agentIdentity?: AgentIdentityClaim | null;
     warehouseCredentials: ResolvedWarehouseCredentials;
     warehouseConnectionUuid: string | null;
     connectionRoute?: ConnectionRouteWithOriginal | null;
@@ -3745,6 +3747,7 @@ export class AsyncQueryService extends ProjectService {
         isPreviewProject,
         isRegisteredUser,
         isServiceAccount,
+        agentIdentity,
         onboardingFlow,
         projectUuid,
         query,
@@ -3831,10 +3834,25 @@ export class AsyncQueryService extends ProjectService {
                     overrides: warehouseCredentialsOverrides,
                 },
                 connectionContextFromUser(
-                    { userUuid, isRegisteredUser, isServiceAccount },
+                    {
+                        userUuid,
+                        isRegisteredUser,
+                        isServiceAccount,
+                        ...(agentIdentity?.subject.type === 'service_account'
+                            ? { serviceAccountUuid: agentIdentity.subject.uuid }
+                            : {}),
+                    },
                     {
                         organizationUuid,
                         queryContext: queryTags.query_context,
+                        ...(agentIdentity
+                            ? {
+                                  agentActor: {
+                                      surface: agentIdentity.act.surface,
+                                      clientId: agentIdentity.act.client_id,
+                                  },
+                              }
+                            : {}),
                         surface:
                             queryUsage?.querySurface === undefined
                                 ? undefined
@@ -4450,6 +4468,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: query.organizationUuid,
             isPreviewProject,
             queryUuid: query.queryUuid,
+            agentIdentity: query.agentIdentity ?? null,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
             onboardingFlow,
@@ -4999,6 +5018,7 @@ export class AsyncQueryService extends ProjectService {
                     preAggregationRoute,
                     warehouseCredentials,
                     aiPrincipalUuid,
+                    agentIdentity,
                     warehouseConnectionUuid,
                     connectionRoute,
                 } = args;
@@ -5167,6 +5187,7 @@ export class AsyncQueryService extends ProjectService {
                     const queryHistory: Parameters<
                         QueryHistoryModel['create']
                     >[1] = {
+                        ...(agentIdentity ? { agentIdentity } : {}),
                         projectUuid,
                         organizationUuid,
                         context,
@@ -5491,6 +5512,7 @@ export class AsyncQueryService extends ProjectService {
                     trackQueryExecuted(executedSource);
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
+                        agentIdentity: agentIdentity ?? null,
                         userUuid: account.user.id,
                         organizationUuid,
                         isPreviewProject,
@@ -5943,6 +5965,12 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
+                ...(account.authentication.type === 'service-account'
+                    ? {
+                          serviceAccountUuid:
+                              account.authentication.serviceAccountUuid,
+                      }
+                    : {}),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -6144,6 +6172,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -6749,6 +6778,12 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            ...(account.authentication.type === 'service-account'
+                ? {
+                      serviceAccountUuid:
+                          account.authentication.serviceAccountUuid,
+                  }
+                : {}),
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -6803,6 +6838,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -7090,6 +7126,12 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            ...(account.authentication.type === 'service-account'
+                ? {
+                      serviceAccountUuid:
+                          account.authentication.serviceAccountUuid,
+                  }
+                : {}),
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7195,6 +7237,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -7881,6 +7924,12 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
+                ...(account.authentication.type === 'service-account'
+                    ? {
+                          serviceAccountUuid:
+                              account.authentication.serviceAccountUuid,
+                      }
+                    : {}),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -8019,6 +8068,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -8099,6 +8149,12 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            ...(account.authentication.type === 'service-account'
+                ? {
+                      serviceAccountUuid:
+                          account.authentication.serviceAccountUuid,
+                  }
+                : {}),
             context,
         });
 
@@ -8343,6 +8399,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    agentIdentity: aiPlan?.agentIdentity ?? null,
                     aiPrincipalUuid: getAiExecutionCredentialUuid(
                         aiPlan ?? null,
                     ),
@@ -8490,6 +8547,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11266,6 +11324,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11426,6 +11485,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
+                agentIdentity: aiPlan?.agentIdentity ?? null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11865,6 +11925,12 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
+            ...(account.authentication.type === 'service-account'
+                ? {
+                      serviceAccountUuid:
+                          account.authentication.serviceAccountUuid,
+                  }
+                : {}),
             context,
         });
 
@@ -11922,6 +11988,7 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
+                    agentIdentity: aiPlan?.agentIdentity ?? null,
                     aiPrincipalUuid: getAiExecutionCredentialUuid(
                         aiPlan ?? null,
                     ),
