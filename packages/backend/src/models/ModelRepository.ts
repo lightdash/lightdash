@@ -69,6 +69,7 @@ import { ProjectParametersModel } from './ProjectParametersModel';
 import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { RecentContentModel } from './RecentContentModel';
+import { RefreshTokenRotation } from './RefreshTokenRotation/RefreshTokenRotation';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
 import { SavedChartAccessModel } from './SavedChartAccessModel';
@@ -112,6 +113,7 @@ import { WarehouseConnectionTablesModel } from './WarehouseConnectionTablesModel
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
     recentContentModel: RecentContentModel;
+    refreshTokenRotation: RefreshTokenRotation;
     appAccessModel: AppAccessModel;
     appModel: AppModel;
     commentModel: CommentModel;
@@ -1354,6 +1356,12 @@ export class ModelRepository
                 new PreAggregateModel({
                     database: this.database,
                 }),
+        );
+    }
+
+    public getRefreshTokenRotation(): RefreshTokenRotation {
+        return this.getModel('refreshTokenRotation', () =>
+            RefreshTokenRotation.forDatabase(this.database),
         );
     }
 

@@ -250,3 +250,22 @@ the stored-deadline checks and legacy refresh-error mapping apply.
 Console changes affect the next resolution without a restart. ENV changes need
 a process restart. Disabling this flag does not undo token rotations or revoke
 issued tokens. It does not change non-agent Snowflake authentication.
+
+### Warehouse OAuth refresh locking
+
+`warehouse-oauth-refresh-lock` is a default-on kill switch for coordinated
+warehouse token rotation. Its handler uses the standard database resolver with
+a true fallback. Callers resolve it for the credential resource's organisation,
+without a user UUID, so personal overrides do not apply. Instance defaults and
+organisation overrides apply, with the generic ENV precedence described above.
+
+The coordinator shares pending refreshes within a process and uses a PostgreSQL
+advisory transaction lock for each credential row. Admission allows two leaders
+per database pool, with a ten-second wait limit and a five-second database lock
+wait limit. Timeouts return a retryable refresh error. The flag decision belongs
+to callers; this initial registration does not yet change refresh entry points.
+
+Once callers are connected, Console changes apply to the next refresh. A refresh
+already in progress finishes under its selected policy. Disabling the flag selects
+the legacy refresh path and does not undo rotations. ENV changes need a process
+restart.
