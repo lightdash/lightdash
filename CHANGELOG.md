@@ -1,3 +1,10 @@
+# [2.514.0](https://github.com/lightdash/lightdash/compare/2.513.0...2.514.0) (2026-10-09)
+
+
+### Features
+
+* **warehouse:** resolve BigQuery SSO through a credential resolver ([#30812](https://github.com/lightdash/lightdash/issues/30812)) ([6f2a4f2](https://github.com/lightdash/lightdash/commit/6f2a4f29f654ce793457afb6460fce10882eb0f2))
+
 # [2.513.0](https://github.com/lightdash/lightdash/compare/2.512.1...2.513.0) (2026-10-09)
 
 
