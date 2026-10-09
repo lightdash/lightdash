@@ -83,6 +83,7 @@ const event = (
     event: 'query.completed',
     userId: error ? undefined : 'user',
     properties: {
+        inheritedFromProjectUuid: null,
         queryId: id,
         organizationId: 'org',
         projectId: 'project',

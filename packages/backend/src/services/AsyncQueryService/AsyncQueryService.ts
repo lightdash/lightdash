@@ -538,6 +538,7 @@ type ExecuteAsyncQueryArgs = Pick<
     routingTarget?: PreAggregationRoutingDecision['target'];
     preAggregationRoute?: PreAggregationRoute;
     aiPrincipalUuid: string | null;
+    inheritedFromProjectUuid: string | null;
     agentIdentity?: AgentIdentityClaim | null;
     warehouseCredentials: ResolvedWarehouseCredentials;
     warehouseConnectionUuid: string | null;
@@ -3307,6 +3308,7 @@ export class AsyncQueryService extends ProjectService {
                     `Pre-aggregate execution (${preAggregateExecution}) failed for ${queryUuid} and execution fallback is disabled. Marking query as errored`,
                 );
                 await this.markAsyncQueryErrored({
+                    inheritedFromProjectUuid: null,
                     queryUuid,
                     projectUuid,
                     organizationUuid,
@@ -3501,6 +3503,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseConnectionUuid,
         connectionRoute,
         connectionWarehouseType,
+        inheritedFromProjectUuid,
     }: Pick<
         RunAsyncWarehouseQueryArgs,
         | 'queryUuid'
@@ -3514,6 +3517,7 @@ export class AsyncQueryService extends ProjectService {
         | 'queryCreatedAt'
         | 'queryUsage'
     > & {
+        inheritedFromProjectUuid: string | null;
         errorMessage: string;
         executionSource:
             | 'warehouse'
@@ -3536,6 +3540,7 @@ export class AsyncQueryService extends ProjectService {
             ...analyticsIdentity,
             event: 'query.error',
             properties: {
+                inheritedFromProjectUuid,
                 queryId: queryUuid,
                 organizationId: organizationUuid,
                 projectId: projectUuid,
@@ -3558,6 +3563,7 @@ export class AsyncQueryService extends ProjectService {
             ...analyticsIdentity,
             event: 'query.completed',
             properties: {
+                inheritedFromProjectUuid,
                 ...queryUsageProperties(queryTags, queryUsage),
                 ...connectionAnalytics,
                 connectionWarehouseType: connectionWarehouseType ?? null,
@@ -3817,6 +3823,7 @@ export class AsyncQueryService extends ProjectService {
         let projectCredentials: CreateWarehouseCredentials | null = null;
         let aiQueryTags: Record<string, string> = {};
         let executionAgentIdentity: AgentIdentityClaim | null = null;
+        let inheritedFromProjectUuid: string | null = null;
 
         type WarehouseQueryAttempt =
             | { kind: 'complete' }
@@ -3883,6 +3890,10 @@ export class AsyncQueryService extends ProjectService {
                     executionAgentIdentity = aiPlan
                         ? (agentIdentity ?? aiPlan.agentIdentity ?? null)
                         : null;
+                    inheritedFromProjectUuid =
+                        aiPlan?.identity === 'ai_service_account'
+                            ? aiPlan.inheritedFromProjectUuid
+                            : null;
                     aiQueryTags = aiPlan?.audit.queryTags ?? {};
                     if (aiPlan) {
                         this.aiAccessService.recordQuery({
@@ -4096,6 +4107,7 @@ export class AsyncQueryService extends ProjectService {
                     ...analyticsIdentity,
                     event: 'query.ready',
                     properties: {
+                        inheritedFromProjectUuid,
                         queryId: queryUuid,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
@@ -4209,6 +4221,7 @@ export class AsyncQueryService extends ProjectService {
                     ...analyticsIdentity,
                     event: 'query.completed',
                     properties: {
+                        inheritedFromProjectUuid,
                         ...queryUsageProperties(queryTags, queryUsage),
                         ...this.getQueryConnectionAnalyticsProperties({
                             warehouseConnectionUuid,
@@ -4367,6 +4380,7 @@ export class AsyncQueryService extends ProjectService {
             }
 
             await this.markAsyncQueryErrored({
+                inheritedFromProjectUuid,
                 queryUuid,
                 projectUuid,
                 organizationUuid,
@@ -5243,6 +5257,7 @@ export class AsyncQueryService extends ProjectService {
                         context,
                     );
                     const queryExecutedProperties = {
+                        inheritedFromProjectUuid: args.inheritedFromProjectUuid,
                         ...connectionAnalytics,
                         organizationId: organizationUuid,
                         projectId: projectUuid,
@@ -5293,6 +5308,8 @@ export class AsyncQueryService extends ProjectService {
                         this.analytics.trackAccount(account, {
                             event: 'query.completed',
                             properties: {
+                                inheritedFromProjectUuid:
+                                    args.inheritedFromProjectUuid,
                                 ...queryUsageProperties(queryTags, queryUsage),
                                 ...connectionAnalytics,
                                 connectionWarehouseType:
@@ -5906,6 +5923,10 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns,
                     warehouseCredentials,
+                    inheritedFromProjectUuid:
+                        aiPlan?.identity === 'ai_service_account'
+                            ? aiPlan.inheritedFromProjectUuid
+                            : null,
                     aiPrincipalUuid:
                         aiPlan?.identity === 'connected_person'
                             ? aiPlan.identityUuid
@@ -6288,6 +6309,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -6949,6 +6974,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -7343,6 +7372,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -8169,6 +8202,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns: undefined,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -8495,6 +8532,10 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     agentIdentity: aiPlan?.agentIdentity ?? null,
+                    inheritedFromProjectUuid:
+                        aiPlan?.identity === 'ai_service_account'
+                            ? aiPlan.inheritedFromProjectUuid
+                            : null,
                     aiPrincipalUuid: getAiExecutionCredentialUuid(
                         aiPlan ?? null,
                     ),
@@ -8643,6 +8684,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -10179,6 +10224,7 @@ export class AsyncQueryService extends ProjectService {
                 : { anonymousId: 'embed' }),
             event: 'query.completed',
             properties: {
+                inheritedFromProjectUuid: null,
                 ...queryUsageProperties(queryTags, queryUsage),
                 ...this.getQueryConnectionAnalyticsProperties({
                     warehouseConnectionUuid: null,
@@ -11438,6 +11484,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -11599,6 +11649,10 @@ export class AsyncQueryService extends ProjectService {
                 originalColumns,
                 warehouseCredentials,
                 agentIdentity: aiPlan?.agentIdentity ?? null,
+                inheritedFromProjectUuid:
+                    aiPlan?.identity === 'ai_service_account'
+                        ? aiPlan.inheritedFromProjectUuid
+                        : null,
                 aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
@@ -12097,6 +12151,10 @@ export class AsyncQueryService extends ProjectService {
                     originalColumns: undefined,
                     warehouseCredentials,
                     agentIdentity: aiPlan?.agentIdentity ?? null,
+                    inheritedFromProjectUuid:
+                        aiPlan?.identity === 'ai_service_account'
+                            ? aiPlan.inheritedFromProjectUuid
+                            : null,
                     aiPrincipalUuid: getAiExecutionCredentialUuid(
                         aiPlan ?? null,
                     ),

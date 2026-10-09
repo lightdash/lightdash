@@ -50,6 +50,8 @@ export type AiExecutionPlan = {
 } & (
     | {
           identity: 'ai_service_account';
+          sourceProjectUuid: string;
+          inheritedFromProjectUuid: string | null;
           identityUuid: string;
           credentialUuid: string;
           credentials: CreateWarehouseCredentials;

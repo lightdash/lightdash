@@ -26,7 +26,10 @@ const setup = (enabled: boolean) => {
     ]);
     const model = {
         getSlot: vi.fn().mockResolvedValue(null),
-        getSecrets: vi.fn().mockResolvedValue(input),
+        getSecrets: vi.fn().mockResolvedValue({
+            slot: { uuid: 'slot', identityUuid: 'generation' },
+            secrets: input,
+        }),
         getReplaceableSecrets: vi.fn().mockResolvedValue(input),
         upsert: vi.fn().mockResolvedValue({ uuid: 'slot' }),
         delete: vi.fn(),
@@ -153,5 +156,14 @@ describe('testAccess route', () => {
             null,
             request,
         );
+    });
+});
+
+it('keeps the own slot as results and returns an explicit parent field', async () => {
+    const f = setup(true);
+    expect(await f.controller.get('project', f.req)).toEqual({
+        status: 'ok',
+        results: null,
+        parent: null,
     });
 });

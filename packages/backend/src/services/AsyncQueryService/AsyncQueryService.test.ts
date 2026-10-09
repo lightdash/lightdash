@@ -1338,6 +1338,7 @@ describe('AsyncQueryService', () => {
                         event: 'query.refused',
                         userId: sessionAccount.user.id,
                         properties: {
+                            inheritedFromProjectUuid: null,
                             organizationId: source.organizationUuid,
                             projectId: projectUuid,
                             userId: sessionAccount.user.id,
@@ -2948,6 +2949,7 @@ describe('AsyncQueryService', () => {
                 try {
                     await service['executeAsyncQuery'](
                         {
+                            inheritedFromProjectUuid: null,
                             aiPrincipalUuid: null,
                             account: sessionAccount,
                             projectUuid,
@@ -3053,6 +3055,7 @@ describe('AsyncQueryService', () => {
 
                 await serviceWithCache['executeAsyncQuery'](
                     {
+                        inheritedFromProjectUuid: null,
                         aiPrincipalUuid,
                         account: sessionAccount,
                         projectUuid,
@@ -3125,6 +3128,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3215,6 +3219,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3301,6 +3306,7 @@ describe('AsyncQueryService', () => {
             const execute = (warehouseConnectionUuid: string | null) =>
                 serviceWithCache['executeAsyncQuery'](
                     {
+                        inheritedFromProjectUuid: null,
                         aiPrincipalUuid: null,
                         account: sessionAccount,
                         projectUuid,
@@ -3373,6 +3379,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3418,6 +3425,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3474,6 +3482,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3532,6 +3541,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with invalidateCache: true
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3617,6 +3627,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3676,6 +3687,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called
             const result = await serviceWithoutCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3764,6 +3776,7 @@ describe('AsyncQueryService', () => {
             // WHEN: executeAsyncQuery is called with missing parameter references
             const result = await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3835,6 +3848,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3903,6 +3917,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -3986,6 +4001,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -4076,6 +4092,7 @@ describe('AsyncQueryService', () => {
 
             await service['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -4449,7 +4466,16 @@ describe('AsyncQueryService', () => {
         },
     );
 
-    test.each([aiExecutionPlanMock, aiServiceAccountPlanMock])(
+    test.each([
+        aiExecutionPlanMock,
+        aiServiceAccountPlanMock,
+        {
+            ...aiServiceAccountPlanMock,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            identityUuid: 'parent-generation',
+        },
+    ])(
         'a switch flip bypasses the earlier marked-person cache and uses the $identity credential key',
         async (executionPlan) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -7864,6 +7890,7 @@ describe('AsyncQueryService', () => {
                     .mockResolvedValue(undefined);
                 await serviceWithCache['executeAsyncQuery'](
                     {
+                        inheritedFromProjectUuid: null,
                         aiPrincipalUuid: null,
                         agentIdentity: plan?.agentIdentity ?? null,
                         account: sessionAccount,
@@ -7935,6 +7962,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -8011,6 +8039,7 @@ describe('AsyncQueryService', () => {
 
             await serviceWithCache['executeAsyncQuery'](
                 {
+                    inheritedFromProjectUuid: null,
                     aiPrincipalUuid: null,
                     account: sessionAccount,
                     projectUuid,
@@ -8214,6 +8243,7 @@ describe('AsyncQueryService', () => {
                 expect(completed()).toHaveLength(1);
                 expect(completed()[0][0]).toMatchObject({
                     properties: {
+                        inheritedFromProjectUuid: null,
                         status: uploadFails ? 'error' : 'success',
                         responseTimeMs: uploadFails ? 9500 : 11500,
                         dashboardTileId: 'tile-a',
@@ -16185,7 +16215,10 @@ describe('embedded field value search dashboard scoping', () => {
             tiles: [
                 {
                     type: DashboardTileTypes.SAVED_CHART,
-                    properties: { savedChartUuid: 'tile-chart-uuid' },
+                    properties: {
+                        inheritedFromProjectUuid: null,
+                        savedChartUuid: 'tile-chart-uuid',
+                    },
                 },
             ],
             parameters: { region: { value: 'EMEA' } },

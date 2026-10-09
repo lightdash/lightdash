@@ -211,6 +211,8 @@ describe('AI execution credential generation', () => {
         [
             {
                 identity: 'ai_service_account',
+                sourceProjectUuid: 'project',
+                inheritedFromProjectUuid: null,
                 identityUuid: 'slot-generation',
                 credentialUuid: 'slot-row',
                 credentials,

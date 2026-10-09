@@ -4,6 +4,7 @@ import {
     AiServiceAccountTestRequest,
     ApiAgentAccessReportResponse,
     ApiAiServiceAccountSlotResponse,
+    ApiAiServiceAccountStatusResponse,
     ApiAiServiceAccountTestResponse,
     ApiErrorPayload,
     UUID,
@@ -44,12 +45,12 @@ export class AiServiceAccountController extends BaseController {
         @Path() projectUuid: UUID,
         @Request() req: express.Request,
         @Query() connection?: UUID,
-    ): Promise<ApiAiServiceAccountSlotResponse> {
+    ): Promise<ApiAiServiceAccountStatusResponse> {
         return {
             status: 'ok',
-            results: await this.services
+            ...(await this.services
                 .getAiServiceAccountService()
-                .get(req.account!, projectUuid, connection ?? null),
+                .getStatus(req.account!, projectUuid, connection ?? null)),
         };
     }
 

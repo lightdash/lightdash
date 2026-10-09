@@ -397,6 +397,7 @@ type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
         result: 'success' | 'failure';
         failureReason: 'connection_failed' | 'query_failed' | null;
         credentialSource: 'submitted' | 'saved';
+        inheritedFromProjectUuid: string | null;
     };
 };
 
@@ -419,6 +420,7 @@ type AgentIdentityAccessTestedEvent = BaseTrack & {
         > & {
             connectionUuid: string | null;
             subjectKind: 'ai_service_account';
+            inheritedFromProjectUuid: string | null;
             entryPoint: AgentAccessTestEntryPoint;
             datasetCount: number;
             durationMs: number;
@@ -676,6 +678,7 @@ export type WarehouseConnectionAnalyticsProperties = {
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
+        inheritedFromProjectUuid: string | null;
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
@@ -699,6 +702,7 @@ type QueryExecutionSource =
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -713,6 +717,7 @@ type QueryReadyEvent = BaseTrack & {
 type QueryErrorEvent = BaseTrack & {
     event: 'query.error';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -729,6 +734,7 @@ type QueryErrorEvent = BaseTrack & {
 export type QueryCompletedEvent = BaseTrack & {
     event: 'query.completed';
     properties: {
+        inheritedFromProjectUuid: string | null;
         queryId: string;
         organizationId: string;
         projectId: string;
@@ -4681,6 +4687,7 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
 };
 
 export type AgentQueryRefusedProperties = {
+    inheritedFromProjectUuid: string | null;
     actor: { surface: AgentActorSurface; clientId: string | null } | null;
     organizationId: string;
     projectId: string;

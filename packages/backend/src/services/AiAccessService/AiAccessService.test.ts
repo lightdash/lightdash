@@ -14,6 +14,7 @@ import {
     getAiExecutionCredentialUuid,
     NotFoundError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
@@ -146,13 +147,17 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         getAllByOrganizationUuid: vi.fn(async () => [
             { projectUuid: 'project', warehouseType: WarehouseTypes.SNOWFLAKE },
         ]),
-        getSummary: vi.fn(async () => ({ organizationUuid: 'org' })),
+        getSummary: vi.fn(async (_uuid: string) => ({
+            organizationUuid: 'org',
+        })),
         getWarehouseCredentialsForBinding: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
     };
     const connections = {
         getProject: vi.fn(async () => ({ projectUuid: 'project' })),
+        get: vi.fn().mockResolvedValue({ isOriginal: false }),
+        list: vi.fn().mockResolvedValue([]),
         getCredentials: vi.fn(
             async (): Promise<CreateWarehouseCredentials> => connection,
         ),
@@ -232,7 +237,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         ),
         getSecrets: vi
             .fn<
-                () => Promise<{
+                (uuid: string) => Promise<{
                     slot: AiServiceAccountSlot;
                     secrets: AiServiceAccountSecrets;
                 } | null>
@@ -635,6 +640,7 @@ describe('AiAccessService', () => {
                     : { userId: 'user' }),
                 event: 'query.refused',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     ...properties,
                     userId: anonymous ? null : 'user',
                     reason,
@@ -690,6 +696,7 @@ describe('AiAccessService', () => {
                 userId: 'user',
                 event: 'query.refused',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     ...properties,
                     warehouseConnectionId: 'extra',
                     surface: QuerySurface.SLACK,
@@ -1276,6 +1283,7 @@ describe('AiAccessService', () => {
                             warehouseConnectionUuid: 'extra',
                         }),
                         AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        null,
                     );
                 } else {
                     await expect(reading).resolves.toMatchObject({
@@ -2125,6 +2133,7 @@ describe('AiAccessService', () => {
                 context: QueryExecutionContext.AI,
             });
             expect(info).toHaveBeenCalledExactlyOnceWith('Agent query', {
+                inheritedFromProjectUuid: null,
                 actorSurface: null,
                 actorClientId: null,
                 queryUuid: 'query',
@@ -2749,6 +2758,7 @@ describe('per-type execution identity resolution', () => {
                         ? { userId: 'user' }
                         : { anonymousId: LightdashAnalytics.anonymousId }),
                     properties: {
+                        inheritedFromProjectUuid: null,
                         actor: {
                             surface: 'in_app_agent',
                             clientId: 'lightdash-chat',
@@ -2939,6 +2949,7 @@ describe('per-type execution identity resolution', () => {
                 event: 'query.refused',
                 userId: 'user',
                 properties: {
+                    inheritedFromProjectUuid: null,
                     organizationId: 'org',
                     projectId: 'project',
                     userId: 'user',
@@ -4367,4 +4378,114 @@ describe('silent refresh routing', () => {
             );
         },
     );
+});
+
+describe('preview AI service account inheritance', () => {
+    const previewSetup = () => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        f.projects.getSummary.mockImplementation(async (uuid: string) => ({
+            organizationUuid: 'org',
+            type:
+                uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+            upstreamProjectUuid: uuid === 'project' ? 'parent' : undefined,
+        }));
+        f.projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+            bigquery,
+        );
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { slot: { ...slot, projectUuid: 'parent' }, secrets }
+                : null,
+        );
+        return f;
+    };
+    test('carries parent generation and keeps preview settings and actor', async () => {
+        const f = previewSetup();
+        expect(
+            await f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).toMatchObject({
+            identity: 'ai_service_account',
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: {
+                project: bigquery.project,
+                dataset: bigquery.dataset,
+                keyfileContents: secrets.keyfileContents,
+            },
+            audit: { personUuid: args.userUuid },
+        });
+    });
+    test('attributes an unreadable parent key refusal to the parent', async () => {
+        const f = previewSetup();
+        f.slots.getSecrets
+            .mockResolvedValueOnce(null)
+            .mockRejectedValueOnce(new Error('broken parent key'));
+        await expect(
+            f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.refused',
+                properties: expect.objectContaining({
+                    projectId: 'project',
+                    inheritedFromProjectUuid: 'parent',
+                }),
+            }),
+        );
+    });
+    test('reports inherited slot metadata without decrypting', async () => {
+        const f = previewSetup();
+        f.slots.getSlot.mockResolvedValueOnce(null).mockResolvedValueOnce(slot);
+        expect(
+            await f.service.getAiAccessForUser({
+                ...args,
+                connection: bigquery,
+            }),
+        ).toMatchObject({ identity: 'ai_service_account', refusal: null });
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        expect(f.slots.getSlot).toHaveBeenLastCalledWith('parent', null);
+    });
+    test('does not resolve inherited credentials when the flag is off', async () => {
+        const f = previewSetup();
+        f.flags.get.mockResolvedValue({ enabled: false });
+        expect(
+            await f.service.resolvePlan({ ...args, connection: bigquery }),
+        ).toBeNull();
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+    });
+    test('compares stored lineage with the current parent generation', async () => {
+        const f = previewSetup();
+        const history = {
+            queryUuid: 'query',
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+        } as QueryHistory;
+        expect(
+            await f.service.assertCanReadResults(account, 'project', history),
+        ).toMatchObject({
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+        });
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? { slot: { ...slot, identityUuid: 'replaced' }, secrets }
+                : null,
+        );
+        await expect(
+            f.service.assertCanReadResults(account, 'project', history),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            },
+        });
+    });
 });
