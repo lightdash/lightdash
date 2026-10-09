@@ -3679,6 +3679,81 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncMetricQuery', () => {
+        test.each(['anyAttributes', 'requiredAttributes'] as const)(
+            'authorizes %s with effective attribute overrides before compiling',
+            async (restriction) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const explore = {
+                    ...validExplore,
+                    tables: {
+                        ...validExplore.tables,
+                        a: {
+                            ...validExplore.tables.a,
+                            [restriction]: { explore_scope: 'allowed' },
+                        },
+                    },
+                };
+                vi.spyOn(service.projectModel, 'findExploresFromCache')
+                    .mockResolvedValueOnce({ [explore.name]: explore })
+                    .mockResolvedValueOnce({ [explore.name]: explore })
+                    .mockResolvedValueOnce({ [explore.name]: explore });
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                });
+                service['getWarehouseCredentials'] = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                const prepare = vi
+                    .fn()
+                    .mockResolvedValue(createQueryComposerMock());
+                service['prepareMetricQueryAsyncQueryArgs'] = prepare;
+                service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                    queryUuid: 'query-uuid',
+                    cacheMetadata: { cacheHit: false },
+                });
+                const args = {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                };
+
+                await expect(
+                    service.executeAsyncMetricQuery(args),
+                ).rejects.toThrow(
+                    "You don't have authorization to access this explore",
+                );
+                await expect(
+                    service.executeAsyncMetricQuery({
+                        ...args,
+                        userAttributeOverrides: { explore_scope: ['denied'] },
+                    }),
+                ).rejects.toThrow(
+                    "You don't have authorization to access this explore",
+                );
+                expect(prepare).not.toHaveBeenCalled();
+
+                await expect(
+                    service.executeAsyncMetricQuery({
+                        ...args,
+                        userAttributeOverrides: { explore_scope: ['allowed'] },
+                    }),
+                ).resolves.toMatchObject({ queryUuid: 'query-uuid' });
+                expect(prepare).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        explore: expect.objectContaining({
+                            name: explore.name,
+                        }),
+                        preloadedUserAccessControls: {
+                            userAttributes: { explore_scope: ['allowed'] },
+                            intrinsicUserAttributes: {},
+                        },
+                    }),
+                );
+            },
+        );
+
         test.each([
             [QueryExecutionContext.AI, true, 'warehouse'],
             [QueryExecutionContext.AI, false, 'pre_aggregate'],
@@ -7854,6 +7929,7 @@ describe('AsyncQueryService', () => {
                     ...validExplore.tables,
                     a: {
                         ...validExplore.tables.a,
+                        anyAttributes: { allowed_regions: 'EMEA' },
                         sqlWhere:
                             "'EMEA' IN (${lightdash.attribute.allowed_regions}) AND ${lightdash.user.email} = 'materialize@acme.com'",
                         uncompiledSqlWhere:
@@ -7885,6 +7961,9 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                userAttributeOverrides: {
+                    allowed_regions: ['override-region'],
+                },
                 materializationRole: {
                     userAttributes: {
                         allowed_regions: ['EMEA', 'APAC'],
@@ -7905,6 +7984,7 @@ describe('AsyncQueryService', () => {
             expect(executedSql).toContain("'EMEA', 'APAC'");
             expect(executedSql).toContain('materialize@acme.com');
             expect(executedSql).not.toContain('viewer-region');
+            expect(executedSql).not.toContain('override-region');
         });
 
         it('does not apply model required filters to materialization queries', async () => {
@@ -10678,6 +10758,8 @@ describe('saved Document chart queries', () => {
             projectUuid,
             metricQueryMock.exploreName,
             projectSummary.organizationUuid,
+            true,
+            {},
         );
         expect(prepare).toHaveBeenCalledWith(
             expect.objectContaining({
