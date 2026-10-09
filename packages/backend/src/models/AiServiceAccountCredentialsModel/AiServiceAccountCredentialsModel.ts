@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     assertValidBigqueryKeyfile,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     ParameterError,
@@ -49,7 +50,23 @@ const snowflakeCredentialsSchema = z
         warehouse: nonEmptyIdentifier,
     })
     .strict();
+const s3UriSchema = z
+    .string()
+    .regex(/^s3:\/\/[a-z0-9][a-z0-9.-]*[a-z0-9](?:\/[^?#\s]*)?$/);
+const athenaCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.ATHENA),
+        authenticationType: z.literal(AthenaAuthenticationType.ACCESS_KEY),
+        accessKeyId: nonEmptyIdentifier,
+        secretAccessKey: nonEmptyIdentifier,
+        sessionToken: nonEmptyIdentifier.optional(),
+        workGroup: nonEmptyIdentifier,
+        s3StagingDir: s3UriSchema,
+        s3DataDir: s3UriSchema.optional(),
+    })
+    .strict();
 const credentialsSchema = z.discriminatedUnion('type', [
+    athenaCredentialsSchema,
     bigqueryCredentialsSchema,
     databricksCredentialsSchema,
     snowflakeCredentialsSchema,
@@ -81,6 +98,22 @@ const snowflakeVerificationSchema = verificationBaseSchema
     })
     .strict()
     .refine((value) => value.principal === value.observed.currentUser);
+const athenaVerificationSchema = verificationBaseSchema
+    .extend({
+        observed: z.object({ principalArn: nonEmptyIdentifier }).strict(),
+    })
+    .strict()
+    .refine((value) => value.principal === value.observed.principalArn);
+const athenaPayloadSchema = athenaCredentialsSchema
+    .extend({
+        verification: athenaVerificationSchema.optional(),
+    })
+    .strict();
+
+export type AthenaAiServiceAccountSecrets = z.infer<
+    typeof athenaCredentialsSchema
+>;
+
 const databricksPayloadSchema = databricksCredentialsSchema
     .extend({ verification: databricksVerificationSchema.optional() })
     .strict();
@@ -94,12 +127,26 @@ export type SnowflakeAiServiceAccountSecrets = z.infer<
 >;
 
 const parseVerification = (
-    warehouseType: WarehouseTypes.SNOWFLAKE | WarehouseTypes.DATABRICKS,
+    warehouseType:
+        | WarehouseTypes.SNOWFLAKE
+        | WarehouseTypes.DATABRICKS
+        | WarehouseTypes.ATHENA,
     verification: AiServiceAccountTestResult,
-) =>
-    warehouseType === WarehouseTypes.SNOWFLAKE
-        ? snowflakeVerificationSchema.parse(verification)
-        : databricksVerificationSchema.parse(verification);
+) => {
+    switch (warehouseType) {
+        case WarehouseTypes.SNOWFLAKE:
+            return snowflakeVerificationSchema.parse(verification);
+        case WarehouseTypes.DATABRICKS:
+            return databricksVerificationSchema.parse(verification);
+        case WarehouseTypes.ATHENA:
+            return athenaVerificationSchema.parse(verification);
+        default:
+            return assertUnreachable(
+                warehouseType,
+                'Unknown verification warehouse',
+            );
+    }
+};
 
 export type BigqueryAiServiceAccountSecrets = z.infer<
     typeof bigqueryCredentialsSchema
@@ -136,6 +183,7 @@ export const parseAiServiceAccountSecrets = (
             }
             return credentials;
         case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.ATHENA:
             return credentials;
         case WarehouseTypes.BIGQUERY:
             try {
@@ -225,8 +273,9 @@ export class AiServiceAccountCredentialsModel {
                         return databricksPayloadSchema.parse(value);
                     case WarehouseTypes.SNOWFLAKE:
                         return snowflakePayloadSchema.parse(value);
-                    case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.ATHENA:
+                        return athenaPayloadSchema.parse(value);
+                    case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
                     case WarehouseTypes.POSTGRES:
@@ -308,6 +357,7 @@ export class AiServiceAccountCredentialsModel {
         verification: AiServiceAccountTestResult,
     ): Promise<void> {
         z.union([
+            athenaVerificationSchema,
             databricksVerificationSchema,
             snowflakeVerificationSchema,
         ]).parse(verification);

@@ -127,7 +127,11 @@ import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaselin
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import type { AiAgentService } from '../../ee/services/AiAgentService/AiAgentService';
 import * as winston from '../../logging/winston';
-import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
+    athenaConnection,
+    athenaSecrets,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -188,6 +192,7 @@ import {
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
@@ -16642,26 +16647,37 @@ describe('AI principal credential routing', () => {
     });
     test.each(
         [false, true].flatMap((extra) =>
-            [WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS].map(
-                (warehouseType) => ({ extra, warehouseType }),
-            ),
+            [
+                WarehouseTypes.BIGQUERY,
+                WarehouseTypes.DATABRICKS,
+                WarehouseTypes.ATHENA,
+            ].map((warehouseType) => ({ extra, warehouseType })),
         ),
     )(
         'slot resolution skips organization and personal refresh on extra=$extra for $warehouseType',
         async ({ extra, warehouseType }) => {
-            const executionPlan =
-                warehouseType === WarehouseTypes.BIGQUERY
-                    ? aiServiceAccountPlanMock
-                    : {
-                          ...aiServiceAccountPlanMock,
-                          credentials: {
-                              type: WarehouseTypes.DATABRICKS as const,
-                              serverHostName: 'workspace.example.com',
-                              httpPath: '/sql/warehouse',
-                              database: 'schema',
-                              token: 'slot-token',
-                          },
-                      };
+            const executionPlan = (() => {
+                if (warehouseType === WarehouseTypes.BIGQUERY)
+                    return aiServiceAccountPlanMock;
+                if (warehouseType === WarehouseTypes.ATHENA)
+                    return {
+                        ...aiServiceAccountPlanMock,
+                        credentials: buildAiServiceAccountCredentials(
+                            athenaConnection,
+                            athenaSecrets,
+                        ),
+                    };
+                return {
+                    ...aiServiceAccountPlanMock,
+                    credentials: {
+                        type: WarehouseTypes.DATABRICKS as const,
+                        serverHostName: 'workspace.example.com',
+                        httpPath: '/sql/warehouse',
+                        database: 'schema',
+                        token: 'slot-token',
+                    },
+                };
+            })();
             const configured = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
             );

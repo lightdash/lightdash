@@ -1,3 +1,4 @@
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
@@ -17,6 +18,9 @@ import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
 import {
+    athenaConnection,
+    athenaSecrets,
+    athenaVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -26,6 +30,17 @@ import {
     type MaterializedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AiServiceAccountService } from './AiServiceAccountService';
+
+const stsMocks = vi.hoisted(() => ({ send: vi.fn(), destroy: vi.fn() }));
+vi.mock('@aws-sdk/client-sts', () => ({
+    STSClient: vi.fn(
+        class MockSTSClient {
+            send = stsMocks.send;
+            destroy = stsMocks.destroy;
+        },
+    ),
+    GetCallerIdentityCommand: vi.fn(),
+}));
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
@@ -185,6 +200,7 @@ describe.each(operations)('%s boundaries', (operation) => {
         Object.values(WarehouseTypes).filter(
             (type) =>
                 type !== WarehouseTypes.BIGQUERY &&
+                type !== WarehouseTypes.ATHENA &&
                 type !== WarehouseTypes.DATABRICKS &&
                 type !== WarehouseTypes.SNOWFLAKE,
         ),
@@ -1530,6 +1546,252 @@ describe('Snowflake slots', () => {
             expect(JSON.stringify(result)).not.toContain(
                 snowflakeSecrets.privateKey,
             );
+        },
+    );
+});
+
+const athenaFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    vi.mocked(STSClient).mockClear();
+    stsMocks.send
+        .mockReset()
+        .mockResolvedValue({ Arn: athenaVerification.principal });
+    stsMocks.destroy.mockClear();
+    f.load.mockResolvedValue(athenaConnection);
+    f.getExtra.mockResolvedValue(athenaConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(athenaSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: athenaSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({ rows: [{ connection_check: 1 }] });
+    return f;
+};
+
+describe('Athena identity verification', () => {
+    it.each([undefined, 'session-token'])(
+        'uses explicit slot keys in STS and the isolated query with token=%s',
+        async (sessionToken) => {
+            const f = athenaFixture();
+            const submitted = {
+                ...athenaSecrets,
+                ...(sessionToken ? { sessionToken } : {}),
+            };
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                null,
+                submitted,
+            );
+            expect(STSClient).toHaveBeenCalledExactlyOnceWith({
+                region: 'eu-west-1',
+                credentials: {
+                    accessKeyId: submitted.accessKeyId,
+                    secretAccessKey: submitted.secretAccessKey,
+                    ...(sessionToken ? { sessionToken } : {}),
+                },
+            });
+            expect(GetCallerIdentityCommand).toHaveBeenCalledWith({});
+            expect(stsMocks.send).toHaveBeenCalledOnce();
+            expect(stsMocks.destroy).toHaveBeenCalledOnce();
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT 1 AS connection_check',
+                {},
+            );
+            expect(f.withWarehouseClient.mock.calls[0][0]).toEqual({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                projectUuid: 'project',
+                credentials: {
+                    ...submitted,
+                    region: 'eu-west-1',
+                    database: 'AwsDataCatalog',
+                    schema: 'analytics',
+                    threads: 2,
+                    numRetries: 1,
+                    startOfWeek: 1,
+                    dataTimezone: 'UTC',
+                    requireUserCredentials: false,
+                },
+            });
+            expect(result.verification).toEqual({
+                ...athenaVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                null,
+                submitted,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(stsMocks.send.mock.invocationCallOrder[0]).toBeLessThan(
+                f.runQuery.mock.invocationCallOrder[0],
+            );
+            expect(f.runQuery.mock.invocationCallOrder[0]).toBeLessThan(
+                f.model.upsert.mock.invocationCallOrder[0],
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(
+                /slot-access-key|slot-secret-key|session-token|person-key/,
+            );
+        },
+    );
+    it.each([
+        'ExpiredToken',
+        'InvalidClientTokenId',
+        'AccessDenied',
+        'ThrottlingException',
+    ])('does not query or save after STS %s', async (name) => {
+        const f = athenaFixture();
+        stsMocks.send.mockRejectedValue(
+            Object.assign(new Error('safe'), { name }),
+        );
+        await expect(
+            f.service.upsert(f.account, 'project', null, athenaSecrets),
+        ).rejects.toThrow(ParameterError);
+        expect(stsMocks.destroy).toHaveBeenCalledOnce();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    failureReason: 'connection_failed',
+                }),
+            }),
+        );
+    });
+    it.each([undefined, '', ' '])(
+        'rejects absent ARN %s and disposes STS',
+        async (Arn) => {
+            const f = athenaFixture();
+            stsMocks.send.mockResolvedValue({ Arn });
+            expect(
+                (
+                    await f.service.test(
+                        f.account,
+                        'project',
+                        null,
+                        athenaSecrets,
+                    )
+                ).ok,
+            ).toBe(false);
+            expect(stsMocks.destroy).toHaveBeenCalledOnce();
+            expect(f.runQuery).not.toHaveBeenCalled();
+        },
+    );
+    it.each([[], [{ connection_check: 0 }], [{ principal: 'other' }]])(
+        'requires the query check result %j',
+        async (...[rows]) => {
+            const f = athenaFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            await expect(
+                f.service.upsert(f.account, 'project', null, athenaSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'writes saved observations using the tested generation, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not write an observation for submitted credentials', async () => {
+        const f = athenaFixture();
+        await f.service.test(f.account, 'project', null, athenaSecrets);
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'preserves the previous observation after a query failure, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('denied'), {
+                    name: 'AccessDeniedException',
+                }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: expect.stringContaining('permissions'),
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            expect(f.analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        failureReason: 'query_failed',
+                        inheritedFromProjectUuid: preview ? 'parent' : null,
+                    }),
+                }),
+            );
+        },
+    );
+    it.each([false, true])(
+        'returns saved status without keys or AWS calls, inherited=%s',
+        async (preview) => {
+            const f = athenaFixture(preview);
+            f.model.getVerification.mockResolvedValue(athenaVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(athenaVerification);
+            if (preview)
+                expect(status.parent?.verification).toEqual(athenaVerification);
+            expect(STSClient).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(status)).not.toMatch(
+                /slot-access-key|slot-secret-key/,
+            );
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before AWS or slot access',
+        async (operation) => {
+            const f = athenaFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](f.account, 'project', null, athenaSecrets),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(STSClient).not.toHaveBeenCalled();
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](f.account, 'project', null, athenaSecrets),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(STSClient).not.toHaveBeenCalled();
         },
     );
 });

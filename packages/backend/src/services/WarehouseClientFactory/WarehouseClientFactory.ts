@@ -41,6 +41,7 @@ import type {
     ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import {
+    isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
@@ -1074,6 +1075,8 @@ export class WarehouseClientFactory {
             !(
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.ATHENA &&
+                    isAthenaServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.DATABRICKS &&
                     isDatabricksServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.SNOWFLAKE &&

@@ -33,10 +33,20 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { expectTypeOf } from 'vitest';
+import {
+    AthenaClient,
+    GetQueryExecutionCommand,
+    GetQueryResultsCommand,
+    StartQueryExecutionCommand,
+} from '../../../../warehouses/node_modules/@aws-sdk/client-athena';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
-import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
+    athenaConnection,
+    athenaSecrets,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -93,6 +103,22 @@ vi.mock('../../../../warehouses/node_modules/snowflake-sdk', async () => ({
     ).default,
     createConnection: createSnowflakeConnection,
 }));
+
+const athenaSdk = vi.hoisted(() => ({ send: vi.fn(), destroy: vi.fn() }));
+vi.mock(
+    '../../../../warehouses/node_modules/@aws-sdk/client-athena',
+    async (importOriginal) => ({
+        ...(await importOriginal<
+            typeof import('../../../../warehouses/node_modules/@aws-sdk/client-athena')
+        >()),
+        AthenaClient: vi.fn(
+            class MockAthenaClient {
+                send = athenaSdk.send;
+                destroy = athenaSdk.destroy;
+            },
+        ),
+    }),
+);
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
@@ -2073,6 +2099,233 @@ describe('AI service account factory scopes', () => {
             queryTags: { agent: 'true' },
         },
     };
+
+    const athenaPlan = async () => ({
+        ...slotPlan,
+        inheritedFromProjectUuid: 'parent',
+        sourceProjectUuid: 'parent',
+        credentials: await resolveAiServiceAccountCredentials({
+            connection: athenaConnection,
+            stored: athenaSecrets,
+            owner: {
+                kind: 'aiServiceAccount',
+                uuid: 'athena-slot',
+                identityUuid: 'athena-generation',
+                sourceProjectUuid: 'parent',
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+        }),
+    });
+    const athenaSuccess = () => {
+        athenaSdk.send.mockReset().mockImplementation(async (command) => {
+            if (command instanceof StartQueryExecutionCommand)
+                return { QueryExecutionId: 'query-id' };
+            if (command instanceof GetQueryExecutionCommand)
+                return { QueryExecution: { Status: { State: 'SUCCEEDED' } } };
+            if (command instanceof GetQueryResultsCommand)
+                return {
+                    ResultSet: {
+                        ResultSetMetadata: {
+                            ColumnInfo: [
+                                { Name: 'connection_check', Type: 'integer' },
+                            ],
+                        },
+                        Rows: [
+                            { Data: [{ VarCharValue: 'connection_check' }] },
+                            { Data: [{ VarCharValue: '1' }] },
+                        ],
+                    },
+                };
+            throw new Error('Unexpected Athena command');
+        });
+    };
+    test.each([QueryExecutionContext.AI, QueryExecutionContext.MCP_RUN_SQL])(
+        'routes Athena slot queries through its workgroup and results location for %s',
+        async (queryContext) => {
+            const { factory, aiAccessService, projectModel, credentialSource } =
+                buildFixture();
+            const executionPlan = await athenaPlan();
+            aiAccessService.resolvePlan.mockResolvedValue(executionPlan);
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                warehouseClientFromCredentials,
+            );
+            athenaSuccess();
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(queryContext),
+                async ({ warehouseClient }) => {
+                    expect(
+                        (
+                            await warehouseClient.runQuery(
+                                'SELECT 1 AS connection_check',
+                                {},
+                            )
+                        ).rows,
+                    ).toEqual([{ connection_check: 1 }]);
+                },
+            );
+            expect(AthenaClient).toHaveBeenCalledWith({
+                region: 'eu-west-1',
+                credentials: {
+                    accessKeyId: athenaSecrets.accessKeyId,
+                    secretAccessKey: athenaSecrets.secretAccessKey,
+                    sessionToken: undefined,
+                },
+            });
+            expect(athenaSdk.send.mock.calls[0][0]).toBeInstanceOf(
+                StartQueryExecutionCommand,
+            );
+            expect(athenaSdk.send.mock.calls[0][0].input).toMatchObject({
+                WorkGroup: 'agent-workgroup',
+                ResultConfiguration: {
+                    OutputLocation: 's3://agent-results/prefix/',
+                },
+                QueryExecutionContext: {
+                    Catalog: 'AwsDataCatalog',
+                    Database: 'analytics',
+                },
+            });
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(
+                JSON.stringify(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[0][0],
+                ),
+            ).not.toContain('person-');
+        },
+    );
+    test.each([
+        'ExpiredToken',
+        'InvalidClientTokenId',
+        'AccessDeniedException',
+        'InvalidRequestException',
+        'ThrottlingException',
+    ])(
+        'attributes only Athena credential failure %s without fallback',
+        async (name) => {
+            const { factory, aiAccessService, projectModel, credentialSource } =
+                buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await athenaPlan());
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                warehouseClientFromCredentials,
+            );
+            athenaSdk.send.mockReset().mockRejectedValue(
+                Object.assign(new Error('safe'), {
+                    name,
+                    $metadata: { httpStatusCode: 403 },
+                }),
+            );
+            const result = factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            );
+            if (name === 'ExpiredToken' || name === 'InvalidClientTokenId') {
+                await expect(result).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    },
+                });
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).toHaveBeenCalledOnce();
+                expect(aiAccessService.trackQueryRefusal).toHaveBeenCalledWith(
+                    expect.anything(),
+                    AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    'parent',
+                );
+            } else {
+                await expect(result).rejects.toBeInstanceOf(
+                    WarehouseQueryError,
+                );
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).not.toHaveBeenCalled();
+            }
+            expect(athenaSdk.send).toHaveBeenCalledOnce();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledOnce();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+        },
+    );
+    test('keeps Athena query execution failures as warehouse errors', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(await athenaPlan());
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        athenaSuccess();
+        athenaSdk.send
+            .mockResolvedValueOnce({ QueryExecutionId: 'query-id' })
+            .mockResolvedValueOnce({
+                QueryExecution: {
+                    Status: {
+                        State: 'FAILED',
+                        StateChangeReason:
+                            'Insufficient Lake Formation permissions',
+                    },
+                },
+            });
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toThrow('Insufficient Lake Formation permissions');
+        expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
+    });
+    test('keeps ordinary Athena queries on the main connection', async () => {
+        const {
+            factory,
+            aiAccessService,
+            projectModel,
+            credentialSource,
+            base,
+        } = buildFixture();
+        const ordinary = {
+            ...athenaConnection,
+            authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+            assumeRoleArn: undefined,
+        };
+        credentialSource.loadBase.mockResolvedValue({
+            ...base,
+            credentials: ordinary,
+        });
+        credentialSource.finish.mockResolvedValue({
+            ...ordinary,
+            userWarehouseCredentialsUuid: undefined,
+        });
+        aiAccessService.resolvePlan.mockResolvedValue(null);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        athenaSuccess();
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(null),
+            async ({ warehouseClient }) =>
+                warehouseClient.runQuery('SELECT 1', {}),
+        );
+        expect(AthenaClient).toHaveBeenCalledWith({
+            region: 'eu-west-1',
+            credentials: {
+                accessKeyId: 'person-key',
+                secretAccessKey: 'person-secret',
+                sessionToken: 'person-token',
+            },
+        });
+        expect(athenaSdk.send.mock.calls[0][0].input).toMatchObject({
+            WorkGroup: 'person-workgroup',
+            ResultConfiguration: { OutputLocation: 's3://person-results/' },
+        });
+    });
 
     test.each([401, 403])(
         'attributes only Databricks session authentication failure %s',

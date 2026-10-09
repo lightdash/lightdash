@@ -3,6 +3,8 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import {
+    getAthenaServiceAccountTestErrorMessage,
+    isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
@@ -137,5 +139,107 @@ describe('Snowflake key authentication errors', () => {
         const error = new Error('cycle');
         error.cause = error;
         expect(isSnowflakeServiceAccountAuthError(error)).toBe(false);
+    });
+});
+
+describe('Athena authentication failures', () => {
+    it.each([
+        'InvalidClientTokenId',
+        'UnrecognizedClientException',
+        'InvalidSignatureException',
+        'SignatureDoesNotMatch',
+        'ExpiredToken',
+        'ExpiredTokenException',
+        'CredentialsProviderError',
+        'MissingCredentialsError',
+        'CredentialsError',
+        'MissingAuthenticationToken',
+        'MissingAuthenticationTokenException',
+    ])('recognizes precise %s codes and wrapped SDK errors', (name) => {
+        for (const error of [
+            { name },
+            { code: name },
+            { cause: { name } },
+            new WarehouseQueryError(`[${name} 403] denied`),
+            new WarehouseConnectionError(`[${name}] denied`),
+        ]) {
+            expect(isAthenaServiceAccountAuthError(error)).toBe(true);
+            expect(getAthenaServiceAccountTestErrorMessage(error)).toContain(
+                'AWS rejected these access keys',
+            );
+        }
+    });
+    it.each([
+        { name: 'AccessDenied' },
+        { name: 'AccessDeniedException' },
+        { name: 'Forbidden' },
+        { statusCode: 403 },
+        { $metadata: { httpStatusCode: 403 } },
+        new WarehouseQueryError('[AccessDeniedException 403] denied'),
+        { name: 'InvalidRequestException', message: 'workgroup not found' },
+        { name: 'ThrottlingException' },
+        { message: 'table ExpiredToken does not exist' },
+        { message: '[ExpiredTokenSuffix 403] denied' },
+    ])('does not invalidate keys for %j', (error) => {
+        expect(isAthenaServiceAccountAuthError(error)).toBe(false);
+    });
+    it.each([
+        [{ name: 'AccessDeniedException' }, 'AWS denied access'],
+        [{ statusCode: 403 }, 'AWS denied access'],
+        [
+            {
+                name: 'InvalidRequestException',
+                message: 'Workgroup agents does not exist',
+            },
+            'AI workgroup',
+        ],
+        [
+            {
+                name: 'InvalidRequestException',
+                message: 'WorkGroup is disabled',
+            },
+            'AI workgroup',
+        ],
+        [
+            {
+                name: 'InvalidRequestException',
+                message: 'Unable to verify/create output bucket',
+            },
+            'AI results location',
+        ],
+        [
+            {
+                name: 'AccessDeniedException',
+                message: 'Access denied to output location',
+            },
+            'AI results location',
+        ],
+        [{ name: 'ThrottlingException' }, 'Try again'],
+        [{ code: 'ECONNRESET' }, 'Try again'],
+        [{ name: 'InternalServerException' }, 'Try again'],
+        [
+            { name: 'InvalidRequestException', message: 'Invalid SQL' },
+            'Could not verify',
+        ],
+    ])('returns safe actionable copy for %j', (error, message) => {
+        expect(getAthenaServiceAccountTestErrorMessage(error)).toContain(
+            message,
+        );
+    });
+    it('uses a permission code with results-location context', () => {
+        expect(
+            getAthenaServiceAccountTestErrorMessage({
+                name: 'AccessDeniedException',
+                message: 'S3 output location s3://results/',
+            }),
+        ).toContain('AI results location');
+    });
+    it('handles cyclic causes', () => {
+        const error: { cause?: unknown; name: string } = { name: 'Unknown' };
+        error.cause = error;
+        expect(isAthenaServiceAccountAuthError(error)).toBe(false);
+        expect(getAthenaServiceAccountTestErrorMessage(error)).toContain(
+            'Could not verify',
+        );
     });
 });

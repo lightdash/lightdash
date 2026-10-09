@@ -6,6 +6,7 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import {
+    athenaSecrets,
     snowflakeEncryptedKey,
     snowflakePassphrase,
     snowflakeSecrets,
@@ -84,6 +85,7 @@ it.each(
     Object.values(WarehouseTypes).filter(
         (type) =>
             type !== WarehouseTypes.BIGQUERY &&
+            type !== WarehouseTypes.ATHENA &&
             type !== WarehouseTypes.DATABRICKS &&
             type !== WarehouseTypes.SNOWFLAKE,
     ),
@@ -288,4 +290,22 @@ describe('Snowflake replacement semantics', () => {
             ),
         ).toThrow('complete');
     });
+});
+
+it('replaces Athena bundles and clears omitted optional fields', () => {
+    expect(
+        mergeAiServiceAccountCredentials(athenaSecrets, {
+            ...athenaSecrets,
+            accessKeyId: 'old',
+            secretAccessKey: 'old-secret',
+            sessionToken: 'old-session',
+            s3DataDir: 's3://old-data/',
+        }),
+    ).toEqual(athenaSecrets);
+    expect(() =>
+        mergeAiServiceAccountCredentials(
+            { ...athenaSecrets, secretAccessKey: undefined } as never,
+            athenaSecrets,
+        ),
+    ).toThrow('complete');
 });

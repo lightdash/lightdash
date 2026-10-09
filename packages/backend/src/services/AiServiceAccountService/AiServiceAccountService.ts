@@ -1,3 +1,4 @@
+import { GetCallerIdentityCommand, STSClient } from '@aws-sdk/client-sts';
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
@@ -31,6 +32,7 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { getAthenaServiceAccountTestErrorMessage } from '../../utils/aiServiceAccountErrors';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
 import {
@@ -215,6 +217,7 @@ export class AiServiceAccountService extends BaseService {
                   )
                 : results !== null;
         const verification =
+            connection.type === WarehouseTypes.ATHENA ||
             connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
                 ? {
@@ -269,7 +272,8 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...(connection.type === WarehouseTypes.DATABRICKS ||
+                ...(connection.type === WarehouseTypes.ATHENA ||
+                connection.type === WarehouseTypes.DATABRICKS ||
                 connection.type === WarehouseTypes.SNOWFLAKE
                     ? {
                           verification:
@@ -335,6 +339,7 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
+            connection.type === WarehouseTypes.ATHENA ||
             connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
                 ? await this.testConnection(
@@ -388,7 +393,8 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...(connection.type === WarehouseTypes.DATABRICKS ||
+            ...(connection.type === WarehouseTypes.ATHENA ||
+            connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
                 ? { verification }
                 : {}),
@@ -496,6 +502,33 @@ export class AiServiceAccountService extends BaseService {
                   warehouseConnectionUuid: null,
               })
             : buildAiServiceAccountCredentials(connection, secrets);
+        let principalArn: string | null = null;
+        if (credentials.type === WarehouseTypes.ATHENA) {
+            if (!credentials.accessKeyId || !credentials.secretAccessKey)
+                throw new ParameterError('Provide complete AWS access keys.');
+            const sts = new STSClient({
+                region: credentials.region,
+                credentials: {
+                    accessKeyId: credentials.accessKeyId,
+                    secretAccessKey: credentials.secretAccessKey,
+                    ...(credentials.sessionToken
+                        ? { sessionToken: credentials.sessionToken }
+                        : {}),
+                },
+            });
+            try {
+                const identity = await sts.send(
+                    new GetCallerIdentityCommand({}),
+                );
+                if (!identity.Arn?.trim())
+                    throw new ParameterError(
+                        'AWS did not return the caller identity.',
+                    );
+                principalArn = identity.Arn;
+            } finally {
+                sts.destroy();
+            }
+        }
         const { rows } =
             await this.deps.projectService.warehouseClientFactory.withWarehouseClient(
                 {
@@ -517,8 +550,9 @@ export class AiServiceAccountService extends BaseService {
                                 return 'SELECT current_user() AS principal';
                             case WarehouseTypes.SNOWFLAKE:
                                 return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
-                            case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.ATHENA:
+                                return 'SELECT 1 AS connection_check';
+                            case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.CLICKHOUSE:
                             case WarehouseTypes.DUCKDB:
                             case WarehouseTypes.POSTGRES:
@@ -541,7 +575,19 @@ export class AiServiceAccountService extends BaseService {
                 value,
             ]),
         );
-        const principalValue: unknown = snowflake ? row.user : row.principal;
+        if (
+            connection.type === WarehouseTypes.ATHENA &&
+            row.connection_check !== 1 &&
+            row.connection_check !== '1'
+        )
+            throw new ParameterError(
+                'The query did not return the connection check.',
+            );
+        const observedUser: unknown = snowflake ? row.user : row.principal;
+        const principalValue: unknown =
+            connection.type === WarehouseTypes.ATHENA
+                ? principalArn
+                : observedUser;
         const principal =
             typeof principalValue === 'string' ? principalValue : null;
         const role = typeof row.role === 'string' ? row.role : null;
@@ -562,8 +608,9 @@ export class AiServiceAccountService extends BaseService {
                         return { currentUser: principal, currentRole: role };
                     case WarehouseTypes.DATABRICKS:
                         return { currentUser: principal };
-                    case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.ATHENA:
+                        return { principalArn: principal };
+                    case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
                     case WarehouseTypes.POSTGRES:
@@ -642,7 +689,8 @@ export class AiServiceAccountService extends BaseService {
             );
             if (
                 input === null &&
-                (connection.type === WarehouseTypes.DATABRICKS ||
+                (connection.type === WarehouseTypes.ATHENA ||
+                    connection.type === WarehouseTypes.DATABRICKS ||
                     connection.type === WarehouseTypes.SNOWFLAKE) &&
                 testedGeneration !== null
             ) {
@@ -671,7 +719,9 @@ export class AiServiceAccountService extends BaseService {
                 principal: null,
                 observed: {},
                 message:
-                    'Could not verify the AI service account. Check the credentials and connection settings.',
+                    connection.type === WarehouseTypes.ATHENA
+                        ? getAthenaServiceAccountTestErrorMessage(error)
+                        : 'Could not verify the AI service account. Check the credentials and connection settings.',
                 checkedAt: new Date(),
             };
         }

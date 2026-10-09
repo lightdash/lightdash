@@ -1,6 +1,7 @@
 import { v5 as uuidv5 } from 'uuid';
 import {
     WarehouseTypes,
+    type AthenaAuthenticationType,
     type BigqueryAuthenticationType,
     type DatabricksAuthenticationType,
     type SnowflakeAuthenticationType,
@@ -105,7 +106,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
     },
     [WarehouseTypes.TRINO]: markedOnly,
     [WarehouseTypes.CLICKHOUSE]: markedOnly,
-    [WarehouseTypes.ATHENA]: markedOnly,
+    [WarehouseTypes.ATHENA]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.DUCKDB]: markedOnly,
 };
 
@@ -219,7 +223,19 @@ export interface SnowflakeAiServiceAccountCredentialInput {
     privateKeyPass?: string | null;
 }
 
+export interface AthenaAiServiceAccountCredentialInput {
+    type: WarehouseTypes.ATHENA;
+    authenticationType: AthenaAuthenticationType.ACCESS_KEY;
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken?: string;
+    workGroup: string;
+    s3StagingDir: string;
+    s3DataDir?: string;
+}
+
 export type AiServiceAccountCredentialInput =
+    | AthenaAiServiceAccountCredentialInput
     | BigqueryAiServiceAccountCredentialInput
     | DatabricksAiServiceAccountCredentialInput
     | SnowflakeAiServiceAccountCredentialInput;
