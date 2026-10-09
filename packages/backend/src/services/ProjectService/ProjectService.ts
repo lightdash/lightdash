@@ -3354,9 +3354,13 @@ export class ProjectService
                   ).organizationWarehouseCredentialsUuid;
 
         const credentials: CreateWarehouseCredentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
+            purpose === 'compile'
+                ? await this.projectModel.getWarehouseCredentialsForProjectUncached(
+                      projectUuid,
+                  )
+                : await this.projectModel.getWarehouseCredentialsForProject(
+                      projectUuid,
+                  );
 
         if (
             credentials.type === WarehouseTypes.DUCKDB &&

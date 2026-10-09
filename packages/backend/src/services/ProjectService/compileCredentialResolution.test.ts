@@ -19,8 +19,9 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
-import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -28,9 +29,21 @@ import { type ProjectAdapter } from '../../types';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
+import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields, user } from './ProjectService.mock';
+
+const { previousCacheSetting } = vi.hoisted(() => {
+    const previous = process.env.EXPERIMENTAL_CACHE;
+    process.env.EXPERIMENTAL_CACHE = 'true';
+    return { previousCacheSetting: previous };
+});
+afterAll(() => {
+    if (previousCacheSetting === undefined)
+        delete process.env.EXPERIMENTAL_CACHE;
+    else process.env.EXPERIMENTAL_CACHE = previousCacheSetting;
+});
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
@@ -108,7 +121,9 @@ const setup = (
         rotateRefreshToken: vi.fn(async () => undefined),
     };
     const organizationWarehouseCredentialsModel = {
-        rotateRefreshToken: vi.fn(async () => undefined),
+        rotateRefreshToken: vi.fn<
+            OrganizationWarehouseCredentialsModel['rotateRefreshToken']
+        >(async () => true),
     };
     const warehouseConnectionModel = {
         getProject: vi.fn(async () => ({
@@ -240,6 +255,94 @@ afterEach(() => {
 });
 
 describe('compile credential resolution', () => {
+    it('compile reads the rotated organisation token within the project cache TTL', async () => {
+        const f = setup(snowflake(), {
+            organizationUuid: 'org-credential-uuid',
+        });
+        const storage = organizationCredentialStorage(
+            { ...snowflake(), refreshToken: 'R0' },
+            f.project.organizationUuid,
+        );
+        storage.tracker.on.select('warehouse_credentials').response([
+            {
+                organization_warehouse_credentials_uuid: 'org-credential-uuid',
+                organization_uuid: f.project.organizationUuid,
+                playground_bundle_version: null,
+            },
+        ]);
+        const model = new ProjectModel({
+            database: storage.database,
+            encryptionUtil: storage.encryptionUtil,
+            lightdashConfig: lightdashConfigMock,
+        });
+        f.projectModel.getWarehouseCredentialsForProject.mockImplementation(
+            () =>
+                model.getWarehouseCredentialsForProject(f.project.projectUuid),
+        );
+        vi.spyOn(
+            f.projectModel,
+            'getWarehouseCredentialsForProjectUncached',
+        ).mockImplementation(() =>
+            model.getWarehouseCredentialsForProjectUncached(
+                f.project.projectUuid,
+            ),
+        );
+        f.organizationWarehouseCredentialsModel.rotateRefreshToken.mockImplementation(
+            (...args) => storage.model.rotateRefreshToken(...args),
+        );
+        const consumed = new Set<string>();
+        vi.mocked(UserService.generateSnowflakeAccessToken).mockImplementation(
+            async (token) => {
+                if (consumed.has(token))
+                    throw new Error('Refresh token already consumed');
+                consumed.add(token);
+                return {
+                    accessToken: 'refreshed-snowflake',
+                    refreshToken: token === 'R0' ? 'R1' : 'R2',
+                };
+            },
+        );
+        try {
+            expect(
+                await model.getWarehouseCredentialsForProject(
+                    f.project.projectUuid,
+                ),
+            ).toMatchObject({ refreshToken: 'R0' });
+            await f.prepare();
+            expect(storage.rotate).toHaveBeenCalledExactlyOnceWith(
+                'org-credential-uuid',
+                'R0',
+                'R1',
+            );
+            expect(
+                (
+                    await storage.model.getByUuidWithSensitiveData(
+                        'org-credential-uuid',
+                    )
+                ).credentials,
+            ).toMatchObject({ refreshToken: 'R1' });
+            expect(
+                await model.getWarehouseCredentialsForProject(
+                    f.project.projectUuid,
+                ),
+            ).toMatchObject({ refreshToken: 'R0' });
+            await expect.soft(f.prepare()).resolves.toMatchObject({
+                warehouseCredentials: { refreshToken: 'R2' },
+            });
+            expect(
+                UserService.generateSnowflakeAccessToken,
+            ).toHaveBeenNthCalledWith(2, 'R1');
+            expect(storage.rotate).toHaveBeenNthCalledWith(
+                2,
+                'org-credential-uuid',
+                'R1',
+                'R2',
+            );
+        } finally {
+            await storage.database.destroy();
+        }
+    });
+
     it.each([
         DatabricksAuthenticationType.OAUTH_M2M,
         DatabricksAuthenticationType.OAUTH_U2M,
