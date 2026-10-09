@@ -21,6 +21,7 @@ import {
     PART_GAP,
     PART_PADDING,
     SMALL_ORGANIZATION_CELL,
+    SMALL_ORGANIZATION_LIMIT,
     SQUARE_LIMIT,
     type PartLayout,
     type WaffleLayout,
@@ -125,23 +126,17 @@ describe('allocate', () => {
 
 describe('getSquaresGrid', () => {
     it('never draws a square larger than the cap, however much room there is', () => {
-        expect(getSquaresGrid(400, 400, 100, MAX_CELL)).toEqual({
+        expect(getSquaresGrid(400, 400, 100)).toEqual({
             kind: 'squares',
-            cell: 10,
+            cell: MAX_CELL,
             gap: 2,
             columns: 33,
-        });
-        expect(getSquaresGrid(400, 400, 10, SMALL_ORGANIZATION_CELL)).toEqual({
-            kind: 'squares',
-            cell: 16,
-            gap: 2,
-            columns: 22,
         });
     });
 
     it('takes the side from the room each person has, and shrinks it until the rows fit with their gaps', () => {
         // floor(sqrt(200 × 100 / 300)) = 8, but 8 and 7 px rows with their gaps are taller than 100 px
-        expect(getSquaresGrid(200, 100, 300, MAX_CELL)).toEqual({
+        expect(getSquaresGrid(200, 100, 300)).toEqual({
             kind: 'squares',
             cell: 6,
             gap: 2,
@@ -150,7 +145,7 @@ describe('getSquaresGrid', () => {
     });
 
     it('sets squares under 5 px 1 px apart', () => {
-        expect(getSquaresGrid(40, 40, 100, MAX_CELL)).toEqual({
+        expect(getSquaresGrid(40, 40, 100)).toEqual({
             kind: 'squares',
             cell: 3,
             gap: 1,
@@ -160,13 +155,13 @@ describe('getSquaresGrid', () => {
 
     it('draws one stacked bar when the squares would be under 3 px', () => {
         // floor(sqrt(20 × 20 / 100)) = 2
-        expect(getSquaresGrid(20, 20, 100, MAX_CELL)).toEqual({ kind: 'bar' });
+        expect(getSquaresGrid(20, 20, 100)).toEqual({ kind: 'bar' });
         // 3 px fits the area but not with the gaps
-        expect(getSquaresGrid(30, 30, 100, MAX_CELL)).toEqual({ kind: 'bar' });
+        expect(getSquaresGrid(30, 30, 100)).toEqual({ kind: 'bar' });
     });
 
     it('draws nothing for nobody', () => {
-        expect(getSquaresGrid(100, 100, 0, MAX_CELL)).toEqual({
+        expect(getSquaresGrid(100, 100, 0)).toEqual({
             kind: 'empty',
         });
     });
@@ -496,17 +491,45 @@ describe('layoutWaffle', () => {
         expect(layout.height).toBe(MIN_HEIGHT);
     });
 
-    it("keeps squares at 10 px or less where some part's people would not fit on one row of 16 px squares", () => {
-        // At 720 px the 33-person company's 7 people need 124 px for one row; their part has 123
-        [
-            toInput(smallCompany, 720),
-            toInput(seededOrganization(), 868),
-        ].forEach((input) =>
+    it('draws every square at 16 px with at most 600 people in view, wrapping to as many rows as they need, whatever the width', () => {
+        [320, 720, 870, 1180].forEach((width) => {
+            const input = toInput(smallCompany, width);
+            const sizes = sizesOf(input);
             partsOf(layoutWaffle(input)).forEach((part) => {
-                if (part.grid.kind === 'squares') {
-                    expect(part.grid.cell).toBeLessThanOrEqual(MAX_CELL);
-                }
-            }),
+                expect(part.grid).toMatchObject({
+                    kind: 'squares',
+                    cell: SMALL_ORGANIZATION_CELL,
+                });
+                expect(part.height).toBeGreaterThanOrEqual(
+                    squaresHeight(part, sizes.get(part.id) ?? 0),
+                );
+            });
+        });
+        // At 720 px the 7 people of Operations need two rows
+        const operations = layoutWaffle(toInput(smallCompany, 720)).blocks.find(
+            (block) => block.id === 'Operations',
+        );
+        const grid = operations?.parts[0].grid;
+        expect(grid?.kind === 'squares' && Math.ceil(7 / grid.columns)).toBe(2);
+        // The small organization fixture too, which had 10 px squares before
+        partsOf(layoutWaffle(toInput(seededOrganization(), 868))).forEach(
+            (part) => expect(part.grid).toMatchObject({ cell: 16 }),
+        );
+    });
+
+    it('keeps the 10 px rule above 600 people in view', () => {
+        expect(
+            layoutWaffle({
+                blocks: [lone('a', SMALL_ORGANIZATION_LIMIT)],
+                width: 720,
+            }).blocks[0].parts[0].grid,
+        ).toMatchObject({ kind: 'squares', cell: SMALL_ORGANIZATION_CELL });
+        const over = layoutWaffle({
+            blocks: [lone('a', SMALL_ORGANIZATION_LIMIT + 1)],
+            width: 720,
+        }).blocks[0].parts[0].grid;
+        expect(over.kind === 'squares' && over.cell).toBeLessThanOrEqual(
+            MAX_CELL,
         );
     });
 

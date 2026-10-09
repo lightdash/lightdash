@@ -240,13 +240,8 @@ describe('WaffleView', () => {
         ).toBeInTheDocument();
     });
 
-    it('draws a 33-person company as a band of 16 px squares in a waffle 160 px tall', () => {
-        // Measured 870 px wide, where every department's people fit on one row of 16 px squares
-        const measured = vi
-            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-            .mockReturnValue(new DOMRect(0, 0, 870, 160));
+    it('draws a 33-person company as a band of 16 px squares in a waffle 160 px tall, at the 720 px it is drawn at here', () => {
         const { container } = renderWaffle(smallCompany);
-        measured.mockRestore();
         const canvas = screen.getByRole('group', {
             name: 'Departments in the waffle',
         }).parentElement;

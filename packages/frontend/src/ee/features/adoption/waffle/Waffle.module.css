@@ -1,3 +1,8 @@
+/* In the map's two columns the waffle keeps its own height rather than the panel's, so a short one ends at its legend */
+.frame {
+    align-self: start;
+}
+
 /* As tall as the waffle's content; everything in it is placed from its layout, in pixels from its top-left corner */
 .canvas {
     position: relative;

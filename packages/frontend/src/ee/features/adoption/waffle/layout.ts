@@ -20,7 +20,8 @@ const LABEL_MIN_HEIGHT = 30;
 const LABEL_MIN_WIDTH = 100;
 const MIN_CELL = 3;
 export const MAX_CELL = 10;
-// Where every part's people fit on one row at this size, a small organization, squares are drawn at it
+// With at most this many people in view, a small organization, every square is 16 px whatever the width
+export const SMALL_ORGANIZATION_LIMIT = 600;
 export const SMALL_ORGANIZATION_CELL = 16;
 // Squares this size and up sit 2 px apart, smaller ones 1 px
 const ROOMY_CELL = 5;
@@ -128,18 +129,17 @@ export const allocate = (total: number, items: Share[]): number[] => {
 
 const getGap = (cell: number): number => (cell < ROOMY_CELL ? 1 : 2);
 
-// The largest squares, at most `maxCell` px, that fit `count` people into the box in rows: the side starts at
+// The largest squares, at most 10 px, that fit `count` people into the box in rows: the side starts at
 // floor(sqrt(area / count)) and shrinks until every row fits. Under 3 px the part is one stacked bar instead
 export const getSquaresGrid = (
     width: number,
     height: number,
     count: number,
-    maxCell: number,
 ): WaffleGrid => {
     if (count <= 0) return { kind: 'empty' };
     if (width <= 0 || height <= 0) return { kind: 'bar' };
     const fitted = Math.floor(Math.sqrt((width * height) / count));
-    for (let cell = Math.min(fitted, maxCell); cell >= MIN_CELL; cell -= 1) {
+    for (let cell = Math.min(fitted, MAX_CELL); cell >= MIN_CELL; cell -= 1) {
         const gap = getGap(cell);
         const columns = Math.floor((width + gap) / (cell + gap));
         if (
@@ -150,6 +150,19 @@ export const getSquaresGrid = (
         }
     }
     return { kind: 'bar' };
+};
+
+// A small organization's squares: 16 px, in as many rows as the part's width needs; none where 16 px cannot fit
+const getSmallOrganizationGrid = (
+    width: number,
+    count: number,
+): WaffleGrid | null => {
+    if (count <= 0) return { kind: 'empty' };
+    const gap = getGap(SMALL_ORGANIZATION_CELL);
+    const columns = Math.floor((width + gap) / (SMALL_ORGANIZATION_CELL + gap));
+    return columns > 0
+        ? { kind: 'squares', cell: SMALL_ORGANIZATION_CELL, gap, columns }
+        : null;
 };
 
 // Where the square in a given place sits, from the top-left corner of its part's squares, reading left to right
@@ -175,7 +188,7 @@ const layoutParts = (
     parts: InputPart[],
     width: number,
     referenceHeight: number,
-    maxCell: number,
+    isSmallOrganization: boolean,
     isOverLimit: boolean,
 ): PartLayout[] => {
     const partWidth = Math.max(width - BLOCK_PADDING * 2, 0);
@@ -199,12 +212,14 @@ const layoutParts = (
         const grid: WaffleGrid =
             isOverLimit && part.size > 0
                 ? { kind: 'bar' }
-                : getSquaresGrid(
+                : ((isSmallOrganization
+                      ? getSmallOrganizationGrid(contentWidth, part.size)
+                      : null) ??
+                  getSquaresGrid(
                       contentWidth,
                       Math.max(reference - referenceTop - PART_PADDING, 0),
                       part.size,
-                      maxCell,
-                  );
+                  ));
         const needed =
             grid.kind === 'squares' ? getSquaresHeight(grid, part.size) : 0;
         // The label stays only where the part, label and all, is still over 30 px tall
@@ -266,30 +281,17 @@ const getRows = (blocks: InputBlock[], innerWidth: number): InputBlock[][] => {
     });
 };
 
-// Every part's people fit on one row of the small organization's squares across their block
-const fitsOnOneRow = (rows: InputBlock[][], widths: number[][]): boolean =>
-    rows.every((row, rowIndex) =>
-        row.every((block, index) => {
-            const contentWidth =
-                widths[rowIndex][index] - BLOCK_PADDING * 2 - PART_PADDING * 2;
-            const gap = getGap(SMALL_ORGANIZATION_CELL);
-            const columns = Math.floor(
-                (contentWidth + gap) / (SMALL_ORGANIZATION_CELL + gap),
-            );
-            return block.parts.every((part) => part.size <= columns);
-        }),
-    );
-
 const sumOf = (values: number[]): number =>
     values.reduce((sum, value) => sum + value, 0);
 
 // Blocks share each row by headcount, never under 72 px, and wrap evenly over as few rows as hold them. Squares are
-// sized as in a 560 px drawing, then every row is as tall as its tallest block's squares need
+// 16 px for a small organization, else sized as in a 560 px drawing; every row is as tall as its squares need
 export const layoutWaffle = ({
     blocks,
     width,
 }: WaffleLayoutInput): WaffleLayout => {
-    const isOverLimit = sumOf(blocks.map((block) => block.size)) > SQUARE_LIMIT;
+    const people = sumOf(blocks.map((block) => block.size));
+    const isOverLimit = people > SQUARE_LIMIT;
     const innerWidth = Math.max(width - BOARD_PADDING * 2, 0);
     const rows = getRows(blocks, innerWidth);
     const widths = rows.map((row) =>
@@ -315,10 +317,7 @@ export const layoutWaffle = ({
             minimum: minimums[index],
         })),
     );
-    const maxCell =
-        !isOverLimit && fitsOnOneRow(rows, widths)
-            ? SMALL_ORGANIZATION_CELL
-            : MAX_CELL;
+    const isSmallOrganization = people <= SMALL_ORGANIZATION_LIMIT;
     let y = BOARD_PADDING;
     const placed = rows.flatMap((row, rowIndex) => {
         const partsByBlock = row.map((block, index) =>
@@ -326,7 +325,7 @@ export const layoutWaffle = ({
                 block.parts,
                 widths[rowIndex][index],
                 references[rowIndex],
-                maxCell,
+                isSmallOrganization,
                 isOverLimit,
             ),
         );
