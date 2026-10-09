@@ -2,9 +2,11 @@ import {
     BigqueryAuthenticationType,
     ParameterError,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
 } from '@lightdash/common';
 import {
     assertValidPersistedBigquerySsoKeyfile,
+    bigqueryRuntimeKeyfile,
     hydrateBigquerySsoKeyfile,
     stripBigquerySsoClientSecretForPersistence,
 } from './bigquerySsoCredentials';
@@ -181,3 +183,53 @@ it.each([undefined, '', '   ', 'configured'])(
         expect(credentials.keyfileContents.client_secret).toBe('secret');
     },
 );
+
+it('adds the configured secret to a secret-free SSO keyfile for the expiry check', () => {
+    const secretFree: CreateBigqueryCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        authenticationType: BigqueryAuthenticationType.SSO,
+        project: 'p',
+        dataset: 'd',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'client',
+            refresh_token: 'refresh',
+        },
+    };
+    expect(
+        bigqueryRuntimeKeyfile(secretFree, {
+            oauth2ClientId: 'client',
+            oauth2ClientSecret: 'configured',
+        }),
+    ).toEqual({ ...secretFree.keyfileContents, client_secret: 'configured' });
+});
+
+it('leaves a non-SSO keyfile unchanged for the expiry check', () => {
+    const cli: CreateBigqueryCredentials = {
+        type: WarehouseTypes.BIGQUERY,
+        project: 'p',
+        dataset: 'd',
+        timeoutSeconds: undefined,
+        priority: undefined,
+        retries: undefined,
+        location: undefined,
+        maximumBytesBilled: undefined,
+        keyfileContents: {
+            type: 'authorized_user',
+            client_id: 'other',
+            client_secret: 'own',
+            refresh_token: 'refresh',
+        },
+    };
+    expect(
+        bigqueryRuntimeKeyfile(cli, {
+            oauth2ClientId: 'client',
+            oauth2ClientSecret: 'configured',
+        }),
+    ).toBe(cli.keyfileContents);
+});
