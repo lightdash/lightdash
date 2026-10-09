@@ -1525,8 +1525,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getAppGenerateService<AppGenerateService>()
                             .getCustomSqlProvenance(args),
                 }),
-            cacheService: ({ models, clients }) =>
+            cacheService: ({ context, models, clients }) =>
                 new CommercialCacheService({
+                    lightdashConfig: context.lightdashConfig,
                     queryHistoryModel: models.getQueryHistoryModel(),
                     projectModel: models.getProjectModel(),
                     storageClient: clients.getResultsFileStorageClient(),

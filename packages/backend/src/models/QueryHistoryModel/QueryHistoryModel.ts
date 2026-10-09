@@ -418,10 +418,21 @@ export class QueryHistoryModel {
         return this.convertAccountScopedRow(result, account);
     }
 
-    async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {
+    async findMostRecentByCacheKey(
+        cacheKey: string,
+        projectUuid: string,
+        { excludeAgentProduced }: { excludeAgentProduced: boolean },
+    ) {
         const result = await this.database(QueryHistoryTableName)
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
+            .modify((query) => {
+                if (excludeAgentProduced) {
+                    void query.whereRaw(
+                        "request_parameters->>'aiSignInCredentialUuid' is null",
+                    );
+                }
+            })
             .orderBy('created_at', 'desc')
             .limit(1)
             .first();
