@@ -2272,10 +2272,15 @@ describe('organization agent identity rules', () => {
     };
 
     describe('getProjectsWithoutAiServiceAccount', () => {
-        test.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
+        test.each([
+            WarehouseTypes.BIGQUERY,
+            WarehouseTypes.DATABRICKS,
+            WarehouseTypes.SNOWFLAKE,
+        ])(
             'returns missing projects for an admin on %s without writing or tracking',
             async (warehouseType) => {
-                const { service, slots, organizationRules, analytics } = setup();
+                const { service, slots, organizationRules, analytics } =
+                    setup();
                 const admin = manager();
                 const missing = [
                     { projectUuid: 'missing-project', name: 'Missing project' },

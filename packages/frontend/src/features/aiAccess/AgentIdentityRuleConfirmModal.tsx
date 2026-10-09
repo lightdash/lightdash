@@ -67,7 +67,10 @@ const AgentIdentityRuleConfirmModal = ({
             </Text>
             {usesServiceAccount &&
                 (checkingProjects ? (
-                    <Loader size="sm" aria-label="Checking AI service accounts" />
+                    <Loader
+                        size="sm"
+                        aria-label="Checking AI service accounts"
+                    />
                 ) : projects.isError ? (
                     <Group gap="xs">
                         <Text size="sm" c="dimmed">

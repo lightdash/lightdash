@@ -339,7 +339,9 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (!isAllowedAgentIdentitySource(warehouseType, 'ai_service_account')) {
+        if (
+            !isAllowedAgentIdentitySource(warehouseType, 'ai_service_account')
+        ) {
             throw new ParameterError(
                 'The AI service account is not supported for the warehouse type',
             );

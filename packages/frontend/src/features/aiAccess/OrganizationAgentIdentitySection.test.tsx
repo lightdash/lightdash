@@ -179,10 +179,10 @@ const changeToMarkedPerson = async (name: string) => {
     );
 };
 
-const chooseServiceAccount = async () => {
+const chooseServiceAccount = async (warehouseName = 'BigQuery') => {
     fireEvent.click(
         await screen.findByRole('combobox', {
-            name: 'BigQuery agent identity',
+            name: `${warehouseName} agent identity`,
         }),
     );
     fireEvent.click(
@@ -396,9 +396,7 @@ describe('Organisation agent identity settings', () => {
             currentOverview.rules[1].source = 'marked_person';
             renderSection();
             await chooseServiceAccount();
-            fireEvent.click(
-                await screen.findByRole('button', { name, exact: true }),
-            );
+            fireEvent.click(await screen.findByRole('button', { name }));
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
             expect(
                 screen.getByRole('combobox', {
@@ -477,9 +475,7 @@ describe('Organisation agent identity settings', () => {
             expect(confirm).toHaveAttribute('data-loading', 'true'),
         );
         fireEvent.click(confirm);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Close', exact: true }),
-        );
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(
             vi
@@ -965,18 +961,51 @@ describe('Organisation agent identity settings', () => {
             ).toBeEnabled(),
         );
     });
-    it('saves the Snowflake AI service account source without OAuth setup', async () => {
+    it('confirms the Snowflake AI service account source without OAuth setup', async () => {
         currentOverview.rules[0].source = 'marked_person';
         mocks.configured = false;
+        currentOverview.snowflakeConfigured = false;
+        missingProjects = [
+            { projectUuid: 'snowflake-project-1', name: 'Snowflake project 1' },
+            { projectUuid: 'snowflake-project-2', name: 'Snowflake project 2' },
+        ];
         renderSection();
-        fireEvent.click(
-            await screen.findByRole('combobox', {
-                name: 'Snowflake agent identity',
-            }),
+        await chooseServiceAccount('Snowflake');
+        const dialog = await screen.findByRole('dialog', {
+            name: 'Use the AI service account for Snowflake?',
+        });
+        const alert = await within(dialog).findByRole('alert');
+        expect(alert).toHaveTextContent(
+            '2 projects have no AI service account yet:',
         );
-        fireEvent.click(
-            screen.getByRole('option', { name: 'The AI service account' }),
+        expect(within(alert).getAllByRole('link')).toHaveLength(2);
+        missingProjects.forEach(({ projectUuid, name }) =>
+            expect(within(alert).getByRole('link', { name })).toHaveAttribute(
+                'href',
+                `/generalSettings/projectManagement/${projectUuid}/agentIdentity`,
+            ),
         );
+        expect(lightdashApi).toHaveBeenCalledWith({
+            version: 'v2',
+            url: '/org/agent-identity/snowflake/projects-without-ai-service-account',
+            method: 'GET',
+            body: undefined,
+        });
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toHaveValue(identityLabels.marked_person.label);
+        expect(screen.queryByText(/Not saved/)).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('Set up the Snowflake agent integration'),
+        ).not.toBeInTheDocument();
+        const confirm = within(dialog).getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        await waitFor(() => expect(confirm).toBeEnabled());
+        fireEvent.click(confirm);
         await waitFor(() =>
             expect(lightdashApi).toHaveBeenCalledWith({
                 version: 'v2',
@@ -985,6 +1014,18 @@ describe('Organisation agent identity settings', () => {
                 body: JSON.stringify({ source: 'ai_service_account' }),
             }),
         );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([request]) => request.method === 'PUT'),
+        ).toHaveLength(1);
+        expect(
+            screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
+        ).toHaveValue(identityLabels.ai_service_account.label);
+        expect(screen.queryByText(/Not saved/)).not.toBeInTheDocument();
         expect(
             screen.queryByText('Set up the Snowflake agent integration'),
         ).not.toBeInTheDocument();
@@ -994,6 +1035,37 @@ describe('Organisation agent identity settings', () => {
             }),
         );
     });
+    it.each([
+        ['ai_service_account', 'Use the AI service account for Snowflake?'],
+        ['marked_person', "Use each person's credentials for Snowflake?"],
+    ] as const)(
+        'keeps the saved Snowflake agent sign-in when cancelling %s',
+        async (source, title) => {
+            renderSection();
+            if (source === 'ai_service_account') {
+                await chooseServiceAccount('Snowflake');
+            } else {
+                await changeToMarkedPerson('Snowflake');
+            }
+            const dialog = await screen.findByRole('dialog', { name: title });
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+            fireEvent.click(
+                within(dialog).getByRole('button', { name: 'Cancel' }),
+            );
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('combobox', {
+                    name: 'Snowflake agent identity',
+                }),
+            ).toHaveValue(identityLabels.agent_sign_in.label);
+            expect(currentOverview.rules[0].source).toBe('agent_sign_in');
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'PUT' }),
+            );
+        },
+    );
     it.each([
         [1, 0],
         [2, 0],

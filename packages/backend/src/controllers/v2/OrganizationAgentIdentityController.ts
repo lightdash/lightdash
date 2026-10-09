@@ -64,7 +64,10 @@ export class OrganizationAgentIdentityController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getAiAccessService()
-                .getProjectsWithoutAiServiceAccount(req.account!, warehouseType),
+                .getProjectsWithoutAiServiceAccount(
+                    req.account!,
+                    warehouseType,
+                ),
         };
     }
 
