@@ -1,3 +1,10 @@
+## [2.507.1](https://github.com/lightdash/lightdash/compare/2.507.0...2.507.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **dashboards:** use sentence case for the filter field picker headings ([#30813](https://github.com/lightdash/lightdash/issues/30813)) ([37d799e](https://github.com/lightdash/lightdash/commit/37d799e542f6e35f69f008d35e40905ae782b97d))
+
 # [2.507.0](https://github.com/lightdash/lightdash/compare/2.506.0...2.507.0) (2026-10-09)
 
 

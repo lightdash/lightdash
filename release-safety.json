@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.507.0",
-  "previousVersion": "2.506.0",
-  "releaseDate": "2026-10-09T14:21:27.491Z",
+  "version": "2.507.1",
+  "previousVersion": "2.507.0",
+  "releaseDate": "2026-10-09T14:27:30.265Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261009105428_add_agent_identity_to_query_history.ts",
-        "edition": "core",
-        "tables": [
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
