@@ -127,6 +127,7 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
+import { type ApiAgentAccessReportResponse } from './agentAccessReport';
 import type {
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
@@ -1571,6 +1572,7 @@ type ApiResults =
     | ApiOrganizationAgentIdentityRuleResponse['results']
     | ApiAiServiceAccountSlotResponse['results']
     | ApiAiServiceAccountTestResponse['results']
+    | ApiAgentAccessReportResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

@@ -1,5 +1,6 @@
 import {
     AgentIdentityConnectEntryPoint,
+    FeatureFlags,
     formatDate,
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentials,
@@ -8,9 +9,15 @@ import { Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState } from 'react';
 import { bigQueryAgentConnectionLabel } from '../../../features/aiAccess/identityLabels';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSnowflakeAiLoginPopup } from '../../../hooks/useSnowflake';
 import MantineIcon from '../../common/MantineIcon';
 import { DeleteCredentialsModal } from './DeleteCredentialsModal';
+
+const hasCredentialExpired = (
+    credential: UserWarehouseCredentials | undefined,
+    now: number,
+) => !!credential?.expiresAt && new Date(credential.expiresAt).getTime() <= now;
 
 export const AgentConnectionSection = ({
     credentials,
@@ -21,12 +28,15 @@ export const AgentConnectionSection = ({
     showSnowflake?: boolean;
     showBigQuery?: boolean;
 }) => {
+    const { data: silentRefreshFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentitySilentRefresh,
+    );
     const credential = credentials.find(
         ({ purpose }) => purpose === UserWarehouseCredentialPurpose.AI,
     );
+    const now = Date.now();
     const expired =
-        !!credential?.expiresAt &&
-        new Date(credential.expiresAt).getTime() <= Date.now();
+        !silentRefreshFlag?.enabled && hasCredentialExpired(credential, now);
     const connected = !!credential && !expired;
     const login = useSnowflakeAiLoginPopup({
         entryPoint: AgentIdentityConnectEntryPoint.MY_WAREHOUSE_CONNECTIONS,
@@ -51,12 +61,7 @@ export const AgentConnectionSection = ({
                                         color="green"
                                         size={16}
                                     />
-                                    <Text fz="sm">
-                                        Agent connected
-                                        {credential.expiresAt
-                                            ? `, expires ${formatDate(credential.expiresAt)}`
-                                            : ''}
-                                    </Text>
+                                    <Text fz="sm">Agent connected</Text>
                                 </Group>
                             ) : null}
                             {expired && (
@@ -80,6 +85,14 @@ export const AgentConnectionSection = ({
                                 </Button>
                             )}
                         </Group>
+                        {connected &&
+                        credential.expiresAt &&
+                        new Date(credential.expiresAt).getTime() > now ? (
+                            <Text c="dimmed" fz="sm">
+                                Your agent connection ends on{' '}
+                                {formatDate(credential.expiresAt)}
+                            </Text>
+                        ) : null}
                         {!connected && login.error && (
                             <Text c="red" fz="sm" role="alert">
                                 {login.error.message}

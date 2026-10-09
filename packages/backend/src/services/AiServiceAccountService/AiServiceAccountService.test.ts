@@ -472,3 +472,52 @@ describe('AI service account analytics', () => {
         expect(f.analytics.track).not.toHaveBeenCalled();
     });
 });
+
+describe('testAccess boundaries', () => {
+    const request = {
+        credentials: null,
+        entryPoint: 'project_agent_identity_page',
+    } as const;
+    it('checks the flag before any credential or client work', async () => {
+        const f = setup();
+        f.flag.mockResolvedValue({ enabled: false });
+        await expect(
+            f.service.testAccess(f.account, 'project', null, request),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    });
+    it('refuses a non-manager before credentials or flag evaluation', async () => {
+        const f = setup();
+        f.account.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            f.service.testAccess(f.account, 'project', null, request),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.flag).not.toHaveBeenCalled();
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    });
+    it('normalises an original connection UUID before loading the saved key', async () => {
+        const f = setup();
+        f.getConnection.mockResolvedValue({ isOriginal: true });
+        await f.service.testAccess(
+            f.account,
+            'project',
+            'original-uuid',
+            request,
+        );
+        expect(f.model.getSecrets).toHaveBeenCalledWith('project', null);
+    });
+    it('rejects an unrelated connection before secrets or clients', async () => {
+        const f = setup();
+        f.getConnection.mockRejectedValue(
+            new NotFoundError('Connection not found'),
+        );
+        await expect(
+            f.service.testAccess(f.account, 'project', 'other', request),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    });
+});

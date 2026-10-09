@@ -14,6 +14,8 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
+    SnowflakeAuthenticationType,
+    UnexpectedServerError,
     WarehouseTypes,
     type AiIdentitySource,
     type AiServiceAccountSlot,
@@ -23,6 +25,7 @@ import {
     type QueryHistory,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
+import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
@@ -1072,6 +1075,7 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
+                silentRefresh: true,
                 connection: snowflake,
                 person: { userUuid: 'user', email: user.email },
             });
@@ -3690,6 +3694,137 @@ describe('retained results after identity rule changes', () => {
                     requestParameters: { aiSignInCredentialUuid: credential },
                 } as QueryHistory),
             ).resolves.toMatchObject({ identity: 'marked_person' });
+        },
+    );
+});
+
+describe('silent refresh routing', () => {
+    test.each([QuerySurface.MCP, QuerySurface.APP, QuerySurface.API])(
+        'returns an administrator-directed OAuth refusal without reconnect or expiry events on %s',
+        async (surface) => {
+            const { service, registry, analytics } = setup();
+            const model = {
+                findAiCredentialWithSecrets: vi.fn(async () => ({
+                    uuid: 'credential',
+                    expiresAt: null,
+                    credentials: {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'refresh-token',
+                    },
+                })),
+                rotateRefreshToken: vi.fn(),
+                deleteAiCredential: vi.fn(),
+            };
+            registry.mockReturnValue(
+                new SnowflakeAiCredentialProvider({
+                    lightdashConfig: {
+                        ...lightdashConfigMock,
+                        auth: {
+                            ...lightdashConfigMock.auth,
+                            snowflakeAi: {
+                                ...lightdashConfigMock.auth.snowflakeAi,
+                                clientId: 'client',
+                                clientSecret: 'secret',
+                                authorizationEndpoint:
+                                    'https://warehouse.example/authorize',
+                                tokenEndpoint:
+                                    'https://warehouse.example/token',
+                            },
+                        },
+                    },
+                    userWarehouseCredentialsModel:
+                        model as unknown as UserWarehouseCredentialsModel,
+                }),
+            );
+            const exchange = vi
+                .spyOn(refresh, 'requestNewAccessToken')
+                .mockImplementation((_strategy, _token, callback) =>
+                    callback(
+                        { statusCode: 400, data: '{"error":"invalid_client"}' },
+                        '',
+                        '',
+                        {},
+                    ),
+                );
+            try {
+                await expect(
+                    service.resolvePlan({
+                        ...args,
+                        connection: snowflake,
+                        evaluation: { kind: 'query', surface },
+                    }),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                        action: null,
+                        connectUrl: null,
+                        message:
+                            'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                    },
+                });
+                expect(
+                    analytics.track.mock.calls.map(([event]) => event.event),
+                ).toEqual(['query.refused']);
+                expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+                expect(model.deleteAiCredential).not.toHaveBeenCalled();
+            } finally {
+                exchange.mockRestore();
+            }
+        },
+    );
+    test('preserves a retryable error without refusal analytics or URLs', async () => {
+        const { service, provider, analytics } = setup();
+        const error = new UnexpectedServerError('Try again in a moment.', {
+            code: 'warehouse_oauth_refresh_failed',
+            retryable: true,
+        });
+        provider.mint.mockRejectedValue(error);
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toBe(error);
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+    test('does not read the kill switch or credentials with agent identity off', async () => {
+        const { service, flags, credentials, organizationRules, provider } =
+            setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).resolves.toBeNull();
+        expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+            user: { userUuid: 'user', organizationUuid: 'org' },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(credentials.findAiCredentialWithSecrets).not.toHaveBeenCalled();
+        expect(organizationRules.get).not.toHaveBeenCalled();
+        expect(provider.mint).not.toHaveBeenCalled();
+    });
+    test.each([true, false])(
+        'passes resolved silent refresh %s to mint and status',
+        async (enabled) => {
+            const { service, flags, provider } = setup();
+            flags.get
+                .mockResolvedValueOnce({ enabled: true })
+                .mockResolvedValueOnce({ enabled });
+            await service.resolvePlan({ ...args, connection: snowflake });
+            expect(flags.get).toHaveBeenLastCalledWith({
+                user: { userUuid: 'user', organizationUuid: 'org' },
+                featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
+            });
+            expect(provider.mint).toHaveBeenCalledWith(
+                expect.objectContaining({ silentRefresh: enabled }),
+            );
+            flags.get
+                .mockResolvedValueOnce({ enabled: true })
+                .mockResolvedValueOnce({ enabled });
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            });
+            expect(provider.missingPrerequisite).toHaveBeenCalledWith(
+                expect.objectContaining({ silentRefresh: enabled }),
+            );
         },
     );
 });

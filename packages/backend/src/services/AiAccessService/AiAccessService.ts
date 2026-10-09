@@ -226,6 +226,10 @@ export class AiAccessService extends BaseService {
         const reason = await provider.missingPrerequisite({
             connection,
             person: { userUuid, email: user.email ?? '' },
+            silentRefresh: await this.isSilentRefreshEnabled(
+                { userUuid, organizationUuid },
+                provider.warehouseType,
+            ),
         });
         if (
             reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
@@ -693,6 +697,21 @@ export class AiAccessService extends BaseService {
         return enabled;
     }
 
+    private async isSilentRefreshEnabled(
+        args: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
+        warehouseType: WarehouseTypes,
+    ): Promise<boolean> {
+        if (warehouseType !== WarehouseTypes.SNOWFLAKE) return false;
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
+        });
+        return enabled;
+    }
+
     private actorKind(args: AccessArgs): AiActorKind {
         return args.isServiceAccount ? 'service_account' : 'person';
     }
@@ -1007,6 +1026,10 @@ export class AiAccessService extends BaseService {
                 await provider.mint({
                     connection: args.connection,
                     person: { userUuid: args.userUuid, email },
+                    silentRefresh: await this.isSilentRefreshEnabled(
+                        args,
+                        provider.warehouseType,
+                    ),
                 });
             const probe = await provider.probe(credentials, assurances);
             if (!probe.ok)
@@ -1448,6 +1471,10 @@ export class AiAccessService extends BaseService {
                     const missing = await provider.missingPrerequisite({
                         connection: args.connection,
                         person: { userUuid: args.userUuid, email },
+                        silentRefresh: await this.isSilentRefreshEnabled(
+                            args,
+                            provider.warehouseType,
+                        ),
                     });
                     if (missing !== null) {
                         throw new AiAccessRefusedError(missing);

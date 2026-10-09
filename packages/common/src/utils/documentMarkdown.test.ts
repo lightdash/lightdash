@@ -36,6 +36,7 @@ describe('parseDocumentBlocks', () => {
             { type: 'markdown', markdown: '# Title\n\nIntro' },
             {
                 type: 'tag',
+                line: '<document-chart id="c1" title="A &quot;B&quot;">',
                 tag: {
                     name: 'document-chart',
                     attributes: { id: 'c1', title: 'A "B"' },

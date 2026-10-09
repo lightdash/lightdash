@@ -13,6 +13,7 @@ import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
 } from '@lightdash/warehouses';
+import refresh from 'passport-oauth2-refresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { type UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserService } from '../../UserService';
@@ -47,6 +48,7 @@ const credential: UserWarehouseCredentialsWithSecrets = {
     },
 };
 const mintArgs = {
+    silentRefresh: false,
     connection,
     person: { userUuid: 'user', email: 'user@example.test' },
 };
@@ -77,7 +79,17 @@ const setup = () => {
                 UserWarehouseCredentialsWithSecrets | undefined
             > => credential,
         ),
-        rotateRefreshToken: vi.fn(async () => {}),
+        deleteAiCredential: vi.fn(),
+        rotateRefreshToken: vi.fn(
+            async (
+                _uuid: string,
+                _old: string,
+                _next: string,
+                _expiry?: Parameters<
+                    UserWarehouseCredentialsModel['rotateRefreshToken']
+                >[3],
+            ) => {},
+        ),
     };
     const provider = new SnowflakeAiCredentialProvider({
         lightdashConfig: config,
@@ -284,6 +296,15 @@ describe('SnowflakeAiCredentialProvider', () => {
         ],
         [new Error('network failure'), AiAccessRefusalReason.NEEDS_SIGN_IN],
         [null, AiAccessRefusalReason.NEEDS_SIGN_IN],
+        [
+            { statusCode: 503, data: '{"error":"server_error"}' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [{ statusCode: 429, data: '' }, AiAccessRefusalReason.NEEDS_SIGN_IN],
+        [
+            { statusCode: 503, data: '{"error":"invalid_grant"}' },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
     ])('classifies a refresh failure %s', async (error, reason) => {
         const { provider, model } = setup();
         vi.mocked(UserService.generateSnowflakeAccessToken).mockRejectedValue(
@@ -394,5 +415,314 @@ describe('SnowflakeAiCredentialProvider', () => {
             ]),
         ).rejects.toBeInstanceOf(UnexpectedServerError);
         expect(checkSnowflakeAgentSessionWithToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('silent Snowflake refresh', () => {
+    const args = { ...mintArgs, silentRefresh: true };
+    const now = new Date('2026-10-09T12:00:00Z');
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+        vi.spyOn(UserService, 'generateSnowflakeAccessToken').mockResolvedValue(
+            { accessToken: 'access', refreshToken: 'T2' },
+        );
+        vi.spyOn(refresh, 'requestNewAccessToken').mockImplementation(
+            (_strategy, _token, callback) => {
+                callback(null, 'access', 'T2', {
+                    expires_in: 600,
+                    refresh_token_expires_in: 3600,
+                });
+            },
+        );
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    test('refreshes a past deadline and persists the returned expiry', async () => {
+        const { provider, model } = setup();
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            expiresAt: new Date(0),
+        });
+        expect(await provider.missingPrerequisite(args)).toBeNull();
+        expect(refresh.requestNewAccessToken).not.toHaveBeenCalled();
+        await expect(provider.mint(args)).resolves.toMatchObject({
+            expiresAt: new Date(now.getTime() + 600000),
+        });
+        expect(model.rotateRefreshToken).toHaveBeenCalledWith(
+            'credential',
+            'old-refresh-token',
+            'T2',
+            { kind: 'reported', expiresAt: new Date(now.getTime() + 3600000) },
+        );
+    });
+    test.each([new Date(0), new Date('2030-01-01')])(
+        'refuses a gone grant with stored deadline %s',
+        async (expiresAt) => {
+            const { provider, model } = setup();
+            model.findAiCredentialWithSecrets.mockResolvedValue({
+                ...credential,
+                expiresAt,
+            });
+            vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+                (_strategy, _token, callback) =>
+                    callback(
+                        { statusCode: 400, data: '{"error":"invalid_grant"}' },
+                        '',
+                        '',
+                        {},
+                    ),
+            );
+            const result = provider.mint(args).catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(await result).toMatchObject({
+                refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+            });
+            expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(4);
+            expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(1);
+            expect(vi.getTimerCount()).toBe(0);
+            expect(model.deleteAiCredential).not.toHaveBeenCalled();
+        },
+    );
+    test.each([
+        new Error('ECONNRESET'),
+        { statusCode: 503, data: '{"error":"server_error"}' },
+        { statusCode: 429, data: '' },
+        { statusCode: 503, data: '{"error":"invalid_grant"}' },
+    ])('keeps temporary failures retryable: %s', async (error) => {
+        const { provider, model } = setup();
+        vi.mocked(UserService.generateSnowflakeAccessToken).mockRejectedValue(
+            error,
+        );
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) => callback(error, '', '', {}),
+        );
+        await expect(provider.mint(args)).rejects.toMatchObject({
+            name: 'UnexpectedServerError',
+            data: { code: 'warehouse_oauth_refresh_failed', retryable: true },
+        });
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(1);
+        expect(model.deleteAiCredential).not.toHaveBeenCalled();
+    });
+    test.each([new Date(0), new Date('2030-01-01'), null])(
+        'preserves or clears expiry when metadata is absent: %s',
+        async (expiresAt) => {
+            const { provider, model } = setup();
+            model.findAiCredentialWithSecrets.mockResolvedValue({
+                ...credential,
+                expiresAt,
+            });
+            vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+                (_strategy, _token, callback) =>
+                    callback(null, 'access', 'T2', {}),
+            );
+            await expect(provider.mint(args)).resolves.toMatchObject({
+                expiresAt: new Date(now.getTime() + 480000),
+            });
+            expect(model.rotateRefreshToken).toHaveBeenCalledWith(
+                'credential',
+                'old-refresh-token',
+                'T2',
+                { kind: 'unreported' },
+            );
+        },
+    );
+    test('clears a deadline that passes during a successful exchange', async () => {
+        const { provider, model } = setup();
+        model.findAiCredentialWithSecrets.mockResolvedValue({
+            ...credential,
+            expiresAt: new Date(now.getTime() + 1000),
+        });
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) => {
+                vi.setSystemTime(now.getTime() + 2000);
+                callback(null, 'access', 'old-refresh-token', {});
+            },
+        );
+        await provider.mint(args);
+        expect(model.rotateRefreshToken).toHaveBeenCalledWith(
+            'credential',
+            'old-refresh-token',
+            'old-refresh-token',
+            { kind: 'unreported' },
+        );
+    });
+    test('updates expiry even when the refresh token is unchanged', async () => {
+        const { provider, model } = setup();
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) =>
+                callback(null, 'access', 'old-refresh-token', {
+                    refresh_token_expires_in: 3600,
+                }),
+        );
+        await provider.mint(args);
+        expect(model.rotateRefreshToken).toHaveBeenCalledWith(
+            'credential',
+            'old-refresh-token',
+            'old-refresh-token',
+            { kind: 'reported', expiresAt: new Date(now.getTime() + 3600000) },
+        );
+    });
+    test('does not retry a second invalid grant', async () => {
+        const { provider, model } = setup();
+        model.findAiCredentialWithSecrets
+            .mockResolvedValueOnce(credential)
+            .mockResolvedValue({
+                ...credential,
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    user: 'user',
+                    refreshToken: 'newer',
+                },
+            });
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) =>
+                callback(
+                    { statusCode: 400, data: '{"error":"invalid_grant"}' },
+                    '',
+                    '',
+                    {},
+                ),
+        );
+        await expect(provider.mint(args)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+        });
+        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(2);
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+        expect(model.deleteAiCredential).not.toHaveBeenCalled();
+    });
+    test.each([
+        '{"error":"invalid_client","error_description":"invalid_grant"}',
+        '{"error":"unauthorized_client"}',
+        '{"error":"invalid_request"}',
+        'unparseable response',
+    ])('directs configuration errors to an administrator: %s', async (data) => {
+        const { provider, model } = setup();
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) =>
+                callback({ statusCode: 400, data }, '', '', {}),
+        );
+        await expect(provider.mint(args)).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                action: null,
+                connectUrl: null,
+                message:
+                    'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+            },
+        });
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+        expect(model.deleteAiCredential).not.toHaveBeenCalled();
+    });
+    test('skips the write when neither the token nor expiry changes', async () => {
+        const { provider, model } = setup();
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, _token, callback) => callback(null, 'access', '', {}),
+        );
+        await provider.mint(args);
+        expect(model.rotateRefreshToken).not.toHaveBeenCalled();
+    });
+    test('waits for a concurrent rotation to commit after invalid_grant', async () => {
+        const { provider, model } = setup();
+        let currentToken = 'old-refresh-token';
+        model.findAiCredentialWithSecrets.mockImplementation(async () => ({
+            ...credential,
+            credentials: {
+                ...credential.credentials,
+                refreshToken: currentToken,
+            },
+        }));
+        model.rotateRefreshToken.mockImplementation(
+            async (_uuid, expected, next) => {
+                if (next === 'T2')
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, 450);
+                    });
+                if (currentToken === expected) currentToken = next;
+            },
+        );
+        let calls = 0;
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, token, callback) => {
+                calls += 1;
+                if (calls === 1) callback(null, 'A1', 'T2', {});
+                else if (token === 'old-refresh-token') {
+                    expect(currentToken).toBe('old-refresh-token');
+                    callback(
+                        { statusCode: 400, data: '{"error":"invalid_grant"}' },
+                        '',
+                        '',
+                        {},
+                    );
+                } else callback(null, 'A2', 'T3', {});
+            },
+        );
+        const results = Promise.allSettled([
+            provider.mint(args),
+            provider.mint(args),
+        ]);
+        await vi.advanceTimersByTimeAsync(300);
+        expect(currentToken).toBe('old-refresh-token');
+        await vi.advanceTimersByTimeAsync(700);
+        expect(await results).toEqual([
+            expect.objectContaining({ status: 'fulfilled' }),
+            expect.objectContaining({ status: 'fulfilled' }),
+        ]);
+        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(3);
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(5);
+        expect(currentToken).toBe('T3');
+    });
+    test('retries once after a concurrent single-use token rotation', async () => {
+        const { provider, model } = setup();
+        let currentToken = 'old-refresh-token';
+        model.findAiCredentialWithSecrets.mockImplementation(async () => ({
+            ...credential,
+            credentials: {
+                ...credential.credentials,
+                refreshToken: currentToken,
+            },
+        }));
+        let rotated: () => void = () => {};
+        const rotation = new Promise<void>((resolve) => {
+            rotated = resolve;
+        });
+        model.rotateRefreshToken.mockImplementation(
+            async (_uuid, expected, next) => {
+                if (currentToken === expected) currentToken = next;
+                rotated();
+            },
+        );
+        let calls = 0;
+        vi.mocked(refresh.requestNewAccessToken).mockImplementation(
+            (_strategy, token, callback) => {
+                calls += 1;
+                if (calls === 1) callback(null, 'A1', 'T2', {});
+                else if (token === 'old-refresh-token')
+                    void rotation.then(() =>
+                        callback(
+                            {
+                                statusCode: 400,
+                                data: '{"error":"invalid_grant"}',
+                            },
+                            '',
+                            '',
+                            {},
+                        ),
+                    );
+                else callback(null, 'A2', 'T3', {});
+            },
+        );
+        await expect(
+            Promise.all([provider.mint(args), provider.mint(args)]),
+        ).resolves.toHaveLength(2);
+        expect(refresh.requestNewAccessToken).toHaveBeenCalledTimes(3);
+        expect(currentToken).toBe('T3');
     });
 });
