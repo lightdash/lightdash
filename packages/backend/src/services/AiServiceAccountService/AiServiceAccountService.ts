@@ -190,7 +190,12 @@ export class AiServiceAccountService extends BaseService {
         parent: AiServiceAccountParent | null;
     }> {
         const { warehouseConnectionUuid, organizationUuid } =
-            await this.loadConnection(account, projectUuid, connectionUuid);
+            await this.loadConnection(
+                account,
+                projectUuid,
+                connectionUuid,
+                false,
+            );
         const results =
             await this.deps.aiServiceAccountCredentialsModel.getSlot(
                 projectUuid,
