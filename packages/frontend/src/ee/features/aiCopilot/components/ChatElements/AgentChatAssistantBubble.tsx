@@ -13,7 +13,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Box,
     Button,
     Code,
@@ -542,20 +541,14 @@ const AssistantBubbleContent: FC<{
                 />
             )}
             {shouldShowRetry && (
-                <Paper variant="dotted" radius="md" pr="md" bg="ldGray.0">
-                    <Group gap="xs" align="center" justify="space-between">
-                        <Alert
-                            icon={
-                                <MantineIcon
-                                    icon={IconExclamationCircle}
-                                    color="gray"
-                                    size="md"
-                                />
-                            }
-                            color="ldGray.0"
-                            variant="outline"
-                            w="80%"
-                        >
+                <Paper withBorder radius="md" p="sm" bg="ldGray.0">
+                    <Group gap="sm" wrap="nowrap" justify="space-between">
+                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconExclamationCircle}
+                                color="ldGray.6"
+                                size="md"
+                            />
                             <Stack gap={4}>
                                 <Text size="sm" fw={500} c="dimmed">
                                     {noticeTitle}
@@ -564,7 +557,7 @@ const AssistantBubbleContent: FC<{
                                     {noticeMessage}
                                 </Text>
                             </Stack>
-                        </Alert>
+                        </Group>
                         {/* Retry re-runs the thread's latest prompt, so only
                             offer it on the message it would actually re-run */}
                         {isLastMessage && (
