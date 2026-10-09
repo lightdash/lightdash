@@ -460,6 +460,7 @@ import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
     getFilteredExplore,
+    mergeUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import {
@@ -12669,6 +12670,7 @@ export class ProjectService
         exploreName: string,
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
+        userAttributeOverrides?: UserAttributeValueMap,
     ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         await this.assertAnalyticsProjectAccess(
             account,
@@ -12686,6 +12688,7 @@ export class ProjectService
                         projectUuid,
                         exploreNames: [exploreName],
                         organizationUuid,
+                        userAttributeOverrides,
                     });
                 const explore = exploresMap[exploreName];
 
@@ -12745,11 +12748,13 @@ export class ProjectService
         projectUuid,
         exploreNames,
         organizationUuid,
+        userAttributeOverrides,
     }: {
         account: Account;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
+        userAttributeOverrides?: UserAttributeValueMap;
     }): Promise<{
         explores: Record<string, Explore | ExploreError>;
         userAccessControls: UserAccessControls;
@@ -12793,7 +12798,7 @@ export class ProjectService
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const [explores, userAccessControls] = await Promise.all([
+                const [explores, baseUserAccessControls] = await Promise.all([
                     this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
@@ -12801,6 +12806,13 @@ export class ProjectService
                     ),
                     this.getUserAttributes({ account }),
                 ]);
+                const userAccessControls = {
+                    ...baseUserAccessControls,
+                    userAttributes: mergeUserAttributes(
+                        baseUserAccessControls.userAttributes,
+                        userAttributeOverrides,
+                    ),
+                };
                 const canViewPreAggregateExplores =
                     this.canViewPreAggregateExplores(
                         account,

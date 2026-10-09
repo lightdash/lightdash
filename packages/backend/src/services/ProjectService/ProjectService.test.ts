@@ -7291,6 +7291,83 @@ describe('ProjectService', () => {
     });
 
     describe('getExplore', () => {
+        test.each(['allowed', 'denied'])(
+            'applies detail override %s to joined tables, dimensions, and metrics',
+            async (detailAccess) => {
+                const restrictedExplore: Explore = {
+                    ...validExplore,
+                    tables: {
+                        a: {
+                            ...validExplore.tables.a,
+                            anyAttributes: { explore_scope: 'allowed' },
+                            dimensions: {
+                                dim1: {
+                                    ...validExplore.tables.a.dimensions.dim1,
+                                    requiredAttributes: { detail: 'allowed' },
+                                },
+                            },
+                            metrics: {
+                                met1: {
+                                    ...validExplore.tables.a.metrics.met1,
+                                    anyAttributes: { detail: 'allowed' },
+                                },
+                            },
+                        },
+                        b: {
+                            ...validExplore.tables.b,
+                            anyAttributes: { detail: 'allowed' },
+                        },
+                    },
+                };
+                vi.mocked(
+                    projectModel.findExploresFromCache,
+                ).mockResolvedValueOnce([restrictedExplore]);
+                const storedAccess = {
+                    userAttributes: {
+                        detail: ['allowed'],
+                        tenant: ['tenant-a'],
+                    },
+                    intrinsicUserAttributes: { email: 'verified@example.com' },
+                };
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValueOnce(
+                    storedAccess,
+                );
+
+                const { explore, userAccessControls } =
+                    await service.getExploreWithUserAccessControls(
+                        account,
+                        projectUuid,
+                        restrictedExplore.name,
+                        undefined,
+                        false,
+                        { explore_scope: ['allowed'], detail: [detailAccess] },
+                    );
+
+                expect(Object.keys(explore.tables)).toEqual(
+                    detailAccess === 'allowed' ? ['a', 'b'] : ['a'],
+                );
+                expect(explore.joinedTables).toHaveLength(
+                    detailAccess === 'allowed' ? 1 : 0,
+                );
+                expect(Object.keys(explore.tables.a.dimensions)).toEqual(
+                    detailAccess === 'allowed' ? ['dim1'] : [],
+                );
+                expect(Object.keys(explore.tables.a.metrics)).toEqual(
+                    detailAccess === 'allowed' ? ['met1'] : [],
+                );
+                expect(userAccessControls.userAttributes).toEqual({
+                    tenant: ['tenant-a'],
+                    explore_scope: ['allowed'],
+                    detail: [detailAccess],
+                });
+                expect(storedAccess.userAttributes.detail).toEqual(['allowed']);
+                expect(userAccessControls.intrinsicUserAttributes).toEqual(
+                    storedAccess.intrinsicUserAttributes,
+                );
+                expect(explore.unfilteredTables).toBeUndefined();
+            },
+        );
+
         test('returns split candidates when the requested explore name was qualified', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
                 [],

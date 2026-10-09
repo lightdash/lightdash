@@ -1055,12 +1055,14 @@ export class AsyncQueryService extends ProjectService {
         exploreName,
         organizationUuid,
         materializationRole,
+        userAttributeOverrides,
     }: {
         account: Account;
         projectUuid: string;
         exploreName: string;
         organizationUuid: string;
         materializationRole?: UserAccessControls;
+        userAttributeOverrides?: UserAttributeValueMap;
     }): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         if (materializationRole === undefined) {
             return this.getExploreWithUserAccessControls(
@@ -1068,6 +1070,8 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 exploreName,
                 organizationUuid,
+                true,
+                userAttributeOverrides,
             );
         }
 
@@ -5921,6 +5925,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 exploreName: inputMetricQuery.exploreName,
                 organizationUuid,
+                userAttributeOverrides,
                 materializationRole:
                     context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
