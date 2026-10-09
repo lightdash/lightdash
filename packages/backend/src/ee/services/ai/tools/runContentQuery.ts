@@ -91,7 +91,7 @@ export const canRunContentQuerySql = ({
     canRunSql && (toolAllowlist === null || toolAllowlist.has('runSql'));
 
 export const CONTENT_SQL_DISABLED_RESULT =
-    'Running SQL needs SQL mode, which is not enabled for this agent. Do not retry; query an explore with source.type "metricQuery" instead, or ask an admin to enable SQL mode.';
+    'Running SQL is not available in this conversation. Query an explore with source.type "metricQuery" instead.';
 
 const CONTENT_SQL_APPROVAL_COPY: SqlApprovalCopy = {
     slackText: 'SQL execution',
