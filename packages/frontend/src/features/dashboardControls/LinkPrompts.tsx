@@ -8,7 +8,6 @@ import { useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { getFieldDisplayLabel } from './fieldGrains';
 import { getLinkCandidates, getLinkKey } from './linkCandidates';
 import { setTileField, type FieldsByTile } from './peers';
 import classes from './TileOverlay.module.css';
@@ -132,9 +131,7 @@ export const LinkPrompts: FC = () => {
     );
     const label = (fieldId: string) => {
         const field = fieldsMap[fieldId];
-        return field
-            ? getFieldDisplayLabel(field, Object.values(fieldsMap))
-            : fieldId;
+        return field ? field.label : fieldId;
     };
 
     if (!isEnabled) return null;
