@@ -1,3 +1,10 @@
+# [2.523.0](https://github.com/lightdash/lightdash/compare/2.522.0...2.523.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** AI service account takes only routing fields, and agent queries skip the warehouse result cache ([#30841](https://github.com/lightdash/lightdash/issues/30841)) ([f749e4f](https://github.com/lightdash/lightdash/commit/f749e4f5964f49f1b85e9e1946996a7424023dc1))
+
 # [2.522.0](https://github.com/lightdash/lightdash/compare/2.521.0...2.522.0) (2026-10-09)
 
 

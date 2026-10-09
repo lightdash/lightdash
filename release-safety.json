@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.522.0",
-  "previousVersion": "2.521.0",
-  "releaseDate": "2026-10-09T18:38:47.211Z",
+  "version": "2.523.0",
+  "previousVersion": "2.522.0",
+  "releaseDate": "2026-10-09T19:21:05.774Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -11,17 +11,15 @@
     "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access — api path removed without deprecation"
-      ],
-      "breakingCount": 1,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -43,11 +41,5 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "agent-identity-test-access-endpoint-removed",
-      "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access and the exported AgentAccessReport, AgentAccessTestRequest and BigqueryAgentAccessProbe types. API clients that called the per-table access check get a 404 and must use POST .../ai-access/service-account/test instead, which still checks the AI service account key. Only the Lightdash frontend called the removed endpoint, so no rolling upgrade is affected.",
-      "requiredStop": false
-    }
-  ]
+  "declaredBreaks": []
 }
