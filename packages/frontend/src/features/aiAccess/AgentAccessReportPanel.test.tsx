@@ -34,12 +34,18 @@ const report: AgentAccessReport = {
     notCheckedCount: 0,
     totalCount: 2,
     truncatedCount: 0,
-    checkedAt: new Date('2026-10-09T12:00:00Z'),
+    checkedAt: new Date(2026, 9, 9, 12, 0, 0),
 };
 
 describe('AgentAccessReportPanel', () => {
     it('shows identity passed and the exact 1 of 2 access footer', () => {
         renderWithProviders(<AgentAccessReportPanel report={report} />);
+        expect(screen.queryByText(/^Scope:/)).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Checked 12:00. The check reads no rows; row-level policies can still limit results.',
+            ),
+        ).toBeVisible();
         expect(screen.getByText('Passed')).toBeVisible();
         expect(screen.getByText('agent@example.test')).toBeVisible();
         expect(screen.getByText('dataset.one')).toBeVisible();
@@ -50,6 +56,23 @@ describe('AgentAccessReportPanel', () => {
                 'People keep their own access. Agents can read 1 of 2 tables in this dataset.',
             ),
         ).toBeVisible();
+    });
+    it('shows the scope for multiple datasets in one project', () => {
+        renderWithProviders(
+            <AgentAccessReportPanel
+                report={{
+                    ...report,
+                    datasets: [
+                        ...report.datasets,
+                        { database: 'project', schema: 'another' },
+                    ],
+                }}
+            />,
+        );
+        expect(
+            screen.getByText('Scope: project.dataset, project.another'),
+        ).toBeVisible();
+        expect(screen.getByText('dataset.one')).toBeVisible();
     });
     it('renders an overall failure without table rows', () => {
         renderWithProviders(
@@ -135,5 +158,8 @@ describe('AgentAccessReportPanel', () => {
             screen.queryByText('blocked by BigQuery'),
         ).not.toBeInTheDocument();
         expect(screen.getByText(/across these datasets/)).toBeVisible();
+        expect(
+            screen.getByText('Scope: project.dataset, another.dataset'),
+        ).toBeVisible();
     });
 });

@@ -234,20 +234,24 @@ describe('AI service account card', () => {
             expect(lightdashApi).not.toHaveBeenCalled();
         },
     );
-    it('shows an empty slot and the read-only organisation rule', async () => {
+    it('shows an empty slot without repeating the organization rule', async () => {
         setup();
         expect(
-            await screen.findByText(
-                'When AI agents query BigQuery, they run as same credentials as the user.',
-            ),
+            await screen.findByRole('button', {
+                name: 'Add an AI service account',
+            }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Organisation settings' }),
-        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+            screen.queryByText(/When AI agents query/),
+        ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Add an AI service account' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('link', { name: 'Organisation settings' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Agents use the same credentials as the user/),
+        ).not.toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
     it('warns when a required service account is missing', async () => {
         source = 'ai_service_account';
@@ -255,22 +259,38 @@ describe('AI service account card', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'AI agents on this connection are refused until an AI service account is added.',
         );
-        expect(
-            screen.getByRole('link', { name: 'Organisation settings' })
-                .parentElement,
-        ).toHaveTextContent(
-            'Required by your organisation. Organisation settings',
-        );
     });
-    it('explains that no key is needed for the marked person source', async () => {
-        setup();
-        expect(
-            await screen.findByText(
-                'Agents use the same credentials as the user. No AI service account key is needed.',
-            ),
-        ).toBeInTheDocument();
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
+    it.each([
+        [
+            'marked_person',
+            "Queries are tagged as agent queries. Warehouse policies can't act on the tag.",
+        ],
+        [
+            'ai_service_account',
+            "Admins add it on each project connection. Everyone's agent gets that account's access.",
+        ],
+    ] as const)(
+        'shows the %s helper only in the organization rule card',
+        async (ruleSource, helper) => {
+            source = ruleSource;
+            setup(project, false, true);
+            const heading = await screen.findByRole('heading', {
+                name: 'Organization rule for this warehouse',
+            });
+            expect(screen.getAllByText(helper)).toHaveLength(1);
+            expect(
+                within(heading.parentElement!).getByText(helper),
+            ).toBeVisible();
+            expect(
+                screen.getAllByRole('link', {
+                    name: /Organi[sz]ation settings/,
+                }),
+            ).toHaveLength(1);
+            expect(
+                screen.queryByText(/When AI agents query/),
+            ).not.toBeInTheDocument();
+        },
+    );
     it('tests a saved slot with null credentials and shows only the returned principal', async () => {
         slot = savedSlot;
         setup();

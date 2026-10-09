@@ -322,7 +322,10 @@ export const testAgentAccess = async (
     } catch (error) {
         if (error instanceof NotFoundError && progress.phase === 'credentials')
             throw error;
-        const classified = classifyBigqueryAccessError(error);
+        const classified = classifyBigqueryAccessError(
+            error,
+            progress.phase === 'identity' ? 'identity' : 'tables',
+        );
         let reason:
             | Exclude<AgentAccessReport['failureReason'], null>
             | 'not_found'

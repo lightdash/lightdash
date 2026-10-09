@@ -193,6 +193,44 @@ describe('BigqueryAgentAccessProbe', () => {
             f.request.mock.calls.every(([options]) => options.method === 'GET'),
         ).toBe(true);
     });
+    it('classifies local auth failures only during identity verification', () => {
+        const error = Object.assign(
+            new Error('error:1E08010C:DECODER routines::unsupported'),
+            {
+                code: 'ERR_OSSL_UNSUPPORTED',
+            },
+        );
+        expect(classifyBigqueryAccessError(error, 'identity')).toEqual({
+            kind: 'fatal',
+            reason: 'invalid_credentials',
+        });
+        expect(classifyBigqueryAccessError(error)).toEqual({
+            kind: 'error',
+            reason: 'unknown',
+        });
+    });
+    it.each([
+        [
+            { response: { status: 400, data: { error: 'invalid_grant' } } },
+            'invalid_credentials',
+        ],
+        [{ response: { status: 400, data: {} } }, 'unknown'],
+        [{ code: 400 }, 'unknown'],
+        [{ errors: [{ reason: 'unexpected' }] }, 'unknown'],
+        [new AgentAccessProbeError('unknown'), 'unknown'],
+        [{ code: 'ECONNRESET' }, 'unavailable'],
+        [{ code: 'ENOTFOUND' }, 'unavailable'],
+        [{ code: 'ETIMEDOUT' }, 'timeout'],
+        [{ name: 'TimeoutError' }, 'timeout'],
+        [new AgentAccessProbeError('timeout'), 'timeout'],
+    ])(
+        'preserves HTTP, explicit probe and network errors during identity',
+        (error, reason) => {
+            expect(classifyBigqueryAccessError(error, 'identity').reason).toBe(
+                reason,
+            );
+        },
+    );
     it('does not interpret an unclassified 403 as blocked table access', () => {
         expect(classifyBigqueryAccessError({ code: 403 })).toEqual({
             kind: 'fatal',

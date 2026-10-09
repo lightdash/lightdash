@@ -207,6 +207,57 @@ describe('testAgentAccess', () => {
             assertCounts(report);
         },
     );
+    it.each([
+        'invalid_grant',
+        'DECODER routines::unsupported',
+        'error:1E08010C',
+        'No key or keyFile set',
+        'The incoming JSON object does not contain a client_email field',
+        'The incoming JSON object does not contain a private_key field',
+        'An unrecognized local auth error',
+    ])(
+        'classifies a local identity failure as invalid credentials: %s',
+        async (message) => {
+            const f = setup();
+            f.principal.mockRejectedValue(new Error(message));
+            const report = await f.run();
+            expect(report).toMatchObject({
+                status: 'failed',
+                failureReason: 'invalid_credentials',
+                message:
+                    'Could not verify the AI service account. Check the saved key.',
+                principal: null,
+                tables: [],
+                totalCount: null,
+            });
+            expect(f.list).not.toHaveBeenCalled();
+            expect(f.probe).not.toHaveBeenCalled();
+            assertCounts(report);
+        },
+    );
+    it.each([
+        ['ECONNRESET', 'unavailable'],
+        ['ENOTFOUND', 'unavailable'],
+        ['ETIMEDOUT', 'timeout'],
+        ['ESOCKETTIMEDOUT', 'timeout'],
+    ])(
+        'preserves the network failure during identity: %s',
+        async (code, failureReason) => {
+            const f = setup();
+            f.principal.mockRejectedValue(
+                Object.assign(new Error('Request failed'), { code }),
+            );
+            const report = await f.run();
+            expect(report).toMatchObject({
+                status: 'failed',
+                failureReason,
+                tables: [],
+                totalCount: null,
+            });
+            expect(f.list).not.toHaveBeenCalled();
+            assertCounts(report);
+        },
+    );
     it('does not report a denominator when baseline listing fails', async () => {
         const f = setup();
         f.list.mockRejectedValue(new Error('raw secret error'));

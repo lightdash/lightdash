@@ -7,18 +7,8 @@ import {
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import {
-    Alert,
-    Anchor,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Alert, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
@@ -33,11 +23,6 @@ import {
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
-import {
-    agentIdentitySentence,
-    identityWarehouseNames,
-    inlineIdentityLabel,
-} from './identityLabels';
 import { useTestAgentAccess } from './useTestAgentAccess';
 
 const AiServiceAccountSlotSummary = ({
@@ -189,27 +174,6 @@ const AiServiceAccountSettingsContent = ({
 }) => {
     return (
         <Stack gap="sm">
-            <Text size="sm">
-                {agentIdentitySentence(identityWarehouseNames.bigquery)}{' '}
-                {inlineIdentityLabel(rule.source)}.
-            </Text>
-            <Text size="sm">
-                {rule.source === 'ai_service_account' &&
-                    'Required by your organisation. '}
-                <Anchor
-                    component={Link}
-                    to="/generalSettings/warehouseCredentials"
-                    size="sm"
-                >
-                    Organisation settings
-                </Anchor>
-            </Text>
-            {rule.source === 'marked_person' && (
-                <Text size="sm" c="dimmed">
-                    Agents use the same credentials as the user. No AI service
-                    account key is needed.
-                </Text>
-            )}
             {!slot && rule.source === 'ai_service_account' && (
                 <Alert color="yellow">
                     AI agents on this connection are refused until an AI service

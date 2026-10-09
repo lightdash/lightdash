@@ -13,6 +13,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconCheck, IconX, IconQuestionMark } from '@tabler/icons-react';
+import dayjs from 'dayjs';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './AgentAccessReportPanel.module.css';
 
@@ -151,20 +152,25 @@ export const AgentAccessReportPanel = ({
                               ? `People keep their own access. Agents can read ${report.readableCount} of ${report.checkedCount} checked tables. ${report.totalCount} tables are listed ${scope}. ${report.errorCount} unknown; ${report.notCheckedCount + report.truncatedCount} not checked.`
                               : `People keep their own access. Agents can read ${report.readableCount} of ${report.totalCount} tables ${scope}.`}
                     </Text>
-                    <Text size="xs" c="dimmed" className={classes.identifier}>
-                        Scope:{' '}
-                        {report.datasets
-                            .map(
-                                (dataset) =>
-                                    `${dataset.database}.${dataset.schema}`,
-                            )
-                            .join(', ')}
-                    </Text>
+                    {report.datasets.length > 1 && (
+                        <Text
+                            size="xs"
+                            c="dimmed"
+                            className={classes.identifier}
+                        >
+                            Scope:{' '}
+                            {report.datasets
+                                .map(
+                                    (dataset) =>
+                                        `${dataset.database}.${dataset.schema}`,
+                                )
+                                .join(', ')}
+                        </Text>
+                    )}
                     <Text size="xs" c="dimmed">
-                        Identity verified. Table checks validate queries without
-                        reading rows. Row policies and later permission changes
-                        can affect query results. Checked{' '}
-                        {new Date(report.checkedAt).toLocaleString()}.
+                        Checked {dayjs(report.checkedAt).format('HH:mm')}. The
+                        check reads no rows; row-level policies can still limit
+                        results.
                     </Text>
                 </Stack>
             </Stack>

@@ -34,6 +34,9 @@ const ProjectAgentIdentityContent = ({ project }: { project: Project }) => {
                     </Title>
                     <Text size="sm">{identityLabels[rule.source].label}</Text>
                     <Text size="sm" c="dimmed">
+                        {identityLabels[rule.source].helper}
+                    </Text>
+                    <Text size="sm" c="dimmed">
                         Set by an organization admin.{' '}
                         <Anchor
                             component={Link}

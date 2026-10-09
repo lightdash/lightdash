@@ -27,6 +27,7 @@ const record = (value: unknown): Record<string, unknown> =>
 
 export const classifyBigqueryAccessError = (
     error: unknown,
+    phase: 'identity' | 'tables' = 'tables',
 ):
     | { kind: 'fatal'; reason: FailureReason }
     | Exclude<
@@ -101,6 +102,13 @@ export const classifyBigqueryAccessError = (
     )
         return { kind: 'error', reason: 'unavailable' };
     if (code === 403) return { kind: 'fatal', reason: 'warehouse_denied' };
+    if (
+        phase === 'identity' &&
+        root.response == null &&
+        typeof code !== 'number' &&
+        entries.length === 0
+    )
+        return { kind: 'fatal', reason: 'invalid_credentials' };
     return { kind: 'error', reason: 'unknown' };
 };
 
