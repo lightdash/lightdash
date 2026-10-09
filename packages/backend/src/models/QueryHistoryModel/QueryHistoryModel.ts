@@ -41,11 +41,17 @@ import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
 
+export type QueryHistoryWithLineage = QueryHistory & {
+    duckdbExecutionReferences?: Record<string, string> | null;
+};
+
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
-): QueryHistory {
+): QueryHistoryWithLineage {
     return {
         queryUuid: queryHistory.query_uuid,
+        duckdbExecutionReferences:
+            queryHistory.duckdb_execution?.references ?? null,
         createdAt: queryHistory.created_at,
         createdBy:
             queryHistory.created_by_user_uuid ??

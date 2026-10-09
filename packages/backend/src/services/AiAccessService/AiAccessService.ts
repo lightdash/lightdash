@@ -50,7 +50,10 @@ import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    type QueryHistoryModel,
+    type QueryHistoryWithLineage,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -269,15 +272,18 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const { settings: savedSettings, previousSource } =
-            await this.organizationAgentIdentitySettingsModel.upsert(
-                organizationUuid,
-                settings,
-            );
+        const {
+            settings: savedSettings,
+            previousSource,
+            changed,
+        } = await this.organizationAgentIdentitySettingsModel.upsert(
+            organizationUuid,
+            settings,
+        );
         const source = savedSettings.requireVerifiedAgentSessions
             ? 'agent_sign_in'
             : 'marked_person';
-        if (source !== previousSource) {
+        if (changed) {
             const userId = this.analyticsUserId({
                 userUuid: account.user.id,
                 isRegisteredUser: account.user.type === 'registered',
@@ -334,29 +340,27 @@ export class AiAccessService extends BaseService {
                 'This identity source is not supported for the warehouse type',
             );
         }
-        const previous = await this.organizationAgentIdentityRulesModel.get(
-            organizationUuid,
-            warehouseType,
-            'person',
-        );
-        await this.organizationAgentIdentityRulesModel.set(
-            organizationUuid,
-            warehouseType,
-            rule,
-        );
-        trackSafely(() =>
-            this.analytics.track({
-                event: 'agent_identity.rule_updated',
-                userId: account.user.id,
-                properties: {
-                    organizationId: organizationUuid,
+        const { previousSource, changed } =
+            await this.organizationAgentIdentityRulesModel.set(
+                organizationUuid,
+                warehouseType,
+                rule,
+            );
+        if (changed) {
+            trackSafely(() =>
+                this.analytics.track({
+                    event: 'agent_identity.rule_updated',
                     userId: account.user.id,
-                    warehouseType,
-                    source: rule.source,
-                    previousSource: previous.source,
-                },
-            }),
-        );
+                    properties: {
+                        organizationId: organizationUuid,
+                        userId: account.user.id,
+                        warehouseType,
+                        source: rule.source,
+                        previousSource,
+                    },
+                }),
+            );
+        }
         return {
             warehouseType,
             source: rule.source,
@@ -983,9 +987,55 @@ export class AiAccessService extends BaseService {
     async assertCanReadResults(
         account: Account,
         projectUuid: string,
-        queryHistory: QueryHistory,
-        { agentProducedOnly = false }: { agentProducedOnly?: boolean } = {},
+        queryHistory: QueryHistoryWithLineage,
+        {
+            agentProducedOnly = false,
+            evaluation = { kind: 'result_read' },
+        }: {
+            agentProducedOnly?: boolean;
+            evaluation?: AiAccessEvaluation;
+        } = {},
     ): Promise<AiExecutionPlan | null> {
+        const plans = await this.assertCanReadResultsForQueries(
+            account,
+            projectUuid,
+            [{ queryHistory, agentProducedOnly }],
+            evaluation,
+        );
+        return plans.get(queryHistory.queryUuid) ?? null;
+    }
+
+    async assertCanReadResultsForQueries(
+        account: Account,
+        projectUuid: string,
+        roots: {
+            queryHistory: QueryHistoryWithLineage;
+            agentProducedOnly: boolean;
+        }[],
+        evaluation: AiAccessEvaluation = { kind: 'result_read' },
+    ): Promise<Map<string, AiExecutionPlan | null>> {
+        const uniqueRoots = [
+            ...new Map(
+                roots.map((root) => [root.queryHistory.queryUuid, root]),
+            ).values(),
+        ];
+        const relevantRoots = uniqueRoots.filter(
+            ({ queryHistory: root, agentProducedOnly }) => {
+                const { references } = getQuerySourceParameters(
+                    root.requestParameters,
+                );
+                return (
+                    !agentProducedOnly ||
+                    isAiAccessQueryContext(root.context) ||
+                    !!root.requestParameters?.aiSignInCredentialUuid ||
+                    Object.keys(references ?? {}).length > 0 ||
+                    root.duckdbExecutionReferences === undefined ||
+                    Object.keys(root.duckdbExecutionReferences ?? {}).length > 0
+                );
+            },
+        );
+        if (relevantRoots.length === 0) return new Map();
+        const { queryHistory } = relevantRoots[0];
         const organizationUuid =
             queryHistory.organizationUuid ??
             (await this.projectModel.getSummary(projectUuid)).organizationUuid;
@@ -995,7 +1045,7 @@ export class AiAccessService extends BaseService {
                 organizationUuid,
             }))
         ) {
-            return null;
+            return new Map();
         }
 
         const maxNodes = 500;
@@ -1008,15 +1058,21 @@ export class AiAccessService extends BaseService {
             string,
             { queryHistory: QueryHistory; sources: string[] }
         >();
-        const visited = new Set([queryHistory.queryUuid]);
-        const rootLevel = [
-            {
-                queryHistory,
-                execution: await this.queryHistoryModel.getDuckdbExecution(
-                    queryHistory.queryUuid,
-                ),
-            },
-        ];
+        const visited = new Set(
+            uniqueRoots.map((root) => root.queryHistory.queryUuid),
+        );
+        if (visited.size > maxNodes) throw refuse();
+        const rootLevel = await Promise.all(
+            uniqueRoots.map(async ({ queryHistory: root }) => ({
+                queryHistory: root,
+                execution:
+                    root.duckdbExecutionReferences === undefined
+                        ? await this.queryHistoryModel.getDuckdbExecution(
+                              root.queryUuid,
+                          )
+                        : { references: root.duckdbExecutionReferences ?? {} },
+            })),
+        );
         const readLevel = async (
             level: typeof rootLevel,
             depth: number,
@@ -1076,18 +1132,32 @@ export class AiAccessService extends BaseService {
             ordered.push(uuid);
             return height;
         };
-        visit(queryHistory.queryUuid, 0);
+        const enforcedNodes = new Set<string>();
+        const enforce = (uuid: string) => {
+            if (enforcedNodes.has(uuid)) return;
+            enforcedNodes.add(uuid);
+            nodes.get(uuid)!.sources.forEach(enforce);
+        };
+        for (const root of uniqueRoots) {
+            visit(root.queryHistory.queryUuid, 0);
+            if (!root.agentProducedOnly) enforce(root.queryHistory.queryUuid);
+        }
 
         const plans = new Map<string, AiExecutionPlan | null>();
+        const warehouseTypesByConnection = new Map<
+            string | null,
+            WarehouseTypes
+        >();
         const plansByConnection = new Map<
             string | null,
             Promise<AiExecutionPlan>
         >();
-        await Promise.all(
-            [...nodes.values()].map(async ({ queryHistory: node }) => {
+        await [...nodes.values()].reduce(
+            async (previous, { queryHistory: node }) => {
+                await previous;
                 const uuid = node.queryUuid;
                 if (
-                    agentProducedOnly &&
+                    !enforcedNodes.has(node.queryUuid) &&
                     !node.requestParameters?.aiSignInCredentialUuid &&
                     !isAiAccessQueryContext(node.context)
                 ) {
@@ -1107,8 +1177,12 @@ export class AiAccessService extends BaseService {
                             warehouseConnectionUuid,
                             'view',
                         );
+                        warehouseTypesByConnection.set(
+                            warehouseConnectionUuid,
+                            connection.type,
+                        );
                         return this.resolveEnabledPlan({
-                            evaluation: { kind: 'result_read' },
+                            evaluation,
                             projectUuid,
                             organizationUuid,
                             warehouseConnectionUuid,
@@ -1129,10 +1203,26 @@ export class AiAccessService extends BaseService {
                     node.requestParameters?.aiSignInCredentialUuid !==
                         generation
                 ) {
+                    this.trackQueryRefusal(
+                        {
+                            evaluation,
+                            organizationUuid,
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            warehouseType: warehouseTypesByConnection.get(
+                                warehouseConnectionUuid,
+                            )!,
+                            userUuid: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
+                        },
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    );
                     throw refuse();
                 }
                 plans.set(uuid, plan);
-            }),
+            },
+            Promise.resolve(),
         );
         for (const uuid of ordered) {
             const { queryHistory: node, sources } = nodes.get(uuid)!;
@@ -1154,11 +1244,27 @@ export class AiAccessService extends BaseService {
                             node.requestParameters?.aiSignInCredentialUuid,
                 )
             ) {
+                this.trackQueryRefusal(
+                    {
+                        evaluation,
+                        organizationUuid,
+                        projectUuid,
+                        warehouseConnectionUuid:
+                            node.warehouseConnectionUuid ?? null,
+                        warehouseType: warehouseTypesByConnection.get(
+                            node.warehouseConnectionUuid ?? null,
+                        )!,
+                        userUuid: account.user.id,
+                        isRegisteredUser: account.isRegisteredUser(),
+                        isServiceAccount: account.isServiceAccount(),
+                    },
+                    AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                );
                 throw refuse();
             }
             plans.set(uuid, credentialPlan ?? plan);
         }
-        return plans.get(queryHistory.queryUuid) ?? null;
+        return plans;
     }
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {

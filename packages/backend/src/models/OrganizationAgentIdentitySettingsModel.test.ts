@@ -61,6 +61,7 @@ test.each([
             }),
         ).toEqual({
             settings: { requireVerifiedAgentSessions: required },
+            changed: previousRequired !== required,
             previousSource: previousRequired
                 ? 'agent_sign_in'
                 : 'marked_person',

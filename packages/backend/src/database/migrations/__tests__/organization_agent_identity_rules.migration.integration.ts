@@ -270,6 +270,7 @@ test.each([true, false])(
         ).toEqual({
             settings: { requireVerifiedAgentSessions: required },
             previousSource: required ? 'marked_person' : 'agent_sign_in',
+            changed: true,
         });
         await Promise.all(
             actors.map(async (actor) => {
@@ -569,4 +570,63 @@ test('resolvePlan refuses needs_sign_in after an old pod enables the legacy swit
         refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
     });
     expect(mint).toHaveBeenCalledOnce();
+});
+
+test.each([WarehouseTypes.BIGQUERY, WarehouseTypes.SNOWFLAKE])(
+    'round 11 %s serializes the previous source and detects repeated saves',
+    async (warehouseType) => {
+        const { model, organizationUuid } = await fixture();
+        const source =
+            warehouseType === WarehouseTypes.BIGQUERY
+                ? 'ai_service_account'
+                : 'agent_sign_in';
+        expect(
+            await model.set(organizationUuid, warehouseType, { source }),
+        ).toEqual({
+            previousSource: 'marked_person',
+            changed: true,
+        });
+        expect(
+            await model.set(organizationUuid, warehouseType, { source }),
+        ).toEqual({
+            previousSource: source,
+            changed: false,
+        });
+        const results = await Promise.all([
+            model.set(organizationUuid, warehouseType, {
+                source: 'marked_person',
+            }),
+            model.set(organizationUuid, warehouseType, {
+                source: 'marked_person',
+            }),
+        ]);
+        expect(results.filter((result) => result.changed)).toEqual([
+            { previousSource: source, changed: true },
+        ]);
+        expect(results.filter((result) => !result.changed)).toEqual([
+            { previousSource: 'marked_person', changed: false },
+        ]);
+    },
+);
+
+test('round 11 legacy saves return transaction change metadata', async () => {
+    const { settings, organizationUuid } = await fixture();
+    expect(
+        await settings.upsert(organizationUuid, {
+            requireVerifiedAgentSessions: true,
+        }),
+    ).toEqual({
+        settings: { requireVerifiedAgentSessions: true },
+        previousSource: 'marked_person',
+        changed: true,
+    });
+    expect(
+        await settings.upsert(organizationUuid, {
+            requireVerifiedAgentSessions: true,
+        }),
+    ).toEqual({
+        settings: { requireVerifiedAgentSessions: true },
+        previousSource: 'agent_sign_in',
+        changed: false,
+    });
 });

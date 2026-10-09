@@ -50,6 +50,7 @@ export class OrganizationAgentIdentitySettingsModel {
     ): Promise<{
         settings: OrganizationAgentIdentitySettings;
         previousSource: AiIdentitySource;
+        changed: boolean;
     }> {
         return this.database.transaction(async (transaction) => {
             await transaction(OrganizationTableName)
@@ -78,6 +79,9 @@ export class OrganizationAgentIdentitySettingsModel {
                     requireVerifiedAgentSessions:
                         settings.requireVerifiedAgentSessions,
                 },
+                changed:
+                    (previous?.require_verified_agent_sessions ?? false) !==
+                    settings.requireVerifiedAgentSessions,
                 previousSource: previous?.require_verified_agent_sessions
                     ? 'agent_sign_in'
                     : 'marked_person',

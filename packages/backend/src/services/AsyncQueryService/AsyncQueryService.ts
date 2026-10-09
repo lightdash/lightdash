@@ -184,6 +184,7 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
 import {
@@ -309,6 +310,7 @@ import {
     connectionContextFromAccount,
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
+    querySurfaceFromConnectionSurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
@@ -547,6 +549,26 @@ type PreparedAsyncQueryArgs = Omit<
 };
 
 export class AsyncQueryService extends ProjectService {
+    private readonly mergeSubmissionQueries = new AsyncLocalStorage<
+        Map<string, Promise<QueryHistory>>
+    >();
+
+    private getSubmissionQueryHistory(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<QueryHistory> {
+        const queries = this.mergeSubmissionQueries.getStore();
+        if (!queries)
+            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        let query = queries.get(queryUuid);
+        if (!query) {
+            query = this.queryHistoryModel.get(queryUuid, projectUuid, account);
+            queries.set(queryUuid, query);
+        }
+        return query;
+    }
+
     private static sleep(ms: number, signal?: AbortSignal) {
         if (signal?.aborted) {
             throw new Error('Query polling request was aborted');
@@ -8499,16 +8521,19 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         references,
+        context,
+        querySurface,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
+        context: QueryExecutionContext;
+        querySurface?: QuerySurface;
     }): Promise<void> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-        // Each reference costs a DB lookup and authorization check in parallel
         const MAX_REFERENCES = 20;
         if (Object.keys(references).length > MAX_REFERENCES) {
             throw new ParameterError(
@@ -8516,37 +8541,58 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await Promise.all(
-            Object.entries(references).map(async ([tableName, queryUuid]) => {
-                if (!validTableName.test(tableName)) {
-                    throw new ParameterError(
-                        `Invalid reference table name "${tableName}": use letters, digits and underscores, starting with a letter or underscore`,
-                    );
-                }
-                if (!validUuid.test(queryUuid)) {
-                    throw new ParameterError(
-                        `Invalid query uuid "${queryUuid}" for reference "${tableName}"`,
-                    );
-                }
-
-                const queryHistory = await this.queryHistoryModel.get(
-                    queryUuid,
-                    projectUuid,
-                    account,
+        for (const [tableName, queryUuid] of Object.entries(references)) {
+            if (!validTableName.test(tableName)) {
+                throw new ParameterError(
+                    `Invalid reference table name "${tableName}": use letters, digits and underscores, starting with a letter or underscore`,
                 );
-
+            }
+            if (!validUuid.test(queryUuid)) {
+                throw new ParameterError(
+                    `Invalid query uuid "${queryUuid}" for reference "${tableName}"`,
+                );
+            }
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        const roots = await Promise.all(
+            [...new Set(Object.values(references))].map(async (queryUuid) => {
+                const queryHistory = await this.getSubmissionQueryHistory(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                );
                 await this.throwIfCannotReadQueryHistory(
                     account,
                     projectUuid,
-                    await this.projectModel.getSummary(projectUuid),
+                    project,
                     queryHistory,
                 );
-                await this.assertCanReadStoredResults(
-                    account,
-                    projectUuid,
+                return {
                     queryHistory,
-                );
+                    agentProducedOnly: !isAiAccessQueryContext(
+                        queryHistory.context,
+                    ),
+                };
             }),
+        );
+        const connectionContext = connectionContextFromAccount(account, {
+            organizationUuid: project.organizationUuid,
+            queryContext: context,
+            surface:
+                querySurface === undefined
+                    ? undefined
+                    : connectionSurfaceFromQuerySurface(querySurface, context),
+        });
+        await this.aiAccessService.assertCanReadResultsForQueries(
+            account,
+            projectUuid,
+            roots,
+            {
+                kind: 'query',
+                surface: querySurfaceFromConnectionSurface(
+                    connectionContext.actor.surface,
+                ),
+            },
         );
     }
 
@@ -8815,6 +8861,8 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 references: normalizedReferences,
+                context,
+                querySurface,
             });
         }
 
@@ -10344,7 +10392,15 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    private async submitAsyncMergeQuery({
+    private async submitAsyncMergeQuery(
+        args: ExecuteMergeQueryInternalArgs,
+    ): Promise<ApiExecuteAsyncMergeQueryResults> {
+        return this.mergeSubmissionQueries.run(new Map(), () =>
+            this.submitAsyncMergeQueryWithCachedSources(args),
+        );
+    }
+
+    private async submitAsyncMergeQueryWithCachedSources({
         account,
         projectUuid,
         mergeQuery,
@@ -10790,16 +10846,18 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         queryUuid: string,
     ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
-        const queryHistory = await this.queryHistoryModel.get(
+        const queryHistory = await this.getSubmissionQueryHistory(
+            account,
+            projectUuid,
             queryUuid,
-            projectUuid,
-            account,
         );
-        await this.assertCanReadStoredResults(
-            account,
-            projectUuid,
-            queryHistory,
-        );
+        if (!this.mergeSubmissionQueries.getStore()) {
+            await this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,

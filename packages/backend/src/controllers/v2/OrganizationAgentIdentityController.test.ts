@@ -21,7 +21,11 @@ const setup = () => {
             async (
                 _uuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => ({ settings, previousSource: 'marked_person' }),
+            ) => ({
+                settings,
+                previousSource: 'marked_person',
+                changed: settings.requireVerifiedAgentSessions,
+            }),
         ),
     };
     const rules = {
@@ -40,7 +44,10 @@ const setup = () => {
                 },
             ],
         ),
-        set: vi.fn(async () => {}),
+        set: vi.fn(async () => ({
+            previousSource: 'marked_person',
+            changed: true,
+        })),
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({

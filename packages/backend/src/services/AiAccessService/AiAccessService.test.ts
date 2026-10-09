@@ -165,6 +165,7 @@ const setup = () => {
             ) => ({
                 settings,
                 previousSource: 'marked_person' as AiIdentitySource,
+                changed: settings.requireVerifiedAgentSessions,
             }),
         ),
     };
@@ -202,7 +203,12 @@ const setup = () => {
                 },
             ],
         ),
-        set: vi.fn(async () => {}),
+        set: vi.fn(
+            async (): Promise<{
+                previousSource: AiIdentitySource;
+                changed: boolean;
+            }> => ({ previousSource: 'marked_person', changed: true }),
+        ),
     };
     const slots = {
         findProjectsMissingSlot: vi.fn(
@@ -526,6 +532,7 @@ describe('AiAccessService', () => {
                 const settings = { requireVerifiedAgentSessions: required };
                 organizationSettings.upsert.mockResolvedValue({
                     settings,
+                    changed: previousRequired !== required,
                     previousSource: previousRequired
                         ? 'agent_sign_in'
                         : 'marked_person',
@@ -568,6 +575,7 @@ describe('AiAccessService', () => {
                     previousSource: required
                         ? 'agent_sign_in'
                         : 'marked_person',
+                    changed: false,
                 });
                 await expect(
                     service.updateOrganizationSettings(admin, settings),
@@ -582,6 +590,7 @@ describe('AiAccessService', () => {
             organizationSettings.upsert.mockResolvedValue({
                 settings: saved,
                 previousSource: 'marked_person' as AiIdentitySource,
+                changed: false,
             });
             await expect(
                 service.updateOrganizationSettings(admin, {
@@ -1754,11 +1763,7 @@ describe('organization agent identity rules', () => {
                 warehouseType,
                 rule,
             );
-            expect(organizationRules.get).toHaveBeenCalledWith(
-                admin.organization.organizationUuid,
-                warehouseType,
-                'person',
-            );
+            expect(organizationRules.get).not.toHaveBeenCalled();
             expect(analytics.track).toHaveBeenCalledTimes(1);
             expect(analytics.track).toHaveBeenCalledWith({
                 event: 'agent_identity.rule_updated',
@@ -1884,6 +1889,36 @@ describe('organization agent identity rules', () => {
             expect(analytics.track).toHaveBeenCalledTimes(required ? 1 : 0);
         },
     );
+    test('round 11 rule saves use transaction metadata and suppress the second event', async () => {
+        const { service, organizationRules, analytics } = setup();
+        const admin = manager();
+        organizationRules.get.mockResolvedValue({ source: 'marked_person' });
+        organizationRules.set
+            .mockResolvedValueOnce({
+                previousSource: 'ai_service_account',
+                changed: true,
+            } as never)
+            .mockResolvedValueOnce({
+                previousSource: 'marked_person',
+                changed: false,
+            } as never);
+        await service.updateOrganizationRule(admin, WarehouseTypes.BIGQUERY, {
+            source: 'marked_person',
+        });
+        await service.updateOrganizationRule(admin, WarehouseTypes.BIGQUERY, {
+            source: 'marked_person',
+        });
+        expect(analytics.track).toHaveBeenCalledTimes(1);
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: expect.objectContaining({
+                    previousSource: 'ai_service_account',
+                }),
+            }),
+        );
+        expect(organizationRules.get).not.toHaveBeenCalled();
+    });
+
     test('tracks the previous non-default rule after a successful update', async () => {
         const { service, organizationRules, analytics } = setup();
         const admin = manager();
@@ -1892,7 +1927,8 @@ describe('organization agent identity rules', () => {
         });
         organizationRules.set.mockImplementation(async () => {
             expect(analytics.track).not.toHaveBeenCalled();
-            expect(organizationRules.get).toHaveBeenCalledTimes(1);
+            expect(organizationRules.get).not.toHaveBeenCalled();
+            return { previousSource: 'ai_service_account', changed: true };
         });
         await service.updateOrganizationRule(admin, WarehouseTypes.BIGQUERY, {
             source: 'marked_person',

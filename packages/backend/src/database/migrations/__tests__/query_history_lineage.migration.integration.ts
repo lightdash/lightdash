@@ -229,3 +229,16 @@ test('empty batch performs no database read', async () => {
         migrated.database.removeListener('query', read);
     }
 });
+
+test('round 11 stored rows expose execution references without another read', async () => {
+    const f = await fixture();
+    const source = await f.create(f.owner);
+    const root = await f.create(f.owner);
+    expect(
+        await f.model.get(source, f.projects[0].project_uuid, f.owner),
+    ).toHaveProperty('duckdbExecutionReferences', null);
+    await f.model.setDuckdbExecution(root, { ...spec, references: { source } });
+    expect(
+        await f.model.get(root, f.projects[0].project_uuid, f.owner),
+    ).toHaveProperty('duckdbExecutionReferences', { source });
+});

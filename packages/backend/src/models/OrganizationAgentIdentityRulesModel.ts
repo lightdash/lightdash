@@ -4,6 +4,7 @@ import {
     ParameterError,
     WarehouseTypes,
     type AiActorKind,
+    type AiIdentitySource,
     type OrganizationAgentIdentityRule,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
@@ -91,19 +92,36 @@ export class OrganizationAgentIdentityRulesModel {
         warehouseType: WarehouseTypes,
         rule: UpdateOrganizationAgentIdentityRule,
         trx?: Knex.Transaction,
-    ): Promise<void> {
+    ): Promise<{ previousSource: AiIdentitySource; changed: boolean }> {
         if (!isAllowedAgentIdentitySource(warehouseType, rule.source)) {
             throw new ParameterError(
                 'This identity source is not supported for the warehouse type',
             );
         }
         const write = async (transaction: Knex.Transaction) => {
+            await transaction(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .select('organization_uuid')
+                .forUpdate()
+                .first();
+            const previous =
+                warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? await transaction('organization_agent_identity_settings')
+                          .where('organization_uuid', organizationUuid)
+                          .first('require_verified_agent_sessions')
+                    : await transaction(OrganizationAgentIdentityRulesTableName)
+                          .where({
+                              organization_uuid: organizationUuid,
+                              warehouse_type: warehouseType,
+                              actor_kind: 'person',
+                          })
+                          .first('source');
+            let previousSource: AiIdentitySource = 'marked_person';
             if (warehouseType === WarehouseTypes.SNOWFLAKE) {
-                await transaction(OrganizationTableName)
-                    .where('organization_uuid', organizationUuid)
-                    .select('organization_uuid')
-                    .forUpdate()
-                    .first();
+                if (previous?.require_verified_agent_sessions)
+                    previousSource = 'agent_sign_in';
+            } else {
+                previousSource = previous?.source ?? 'marked_person';
             }
             const actorKinds: AiActorKind[] = ['person', 'service_account'];
             await transaction(OrganizationAgentIdentityRulesTableName)
@@ -140,11 +158,8 @@ export class OrganizationAgentIdentityRulesModel {
                         updated_at: transaction.fn.now(),
                     });
             }
+            return { previousSource, changed: previousSource !== rule.source };
         };
-        if (trx) {
-            await write(trx);
-        } else {
-            await this.database.transaction(write);
-        }
+        return trx ? write(trx) : this.database.transaction(write);
     }
 }
