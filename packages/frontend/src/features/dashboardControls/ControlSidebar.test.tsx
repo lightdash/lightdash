@@ -108,6 +108,9 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         discard: vi.fn(),
         close: vi.fn(),
         isDirty: true,
+        newTileUuids: [],
+        dismissedLinks: [],
+        dismissLink: vi.fn(),
         ...overrides,
     };
     mockSidebar.current = value;

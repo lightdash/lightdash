@@ -434,7 +434,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `data-field-active`), the tabs that field is on turn `color="blue"`, and
   the tabs it is on no tile of stay grey and transparent.
 - A veiled tile is locked three ways, and none of them stops an event. Every
-  overlay root (`TileOverlay`) carries the
+  overlay root (`TileOverlay`, `LinkPrompts`) carries the
   grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
   drag starts on it, by mouse or touch. It carries `data-controls-overlay`,
   and `usePortalTargets(..., lockSiblings: true)` sets `inert` on every other
@@ -445,6 +445,23 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `pointer-events: none` on the siblings stays. Never call `stopPropagation`
   on an overlay: Mantine closes lists on a `mousedown` that reaches
   `document`.
+
+## Link prompts
+
+- `LinkPrompts` portals a veil and a card into a chart tile added while
+  editing, when a filter control could reach it through a field other than
+  the filter's own target (`getLinkCandidates`): one of the filter's other
+  fields, else a field of exactly the target's type (`getFieldCandidates`,
+  the rule the tile dropdown uses; a date filter is not offered a timestamp).
+  A tile with the target field links on its own and SQL chart tiles never
+  prompt.
+- "New" is derived: `newTileUuids` is the dashboard's tiles that are not in the
+  saved dashboard. There is no snapshot state.
+- Link writes `tileTargets[tileUuid]` on the rule (`setTileField`), which ends
+  the prompt. Skip is `dismissLink`; skips live in the provider until edit mode
+  ends.
+- Rendered only in edit mode while the sidebar is closed, so it never stacks
+  on `TileOverlays`.
 
 ## Motion
 
