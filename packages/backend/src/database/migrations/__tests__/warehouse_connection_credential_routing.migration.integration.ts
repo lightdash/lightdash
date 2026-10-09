@@ -40,10 +40,6 @@ type RoutedCredentials = {
         userId: string;
         isRegisteredUser: boolean;
     }) => Promise<CredentialsResult>;
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
 };
 
 const originalCredentials: CreatePostgresCredentials = {
@@ -410,9 +406,6 @@ describe('Credential reads by connection binding on the real schema', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        vi.spyOn(credentialsApi, 'refreshCredentials').mockImplementation(
-            async (args) => args,
-        );
     });
 
     describe('a project that routes multi', () => {

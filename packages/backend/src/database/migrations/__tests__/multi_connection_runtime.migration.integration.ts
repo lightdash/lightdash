@@ -93,10 +93,6 @@ type CredentialsResult = CreateWarehouseCredentials & {
 };
 
 type SqlBuildingInternals = {
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
     getUserAttributes: () => Promise<unknown>;
     getExplore: (
         account: unknown,
@@ -112,10 +108,6 @@ type RuntimeInternals = {
         isRegisteredUser: boolean;
         binding: ConnectionBinding;
     }) => Promise<CredentialsResult>;
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
     getUserAttributes: () => Promise<unknown>;
     prepareSqlChartAsyncQueryArgs: (args: {
         account: ReturnType<typeof fromSession>;
@@ -372,9 +364,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
     const runtimeService = () => {
         const service = new AsyncQueryService(serviceArgs() as never);
         const internals = service as unknown as RuntimeInternals;
-        vi.spyOn(internals, 'refreshCredentials').mockImplementation(
-            async (args) => args,
-        );
         vi.spyOn(internals, 'getUserAttributes').mockResolvedValue({
             userAttributes: {},
             intrinsicUserAttributes: {},
@@ -2145,9 +2134,6 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 projectParametersModel: { find: async () => [] },
             } as never);
             const internals = service as unknown as SqlBuildingInternals;
-            vi.spyOn(internals, 'refreshCredentials').mockImplementation(
-                async (args) => args,
-            );
             vi.spyOn(internals, 'getUserAttributes').mockResolvedValue({
                 userAttributes: {},
                 intrinsicUserAttributes: {},

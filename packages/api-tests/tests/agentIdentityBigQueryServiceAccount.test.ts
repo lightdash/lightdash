@@ -168,7 +168,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             }
         }, 180_000);
 
-        it('lists only Snowflake and BigQuery and rejects agent sign-in for BigQuery without changing the rule or project', async () => {
+        it('lists only the enforceable warehouses and rejects agent sign-in for BigQuery without changing the rule or project', async () => {
             const overview =
                 await admin.get<ApiOrganizationAgentIdentityOverviewResponse>(
                     rulesUrl,
@@ -178,7 +178,11 @@ describe.skipIf(!hasBigqueryCredentials())(
                     .map(({ warehouseType }) => warehouseType)
                     .sort(),
             ).toEqual(
-                [WarehouseTypes.BIGQUERY, WarehouseTypes.SNOWFLAKE].sort(),
+                [
+                    WarehouseTypes.BIGQUERY,
+                    WarehouseTypes.DATABRICKS,
+                    WarehouseTypes.SNOWFLAKE,
+                ].sort(),
             );
             const projectUrl = `/api/v1/projects/${SEED_PROJECT.project_uuid}`;
             const before = await admin.get<ApiProjectResponse>(projectUrl);
