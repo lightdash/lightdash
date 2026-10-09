@@ -81,6 +81,18 @@ import {
     ContentVerificationTableName,
 } from '../database/entities/contentVerification';
 import {
+    CredentialBindingsTable,
+    CredentialBindingsTableName,
+} from '../database/entities/credentialBindings';
+import {
+    CredentialsTable,
+    CredentialsTableName,
+} from '../database/entities/credentials';
+import {
+    CredentialTokenStateTable,
+    CredentialTokenStateTableName,
+} from '../database/entities/credentialTokenState';
+import {
     DashboardGroupAccessTable,
     DashboardGroupAccessTableName,
     DashboardUserAccessTable,
@@ -722,6 +734,9 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [CredentialBindingsTableName]: CredentialBindingsTable;
+        [CredentialTokenStateTableName]: CredentialTokenStateTable;
+        [CredentialsTableName]: CredentialsTable;
         [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
         [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
         [OrganizationSnowflakeAgentClientsTableName]: OrganizationSnowflakeAgentClientsTable;

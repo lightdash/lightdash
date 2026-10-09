@@ -1278,3 +1278,4 @@ export * from './utils/savedMerge';
 
 export * from './types/sharedSignIn';
 export * from './utils/agentIdentitySetup';
+export * from './types/credentials';

@@ -2,11 +2,13 @@ import { UnexpectedServerError } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { DatabaseError } from 'pg';
 
-export type RefreshRowKey = {
-    kind: 'project' | 'organization' | 'user' | 'warehouseConnection';
-    uuid: string;
-    purpose: string | null;
-};
+export type RefreshRowKey =
+    | {
+          kind: 'project' | 'organization' | 'user' | 'warehouseConnection';
+          uuid: string;
+          purpose: string | null;
+      }
+    | { kind: 'credential'; uuid: string; purpose: null };
 
 export type RefreshRun<R> = {
     key: RefreshRowKey;
@@ -165,7 +167,10 @@ export class RefreshTokenRotation {
     }
 
     run<R>(run: RefreshRun<R>): Promise<RefreshResult<R>> {
-        const rowKey = `${run.key.kind}:${run.key.uuid}:${run.key.purpose ?? ''}`;
+        const rowKey =
+            run.key.kind === 'credential'
+                ? `credential:${run.key.uuid}`
+                : `${run.key.kind}:${run.key.uuid}:${run.key.purpose ?? ''}`;
         const flightKey = `${rowKey}|${run.shareKey}`;
         const pending = this.inFlight.get(flightKey);
         if (pending) return pending as Promise<RefreshResult<R>>;
