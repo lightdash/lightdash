@@ -309,6 +309,9 @@ const ScopeTourHost: FC = () => {
         setFinishedScope(null);
         void leaveCopy(libraryPath(returnProject ?? upstream));
     };
+    // Continue exploring: the dialog goes, the page stays, and so does the
+    // copy, with the lesson's result on it.
+    const handleExplore = () => setFinishedScope(null);
     // One request per tour start. `isLoading` is not set synchronously, and
     // the effect below re-runs as its inputs settle, so a ref does the
     // gating. The server hands back the learner's live copy, or a fresh
@@ -512,6 +515,7 @@ const ScopeTourHost: FC = () => {
                 scope={finishedScope}
                 opening={openingCopy}
                 onBack={handleBackToLibrary}
+                onExplore={handleExplore}
                 onNext={handleNext}
             />
         );
