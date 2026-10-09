@@ -30,6 +30,20 @@ describe('app preview CSP browser image origins', () => {
             'https://tiles.example.com',
         );
     });
+
+    it('blocks native form submission targets', () => {
+        const csp = buildCspHeader(lightdashConfigMock.appRuntime, ["'self'"]);
+        const directives = Object.fromEntries(
+            csp.split('; ').map((directive) => {
+                const [name, ...sources] = directive.split(' ');
+                return [name, sources];
+            }),
+        );
+
+        // form-action 'none' prevents native submissions from
+        // navigating externally
+        expect(directives['form-action']).toEqual(["'none'"]);
+    });
 });
 
 describe('app preview version segment', () => {

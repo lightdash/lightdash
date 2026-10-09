@@ -453,7 +453,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                         loadedSrc === effectiveSrc ? 'visible' : 'hidden',
                 }}
                 title="App preview"
-                sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}
             />
