@@ -29,6 +29,7 @@ import { singleRouteProjectModelMethods } from '../../models/ProjectModel/Projec
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
+import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import {
     buildAccount,
@@ -717,6 +718,91 @@ describe('timezone preview credential resolution', () => {
         );
         expectNoRefresh();
         expect(warehouseClientFromCredentials).not.toHaveBeenCalled();
+    });
+
+    it('create saves organisation rotation before the next preview consumes the token', async () => {
+        const f = setup({
+            ...snowflake(),
+            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
+        });
+        const storage = organizationCredentialStorage(
+            { ...snowflake(), refreshToken: 'R0' },
+            organizationUuid,
+        );
+        f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockImplementation(
+            () =>
+                storage.model.getByUuidWithSensitiveData('org-credential-uuid'),
+        );
+        f.organizationWarehouseCredentialsModel.rotateRefreshToken.mockImplementation(
+            (...args) => storage.model.rotateRefreshToken(...args),
+        );
+        const consumed = new Set<string>();
+        vi.mocked(UserService.generateSnowflakeAccessToken).mockImplementation(
+            async (token) => {
+                if (consumed.has(token))
+                    throw new Error('Refresh token already consumed');
+                consumed.add(token);
+                return {
+                    accessToken: 'fresh-snowflake',
+                    refreshToken: token === 'R0' ? 'R1' : 'R2',
+                };
+            },
+        );
+        try {
+            await f.create(organizationCredentialAccount);
+            expect
+                .soft(
+                    (
+                        await storage.model.getByUuidWithSensitiveData(
+                            'org-credential-uuid',
+                        )
+                    ).credentials,
+                )
+                .toMatchObject({ refreshToken: 'R1' });
+            expect
+                .soft(storage.rotate)
+                .toHaveBeenCalledExactlyOnceWith(
+                    'org-credential-uuid',
+                    'R0',
+                    'R1',
+                );
+            await f.create(organizationCredentialAccount);
+            expect(
+                UserService.generateSnowflakeAccessToken,
+            ).toHaveBeenNthCalledWith(2, 'R1');
+            expect(storage.rotate).toHaveBeenNthCalledWith(
+                2,
+                'org-credential-uuid',
+                'R1',
+                'R2',
+            );
+            expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+            expect(
+                f.userWarehouseCredentialsModel.rotateRefreshToken,
+            ).not.toHaveBeenCalled();
+            expect(queries).toHaveBeenCalledTimes(2);
+        } finally {
+            await storage.database.destroy();
+        }
+    });
+
+    it('connection tests keep ignoring organisation rotation', async () => {
+        const credentials = {
+            ...snowflake(),
+            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
+        };
+        const f = setup(credentials);
+        await f.service.testWarehouseConnectionCredentials(
+            organizationCredentialAccount,
+            organizationUuid,
+            credentials,
+        );
+        expect(
+            UserService.generateSnowflakeAccessToken,
+        ).toHaveBeenCalledExactlyOnceWith('org-refresh');
+        expect(
+            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
+        ).not.toHaveBeenCalled();
     });
 
     it('create resolves the SSH key reference before opening the tunnel', async () => {

@@ -2550,7 +2550,12 @@ export class ProjectService
             warehouseConnection: CreateWarehouseCredentials;
             organizationWarehouseCredentialsUuid?: string;
         },
-    >(rawArgs: T, userUuid: string, organizationUuid: string): Promise<T> {
+    >(
+        rawArgs: T,
+        userUuid: string,
+        organizationUuid: string,
+        organizationCredentialRotation: 'persist' | 'ignore' = 'ignore',
+    ): Promise<T> {
         // Normalize submitted credentials so in-flight connection tests and
         // compiles never see legacy values that violate the credentials types
         const args: T = {
@@ -2603,10 +2608,20 @@ export class ProjectService
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from organization credentials uuid: ${organizationWarehouseCredentialsUuid}`,
             );
-            const credentials = await this.refreshCredentials(
-                mergedWarehouseConnection,
-                userUuid,
-            );
+            const credentials =
+                organizationCredentialRotation === 'persist'
+                    ? await this.refreshCredentialsAndPersistRotation(
+                          mergedWarehouseConnection,
+                          userUuid,
+                          {
+                              kind: 'organization',
+                              organizationWarehouseCredentialsUuid,
+                          },
+                      )
+                    : await this.refreshCredentials(
+                          mergedWarehouseConnection,
+                          userUuid,
+                      );
 
             return {
                 ...args,
@@ -6955,6 +6970,7 @@ export class ProjectService
                         { warehouseConnection: body.credentials },
                         account.user.userUuid,
                         connectionOrganizationUuid,
+                        'persist',
                     );
                 warehouseRef = {
                     kind: 'resolved',
