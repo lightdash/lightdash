@@ -9,6 +9,8 @@ import {
     useContextSelector,
 } from 'use-context-selector';
 
+export type ControlsSidebarSection = 'fields' | 'settings';
+
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
@@ -18,6 +20,8 @@ export type ControlsSidebarContextValue = {
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
     isSidebarOpen: boolean;
+    activeSection: ControlsSidebarSection;
+    setActiveSection: (section: ControlsSidebarSection) => void;
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */
     openNew: () => void;

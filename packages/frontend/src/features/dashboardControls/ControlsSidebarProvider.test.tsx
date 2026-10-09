@@ -151,6 +151,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editingRule?.target.fieldId).toBe('');
+        expect(result.current.activeSection).toBe('fields');
         expect(latest.filters).toEqual(initialFilters);
         expect(latest.changed).toBe(false);
     });
@@ -441,6 +442,7 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
+        act(() => result.current.setActiveSection('settings'));
         act(() => result.current.setHighlightedFieldId('orders_a'));
         act(() => result.current.setHoveredFieldId('orders_a'));
 
@@ -448,6 +450,7 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.editing?.filterId).not.toBe('a');
+        expect(result.current.activeSection).toBe('fields');
         expect(result.current.activeFieldId).toBeNull();
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
 
@@ -456,6 +459,17 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
         expect(latest.changed).toBe(true);
         expect(result.current.isSidebarOpen).toBe(false);
+    });
+
+    it('Add turns off an empty default value on the filter it closes', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({ ...rule('a', []), disabled: false }),
+        );
+        act(() => result.current.openNew());
+        expect(result.current.isPlaceholder).toBe(true);
+        expect(latest.filters.dimensions[0].disabled).toBe(true);
     });
 
     it('Add keeps a new filter that has a field but no label', () => {
@@ -576,6 +590,20 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isSidebarOpen).toBe(false);
     });
 
+    it('closing with a default value switched on but empty turns it off', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', []),
+                disabled: false,
+            }),
+        );
+        act(() => result.current.close());
+        expect(latest.filters.dimensions[0].disabled).toBe(true);
+        expect(latest.filters.dimensions[0].values).toEqual([]);
+    });
+
     it('keeps an added field waiting until it is removed or another filter opens', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
@@ -693,7 +721,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(15);
+        expect(Object.keys(initial)).toHaveLength(16);
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
         expect(initial).not.toHaveProperty('clearFields');
@@ -748,8 +776,9 @@ describe('ControlsSidebarProvider', () => {
         act(() => current().setHoveredFieldId('orders_a'));
         act(() => current().setHighlightedFieldId('orders_a'));
         act(() => current().updateFilter({ ...rule('a', ['1']), label: 'A' }));
+        act(() => current().setActiveSection('settings'));
 
         expect(renders.sliced).toBe(afterOpen.sliced);
-        expect(renders.whole).toBe(afterOpen.whole + 3);
+        expect(renders.whole).toBe(afterOpen.whole + 4);
     });
 });
