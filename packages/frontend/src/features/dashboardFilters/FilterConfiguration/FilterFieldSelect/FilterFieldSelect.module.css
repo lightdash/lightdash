@@ -3,10 +3,8 @@
     align-items: center;
     height: 100%;
     padding: 0 var(--mantine-spacing-sm);
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
 
     @mixin light {
