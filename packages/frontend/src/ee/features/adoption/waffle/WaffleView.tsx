@@ -216,7 +216,11 @@ export const WaffleView: FC<Props> = ({
     const { departments } = summary;
     // A selected department is shown below the waffle, which becomes a strip with no panel beside it
     const isStrip = selectedUuid !== null;
-    const { ref, width } = useContainerSize(FALLBACK_SIZE);
+    // Measured again as the strip comes or goes, before paint, so the squares are placed once at the new width
+    const { ref, width } = useContainerSize(
+        FALLBACK_SIZE,
+        isStrip ? 'strip' : 'full',
+    );
 
     const byUuid = useMemo(
         () => new Map(departments.map((d) => [d.departmentUuid, d])),
@@ -397,7 +401,11 @@ export const WaffleView: FC<Props> = ({
 
             <Box className={mapStyles.body} data-strip={isStrip || undefined}>
                 <Paper className={`${mapStyles.frame} ${styles.frame}`}>
-                    <Box ref={scrollRef} className={styles.scroller}>
+                    <Box
+                        ref={scrollRef}
+                        className={styles.scroller}
+                        data-strip={isStrip || undefined}
+                    >
                         <Box
                             ref={ref}
                             className={styles.canvas}

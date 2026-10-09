@@ -38,22 +38,30 @@ const pageOf = (index: number): number => Math.floor(index / PAGE_SIZE) + 1;
 
 type Props = {
     members: DepartmentMember[];
-    // A person picked on the map: their row is marked, shown and scrolled to
-    highlight: PersonHighlight | null;
+    // The person picked on the map, whose row is marked for as long as they stay picked
+    markedUserUuid: string | null;
+    // A pick not yet shown: the table puts their row on screen, scrolls to it and focuses it, then reports it shown
+    reveal: PersonHighlight | null;
+    onRevealed: (request: number) => void;
 };
 
-export const DepartmentMembersTable: FC<Props> = ({ members, highlight }) => {
+export const DepartmentMembersTable: FC<Props> = ({
+    members,
+    markedUserUuid,
+    reveal,
+    onRevealed,
+}) => {
     const [filter, setFilter] = useState<MemberFilter>('all');
     const [page, setPage] = useState(1);
     const counts = useMemo(() => countMembersByFilter(members), [members]);
     const sorted = useMemo(() => sortMembers(members), [members]);
-    // A person picked is shown on their page, under the filter chosen if it holds them and under All if not
+    // A pick to reveal is shown on its page, under the filter chosen if it holds them and under All if not
     const [shownRequest, setShownRequest] = useState<number | null>(null);
-    if (highlight !== null && highlight.request !== shownRequest) {
-        setShownRequest(highlight.request);
+    if (reveal !== null && reveal.request !== shownRequest) {
+        setShownRequest(reveal.request);
         const indexIn = (each: MemberFilter) =>
             filterMembers(sorted, each).findIndex(
-                (member) => member.userUuid === highlight.userUuid,
+                (member) => member.userUuid === reveal.userUuid,
             );
         const index = indexIn(filter);
         if (index >= 0) {
@@ -72,15 +80,19 @@ export const DepartmentMembersTable: FC<Props> = ({ members, highlight }) => {
     );
     const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
     const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    // The row is brought into view and takes focus, so the keyboard and a screen reader land on the person too
-    const highlightedRowRef = useRef<HTMLTableRowElement | null>(null);
-    const request = highlight?.request ?? null;
+    // The row is brought into view and takes focus, so the keyboard and a screen reader land on the person too.
+    // Reported once done, so a table shown again later, for an overlap, leaves the page and focus alone
+    const markedRowRef = useRef<HTMLTableRowElement | null>(null);
+    const revealRequest = reveal?.request ?? null;
     useEffect(() => {
-        const row = highlightedRowRef.current;
-        if (request === null || row === null) return;
-        row.scrollIntoView({ block: 'center' });
-        row.focus({ preventScroll: true });
-    }, [request]);
+        if (revealRequest === null) return;
+        const row = markedRowRef.current;
+        if (row !== null) {
+            row.scrollIntoView({ block: 'center' });
+            row.focus({ preventScroll: true });
+        }
+        onRevealed(revealRequest);
+    }, [revealRequest, onRevealed]);
 
     if (members.length === 0) {
         return (
@@ -132,22 +144,15 @@ export const DepartmentMembersTable: FC<Props> = ({ members, highlight }) => {
                     )}
                     {visible.map((member) => {
                         const alsoIn = formatAlsoIn(member.sharedWith);
-                        const isHighlighted =
-                            member.userUuid === highlight?.userUuid;
+                        const isMarked = member.userUuid === markedUserUuid;
                         return (
                             <Table.Tr
                                 key={member.userUuid}
-                                ref={
-                                    isHighlighted
-                                        ? highlightedRowRef
-                                        : undefined
-                                }
-                                tabIndex={isHighlighted ? -1 : undefined}
-                                aria-current={
-                                    isHighlighted ? 'true' : undefined
-                                }
+                                ref={isMarked ? markedRowRef : undefined}
+                                tabIndex={isMarked ? -1 : undefined}
+                                aria-current={isMarked ? 'true' : undefined}
                                 bg={
-                                    isHighlighted
+                                    isMarked
                                         ? 'var(--mantine-primary-color-light)'
                                         : undefined
                                 }

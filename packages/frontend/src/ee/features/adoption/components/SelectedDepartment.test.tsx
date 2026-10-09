@@ -1100,6 +1100,49 @@ describe('SelectedDepartment', () => {
             ).toHaveAttribute('aria-current', 'true');
         });
 
+        it('show a person picked on the map once: lists shown afresh for an overlap, or with its chip cleared, leave focus where it was', async () => {
+            const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            try {
+                const { pick } = renderDetail();
+                pick({ userUuid: 'ann', request: 1 });
+                const annRow = () =>
+                    screen.getByText('ann@example.com').closest('tr');
+                expect(scrolled).toHaveBeenCalledOnce();
+                expect(annRow()).toHaveFocus();
+                // Choosing an overlap that holds her lists its people afresh, and focus stays on the overlap chosen
+                const marketing = screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                });
+                await userEvent.click(marketing);
+                expect(marketing).toHaveFocus();
+                expect(annRow()).toHaveAttribute('aria-current', 'true');
+                await userEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Sales, 1 person, 0 active',
+                    }),
+                );
+                expect(peopleShown()).toEqual(['bob@example.com']);
+                // Clearing the chip moves focus to the Overlaps heading, not back to her
+                screen
+                    .getByRole('button', {
+                        name: 'Clear filter: Also in Sales',
+                    })
+                    .focus();
+                await userEvent.keyboard('{Enter}');
+                expect(
+                    screen.getByRole('heading', { name: 'Overlaps' }),
+                ).toHaveFocus();
+                expect(annRow()).toHaveAttribute('aria-current', 'true');
+                expect(scrolled).toHaveBeenCalledOnce();
+                // Picking her again brings her row back
+                pick({ userUuid: 'ann', request: 2 });
+                expect(scrolled).toHaveBeenCalledTimes(2);
+                expect(annRow()).toHaveFocus();
+            } finally {
+                scrolled.mockRestore();
+            }
+        });
+
         it('bring everyone back for a person picked on the map whom the overlap chosen leaves out', async () => {
             const { pick } = renderDetail();
             await userEvent.click(

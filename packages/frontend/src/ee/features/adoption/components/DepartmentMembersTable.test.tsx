@@ -19,10 +19,17 @@ const members = [
 
 const bodyRows = () => screen.getAllByRole('row').slice(1);
 
+// Nobody picked on the map
+const nobodyPicked = {
+    markedUserUuid: null,
+    reveal: null,
+    onRevealed: () => {},
+};
+
 describe('DepartmentMembersTable', () => {
     it('lists people with no activity in 90 days first, then the least recently active', () => {
         renderWithProviders(
-            <DepartmentMembersTable members={members} highlight={null} />,
+            <DepartmentMembersTable members={members} {...nobodyPicked} />,
         );
         const rows = bodyRows();
         expect(rows).toHaveLength(3);
@@ -39,7 +46,7 @@ describe('DepartmentMembersTable', () => {
     });
     it('offers every activity filter, with counts', () => {
         renderWithProviders(
-            <DepartmentMembersTable members={members} highlight={null} />,
+            <DepartmentMembersTable members={members} {...nobodyPicked} />,
         );
         const chipLabels = screen
             .getAllByRole('radio')
@@ -58,7 +65,7 @@ describe('DepartmentMembersTable', () => {
     });
     it('filters to people active in the last 30 days', async () => {
         renderWithProviders(
-            <DepartmentMembersTable members={members} highlight={null} />,
+            <DepartmentMembersTable members={members} {...nobodyPicked} />,
         );
         await userEvent.click(screen.getByText('Active in 30 days (1)'));
         expect(bodyRows()).toHaveLength(1);
@@ -68,7 +75,7 @@ describe('DepartmentMembersTable', () => {
     });
     it('filters to people with no activity in 90 days', async () => {
         renderWithProviders(
-            <DepartmentMembersTable members={members} highlight={null} />,
+            <DepartmentMembersTable members={members} {...nobodyPicked} />,
         );
         await userEvent.click(screen.getByText('No activity in 90 days (1)'));
         expect(bodyRows()).toHaveLength(1);
@@ -78,7 +85,7 @@ describe('DepartmentMembersTable', () => {
     });
     it('filters to people not active in 30 days', async () => {
         renderWithProviders(
-            <DepartmentMembersTable members={members} highlight={null} />,
+            <DepartmentMembersTable members={members} {...nobodyPicked} />,
         );
         await userEvent.click(screen.getByText('Not active in 30 days (1)'));
         expect(bodyRows()).toHaveLength(1);
@@ -94,7 +101,7 @@ describe('DepartmentMembersTable', () => {
                         isActive30d: true,
                     }),
                 ]}
-                highlight={null}
+                {...nobodyPicked}
             />,
         );
         await userEvent.click(screen.getByText('No activity in 90 days (0)'));
@@ -111,7 +118,7 @@ describe('DepartmentMembersTable', () => {
                         isActive30d: true,
                     }),
                 ]}
-                highlight={null}
+                {...nobodyPicked}
             />,
         );
         expect(screen.getByText('All (1,201)')).toBeVisible();
@@ -129,7 +136,7 @@ describe('DepartmentMembersTable', () => {
                         dashboardViews30d: 5678,
                     }),
                 ]}
-                highlight={null}
+                {...nobodyPicked}
             />,
         );
         const [row] = bodyRows();
@@ -138,7 +145,7 @@ describe('DepartmentMembersTable', () => {
     });
     it('says so when no one has an account', () => {
         renderWithProviders(
-            <DepartmentMembersTable members={[]} highlight={null} />,
+            <DepartmentMembersTable members={[]} {...nobodyPicked} />,
         );
         expect(
             screen.getByText('No one in this department has an account yet'),
@@ -158,7 +165,7 @@ describe('DepartmentMembersTable', () => {
                     }),
                     memberFixture('single', null),
                 ]}
-                highlight={null}
+                {...nobodyPicked}
             />,
         );
         const [shared, single] = bodyRows();
@@ -185,13 +192,21 @@ describe('DepartmentMembersTable', () => {
             }),
         ];
 
-        it('is marked, shown on their page, scrolled to and given focus', () => {
+        // A pick of Ana still to reveal, as the selected department hands it on
+        const picking = (request: number, onRevealed = vi.fn()) => ({
+            markedUserUuid: 'ana',
+            reveal: { userUuid: 'ana', request },
+            onRevealed,
+        });
+
+        it('is marked, shown on their page, scrolled to and given focus, then reported shown', () => {
             const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            const onRevealed = vi.fn();
             try {
                 renderWithProviders(
                     <DepartmentMembersTable
                         members={many}
-                        highlight={{ userUuid: 'ana', request: 1 }}
+                        {...picking(1, onRevealed)}
                     />,
                 );
                 const row = screen.getByText('ana@example.com').closest('tr');
@@ -206,25 +221,23 @@ describe('DepartmentMembersTable', () => {
                         each.hasAttribute('aria-current'),
                     ),
                 ).toHaveLength(1);
+                expect(onRevealed).toHaveBeenCalledWith(1);
             } finally {
                 scrolled.mockRestore();
             }
         });
 
-        it('brings back everyone when the filter chosen leaves them out, and scrolls again when picked again', async () => {
+        it('brings back everyone when the filter chosen leaves them out, and scrolls again only for a new pick', async () => {
             const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
             try {
                 const { rerender } = renderWithProviders(
-                    <DepartmentMembersTable members={many} highlight={null} />,
+                    <DepartmentMembersTable members={many} {...nobodyPicked} />,
                 );
                 await userEvent.click(
                     screen.getByText('No activity in 90 days (60)'),
                 );
                 rerender(
-                    <DepartmentMembersTable
-                        members={many}
-                        highlight={{ userUuid: 'ana', request: 1 }}
-                    />,
+                    <DepartmentMembersTable members={many} {...picking(1)} />,
                 );
                 expect(
                     screen.getByRole('radio', { name: 'All (61)' }),
@@ -233,11 +246,18 @@ describe('DepartmentMembersTable', () => {
                     screen.getByText('ana@example.com').closest('tr'),
                 ).toHaveAttribute('aria-current', 'true');
                 expect(scrolled).toHaveBeenCalledOnce();
+                // Once shown she stays marked, and nothing moves again
                 rerender(
                     <DepartmentMembersTable
                         members={many}
-                        highlight={{ userUuid: 'ana', request: 2 }}
+                        markedUserUuid="ana"
+                        reveal={null}
+                        onRevealed={vi.fn()}
                     />,
+                );
+                expect(scrolled).toHaveBeenCalledOnce();
+                rerender(
+                    <DepartmentMembersTable members={many} {...picking(2)} />,
                 );
                 expect(scrolled).toHaveBeenCalledTimes(2);
             } finally {
@@ -247,19 +267,36 @@ describe('DepartmentMembersTable', () => {
 
         it('keeps the filter chosen when it holds them', async () => {
             const { rerender } = renderWithProviders(
-                <DepartmentMembersTable members={many} highlight={null} />,
+                <DepartmentMembersTable members={many} {...nobodyPicked} />,
             );
             await userEvent.click(screen.getByText('Active in 30 days (1)'));
-            rerender(
-                <DepartmentMembersTable
-                    members={many}
-                    highlight={{ userUuid: 'ana', request: 1 }}
-                />,
-            );
+            rerender(<DepartmentMembersTable members={many} {...picking(1)} />);
             expect(
                 screen.getByRole('radio', { name: 'Active in 30 days (1)' }),
             ).toBeChecked();
             expect(bodyRows()).toHaveLength(1);
+        });
+
+        it('marks a person already shown without scrolling to them or taking focus', () => {
+            const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            try {
+                renderWithProviders(
+                    <DepartmentMembersTable
+                        members={members}
+                        markedUserUuid="recent"
+                        reveal={null}
+                        onRevealed={vi.fn()}
+                    />,
+                );
+                const row = screen
+                    .getByText('recent@example.com')
+                    .closest('tr');
+                expect(row).toHaveAttribute('aria-current', 'true');
+                expect(row).not.toHaveFocus();
+                expect(scrolled).not.toHaveBeenCalled();
+            } finally {
+                scrolled.mockRestore();
+            }
         });
     });
     it('names three other departments and counts the rest, with every name in its title', () => {
@@ -274,7 +311,7 @@ describe('DepartmentMembersTable', () => {
                         })),
                     }),
                 ]}
-                highlight={null}
+                {...nobodyPicked}
             />,
         );
         expect(

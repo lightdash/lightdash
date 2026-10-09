@@ -9,6 +9,11 @@
     overflow-y: auto;
 }
 
+/* The scrollbar's room is kept from the start, so its coming does not narrow the waffle and lay it out again */
+.scroller[data-strip] {
+    scrollbar-gutter: stable;
+}
+
 /* As tall as the waffle's content; everything in it is placed from its layout, in pixels from its top-left corner */
 .canvas {
     position: relative;

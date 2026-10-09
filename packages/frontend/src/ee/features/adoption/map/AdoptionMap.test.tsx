@@ -23,8 +23,17 @@ import { getSweepDelay } from '../utils/sweepDelay';
 import { AdoptionMap } from './AdoptionMap';
 import styles from './DepartmentMap.module.css';
 import { type ColourBy } from './geometry';
+import type * as MapLayout from './mapLayout';
 import { estimateTextWidth } from './mapLayout';
 import { deepOrganization, flatOrganization } from './organizationFixtures';
+
+// The real layout, watched to see how often the map is laid out
+const { layoutMap } = vi.hoisted(() => ({ layoutMap: vi.fn() }));
+vi.mock('./mapLayout', async (importOriginal) => {
+    const actual = await importOriginal<typeof MapLayout>();
+    layoutMap.mockImplementation(actual.layoutMap);
+    return { ...actual, layoutMap };
+});
 
 // Only the network hook is replaced; the layout and geometry are the real ones
 const useDepartmentDetail = vi.fn();
@@ -346,6 +355,47 @@ describe('AdoptionMap', () => {
         expect(
             screen.getByRole('img', { name: /^Map of the organization:/ }),
         ).toBeInTheDocument();
+    });
+
+    it('lays the map out once, at the size it is shown at, as the strip comes and goes', async () => {
+        // The strip is short and has the panel's room too
+        const measured = vi
+            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockImplementation(function measure(this: HTMLElement) {
+                return this.closest('[data-strip]') === null
+                    ? new DOMRect(0, 0, 640, 560)
+                    : new DOMRect(0, 0, 1000, 280);
+            });
+        try {
+            const { container } = renderMap();
+            const drawing = () => container.querySelector('svg[role="img"]');
+            expect(drawing()).toHaveAttribute('height', '560');
+            layoutMap.mockClear();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            expect(layoutMap).toHaveBeenCalledOnce();
+            expect(layoutMap).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    area: { width: 1000, height: 280 },
+                }),
+            );
+            expect(drawing()).toHaveAttribute('width', '1000');
+            expect(drawing()).toHaveAttribute('height', '280');
+            layoutMap.mockClear();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Show the organization' }),
+            );
+            expect(layoutMap).toHaveBeenCalledOnce();
+            expect(layoutMap).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    area: { width: 640, height: 560 },
+                }),
+            );
+            expect(drawing()).toHaveAttribute('height', '560');
+        } finally {
+            measured.mockRestore();
+        }
     });
 
     it('zooms into a department when its circle is clicked', () => {

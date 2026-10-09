@@ -675,17 +675,43 @@ describe('WaffleView', () => {
         expect(square.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
-    it('redraws no square when a department is selected', async () => {
-        renderWaffle(deepOrganization);
-        expect(getSquareOffset).toHaveBeenCalled();
-        getSquareOffset.mockClear();
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Finance,/ }),
-        );
-        await userEvent.click(
-            screen.getByRole('button', { name: /^Supply Chain,/ }),
-        );
-        expect(getSquareOffset).not.toHaveBeenCalled();
+    it('places each square once as the strip widens or narrows the waffle, and redraws none moving between departments in it', async () => {
+        // The strip has the panel's room too, so the waffle is wider there
+        const measured = vi
+            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockImplementation(function measure(this: HTMLElement) {
+                return new DOMRect(
+                    0,
+                    0,
+                    this.closest('[data-strip]') === null ? 700 : 1000,
+                    400,
+                );
+            });
+        try {
+            const { container } = renderWaffle(deepOrganization);
+            // Each square drawn is placed once, whatever the width gives room for
+            const expectPlacedOnce = () => {
+                const squares = drawnSquares(container).length;
+                expect(squares).toBeGreaterThan(0);
+                expect(getSquareOffset).toHaveBeenCalledTimes(squares);
+                getSquareOffset.mockClear();
+            };
+            getSquareOffset.mockClear();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Finance,/ }),
+            );
+            expectPlacedOnce();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Supply Chain,/ }),
+            );
+            expect(getSquareOffset).not.toHaveBeenCalled();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Show the organization' }),
+            );
+            expectPlacedOnce();
+        } finally {
+            measured.mockRestore();
+        }
     });
 
     it('draws every part as a bar above 20,000 people and says so', () => {

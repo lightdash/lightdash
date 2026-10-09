@@ -102,11 +102,19 @@ const Unavailable: FC<{
     );
 };
 
+type PickedPerson = {
+    // The person picked on the map, marked while they stay picked
+    markedUserUuid: string | null;
+    // A pick not yet shown, which the people table shown next brings into view
+    reveal: PersonHighlight | null;
+    onRevealed: (request: number) => void;
+};
+
 type OverlapPeopleProps = {
     label: string; // what the people are narrowed to
     people: DepartmentMember[] | null; // null until loaded
     isError: boolean;
-    highlight: PersonHighlight | null;
+    picked: PickedPerson;
     onRetry: () => void;
     onClear: () => void;
 };
@@ -116,7 +124,7 @@ const OverlapPeople: FC<OverlapPeopleProps> = ({
     label,
     people,
     isError,
-    highlight,
+    picked,
     onRetry,
     onClear,
 }) => {
@@ -127,10 +135,7 @@ const OverlapPeople: FC<OverlapPeopleProps> = ({
                     Nobody matches this filter
                 </Text>
             ) : (
-                <DepartmentMembersTable
-                    members={people}
-                    highlight={highlight}
-                />
+                <DepartmentMembersTable members={people} {...picked} />
             );
         }
         return isError ? (
@@ -319,15 +324,28 @@ export const SelectedDepartment: FC<Props> = ({
         selection?.withDepartments.map((d) => d.departmentUuid) ?? [],
         selection?.withoutDepartments.map((d) => d.departmentUuid) ?? [],
     );
-    // A person picked on the map who is not among the people the overlap narrows to brings everyone back
-    const [handledRequest, setHandledRequest] = useState<number | null>(null);
-    if (highlight !== null && highlight.request !== handledRequest) {
-        setHandledRequest(highlight.request);
-        const isShown = (overlapPeople.data?.members ?? []).some(
-            (member) => member.userUuid === highlight.userUuid,
-        );
-        if (selection !== null && !isShown) setSelection(null);
+    // A pick is shown once, by whichever people table is up when it comes; the tables shown again later, for an
+    // overlap chosen or cleared, only mark the person
+    const [revealedRequest, setRevealedRequest] = useState<number | null>(null);
+    const reveal =
+        highlight !== null && highlight.request !== revealedRequest
+            ? highlight
+            : null;
+    // A pick not yet shown whom the overlap chosen leaves out brings everyone back
+    if (
+        reveal !== null &&
+        selection !== null &&
+        !(overlapPeople.data?.members ?? []).some(
+            (member) => member.userUuid === reveal.userUuid,
+        )
+    ) {
+        setSelection(null);
     }
+    const picked: PickedPerson = {
+        markedUserUuid: highlight?.userUuid ?? null,
+        reveal,
+        onRevealed: setRevealedRequest,
+    };
     const weeks = useMemo(
         () =>
             detail.data
@@ -456,10 +474,7 @@ export const SelectedDepartment: FC<Props> = ({
             <Stack gap="xs">
                 <Title order={5}>People</Title>
                 {selection === null ? (
-                    <DepartmentMembersTable
-                        members={members}
-                        highlight={highlight}
-                    />
+                    <DepartmentMembersTable members={members} {...picked} />
                 ) : (
                     // A new overlap starts its list afresh, on its first page
                     <OverlapPeople
@@ -471,7 +486,7 @@ export const SelectedDepartment: FC<Props> = ({
                                 : null
                         }
                         isError={overlapPeople.isError}
-                        highlight={highlight}
+                        picked={picked}
                         onRetry={() => void overlapPeople.refetch()}
                         onClear={() => {
                             setSelection(null);

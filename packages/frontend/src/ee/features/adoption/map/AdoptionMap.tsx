@@ -78,7 +78,10 @@ export const AdoptionMap: FC<Props> = ({
     // A selected department is shown below the map, which becomes a strip with no panel beside it
     const isStrip = selectedUuid !== null;
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
-    const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
+    const { ref, width, height, isMeasured } = useContainerSize(
+        FALLBACK_SIZE,
+        isStrip ? 'strip' : 'full',
+    );
 
     // Labels are measured in the font they are drawn in, again once web fonts have loaded
     const [font, setFont] = useState<{ family: string; epoch: number } | null>(
@@ -122,14 +125,18 @@ export const AdoptionMap: FC<Props> = ({
         (circles: PackedCircle[]) => describeCircles(circles, byUuid),
         [byUuid],
     );
+    // Nothing is laid out until the drawing's box is measured for how the map is shown, so the strip coming or going
+    // draws the map once, at its own size
     const circles = useMemo(
         () =>
-            layoutMap({
-                input: buildPackInput(departments, focusedUuid),
-                area: { width, height },
-                focusName,
-            }),
-        [departments, focusedUuid, focusName, width, height],
+            isMeasured
+                ? layoutMap({
+                      input: buildPackInput(departments, focusedUuid),
+                      area: { width, height },
+                      focusName,
+                  })
+                : [],
+        [isMeasured, departments, focusedUuid, focusName, width, height],
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
     // The legend under the map, its description and the panel beside it, or the selected department's bar, count
@@ -166,7 +173,7 @@ export const AdoptionMap: FC<Props> = ({
 
     // Names, roles and last activity for the people inside the focused department.
     // Not asked for when there are too many people in view to name them.
-    const loadPeople = showDots && shouldLoadPeople(peopleInView);
+    const loadPeople = isMeasured && showDots && shouldLoadPeople(peopleInView);
     const detail = useDepartmentDetail(
         loadPeople ? (focusedUuid ?? undefined) : undefined,
     );
@@ -225,7 +232,7 @@ export const AdoptionMap: FC<Props> = ({
             <Box className={styles.body} data-strip={isStrip || undefined}>
                 <Paper className={styles.frame}>
                     <Box ref={ref} className={styles.canvas}>
-                        {circles.length === 0 ? (
+                        {!isMeasured ? null : circles.length === 0 ? (
                             <Box className={styles.message}>
                                 <Text fz="sm" c="dimmed">
                                     No people or headcount in this department
