@@ -68106,6 +68106,109 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "OrganizationAgentIdentitySnowflakeSetup": {
+                "properties": {
+                    "configured": {
+                        "type": "boolean"
+                    },
+                    "missingSettings": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "integrationSql": {
+                        "type": "string"
+                    },
+                    "redirectUri": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "configured",
+                    "missingSettings",
+                    "integrationSql",
+                    "redirectUri"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentitySnowflakeSetupResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySnowflakeSetup"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "OrganizationAgentIdentitySnowflakeVerify": {
+                "properties": {
+                    "checks": {
+                        "items": {
+                            "properties": {
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "required": {
+                                    "type": "boolean"
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "enum": ["passed", "failed", "not_checked"]
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "id": {
+                                    "type": "string",
+                                    "enum": [
+                                        "oauth_client",
+                                        "authorize_endpoint",
+                                        "agent_session"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "detail",
+                                "required",
+                                "status",
+                                "label",
+                                "id"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "passed": {
+                        "type": "boolean"
+                    },
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["checks", "passed", "checkedAt"],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentitySnowflakeVerifyResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySnowflakeVerify"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "OrganizationAgentIdentitySettings": {
                 "properties": {
                     "requireVerifiedAgentSessions": {
@@ -70636,7 +70739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.512.1",
+        "version": "2.513.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -111846,6 +111949,66 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/org/agent-identity/snowflake/setup": {
+            "get": {
+                "operationId": "getOrganizationAgentIdentitySnowflakeSetup",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySnowflakeSetupResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-identity/snowflake/verify": {
+            "post": {
+                "operationId": "verifyOrganizationAgentIdentitySnowflakeSetup",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySnowflakeVerifyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v2/org/agent-identity/{warehouseType}": {

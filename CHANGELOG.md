@@ -1,3 +1,15 @@
+# [2.513.0](https://github.com/lightdash/lightdash/compare/2.512.1...2.513.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **frontend:** use ink color for save & verify buttons ([#30822](https://github.com/lightdash/lightdash/issues/30822)) ([3cbd7ca](https://github.com/lightdash/lightdash/commit/3cbd7ca011234512d27ff6dca1e924a1881ece7b))
+
+
+### Features
+
+* **agent-identity:** copy-paste setup with a Verify step, and an Agent identity settings page ([#30809](https://github.com/lightdash/lightdash/issues/30809)) ([6f6d06f](https://github.com/lightdash/lightdash/commit/6f6d06f225de2ed9d5dc02d5ce08690dd3bb0ebd))
+
 ## [2.512.1](https://github.com/lightdash/lightdash/compare/2.512.0...2.512.1) (2026-10-09)
 
 
