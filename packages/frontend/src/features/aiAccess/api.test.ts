@@ -1,10 +1,17 @@
-import { waitFor } from '@testing-library/react';
+import {
+    DatabricksAuthenticationType,
+    WarehouseTypes,
+} from '@lightdash/common';
+import { useQueryClient } from '@tanstack/react-query';
+import { act, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi, lightdashApiResponse } from '../../api';
 import { renderHookWithProviders } from '../../testing/testUtils';
 import {
     aiAccessApi,
     useAiServiceAccount,
+    useSaveAiServiceAccount,
+    useTestAiServiceAccount,
     useOrganizationAgentIdentitySettings,
 } from './api';
 
@@ -94,4 +101,120 @@ describe('AI service account status', () => {
             body: undefined,
         });
     });
+});
+
+describe('AI service account credential mutations', () => {
+    const credentials = {
+        type: WarehouseTypes.DATABRICKS as const,
+        authenticationType: DatabricksAuthenticationType.OAUTH_M2M as const,
+        oauthClientId: 'application-id',
+        oauthClientSecret: 'secret-value',
+    };
+    const verification = {
+        ok: true,
+        principal: 'principal-id',
+        observed: { currentUser: 'principal-id' },
+        message: 'Connection works.',
+        checkedAt: new Date(),
+    };
+    beforeEach(() => vi.clearAllMocks());
+    it.each([verification, undefined])(
+        'retains optional save verification: %s',
+        async (resultVerification) => {
+            const slot = { identityUuid: 'identity' };
+            vi.mocked(lightdashApiResponse).mockResolvedValue({
+                status: 'ok',
+                results: slot,
+                verification: resultVerification,
+            });
+            const { result } = renderHookWithProviders(() =>
+                useSaveAiServiceAccount('project'),
+            );
+            await act(async () => {
+                await result.current.mutateAsync(credentials);
+            });
+            await waitFor(() =>
+                expect(result.current.data).toEqual({
+                    slot,
+                    verification: resultVerification ?? null,
+                }),
+            );
+            expect(lightdashApiResponse).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'PUT',
+                    sensitive: true,
+                    body: JSON.stringify(credentials),
+                }),
+            );
+        },
+    );
+    it.each([null, credentials])(
+        'refreshes recorded verification only for a saved Test: %s',
+        async (input) => {
+            vi.mocked(lightdashApi).mockResolvedValue(verification);
+            const { result } = renderHookWithProviders(() => ({
+                test: useTestAiServiceAccount('project'),
+                client: useQueryClient(),
+            }));
+            const invalidate = vi.spyOn(
+                result.current.client,
+                'invalidateQueries',
+            );
+            await act(async () => {
+                await result.current.test.mutateAsync({ credentials: input });
+            });
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    method: 'POST',
+                    sensitive: true,
+                    body: JSON.stringify({ credentials: input }),
+                }),
+            );
+            if (input === null)
+                expect(invalidate).toHaveBeenCalledWith(['ai-access']);
+            else expect(invalidate).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['reset', 'unmount'])(
+        'removes secret-bearing Save and Test mutations on %s',
+        async (action) => {
+            vi.mocked(lightdashApiResponse).mockResolvedValue({
+                status: 'ok',
+                results: null,
+            });
+            vi.mocked(lightdashApi).mockResolvedValue(verification);
+            const { result, unmount } = renderHookWithProviders(() => ({
+                save: useSaveAiServiceAccount('project'),
+                test: useTestAiServiceAccount('project'),
+                client: useQueryClient(),
+            }));
+            const cache = result.current.client.getMutationCache();
+            await act(async () => {
+                await result.current.test.mutateAsync({ credentials });
+                await result.current.save.mutateAsync(credentials);
+            });
+            expect(
+                cache
+                    .getAll()
+                    .some((mutation) => mutation.state.variables !== undefined),
+            ).toBe(true);
+            if (action === 'unmount') unmount();
+            else
+                act(() => {
+                    result.current.save.reset();
+                    result.current.test.reset();
+                });
+            expect(cache.getAll()).toHaveLength(0);
+        },
+    );
+    it.each([false, undefined])(
+        'does not load a Databricks slot when the flag is %s',
+        (enabled) => {
+            flagEnabled = enabled;
+            renderHookWithProviders(() =>
+                useAiServiceAccount('databricks-project'),
+            );
+            expect(lightdashApiResponse).not.toHaveBeenCalled();
+        },
+    );
 });

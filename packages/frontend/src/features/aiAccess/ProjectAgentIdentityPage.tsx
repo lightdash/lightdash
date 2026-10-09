@@ -74,7 +74,8 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
         return null;
     if (
         project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
-        project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE
+        project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE &&
+        project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS
     )
         return (
             <Text size="sm" c="dimmed">

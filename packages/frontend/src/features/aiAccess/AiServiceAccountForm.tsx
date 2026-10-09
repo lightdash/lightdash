@@ -1,23 +1,32 @@
 import {
+    assertUnreachable,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine/core';
 import { useState } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { BigQueryKeyFileInput } from '../../components/ProjectConnection/WarehouseForms/BigQueryKeyFileInput';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
+import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
 
-export const AiServiceAccountForm = ({
+interface AiServiceAccountFormProps {
+    projectUuid: string;
+    onClose: () => void;
+    onSaved: (
+        slot: AiServiceAccountSlot,
+        principal: string | null,
+        verification?: AiServiceAccountTestResult | null,
+    ) => void;
+}
+
+const BigqueryAiServiceAccountForm = ({
     projectUuid,
     onClose,
     onSaved,
-}: {
-    projectUuid: string;
-    onClose: () => void;
-    onSaved: (slot: AiServiceAccountSlot, principal: string | null) => void;
-}) => {
+}: AiServiceAccountFormProps) => {
     const [file, setFile] = useState<File | null>(null);
     const [keyfileContents, setKeyfileContents] = useState<Record<
         string,
@@ -45,13 +54,15 @@ export const AiServiceAccountForm = ({
             onConfirm={() => {
                 if (credentials)
                     save.mutate(credentials, {
-                        onSuccess: (savedSlot) => {
+                        onSuccess: ({ slot: savedSlot }) => {
                             if (savedSlot)
                                 onSaved(
                                     savedSlot,
                                     test.data?.ok &&
-                                        test.variables?.credentials
-                                            ?.keyfileContents ===
+                                        test.variables?.credentials?.type ===
+                                            WarehouseTypes.BIGQUERY &&
+                                        test.variables.credentials
+                                            .keyfileContents ===
                                             credentials.keyfileContents
                                         ? test.data.principal
                                         : null,
@@ -98,4 +109,20 @@ export const AiServiceAccountForm = ({
             </Stack>
         </MantineModal>
     );
+};
+
+export const AiServiceAccountForm = ({
+    warehouseType,
+    ...props
+}: AiServiceAccountFormProps & {
+    warehouseType: WarehouseTypes.BIGQUERY | WarehouseTypes.DATABRICKS;
+}) => {
+    switch (warehouseType) {
+        case WarehouseTypes.BIGQUERY:
+            return <BigqueryAiServiceAccountForm {...props} />;
+        case WarehouseTypes.DATABRICKS:
+            return <DatabricksAiServiceAccountForm {...props} />;
+        default:
+            return assertUnreachable(warehouseType, 'Unknown warehouse type');
+    }
 };

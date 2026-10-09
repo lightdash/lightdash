@@ -1,10 +1,14 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     FeatureFlags,
     WarehouseTypes,
     formatDate,
     type Project,
     type BigqueryCredentials,
+    type DatabricksCredentials,
+    type AiServiceAccountTestResult,
+    type ApiError,
     type AiServiceAccountSlot,
     type AiServiceAccountParent,
     type OrganizationAgentIdentityRule,
@@ -35,55 +39,147 @@ import {
     useTestAiServiceAccount,
 } from './api';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
+import { DatabricksAgentSetup } from './DatabricksAgentSetup';
+
+type AiServiceAccountConnection = BigqueryCredentials | DatabricksCredentials;
+
+const AiServiceAccountParentPrincipal = ({
+    parent,
+    testedPrincipal,
+}: {
+    parent: AiServiceAccountParent;
+    testedPrincipal: string | null;
+}) => {
+    return parent.principal !== null ? (
+        <Text size="sm" role="status">
+            Signs in as {testedPrincipal ?? parent.principal}
+        </Text>
+    ) : (
+        <Text size="sm" role="status">
+            The parent project's key could not be read.
+        </Text>
+    );
+};
+
+const DatabricksAiServiceAccountDetails = ({
+    slot,
+    parent,
+    testedPrincipal,
+    observation,
+}: {
+    slot: AiServiceAccountSlot | null;
+    parent: AiServiceAccountParent | null;
+    testedPrincipal: string | null;
+    observation: AiServiceAccountTestResult | null;
+}) => {
+    return (
+        <Stack gap="xs">
+            <Text size="sm">Databricks service principal · OAuth M2M</Text>
+            {testedPrincipal ? (
+                <Text size="sm" role="status">
+                    Signs in as {testedPrincipal}
+                </Text>
+            ) : (
+                <Text size="sm" c="dimmed">
+                    Not checked yet. Run Test to see who it signs in as.
+                </Text>
+            )}
+            {(observation?.ok || slot) && (
+                <Text size="xs" c="dimmed">
+                    {observation?.ok &&
+                        `Last checked ${formatDate(observation.checkedAt)}`}
+                    {observation?.ok && slot && ' · '}
+                    {slot && `Last updated ${formatDate(slot.updatedAt)}`}
+                </Text>
+            )}
+            {!slot && parent && (
+                <Group gap="xs">
+                    <Text size="sm" c="dimmed">
+                        From parent project
+                    </Text>
+                    {parent.projectName !== null ? (
+                        <Anchor
+                            component={Link}
+                            to={`/generalSettings/projectManagement/${parent.projectUuid}/agentIdentity`}
+                            size="sm"
+                        >
+                            {parent.projectName}
+                        </Anchor>
+                    ) : (
+                        <Text size="sm" c="dimmed">
+                            the parent project
+                        </Text>
+                    )}
+                </Group>
+            )}
+        </Stack>
+    );
+};
 
 const AiServiceAccountDetails = ({
     slot,
     parent,
     testedPrincipal,
+    warehouseType,
+    observation,
 }: {
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
-}) => (
-    <Stack gap="xs">
-        {slot ? (
-            <>
-                <Text size="sm">Service account key file</Text>
-                <Text size="xs" c="dimmed">
-                    Last updated {formatDate(slot.updatedAt)}
-                </Text>
-            </>
-        ) : parent ? (
-            <>
-                <Text size="sm">From parent project</Text>
-                {parent.projectName !== null ? (
-                    <Anchor
-                        component={Link}
-                        to={`/generalSettings/projectManagement/${parent.projectUuid}/agentIdentity`}
-                        size="sm"
-                    >
-                        {parent.projectName}
-                    </Anchor>
-                ) : (
-                    <Text size="sm">the parent project</Text>
-                )}
-                {parent.principal !== null ? (
-                    <Text size="sm" role="status">
-                        Signs in as {testedPrincipal ?? parent.principal}
-                    </Text>
-                ) : (
-                    <Text size="sm" role="status">
-                        The parent project's key could not be read.
-                    </Text>
-                )}
-            </>
-        ) : null}
-    </Stack>
-);
+    warehouseType: AiServiceAccountConnection['type'];
+    observation: AiServiceAccountTestResult | null;
+}) => {
+    switch (warehouseType) {
+        case WarehouseTypes.DATABRICKS:
+            return (
+                <DatabricksAiServiceAccountDetails
+                    slot={slot}
+                    parent={parent}
+                    testedPrincipal={testedPrincipal}
+                    observation={observation}
+                />
+            );
+        case WarehouseTypes.BIGQUERY:
+            return (
+                <Stack gap="xs">
+                    {slot ? (
+                        <>
+                            <Text size="sm">Service account key file</Text>
+                            <Text size="xs" c="dimmed">
+                                Last updated {formatDate(slot.updatedAt)}
+                            </Text>
+                        </>
+                    ) : parent ? (
+                        <>
+                            <Text size="sm">From parent project</Text>
+                            {parent.projectName !== null ? (
+                                <Anchor
+                                    component={Link}
+                                    to={`/generalSettings/projectManagement/${parent.projectUuid}/agentIdentity`}
+                                    size="sm"
+                                >
+                                    {parent.projectName}
+                                </Anchor>
+                            ) : (
+                                <Text size="sm">the parent project</Text>
+                            )}
+                            <AiServiceAccountParentPrincipal
+                                parent={parent}
+                                testedPrincipal={testedPrincipal}
+                            />
+                        </>
+                    ) : null}
+                </Stack>
+            );
+        default:
+            return assertUnreachable(warehouseType, 'Unknown warehouse type');
+    }
+};
 
 const AiServiceAccountRemoveModal = ({
     opened,
     inherit,
+    warehouseType,
     parent,
     loading,
     onClose,
@@ -91,25 +187,75 @@ const AiServiceAccountRemoveModal = ({
 }: {
     opened: boolean;
     inherit: boolean;
+    warehouseType: AiServiceAccountConnection['type'];
     parent: AiServiceAccountParent | null;
     loading: boolean;
     onClose: () => void;
     onConfirm: () => void;
+}) => {
+    const credentialLabel =
+        warehouseType === WarehouseTypes.BIGQUERY ? 'key' : 'credentials';
+    return (
+        <MantineModal
+            opened={opened}
+            title={
+                inherit
+                    ? `Use the parent's ${credentialLabel}`
+                    : 'Remove AI service account'
+            }
+            variant={inherit ? 'default' : 'delete'}
+            description={
+                inherit
+                    ? `Remove this project's ${credentialLabel} and use the parent project's ${credentialLabel}${parent?.principal ? ` (${parent.principal})` : ''}? Agent queries use the parent's ${credentialLabel} on the next query.`
+                    : 'Remove this AI service account? Agent queries are refused if your organisation requires it.'
+            }
+            confirmLabel={
+                inherit ? `Use the parent's ${credentialLabel}` : 'Remove'
+            }
+            confirmLoading={loading}
+            onClose={onClose}
+            onConfirm={onConfirm}
+        />
+    );
+};
+
+const AiServiceAccountTestFeedback = ({
+    result,
+    error,
+    observation,
+    warehouseType,
+}: {
+    result: AiServiceAccountTestResult | null;
+    error: ApiError | null;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
 }) => (
-    <MantineModal
-        opened={opened}
-        title={inherit ? "Use the parent's key" : 'Remove AI service account'}
-        variant={inherit ? 'default' : 'delete'}
-        description={
-            inherit
-                ? `Remove this project's key and use the parent project's key${parent?.principal ? ` (${parent.principal})` : ''}? Agent queries use the parent's key on the next query.`
-                : 'Remove this AI service account? Agent queries are refused if your organisation requires it.'
-        }
-        confirmLabel={inherit ? "Use the parent's key" : 'Remove'}
-        confirmLoading={loading}
-        onClose={onClose}
-        onConfirm={onConfirm}
-    />
+    <>
+        {result && !result.ok && (
+            <Text
+                size="sm"
+                role={
+                    warehouseType === WarehouseTypes.DATABRICKS
+                        ? 'alert'
+                        : 'status'
+                }
+            >
+                {result.message}
+            </Text>
+        )}
+        {error && (
+            <Text size="sm" c="red" role="alert">
+                {error.error.message}
+            </Text>
+        )}
+        {warehouseType === WarehouseTypes.DATABRICKS &&
+            observation?.ok &&
+            (error || (result && !result.ok)) && (
+                <Text size="sm" c="dimmed">
+                    The principal above is from the last successful check.
+                </Text>
+            )}
+    </>
 );
 
 const AiServiceAccountSummary = ({
@@ -117,6 +263,8 @@ const AiServiceAccountSummary = ({
     slot,
     parent,
     testedPrincipal,
+    observation,
+    warehouseType,
     onReplace,
     onTestSuccess,
 }: {
@@ -124,8 +272,13 @@ const AiServiceAccountSummary = ({
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     testedPrincipal: string | null;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
     onReplace: () => void;
-    onTestSuccess: (principal: string) => void;
+    onTestSuccess: (
+        principal: string,
+        verification: AiServiceAccountTestResult | null,
+    ) => void;
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
@@ -140,6 +293,8 @@ const AiServiceAccountSummary = ({
                     slot={slot}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
+                    observation={observation}
+                    warehouseType={warehouseType}
                 />
                 <Group gap="xs">
                     <Button
@@ -150,7 +305,11 @@ const AiServiceAccountSummary = ({
                             onReplace();
                         }}
                     >
-                        {slot ? 'Replace' : 'Use a different key'}
+                        {slot
+                            ? 'Replace'
+                            : warehouseType === WarehouseTypes.BIGQUERY
+                              ? 'Use a different key'
+                              : 'Use a different service principal'}
                     </Button>
                     <Button
                         variant="default"
@@ -161,8 +320,15 @@ const AiServiceAccountSummary = ({
                                 { credentials: null },
                                 {
                                     onSuccess: (result) => {
-                                        if (result.ok && result.principal)
-                                            onTestSuccess(result.principal);
+                                        const principal = result.principal;
+                                        if (result.ok && principal)
+                                            onTestSuccess(
+                                                principal,
+                                                warehouseType ===
+                                                    WarehouseTypes.DATABRICKS
+                                                    ? result
+                                                    : null,
+                                            );
                                     },
                                 },
                             )
@@ -178,7 +344,9 @@ const AiServiceAccountSummary = ({
                                     disabled={busy}
                                     onClick={() => setConfirmation('inherit')}
                                 >
-                                    Use the parent's key
+                                    {warehouseType === WarehouseTypes.BIGQUERY
+                                        ? "Use the parent's key"
+                                        : "Use the parent's credentials"}
                                 </Button>
                             )}
                             <Button
@@ -193,18 +361,15 @@ const AiServiceAccountSummary = ({
                     )}
                 </Group>
             </Group>
-            {test.data && !test.data.ok && (
-                <Text size="sm" role="status">
-                    {test.data.message}
-                </Text>
-            )}
-            {test.error && (
-                <Text size="sm" c="red" role="alert">
-                    {test.error.error.message}
-                </Text>
-            )}
+            <AiServiceAccountTestFeedback
+                result={test.data ?? null}
+                error={test.error}
+                observation={observation}
+                warehouseType={warehouseType}
+            />
             <AiServiceAccountRemoveModal
                 opened={confirmation !== null}
+                warehouseType={warehouseType}
                 inherit={confirmation === 'inherit'}
                 parent={parent}
                 loading={remove.isLoading}
@@ -230,6 +395,8 @@ const AiServiceAccountSettingsContent = ({
     parent,
     rule,
     testedPrincipal,
+    observation,
+    warehouseType,
     onTestSuccess,
     onEdit,
 }: {
@@ -238,7 +405,12 @@ const AiServiceAccountSettingsContent = ({
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
-    onTestSuccess: (principal: string) => void;
+    observation: AiServiceAccountTestResult | null;
+    warehouseType: AiServiceAccountConnection['type'];
+    onTestSuccess: (
+        principal: string,
+        verification: AiServiceAccountTestResult | null,
+    ) => void;
     onEdit: () => void;
 }) => {
     return (
@@ -249,17 +421,21 @@ const AiServiceAccountSettingsContent = ({
                     account is added.
                 </Alert>
             )}
-            {slot && testedPrincipal && (
-                <Text size="sm" role="status">
-                    Signs in as {testedPrincipal}
-                </Text>
-            )}
+            {slot &&
+                testedPrincipal &&
+                warehouseType === WarehouseTypes.BIGQUERY && (
+                    <Text size="sm" role="status">
+                        Signs in as {testedPrincipal}
+                    </Text>
+                )}
             {slot || parent ? (
                 <AiServiceAccountSummary
                     projectUuid={projectUuid}
                     slot={slot}
                     parent={parent}
                     testedPrincipal={testedPrincipal}
+                    observation={observation}
+                    warehouseType={warehouseType}
                     onTestSuccess={onTestSuccess}
                     onReplace={onEdit}
                 />
@@ -274,32 +450,95 @@ const AiServiceAccountSettingsContent = ({
     );
 };
 
+interface TestedAiPrincipal {
+    identityKey: string;
+    principal: string;
+    verification: AiServiceAccountTestResult | null;
+}
+
+const getAiPrincipalState = (
+    slot: AiServiceAccountSlot | null,
+    parent: AiServiceAccountParent | null,
+    verification: AiServiceAccountTestResult | null,
+    testedPrincipal: TestedAiPrincipal | null,
+    warehouseType: AiServiceAccountConnection['type'],
+) => {
+    const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
+    const persistedVerification = slot
+        ? verification
+        : (parent?.verification ?? null);
+    const currentTest =
+        testedPrincipal?.identityKey === identityKey ? testedPrincipal : null;
+    const observation = currentTest?.verification ?? persistedVerification;
+    const principal =
+        currentTest?.principal ??
+        (warehouseType === WarehouseTypes.DATABRICKS
+            ? observation?.ok
+                ? observation.principal
+                : null
+            : null);
+    return { identityKey, observation, principal };
+};
+
+const AiServiceAccountSetup = ({
+    connection,
+    hasKey,
+    tested,
+}: {
+    connection: AiServiceAccountConnection;
+    hasKey: boolean;
+    tested: boolean;
+}) => {
+    switch (connection.type) {
+        case WarehouseTypes.BIGQUERY:
+            return (
+                <BigQueryAgentSetup
+                    connection={connection}
+                    hasKey={hasKey}
+                    tested={tested}
+                />
+            );
+        case WarehouseTypes.DATABRICKS:
+            return (
+                <DatabricksAgentSetup
+                    connection={connection}
+                    hasCredentials={hasKey}
+                    tested={tested}
+                />
+            );
+        default:
+            return assertUnreachable(connection, 'Unknown warehouse type');
+    }
+};
+
 const AiServiceAccountSettingsBody = ({
     projectUuid,
     connection,
     slot,
     parent,
     rule,
+    verification,
 }: {
     projectUuid: string;
-    connection: BigqueryCredentials;
+    connection: AiServiceAccountConnection;
+    verification: AiServiceAccountTestResult | null;
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     rule: OrganizationAgentIdentityRule;
 }) => {
     const [editing, setEditing] = useState(false);
-    const [testedPrincipal, setTestedPrincipal] = useState<{
-        identityKey: string;
-        principal: string;
-    } | null>(null);
-    const identityKey = slot?.identityUuid ?? parent?.identityUuid ?? null;
-    const principal =
-        testedPrincipal?.identityKey === identityKey
-            ? (testedPrincipal?.principal ?? null)
-            : null;
+    const [testedPrincipal, setTestedPrincipal] =
+        useState<TestedAiPrincipal | null>(null);
+    const { identityKey, observation, principal } = getAiPrincipalState(
+        slot,
+        parent,
+        verification,
+        testedPrincipal,
+        connection.type,
+    );
     return (
         <>
-            <BigQueryAgentSetup
+            <AiServiceAccountSetup
                 connection={connection}
                 hasKey={!!slot || !!parent}
                 tested={principal !== null}
@@ -315,11 +554,14 @@ const AiServiceAccountSettingsBody = ({
                 parent={parent}
                 rule={rule}
                 testedPrincipal={principal}
-                onTestSuccess={(principal) => {
+                observation={observation}
+                warehouseType={connection.type}
+                onTestSuccess={(principal, verification) => {
                     if (identityKey)
                         setTestedPrincipal({
                             identityKey,
                             principal,
+                            verification,
                         });
                 }}
                 onEdit={() => setEditing(true)}
@@ -327,12 +569,14 @@ const AiServiceAccountSettingsBody = ({
             {editing && (
                 <AiServiceAccountForm
                     projectUuid={projectUuid}
-                    onSaved={(savedSlot, principal) =>
+                    warehouseType={connection.type}
+                    onSaved={(savedSlot, principal, verification) =>
                         setTestedPrincipal(
                             principal
                                 ? {
                                       identityKey: savedSlot.identityUuid,
                                       principal,
+                                      verification: verification ?? null,
                                   }
                                 : null,
                         )
@@ -349,12 +593,12 @@ const AiServiceAccountSettings = ({
     connection,
 }: {
     projectUuid: string;
-    connection: BigqueryCredentials;
+    connection: AiServiceAccountConnection;
 }) => {
     const settings = useOrganizationAgentIdentitySettings();
     const status = useAiServiceAccount(projectUuid);
     const rule = settings.data?.rules.find(
-        ({ warehouseType }) => warehouseType === WarehouseTypes.BIGQUERY,
+        ({ warehouseType }) => warehouseType === connection.type,
     );
     if (settings.isLoading || status.isLoading) return <EmptyStateLoader />;
     if (settings.isError || status.isError || !rule || !status.data)
@@ -371,6 +615,7 @@ const AiServiceAccountSettings = ({
         <AiServiceAccountSettingsBody
             projectUuid={projectUuid}
             connection={connection}
+            verification={status.data.verification ?? null}
             slot={status.data.results}
             parent={status.data.parent}
             rule={rule}
@@ -383,7 +628,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     const ability = useAbilityContext();
     if (
         !project.projectUuid ||
-        project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY ||
+        (project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
+            project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS) ||
         !flag?.enabled ||
         !ability.can(
             'manage',

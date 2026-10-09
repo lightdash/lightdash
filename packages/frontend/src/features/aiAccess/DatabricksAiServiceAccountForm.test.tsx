@@ -1,0 +1,219 @@
+import {
+    DatabricksAuthenticationType,
+    WarehouseTypes,
+    type AiServiceAccountTestResult,
+} from '@lightdash/common';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashApi, lightdashApiResponse } from '../../api';
+import { renderWithProviders } from '../../testing/testUtils';
+import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
+
+vi.mock('../../api', () => ({
+    lightdashApi: vi.fn(),
+    lightdashApiResponse: vi.fn(),
+}));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastSuccess: vi.fn(), showToastApiError: vi.fn() }),
+}));
+const verification: AiServiceAccountTestResult = {
+    ok: true,
+    principal: 'verified-principal',
+    observed: { currentUser: 'verified-principal' },
+    message: 'Connection works.',
+    checkedAt: new Date('2026-10-09T12:00:00Z'),
+};
+const credentials = {
+    type: WarehouseTypes.DATABRICKS,
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+    oauthClientId: 'application-id',
+    oauthClientSecret: ' secret bytes ',
+};
+const setup = () => {
+    const client = new QueryClient({
+        defaultOptions: { mutations: { retry: false } },
+    });
+    const onSaved = vi.fn();
+    const onClose = vi.fn();
+    const rendered = renderWithProviders(
+        <QueryClientProvider client={client}>
+            <DatabricksAiServiceAccountForm
+                projectUuid="project"
+                onSaved={onSaved}
+                onClose={onClose}
+            />
+        </QueryClientProvider>,
+    );
+    return { ...rendered, client, onSaved, onClose };
+};
+const fill = () => {
+    fireEvent.change(screen.getByLabelText('Client ID', { exact: false }), {
+        target: { value: credentials.oauthClientId },
+    });
+    fireEvent.change(screen.getByLabelText('Client secret', { exact: false }), {
+        target: { value: credentials.oauthClientSecret },
+    });
+};
+
+describe('Databricks AI service account form', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.mocked(lightdashApi).mockResolvedValue(verification);
+        vi.mocked(lightdashApiResponse).mockResolvedValue({
+            status: 'ok',
+            results: { identityUuid: 'new-identity' },
+            verification,
+        });
+    });
+    it('requires both non-blank inputs and masks the secret', () => {
+        setup();
+        expect(
+            screen.getByRole('button', { name: 'Test and save' }),
+        ).toBeDisabled();
+        const secret = screen.getByLabelText('Client secret', { exact: false });
+        expect(secret).toHaveAttribute('type', 'password');
+        expect(secret).toHaveAttribute('autocomplete', 'new-password');
+        expect(secret).toBeRequired();
+        expect(
+            screen.getByLabelText('Client ID', { exact: false }),
+        ).toBeRequired();
+        fill();
+        expect(
+            screen.getByRole('button', { name: 'Test and save' }),
+        ).toBeEnabled();
+        fireEvent.change(secret, { target: { value: '   ' } });
+        expect(screen.getByRole('button', { name: 'Test' })).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Test and save' }),
+        ).toBeDisabled();
+    });
+    it('tests unsaved credentials and clears the result and cached secrets on edit', async () => {
+        const { client } = setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        expect(await screen.findByRole('status')).toHaveTextContent(
+            'Signs in as verified-principal',
+        );
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'POST',
+                sensitive: true,
+                body: JSON.stringify({ credentials }),
+            }),
+        );
+        fireEvent.change(screen.getByLabelText('Client ID', { exact: false }), {
+            target: { value: 'another-id' },
+        });
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(client.getMutationCache().getAll()).toHaveLength(0);
+    });
+    it('saves the current inputs with the verification returned by Save', async () => {
+        const { onSaved, onClose, client } = setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));
+        await waitFor(() =>
+            expect(onSaved).toHaveBeenCalledWith(
+                { identityUuid: 'new-identity' },
+                'verified-principal',
+                verification,
+            ),
+        );
+        expect(lightdashApiResponse).toHaveBeenCalledWith(
+            expect.objectContaining({
+                method: 'PUT',
+                sensitive: true,
+                body: JSON.stringify(credentials),
+            }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(
+            screen.getByLabelText('Client secret', { exact: false }),
+        ).toHaveValue('');
+        expect(client.getMutationCache().getAll()).toHaveLength(0);
+    });
+    it.each(['Test', 'Test and save'])(
+        'disables inputs and actions while %s is pending',
+        async (action) => {
+            let finish: (() => void) | null = null;
+            const pending = new Promise<never>(() => {});
+            if (action === 'Test')
+                vi.mocked(lightdashApi).mockImplementation(
+                    () =>
+                        new Promise((resolve) => {
+                            finish = () => resolve(verification);
+                        }),
+                );
+            else vi.mocked(lightdashApiResponse).mockReturnValue(pending);
+            const { onClose, unmount, client } = setup();
+            fill();
+            fireEvent.click(screen.getByRole('button', { name: action }));
+            await waitFor(() =>
+                expect(
+                    screen.getByLabelText('Client ID', { exact: false }),
+                ).toBeDisabled(),
+            );
+            expect(
+                screen.getByLabelText('Client secret', { exact: false }),
+            ).toBeDisabled();
+            expect(
+                screen.getByRole('button', { name: 'Cancel' }),
+            ).toBeDisabled();
+            expect(
+                screen.getByRole('button', { name: 'Test and save' }),
+            ).toBeDisabled();
+            expect(screen.getByRole('button', { name: 'Test' })).toBeDisabled();
+            expect(onClose).not.toHaveBeenCalled();
+            unmount();
+            expect(client.getMutationCache().getAll()).toHaveLength(0);
+            await act(async () => {
+                finish?.();
+            });
+            expect(client.getMutationCache().getAll()).toHaveLength(0);
+        },
+    );
+    it('shows failures inline and clears them on edit', async () => {
+        vi.mocked(lightdashApiResponse).mockRejectedValue({
+            error: { message: 'Could not verify these credentials.' },
+        });
+        const { onSaved } = setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Could not verify these credentials.',
+        );
+        expect(onSaved).not.toHaveBeenCalled();
+        fireEvent.change(
+            screen.getByLabelText('Client secret', { exact: false }),
+            { target: { value: 'replacement' } },
+        );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+    it('shows a failed Test as an alert', async () => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...verification,
+            ok: false,
+            principal: null,
+            message: 'Access denied.',
+        });
+        setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+            'Access denied.',
+        );
+    });
+    it('clears inputs and mutations on Cancel', async () => {
+        const { onClose, client } = setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        await screen.findByRole('status');
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(
+            screen.getByLabelText('Client secret', { exact: false }),
+        ).toHaveValue('');
+        expect(client.getMutationCache().getAll()).toHaveLength(0);
+    });
+});

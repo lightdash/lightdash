@@ -284,6 +284,35 @@ describe('Organisation agent identity settings', () => {
             }),
         );
     });
+    it('offers the Databricks AI service account rule without per-person sign-in', async () => {
+        currentOverview.rules.push({
+            warehouseType: WarehouseTypes.DATABRICKS,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        });
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('combobox', {
+                name: 'Databricks agent identity',
+            }),
+        );
+        expect(
+            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: identityLabels.ai_service_account.label,
+            }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/databricks',
+                method: 'PUT',
+                body: JSON.stringify({ source: 'ai_service_account' }),
+            }),
+        );
+    });
     it('shows no setup in the default state and enables the sign-in option with a hint', async () => {
         startUnconfigured();
         await screen.findAllByRole('combobox');
