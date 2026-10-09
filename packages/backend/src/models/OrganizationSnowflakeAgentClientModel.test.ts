@@ -93,7 +93,8 @@ test.each([
         if (change === 'corrupt')
             existing.encrypted_client_secret = Buffer.from('corrupt');
         tracker.on.select(table).response(change === 'new' ? [] : [existing]);
-        tracker.on.insert(table).response([existing]);
+        tracker.on.insert(table).response(change === 'new' ? [existing] : []);
+        tracker.on.update(table).response([existing]);
         const changed = {
             ...input,
             ...(['accountUrl', 'clientId', 'clientSecret'].includes(change)
@@ -110,9 +111,11 @@ test.each([
             corrupt: 'replaced',
         };
         expect(result.action).toBe(actions[change]);
-        expect(tracker.history.select).toHaveLength(1);
-        expect(tracker.history.select[0].sql).toContain(table);
-        const query = tracker.history.insert[0];
+        expect(tracker.history.select).toHaveLength(change === 'new' ? 0 : 1);
+        const query =
+            change === 'new'
+                ? tracker.history.insert[0]
+                : tracker.history.update[0];
         const ciphertext = query.bindings.find((binding) =>
             Buffer.isBuffer(binding),
         );
@@ -121,10 +124,17 @@ test.each([
             changed.clientSecret,
         );
         expect(query.bindings).not.toContain(changed.clientSecret);
-        expect(query.sql).toContain(
-            'on conflict ("organization_uuid") do update',
+        expect(tracker.history.insert[0].sql).toContain(
+            'on conflict ("organization_uuid") do nothing returning *',
         );
-        expect(tracker.history.select[0].sql).toContain('for update');
+        if (change !== 'new') {
+            expect(tracker.history.select[0].sql).toContain('for update');
+            expect(tracker.history.all.map(({ method }) => method)).toEqual([
+                'insert',
+                'select',
+                'update',
+            ]);
+        }
         expect(query.bindings.includes('original-version')).toBe(
             change === 'identical',
         );

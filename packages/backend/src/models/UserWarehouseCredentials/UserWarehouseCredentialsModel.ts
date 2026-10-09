@@ -226,9 +226,11 @@ export class UserWarehouseCredentialsModel {
         return rows.map((r) => this.convertToUserWarehouseCredentials(r));
     }
 
-    async getAiCredentialsByUserUuid(
-        userUuid: string,
-    ): Promise<UserWarehouseCredentials[]> {
+    async getAiCredentialsByUserUuid(userUuid: string): Promise<
+        (UserWarehouseCredentials & {
+            aiClientBinding: SnowflakeAiClientBinding | null;
+        })[]
+    > {
         const rows = await this.baseSelectWithProject()
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
             .andWhere(
@@ -236,7 +238,11 @@ export class UserWarehouseCredentialsModel {
                 UserWarehouseCredentialPurpose.AI,
             )
             .orderBy(`${UserWarehouseCredentialsTableName}.created_at`);
-        return rows.map((row) => this.convertToUserWarehouseCredentials(row));
+        return rows.map((row) => ({
+            ...this.convertToUserWarehouseCredentials(row),
+            aiClientBinding:
+                this.decryptCredentials(row).aiClientBinding ?? null,
+        }));
     }
 
     async findAiCredentialWithSecrets({

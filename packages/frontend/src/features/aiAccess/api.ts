@@ -278,11 +278,8 @@ export const useSaveSnowflakeAgentClient = () => {
             showToastSuccess({ title: 'Snowflake client saved.' });
             void Promise.all([
                 client.resetQueries([...orgKey, 'snowflake-verify']),
-                client.invalidateQueries([
-                    'ai-access',
-                    'org',
-                    'agent-identity',
-                ]),
+                client.invalidateQueries(['ai-access']),
+                client.invalidateQueries(['user_warehouse_credentials']),
             ]);
         },
     });

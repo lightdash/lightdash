@@ -58,6 +58,11 @@ export type UserWarehouseCredentials = {
     project: UserWarehouseCredentialsProject | null;
 };
 
+export type UserWarehouseCredentialsWithAgentStatus =
+    UserWarehouseCredentials & {
+        agentClientCurrent: boolean | null;
+    };
+
 export type UserWarehouseCredentialsWithSecrets = Pick<
     UserWarehouseCredentials,
     'uuid' | 'expiresAt'

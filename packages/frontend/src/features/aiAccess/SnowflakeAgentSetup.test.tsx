@@ -183,11 +183,8 @@ describe('SnowflakeAgentSetup client', () => {
         expect(mocks.success).toHaveBeenCalledWith({
             title: 'Snowflake client saved.',
         });
-        expect(invalidate).toHaveBeenCalledWith([
-            'ai-access',
-            'org',
-            'agent-identity',
-        ]);
+        expect(invalidate).toHaveBeenCalledWith(['ai-access']);
+        expect(invalidate).toHaveBeenCalledWith(['user_warehouse_credentials']);
         expect(
             client.getQueryData(['ai-access', 'org', 'org', 'snowflake-setup']),
         ).toEqual(setup);

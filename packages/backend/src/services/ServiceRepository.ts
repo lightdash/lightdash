@@ -1530,6 +1530,12 @@ export class ServiceRepository
             'userService',
             () =>
                 new UserService({
+                    snowflakeAgentClientResolver:
+                        new SnowflakeAgentClientResolver({
+                            lightdashConfig: this.context.lightdashConfig,
+                            organizationSnowflakeAgentClientModel:
+                                this.models.getOrganizationSnowflakeAgentClientModel(),
+                        }),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     inviteLinkModel: this.models.getInviteLinkModel(),

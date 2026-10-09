@@ -25,6 +25,7 @@ import {
     ProjectMemberRole,
     SessionUser,
     SnowflakeAuthenticationType,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type LearnProgress,
     type RegisteredAccount,
@@ -57,6 +58,8 @@ import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
+import { type SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
+import { snowflakeAgentClientMock } from './AiAccessService/SnowflakeAgentClientResolver.mock';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -235,6 +238,10 @@ const organizationMemberProfileModel = {
 };
 
 type UserServiceTestOverrides = {
+    snowflakeAgentClientResolver?: Pick<
+        SnowflakeAgentClientResolver,
+        'resolve'
+    >;
     userLearnProgressModel?: Partial<UserLearnProgressModel>;
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
     userWarehouseCredentialsModel?: Partial<UserWarehouseCredentialsModel>;
@@ -272,6 +279,10 @@ const createUserService = (
 ) =>
     new UserService({
         analytics: analyticsMock,
+        snowflakeAgentClientResolver:
+            overrides.snowflakeAgentClientResolver ?? {
+                resolve: vi.fn(async () => null),
+            },
         lightdashConfig,
         inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
         userModel: userModel as unknown as UserModel,
@@ -4814,6 +4825,9 @@ describe('UserService', () => {
             };
             const service = new UserService({
                 analytics: analyticsMock,
+                snowflakeAgentClientResolver: {
+                    resolve: vi.fn(async () => null),
+                },
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: failingUserModel as unknown as UserModel,
@@ -4893,6 +4907,9 @@ describe('UserService', () => {
             };
             const service = new UserService({
                 analytics: analyticsMock,
+                snowflakeAgentClientResolver: {
+                    resolve: vi.fn(async () => null),
+                },
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: tokenUserModel as unknown as UserModel,
@@ -6082,4 +6099,87 @@ describe('UserService learn progress (CS-186)', () => {
             lastStarted: null,
         });
     });
+});
+
+describe('warehouse credential agent client status', () => {
+    it.each([
+        [
+            'old version',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: 'old',
+            },
+            'current',
+            false,
+        ],
+        [
+            'matching version',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: 'current',
+            },
+            'current',
+            true,
+        ],
+        ['legacy environment', null, null, true],
+        ['legacy organization', null, 'current', false],
+        [
+            'different organization',
+            { organizationUuid: 'other-org', clientVersion: 'current' },
+            'current',
+            false,
+        ],
+        [
+            'bound environment',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: null,
+            },
+            null,
+            true,
+        ],
+    ] as const)(
+        'reports whether %s is current without exposing its binding',
+        async (_name, binding, version, expected) => {
+            const credential = {
+                uuid: 'credential',
+                userUuid: sessionUser.userUuid,
+                purpose: UserWarehouseCredentialPurpose.AI,
+                name: 'Agent sign-in',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                expiresAt: new Date(Date.now() + 86400000),
+                project: null,
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE as const,
+                    user: 'agent-user',
+                    authenticationType:
+                        SnowflakeAuthenticationType.SSO as const,
+                },
+                aiClientBinding: binding,
+            };
+            const resolve = vi.fn(async () => ({
+                ...snowflakeAgentClientMock,
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: version,
+            }));
+            const service = createUserService(lightdashConfigMock, {
+                snowflakeAgentClientResolver: { resolve },
+                userWarehouseCredentialsModel: {
+                    getAllByUserUuid: vi.fn(async () => []),
+                    getAiCredentialsByUserUuid: vi.fn(async () => [credential]),
+                },
+            });
+            const [result] = await service.getWarehouseCredentials(sessionUser);
+            expect(result).toMatchObject({ agentClientCurrent: expected });
+            expect(result).not.toHaveProperty('aiClientBinding');
+            expect(resolve).toHaveBeenCalledWith(sessionUser.organizationUuid);
+            resolve.mockRejectedValueOnce(
+                new Error('Unreadable client secret'),
+            );
+            expect(await service.getWarehouseCredentials(sessionUser)).toEqual([
+                { ...result, agentClientCurrent: false },
+            ]);
+        },
+    );
 });

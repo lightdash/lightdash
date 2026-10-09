@@ -3,7 +3,7 @@ import {
     assertUnreachable,
     FeatureFlags,
     formatDate,
-    type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
@@ -36,11 +36,45 @@ const getStatusBadge = (status: SnowflakeAgentStatus) => {
     }
 };
 
+const SnowflakeAgentConnectionDetails = ({
+    status,
+    expiresAt,
+    now,
+    errorMessage,
+}: {
+    status: SnowflakeAgentStatus;
+    expiresAt: Date | null;
+    now: number;
+    errorMessage: string | null;
+}) => (
+    <>
+        {status === 'connected' &&
+        expiresAt &&
+        new Date(expiresAt).getTime() > now ? (
+            <Text c="dimmed" fz="sm">
+                Your agent connection ends on {formatDate(expiresAt)}
+            </Text>
+        ) : null}
+        {status !== 'connected' && (
+            <Text c="dimmed" fz="sm">
+                {status === 'unavailable'
+                    ? 'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.'
+                    : 'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.'}
+            </Text>
+        )}
+        {status === 'failing' && errorMessage && (
+            <Text c="red" fz="sm" role="alert">
+                {errorMessage}
+            </Text>
+        )}
+    </>
+);
+
 export const SnowflakeAgentConnectionCard = ({
     credential,
     snowflakeConfigured,
 }: {
-    credential: UserWarehouseCredentials | null;
+    credential: UserWarehouseCredentialsWithAgentStatus | null;
     snowflakeConfigured: boolean;
 }) => {
     const { data: silentRefreshFlag } = useServerFeatureFlag(
@@ -92,26 +126,12 @@ export const SnowflakeAgentConnectionCard = ({
                         </Button>
                     ) : null}
                 </Group>
-                {status === 'connected' &&
-                credential?.expiresAt &&
-                new Date(credential.expiresAt).getTime() > now ? (
-                    <Text c="dimmed" fz="sm">
-                        Your agent connection ends on{' '}
-                        {formatDate(credential.expiresAt)}
-                    </Text>
-                ) : null}
-                {status !== 'connected' && (
-                    <Text c="dimmed" fz="sm">
-                        {status === 'unavailable'
-                            ? 'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.'
-                            : 'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.'}
-                    </Text>
-                )}
-                {status === 'failing' && login.error && (
-                    <Text c="red" fz="sm" role="alert">
-                        {login.error.message}
-                    </Text>
-                )}
+                <SnowflakeAgentConnectionDetails
+                    status={status}
+                    expiresAt={credential?.expiresAt ?? null}
+                    now={now}
+                    errorMessage={login.error?.message ?? null}
+                />
             </Stack>
             {status !== 'unavailable' && credential && isRemoving && (
                 <DeleteCredentialsModal

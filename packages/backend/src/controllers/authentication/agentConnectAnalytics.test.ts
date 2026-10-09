@@ -279,6 +279,57 @@ describe('connect start', () => {
 });
 
 describe('connect outcome with real Passport', () => {
+    it.each(['access_denied', 'server_error'])(
+        'consumes the nonce and binding after %s and rejects a replay',
+        async (error) => {
+            const { req, start, authorize, callback, upsert } = setup();
+            await start();
+            const state = new URL(await authorize()).searchParams.get('state')!;
+            req.query = { error, state, error_description: 'OAuth failed' };
+            await callback();
+            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+            expect(req.session.agentConnectBindings).toEqual({});
+            req.query = { code: 'replayed-code', state };
+            expect(await callback()).toContain('error=sign_in_failed');
+            expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it('rejects a denied nonce after the user changes organizations', async () => {
+        const { req, service, start, authorize, callback, upsert } = setup();
+        await start();
+        const state = new URL(await authorize()).searchParams.get('state')!;
+        req.query = { error: 'access_denied', state };
+        await callback();
+        req.user!.organizationUuid = 'other-org';
+        vi.mocked(service.resolveSnowflakeAgentClient).mockResolvedValue({
+            ...snowflakeAgentClientMock,
+            organizationUuid: 'other-org',
+        });
+        req.query = { code: 'replayed-code', state };
+        expect(await callback()).toContain('error=sign_in_failed');
+        expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'allows an unbound environment nonce only without a bindings map (map=%s)',
+        async (hasBindings) => {
+            const { req, callback, upsert } = setup();
+            req.session['oauth2:snowflake-ai'] = { state: 'legacy-state' };
+            if (hasBindings) req.session.agentConnectBindings = {};
+            req.query = { code: 'code', state: 'legacy-state' };
+            const result = await callback();
+            expect(result.includes('error=')).toBe(hasBindings);
+            expect(oauth.getOAuthAccessToken).toHaveBeenCalledTimes(
+                hasBindings ? 0 : 1,
+            );
+            expect(upsert).toHaveBeenCalledTimes(hasBindings ? 0 : 1);
+            expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
+        },
+    );
+
     it('correlates overlapping starts when A is denied and B connects', async () => {
         const { req, analytics, upsert, start, authorize, callback } = setup();
         req.query.entryPoint = EntryPoint.CHAT_CARD;
@@ -353,6 +404,8 @@ describe('connect outcome with real Passport', () => {
         });
         expect(req.session.agentConnectAttempts ?? {}).toEqual({});
         expect(analytics.track).toHaveBeenCalledTimes(2);
+        expect(req.session.agentConnectBindings).toEqual({});
+        expect(req.session['oauth2:snowflake-ai']).toBeUndefined();
         expect(await callback()).toBe(
             'http://localhost:4321/done?x=1&error=sign_in_failed',
         );

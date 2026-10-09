@@ -51,26 +51,64 @@ const fixture = async () => {
     };
 };
 
-test('stores ciphertext and serializes identical concurrent saves without replacing the version', async () => {
-    const { model, input } = await fixture();
-    const results = await Promise.all([
-        model.upsert(input),
-        model.upsert(input),
-    ]);
-    expect(results[0].clientVersion).toBe(results[1].clientVersion);
-    const saved = await migrated
-        .database(table)
-        .where('organization_uuid', input.organizationUuid);
-    expect(saved).toHaveLength(1);
-    expect(saved[0].encrypted_client_secret.toString()).not.toContain(
-        input.clientSecret,
-    );
-    expect(saved[0].created_by_user_uuid).toBe(input.userUuid);
-    expect(saved[0].organization_snowflake_agent_client_uuid).toBeTruthy();
-    expect(await model.getWithSecret(input.organizationUuid)).toMatchObject({
-        clientSecret: input.clientSecret,
-    });
-});
+test.each([false, true])(
+    'serializes concurrent first saves (replacement=%s)',
+    async (replacement) => {
+        const { input } = await fixture();
+        const first = await migrated.database.transaction();
+        const second = await migrated.database.transaction();
+        try {
+            const firstModel = new OrganizationSnowflakeAgentClientModel({
+                database: first,
+                encryptionUtil,
+            });
+            const secondModel = new OrganizationSnowflakeAgentClientModel({
+                database: second,
+                encryptionUtil,
+            });
+            const [{ pid: firstPid }] = await first.select(
+                first.raw('pg_backend_pid() as pid'),
+            );
+            const [{ pid: secondPid }] = await second.select(
+                second.raw('pg_backend_pid() as pid'),
+            );
+            const created = await firstModel.upsert(input);
+            const pending = secondModel.upsert(
+                replacement ? { ...input, clientId: 'replacement' } : input,
+            );
+            await vi.waitFor(async () => {
+                const { rows } = await migrated.database.raw(
+                    'select ? = any(pg_blocking_pids(?)) as blocked',
+                    [firstPid, secondPid],
+                );
+                expect(rows[0].blocked).toBe(true);
+            });
+            await first.commit();
+            const saved = await pending;
+            await second.commit();
+            expect(created.action).toBe('created');
+            expect(saved.action).toBe(replacement ? 'replaced' : 'unchanged');
+            expect(saved.clientVersion === created.clientVersion).toBe(
+                !replacement,
+            );
+            const rows = await migrated
+                .database(table)
+                .where('organization_uuid', input.organizationUuid);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].client_version).toBe(saved.clientVersion);
+            expect(rows[0].encrypted_client_secret.toString()).not.toContain(
+                input.clientSecret,
+            );
+            expect(rows[0].created_by_user_uuid).toBe(input.userUuid);
+            expect(
+                rows[0].organization_snowflake_agent_client_uuid,
+            ).toBeTruthy();
+        } finally {
+            if (!first.isCompleted()) await first.rollback();
+            if (!second.isCompleted()) await second.rollback();
+        }
+    },
+);
 
 test.each(['clientId', 'clientSecret', 'accountUrl'] as const)(
     'changes the version only when %s changes',

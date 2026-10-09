@@ -83,6 +83,29 @@ export class OrganizationSnowflakeAgentClientModel {
         userUuid: string;
     }) {
         return this.args.database.transaction(async (trx) => {
+            const values = {
+                account_url: accountUrl,
+                account_identifier: accountIdentifier,
+                client_id: clientId,
+                encrypted_client_secret:
+                    this.args.encryptionUtil.encrypt(clientSecret),
+                client_version: randomUUID(),
+                updated_at: new Date(),
+                updated_by_user_uuid: userUuid,
+            };
+            const [inserted] = await trx(
+                OrganizationSnowflakeAgentClientsTableName,
+            )
+                .insert({
+                    ...values,
+                    organization_uuid: organizationUuid,
+                    created_by_user_uuid: userUuid,
+                })
+                .onConflict('organization_uuid')
+                .ignore()
+                .returning('*');
+            if (inserted)
+                return { ...toMetadata(inserted), action: 'created' as const };
             const existing = await trx(
                 OrganizationSnowflakeAgentClientsTableName,
             )
@@ -103,32 +126,15 @@ export class OrganizationSnowflakeAgentClientModel {
                 existing.client_id === clientId &&
                 sameSecret
                     ? existing.client_version
-                    : randomUUID();
-            const values = {
-                account_url: accountUrl,
-                account_identifier: accountIdentifier,
-                client_id: clientId,
-                encrypted_client_secret:
-                    this.args.encryptionUtil.encrypt(clientSecret),
-                client_version: clientVersion,
-                updated_at: new Date(),
-                updated_by_user_uuid: userUuid,
-            };
+                    : values.client_version;
             const [row] = await trx(OrganizationSnowflakeAgentClientsTableName)
-                .insert({
-                    ...values,
-                    organization_uuid: organizationUuid,
-                    created_by_user_uuid: userUuid,
-                })
-                .onConflict('organization_uuid')
-                .merge(values)
+                .where('organization_uuid', organizationUuid)
+                .update({ ...values, client_version: clientVersion })
                 .returning('*');
-            let action: 'created' | 'replaced' | 'unchanged' = 'created';
-            if (existing)
-                action =
-                    clientVersion === existing.client_version
-                        ? 'unchanged'
-                        : 'replaced';
+            const action =
+                clientVersion === existing?.client_version
+                    ? ('unchanged' as const)
+                    : ('replaced' as const);
             return { ...toMetadata(row), action };
         });
     }

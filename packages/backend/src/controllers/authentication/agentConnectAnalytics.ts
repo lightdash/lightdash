@@ -177,12 +177,21 @@ export const authenticateAgentConnect: RequestHandler = async (
 
 export const agentConnectCallback: RequestHandler = async (req, res, next) => {
     const state = req.session['oauth2:snowflake-ai']?.state;
+    const consumeCallbackState = () => {
+        const callbackState = req.query.state;
+        if (typeof callbackState !== 'string') return;
+        if (req.session.agentConnectBindings)
+            delete req.session.agentConnectBindings[callbackState];
+        if (req.session['oauth2:snowflake-ai']?.state === callbackState)
+            delete req.session['oauth2:snowflake-ai'];
+    };
     const tokenExchangeStarted =
         typeof req.query.code === 'string' &&
         !!state &&
         state === req.query.state;
     const accessDenied = req.query.error === 'access_denied';
     if (!req.user?.organizationUuid) {
+        consumeCallbackState();
         recordConnectOutcome(
             req,
             AgentIdentityConnectFailureReason.ORGANIZATION_REQUIRED,
@@ -215,16 +224,14 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
             Object.hasOwn(bindings, callbackState)
                 ? bindings[callbackState]
                 : null;
-        if (typeof callbackState === 'string' && bindings)
-            delete bindings[callbackState];
         if (
             binding
                 ? binding.organizationUuid !== req.user?.organizationUuid ||
                   binding.clientVersion !== client.clientVersion
-                : client.source !== 'environment'
+                : client.source !== 'environment' ||
+                  (bindings !== undefined && state === callbackState)
         ) {
-            if (state === callbackState)
-                delete req.session['oauth2:snowflake-ai'];
+            consumeCallbackState();
             recordConnectOutcome(req, reason);
             res.redirect(
                 getAgentConnectRedirectURL(
@@ -244,6 +251,7 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
                 _info: unknown,
                 status?: number,
             ) => {
+                consumeCallbackState();
                 const isSuccess = !error && !!user;
                 if (error instanceof FeatureNotEnabledError) {
                     consumeConnectAttempt(req);
@@ -266,10 +274,12 @@ export const agentConnectCallback: RequestHandler = async (req, res, next) => {
                 res.redirect(getAgentConnectRedirectURL(isSuccess, error)(req));
             },
         )(req, res, (error: unknown) => {
+            consumeCallbackState();
             if (error) recordConnectError(req, error, reason);
             next(error);
         });
     } catch (error) {
+        consumeCallbackState();
         recordConnectError(req, error, reason);
         next(error);
     }

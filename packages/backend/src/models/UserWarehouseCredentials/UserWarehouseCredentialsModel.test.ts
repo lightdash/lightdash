@@ -201,7 +201,7 @@ describe('UserWarehouseCredentialsModel', () => {
         },
     );
 
-    test('strips internal client binding from secret-bearing and public warehouse credentials', async () => {
+    test('returns the binding separately for agent status and strips it from warehouse credentials', async () => {
         const aiClientBinding = {
             organizationUuid: 'org',
             clientVersion: 'version',
@@ -227,8 +227,13 @@ describe('UserWarehouseCredentialsModel', () => {
             await credentialModel.getByUuidWithSecrets('credential');
         expect(secretResult).not.toHaveProperty('aiClientBinding');
         expect(secretResult.credentials).toEqual(credentials);
-        const publicResult =
+        const [statusCredential] =
             await credentialModel.getAiCredentialsByUserUuid('user-1');
+        expect(statusCredential.aiClientBinding).toEqual(aiClientBinding);
+        expect(statusCredential.credentials).not.toHaveProperty(
+            'aiClientBinding',
+        );
+        const publicResult = await credentialModel.getAllByUserUuid('user-1');
         expect(JSON.stringify(publicResult)).not.toContain('aiClientBinding');
         expect(JSON.stringify(publicResult)).not.toContain('clientVersion');
     });
