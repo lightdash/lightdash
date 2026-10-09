@@ -12,11 +12,13 @@ export const getSnowflakeAgentStatus = (
     hasLoginError: boolean,
     now: number,
     snowflakeConfigured: boolean,
+    silentRefreshEnabled: boolean,
 ): SnowflakeAgentStatus => {
     if (!snowflakeConfigured) return 'unavailable';
     if (hasLoginError) return 'failing';
     if (!credential) return 'not_connected';
     if (
+        !silentRefreshEnabled &&
         credential.expiresAt &&
         new Date(credential.expiresAt).getTime() <= now
     ) {

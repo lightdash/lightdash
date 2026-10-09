@@ -1,5 +1,6 @@
 import {
     AgentIdentityConnectEntryPoint,
+    FeatureFlags,
     formatDate,
     UserWarehouseCredentialPurpose,
     type UserWarehouseCredentials,
@@ -20,6 +21,7 @@ import {
 } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { credential } from './fixtures';
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 
@@ -28,6 +30,20 @@ const { login, deleteCredentials, popup } = vi.hoisted(() => ({
     popup: vi.fn(),
     deleteCredentials: vi.fn<() => Promise<void>>(),
 }));
+
+vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(),
+}));
+
+const mockSilentRefreshFlag = (enabled: boolean | undefined) => {
+    vi.mocked(useServerFeatureFlag).mockReturnValue({
+        data:
+            enabled === undefined
+                ? undefined
+                : { id: FeatureFlags.AgentIdentitySilentRefresh, enabled },
+        isLoading: enabled === undefined,
+    } as ReturnType<typeof useServerFeatureFlag>);
+};
 
 vi.mock('../../../hooks/useSnowflake', () => ({
     useSnowflakeAiLoginPopup: (attribution: unknown) => {
@@ -76,6 +92,7 @@ const renderCard = (
 describe('SnowflakeAgentConnectionCard', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockSilentRefreshFlag(false);
         login.mockResolvedValue();
         deleteCredentials.mockResolvedValue();
     });
@@ -109,10 +126,16 @@ describe('SnowflakeAgentConnectionCard', () => {
         expect(
             screen.getByRole('button', { name: 'Disconnect' }),
         ).toBeEnabled();
+        expect(
+            screen.getByText(/Your agent connection ends on/),
+        ).toBeInTheDocument();
         act(() => {
             vi.advanceTimersByTime(1001);
         });
         expect(screen.getByText('Expired')).toBeInTheDocument();
+        expect(
+            screen.queryByText(/Your agent connection ends on/),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Connect agent' }),
         ).toBeEnabled();
@@ -155,44 +178,88 @@ describe('SnowflakeAgentConnectionCard', () => {
         },
     );
 
-    it('shows the stored expiry with the app date format', () => {
-        const expiresAt = new Date(Date.now() + 86400000);
-        renderCard([{ ...credential, expiresAt }]);
-        expect(
-            screen.getByText(`Connected until ${formatDate(expiresAt)}`),
-        ).toBeInTheDocument();
+    it.each([false, true])(
+        'shows the stored expiry with silent refresh %s',
+        (enabled) => {
+            mockSilentRefreshFlag(enabled);
+            const expiresAt = new Date(Date.now() + 86400000);
+            renderCard([{ ...credential, expiresAt }]);
+            expect(screen.getByText('Connected')).toBeInTheDocument();
+            expect(useServerFeatureFlag).toHaveBeenCalledWith(
+                FeatureFlags.AgentIdentitySilentRefresh,
+            );
+            expect(
+                screen.getByText(
+                    `Your agent connection ends on ${formatDate(expiresAt)}`,
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Disconnect' }),
+            ).toBeEnabled();
+        },
+    );
+
+    it('keeps a past expiry connected with silent refresh enabled', () => {
+        mockSilentRefreshFlag(true);
+        renderCard([{ ...credential, expiresAt: new Date(Date.now() - 1) }]);
+        expect(screen.getByText('Connected')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Disconnect' }),
         ).toBeEnabled();
+        expect(
+            screen.queryByText(/Your agent connection ends on/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect agent' }),
+        ).not.toBeInTheDocument();
     });
 
-    it('offers reconnection after the stored expiry', () => {
-        renderCard([{ ...credential, expiresAt: new Date(Date.now() - 1) }]);
-        expect(screen.getByText('Expired')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Disconnect' }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Connect agent' }));
-    });
+    it.each([false, undefined])(
+        'offers reconnection after the stored expiry with silent refresh %s',
+        (enabled) => {
+            mockSilentRefreshFlag(enabled);
+            renderCard([
+                { ...credential, expiresAt: new Date(Date.now() - 1) },
+            ]);
+            expect(screen.getByText('Expired')).toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your agent connection ends on/),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Disconnect' }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            );
+        },
+    );
 
-    it('shows the connected state without a date', () => {
-        renderCard([credential]);
-        expect(screen.getByText('Connected')).toBeInTheDocument();
-        expect(screen.queryByText(/Your AI questions/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/connected since/)).not.toBeInTheDocument();
-        expect(
-            screen.queryByText(credential.createdAt.toLocaleDateString()),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', {
-                name: 'Connect agent',
-            }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Disconnect' }),
-        ).toHaveAttribute('data-variant', 'default');
-    });
+    it.each([false, true, undefined])(
+        'shows the connected state without a date with silent refresh %s',
+        (enabled) => {
+            mockSilentRefreshFlag(enabled);
+            renderCard([credential]);
+            expect(screen.getByText('Connected')).toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your AI questions/),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(/Your agent connection ends on/),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText(credential.createdAt.toLocaleDateString()),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Connect agent',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Disconnect' }),
+            ).toHaveAttribute('data-variant', 'default');
+        },
+    );
 
     it('shows popup loading, then the error and an enabled retry button', async () => {
         let rejectLogin: (error: Error) => void = () => {};

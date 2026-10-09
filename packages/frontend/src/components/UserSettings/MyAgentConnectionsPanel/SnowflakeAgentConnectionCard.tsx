@@ -1,11 +1,13 @@
 import {
     AgentIdentityConnectEntryPoint,
     assertUnreachable,
+    FeatureFlags,
     formatDate,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSnowflakeAiLoginPopup } from '../../../hooks/useSnowflake';
 import { DeleteCredentialsModal } from '../MyWarehouseConnectionsPanel/DeleteCredentialsModal';
 import {
@@ -14,10 +16,7 @@ import {
 } from './snowflakeAgentStatus';
 import { useExpiryTimer } from './useExpiryTimer';
 
-const getStatusBadge = (
-    status: SnowflakeAgentStatus,
-    expiresAt: Date | null,
-) => {
+const getStatusBadge = (status: SnowflakeAgentStatus) => {
     switch (status) {
         case 'unavailable':
             return { label: 'Not available', color: 'gray' };
@@ -25,9 +24,7 @@ const getStatusBadge = (
             return { label: 'Not connected', color: 'gray' };
         case 'connected':
             return {
-                label: expiresAt
-                    ? `Connected until ${formatDate(expiresAt)}`
-                    : 'Connected',
+                label: 'Connected',
                 color: 'green',
             };
         case 'expired':
@@ -46,21 +43,29 @@ export const SnowflakeAgentConnectionCard = ({
     credential: UserWarehouseCredentials | null;
     snowflakeConfigured: boolean;
 }) => {
+    const { data: silentRefreshFlag } = useServerFeatureFlag(
+        FeatureFlags.AgentIdentitySilentRefresh,
+    );
+    const silentRefreshEnabled = silentRefreshFlag?.enabled ?? false;
     const login = useSnowflakeAiLoginPopup({
         entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
         projectUuid: null,
     });
     const [isRemoving, setIsRemoving] = useState(false);
     useExpiryTimer(
-        credential?.expiresAt ? new Date(credential.expiresAt).getTime() : null,
+        !silentRefreshEnabled && credential?.expiresAt
+            ? new Date(credential.expiresAt).getTime()
+            : null,
     );
+    const now = Date.now();
     const status = getSnowflakeAgentStatus(
         credential,
         !!login.error,
-        Date.now(),
+        now,
         snowflakeConfigured,
+        silentRefreshEnabled,
     );
-    const badge = getStatusBadge(status, credential?.expiresAt ?? null);
+    const badge = getStatusBadge(status);
     return (
         <Paper p="md">
             <Stack gap="sm">
@@ -87,6 +92,14 @@ export const SnowflakeAgentConnectionCard = ({
                         </Button>
                     ) : null}
                 </Group>
+                {status === 'connected' &&
+                credential?.expiresAt &&
+                new Date(credential.expiresAt).getTime() > now ? (
+                    <Text c="dimmed" fz="sm">
+                        Your agent connection ends on{' '}
+                        {formatDate(credential.expiresAt)}
+                    </Text>
+                ) : null}
                 {status !== 'connected' && (
                     <Text c="dimmed" fz="sm">
                         {status === 'unavailable'
