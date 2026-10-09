@@ -240,8 +240,10 @@ export const useSavedSqlChartResults = (
             }
         },
         {
+            // Waiting for a chart refetch avoids running results under a stale key
             enabled:
                 !!chartQuery.data &&
+                !chartQuery.isFetching &&
                 !chartQuery.isError &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
