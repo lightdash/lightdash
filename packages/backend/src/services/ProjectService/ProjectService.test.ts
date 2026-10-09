@@ -627,6 +627,7 @@ const getMockedProjectService = (
     > = {},
 ) =>
     new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig,
         analytics: analyticsMock,
         projectModel:

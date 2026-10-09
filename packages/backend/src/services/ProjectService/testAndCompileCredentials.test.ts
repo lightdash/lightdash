@@ -178,6 +178,7 @@ const setup = (
     };
     const analytics = { track: vi.fn() };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
             staticIp: '192.0.2.1',

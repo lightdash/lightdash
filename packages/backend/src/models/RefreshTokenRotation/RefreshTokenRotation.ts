@@ -98,7 +98,7 @@ export class RefreshTokenRotation {
     constructor({
         database,
         maxConcurrent = 2,
-        admissionTimeoutMs = 10_000,
+        admissionTimeoutMs = 30_000,
         inFlight,
     }: {
         database: Knex;
@@ -125,10 +125,26 @@ export class RefreshTokenRotation {
         this.admissionTimeoutMs = admissionTimeoutMs;
     }
 
+    static maxConcurrentFor(database: Knex): number {
+        const poolMax = Number(
+            (
+                database.client as
+                    | { config?: { pool?: { max?: unknown } } }
+                    | undefined
+            )?.config?.pool?.max,
+        );
+        return Number.isInteger(poolMax) && poolMax > 0
+            ? Math.max(2, Math.floor(poolMax / 4))
+            : 2;
+    }
+
     static forDatabase(database: Knex): RefreshTokenRotation {
         let coordinator = sharedCoordinators.get(database);
         if (!coordinator) {
-            coordinator = new RefreshTokenRotation({ database });
+            coordinator = new RefreshTokenRotation({
+                database,
+                maxConcurrent: RefreshTokenRotation.maxConcurrentFor(database),
+            });
             sharedCoordinators.set(database, coordinator);
         }
         return coordinator;

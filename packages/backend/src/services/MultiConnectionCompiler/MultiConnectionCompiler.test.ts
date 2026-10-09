@@ -33,6 +33,7 @@ import {
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
     MultiConnectionCompiler,
@@ -225,6 +226,8 @@ describe('extra connection scope cleanup', () => {
             };
             const factory = new WarehouseClientFactory({
                 credentialResolvers: createCredentialResolverRegistry({
+                    snowflakeOAuthCredentialResolver:
+                        new SnowflakeOAuthCredentialResolver({} as never),
                     lightdashConfig: lightdashConfigMock,
                     userOAuthGrantsModel: { getRefreshToken: vi.fn() },
                     sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
@@ -405,6 +408,8 @@ describe('DuckLake extra compile credentials', () => {
         };
         const factory = new WarehouseClientFactory({
             credentialResolvers: createCredentialResolverRegistry({
+                snowflakeOAuthCredentialResolver:
+                    new SnowflakeOAuthCredentialResolver({} as never),
                 lightdashConfig: lightdashConfigMock,
                 userOAuthGrantsModel: { getRefreshToken: vi.fn() },
                 sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },

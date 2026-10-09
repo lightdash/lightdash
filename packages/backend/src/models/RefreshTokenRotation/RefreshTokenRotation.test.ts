@@ -355,6 +355,16 @@ describe('RefreshTokenRotation', () => {
         expect(transaction).toHaveBeenCalledTimes(3);
     });
 
+    test('scales the refresh cap with the database pool', () => {
+        const withPool = (max: unknown) =>
+            ({ client: { config: { pool: { max } } } }) as unknown as Knex;
+        expect(RefreshTokenRotation.maxConcurrentFor(withPool(10))).toBe(2);
+        expect(RefreshTokenRotation.maxConcurrentFor(withPool(40))).toBe(10);
+        expect(RefreshTokenRotation.maxConcurrentFor(withPool(undefined))).toBe(
+            2,
+        );
+    });
+
     test('returns one shared coordinator per database', () => {
         const first = createDatabase();
         const second = createDatabase();

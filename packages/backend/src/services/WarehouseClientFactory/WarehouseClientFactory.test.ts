@@ -48,6 +48,7 @@ import {
 } from './ConnectionContext';
 import { createCredentialResolverRegistry } from './credentialResolvers';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
+import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientFactory,
     type WarehouseClientRef,
@@ -212,6 +213,8 @@ const buildFixture = (
     };
     const factory = new WarehouseClientFactory({
         credentialResolvers: createCredentialResolverRegistry({
+            snowflakeOAuthCredentialResolver:
+                new SnowflakeOAuthCredentialResolver({} as never),
             lightdashConfig: lightdashConfigMock,
             sshKeyPairModel,
             userOAuthGrantsModel: { getRefreshToken: vi.fn() },

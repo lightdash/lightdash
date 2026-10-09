@@ -253,19 +253,20 @@ issued tokens. It does not change non-agent Snowflake authentication.
 
 ### Warehouse OAuth refresh locking
 
-`warehouse-oauth-refresh-lock` is a default-on kill switch for coordinated
-warehouse token rotation. Its handler uses the standard database resolver with
-a true fallback. Callers resolve it for the credential resource's organisation,
-without a user UUID, so personal overrides do not apply. Instance defaults and
-organisation overrides apply, with the generic ENV precedence described above.
+`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
+warehouse OAuth refresh (Snowflake sign-in today) runs one at a time per
+credential row. Callers in one process share one refresh. A PostgreSQL advisory
+transaction lock serializes refreshes of the row across processes, and the
+waiter refreshes with the rotated token that the first caller saved.
 
-The coordinator shares pending refreshes within a process and uses a PostgreSQL
-advisory transaction lock for each credential row. Admission allows two leaders
-per database pool, with a ten-second wait limit and a five-second database lock
-wait limit. Timeouts return a retryable refresh error. The flag decision belongs
-to callers; this initial registration does not yet change refresh entry points.
+Callers resolve the flag for the credential's organisation, without a user
+UUID, so personal overrides do not apply. Instance defaults, organisation
+overrides and the generic ENV precedence apply.
 
-Once callers are connected, Console changes apply to the next refresh. A refresh
-already in progress finishes under its selected policy. Disabling the flag selects
-the legacy refresh path and does not undo rotations. ENV changes need a process
+At most a quarter of the database pool (minimum two) holds a refresh lock at
+one time in each process. A caller waits up to 30 seconds for a slot and up to
+5 seconds for the row lock; a timeout returns a retryable refresh error.
+
+Console changes apply to the next refresh. Turning the flag off restores the
+previous refresh path. It does not undo rotations. ENV changes need a process
 restart.

@@ -409,6 +409,7 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        refreshTokenRotation: { run: vi.fn() },
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
             assertCanReadResults: vi.fn(async () => null),
