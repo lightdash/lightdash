@@ -8,6 +8,8 @@ import {
 import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
@@ -56,6 +58,25 @@ const setup = () => {
             findProjectsMissingSlot: vi.fn(async () => []),
         },
         featureFlagModel: flags,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            license: {
+                ...lightdashConfigMock.license,
+                licenseKey: 'test-license',
+            },
+            auth: {
+                ...lightdashConfigMock.auth,
+                snowflakeAi: {
+                    ...lightdashConfigMock.auth.snowflakeAi,
+                    clientId: 'test-client',
+                    clientSecret: 'test-secret',
+                    authorizationEndpoint:
+                        'https://snowflake.example/authorize',
+                    tokenEndpoint:
+                        'https://test-account.snowflakecomputing.com/token',
+                },
+            },
+        } as LightdashConfig,
         organizationAgentIdentityRulesModel:
             rules as unknown as OrganizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel:
