@@ -35,7 +35,6 @@ import { useLearnProgress, useLearnProgressActions } from '../learn/progress';
 import { tourFor } from './tourFor';
 import {
     createTrainingPreview,
-    deleteTrainingPreviews,
     tourUrlInCopy,
     LEAVING_COPY_STATE,
 } from './trainingCopy';
@@ -202,27 +201,9 @@ const ScopeTourHost: FC = () => {
         !!project.upstreamProjectUuid &&
         project.upstreamProjectUuid === trainingProject?.projectUuid;
 
-    // Skipping a tour that ran in a personal copy removes the copy and
-    // returns the learner to the shared training project: the library if
-    // the tour started there, else the homepage. Got it keeps the copy and
-    // opens the completion dialog in place; leaving it is what removes it.
-    const { mutate: closeCopy } = useMutation<
-        undefined,
-        ApiError,
-        { trainingProjectUuid: string }
-    >(
-        ({ trainingProjectUuid }) =>
-            deleteTrainingPreviews(trainingProjectUuid),
-        {
-            onSettled: async () => {
-                await Promise.all([
-                    queryClient.invalidateQueries(['projects']),
-                    queryClient.invalidateQueries(['user']),
-                    queryClient.invalidateQueries(['account']),
-                ]);
-            },
-        },
-    );
+    // The learner's copy outlives the tour: skipping, Got it and leaving
+    // all keep it, with whatever was built in it, for the next walkthrough
+    // and for looking around. The library's Start fresh is what removes it.
     const upstream =
         project?.type === ProjectType.PREVIEW
             ? (project.upstreamProjectUuid ?? null)
@@ -260,14 +241,10 @@ const ScopeTourHost: FC = () => {
         projects?.some((candidate) => candidate.projectUuid === origin)
             ? origin
             : upstream;
-    // Leave the copy before it is removed, and only remove it once the
-    // learner's page has changed: the page being left is addressed by the
-    // copy's slug, and it stays mounted until the next page has loaded. If
-    // the project list refreshed first, that page would find its slug gone
-    // and send the learner to the homepage, undoing the return.
-    const leaveCopy = async (to: string, trainingProjectUuid: string) => {
+    // Leave the copy for the library or the homepage. The state lets an
+    // editor's unsaved-changes guard know the walkthrough is moving on.
+    const leaveCopy = async (to: string) => {
         await navigate(to, { state: LEAVING_COPY_STATE });
-        closeCopy({ trainingProjectUuid });
     };
     // The training project of the copy a tour is running in, kept for the
     // moment the learner is no longer on that copy.
@@ -297,12 +274,9 @@ const ScopeTourHost: FC = () => {
         }
         startedAtRef.current = null;
         deepLinkTrackedRef.current = null;
-        // Already off the copy (the learner left by a link, see below): there
-        // is nowhere to send them, only the copy they left to put away.
+        // Already off the copy (the learner left by a link, see below): they
+        // are where they chose to go, and the copy waits for them.
         if (!upstream) {
-            if (tourUpstreamRef.current) {
-                closeCopy({ trainingProjectUuid: tourUpstreamRef.current });
-            }
             tourUpstreamRef.current = null;
             return;
         }
@@ -315,7 +289,6 @@ const ScopeTourHost: FC = () => {
             returnTo === 'learn'
                 ? libraryPath(returnProject ?? upstream)
                 : `/projects/${returnProject}/home`,
-            upstream,
         );
     };
     // The tour lives here, above the pages, so a page can be left without
@@ -334,20 +307,24 @@ const ScopeTourHost: FC = () => {
     const handleBackToLibrary = () => {
         if (!upstream) return;
         setFinishedScope(null);
-        void leaveCopy(libraryPath(returnProject ?? upstream), upstream);
+        void leaveCopy(libraryPath(returnProject ?? upstream));
     };
-    // One copy per tour start. `isLoading` is not set synchronously, and the
-    // effect below re-runs as its inputs settle, so a ref does the gating; a
-    // second request would delete the copy the learner is being sent to.
+    // Continue exploring: the dialog goes, the page stays, and so does the
+    // copy, with the lesson's result on it.
+    const handleExplore = () => setFinishedScope(null);
+    // One request per tour start. `isLoading` is not set synchronously, and
+    // the effect below re-runs as its inputs settle, so a ref does the
+    // gating. The server hands back the learner's live copy, or a fresh
+    // one when there is none.
     const copyRequestedRef = useRef(false);
-    const { mutate: startInFreshCopy, isLoading: openingCopy } = useMutation<
+    const { mutate: startInCopy, isLoading: openingCopy } = useMutation<
         CreateTrainingPreviewResults,
         ApiError,
         {
             trainingProjectUuid: string;
             scope: string;
             from: ReturnTo;
-            /** Started from the completion dialog in a copy about to go. */
+            /** Started from the completion dialog, inside the copy. */
             leavingCopy?: boolean;
         }
     >(({ trainingProjectUuid }) => createTrainingPreview(trainingProjectUuid), {
@@ -361,12 +338,11 @@ const ScopeTourHost: FC = () => {
         onSuccess: async (copy, { scope, from, leavingCopy }) => {
             const to = tourUrlInCopy(copy.projectUuid, scope, from);
             // The navbar resolves the active project from the cached project
-            // list, and the trainee permissions on the new copy only exist
-            // in a freshly built ability, so both are refreshed around the
-            // move. From a copy, the move comes first: the page being left
-            // is addressed by its slug, which the refreshed list no longer
-            // has (see leaveCopy). Every org member can view any project of
-            // the org, so the new copy opens on the old ability, and the
+            // list, and the trainee permissions on a new copy only exist in
+            // a freshly built ability, so both are refreshed around the
+            // move. From the completion dialog the move comes first, so no
+            // page shows on the way. Every org member can view any project
+            // of the org, so a new copy opens on the old ability, and the
             // walkthrough waits for its controls while the ability catches
             // up.
             const refresh = () =>
@@ -386,11 +362,8 @@ const ScopeTourHost: FC = () => {
         },
     });
 
-    // Next makes the fresh copy from here and goes straight into it, so no
-    // page shows on the way. Making it removes this copy on the server, so
-    // nothing here has to be deleted first (and nothing can delete the copy
-    // being made). The copy stays on screen, behind the dialog, until the
-    // new one is ready.
+    // Next goes straight into the next walkthrough, in this same copy (the
+    // server hands it back), so what this one built is still there.
     const handleNext = (nextScope: string) => {
         if (!upstream || openingCopy) return;
         markScopeStarted(nextScope);
@@ -404,7 +377,7 @@ const ScopeTourHost: FC = () => {
                 isRestart: completed.includes(nextScope),
             },
         });
-        startInFreshCopy({
+        startInCopy({
             trainingProjectUuid: upstream,
             scope: nextScope,
             from: 'learn',
@@ -437,7 +410,7 @@ const ScopeTourHost: FC = () => {
         if (project.type === ProjectType.TRAINING) {
             if (!copyRequestedRef.current) {
                 copyRequestedRef.current = true;
-                startInFreshCopy({
+                startInCopy({
                     trainingProjectUuid: projectUuid,
                     scope: requested,
                     from: requestedFrom,
@@ -494,7 +467,7 @@ const ScopeTourHost: FC = () => {
         trainingProject,
         isTrainingCopy,
         projectUuid,
-        startInFreshCopy,
+        startInCopy,
         navigate,
         searchParams,
         requestedFrom,
@@ -542,6 +515,7 @@ const ScopeTourHost: FC = () => {
                 scope={finishedScope}
                 opening={openingCopy}
                 onBack={handleBackToLibrary}
+                onExplore={handleExplore}
                 onNext={handleNext}
             />
         );
