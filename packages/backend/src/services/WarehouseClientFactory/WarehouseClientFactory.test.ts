@@ -2735,6 +2735,32 @@ describe('factory cache tuple and agent probes', () => {
         expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
         expect(factory.warehouseClients).toEqual({});
     });
+
+    test.each([
+        { kind: 'compile' as const, projectUuid: 'project-uuid', credentials },
+        {
+            kind: 'bypass' as const,
+            mode: 'connection_test' as const,
+            projectUuid: 'project-uuid',
+            credentials,
+        },
+    ])(
+        'does not set agent job controls without a plan: $kind $mode',
+        async (ref) => {
+            const { factory, projectModel } = buildFixture();
+            await factory.withWarehouseClient(
+                ref,
+                contextFor(null, 'compile'),
+                async () => undefined,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.objectContaining({ agentJobControls: false }),
+            );
+        },
+    );
 });
 
 describe('agent client cache lifetime', () => {

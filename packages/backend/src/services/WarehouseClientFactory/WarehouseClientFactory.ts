@@ -943,7 +943,7 @@ export class WarehouseClientFactory {
                 ...identityOptions,
                 ...resolverOptions,
                 ...requestedClientOptions,
-                agentJobControls: aiPlan !== null,
+                agentJobControls: !!aiPlan,
             };
             const client = this.buildClient(
                 credentialsWithOverrides,
