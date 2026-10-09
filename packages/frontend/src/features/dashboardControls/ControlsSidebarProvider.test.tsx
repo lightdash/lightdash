@@ -6,6 +6,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
 import { act, render, renderHook } from '@testing-library/react';
@@ -13,6 +14,7 @@ import { useState, type FC, type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventName } from '../../types/Events';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { getFieldCount, type FieldsByTile } from './peers';
 import {
     useControlsSidebar,
     useControlsSidebarSelector,
@@ -300,6 +302,57 @@ describe('ControlsSidebarProvider', () => {
         expect(mockTrack).toHaveBeenLastCalledWith(event);
     });
 
+    describe('a first field', () => {
+        const regionField: DashboardFilterableField = {
+            ...statusField,
+            name: 'region',
+            label: 'Region',
+        };
+        const tiles = ['t1', 't2', 't3', 't4'].map(
+            (uuid) => ({ uuid, properties: {} }) as DashboardTile,
+        );
+        const start = () => {
+            const view = setup();
+            act(() => view.result.current.openNew());
+            const placeholder = view.result.current.editingRule;
+            if (!placeholder) throw new Error('expected a placeholder');
+            act(() =>
+                view.result.current.updateFilter({
+                    ...placeholder,
+                    label: 'S',
+                }),
+            );
+            return { ...view, placeholder };
+        };
+
+        beforeEach(() => {
+            mockTiles.current = tiles;
+            mockFieldsByTile.current = {
+                t1: [statusField],
+                t2: [statusField, regionField],
+                t3: [regionField],
+                t4: [statusField],
+            };
+        });
+
+        it('picked in the sidebar filters every tile that offers it', () => {
+            const { result } = start();
+
+            act(() => result.current.addFirstField(statusField));
+
+            const added = latest.filters.dimensions[2];
+            expect(added.label).toBe('S');
+            expect(
+                getFieldCount(
+                    added,
+                    'orders_status',
+                    tiles,
+                    mockFieldsByTile.current as FieldsByTile,
+                ),
+            ).toEqual({ applied: 3, possible: 3 });
+        });
+    });
+
     it('Add on an untouched placeholder leaves it open', () => {
         const { result } = setup();
         act(() => result.current.openNew());
@@ -462,6 +515,59 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.isSidebarOpen).toBe(false);
     });
 
+    it('keeps an added field waiting until it is removed or another filter opens', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        act(() => result.current.addWaitingField('orders_region'));
+        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+        expect(latest.filters).toEqual(initialFilters);
+
+        act(() => result.current.removeWaitingField('orders_region'));
+        expect(result.current.waitingFieldIds).toEqual([]);
+
+        act(() => result.current.addWaitingField('orders_region'));
+        act(() => result.current.open('b'));
+        expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
+    it.each(['close', 'discard'] as const)(
+        'a waiting field is gone when the filter is reopened after %s',
+        (action) => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.addWaitingField('orders_region'));
+            act(() => result.current[action]());
+
+            act(() => result.current.open('a'));
+            expect(result.current.waitingFieldIds).toEqual([]);
+        },
+    );
+
+    it('keeps a field listed as waiting when it loses its last tile', () => {
+        const { result } = setup();
+        const peer = { fieldId: 'orders_region', tableName: 'orders' };
+        act(() => result.current.open('a'));
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                tileTargets: { t1: peer },
+            }),
+        );
+        expect(result.current.waitingFieldIds).toEqual([]);
+
+        act(() => result.current.updateFilter(rule('a', ['1'])));
+        expect(result.current.waitingFieldIds).toEqual(['orders_region']);
+
+        // Back on a tile, it is a field of the filter again
+        act(() =>
+            result.current.updateFilter({
+                ...rule('a', ['1']),
+                tileTargets: { t1: peer },
+            }),
+        );
+        expect(result.current.waitingFieldIds).toEqual([]);
+    });
+
     it('closes when the dashboard leaves edit mode', () => {
         const { result, rerender } = setup();
         act(() => result.current.open('a'));
@@ -497,7 +603,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(9);
+        expect(Object.keys(initial)).toHaveLength(11);
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).not.toHaveProperty('clearFields');
 
