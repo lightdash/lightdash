@@ -64,7 +64,6 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
-    UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
     WarehouseConnectionError,
@@ -16811,103 +16810,6 @@ describe('AI principal credential routing', () => {
         await second.sshTunnel.disconnect();
         await again.sshTunnel.disconnect();
     });
-});
-
-describe('Snowflake AI query credentials', () => {
-    beforeEach(() => {
-        vi.mocked(checkSnowflakeAgentSessionWithToken)
-            .mockReset()
-            .mockResolvedValue({
-                agentActivated: true,
-                currentRole: 'ANALYST',
-                activeRestrictedSessionScopes: null,
-            });
-    });
-    it.each([true, false, 'error'] as const)(
-        'checks a refreshed AI token before persistence when activation is %s',
-        async (activation) => {
-            const check = vi.mocked(checkSnowflakeAgentSessionWithToken);
-            if (activation === 'error') {
-                check.mockRejectedValueOnce(new Error('session check failed'));
-            } else {
-                check.mockResolvedValueOnce({
-                    agentActivated: activation,
-                    currentRole: null,
-                    activeRestrictedSessionScopes: null,
-                });
-            }
-            const service = getMockedProjectService(
-                lightdashConfigWithGoogleOAuthMock,
-            );
-            const rotateRefreshToken = vi.fn(async () => true);
-            (
-                service as unknown as {
-                    userWarehouseCredentialsModel: {
-                        rotateRefreshToken: typeof rotateRefreshToken;
-                    };
-                }
-            ).userWarehouseCredentialsModel = { rotateRefreshToken };
-            const generateToken = vi
-                .spyOn(UserService, 'generateSnowflakeAccessToken')
-                .mockResolvedValue({
-                    accessToken: 'access-token',
-                    refreshToken: 'rotated-token',
-                });
-            try {
-                const refreshed = (
-                    service as unknown as {
-                        refreshCredentialsAndPersistRotation: (
-                            credentials: CreateWarehouseCredentials,
-                            userUuid: string,
-                            source: {
-                                kind: 'user';
-                                userWarehouseCredentialsUuid: string;
-                                purpose: UserWarehouseCredentialPurpose.AI;
-                            },
-                        ) => Promise<CreateWarehouseCredentials>;
-                    }
-                ).refreshCredentialsAndPersistRotation(
-                    {
-                        type: WarehouseTypes.SNOWFLAKE,
-                        authenticationType: SnowflakeAuthenticationType.SSO,
-                        refreshToken: 'old-token',
-                        account: 'test-account',
-                    } as CreateWarehouseCredentials,
-                    'user-uuid',
-                    {
-                        kind: 'user',
-                        userWarehouseCredentialsUuid: 'ai-credential',
-                        purpose: UserWarehouseCredentialPurpose.AI,
-                    },
-                );
-                if (activation !== true) {
-                    await expect(refreshed).rejects.toBeInstanceOf(
-                        ForbiddenError,
-                    );
-                    expect(rotateRefreshToken).not.toHaveBeenCalled();
-                    return;
-                }
-                await expect(refreshed).resolves.toMatchObject({
-                    token: 'access-token',
-                });
-                expect(check).toHaveBeenCalledWith(
-                    'test-account',
-                    'access-token',
-                );
-                expect(check.mock.invocationCallOrder.at(-1)).toBeLessThan(
-                    rotateRefreshToken.mock.invocationCallOrder[0]!,
-                );
-                expect(generateToken).toHaveBeenCalledWith('old-token', 'ai');
-                expect(rotateRefreshToken).toHaveBeenCalledWith(
-                    'ai-credential',
-                    'old-token',
-                    'rotated-token',
-                );
-            } finally {
-                generateToken.mockRestore();
-            }
-        },
-    );
 });
 
 describe('compile adapter connection credentials', () => {

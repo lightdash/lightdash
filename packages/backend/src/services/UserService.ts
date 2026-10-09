@@ -93,6 +93,7 @@ import {
     validateUserName,
     WarehouseTypes,
     type RegisteredAccount,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
@@ -142,7 +143,10 @@ import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
-import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    UserWarehouseCredentialsModel,
+    type SnowflakeAiClientBinding,
+} from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
 import {
@@ -150,6 +154,10 @@ import {
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
+import {
+    type ResolvedSnowflakeAgentClient,
+    type SnowflakeAgentClientResolver,
+} from './AiAccessService/SnowflakeAgentClientResolver';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
@@ -169,6 +177,7 @@ type RedshiftAwsSsoSession = {
 };
 
 type UserServiceArguments = {
+    snowflakeAgentClientResolver: Pick<SnowflakeAgentClientResolver, 'resolve'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
@@ -316,6 +325,11 @@ export class UserService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly snowflakeAgentClientResolver: Pick<
+        SnowflakeAgentClientResolver,
+        'resolve'
+    >;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -333,6 +347,7 @@ export class UserService extends BaseService {
     private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
 
     constructor({
+        snowflakeAgentClientResolver,
         lightdashConfig,
         analytics,
         inviteLinkModel,
@@ -361,6 +376,7 @@ export class UserService extends BaseService {
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.snowflakeAgentClientResolver = snowflakeAgentClientResolver;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -3349,13 +3365,10 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
-        purpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
-                purpose === UserWarehouseCredentialPurpose.AI
-                    ? 'snowflake-ai'
-                    : 'snowflake',
+                'snowflake',
                 refreshToken,
                 (
                     err: AnyType,
@@ -3521,25 +3534,62 @@ export class UserService extends BaseService {
         );
     }
 
-    async getWarehouseCredentials(user: SessionUser) {
+    async getWarehouseCredentials(
+        user: SessionUser,
+    ): Promise<UserWarehouseCredentialsWithAgentStatus[]> {
         const [defaults, ai] = await Promise.all([
             this.userWarehouseCredentialsModel.getAllByUserUuid(user.userUuid),
             this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
                 user.userUuid,
             ),
         ]);
-        return [...defaults, ...ai];
+        let client: ResolvedSnowflakeAgentClient | null = null;
+        if (
+            user.organizationUuid &&
+            ai.some(
+                ({ credentials }) =>
+                    credentials.type === WarehouseTypes.SNOWFLAKE,
+            )
+        ) {
+            try {
+                client = await this.snowflakeAgentClientResolver.resolve(
+                    user.organizationUuid,
+                );
+            } catch {
+                client = null;
+            }
+        }
+        return [
+            ...defaults.map((credential) => ({
+                ...credential,
+                agentClientCurrent: null,
+            })),
+            ...ai.map(({ aiClientBinding, ...credential }) => ({
+                ...credential,
+                agentClientCurrent:
+                    credential.credentials.type === WarehouseTypes.SNOWFLAKE
+                        ? client !== null &&
+                          (aiClientBinding?.clientVersion ?? null) ===
+                              client.clientVersion &&
+                          (!aiClientBinding ||
+                              aiClientBinding.organizationUuid ===
+                                  user.organizationUuid)
+                        : null,
+            })),
+        ];
     }
 
     async upsertAiSnowflakeCredential(
         user: SessionUser,
         refreshToken: string,
         expiresAt: Date | null,
+        binding: SnowflakeAiClientBinding,
     ): Promise<void> {
         await this.userWarehouseCredentialsModel.upsertAiSnowflakeCredential(
             user.userUuid,
             refreshToken,
             expiresAt,
+            binding,
         );
     }
 

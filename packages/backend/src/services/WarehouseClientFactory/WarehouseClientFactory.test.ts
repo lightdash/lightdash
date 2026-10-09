@@ -29,8 +29,8 @@ import {
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
-import refresh from 'passport-oauth2-refresh';
 import { expectTypeOf } from 'vitest';
+import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -38,6 +38,7 @@ import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
+import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     connectionContextFromUser,
@@ -2746,6 +2747,12 @@ describe('Snowflake revocation with a warm agent client', () => {
             const provider = new SnowflakeAiCredentialProvider({
                 lightdashConfig: config,
                 userWarehouseCredentialsModel: model,
+                snowflakeAgentClientResolver: new SnowflakeAgentClientResolver({
+                    lightdashConfig: config,
+                    organizationSnowflakeAgentClientModel: {
+                        getWithSecret: vi.fn().mockResolvedValue(null),
+                    },
+                }),
             } as unknown as ConstructorParameters<
                 typeof SnowflakeAiCredentialProvider
             >[0]);
@@ -2773,7 +2780,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                 credentials: connection,
             });
             const refreshToken = vi
-                .spyOn(refresh, 'requestNewAccessToken')
+                .spyOn(snowflakeOAuthRefreshClient, 'requestNewAccessToken')
                 .mockImplementation((_strategy, _token, callback) => {
                     callback(null, 'access-token', 'refresh-token', {});
                 });

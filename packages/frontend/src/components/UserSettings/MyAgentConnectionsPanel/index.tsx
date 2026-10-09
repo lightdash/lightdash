@@ -5,7 +5,6 @@ import {
 import { Loader } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useOrganizationAgentIdentitySettings } from '../../../features/aiAccess/api';
-import useHealth from '../../../hooks/health/useHealth';
 import { useProjects } from '../../../hooks/useProjects';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import InlineErrorState from '../../common/InlineErrorState';
@@ -18,7 +17,6 @@ import { getAgentConnectionVisibility } from './visibility';
 export const MyAgentConnectionsPanel = () => {
     const settings = useOrganizationAgentIdentitySettings();
     const projects = useProjects();
-    const health = useHealth();
     const credentials = useUserWarehouseCredentials();
     const { showSnowflake, showBigQuery } = getAgentConnectionVisibility(
         settings.data?.rules ?? [],
@@ -30,7 +28,7 @@ export const MyAgentConnectionsPanel = () => {
                 purpose === UserWarehouseCredentialPurpose.AI &&
                 warehouseCredentials.type === WarehouseTypes.SNOWFLAKE,
         ) ?? null;
-    const queries = [settings, projects, health, credentials];
+    const queries = [settings, projects, credentials];
     const isLoading = queries.some((query) => query.isInitialLoading);
     const isError = queries.some((query) => query.isError);
     return (
@@ -48,7 +46,7 @@ export const MyAgentConnectionsPanel = () => {
                         <SnowflakeAgentConnectionCard
                             credential={credential}
                             snowflakeConfigured={
-                                health.data?.auth.snowflakeAi.enabled === true
+                                settings.data?.snowflakeConfigured === true
                             }
                         />
                     )}

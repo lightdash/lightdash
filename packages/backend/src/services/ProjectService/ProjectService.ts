@@ -303,12 +303,10 @@ import {
 import { extractColumnRefs, parse as parseFormula } from '@lightdash/formula';
 import {
     BigqueryWarehouseClient,
-    checkSnowflakeAgentSessionWithToken,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     getGoogleOauthTokenError,
     refreshDatabricksOAuthToken,
-    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -579,7 +577,6 @@ type RefreshTokenRotationSource =
     | {
           kind: 'user';
           userWarehouseCredentialsUuid: string;
-          purpose?: UserWarehouseCredentialPurpose;
       }
     | {
           kind: 'warehouseConnection';
@@ -1621,7 +1618,6 @@ export class ProjectService
     private async refreshCredentials<T extends CreateWarehouseCredentials>(
         args: T,
         userUuid: string,
-        credentialPurpose: UserWarehouseCredentialPurpose = UserWarehouseCredentialPurpose.DEFAULT,
     ): Promise<T> {
         if (
             args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1642,25 +1638,9 @@ export class ProjectService
                 // If we try to generate access token from token instead of refreshToken
                 // it will throw an error: The request was invalid.
                 const { accessToken, refreshToken: newRefreshToken } =
-                    credentialPurpose === UserWarehouseCredentialPurpose.AI
-                        ? await UserService.generateSnowflakeAccessToken(
-                              refreshToken,
-                              UserWarehouseCredentialPurpose.AI,
-                          )
-                        : await UserService.generateSnowflakeAccessToken(
-                              refreshToken,
-                          );
-                if (credentialPurpose === UserWarehouseCredentialPurpose.AI) {
-                    const session = await checkSnowflakeAgentSessionWithToken(
-                        args.account,
-                        accessToken,
-                    ).catch(() => null);
-                    if (!session?.agentActivated) {
-                        throw new ForbiddenError(
-                            SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
-                        );
-                    }
-                }
+                    await UserService.generateSnowflakeAccessToken(
+                        refreshToken,
+                    );
                 return {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
@@ -1847,20 +1827,15 @@ export class ProjectService
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(
-            args,
-            userUuid,
-            source.kind === 'user'
-                ? source.purpose
-                : UserWarehouseCredentialPurpose.DEFAULT,
-        ).catch((error: unknown) =>
-            source.kind === 'project'
-                ? this.warehouseClientFactory.attributeSharedSignInExpiry(
-                      source.projectUuid,
-                      args,
-                      error,
-                  )
-                : Promise.reject(error),
+        const refreshed = await this.refreshCredentials(args, userUuid).catch(
+            (error: unknown) =>
+                source.kind === 'project'
+                    ? this.warehouseClientFactory.attributeSharedSignInExpiry(
+                          source.projectUuid,
+                          args,
+                          error,
+                      )
+                    : Promise.reject(error),
         );
 
         const newRefreshToken =
@@ -2428,9 +2403,7 @@ export class ProjectService
                 ? {
                       kind: 'user',
                       uuid: source.userWarehouseCredentialsUuid,
-                      purpose:
-                          source.purpose ??
-                          UserWarehouseCredentialPurpose.DEFAULT,
+                      purpose: UserWarehouseCredentialPurpose.DEFAULT,
                   }
                 : {
                       kind: source.kind,

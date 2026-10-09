@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
     enabled: true,
     canManage: true,
     configured: true,
-    missingAccount: false,
     healthLoading: false,
     healthError: false,
     refetch: vi.fn(),
@@ -92,6 +91,7 @@ const renderSection = () => {
     return { client, invalidate, container: document.body };
 };
 const overview = (): OrganizationAgentIdentityOverview => ({
+    snowflakeConfigured: true,
     requireVerifiedAgentSessions: false,
     rules: [
         {
@@ -119,12 +119,17 @@ const apiHandler = async ({
             redirectUri:
                 'https://backend.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: backendSql,
+            client: {
+                source: mocks.configured ? ('environment' as const) : null,
+                accountUrl: null,
+                clientId: null,
+                hasClientSecret: mocks.configured,
+                updatedAt: null,
+            },
             configured: mocks.configured,
-            missingSettings: mocks.missingAccount
-                ? ['SNOWFLAKE_AI_OAUTH_ACCOUNT']
-                : mocks.configured
-                  ? []
-                  : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
+            missingSettings: mocks.configured
+                ? []
+                : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
         };
     if (url.endsWith('/verify')) return verification;
     if (method === 'PUT') {
@@ -156,6 +161,7 @@ const selectAgentSignIn = async () => {
 };
 const startUnconfigured = () => {
     mocks.configured = false;
+    currentOverview.snowflakeConfigured = false;
     currentOverview.rules[0].source = 'marked_person';
     return renderSection();
 };
@@ -177,7 +183,6 @@ describe('Organisation agent identity settings', () => {
             enabled: true,
             canManage: true,
             configured: true,
-            missingAccount: false,
             healthLoading: false,
             healthError: false,
         });
@@ -321,9 +326,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByText('Copy and run in Snowflake'),
         ).toBeInTheDocument();
         expect(
-            screen.getByText(
-                'Give the client ID and secret to your instance operator',
-            ),
+            screen.getByText('Paste what Snowflake returned'),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Turn on' })).toBeDisabled();
         expect(lightdashApi).not.toHaveBeenCalledWith(
@@ -388,26 +391,20 @@ describe('Organisation agent identity settings', () => {
         );
     });
     it.each([false, true])(
-        'shows the account row only when it is missing (%s)',
-        async (missingAccount) => {
-            mocks.missingAccount = missingAccount;
-            startUnconfigured();
-            await selectAgentSignIn();
-            await screen.findByText(backendSql);
-            SNOWFLAKE_AGENT_OAUTH_SETTINGS.forEach(({ envVar }) =>
-                expect(screen.getByText(envVar)).toBeInTheDocument(),
+        'uses organisation configuration (%s) even when health disagrees',
+        async (configured) => {
+            currentOverview.snowflakeConfigured = configured;
+            mocks.configured = !configured;
+            mocks.healthError = true;
+            renderSection();
+            fireEvent.click(
+                await screen.findByRole('combobox', {
+                    name: 'Snowflake agent identity',
+                }),
             );
-            const accountRow = screen.queryByText('SNOWFLAKE_AI_OAUTH_ACCOUNT');
-            if (missingAccount) {
-                expect(accountRow).toBeInTheDocument();
-                expect(
-                    screen.getByText(
-                        'Account (needed when the token endpoint is not on snowflakecomputing.com)',
-                    ),
-                ).toBeInTheDocument();
-            } else {
-                expect(accountRow).not.toBeInTheDocument();
-            }
+            expect(
+                screen.queryByText('Needs a one-time Snowflake setup') !== null,
+            ).toBe(!configured);
         },
     );
     it('resets pending setup when a refetch returns an active saved rule', async () => {

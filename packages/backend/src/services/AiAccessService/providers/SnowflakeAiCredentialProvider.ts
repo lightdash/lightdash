@@ -4,11 +4,9 @@ import {
     assertUnreachable,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
-    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AiAssurance,
     type CreateSnowflakeCredentials,
-    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
@@ -19,13 +17,13 @@ import {
     exchangeSnowflakeRefreshToken,
     type SnowflakeRefreshResult,
 } from '../../../auth/snowflakeOAuthRefresh';
-import { getSnowflakeAgentMissingOAuthSettings } from '../../../config/snowflakeAgentConfiguration';
 import Logger from '../../../logging/logger';
 import { redactCredentialError } from '../../../logging/redactCredentialError';
 import { withCause } from '../../../logging/withCause';
+import { type AiUserWarehouseCredentials } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
-import { UserService } from '../../UserService';
 import { type AiAccessEvaluation } from '../AiAccessService';
+import { type ResolvedSnowflakeAgentClient } from '../SnowflakeAgentClientResolver';
 import {
     AiSessionFailureReason,
     type AiCredentialProvider,
@@ -45,18 +43,34 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
 
     constructor(private readonly deps: AiCredentialProviderDependencies) {}
 
-    configurationError(): string | null {
-        return getSnowflakeAgentMissingOAuthSettings(
-            this.deps.lightdashConfig.auth.snowflakeAi,
-        ).length === 0
+    async configurationError(organizationUuid: string): Promise<string | null> {
+        return (await this.deps.snowflakeAgentClientResolver.resolve(
+            organizationUuid,
+        ))
             ? null
-            : 'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.';
+            : 'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.';
+    }
+
+    private matchesClient(
+        credential: AiUserWarehouseCredentials,
+        client: ResolvedSnowflakeAgentClient,
+    ): boolean {
+        return (
+            (credential.aiClientBinding?.clientVersion ?? null) ===
+                client.clientVersion &&
+            (!credential.aiClientBinding ||
+                credential.aiClientBinding.organizationUuid ===
+                    client.organizationUuid)
+        );
     }
 
     async missingPrerequisite({
         person,
         silentRefresh,
     }: AiMintArgs<CreateSnowflakeCredentials>): Promise<AiAccessRefusalReason | null> {
+        const client = await this.deps.snowflakeAgentClientResolver.resolve(
+            person.organizationUuid,
+        );
         const credential =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 {
@@ -64,6 +78,9 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                 },
             );
+        if (!client) return AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED;
+        if (credential && !this.matchesClient(credential, client))
+            return AiAccessRefusalReason.SIGN_IN_EXPIRED;
         if (!credential) return AiAccessRefusalReason.NEEDS_SIGN_IN;
         return !silentRefresh &&
             credential.expiresAt &&
@@ -82,12 +99,23 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         organizationUuid: string;
         evaluationKind: AiAccessEvaluation['kind'];
     }): Promise<AiMintedCredentials<CreateSnowflakeCredentials>> {
+        const client = await this.deps.snowflakeAgentClientResolver.resolve(
+            person.organizationUuid,
+        );
         const credential =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 {
                     userUuid: person.userUuid,
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                 },
+            );
+        if (!client)
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+            );
+        if (credential && !this.matchesClient(credential, client))
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.SIGN_IN_EXPIRED,
             );
         if (!credential)
             throw new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN);
@@ -115,6 +143,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 credential,
                 { userUuid: person.userUuid, organizationUuid, evaluationKind },
                 true,
+                client,
             );
             return {
                 identityUuid: refreshed.credential.uuid,
@@ -135,10 +164,11 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             };
         }
         const { accessToken, refreshToken } =
-            await UserService.generateSnowflakeAccessToken(
-                merged.refreshToken,
-                UserWarehouseCredentialPurpose.AI,
-            ).catch((error: { data?: string; message?: string } | null) => {
+            await exchangeSnowflakeRefreshToken({
+                client,
+                refreshToken: merged.refreshToken,
+                now: new Date(),
+            }).catch((error: { data?: string; message?: string } | null) => {
                 const invalidGrant = /\binvalid_grant\b/.test(
                     `${error?.data ?? ''} ${error?.message ?? ''}`,
                 );
@@ -201,7 +231,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         userUuid: string,
         oldRefreshToken: string,
         remainingReads: number,
-    ): Promise<UserWarehouseCredentialsWithSecrets | null> {
+    ): Promise<AiUserWarehouseCredentials | null> {
         const current =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 {
@@ -232,18 +262,23 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
 
     private async refreshCredential(
         connection: CreateSnowflakeCredentials,
-        credential: UserWarehouseCredentialsWithSecrets,
+        credential: AiUserWarehouseCredentials,
         logContext: {
             userUuid: string;
             organizationUuid: string;
             evaluationKind: AiAccessEvaluation['kind'];
         },
         retryRotation: boolean,
+        client: ResolvedSnowflakeAgentClient,
     ): Promise<{
-        credential: UserWarehouseCredentialsWithSecrets;
+        credential: AiUserWarehouseCredentials;
         tokens: SnowflakeRefreshResult;
         merged: CreateSnowflakeCredentials;
     }> {
+        if (!this.matchesClient(credential, client))
+            throw new AiAccessRefusedError(
+                AiAccessRefusalReason.SIGN_IN_EXPIRED,
+            );
         const credentials = mergePersonalWarehouseCredentials(
             connection,
             credential,
@@ -260,7 +295,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         const now = new Date();
         try {
             tokens = await exchangeSnowflakeRefreshToken({
-                strategyName: 'snowflake-ai',
+                client,
                 refreshToken: oldRefreshToken,
                 now,
             });
@@ -292,6 +327,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                                 current,
                                 logContext,
                                 false,
+                                client,
                             );
                     }
                     logRefreshFailure();

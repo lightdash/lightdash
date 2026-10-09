@@ -26,12 +26,12 @@ import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
 const AgentIdentityRule = ({
     rule,
+    configured,
 }: {
     rule: OrganizationAgentIdentityRule;
+    configured: boolean;
 }) => {
-    const { health } = useApp();
     const save = useUpdateOrganizationAgentIdentityRule();
-    const configured = health.data?.auth.snowflakeAi.enabled === true;
     const [pending, setPending] = useState(false);
     const source = pending ? 'agent_sign_in' : rule.source;
 
@@ -148,16 +148,14 @@ const AgentIdentityRule = ({
 };
 
 const AgentIdentitySettings = () => {
-    const { health } = useApp();
     const settings = useOrganizationAgentIdentitySettings();
-    if (settings.isLoading || health.isLoading) return <EmptyStateLoader />;
-    if (settings.isError || health.isError)
+    if (settings.isLoading) return <EmptyStateLoader />;
+    if (settings.isError)
         return (
             <InlineErrorState
                 message="Could not load agent identity settings."
                 onRetry={() => {
                     void settings.refetch();
-                    void health.refetch();
                 }}
             />
         );
@@ -169,6 +167,7 @@ const AgentIdentitySettings = () => {
                     <AgentIdentityRule
                         key={`${rule.warehouseType}-${rule.source}`}
                         rule={rule}
+                        configured={settings.data?.snowflakeConfigured === true}
                     />
                 ))}
         </Stack>

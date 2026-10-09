@@ -2,6 +2,7 @@ import {
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     FeatureNotEnabledError,
+    ForbiddenError,
 } from '@lightdash/common';
 import { type Request, type RequestHandler } from 'express';
 import passport from 'passport';
@@ -12,7 +13,7 @@ import {
 } from 'passport-oauth2';
 import { v4 as uuid } from 'uuid';
 import { getAgentConnectRedirectURL } from './agentConnectRedirect';
-import { snowflakeAiPassportStrategy } from './strategies/snowflakeAiStrategy';
+import { createSnowflakeAiPassportStrategy } from './strategies/snowflakeAiStrategy';
 
 export const storeAgentConnectAttempt: RequestHandler = async (
     req,
@@ -116,20 +117,22 @@ const recordConnectOutcome = (
         .trackConnectOutcome(attempt, failureReason, sessionCheckError);
 };
 
-const getConnectErrorReason = () =>
-    snowflakeAiPassportStrategy
-        ? AgentIdentityConnectFailureReason.SIGN_IN_FAILED
-        : AgentIdentityConnectFailureReason.NOT_CONFIGURED;
-
-const recordConnectError = (req: Request, error: unknown): void => {
+const recordConnectError = (
+    req: Request,
+    error: unknown,
+    reason: AgentIdentityConnectFailureReason,
+): void => {
     if (error instanceof FeatureNotEnabledError) {
         consumeConnectAttempt(req);
         return;
     }
-    recordConnectOutcome(req, getConnectErrorReason());
+    recordConnectOutcome(req, reason);
 };
 
-const recordConnectStartError = (req: Request): void => {
+const recordConnectStartError = (
+    req: Request,
+    reason: AgentIdentityConnectFailureReason,
+): void => {
     const attempt = req.agentConnectAttempt;
     if (!attempt) return;
     req.agentConnectAttempt = null;
@@ -138,43 +141,117 @@ const recordConnectStartError = (req: Request): void => {
         ([, pending]) => pending.connectAttemptId === attempt.connectAttemptId,
     )?.[0];
     if (attempts && state) delete attempts[state];
-    req.services
-        .getAiAccessService()
-        .trackConnectOutcome(attempt, getConnectErrorReason());
+    if (state && req.session.agentConnectBindings)
+        delete req.session.agentConnectBindings[state];
+    req.services.getAiAccessService().trackConnectOutcome(attempt, reason);
 };
 
-export const authenticateAgentConnect: RequestHandler = (req, res, next) => {
+export const authenticateAgentConnect: RequestHandler = async (
+    req,
+    res,
+    next,
+) => {
+    let reason = AgentIdentityConnectFailureReason.NOT_CONFIGURED;
     try {
-        passport.authenticate('snowflake-ai', { scope: ['refresh_token'] })(
-            req,
-            res,
-            (error: unknown) => {
-                if (error) recordConnectStartError(req);
-                next(error);
-            },
-        );
+        const client = req.user?.organizationUuid
+            ? await req.services
+                  .getAiAccessService()
+                  .resolveSnowflakeAgentClient(req.user.organizationUuid)
+            : null;
+        if (!client)
+            throw new Error(
+                'The Snowflake agent connection is not configured for this organisation.',
+            );
+        reason = AgentIdentityConnectFailureReason.SIGN_IN_FAILED;
+        passport.authenticate(createSnowflakeAiPassportStrategy(client), {
+            scope: ['refresh_token'],
+        })(req, res, (error: unknown) => {
+            if (error) recordConnectStartError(req, reason);
+            next(error);
+        });
     } catch (error) {
-        recordConnectStartError(req);
+        recordConnectStartError(req, reason);
         next(error);
     }
 };
 
-export const agentConnectCallback: RequestHandler = (req, res, next) => {
+export const agentConnectCallback: RequestHandler = async (req, res, next) => {
     const state = req.session['oauth2:snowflake-ai']?.state;
+    const consumeCallbackState = () => {
+        const callbackState = req.query.state;
+        if (typeof callbackState !== 'string') return;
+        if (req.session.agentConnectBindings)
+            delete req.session.agentConnectBindings[callbackState];
+        if (req.session['oauth2:snowflake-ai']?.state === callbackState)
+            delete req.session['oauth2:snowflake-ai'];
+    };
     const tokenExchangeStarted =
         typeof req.query.code === 'string' &&
         !!state &&
         state === req.query.state;
     const accessDenied = req.query.error === 'access_denied';
+    if (!req.user?.organizationUuid) {
+        consumeCallbackState();
+        recordConnectOutcome(
+            req,
+            AgentIdentityConnectFailureReason.ORGANIZATION_REQUIRED,
+        );
+        res.redirect(
+            getAgentConnectRedirectURL(
+                false,
+                new ForbiddenError('An organization sign-in is required'),
+            )(req),
+        );
+        return;
+    }
+    let reason = AgentIdentityConnectFailureReason.NOT_CONFIGURED;
     try {
+        const client = req.user?.organizationUuid
+            ? await req.services
+                  .getAiAccessService()
+                  .resolveSnowflakeAgentClient(req.user.organizationUuid)
+            : null;
+        if (!client)
+            throw new Error(
+                'The Snowflake agent connection is not configured for this organisation.',
+            );
+        reason = AgentIdentityConnectFailureReason.SIGN_IN_FAILED;
+        const bindings = req.session.agentConnectBindings;
+        const callbackState = req.query.state;
+        const binding =
+            typeof callbackState === 'string' &&
+            bindings &&
+            Object.hasOwn(bindings, callbackState)
+                ? bindings[callbackState]
+                : null;
+        if (
+            binding
+                ? binding.organizationUuid !== req.user?.organizationUuid ||
+                  binding.clientVersion !== client.clientVersion
+                : client.source !== 'environment' ||
+                  (bindings !== undefined && state === callbackState)
+        ) {
+            consumeCallbackState();
+            recordConnectOutcome(req, reason);
+            res.redirect(
+                getAgentConnectRedirectURL(
+                    false,
+                    new ForbiddenError(
+                        'The Snowflake agent connection changed. Please sign in again.',
+                    ),
+                )(req),
+            );
+            return;
+        }
         passport.authenticate(
-            'snowflake-ai',
+            createSnowflakeAiPassportStrategy(client),
             (
                 error: unknown,
                 user: Express.User | false | null | undefined,
                 _info: unknown,
                 status?: number,
             ) => {
+                consumeCallbackState();
                 const isSuccess = !error && !!user;
                 if (error instanceof FeatureNotEnabledError) {
                     consumeConnectAttempt(req);
@@ -197,11 +274,13 @@ export const agentConnectCallback: RequestHandler = (req, res, next) => {
                 res.redirect(getAgentConnectRedirectURL(isSuccess, error)(req));
             },
         )(req, res, (error: unknown) => {
-            if (error) recordConnectError(req, error);
+            consumeCallbackState();
+            if (error) recordConnectError(req, error, reason);
             next(error);
         });
     } catch (error) {
-        recordConnectError(req, error);
+        consumeCallbackState();
+        recordConnectError(req, error, reason);
         next(error);
     }
 };

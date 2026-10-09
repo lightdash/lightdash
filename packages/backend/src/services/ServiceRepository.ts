@@ -23,6 +23,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
+import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
@@ -992,6 +993,12 @@ export class ServiceRepository
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
+                        snowflakeAgentClientResolver:
+                            new SnowflakeAgentClientResolver({
+                                lightdashConfig: this.context.lightdashConfig,
+                                organizationSnowflakeAgentClientModel:
+                                    this.models.getOrganizationSnowflakeAgentClientModel(),
+                            }),
                         lightdashConfig: this.context.lightdashConfig,
                         userWarehouseCredentialsModel:
                             this.models.getUserWarehouseCredentialsModel(),
@@ -1001,6 +1008,8 @@ export class ServiceRepository
                         this.models.getOrganizationAgentIdentityRulesModel(),
                     organizationAgentIdentitySettingsModel:
                         this.models.getOrganizationAgentIdentitySettingsModel(),
+                    organizationSnowflakeAgentClientModel:
+                        this.models.getOrganizationSnowflakeAgentClientModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
@@ -1521,6 +1530,12 @@ export class ServiceRepository
             'userService',
             () =>
                 new UserService({
+                    snowflakeAgentClientResolver:
+                        new SnowflakeAgentClientResolver({
+                            lightdashConfig: this.context.lightdashConfig,
+                            organizationSnowflakeAgentClientModel:
+                                this.models.getOrganizationSnowflakeAgentClientModel(),
+                        }),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     inviteLinkModel: this.models.getInviteLinkModel(),

@@ -2,6 +2,7 @@ import {
     type ApiError,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -14,16 +15,19 @@ import { lightdashApi } from '../../api';
 import useToaster from '../toaster/useToaster';
 
 export const getUserWarehouseCredentials = async () =>
-    lightdashApi<UserWarehouseCredentials[]>({
+    lightdashApi<UserWarehouseCredentialsWithAgentStatus[]>({
         url: `/user/warehouseCredentials`,
         method: 'GET',
         body: undefined,
     });
 
 export const useUserWarehouseCredentials = (
-    useQueryOptions?: UseQueryOptions<UserWarehouseCredentials[], ApiError>,
+    useQueryOptions?: UseQueryOptions<
+        UserWarehouseCredentialsWithAgentStatus[],
+        ApiError
+    >,
 ) => {
-    return useQuery<UserWarehouseCredentials[], ApiError>({
+    return useQuery<UserWarehouseCredentialsWithAgentStatus[], ApiError>({
         queryKey: ['user_warehouse_credentials'],
         queryFn: getUserWarehouseCredentials,
         ...useQueryOptions,

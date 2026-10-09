@@ -8,8 +8,9 @@ import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
+import { snowflakeAgentClientMock } from '../../../services/AiAccessService/SnowflakeAgentClientResolver.mock';
 import {
-    snowflakeAiPassportStrategy,
+    createSnowflakeAiPassportStrategy,
     snowflakeAiSessionCheck,
 } from './snowflakeAiStrategy';
 
@@ -37,7 +38,7 @@ vi.mock('../../../config/lightdashConfig', async () => {
 });
 
 const verify = (
-    snowflakeAiPassportStrategy as unknown as {
+    createSnowflakeAiPassportStrategy(snowflakeAgentClientMock) as unknown as {
         _verify: (
             req: Express.Request,
             accessToken: string,
@@ -54,6 +55,7 @@ const callVerify = async (
     refreshToken: string,
     agentSession: boolean | 'error' | Error = true,
     seconds: unknown = undefined,
+    client = snowflakeAgentClientMock,
 ) => {
     const check = vi.spyOn(snowflakeAiSessionCheck, 'check');
     if (agentSession === 'error' || agentSession instanceof Error) {
@@ -91,7 +93,12 @@ const callVerify = async (
         },
     } as unknown as Express.Request;
     const done = vi.fn();
-    await verify(
+    const clientVerify = (
+        createSnowflakeAiPassportStrategy(client) as unknown as {
+            _verify: typeof verify;
+        }
+    )._verify;
+    await clientVerify(
         req,
         'access-token',
         refreshToken,
@@ -122,6 +129,7 @@ describe('Snowflake AI OAuth callback', () => {
                 result.user,
                 'refresh-token',
                 null,
+                { organizationUuid: 'org-uuid', clientVersion: null },
             );
         },
     );
@@ -137,7 +145,9 @@ describe('Snowflake AI OAuth callback', () => {
         );
     });
     it('exchanges a code only once for state issued to the same session', async () => {
-        const strategy = Object.create(snowflakeAiPassportStrategy!);
+        const strategy = Object.create(
+            createSnowflakeAiPassportStrategy(snowflakeAgentClientMock),
+        );
         const exchange = vi.fn();
         strategy._oauth2 = {
             ...strategy._oauth2,
@@ -166,7 +176,9 @@ describe('Snowflake AI OAuth callback', () => {
     it.each([undefined, 'unrelated-state'])(
         'rejects an unsolicited callback with state %s before exchanging the code',
         (state) => {
-            const strategy = Object.create(snowflakeAiPassportStrategy!);
+            const strategy = Object.create(
+                createSnowflakeAiPassportStrategy(snowflakeAgentClientMock),
+            );
             const exchange = vi.fn();
             strategy._oauth2 = {
                 ...strategy._oauth2,
@@ -224,32 +236,6 @@ describe('Snowflake AI OAuth callback', () => {
         expect(result.upsertAiSnowflakeCredential).not.toHaveBeenCalled();
     });
 
-    it('derives the account from the Snowflake token endpoint', async () => {
-        const config = lightdashConfig.auth.snowflakeAi;
-        const originalAccount = config.account;
-        const originalEndpoint = config.tokenEndpoint;
-        config.account = undefined;
-        config.tokenEndpoint =
-            'https://myorg-myaccount.snowflakecomputing.com/oauth/token';
-        try {
-            const result = await callVerify(true, 'refresh-token');
-            expect(result.checkCalls).toEqual([
-                [
-                    'myorg-myaccount',
-                    'access-token',
-                    {
-                        accessUrl:
-                            'https://myorg-myaccount.snowflakecomputing.com',
-                    },
-                ],
-            ]);
-            expect(result.upsertAiSnowflakeCredential).toHaveBeenCalled();
-        } finally {
-            config.account = originalAccount;
-            config.tokenEndpoint = originalEndpoint;
-        }
-    });
-
     it('stores the AI credential when agent identity is enabled', async () => {
         const result = await callVerify(true, 'refresh-token');
         expect(result.get).toHaveBeenCalledExactlyOnceWith({
@@ -260,6 +246,7 @@ describe('Snowflake AI OAuth callback', () => {
             result.user,
             'refresh-token',
             null,
+            { organizationUuid: 'org-uuid', clientVersion: null },
         );
         expect(result.checkCalls).toEqual([
             [
@@ -284,10 +271,12 @@ describe('Snowflake agent redirect URI', () => {
             try {
                 lightdashConfig.siteUrl = siteUrl;
                 vi.resetModules();
-                const { snowflakeAiPassportStrategy: strategy } =
+                const { createSnowflakeAiPassportStrategy: createStrategy } =
                     await import('./snowflakeAiStrategy');
                 const callbackURL = (
-                    strategy as unknown as { _callbackURL: string }
+                    createStrategy(snowflakeAgentClientMock) as unknown as {
+                        _callbackURL: string;
+                    }
                 )._callbackURL;
                 expect(callbackURL).toBe(getSnowflakeAgentRedirectUri(siteUrl));
                 expect(
@@ -334,4 +323,83 @@ it('preserves the session-check exception as a non-enumerable cause', async () =
     });
     expect(JSON.stringify(refusal)).not.toContain('abc123');
     expect(result.upsertAiSnowflakeCredential).not.toHaveBeenCalled();
+});
+
+describe('per-organization Snowflake strategies', () => {
+    it('uses each resolved client for the authorization and token endpoints', async () => {
+        const urls = await Promise.all(
+            ['first', 'second'].map(async (organizationUuid) => {
+                const client = {
+                    ...snowflakeAgentClientMock,
+                    source: 'organization' as const,
+                    organizationUuid,
+                    clientVersion: `${organizationUuid}-version`,
+                    clientId: `${organizationUuid}-client`,
+                    clientSecret: `${organizationUuid}-secret`,
+                    authorizationEndpoint: `https://${organizationUuid}.example/authorize`,
+                    tokenEndpoint: `https://${organizationUuid}.example/token`,
+                };
+                const strategy = Object.create(
+                    createSnowflakeAiPassportStrategy(client),
+                );
+                expect(strategy._oauth2._clientId).toBe(client.clientId);
+                expect(strategy._oauth2._clientSecret).toBe(
+                    client.clientSecret,
+                );
+                expect(strategy._oauth2._accessTokenUrl).toBe(
+                    client.tokenEndpoint,
+                );
+                const session: Record<string, unknown> = {};
+                const url = await new Promise<string>((resolve) => {
+                    strategy.redirect = resolve;
+                    strategy.authenticate(
+                        { query: {}, session },
+                        { scope: ['refresh_token'] },
+                    );
+                });
+                const parsed = new URL(url);
+                expect(parsed.origin + parsed.pathname).toBe(
+                    client.authorizationEndpoint,
+                );
+                expect(parsed.searchParams.get('client_id')).toBe(
+                    client.clientId,
+                );
+                expect(session.agentConnectBindings).toEqual({
+                    [parsed.searchParams.get('state')!]: {
+                        organizationUuid,
+                        clientVersion: client.clientVersion,
+                    },
+                });
+                return url;
+            }),
+        );
+        expect(urls[0]).not.toBe(urls[1]);
+    });
+});
+
+it('checks the resolved organization account and saves its binding', async () => {
+    const client = {
+        ...snowflakeAgentClientMock,
+        source: 'organization' as const,
+        clientVersion: 'saved-version',
+        account: 'saved-account',
+        accessUrl: 'https://saved.example',
+    };
+    const result = await callVerify(true, 'refresh-token', true, 600, client);
+    expect(result.checkCalls).toEqual([
+        [
+            'saved-account',
+            'access-token',
+            { accessUrl: 'https://saved.example' },
+        ],
+    ]);
+    expect(result.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+        result.user,
+        'refresh-token',
+        expect.any(Date),
+        {
+            organizationUuid: client.organizationUuid,
+            clientVersion: 'saved-version',
+        },
+    );
 });

@@ -1,18 +1,8 @@
 import {
-    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
 } from '@lightdash/common';
-import {
-    Badge,
-    Button,
-    Code,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { IconCheck, IconMinus, IconX } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
@@ -22,6 +12,7 @@ import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { AgentSetupStep } from './AgentSetupStep';
 import { useSnowflakeAgentSetup, useSnowflakeAgentVerify } from './api';
+import { SnowflakeAgentClient } from './SnowflakeAgentClient';
 
 const checkAppearance = {
     passed: { icon: IconCheck, color: 'green', label: 'Passed' },
@@ -34,25 +25,15 @@ const SnowflakeSetupSteps = ({
     verification,
     verifying,
     onVerify,
+    onClientSave,
 }: {
     setup: OrganizationAgentIdentitySnowflakeSetup;
     verification: OrganizationAgentIdentitySnowflakeVerify | null;
     verifying: boolean;
     onVerify: () => void;
+    onClientSave: () => void;
 }) => {
     const [copied, setCopied] = useState(false);
-    const missingSettings = new Set(setup.missingSettings);
-    const oauthSettings: { envVar: string; label: string }[] = [
-        ...SNOWFLAKE_AGENT_OAUTH_SETTINGS,
-        ...(missingSettings.has('SNOWFLAKE_AI_OAUTH_ACCOUNT')
-            ? [
-                  {
-                      envVar: 'SNOWFLAKE_AI_OAUTH_ACCOUNT',
-                      label: 'Account (needed when the token endpoint is not on snowflakecomputing.com)',
-                  },
-              ]
-            : []),
-    ];
     return (
         <Stack gap="lg">
             <AgentSetupStep
@@ -69,48 +50,19 @@ const SnowflakeSetupSteps = ({
             </AgentSetupStep>
             <AgentSetupStep
                 number={2}
-                title="Give the client ID and secret to your instance operator"
+                title="Paste what Snowflake returned"
                 done={setup.configured}
             >
                 <Stack gap="xs">
-                    <Text size="sm">
-                        The second statement returns the client ID and secret.
-                        Your instance operator sets these and restarts the
-                        instance.
-                    </Text>
-                    {oauthSettings.map(({ envVar, label }) => (
-                        <Group key={envVar} gap="xs">
-                            <Code>{envVar}</Code>
-                            {envVar === 'SNOWFLAKE_AI_OAUTH_ACCOUNT' && (
-                                <Text size="xs">{label}</Text>
-                            )}
-                            <Text
-                                size="xs"
-                                c={
-                                    missingSettings.has(envVar)
-                                        ? 'orange'
-                                        : 'green'
-                                }
-                                aria-label={`${label}: ${missingSettings.has(envVar) ? 'missing' : 'set'}`}
-                            >
-                                {missingSettings.has(envVar)
-                                    ? 'Missing'
-                                    : 'Set'}
-                            </Text>
-                        </Group>
-                    ))}
-                    {setup.missingSettings
-                        .filter(
-                            (setting) =>
-                                !oauthSettings.some(
-                                    ({ envVar }) => envVar === setting,
-                                ),
-                        )
-                        .map((setting) => (
-                            <Text key={setting} size="sm" c="orange">
-                                Missing: {setting}
-                            </Text>
-                        ))}
+                    <SnowflakeAgentClient
+                        client={setup.client}
+                        onSave={onClientSave}
+                    />
+                    {setup.missingSettings.includes('Enterprise licence') && (
+                        <Text size="sm" c="orange">
+                            Missing: Enterprise licence
+                        </Text>
+                    )}
                 </Stack>
             </AgentSetupStep>
             <AgentSetupStep
@@ -202,10 +154,12 @@ const SnowflakeSetupContent = ({
     setup,
     verify,
     compactConfirm,
+    onClientSave,
 }: {
     setup: ReturnType<typeof useSnowflakeAgentSetup>;
     verify: ReturnType<typeof useSnowflakeAgentVerify>;
     compactConfirm: boolean;
+    onClientSave: () => void;
 }) => {
     if (setup.isLoading) return <EmptyStateLoader />;
     if (setup.isError)
@@ -230,6 +184,7 @@ const SnowflakeSetupContent = ({
             verification={verify.data ?? null}
             verifying={verify.isFetching}
             onVerify={() => void verify.refetch()}
+            onClientSave={onClientSave}
         />
     );
 };
@@ -294,10 +249,13 @@ export const SnowflakeAgentSetup = (props: Props) => {
     const setup = useSnowflakeAgentSetup();
     const verify = useSnowflakeAgentVerify(props.mode === 'active');
     const [expanded, setExpanded] = useState(false);
+    const [clientEdited, setClientEdited] = useState(false);
     const needsAttention = verify.isError || verify.data?.passed === false;
     const showSteps = props.mode === 'pending' || expanded || needsAttention;
     const compactConfirm =
-        props.mode === 'pending' && setup.data?.configured === true;
+        props.mode === 'pending' &&
+        !clientEdited &&
+        setup.data?.configured === true;
     const verified = !verify.isError && verify.data?.passed === true;
     return (
         <Stack gap="sm">
@@ -338,6 +296,7 @@ export const SnowflakeAgentSetup = (props: Props) => {
                             setup={setup}
                             verify={verify}
                             compactConfirm={compactConfirm}
+                            onClientSave={() => setClientEdited(true)}
                         />
                         {verify.isError && (
                             <Text size="sm" c="red" role="alert">

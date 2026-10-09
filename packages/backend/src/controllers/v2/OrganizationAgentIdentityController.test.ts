@@ -12,6 +12,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { OrganizationAgentIdentityController } from './OrganizationAgentIdentityController';
@@ -53,6 +54,9 @@ const setup = () => {
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        organizationSnowflakeAgentClientModel: {
+            getWithSecret: vi.fn().mockResolvedValue(null),
+        } as unknown as OrganizationSnowflakeAgentClientModel,
         analytics: analyticsMock,
         aiServiceAccountCredentialsModel: {
             findProjectsMissingSlot: vi.fn(async () => []),
@@ -95,6 +99,7 @@ test('allows an authenticated member to read their organization settings', async
     expect(await controller.getSettings(req)).toEqual({
         status: 'ok',
         results: {
+            snowflakeConfigured: true,
             requireVerifiedAgentSessions: false,
             rules: [
                 {
@@ -153,7 +158,11 @@ test('allows an organization admin to update their own settings', async () => {
         }),
     ).toEqual({
         status: 'ok',
-        results: { requireVerifiedAgentSessions: true, rules: updatedRules },
+        results: {
+            requireVerifiedAgentSessions: true,
+            snowflakeConfigured: true,
+            rules: updatedRules,
+        },
     });
     expect(model.upsert).toHaveBeenCalledWith(
         account.organization.organizationUuid,

@@ -1,3 +1,5 @@
+import { ParameterError } from '../types/errors';
+
 export const SNOWFLAKE_AI_CALLBACK_PATH = '/oauth/redirect/snowflake-ai';
 
 export const getSnowflakeAgentRedirectUri = (siteUrl: string): string =>
@@ -92,4 +94,57 @@ export const buildBigQueryAiServiceAccountCommands = ({
         });
     }
     return commands;
+};
+
+export const parseSnowflakeAccountUrl = (
+    input: string,
+): {
+    accountUrl: string;
+    accountIdentifier: string;
+    authorizationEndpoint: string;
+    tokenEndpoint: string;
+} => {
+    const value = input.trim();
+    const invalid = () =>
+        new ParameterError(
+            'Provide an HTTPS Snowflake account URL with no path, credentials, query or fragment.',
+        );
+    if (!value || /[\\\s?#@]/.test(value)) throw invalid();
+    const candidate = value.includes('://') ? value : `https://${value}`;
+    if (!/^https:\/\/[^/]+\/?$/i.test(candidate)) throw invalid();
+    let url: URL;
+    try {
+        url = new URL(candidate);
+    } catch {
+        throw invalid();
+    }
+    const suffix = '.snowflakecomputing.com';
+    if (
+        url.protocol !== 'https:' ||
+        url.username ||
+        url.password ||
+        url.port ||
+        url.pathname !== '/' ||
+        !url.hostname.endsWith(suffix)
+    )
+        throw invalid();
+    const accountHost = url.hostname.slice(0, -suffix.length);
+    if (
+        !accountHost ||
+        !accountHost
+            .split('.')
+            .every((label) => /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label))
+    )
+        throw invalid();
+    const accountIdentifier = accountHost
+        .split('.')
+        .filter((label) => label !== 'privatelink')
+        .join('.');
+    if (!accountIdentifier) throw invalid();
+    return {
+        accountUrl: url.origin,
+        accountIdentifier,
+        authorizationEndpoint: `${url.origin}/oauth/authorize`,
+        tokenEndpoint: `${url.origin}/oauth/token-request`,
+    };
 };

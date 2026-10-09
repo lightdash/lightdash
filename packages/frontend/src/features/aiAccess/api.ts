@@ -4,6 +4,7 @@ import {
     type AiWarehouseCapabilities,
     type ApiError,
     type OrganizationAgentIdentitySnowflakeSetup,
+    type UpdateOrganizationSnowflakeAgentClient,
     type OrganizationAgentIdentitySnowflakeVerify,
     type ApiResponse,
     type OrganizationAgentIdentityOverview,
@@ -246,6 +247,41 @@ export const useSnowflakeAgentSetup = () => {
         enabled: flag?.enabled === true,
         refetchOnWindowFocus: false,
         refetchOnMount: 'always',
+    });
+};
+
+export const useSaveSnowflakeAgentClient = () => {
+    const client = useQueryClient();
+    const { user } = useApp();
+    const { showToastSuccess } = useToaster();
+    return useMutation<
+        OrganizationAgentIdentitySnowflakeSetup,
+        ApiError,
+        UpdateOrganizationSnowflakeAgentClient
+    >({
+        mutationFn: (credentials) =>
+            lightdashApi<OrganizationAgentIdentitySnowflakeSetup>({
+                version: 'v2',
+                url: '/org/agent-identity/snowflake/client',
+                method: 'PUT',
+                body: JSON.stringify(credentials),
+                sensitive: true,
+            }),
+        cacheTime: 0,
+        onSuccess: async (setup) => {
+            const orgKey = ['ai-access', 'org', user.data?.organizationUuid];
+            await Promise.all([
+                client.cancelQueries([...orgKey, 'snowflake-verify']),
+                client.cancelQueries([...orgKey, 'snowflake-setup']),
+            ]);
+            client.setQueryData([...orgKey, 'snowflake-setup'], setup);
+            showToastSuccess({ title: 'Snowflake client saved.' });
+            void Promise.all([
+                client.resetQueries([...orgKey, 'snowflake-verify']),
+                client.invalidateQueries(['ai-access']),
+                client.invalidateQueries(['user_warehouse_credentials']),
+            ]);
+        },
     });
 };
 

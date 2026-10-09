@@ -42,13 +42,29 @@ const setup = () => {
         hasOrganizationAiSnowflakeCredential: vi.fn().mockResolvedValue(false),
     };
     const rules = {
+        list: vi.fn().mockResolvedValue([]),
         set: vi.fn().mockResolvedValue({
             changed: false,
             previousSource: 'marked_person',
         }),
     };
-    const settings = { upsert: vi.fn() };
+    const settings = {
+        get: vi.fn().mockResolvedValue({ requireVerifiedAgentSessions: false }),
+        upsert: vi.fn().mockResolvedValue({
+            settings: { requireVerifiedAgentSessions: true },
+            previousSource: 'marked_person',
+            changed: false,
+        }),
+    };
+    const clients = {
+        getWithSecret: vi.fn().mockResolvedValue(null),
+        getMetadata: vi.fn().mockResolvedValue(null),
+        upsert: vi.fn(),
+    };
+    const analytics = { track: vi.fn() };
     const service = new AiAccessService({
+        organizationSnowflakeAgentClientModel: clients,
+        analytics,
         lightdashConfig: config,
         featureFlagModel,
         userWarehouseCredentialsModel: credentials,
@@ -59,6 +75,8 @@ const setup = () => {
     vi.stubGlobal('fetch', fetchMock);
     return {
         config,
+        clients,
+        analytics,
         account,
         featureFlagModel,
         credentials,
@@ -81,8 +99,15 @@ describe('Snowflake integration setup', () => {
             integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
             configured: true,
             missingSettings: [],
+            client: {
+                source: 'environment',
+                accountUrl: 'https://test-account.snowflakecomputing.com',
+                clientId: 'test-client',
+                hasClientSecret: true,
+                updatedAt: null,
+            },
         });
-        expect(JSON.stringify(result)).not.toMatch(/test-secret|test-client/);
+        expect(JSON.stringify(result)).not.toMatch(/test-secret/);
     });
     it('names every missing setting and the Enterprise licence', async () => {
         const { service, account, config, fetchMock } = setup();
@@ -186,7 +211,7 @@ describe('Snowflake integration setup', () => {
         const result = await service.verifySnowflakeSetup(account);
         expect(
             credentials.hasOrganizationAiSnowflakeCredential,
-        ).toHaveBeenCalledWith(account.organization?.organizationUuid);
+        ).toHaveBeenCalledWith(account.organization?.organizationUuid, null);
         expect(result.checks[2]).toMatchObject({
             status: 'passed',
             required: false,
@@ -301,4 +326,193 @@ describe('Snowflake integration setup', () => {
             }),
         ).resolves.toMatchObject({ source: 'agent_sign_in' });
     });
+});
+
+const organizationClient = {
+    organizationUuid: 'test-org-uuid',
+    accountUrl: 'https://org-account.snowflakecomputing.com',
+    accountIdentifier: 'org-account',
+    clientId: 'org-client',
+    clientSecret: 'org-client-secret',
+    clientVersion: 'version-1',
+    updatedAt: new Date(),
+};
+const clientBody = {
+    accountUrl: organizationClient.accountUrl,
+    clientId: organizationClient.clientId,
+    clientSecret: organizationClient.clientSecret,
+};
+
+describe('organization Snowflake client', () => {
+    it('saves canonical settings and returns metadata without a secret', async () => {
+        const { service, account, clients, analytics } = setup();
+        clients.upsert.mockImplementation(async () => {
+            clients.getWithSecret.mockResolvedValue(organizationClient);
+            clients.getMetadata.mockResolvedValue(organizationClient);
+            return { ...organizationClient, action: 'created' };
+        });
+        const result = await service.saveSnowflakeAgentClient(account, {
+            ...clientBody,
+            accountUrl: 'ORG-ACCOUNT.snowflakecomputing.com/',
+            clientId: ' org-client ',
+        });
+        expect(clients.upsert).toHaveBeenCalledWith({
+            ...clientBody,
+            accountIdentifier: 'org-account',
+            organizationUuid: account.organization.organizationUuid,
+            userUuid: account.user.id,
+        });
+        expect(result.client).toEqual({
+            source: 'organization',
+            accountUrl: clientBody.accountUrl,
+            clientId: clientBody.clientId,
+            hasClientSecret: true,
+            updatedAt: organizationClient.updatedAt,
+        });
+        expect(result.configured).toBe(true);
+        expect(JSON.stringify(result)).not.toContain(clientBody.clientSecret);
+        expect(JSON.stringify(result)).not.toContain('clientSecret');
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'agent_identity.snowflake_client_saved',
+            userId: account.user.id,
+            properties: {
+                organizationId: account.organization.organizationUuid,
+                userId: account.user.id,
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                action: 'created',
+            },
+        });
+        expect(JSON.stringify(analytics.track.mock.calls)).not.toContain(
+            clientBody.clientId,
+        );
+        expect(JSON.stringify(analytics.track.mock.calls)).not.toContain(
+            clientBody.accountUrl,
+        );
+        expect(JSON.stringify(analytics.track.mock.calls)).not.toContain(
+            clientBody.clientSecret,
+        );
+    });
+    it('denies a save when the flag is off or the user cannot manage the organization', async () => {
+        const { service, account, featureFlagModel, clients } = setup();
+        featureFlagModel.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.saveSnowflakeAgentClient(account, clientBody),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        featureFlagModel.get.mockResolvedValue({ enabled: true });
+        account.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            service.saveSnowflakeAgentClient(account, clientBody),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(clients.upsert).not.toHaveBeenCalled();
+    });
+    it.each([
+        { clientId: '' },
+        { clientId: '  ' },
+        { clientSecret: '' },
+        { clientSecret: '  ' },
+        { accountUrl: 'https://evil.test' },
+    ])('rejects invalid client input %j', async (invalid) => {
+        const { service, account, clients } = setup();
+        await expect(
+            service.saveSnowflakeAgentClient(account, {
+                ...clientBody,
+                ...invalid,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(clients.upsert).not.toHaveBeenCalled();
+    });
+    it('verifies the saved authorization endpoint and reports its source', async () => {
+        const { service, account, clients, fetchMock } = setup();
+        clients.getWithSecret.mockResolvedValue(organizationClient);
+        const result = await service.verifySnowflakeSetup(account);
+        expect(result.checks[0]).toMatchObject({
+            status: 'passed',
+            detail: 'Using the client saved for this organisation.',
+        });
+        expect(fetchMock).toHaveBeenCalledWith(
+            `${clientBody.accountUrl}/oauth/authorize`,
+            expect.any(Object),
+        );
+        expect(JSON.stringify(result)).not.toContain(clientBody.clientSecret);
+    });
+    it.each([404, 405])(
+        'gives an account URL hint for an organization endpoint returning %s',
+        async (status) => {
+            const { service, account, clients, fetchMock } = setup();
+            clients.getWithSecret.mockResolvedValue(organizationClient);
+            fetchMock.mockResolvedValue({ status });
+            const result = await service.verifySnowflakeSetup(account);
+            expect(result.checks[1].detail).toBe(
+                `The authorization endpoint returned HTTP ${status}. Check the Snowflake account URL.`,
+            );
+        },
+    );
+    it('allows org-aware settings updates without instance OAuth settings', async () => {
+        const { service, account, clients, config } = setup();
+        clients.getWithSecret.mockResolvedValue(organizationClient);
+        Object.assign(config.auth.snowflakeAi, { clientSecret: undefined });
+        await expect(
+            service.updateOrganizationSettings(account, {
+                requireVerifiedAgentSessions: true,
+            }),
+        ).resolves.toMatchObject({ snowflakeConfigured: true });
+        await expect(
+            service.updateOrganizationRule(account, WarehouseTypes.SNOWFLAKE, {
+                source: 'agent_sign_in',
+            }),
+        ).resolves.toMatchObject({ source: 'agent_sign_in' });
+    });
+});
+
+it('verifies a resolved client while still reporting a missing licence', async () => {
+    const { service, account, clients, config } = setup();
+    clients.getWithSecret.mockResolvedValue(organizationClient);
+    Object.assign(config.license, { licenseKey: undefined });
+    const result = await service.verifySnowflakeSetup(account);
+    expect(result.passed).toBe(false);
+    expect(result.checks[0]).toMatchObject({ status: 'passed' });
+    expect(result.checks[0].detail).toContain(
+        'Using the client saved for this organisation.',
+    );
+    expect(result.checks[0].detail).toContain('Enterprise licence');
+});
+
+it('keeps unreadable organization clients editable without falling back to the environment', async () => {
+    const { service, clients, account } = setup();
+    clients.getMetadata.mockResolvedValue(organizationClient);
+    clients.getWithSecret.mockRejectedValue(
+        new ParameterError('Cannot decrypt'),
+    );
+    await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject({
+        configured: false,
+        missingSettings: ['Snowflake client secret (replace it)'],
+        client: {
+            source: 'organization',
+            accountUrl: organizationClient.accountUrl,
+            clientId: organizationClient.clientId,
+            hasClientSecret: false,
+            updatedAt: organizationClient.updatedAt,
+        },
+    });
+    await expect(
+        service.getOrganizationSettings(account),
+    ).resolves.toMatchObject({ snowflakeConfigured: false });
+});
+
+it('resolves an environment client only once when reading setup', async () => {
+    const { service, clients, account } = setup();
+    await service.getSnowflakeSetup(account);
+    expect(clients.getWithSecret).toHaveBeenCalledOnce();
+});
+
+it('scopes activation evidence to the current organization client version', async () => {
+    const { service, clients, credentials, account } = setup();
+    clients.getWithSecret.mockResolvedValue(organizationClient);
+    await service.verifySnowflakeSetup(account);
+    expect(
+        credentials.hasOrganizationAiSnowflakeCredential,
+    ).toHaveBeenCalledWith(
+        account.organization.organizationUuid,
+        organizationClient.clientVersion,
+    );
 });

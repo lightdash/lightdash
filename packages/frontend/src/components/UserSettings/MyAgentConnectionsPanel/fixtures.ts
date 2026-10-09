@@ -2,11 +2,12 @@ import {
     SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
-    type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 
-export const credential: UserWarehouseCredentials = {
+export const credential: UserWarehouseCredentialsWithAgentStatus = {
     uuid: 'ai-credential',
+    agentClientCurrent: true,
     expiresAt: null,
     purpose: UserWarehouseCredentialPurpose.AI,
     userUuid: 'user',

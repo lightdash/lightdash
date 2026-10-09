@@ -28,10 +28,10 @@ import {
     type QueryHistory,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
+import { snowflakeOAuthRefreshClient as refresh } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
@@ -44,6 +44,7 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
+import { type OrganizationSnowflakeAgentClientModel } from '../../models/OrganizationSnowflakeAgentClientModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     type QueryHistoryModel,
@@ -69,6 +70,7 @@ import {
 } from './providers/AiCredentialProvider';
 import { createAiCredentialProviderRegistry } from './providers/registry';
 import { SnowflakeAiCredentialProvider } from './providers/SnowflakeAiCredentialProvider';
+import { snowflakeAgentClientMock } from './SnowflakeAgentClientResolver.mock';
 
 const connection: CreateWarehouseCredentials = {
     type: WarehouseTypes.POSTGRES,
@@ -117,7 +119,7 @@ const viewer = {
 const setup = (agentResultIdentityCheckEnabled = true) => {
     const provider = {
         warehouseType: WarehouseTypes.SNOWFLAKE,
-        configurationError: vi.fn((): string | null => null),
+        configurationError: vi.fn(async (): Promise<string | null> => null),
         missingPrerequisite: vi.fn(
             async (): Promise<AiAccessRefusalReason | null> => null,
         ),
@@ -246,6 +248,9 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         })),
     };
     const service = new AiAccessService({
+        organizationSnowflakeAgentClientModel: {
+            getWithSecret: vi.fn().mockResolvedValue(null),
+        } as unknown as OrganizationSnowflakeAgentClientModel,
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
         userWarehouseCredentialsModel:
@@ -594,7 +599,7 @@ describe('AiAccessService', () => {
         ])('tracks %s with exact properties', async (reason) => {
             const { service, provider, analytics } = setup();
             if (reason === AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED) {
-                provider.configurationError.mockReturnValue(
+                provider.configurationError.mockResolvedValue(
                     'private configuration',
                 );
             } else if (reason === AiAccessRefusalReason.PRINCIPAL_FAILED) {
@@ -1099,7 +1104,11 @@ describe('AiAccessService', () => {
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
                 silentRefresh: true,
                 connection: snowflake,
-                person: { userUuid: 'user', email: user.email },
+                person: {
+                    organizationUuid: 'org',
+                    userUuid: 'user',
+                    email: user.email,
+                },
             });
         });
 
@@ -2018,7 +2027,11 @@ describe('AiAccessService', () => {
         });
         expect(provider.missingPrerequisite).toHaveBeenCalledWith(
             expect.objectContaining({
-                person: { userUuid: 'user', email: 'a.b+tag@example.test' },
+                person: {
+                    organizationUuid: 'org',
+                    userUuid: 'user',
+                    email: 'a.b+tag@example.test',
+                },
             }),
         );
         expect(provider.mint).not.toHaveBeenCalled();
@@ -2057,6 +2070,9 @@ describe('AiAccessService', () => {
     });
     test('registers Snowflake', () => {
         const registry = createAiCredentialProviderRegistry({
+            snowflakeAgentClientResolver: {
+                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
+            },
             lightdashConfig: lightdashConfigMock,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         });
@@ -2198,6 +2214,9 @@ describe('AiAccessService', () => {
     });
     test('does not register separate-principal providers', () => {
         const registry = createAiCredentialProviderRegistry({
+            snowflakeAgentClientResolver: {
+                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
+            },
             lightdashConfig: lightdashConfigMock,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         });
@@ -2276,6 +2295,7 @@ describe('organization agent identity rules', () => {
             requireVerifiedAgentSessions: false,
         });
         expect(await service.getOrganizationSettings(member)).toEqual({
+            snowflakeConfigured: true,
             requireVerifiedAgentSessions: false,
             rules: [
                 {
@@ -2442,7 +2462,11 @@ describe('organization agent identity rules', () => {
                 await service.updateOrganizationSettings(admin, {
                     requireVerifiedAgentSessions: required,
                 }),
-            ).toEqual({ requireVerifiedAgentSessions: required, rules });
+            ).toEqual({
+                requireVerifiedAgentSessions: required,
+                snowflakeConfigured: true,
+                rules,
+            });
             expect(organizationSettings.upsert).toHaveBeenCalledWith(
                 admin.organization.organizationUuid,
                 { requireVerifiedAgentSessions: required },
@@ -4228,6 +4252,11 @@ describe('silent refresh routing', () => {
             };
             registry.mockReturnValue(
                 new SnowflakeAiCredentialProvider({
+                    snowflakeAgentClientResolver: {
+                        resolve: vi
+                            .fn()
+                            .mockResolvedValue(snowflakeAgentClientMock),
+                    },
                     lightdashConfig: {
                         ...lightdashConfigMock,
                         auth: {

@@ -3,7 +3,7 @@ import {
     FeatureFlags,
     formatDate,
     UserWarehouseCredentialPurpose,
-    type UserWarehouseCredentials,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import {
@@ -63,7 +63,7 @@ vi.mock(
 );
 
 const renderCard = (
-    credentials: UserWarehouseCredentials[] = [],
+    credentials: UserWarehouseCredentialsWithAgentStatus[] = [],
     snowflakeConfigured = true,
 ) => {
     const client = new QueryClient({
@@ -196,6 +196,27 @@ describe('SnowflakeAgentConnectionCard', () => {
             expect(
                 screen.getByRole('button', { name: 'Disconnect' }),
             ).toBeEnabled();
+        },
+    );
+
+    it.each([false, true])(
+        'requires reconnection after client replacement with silent refresh %s',
+        (enabled) => {
+            mockSilentRefreshFlag(enabled);
+            renderCard([
+                {
+                    ...credential,
+                    expiresAt: new Date(Date.now() + 86400000),
+                    agentClientCurrent: false,
+                },
+            ]);
+            expect(screen.getByText('Expired')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            ).toBeEnabled();
+            expect(
+                screen.queryByRole('button', { name: 'Disconnect' }),
+            ).not.toBeInTheDocument();
         },
     );
 
