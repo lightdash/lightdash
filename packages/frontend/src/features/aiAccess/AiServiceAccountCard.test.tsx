@@ -5,6 +5,7 @@ import {
     WarehouseTypes,
     type AiIdentitySource,
     type AiServiceAccountSlot,
+    type AiServiceAccountParent,
     type Project,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -41,7 +42,10 @@ const project = {
 vi.mock('../../components/common/CodeBlock/CodeBlock', () => ({
     default: ({ code }: { code: string }) => <pre>{code}</pre>,
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api', () => {
+    const request = vi.fn();
+    return { lightdashApi: request, lightdashApiResponse: request };
+});
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: mocks.enabled } }),
 }));
@@ -85,6 +89,12 @@ vi.mock('../../components/ProjectConnection/formContext', () => ({
 
 let source: AiIdentitySource = 'marked_person';
 let slot: AiServiceAccountSlot | null = null;
+let parent: AiServiceAccountParent | null = null;
+const parentAccount = {
+    projectUuid: 'parent-project',
+    projectName: 'Production',
+    principal: 'parent@example.test',
+};
 const savedSlot = {
     uuid: 'slot',
     identityUuid: 'identity',
@@ -176,6 +186,7 @@ describe('AI service account card', () => {
         mocks.canManage = true;
         source = 'marked_person';
         slot = null;
+        parent = null;
         vi.mocked(lightdashApi).mockImplementation(async ({ url, method }) => {
             if (url === '/org/agent-identity')
                 return {
@@ -216,10 +227,159 @@ describe('AI service account card', () => {
                     observed: {},
                     checkedAt: new Date(),
                 };
+            if (method === 'GET')
+                return { status: 'ok', results: slot, parent };
             if (method === 'PUT') slot = savedSlot;
             if (method === 'DELETE') slot = null;
             return slot;
         });
+    });
+    it('shows an inherited key and opens the form for a different key', async () => {
+        source = 'ai_service_account';
+        parent = parentAccount;
+        setup();
+        expect(await screen.findByText('From parent project')).toBeVisible();
+        expect(
+            screen.getByRole('link', { name: 'Production' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/projectManagement/parent-project/agentIdentity',
+        );
+        expect(
+            screen.getByText('Signs in as parent@example.test'),
+        ).toBeVisible();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add an AI service account' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Remove' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Replace' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: 'Set up the AI service account',
+            }),
+        ).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use a different key' }),
+        );
+        const dialog = await screen.findByRole('dialog', {
+            name: 'AI service account',
+        });
+        upload();
+        const save = within(dialog).getByRole('button', { name: 'Save' });
+        await waitFor(() => expect(save).toBeEnabled());
+        fireEvent.click(save);
+        expect(
+            await screen.findByRole('button', { name: 'Replace' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByText('From parent project'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: "Use the parent's key" }),
+        ).toBeVisible();
+    });
+    it('does not link a parent the user cannot view', async () => {
+        parent = { ...parentAccount, projectName: null };
+        setup();
+        expect(await screen.findByText('the parent project')).toBeVisible();
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(
+            screen.getByText('Signs in as parent@example.test'),
+        ).toBeVisible();
+    });
+    it('tests inherited credentials through the preview project', async () => {
+        parent = parentAccount;
+        setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        expect(
+            await screen.findByText('Signs in as tested-principal'),
+        ).toBeVisible();
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/ai-access/service-account/test',
+                method: 'POST',
+                body: JSON.stringify({ credentials: null }),
+            }),
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Test as agent' }));
+        expect(
+            await screen.findByText('Could not verify agent access.'),
+        ).toBeVisible();
+        expect(lightdashApi).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/ai-access/service-account/test-access',
+                method: 'POST',
+                body: JSON.stringify({
+                    credentials: null,
+                    entryPoint: 'project_agent_identity_page',
+                }),
+            }),
+        );
+    });
+    it('uses the parent key only after confirmation and refreshes the summary', async () => {
+        slot = savedSlot;
+        parent = parentAccount;
+        const { invalidate } = setup();
+        fireEvent.click(
+            await screen.findByRole('button', { name: "Use the parent's key" }),
+        );
+        const dialog = await screen.findByRole('dialog', {
+            name: "Use the parent's key",
+        });
+        expect(dialog).toHaveTextContent(
+            "Remove this project's key and use the parent project's key (parent@example.test)? Agent queries use the parent's key on the next query.",
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'DELETE' }),
+        );
+        fireEvent.click(
+            within(dialog).getByRole('button', {
+                name: "Use the parent's key",
+            }),
+        );
+        expect(await screen.findByText('From parent project')).toBeVisible();
+        expect(lightdashApi).toHaveBeenCalledWith({
+            version: 'v2',
+            url: '/projects/project/ai-access/service-account',
+            method: 'DELETE',
+            body: undefined,
+        });
+        expect(invalidate).toHaveBeenCalledWith(['ai-access']);
+        expect(
+            screen.queryByRole('button', { name: 'Remove' }),
+        ).not.toBeInTheDocument();
+    });
+    it('keeps the own key when switching to the parent is cancelled', async () => {
+        slot = savedSlot;
+        parent = parentAccount;
+        setup();
+        fireEvent.click(
+            await screen.findByRole('button', { name: "Use the parent's key" }),
+        );
+        fireEvent.click(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Cancel',
+            }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'DELETE' }),
+        );
+        expect(screen.getByText('Service account key file')).toBeVisible();
+    });
+    it('hides the parent action when an own key has no parent', async () => {
+        slot = savedSlot;
+        setup();
+        expect(
+            await screen.findByRole('button', { name: 'Remove' }),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('button', { name: "Use the parent's key" }),
+        ).not.toBeInTheDocument();
     });
     it.each(['warehouse', 'flag', 'permission', 'unsaved'])(
         'hides for %s',

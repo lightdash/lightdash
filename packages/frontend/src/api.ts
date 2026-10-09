@@ -216,7 +216,14 @@ const MAX_NETWORK_HISTORY = 10;
 const SENSITIVE_DATA_REDACTED = '[REDACTED: sensitive request]';
 export let networkHistory: AnyType[] = [];
 
-export const lightdashApi = async <T extends ApiResponse['results']>({
+export const lightdashApi = async <T extends ApiResponse['results']>(
+    props: LightdashApiProps,
+): Promise<T> => {
+    const response = await lightdashApiResponse<ApiResponse<T>>(props);
+    return (response.results ?? null) as T;
+};
+
+export const lightdashApiResponse = async <T extends ApiResponse>({
     method,
     url,
     body,
@@ -290,9 +297,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         .then((d: ApiResponse | ApiError) => {
             switch (d.status) {
                 case 'ok':
-                    // make sure we return null instead of undefined
-                    // otherwise react-query will crash
-                    return (d.results ?? null) as T;
+                    return d as T;
                 case 'error':
                     throw d;
                 default:

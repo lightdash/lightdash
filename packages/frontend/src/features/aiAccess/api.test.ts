@@ -1,8 +1,12 @@
 import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../../api';
+import { lightdashApi, lightdashApiResponse } from '../../api';
 import { renderHookWithProviders } from '../../testing/testUtils';
-import { aiAccessApi, useOrganizationAgentIdentitySettings } from './api';
+import {
+    aiAccessApi,
+    useAiServiceAccount,
+    useOrganizationAgentIdentitySettings,
+} from './api';
 
 let flagEnabled: boolean | undefined = false;
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -10,7 +14,10 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
         data: flagEnabled === undefined ? undefined : { enabled: flagEnabled },
     }),
 }));
-vi.mock('../../api', () => ({ lightdashApi: vi.fn().mockResolvedValue({}) }));
+vi.mock('../../api', () => ({
+    lightdashApi: vi.fn().mockResolvedValue({}),
+    lightdashApiResponse: vi.fn(),
+}));
 describe('AI access API URLs', () => {
     beforeEach(() => vi.clearAllMocks());
     it.each([null, 'connection / one'])(
@@ -59,5 +66,32 @@ describe('Organization agent identity request gating', () => {
                 body: undefined,
             }),
         );
+    });
+});
+
+describe('AI service account status', () => {
+    beforeEach(() => vi.clearAllMocks());
+    it('retains parent metadata when there is no own slot', async () => {
+        flagEnabled = true;
+        const status = {
+            status: 'ok' as const,
+            results: null,
+            parent: {
+                projectUuid: 'parent',
+                projectName: null,
+                principal: 'agent@example.test',
+            },
+        };
+        vi.mocked(lightdashApiResponse).mockResolvedValue(status);
+        const { result } = renderHookWithProviders(() =>
+            useAiServiceAccount('preview'),
+        );
+        await waitFor(() => expect(result.current.data).toEqual(status));
+        expect(lightdashApiResponse).toHaveBeenCalledExactlyOnceWith({
+            version: 'v2',
+            url: '/projects/preview/ai-access/service-account',
+            method: 'GET',
+            body: undefined,
+        });
     });
 });
