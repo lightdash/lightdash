@@ -69772,14 +69772,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SnowflakeAgentClientSource: {
         dataType: 'refAlias',
-        type: {
-            dataType: 'union',
-            subSchemas: [
-                { dataType: 'enum', enums: ['organization'] },
-                { dataType: 'enum', enums: ['environment'] },
-            ],
-            validators: {},
-        },
+        type: { dataType: 'enum', enums: ['organization'], validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OrganizationAgentIdentitySnowflakeSetup: {

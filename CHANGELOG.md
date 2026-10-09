@@ -1,3 +1,10 @@
+# [2.529.0](https://github.com/lightdash/lightdash/compare/2.528.0...2.529.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** set the Snowflake agent OAuth client only in the organisation form ([#30848](https://github.com/lightdash/lightdash/issues/30848)) ([51205f8](https://github.com/lightdash/lightdash/commit/51205f8ad991b9973a76e737d78dc09dc6d6aac0))
+
 # [2.528.0](https://github.com/lightdash/lightdash/compare/2.527.1...2.528.0) (2026-10-09)
 
 
