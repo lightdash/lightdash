@@ -16569,18 +16569,37 @@ describe('AI principal credential routing', () => {
         expect(result.aiPlan).toBe(plan);
         expect(personal).not.toHaveBeenCalled();
     });
-    test.each([false, true])(
-        'slot resolution skips organization and personal refresh on extra=%s',
-        async (extra) => {
+    test.each(
+        [false, true].flatMap((extra) =>
+            [WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS].map(
+                (warehouseType) => ({ extra, warehouseType }),
+            ),
+        ),
+    )(
+        'slot resolution skips organization and personal refresh on extra=$extra for $warehouseType',
+        async ({ extra, warehouseType }) => {
+            const executionPlan =
+                warehouseType === WarehouseTypes.BIGQUERY
+                    ? aiServiceAccountPlanMock
+                    : {
+                          ...aiServiceAccountPlanMock,
+                          credentials: {
+                              type: WarehouseTypes.DATABRICKS as const,
+                              serverHostName: 'workspace.example.com',
+                              httpPath: '/sql/warehouse',
+                              database: 'schema',
+                              token: 'slot-token',
+                          },
+                      };
             const configured = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
             );
             vi.spyOn(
                 configured.aiAccessService,
                 'resolvePlan',
-            ).mockResolvedValue(aiServiceAccountPlanMock);
+            ).mockResolvedValue(executionPlan);
             const baseCredentials = {
-                ...aiServiceAccountPlanMock.credentials,
+                ...executionPlan.credentials,
                 requireUserCredentials: false as const,
             };
             vi.mocked(
@@ -16626,7 +16645,7 @@ describe('AI principal credential routing', () => {
                         projectUuid,
                         organizationUuid: projectSummary.organizationUuid,
                         connectionMode: 'multi',
-                        originalWarehouseType: WarehouseTypes.BIGQUERY,
+                        originalWarehouseType: warehouseType,
                     })),
                     getExtraCredentialSource: vi.fn(async () => ({
                         credentials: baseCredentials,
@@ -16636,9 +16655,9 @@ describe('AI principal credential routing', () => {
                 });
             }
             const result = await resolveCredentials(configured);
-            expect(result.aiPlan).toBe(aiServiceAccountPlanMock);
+            expect(result.aiPlan).toBe(executionPlan);
             expect(result.warehouseCredentials).toEqual({
-                ...aiServiceAccountPlanMock.credentials,
+                ...executionPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
             });
             expect(refresh).not.toHaveBeenCalled();

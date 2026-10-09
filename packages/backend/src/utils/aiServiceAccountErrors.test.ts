@@ -2,7 +2,10 @@ import {
     WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import { isBigqueryServiceAccountAuthError } from './aiServiceAccountErrors';
+import {
+    isBigqueryServiceAccountAuthError,
+    isDatabricksServiceAccountAuthError,
+} from './aiServiceAccountErrors';
 
 describe('BigQuery AI service account authentication errors', () => {
     test.each([
@@ -62,5 +65,45 @@ describe('BigQuery AI service account authentication errors', () => {
         const error = Object.assign(new Error('network error'), { cause: {} });
         error.cause = error;
         expect(isBigqueryServiceAccountAuthError(error)).toBe(false);
+    });
+});
+
+describe('Databricks AI service account authentication errors', () => {
+    test.each([
+        { statusCode: 401 },
+        { response: { status: 401 } },
+        { response: { status: 400, data: { error: 'invalid_client' } } },
+        { cause: { error_code: 'UNAUTHENTICATED' } },
+        new WarehouseConnectionError(
+            'Received a response with a bad HTTP status code: 401',
+        ),
+    ])('recognizes token or session authentication rejection %j', (error) => {
+        expect(isDatabricksServiceAccountAuthError(error)).toBe(true);
+    });
+    test.each([
+        { statusCode: 403 },
+        { error_code: 'PERMISSION_DENIED' },
+        new WarehouseConnectionError(
+            'Received a response with a bad HTTP status code: 403',
+        ),
+        new WarehouseQueryError('Syntax error near token'),
+        new WarehouseQueryError(
+            'Received a response with a bad HTTP status code: 401',
+        ),
+        new Error('Invalid access token in SQL'),
+        new Error('ECONNRESET'),
+        { response: { status: 503 } },
+        { error_code: 'WAREHOUSE_NOT_RUNNING' },
+        null,
+    ])(
+        'preserves permission, query, compute and network failures %j',
+        (error) => {
+            expect(isDatabricksServiceAccountAuthError(error)).toBe(false);
+        },
+    );
+    test('handles cyclic causes', () => {
+        const error = { cause: {} };
+        error.cause = error;
+        expect(isDatabricksServiceAccountAuthError(error)).toBe(false);
     });
 });

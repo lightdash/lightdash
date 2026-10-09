@@ -8478,12 +8478,24 @@ describe('AsyncQueryService', () => {
     );
 
     test.each(
-        [aiExecutionPlanMock, aiServiceAccountPlanMock].flatMap(
-            (executionPlan) =>
-                [false, true].map((auditFails) => ({
-                    executionPlan,
-                    auditFails,
-                })),
+        [
+            aiExecutionPlanMock,
+            aiServiceAccountPlanMock,
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS as const,
+                    serverHostName: 'workspace.example.com',
+                    httpPath: '/sql/warehouse',
+                    database: 'schema',
+                    token: 'slot-token',
+                },
+            },
+        ].flatMap((executionPlan) =>
+            [false, true].map((auditFails) => ({
+                executionPlan,
+                auditFails,
+            })),
         ),
     )(
         '$executionPlan.identity logs before warehouse execution and fails closed on log failure: $auditFails',
@@ -8506,7 +8518,7 @@ describe('AsyncQueryService', () => {
                 'resolveWarehouseCredentials',
             ).mockResolvedValue({
                 credentialKind: WarehouseCredentialKind.SHARED,
-                warehouseCredentials: warehouseCredentialsMock,
+                warehouseCredentials: executionPlan.credentials,
                 warehouseConnectionUuid: null,
                 connectionRoute: {
                     route: 'single',
@@ -8514,6 +8526,10 @@ describe('AsyncQueryService', () => {
                 },
                 aiPlan: executionPlan,
             });
+            const acquire = vi.spyOn(
+                service.warehouseClientFactory,
+                'withWarehouseClient',
+            );
             const execute = vi.fn(warehouseClientMock.executeAsyncQuery);
             vi.spyOn(
                 service.warehouseClientFactory,
@@ -8552,6 +8568,31 @@ describe('AsyncQueryService', () => {
                 queryCreatedAt: new Date(),
                 displayTimezone: null,
             });
+            expect(acquire).toHaveBeenCalledWith(
+                {
+                    kind: 'binding',
+                    projectUuid,
+                    binding: { kind: 'query', queryUuid: 'audited-query' },
+                    overrides: undefined,
+                },
+                expect.objectContaining({
+                    queryContext: QueryExecutionContext.AI,
+                }),
+                expect.any(Function),
+            );
+            expect(
+                service.warehouseClientFactory.acquireUnscoped,
+            ).toHaveBeenCalledWith(
+                projectUuid,
+                executionPlan.credentials,
+                expect.objectContaining({ aiPlan: executionPlan }),
+                undefined,
+                sessionAccount.organization.organizationUuid,
+                expect.objectContaining({
+                    cacheEnabled: true,
+                    wrapConstructionErrors: false,
+                }),
+            );
             expect(recordQuery).toHaveBeenCalledExactlyOnceWith({
                 queryUuid: 'audited-query',
                 projectUuid,

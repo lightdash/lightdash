@@ -1,5 +1,6 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
     type CreateWarehouseCredentials,
@@ -256,4 +257,18 @@ it('separates slot, generation and source project but reuses identity across peo
             owner: { kind: 'project', uuid: 'project' },
         }),
     ).rejects.toThrow('owner');
+});
+
+it('rejects a parsed Databricks identity before constructing BigQuery credentials', () => {
+    expect(() =>
+        new BigqueryAiServiceAccountCredentialResolver().buildCredentials(
+            selection().connection,
+            {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                oauthClientId: 'id',
+                oauthClientSecret: 'secret',
+            },
+        ),
+    ).toThrow('match the connection warehouse type');
 });

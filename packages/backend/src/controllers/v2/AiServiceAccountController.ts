@@ -1,6 +1,7 @@
 import {
     AiServiceAccountCredentialInput,
     AiServiceAccountTestRequest,
+    ApiAiServiceAccountSaveResponse,
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountStatusResponse,
     ApiAiServiceAccountTestResponse,
@@ -65,12 +66,12 @@ export class AiServiceAccountController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AiServiceAccountCredentialInput,
         @Query() connection?: UUID,
-    ): Promise<ApiAiServiceAccountSlotResponse> {
+    ): Promise<ApiAiServiceAccountSaveResponse> {
         return {
             status: 'ok',
-            results: await this.services
+            ...(await this.services
                 .getAiServiceAccountService()
-                .upsert(req.account!, projectUuid, connection ?? null, body),
+                .upsert(req.account!, projectUuid, connection ?? null, body)),
         };
     }
 

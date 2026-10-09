@@ -8,6 +8,7 @@ import {
     AiAgentMarkerLevel,
     BigqueryAuthenticationType,
     buildAgentIdentityClaim,
+    DatabricksAuthenticationType,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -29,6 +30,7 @@ import {
     type QueryHistory,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
+import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccount } from '../../auth/account/account.mock';
@@ -95,6 +97,11 @@ const snowflake: CreateWarehouseCredentials = {
     warehouse: 'test',
     schema: 'public',
 };
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+}));
 
 const args: ResolvePlanArgs = {
     evaluation: { kind: 'query', surface: QuerySurface.APP },
@@ -2338,6 +2345,7 @@ describe('organization agent identity rules', () => {
 
     test.each([
         [WarehouseTypes.BIGQUERY, 'ai_service_account'],
+        [WarehouseTypes.DATABRICKS, 'ai_service_account'],
         [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
     ] as const)(
         'writes %s rules for the account organization',
@@ -2384,6 +2392,7 @@ describe('organization agent identity rules', () => {
     test.each([
         [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
         [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
+        [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
         [WarehouseTypes.POSTGRES, 'marked_person'],
         [WarehouseTypes.POSTGRES, 'agent_sign_in'],
         [WarehouseTypes.POSTGRES, 'ai_service_account'],
@@ -4523,4 +4532,145 @@ it('materializes the plan with the slot row, generation and source project', asy
         slot.identityUuid,
         args.projectUuid,
     ]);
+});
+
+describe('Databricks AI service account runtime', () => {
+    const databricksSecrets = {
+        type: WarehouseTypes.DATABRICKS,
+        authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+        oauthClientId: 'slot-id',
+        oauthClientSecret: 'slot-secret',
+    } as const;
+    const databricksConnection: CreateWarehouseCredentials = {
+        type: WarehouseTypes.DATABRICKS,
+        serverHostName: 'workspace.example.com',
+        httpPath: '/sql/preview',
+        database: 'schema',
+        personalAccessToken: 'project-pat',
+        token: 'person-token',
+        refreshToken: 'person-refresh',
+        requireUserCredentials: true,
+    };
+    beforeEach(() => {
+        vi.mocked(exchangeDatabricksOAuthCredentials)
+            .mockReset()
+            .mockResolvedValue({ accessToken: 'slot-token' });
+    });
+    test.each(actorCases.slice(0, 2))(
+        'resolves only slot M2M credentials for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot: {
+                    ...slot,
+                    warehouseType: WarehouseTypes.DATABRICKS,
+                    method: 'oauth_m2m',
+                },
+                secrets: databricksSecrets,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                ...actor,
+                connection: databricksConnection,
+            });
+            expect(plan).toMatchObject({
+                identity: 'ai_service_account',
+                identityUuid: slot.identityUuid,
+                credentials: {
+                    ...databricksSecrets,
+                    token: 'slot-token',
+                    httpPath: '/sql/preview',
+                    requireUserCredentials: false,
+                },
+            });
+            if (plan?.identity !== 'ai_service_account')
+                throw new Error('Expected slot plan');
+            expect(plan.credentials).not.toHaveProperty('refreshToken');
+            expect(plan.credentials).not.toHaveProperty('personalAccessToken');
+            expect(
+                (plan.credentials as MaterializedCredentials)[
+                    credentialResolution
+                ]?.cacheable,
+            ).toBe(false);
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(
+                exchangeDatabricksOAuthCredentials,
+            ).toHaveBeenCalledExactlyOnceWith(
+                'workspace.example.com',
+                'slot-id',
+                'slot-secret',
+            );
+        },
+    );
+    test.each(actorCases.slice(0, 2))(
+        'flag off skips stored Databricks rules and slots for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot,
+                secrets: databricksSecrets,
+            });
+            f.flags.get.mockResolvedValue({ enabled: false });
+            expect(
+                await f.service.resolvePlan({
+                    ...args,
+                    ...actor,
+                    connection: databricksConnection,
+                }),
+            ).toBeNull();
+            expect(f.organizationRules.get).not.toHaveBeenCalled();
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['missing', 'unreadable', 'mismatch', 'exchange'] as const)(
+        'refuses %s slots without falling back',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          slot,
+                          secrets:
+                              failure === 'mismatch'
+                                  ? secrets
+                                  : databricksSecrets,
+                      },
+            );
+            if (failure === 'unreadable')
+                f.slots.getSecrets.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'exchange')
+                vi.mocked(exchangeDatabricksOAuthCredentials).mockRejectedValue(
+                    new Error('slot-secret'),
+                );
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: databricksConnection,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                'slot-secret',
+            );
+        },
+    );
 });

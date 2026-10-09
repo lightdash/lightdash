@@ -8,8 +8,13 @@ import { WarehouseCredentialKind } from './ConnectionContext';
 import type { CredentialSelection } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
+import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
 
 const entries = [
+    {
+        warehouseType: WarehouseTypes.DATABRICKS,
+        resolver: new DatabricksAiServiceAccountCredentialResolver(),
+    },
     {
         warehouseType: WarehouseTypes.BIGQUERY,
         resolver: new BigqueryAiServiceAccountCredentialResolver(),

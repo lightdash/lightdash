@@ -1,15 +1,22 @@
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     ProjectType,
     WarehouseTypes,
     type PossibleAbilities,
 } from '@lightdash/common';
+import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type Request } from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
 import { AiServiceAccountService } from '../../services/AiServiceAccountService/AiServiceAccountService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { AiServiceAccountController } from './AiServiceAccountController';
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+}));
 
 const input = {
     type: WarehouseTypes.BIGQUERY,
@@ -34,6 +41,8 @@ const setup = (enabled: boolean) => {
         getReplaceableSecrets: vi.fn().mockResolvedValue(input),
         upsert: vi.fn().mockResolvedValue({ uuid: 'slot' }),
         delete: vi.fn(),
+        getVerification: vi.fn().mockResolvedValue(null),
+        updateVerification: vi.fn(),
     };
     const load = vi.fn().mockResolvedValue({
         ...input,
@@ -153,3 +162,67 @@ it.each([true, false])(
         });
     },
 );
+
+const databricksInput = {
+    type: WarehouseTypes.DATABRICKS,
+    authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+    oauthClientId: 'id',
+    oauthClientSecret: 'secret',
+} as const;
+test.each(['get', 'upsert', 'delete', 'test'] as const)(
+    'gates the Databricks %s endpoint before reading or exchanging secrets',
+    async (route) => {
+        const f = setup(false);
+        vi.mocked(exchangeDatabricksOAuthCredentials).mockClear();
+        f.load.mockResolvedValue({
+            ...databricksInput,
+            database: 'schema',
+            serverHostName: 'workspace.example.com',
+            httpPath: '/sql/warehouse',
+        });
+        let result;
+        if (route === 'upsert')
+            result = f.controller.upsert('project', f.req, databricksInput);
+        else if (route === 'test')
+            result = f.controller.test('project', f.req, {
+                credentials: databricksInput,
+            });
+        else result = f.controller[route]('project', f.req);
+        await expect(result).rejects.toMatchObject({ statusCode: 403 });
+        expect(f.load).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+        expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+    },
+);
+test('returns Databricks save verification beside metadata without credentials', async () => {
+    const f = setup(true);
+    f.load.mockResolvedValue({
+        ...databricksInput,
+        database: 'schema',
+        serverHostName: 'workspace.example.com',
+        httpPath: '/sql/warehouse',
+    });
+    vi.mocked(exchangeDatabricksOAuthCredentials).mockResolvedValue({
+        accessToken: 'minted-token',
+    });
+    const response = await f.controller.upsert(
+        'project',
+        f.req,
+        databricksInput,
+    );
+    expect(response).toEqual({
+        status: 'ok',
+        results: { uuid: 'slot' },
+        verification: {
+            ok: true,
+            principal: 'agent',
+            observed: { currentUser: 'agent' },
+            message: 'AI service account connection checked.',
+            checkedAt: expect.any(Date),
+        },
+    });
+    expect(JSON.stringify(response)).not.toMatch(
+        /oauthClient|secret|minted-token/,
+    );
+});

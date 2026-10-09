@@ -1,12 +1,12 @@
 import {
     assertUnreachable,
-    BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     ParameterError,
     WarehouseTypes,
-    type CreateBigqueryCredentials,
+    type CreateDatabricksCredentials,
     type CreateWarehouseCredentials,
-    type SshTunnelConfiguration,
 } from '@lightdash/common';
+import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -21,45 +21,47 @@ import type {
 import { pickRoutingFields } from './aiServiceAccountRoutingFields';
 
 type Selection = CredentialSelection<
-    CreateBigqueryCredentials,
+    CreateDatabricksCredentials,
     AiServiceAccountSecrets
 >;
 
-export class BigqueryAiServiceAccountCredentialResolver implements CredentialResolver<
-    CreateBigqueryCredentials,
+export class DatabricksAiServiceAccountCredentialResolver implements CredentialResolver<
+    CreateDatabricksCredentials,
     AiServiceAccountSecrets
 > {
     buildCredentials(
-        connection: CreateWarehouseCredentials & SshTunnelConfiguration,
+        connection: CreateWarehouseCredentials,
         secrets: AiServiceAccountSecrets,
-    ): CreateBigqueryCredentials {
-        if (connection.type !== WarehouseTypes.BIGQUERY) {
+    ): CreateDatabricksCredentials {
+        if (connection.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
-        if (credentials.type !== WarehouseTypes.BIGQUERY) {
+        if (credentials.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
                 'The AI service account must match the connection warehouse type.',
             );
         }
         return {
-            ...pickRoutingFields(WarehouseTypes.BIGQUERY, connection),
+            ...pickRoutingFields(WarehouseTypes.DATABRICKS, connection),
             ...credentials,
-            authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
             requireUserCredentials: false,
-            allowUserCredentials: false,
         };
     }
 
     async validateOnSave(
         input: CredentialSaveInput<
-            CreateBigqueryCredentials,
+            CreateDatabricksCredentials,
             AiServiceAccountSecrets
         >,
     ): Promise<
-        ValidatedCredential<CreateBigqueryCredentials, AiServiceAccountSecrets>
+        ValidatedCredential<
+            CreateDatabricksCredentials,
+            AiServiceAccountSecrets
+        >
     > {
         const { intent } = input;
         switch (intent.kind) {
@@ -84,19 +86,30 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
 
     async resolve(
         input: Selection,
-    ): Promise<CredentialResolution<CreateBigqueryCredentials>> {
+    ): Promise<CredentialResolution<CreateDatabricksCredentials>> {
         if (input.owner !== null && input.owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
                 'Invalid AI service account credential owner.',
             );
         }
+        const credentials = this.buildCredentials(
+            input.connection,
+            input.stored,
+        );
+        const { accessToken } = await exchangeDatabricksOAuthCredentials(
+            credentials.serverHostName,
+            credentials.oauthClientId!,
+            credentials.oauthClientSecret!,
+        );
+        if (typeof accessToken !== 'string' || !accessToken.trim()) {
+            throw new ParameterError(
+                'The AI service account did not return an access token.',
+            );
+        }
         return {
-            clientCredentials: this.buildCredentials(
-                input.connection,
-                input.stored,
-            ),
+            clientCredentials: { ...credentials, token: accessToken },
             clientOptions: {},
-            cacheable: input.owner !== null,
+            cacheable: false,
         };
     }
 

@@ -1,9 +1,12 @@
 import {
+    assertUnreachable,
     assertValidBigqueryKeyfile,
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     ParameterError,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
@@ -15,7 +18,7 @@ import {
 } from '../../database/entities/aiServiceAccountCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
-const credentialsSchema = z
+const bigqueryCredentialsSchema = z
     .object({
         type: z.literal(WarehouseTypes.BIGQUERY),
         authenticationType: z.literal(BigqueryAuthenticationType.PRIVATE_KEY),
@@ -23,6 +26,45 @@ const credentialsSchema = z
     })
     .strict();
 
+const nonEmptyIdentifier = z
+    .string()
+    .refine((value) => value.trim().length > 0);
+const databricksCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.DATABRICKS),
+        authenticationType: z.literal(DatabricksAuthenticationType.OAUTH_M2M),
+        oauthClientId: nonEmptyIdentifier,
+        oauthClientSecret: nonEmptyIdentifier,
+    })
+    .strict();
+const credentialsSchema = z.discriminatedUnion('type', [
+    bigqueryCredentialsSchema,
+    databricksCredentialsSchema,
+]);
+const databricksVerificationSchema = z
+    .object({
+        ok: z.literal(true),
+        principal: nonEmptyIdentifier,
+        observed: z
+            .object({
+                currentUser: nonEmptyIdentifier,
+            })
+            .strict(),
+        message: z.string(),
+        checkedAt: z.coerce.date(),
+    })
+    .strict()
+    .refine((value) => value.principal === value.observed.currentUser);
+const databricksPayloadSchema = databricksCredentialsSchema
+    .extend({ verification: databricksVerificationSchema.optional() })
+    .strict();
+
+export type BigqueryAiServiceAccountSecrets = z.infer<
+    typeof bigqueryCredentialsSchema
+>;
+export type DatabricksAiServiceAccountSecrets = z.infer<
+    typeof databricksCredentialsSchema
+>;
 export type AiServiceAccountSecrets = z.infer<typeof credentialsSchema>;
 
 export const parseAiServiceAccountSecrets = (
@@ -34,19 +76,29 @@ export const parseAiServiceAccountSecrets = (
             'Provide complete AI service account credentials for the selected method.',
         );
     }
-    try {
-        assertValidBigqueryKeyfile(result.data.keyfileContents, {
-            requireType: 'service_account',
-        });
-        if (result.data.keyfileContents.type !== 'service_account') {
-            throw new ParameterError('Service account type is required.');
-        }
-    } catch {
-        throw new ParameterError(
-            'Provide a valid BigQuery service account key file.',
-        );
+    const credentials = result.data;
+    switch (credentials.type) {
+        case WarehouseTypes.DATABRICKS:
+            return credentials;
+        case WarehouseTypes.BIGQUERY:
+            try {
+                assertValidBigqueryKeyfile(credentials.keyfileContents, {
+                    requireType: 'service_account',
+                });
+                if (credentials.keyfileContents.type !== 'service_account')
+                    throw new Error();
+            } catch {
+                throw new ParameterError(
+                    'Provide a valid BigQuery service account key file.',
+                );
+            }
+            return credentials;
+        default:
+            return assertUnreachable(
+                credentials,
+                'Unknown AI service account warehouse',
+            );
     }
-    return result.data;
 };
 
 const metadataColumns = [
@@ -102,26 +154,91 @@ export class AiServiceAccountCredentialsModel {
         });
     }
 
-    private decrypt(
-        row: DbAiServiceAccountCredentials,
-    ): AiServiceAccountSecrets {
+    private decryptPayload(row: DbAiServiceAccountCredentials): {
+        secrets: AiServiceAccountSecrets;
+        verification: AiServiceAccountTestResult | null;
+    } {
         try {
             const value: unknown = JSON.parse(
                 this.args.encryptionUtil.decrypt(row.encrypted_credentials),
             );
-            const secrets = parseAiServiceAccountSecrets(value);
+            const payload =
+                row.warehouse_type === WarehouseTypes.DATABRICKS
+                    ? databricksPayloadSchema.parse(value)
+                    : null;
+            const { verification, ...credentials } = payload ?? {
+                verification: undefined,
+            };
+            const secrets = parseAiServiceAccountSecrets(
+                payload === null ? value : credentials,
+            );
             if (
                 secrets.type !== row.warehouse_type ||
                 secrets.authenticationType !== row.authentication_method
             ) {
                 throw new ParameterError('Credential metadata does not match.');
             }
-            return secrets;
+            return { secrets, verification: verification ?? null };
         } catch {
             throw new ParameterError(
                 'The saved AI service account credentials could not be read. Replace the credentials.',
             );
         }
+    }
+
+    private decrypt(
+        row: DbAiServiceAccountCredentials,
+    ): AiServiceAccountSecrets {
+        return this.decryptPayload(row).secrets;
+    }
+
+    async getVerification(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        expectedIdentityUuid: string | null,
+    ): Promise<AiServiceAccountTestResult | null> {
+        if (expectedIdentityUuid === null) return null;
+        const row = await this.query(projectUuid, warehouseConnectionUuid)
+            .where('identity_uuid', expectedIdentityUuid)
+            .first();
+        if (!row) return null;
+        try {
+            return this.decryptPayload(row).verification;
+        } catch {
+            return null;
+        }
+    }
+
+    async updateVerification(
+        projectUuid: string,
+        warehouseConnectionUuid: string | null,
+        expectedIdentityUuid: string,
+        verification: AiServiceAccountTestResult,
+    ): Promise<void> {
+        const observation = databricksVerificationSchema.parse(verification);
+        await this.args.database.transaction(async (trx) => {
+            const row = await this.query(
+                projectUuid,
+                warehouseConnectionUuid,
+                trx,
+            )
+                .where('identity_uuid', expectedIdentityUuid)
+                .forUpdate()
+                .first();
+            if (!row) return;
+            const secrets = this.decrypt(row);
+            if (secrets.type !== WarehouseTypes.DATABRICKS) return;
+            await this.query(projectUuid, warehouseConnectionUuid, trx)
+                .where('identity_uuid', expectedIdentityUuid)
+                .update({
+                    encrypted_credentials: this.args.encryptionUtil.encrypt(
+                        JSON.stringify({
+                            ...secrets,
+                            verification: observation,
+                        }),
+                    ),
+                });
+        });
     }
 
     private tryDecrypt(
@@ -160,6 +277,10 @@ export class AiServiceAccountCredentialsModel {
                     .where(
                         'ai_service_account_credentials.project_uuid',
                         this.args.database.ref('projects.project_uuid'),
+                    )
+                    .where(
+                        'ai_service_account_credentials.warehouse_type',
+                        warehouseType,
                     )
                     .whereNull('warehouse_connection_uuid'),
             )
@@ -226,8 +347,17 @@ export class AiServiceAccountCredentialsModel {
         warehouseConnectionUuid: string | null,
         credentials: AiServiceAccountSecrets,
         userUuid: string,
+        verification: AiServiceAccountTestResult | null = null,
     ): Promise<AiServiceAccountSlot> {
         const secrets = parseAiServiceAccountSecrets(credentials);
+        const payload =
+            secrets.type === WarehouseTypes.DATABRICKS && verification !== null
+                ? {
+                      ...secrets,
+                      verification:
+                          databricksVerificationSchema.parse(verification),
+                  }
+                : secrets;
         return this.args.database.transaction(async (trx) => {
             await trx('projects')
                 .where('project_uuid', projectUuid)
@@ -250,7 +380,7 @@ export class AiServiceAccountCredentialsModel {
                 warehouse_type: secrets.type,
                 authentication_method: secrets.authenticationType,
                 encrypted_credentials: this.args.encryptionUtil.encrypt(
-                    JSON.stringify(secrets),
+                    JSON.stringify(payload),
                 ),
                 updated_by_user_uuid: userUuid,
                 updated_at: new Date(),

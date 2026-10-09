@@ -49,3 +49,29 @@ export const isBigqueryServiceAccountAuthError = (
             ))
     );
 };
+
+export const isDatabricksServiceAccountAuthError = (
+    error: unknown,
+    ancestors = new Set<unknown>(),
+): boolean => {
+    if (!isRecord(error) || ancestors.has(error)) return false;
+    const nextAncestors = new Set(ancestors).add(error);
+    if (
+        error.statusCode === 401 ||
+        error.status === 401 ||
+        error.error === 'invalid_client' ||
+        error.error === 'invalid_grant' ||
+        error.error_code === 'UNAUTHENTICATED'
+    )
+        return true;
+    if (
+        error instanceof WarehouseConnectionError &&
+        /^Received a response with a bad HTTP status code: 401$/.test(
+            error.message,
+        )
+    )
+        return true;
+    return ['cause', 'response', 'data', 'error'].some((key) =>
+        isDatabricksServiceAccountAuthError(error[key], nextAncestors),
+    );
+};
