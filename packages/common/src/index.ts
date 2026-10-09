@@ -422,6 +422,7 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/i18n/uiStrings';
+export * from './utils/isoDateTime';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';

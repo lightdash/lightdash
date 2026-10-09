@@ -34,6 +34,7 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
+    isoDateTimeStringSchema,
     isPeriodComparisonCustomMetric,
     isTableCalculation,
     MetricType,
@@ -285,7 +286,7 @@ const currentDateSettingsSchema = z
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
 
 const hasDateSettings = (settings: unknown): boolean =>

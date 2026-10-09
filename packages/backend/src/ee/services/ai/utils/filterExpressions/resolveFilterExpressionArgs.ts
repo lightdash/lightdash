@@ -16,6 +16,7 @@ import {
     getItemId,
     isDimension,
     isFilterExpressionRelativeDateOperator,
+    isoDateTimeStringSchema,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
@@ -112,7 +113,7 @@ const failure = <T = never>(
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
 
 const strictNumberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
