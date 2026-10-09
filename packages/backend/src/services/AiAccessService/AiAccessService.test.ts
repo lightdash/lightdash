@@ -12,6 +12,7 @@ import {
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySurface,
+    UnexpectedServerError,
     WarehouseTypes,
     type AiIdentitySource,
     type AiServiceAccountSlot,
@@ -795,6 +796,7 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
+                silentRefresh: true,
                 connection: snowflake,
                 person: { userUuid: 'user', email: user.email },
             });
@@ -3230,6 +3232,63 @@ describe('retained results after identity rule changes', () => {
                     requestParameters: { aiSignInCredentialUuid: credential },
                 } as QueryHistory),
             ).resolves.toMatchObject({ identity: 'marked_person' });
+        },
+    );
+});
+
+describe('silent refresh routing', () => {
+    test('preserves a retryable error without refusal analytics or URLs', async () => {
+        const { service, provider, analytics } = setup();
+        const error = new UnexpectedServerError('Try again in a moment.', {
+            code: 'warehouse_oauth_refresh_failed',
+            retryable: true,
+        });
+        provider.mint.mockRejectedValue(error);
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toBe(error);
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+    test('does not read the kill switch or credentials with agent identity off', async () => {
+        const { service, flags, credentials, organizationRules, provider } =
+            setup();
+        flags.get.mockResolvedValue({ enabled: false });
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).resolves.toBeNull();
+        expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+            user: { userUuid: 'user', organizationUuid: 'org' },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(credentials.findAiCredentialWithSecrets).not.toHaveBeenCalled();
+        expect(organizationRules.get).not.toHaveBeenCalled();
+        expect(provider.mint).not.toHaveBeenCalled();
+    });
+    test.each([true, false])(
+        'passes resolved silent refresh %s to mint and status',
+        async (enabled) => {
+            const { service, flags, provider } = setup();
+            flags.get
+                .mockResolvedValueOnce({ enabled: true })
+                .mockResolvedValueOnce({ enabled });
+            await service.resolvePlan({ ...args, connection: snowflake });
+            expect(flags.get).toHaveBeenLastCalledWith({
+                user: { userUuid: 'user', organizationUuid: 'org' },
+                featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
+            });
+            expect(provider.mint).toHaveBeenCalledWith(
+                expect.objectContaining({ silentRefresh: enabled }),
+            );
+            flags.get
+                .mockResolvedValueOnce({ enabled: true })
+                .mockResolvedValueOnce({ enabled });
+            await service.getAiAccessForUser({
+                ...args,
+                connection: snowflake,
+            });
+            expect(provider.missingPrerequisite).toHaveBeenCalledWith(
+                expect.objectContaining({ silentRefresh: enabled }),
+            );
         },
     );
 });

@@ -582,3 +582,68 @@ describe('UserWarehouseCredentialsModel', () => {
         });
     });
 });
+
+describe('refresh rotation expiry CAS', () => {
+    let database: Knex;
+    let tracker: ReturnType<typeof getTracker>;
+    let model: UserWarehouseCredentialsModel;
+    beforeAll(() => {
+        database = knex({ client: MockClient, dialect: 'pg' });
+        tracker = getTracker();
+        model = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        });
+    });
+    beforeEach(() => tracker.reset());
+    afterAll(async () => database.destroy());
+    test.each([
+        { stored: 'T1', next: 'T2', expiresAt: new Date('2030-01-01') },
+        {
+            stored: 'newer-token',
+            next: 'T2',
+            expiresAt: new Date('2030-01-01'),
+        },
+        { stored: 'T1', next: 'T1', expiresAt: new Date('2030-01-01') },
+        { stored: 'T1', next: 'T2', expiresAt: null },
+        { stored: 'T1', next: 'T2', expiresAt: undefined },
+    ])(
+        'guards token and expiry writes: %s',
+        async ({ stored, next, expiresAt }) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: stored,
+                    }),
+                    warehouse_type: WarehouseTypes.SNOWFLAKE,
+                },
+            ]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            expect(
+                await model.rotateRefreshToken(
+                    'credential',
+                    'T1',
+                    next,
+                    expiresAt,
+                ),
+            ).toBe(stored === 'T1');
+            expect(tracker.history.select[0].sql).toContain('for update');
+            if (stored === 'T1') {
+                if (expiresAt === undefined) {
+                    expect(tracker.history.update[0].sql).not.toContain(
+                        '"expires_at"',
+                    );
+                } else {
+                    expect(tracker.history.update[0].sql).toContain(
+                        '"expires_at"',
+                    );
+                    expect(tracker.history.update[0].bindings).toContain(
+                        expiresAt,
+                    );
+                }
+            } else expect(tracker.history.update).toHaveLength(0);
+        },
+    );
+});

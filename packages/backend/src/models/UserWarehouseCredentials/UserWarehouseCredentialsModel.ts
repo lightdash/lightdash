@@ -934,6 +934,7 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
+        expiresAt?: Date | null,
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             const row = await trx(UserWarehouseCredentialsTableName)
@@ -973,6 +974,9 @@ export class UserWarehouseCredentialsModel {
                     name: row.name,
                     warehouse_type: row.warehouse_type,
                     encrypted_credentials: encryptedCredentials,
+                    ...(expiresAt === undefined
+                        ? {}
+                        : { expires_at: expiresAt }),
                     updated_at: new Date(),
                 })
                 .where(
