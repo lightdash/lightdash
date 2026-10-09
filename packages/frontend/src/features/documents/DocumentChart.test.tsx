@@ -23,6 +23,9 @@ const mocks = vi.hoisted(() => ({
     visualization: vi.fn(),
 }));
 
+vi.mock('./useCanManageSqlRunner', () => ({
+    useCanManageSqlRunner: () => false,
+}));
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({ canViewExplore: mocks.canExplore }),
 }));

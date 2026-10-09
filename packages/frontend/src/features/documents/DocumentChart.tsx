@@ -10,6 +10,7 @@ import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions
 import DocumentChartExploreButton from './DocumentChartExploreButton';
 import DocumentChartVisualization from './DocumentChartVisualization';
 import DocumentSqlChart from './DocumentSqlChart';
+import DocumentSqlChartOpenButton from './DocumentSqlChartOpenButton';
 import { useDocumentChartQuery } from './useDocument';
 
 type Props = {
@@ -107,7 +108,14 @@ const DocumentChart = ({
                 reference={renderTarget}
                 chart={content.chart}
                 showTitle={showTitle}
-                actions={actions}
+                actions={
+                    actions ?? (
+                        <DocumentSqlChartOpenButton
+                            projectUuid={projectUuid}
+                            chart={content.chart}
+                        />
+                    )
+                }
             />
         );
     }
