@@ -25,13 +25,19 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 # build step bakes formula/common/warehouses dist into the image so the backend
 # and the migrate rung can import them; from then on the `pnpm dev` watchers
 # keep common and warehouses current (no common-build rung below; formula has
-# no watcher, so it is a run rung). The second is the dbt venv the seed's
-# project compile shells out to (`dbt1.12`, pins as in dockerfile).
+# no watcher, so it is a run rung). It also builds the CLI and links its
+# entry point onto PATH as `lightdash` (the file keeps its node shebang; tsc
+# does not make it executable): the Learn sandbox runs `lightdash` and `dbt`
+# as child processes and reports itself unavailable until both resolve
+# (LearnSandboxService/runtime.ts). The second is the dbt venv the seed's
+# project compile shells out to (`dbt1.12`, pins as in dockerfile); the
+# sandbox finds `dbt` in the same venv, and the DuckDB adapter is what the
+# training project's sample data compiles with.
 [runtime]
 system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
-  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
-  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
+  "pnpm formula:build && pnpm common-build && pnpm warehouses-build && pnpm cli-build && chmod 755 packages/cli/dist/index.js && ln -sf /usr/app/packages/cli/dist/index.js /usr/local/bin/lightdash",
+  "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-duckdb~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
 ]
 
 [datastores]
@@ -170,6 +176,12 @@ memory = "12gb"                    # the barrel is large; the same headroom migr
 name = "warehouses-build"
 files = ["packages/warehouses/**"]
 run = "pnpm warehouses-build"
+
+# The sandbox runs the CLI from its dist and no watcher covers packages/cli.
+[[tier]]
+name = "cli-build"
+files = ["packages/cli/**"]
+run = "pnpm cli-build && chmod 755 packages/cli/dist/index.js"
 
 [[tier]]
 name = "migrate"
