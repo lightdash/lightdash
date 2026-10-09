@@ -142,11 +142,17 @@ const applySqlColumn = (
             rule,
         );
 
+export type FieldTileActions = {
+    // A field of the filter; the column of a SQL column filter is one too
+    forField: (fieldId: string) => FieldTiles;
+    // A column SQL chart tiles are mapped to, on a filter of any kind
+    forSqlColumn: (reference: string) => FieldTiles;
+};
+
 // What a field of the edited filter is on and what can be done about it, for
-// its card and for the bar over the tiles. Null while there is no field to act on
-export const useFieldTileActions = ():
-    | ((fieldId: string) => FieldTiles)
-    | null => {
+// its card, the bar over the tiles and the tile cards. Null while there is no
+// field to act on
+export const useFieldTileActions = (): FieldTileActions | null => {
     const {
         editingRule,
         isPlaceholder,
@@ -200,10 +206,8 @@ export const useFieldTileActions = ():
             ? null
             : toDashboardFilterableField(fieldsMap[fieldId]);
 
-    return (fieldId) => {
-        const isSqlColumn =
-            isSqlColumnFilter && fieldId === editingRule.target.fieldId;
-        const field = getField(fieldId);
+    const build = (fieldId: string, isSqlColumn: boolean): FieldTiles => {
+        const field = isSqlColumn ? null : getField(fieldId);
         const isWaiting = waitingFieldIds.includes(fieldId);
         const target =
             getRuleFieldTarget(editingRule, fieldId) ??
@@ -315,5 +319,14 @@ export const useFieldTileActions = ():
                 removeWaitingField(fieldId);
             },
         };
+    };
+
+    return {
+        forField: (fieldId) =>
+            build(
+                fieldId,
+                isSqlColumnFilter && fieldId === editingRule.target.fieldId,
+            ),
+        forSqlColumn: (reference) => build(reference, true),
     };
 };

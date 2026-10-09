@@ -322,8 +322,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
 - `useFieldTileActions()` is the one place a field's counts and actions are
-  worked out, for the card and for the bar. It returns
-  `getFieldTiles(fieldId)`, or null with no control or a placeholder: the
+  worked out, for the card, the bar and the tile cards' follow-up. It
+  returns `{ forField(fieldId), forSqlColumn(reference) }`, or null with no
+  control or a placeholder. `forSqlColumn` is for a column SQL chart tiles
+  are mapped to on a filter of any kind (it is never a field of the filter).
+  Both give the same shape: the
   field, its labels, `isWaiting`, two `FieldScope`s (`thisTabScope`,
   `everyTabScope`), `replacedLabels` for the scope in view,
   `otherTabsUnfiltered`, and `addToUnfiltered`, `switchFromOthers`, `clear`
@@ -470,6 +473,32 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   button ("Leave this tile out") that reports `null`: `tileTargets[tileUuid] = false`.
   The clear button works on the stand-in button without mounting the `Select`,
   and it is a named tab stop, since it is the only way to clear.
+- Follow-up on a tile card: right after a tile is changed from its card, that
+  card offers the same for the rest of the scope in view, under the select
+  and a top border, as one subtle `compact-xs` button.
+  - Set to a field (from nothing or from another field): "Filter the other n
+    on this tab too", n being the other tiles of the tab that offer it and
+    are unfiltered. It is `addToUnfiltered`, the bar's main button.
+  - Left out: "Clear the other k on this tab too", k being the other tiles
+    of the tab still on that field. It is `clear`, the bar's "Clear".
+  - Without tabs the scope is every tile and the labels drop "on this tab".
+    The `aria-label` carries the field, the count and the scope.
+  - `EditedTileOverlays` keeps only the intent in state (`FollowUp`: rule
+    id, tab, tile, field, whether it is a SQL column, kind), written by
+    `handleSelect`. Everything shown is derived on render from
+    `useFieldTileActions`: it shows on that tile only while the tile is still
+    as the change left it and the count is above 0, so changes from the bar
+    or the sidebar update or end it. One exists at a time, on the tile
+    changed last.
+  - It ends for good when it is used, when the tab or the edited control
+    changes (compared during render, which resets the state; no effect), and
+    when the editor closes: `TileOverlays` mounts `EditedTileOverlays` only
+    while a control is edited.
+  - Never for a placeholder, and never for a data app tile, whose switch
+    also ends the one there was. A SQL chart tile gets it for its column,
+    over the other SQL chart tiles that have the column.
+  - The card gets it as two strings (`followUpLabel`, `followUpName`, null
+    on every other tile) and one stable `onFollowUp`, so the memo holds.
 - `TileOverlays` portals a veil and a "Filtered by" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with

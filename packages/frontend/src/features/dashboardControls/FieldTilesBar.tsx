@@ -180,7 +180,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
 export const FieldTilesBar: FC = () => {
     const { editingRule, highlightedFieldId, waitingFieldIds } =
         useControlsSidebar();
-    const getFieldTiles = useFieldTileActions();
+    const fieldTileActions = useFieldTileActions();
     const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
 
     const fieldId =
@@ -190,10 +190,13 @@ export const FieldTilesBar: FC = () => {
             waitingFieldIds.includes(highlightedFieldId))
             ? highlightedFieldId
             : null;
-    const isShown = getFieldTiles !== null && fieldId !== null;
+    const isShown = fieldTileActions !== null && fieldId !== null;
     const host = useBarHost(activeTabUuid, isShown);
 
-    if (getFieldTiles === null || fieldId === null || host === null)
+    if (fieldTileActions === null || fieldId === null || host === null)
         return null;
-    return createPortal(<Bar fieldTiles={getFieldTiles(fieldId)} />, host);
+    return createPortal(
+        <Bar fieldTiles={fieldTileActions.forField(fieldId)} />,
+        host,
+    );
 };

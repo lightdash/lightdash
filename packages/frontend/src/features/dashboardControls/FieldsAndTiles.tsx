@@ -106,7 +106,7 @@ export const FieldsAndTiles: FC = () => {
     );
     const canCreateMetricFilters =
         metricFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const getFieldTiles = useFieldTileActions();
+    const fieldTileActions = useFieldTileActions();
     const [isAdding, setIsAdding] = useState(false);
     const addButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -213,7 +213,7 @@ export const FieldsAndTiles: FC = () => {
         );
     }
 
-    if (getFieldTiles === null) return null;
+    if (fieldTileActions === null) return null;
 
     const hasCandidates = candidates.length > 0;
 
@@ -229,7 +229,7 @@ export const FieldsAndTiles: FC = () => {
                     </Text>
                 </Stack>
                 {rowIds.map((fieldId) => {
-                    const row = getFieldTiles(fieldId);
+                    const row = fieldTileActions.forField(fieldId);
                     return (
                         <FieldRow
                             key={fieldId}
