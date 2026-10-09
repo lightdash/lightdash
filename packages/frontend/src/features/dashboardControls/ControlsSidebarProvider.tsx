@@ -458,6 +458,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             const current = latest.current;
             if (current.placeholder === null) return;
             const fieldsByTile = current.filterableFieldsByTileUuid;
+            // What each tile offers is not known: leaving them out would be blind
+            if (fieldsByTile === undefined) return;
             const base = getFirstFieldRule(
                 current.placeholder,
                 field,
@@ -710,9 +712,15 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         if (current.state === null) return;
         const { snapshot } = current.state;
         const rule = getEditingRule(current, null);
-        if (rule === null || !canKeepFilterRule(rule)) {
+        // Something outside took the rule away: that write is kept, and
+        // nothing of this edit is put back
+        if (rule === null) {
+            reset();
+            return;
+        }
+        if (!canKeepFilterRule(rule)) {
             // An existing control left with no field goes as "Remove filter"
-            if (rule !== null && !current.state.isNew) removeFilter();
+            if (!current.state.isNew) removeFilter();
             else discard();
             return;
         }

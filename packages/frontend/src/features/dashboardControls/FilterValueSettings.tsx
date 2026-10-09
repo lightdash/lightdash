@@ -18,6 +18,10 @@ type Props = {
     onChange: (next: DashboardFilterRule) => void;
 };
 
+const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
+    ...(root?.querySelectorAll('input') ?? []),
+];
+
 // The shipped settings form without its label and Required card. No Apply:
 // each edit is written at once, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
@@ -36,9 +40,6 @@ export const FilterValueSettings: FC<Props> = ({
     const [refusals, setRefusals] = useState(0);
     const [wasRefused, setWasRefused] = useState(false);
     const refocusIndex = useRef(-1);
-    const getInputs = () => [
-        ...(root.current?.querySelectorAll('input') ?? []),
-    ];
     const handleChange = (next: DashboardFilterRule) => {
         const written = getFilterRuleWithDisabledState(next, true);
         // A rule already in that state can still be edited out of it
@@ -46,7 +47,7 @@ export const FilterValueSettings: FC<Props> = ({
             isLockedRequiredMissingValue(written) &&
             !isLockedRequiredMissingValue(filterRule)
         ) {
-            refocusIndex.current = getInputs().findIndex(
+            refocusIndex.current = getInputs(root.current).findIndex(
                 (input) => input === document.activeElement,
             );
             setRefusals((count) => count + 1);
@@ -60,7 +61,7 @@ export const FilterValueSettings: FC<Props> = ({
     // Focus is a DOM matter: the remount took it from the input being typed
     // in. Its text is selected, so typing replaces the kept value
     useEffect(() => {
-        const input = getInputs()[refocusIndex.current];
+        const input = getInputs(root.current)[refocusIndex.current];
         refocusIndex.current = -1;
         if (input === undefined || input.readOnly) return;
         input.focus();
