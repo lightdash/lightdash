@@ -110,6 +110,8 @@ type BaseProps = {
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
     uiOverrides?: SdkUiOverrides;
+    // Takes over "Explore from here" for saved charts. Without it, Explore
+    // opens inside the embedded component with a back button.
     onExplore?: (options: { chart: SavedChart }) => void;
     onError?: SdkErrorHandler;
 };
@@ -272,7 +274,8 @@ const getInitialNavigation = (
     restoredChart: undefined,
 });
 
-// Saved charts go to the host; derived charts (drill-downs) render in place.
+// Saved charts go to the host's onExplore when one is provided; otherwise they
+// render in place like derived charts (drill-downs).
 // Back leaves every drill-down at once and restores the root's query.
 const useEmbedExploreNavigation = (
     onExplore: BaseProps['onExplore'],
@@ -288,8 +291,8 @@ const useEmbedExploreNavigation = (
 
     const handleExplore = useCallback(
         ({ chart, sourceChart }: EmbedExploreOptions) => {
-            if ('uuid' in chart) {
-                onExplore?.({ chart });
+            if ('uuid' in chart && onExplore) {
+                onExplore({ chart });
                 return;
             }
             setState((prev) => ({
