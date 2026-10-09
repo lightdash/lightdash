@@ -1,3 +1,10 @@
+# [2.516.0](https://github.com/lightdash/lightdash/compare/2.515.0...2.516.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** audit entries and logs for agent identity changes ([#30795](https://github.com/lightdash/lightdash/issues/30795)) ([bafd416](https://github.com/lightdash/lightdash/commit/bafd41607a7c12b41660134e20f2e4dcc6adad9d))
+
 # [2.515.0](https://github.com/lightdash/lightdash/compare/2.514.0...2.515.0) (2026-10-09)
 
 
