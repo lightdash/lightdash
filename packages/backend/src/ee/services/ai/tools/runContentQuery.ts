@@ -22,6 +22,8 @@ import type {
     RunSavedChartQueryFn,
     RunSqlChartQueryFn,
     RunSqlJobFn,
+    SqlChartSummary,
+    SqlQueryRows,
     UpdateProgressFn,
     ValidateContentFn,
 } from '../types/aiAgentDependencies';
@@ -166,15 +168,19 @@ const buildShownTable = (
     };
 };
 
-type SqlRows = {
-    rows: Record<string, unknown>[];
-    columns: string[];
-    rowCount: number;
-};
+const describeSqlChart = ({ uuid, slug, name, sql }: SqlChartSummary) => ({
+    chartUuid: uuid,
+    slug,
+    name,
+    sql,
+});
+
+const describeSqlChartHeader = ({ name, slug, sql }: SqlChartSummary) =>
+    `SQL chart "${name}" (${slug}):\n\`\`\`sql\n${sql}\n\`\`\`\n`;
 
 /** The CSV and structured rows for results keyed by column name. */
 const buildSqlRowsOutput = (
-    { rows, columns, rowCount }: SqlRows,
+    { rows, columns, rowCount }: Omit<SqlQueryRows, 'queryUuid'>,
     maxContextRows: number,
 ) => {
     const shownRows = rows
@@ -338,7 +344,7 @@ export const getRunContentQuery = ({
     const runSavedSqlChart = async ({
         chartSlug,
         dashboardSlug,
-        limit,
+        limit: requestedLimit,
     }: {
         chartSlug: string;
         dashboardSlug: string | null;
@@ -346,49 +352,33 @@ export const getRunContentQuery = ({
     }): Promise<RunContentQueryResult> => {
         try {
             await updateProgress('Running SQL chart...');
-            const sqlChart = await getSqlChart(chartSlug);
-            const described = {
-                chartUuid: sqlChart.uuid,
-                slug: sqlChart.slug,
-                name: sqlChart.name,
-                sql: sqlChart.sql,
-            };
-            const header = `SQL chart "${sqlChart.name}" (${sqlChart.slug}):\n\`\`\`sql\n${sqlChart.sql}\n\`\`\`\n`;
 
             if (!enableDataAccess) {
+                const sqlChart = await getSqlChart(chartSlug);
                 return {
-                    result: `${header}Data access is disabled for this agent. Reason about the chart from its SQL above; do not assume specific row values.`,
+                    result: `${describeSqlChartHeader(sqlChart)}Data access is disabled for this agent. Reason about the chart from its SQL above; do not assume specific row values.`,
                     metadata: { status: 'success' as const },
                     structuredContent: {
                         outcome: 'dataAccessDisabled' as const,
                         chart: null,
-                        sqlChart: described,
+                        sqlChart: describeSqlChart(sqlChart),
                     },
                 };
             }
 
-            const results = await runSqlChartQuery({
-                chartUuid: sqlChart.uuid,
+            const limit = getValidAiQueryLimit(requestedLimit, maxLimit);
+            const { sqlChart, ...results } = await runSqlChartQuery({
+                chartSlug,
                 dashboardSlug,
                 limit,
             });
-            const review =
-                (await reviewQuery?.({
-                    kind: 'sql',
-                    sql: sqlChart.sql,
-                    limit: limit ?? DEFAULT_RUN_SQL_LIMIT,
-                })) ?? '';
+            const header = describeSqlChartHeader(sqlChart);
+            const plan = { kind: 'sql' as const, sql: sqlChart.sql, limit };
+            const review = (await reviewQuery?.(plan)) ?? '';
 
             if (results.rowCount === 0) {
                 const result = reviewQuery
-                    ? await reviewQuery(
-                          {
-                              kind: 'sql',
-                              sql: sqlChart.sql,
-                              limit: limit ?? DEFAULT_RUN_SQL_LIMIT,
-                          },
-                          { emptyResult: true, review },
-                      )
+                    ? await reviewQuery(plan, { emptyResult: true, review })
                     : NO_RESULTS_RETRY_PROMPT;
                 return {
                     result: `${header}${result}`,
@@ -407,7 +397,7 @@ export const getRunContentQuery = ({
                 structuredContent: {
                     outcome: 'rows' as const,
                     chart: null,
-                    sqlChart: described,
+                    sqlChart: describeSqlChart(sqlChart),
                     ...output.table,
                     review: review === '' ? null : review,
                     truncationNote: output.truncationNote,

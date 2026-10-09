@@ -4648,7 +4648,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             dashboardService: {
                 getByIdOrSlug: vi.fn().mockResolvedValue({
                     uuid: 'dashboard-uuid',
-                    spaceUuid: 'allowed-space-uuid',
+                    spaceUuid: 'dashboard-space-uuid',
                     filters: { dimensions: [], metrics: [] },
                     tiles: dashboardTiles,
                 }),
@@ -4675,7 +4675,7 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
 
         await expect(
             service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
-                chartUuid: 'sql-chart-uuid',
+                chartSlug: 'orders-by-status',
                 dashboardSlug: null,
                 limit: 10,
             }),
@@ -4684,6 +4684,12 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             rows: [{ status: 'completed', orders: 97 }],
             columns: ['status', 'orders'],
             rowCount: 1,
+            sqlChart: {
+                uuid: 'sql-chart-uuid',
+                slug: 'orders-by-status',
+                name: 'Orders by status',
+                sql: sqlChart.sql,
+            },
         });
         expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
@@ -4705,9 +4711,9 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
             ]);
 
         await service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
-            chartUuid: 'sql-chart-uuid',
+            chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: null,
+            limit: 10,
         });
 
         expect(
@@ -4728,9 +4734,9 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
 
         await expect(
             service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
-                chartUuid: 'sql-chart-uuid',
+                chartSlug: 'orders-by-status',
                 dashboardSlug: 'jaffle-dashboard',
-                limit: null,
+                limit: 10,
             }),
         ).rejects.toThrow('not found on dashboard jaffle-dashboard');
         expect(executeAsyncDashboardSqlChartQuery).not.toHaveBeenCalled();
@@ -4747,12 +4753,34 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
         );
         await expect(
             runtime.runSqlChartQuery({
-                chartUuid: 'sql-chart-uuid',
+                chartSlug: 'orders-by-status',
                 dashboardSlug: null,
-                limit: null,
+                limit: 10,
             }),
         ).rejects.toThrow('was not found');
         expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+
+    it('lets a dashboard in the agent spaces grant its SQL chart tiles', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService([
+                {
+                    uuid: 'tile-uuid',
+                    type: 'sql_chart',
+                    properties: { savedSqlUuid: 'sql-chart-uuid' },
+                },
+            ]);
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['dashboard-space-uuid'] }),
+        );
+
+        await runtime.runSqlChartQuery({
+            chartSlug: 'orders-by-status',
+            dashboardSlug: 'jaffle-dashboard',
+            limit: 10,
+        });
+
+        expect(executeAsyncDashboardSqlChartQuery).toHaveBeenCalledOnce();
     });
 
     it('refuses saved SQL that reads outside the agent SQL scope', async () => {
@@ -4763,9 +4791,9 @@ describe('AiAgentToolsService runSqlChartQuery', () => {
 
         await expect(
             runtime.runSqlChartQuery({
-                chartUuid: 'sql-chart-uuid',
+                chartSlug: 'orders-by-status',
                 dashboardSlug: null,
-                limit: null,
+                limit: 10,
             }),
         ).rejects.toThrow('jaffle');
         expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();

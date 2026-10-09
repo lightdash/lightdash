@@ -1,4 +1,7 @@
-import { type ToolRunContentQueryArgs } from '@lightdash/common';
+import {
+    toolRunContentQueryOutputSchema,
+    type ToolRunContentQueryArgs,
+} from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { getRunContentQuery } from './runContentQuery';
 
@@ -23,6 +26,7 @@ const makeDependencies = () => ({
         ],
         columns: ['status', 'orders'],
         rowCount: 2,
+        sqlChart,
     }),
     validateContent: vi.fn(),
     maxLimit: 500,
@@ -32,10 +36,16 @@ const makeDependencies = () => ({
 });
 const options = { messages: [], toolCallId: 'call', context: {} };
 
-const run = (
+const run = async (
     deps: ReturnType<typeof makeDependencies>,
     source: ToolRunContentQueryArgs['source'],
-) => getRunContentQuery(deps).execute!({ source }, options);
+) => {
+    const output = await getRunContentQuery(deps).execute!({ source }, options);
+    expect(toolRunContentQueryOutputSchema.safeParse(output).success).toBe(
+        true,
+    );
+    return output;
+};
 
 describe('runContentQuery on a saved SQL chart', () => {
     it('runs the saved SQL chart by slug without asking for approval', async () => {
@@ -48,14 +58,12 @@ describe('runContentQuery on a saved SQL chart', () => {
             limit: 10,
         });
 
-        expect(deps.getSqlChart).toHaveBeenCalledExactlyOnceWith(
-            'orders-by-status',
-        );
         expect(deps.runSqlChartQuery).toHaveBeenCalledExactlyOnceWith({
-            chartUuid: 'sql-chart-uuid',
+            chartSlug: 'orders-by-status',
             dashboardSlug: null,
             limit: 10,
         });
+        expect(deps.getSqlChart).not.toHaveBeenCalled();
         expect(deps.getSavedChart).not.toHaveBeenCalled();
         expect(output).toMatchObject({
             metadata: { status: 'success' },
@@ -92,9 +100,9 @@ describe('runContentQuery on a saved SQL chart', () => {
         });
 
         expect(deps.runSqlChartQuery).toHaveBeenCalledExactlyOnceWith({
-            chartUuid: 'sql-chart-uuid',
+            chartSlug: 'orders-by-status',
             dashboardSlug: 'jaffle-dashboard',
-            limit: null,
+            limit: 500,
         });
     });
 
@@ -110,7 +118,7 @@ describe('runContentQuery on a saved SQL chart', () => {
         });
 
         expect(deps.getSavedChart).toHaveBeenCalledExactlyOnceWith('orders');
-        expect(deps.getSqlChart).not.toHaveBeenCalled();
+        expect(deps.runSqlChartQuery).not.toHaveBeenCalled();
     });
 
     it('returns the SQL chart structure without rows when data access is off', async () => {
@@ -131,6 +139,25 @@ describe('runContentQuery on a saved SQL chart', () => {
                 chart: null,
                 sqlChart: { chartUuid: 'sql-chart-uuid', sql: sqlChart.sql },
             },
+        });
+    });
+
+    it('reports a SQL chart the agent cannot see as an error', async () => {
+        const deps = makeDependencies();
+        deps.runSqlChartQuery.mockRejectedValue(
+            new Error('SQL chart "orders-by-status" was not found'),
+        );
+
+        const output = await run(deps, {
+            type: 'chart',
+            chartType: 'sql_chart',
+            chartSlug: 'orders-by-status',
+            limit: null,
+        });
+
+        expect(output).toMatchObject({
+            metadata: { status: 'error' },
+            result: expect.stringContaining('was not found'),
         });
     });
 });

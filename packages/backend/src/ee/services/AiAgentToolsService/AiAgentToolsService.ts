@@ -63,6 +63,7 @@ import {
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
+    type SqlChart,
     type SqlChartAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
@@ -158,6 +159,8 @@ import {
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
     SetupPreviewDeployFn,
+    SqlChartSummary,
+    SqlQueryRows,
     SyncDbtProjectFn,
     UpdateUserNameFn,
     ValidateContentFn,
@@ -3282,48 +3285,30 @@ export class AiAgentToolsService extends BaseService {
                     undefined,
                     slug,
                 );
-                if (
-                    !AiAgentToolsService.hasAgentSpaceAccess(
-                        context.spaceAccess,
-                        sqlChart.space.uuid,
-                    )
-                ) {
-                    throw new NotFoundError(
-                        `SQL chart "${slug}" was not found`,
-                    );
-                }
-                return {
-                    uuid: sqlChart.savedSqlUuid,
-                    slug: sqlChart.slug,
-                    name: sqlChart.name,
-                    sql: sqlChart.sql,
-                };
+                AiAgentToolsService.assertSpaceInAgentScope(
+                    context,
+                    sqlChart.space.uuid,
+                    `SQL chart "${slug}" was not found`,
+                );
+                return AiAgentToolsService.toSqlChartSummary(sqlChart);
             },
         );
     }
 
     private runSqlChartQuery(
         context: AiAgentToolsRuntimeContext,
-        { chartUuid, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+        { chartSlug, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
     ): ReturnType<RunSqlChartQueryFn> {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
-            { chartUuid, dashboardSlug, limit },
+            { chartSlug, dashboardSlug, limit },
             async () => {
                 const sqlChart = await this.savedSqlService.getSqlChart(
                     context.user,
                     context.projectUuid,
-                    chartUuid,
+                    undefined,
+                    chartSlug,
                 );
-                const notFound = `SQL chart ${chartUuid} was not found`;
-                if (
-                    !AiAgentToolsService.hasAgentSpaceAccess(
-                        context.spaceAccess,
-                        sqlChart.space.uuid,
-                    )
-                ) {
-                    throw new NotFoundError(notFound);
-                }
                 // Saved SQL is not the agent's own, but it still reads only what the agent may read.
                 await this.assertSqlInAgentScope(context, sqlChart.sql);
 
@@ -3331,7 +3316,7 @@ export class AiAgentToolsService extends BaseService {
                     limit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
                 );
-                const common = {
+                const sqlChartQueryArgs = {
                     account: context.account,
                     projectUuid: context.projectUuid,
                     savedSqlUuid: sqlChart.savedSqlUuid,
@@ -3342,35 +3327,40 @@ export class AiAgentToolsService extends BaseService {
                         ? { invalidateCache: true }
                         : {}),
                 };
+                const summary = AiAgentToolsService.toSqlChartSummary(sqlChart);
 
                 if (!dashboardSlug) {
+                    AiAgentToolsService.assertSpaceInAgentScope(
+                        context,
+                        sqlChart.space.uuid,
+                        `SQL chart "${chartSlug}" was not found`,
+                    );
                     await context.onWarehouseQuery?.();
                     const { queryUuid } =
                         await this.asyncQueryService.executeAsyncSqlChartQuery(
-                            common,
+                            sqlChartQueryArgs,
                         );
-                    return this.waitForSqlResults(
-                        context,
-                        queryUuid,
-                        effectiveLimit,
-                    );
+                    return {
+                        ...(await this.waitForSqlResults(
+                            context,
+                            queryUuid,
+                            effectiveLimit,
+                        )),
+                        sqlChart: summary,
+                    };
                 }
 
+                // As for explore chart tiles, the dashboard's space grants access to its tiles.
                 const dashboard = await this.dashboardService.getByIdOrSlug(
                     context.user,
                     dashboardSlug,
                     { projectUuid: context.projectUuid },
                 );
-                if (
-                    !AiAgentToolsService.hasAgentSpaceAccess(
-                        context.spaceAccess,
-                        dashboard.spaceUuid,
-                    )
-                ) {
-                    throw new NotFoundError(
-                        `Dashboard not found: ${dashboardSlug}`,
-                    );
-                }
+                AiAgentToolsService.assertSpaceInAgentScope(
+                    context,
+                    dashboard.spaceUuid,
+                    `Dashboard not found: ${dashboardSlug}`,
+                );
                 const tile = dashboard.tiles.find(
                     (dashboardTile) =>
                         isDashboardSqlChartTile(dashboardTile) &&
@@ -3379,7 +3369,7 @@ export class AiAgentToolsService extends BaseService {
                 );
                 if (!tile) {
                     throw new NotFoundError(
-                        `SQL chart ${sqlChart.slug} not found on dashboard ${dashboardSlug}`,
+                        `SQL chart ${chartSlug} not found on dashboard ${dashboardSlug}`,
                     );
                 }
 
@@ -3387,20 +3377,47 @@ export class AiAgentToolsService extends BaseService {
                 const { queryUuid } =
                     await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
                         {
-                            ...common,
+                            ...sqlChartQueryArgs,
                             dashboardUuid: dashboard.uuid,
                             tileUuid: tile.uuid,
                             dashboardFilters: dashboard.filters,
                             dashboardSorts: [],
                         },
                     );
-                return this.waitForSqlResults(
-                    context,
-                    queryUuid,
-                    effectiveLimit,
-                );
+                return {
+                    ...(await this.waitForSqlResults(
+                        context,
+                        queryUuid,
+                        effectiveLimit,
+                    )),
+                    sqlChart: summary,
+                };
             },
         );
+    }
+
+    private static toSqlChartSummary(sqlChart: SqlChart): SqlChartSummary {
+        return {
+            uuid: sqlChart.savedSqlUuid,
+            slug: sqlChart.slug,
+            name: sqlChart.name,
+            sql: sqlChart.sql,
+        };
+    }
+
+    private static assertSpaceInAgentScope(
+        context: AiAgentToolsRuntimeContext,
+        spaceUuid: string,
+        notFoundMessage: string,
+    ): void {
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                spaceUuid,
+            )
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
     }
 
     private async assertSqlInAgentScope(
@@ -3437,7 +3454,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         queryUuid: string,
         limit: number,
-    ): ReturnType<RunSqlJobFn> {
+    ): Promise<SqlQueryRows> {
         const maxWaitMs = 5 * 60 * 1000;
         const startTime = Date.now();
         let delayMs = 500;
