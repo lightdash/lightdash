@@ -1,17 +1,14 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    FeatureFlags,
-    supportsAiServiceAccount,
     ProjectType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Flex, Card, Text } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router';
 import {
     useProject,
     useTestWarehouseConnectionMutation,
@@ -19,7 +16,6 @@ import {
     useUpdateWarehouseCredentialsMutation,
 } from '../../hooks/useProject';
 import { useProjectCompileLogs } from '../../hooks/useProjectCompileLogs';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -44,9 +40,6 @@ const UpdateProjectConnection: FC<{
     project: Project;
 }> = ({ projectUuid, project }) => {
     const { user, health } = useApp();
-    const { data: agentIdentityFlag } = useServerFeatureFlag(
-        FeatureFlags.AgentIdentity,
-    );
     const ability = useAbilityContext();
     const {
         isLoading: isSaving,
@@ -73,7 +66,7 @@ const UpdateProjectConnection: FC<{
         ability.cannot(
             'update',
             subject('Project', {
-                organizationUuid: project.organizationUuid,
+                organizationUuid: user.data?.organizationUuid,
                 projectUuid,
             }),
         );
@@ -249,27 +242,6 @@ const UpdateProjectConnection: FC<{
                     </Card>
                 </FormContainer>
             </form>
-            {agentIdentityFlag?.enabled &&
-                ability.can(
-                    'manage',
-                    subject('Project', {
-                        organizationUuid: project.organizationUuid,
-                        projectUuid,
-                    }),
-                ) &&
-                project.warehouseConnection &&
-                supportsAiServiceAccount(project.warehouseConnection.type) && (
-                    <Text size="sm" mt="md">
-                        AI service account settings moved to{' '}
-                        <Anchor
-                            component={Link}
-                            to={`/generalSettings/projectManagement/${projectUuid}/agentIdentity`}
-                        >
-                            Agent identity
-                        </Anchor>
-                        .
-                    </Text>
-                )}
         </FormProvider>
     );
 };
