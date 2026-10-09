@@ -98,6 +98,7 @@ export class SnowflakeAiServiceAccountCredentialResolver implements CredentialRe
                 input.stored,
             ),
             clientOptions: {},
+            agentSignIn: null,
             cacheable: input.owner !== null,
         };
     }

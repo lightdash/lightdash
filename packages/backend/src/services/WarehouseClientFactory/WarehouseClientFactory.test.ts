@@ -43,7 +43,6 @@ import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
-import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
 import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import { resolveAiServiceAccountCredentials } from './aiServiceAccountCredentialResolvers';
@@ -61,6 +60,7 @@ import { createCredentialResolverRegistry } from './credentialResolvers';
 import { prepareWarehouseOAuthCredentials } from './preparedOAuthCredentials';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
 import { DatabricksOAuthCredentialResolver } from './resolvers/DatabricksOAuthCredentialResolver';
+import { AgentSignInResolverHarness } from './resolvers/SnowflakeAgentSignInCredentialResolver.mock';
 import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientFactory,
@@ -3138,7 +3138,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                 rotateRefreshToken: vi.fn(),
             };
             const config = lightdashConfigMock;
-            const provider = new SnowflakeAiCredentialProvider({
+            const provider = new AgentSignInResolverHarness({
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
@@ -3160,7 +3160,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                     },
                 }),
             } as unknown as ConstructorParameters<
-                typeof SnowflakeAiCredentialProvider
+                typeof AgentSignInResolverHarness
             >[0]);
             const aiAccessService = new AiAccessService({
                 lightdashConfig: config,
@@ -3176,7 +3176,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                         email: 'person@example.test',
                     })),
                 },
-                providerRegistry: () => provider,
+                agentSignInCredentialResolver: provider.resolver,
             } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
             resolver.resolvePlan.mockImplementation(
                 aiAccessService.resolvePlan.bind(aiAccessService),
@@ -3544,6 +3544,7 @@ describe('resolver cache identity and lifecycle', () => {
             async function resolve(this: BigquerySsoCredentialResolver, input) {
                 return {
                     ...(await originalResolve.call(this, input)),
+                    agentSignIn: null,
                     cacheable: false,
                     clientOptions: {
                         maxOpenConnections: 7,
@@ -3795,6 +3796,7 @@ describe('prepared OAuth credentials', () => {
                 .mockImplementation(async (input) => ({
                     clientCredentials: input.connection,
                     clientOptions: {},
+                    agentSignIn: null,
                     cacheable: true,
                 }));
             try {

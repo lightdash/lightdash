@@ -136,6 +136,7 @@ const transportFixture = () => {
             .mockImplementation(async (input) => ({
                 clientCredentials: { ...input.connection, password: name },
                 clientOptions: { maxOpenConnections: name === 'mode' ? 2 : 3 },
+                agentSignIn: null,
                 cacheable: true,
             })),
         validateOnSave: vi
@@ -210,6 +211,7 @@ describe('transport composition', () => {
         );
         expect(resolved).toMatchObject({ password: 'transport' });
         expect(resolved[credentialResolution]).toMatchObject({
+            agentSignIn: null,
             cacheable: true,
             cacheKeyIdentity: ['transport'],
             clientOptions: { maxOpenConnections: 3 },
@@ -238,6 +240,7 @@ describe('transport composition', () => {
                     password: 'mode',
                 },
                 clientOptions: { maxOpenConnections: 2, agentSession: true },
+                agentSignIn: null,
                 cacheable: modeCacheable,
             });
             transport.resolve.mockResolvedValue({
@@ -246,6 +249,7 @@ describe('transport composition', () => {
                     password: 'transport',
                 },
                 clientOptions: { maxOpenConnections: 3 },
+                agentSignIn: null,
                 cacheable: transportCacheable,
             });
             const resolved = await registry.resolveCredentialSelection(
@@ -357,6 +361,7 @@ describe('transport composition', () => {
         );
         expect(resolved[credentialResolution]).toMatchObject({
             clientOptions: { maxOpenConnections: 2 },
+            agentSignIn: null,
             cacheable: true,
             cacheKeyIdentity: ['mode'],
         });
@@ -381,6 +386,7 @@ it.each([
             .mockImplementation(async (input) => ({
                 clientCredentials: { ...input.connection, token: 'fresh' },
                 clientOptions: {},
+                agentSignIn: null,
                 cacheable: true,
             }));
         const registry = createCredentialResolverRegistry({

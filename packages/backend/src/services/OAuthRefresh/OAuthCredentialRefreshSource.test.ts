@@ -3,11 +3,13 @@ import {
     FeatureFlags,
     ForbiddenError,
     NotFoundError,
+    SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { RefreshTokenSourceChangedError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
+import type { AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
 import { type WarehouseCredentialResolutionContext } from '../WarehouseClientFactory/WarehouseCredentialSource';
 import {
@@ -286,5 +288,140 @@ test('uses the context organization without owner reads and falls back to the gl
     await f.source.isLockEnabled(f.input, owners[2]);
     expect(f.deps.featureFlagModel.get).toHaveBeenLastCalledWith({
         featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
+    });
+});
+
+describe('AI-purpose user policy', () => {
+    type SnowflakeCredentials = Extract<
+        OAuthRefreshSourceCredentials,
+        { type: WarehouseTypes.SNOWFLAKE }
+    >;
+    const aiCredentials: SnowflakeCredentials = {
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: SnowflakeAuthenticationType.SSO,
+        user: 'person',
+        refreshToken: 'current',
+    };
+    const owner = {
+        kind: 'user' as const,
+        uuid: 'ai-row',
+        purpose: UserWarehouseCredentialPurpose.AI,
+    };
+    const setupAi = () => {
+        const f = setup();
+        const model = {
+            findAiCredentialWithSecrets: vi.fn().mockResolvedValue({
+                uuid: owner.uuid,
+                credentials: aiCredentials,
+                expiresAt: null,
+            }),
+        };
+        const validate = vi.fn(
+            (current: AiUserWarehouseCredentials) => current.credentials,
+        );
+        const source = new OAuthCredentialRefreshSource(
+            f.deps,
+            {
+                isCredential: (current): current is SnowflakeCredentials =>
+                    current.type === WarehouseTypes.SNOWFLAKE,
+            },
+            {
+                kind: 'ai',
+                userUuid: 'person',
+                model,
+                resolveCredential: validate,
+            },
+        );
+        return {
+            ...f,
+            input: { ...f.input, connection: aiCredentials },
+            model,
+            validate,
+            source,
+        };
+    };
+
+    test('reads the AI row with its transaction and validates the binding', async () => {
+        const f = setupAi();
+        await expect(
+            f.source.readCurrentRefreshToken(f.input, owner, trx),
+        ).resolves.toBe('current');
+        expect(
+            f.model.findAiCredentialWithSecrets,
+        ).toHaveBeenCalledExactlyOnceWith(
+            { userUuid: 'person', warehouseType: WarehouseTypes.SNOWFLAKE },
+            trx,
+        );
+        expect(
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
+        ).not.toHaveBeenCalled();
+        expect(f.validate).toHaveBeenCalledOnce();
+    });
+
+    test.each([
+        undefined,
+        { uuid: 'replacement', credentials: aiCredentials, expiresAt: null },
+    ])('rejects a missing or replaced row', async (current) => {
+        const f = setupAi();
+        f.model.findAiCredentialWithSecrets.mockResolvedValue(current);
+        await expect(
+            f.source.readCurrentRefreshToken(f.input, owner, trx),
+        ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+    });
+
+    test('writes expiry for an unchanged token using the expected token guard', async () => {
+        const f = setupAi();
+        const expiry = {
+            kind: 'reported' as const,
+            expiresAt: new Date('2099-01-01'),
+        };
+        await expect(
+            f.source.persist(f.input, owner, 'current', 'current', trx, expiry),
+        ).resolves.toBe(true);
+        expect(
+            f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'ai-row',
+            'current',
+            'current',
+            expiry,
+            trx,
+        );
+    });
+
+    test('propagates AI persistence failures without swallowing them', async () => {
+        const f = setupAi();
+        const error = new Error('write failed');
+        f.deps.userWarehouseCredentialsModel.rotateRefreshToken.mockRejectedValue(
+            error,
+        );
+        await expect(
+            f.source.persist(f.input, owner, 'current', 'next', trx),
+        ).rejects.toBe(error);
+        expect(f.deps.logger.error).not.toHaveBeenCalled();
+    });
+
+    test('refuses the default purpose under an AI policy', async () => {
+        const f = setupAi();
+        await expect(
+            f.source.readCurrentRefreshToken(
+                f.input,
+                { ...owner, purpose: UserWarehouseCredentialPurpose.DEFAULT },
+                trx,
+            ),
+        ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+        await expect(
+            f.source.persist(
+                f.input,
+                { ...owner, purpose: UserWarehouseCredentialPurpose.DEFAULT },
+                'current',
+                'next',
+                trx,
+            ),
+        ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+        expect(f.model.findAiCredentialWithSecrets).not.toHaveBeenCalled();
+        expect(
+            f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
+        ).not.toHaveBeenCalled();
     });
 });

@@ -94,6 +94,7 @@ it('mints each materialization from the slot and routing host without caching or
                 token: 'minted',
             },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: false,
         });
     }

@@ -5283,12 +5283,12 @@ describe('AsyncQueryService', () => {
                         email: 'private@example.test',
                     })),
                 },
-                providerRegistry: () => ({
-                    configurationError: () => null,
-                    mint: vi.fn(async () => {
+                agentSignInCredentialResolver: {
+                    inspectClient: () => null,
+                    resolve: vi.fn(async () => {
                         throw refusal;
                     }),
-                }),
+                },
             } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 aiAccessService,

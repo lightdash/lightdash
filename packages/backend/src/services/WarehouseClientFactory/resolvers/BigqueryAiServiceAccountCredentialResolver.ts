@@ -100,6 +100,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
                 input.stored,
             ),
             clientOptions: {},
+            agentSignIn: null,
             cacheable: input.owner !== null,
         };
     }

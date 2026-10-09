@@ -97,6 +97,7 @@ export class BigquerySsoCredentialResolver implements CredentialResolver<CreateB
                 ),
             },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: true,
         };
     }

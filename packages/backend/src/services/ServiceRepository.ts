@@ -17,12 +17,12 @@ import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerat
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
 import { seedPlaygroundMetricsTrees } from '../ee/services/ProjectService/seedPlaygroundMetricsTrees';
+import Logger from '../logging/logger';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
-import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
@@ -105,6 +105,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { SnowflakeAgentSignInCredentialResolver } from './WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver';
 import { WarehouseConnectionBindingService } from './WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { WarehouseConnectionService } from './WarehouseConnectionService/WarehouseConnectionService';
 import { WarehouseConnectionSwitchService } from './WarehouseConnectionSwitchService/WarehouseConnectionSwitchService';
@@ -992,20 +993,27 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
-                    providerRegistry: createAiCredentialProviderRegistry({
-                        featureFlagModel: this.models.getFeatureFlagModel(),
-                        refreshTokenRotation:
-                            this.models.getRefreshTokenRotation(),
-                        snowflakeAgentClientResolver:
-                            new SnowflakeAgentClientResolver({
-                                lightdashConfig: this.context.lightdashConfig,
-                                organizationSnowflakeAgentClientModel:
-                                    this.models.getOrganizationSnowflakeAgentClientModel(),
-                            }),
-                        lightdashConfig: this.context.lightdashConfig,
-                        userWarehouseCredentialsModel:
-                            this.models.getUserWarehouseCredentialsModel(),
-                    }),
+                    agentSignInCredentialResolver:
+                        new SnowflakeAgentSignInCredentialResolver({
+                            projectModel: this.models.getProjectModel(),
+                            organizationWarehouseCredentialsModel:
+                                this.models.getOrganizationWarehouseCredentialsModel(),
+                            warehouseConnectionModel:
+                                this.models.getWarehouseConnectionModel(),
+                            logger: Logger,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                            refreshTokenRotation:
+                                this.models.getRefreshTokenRotation(),
+                            snowflakeAgentClientResolver:
+                                new SnowflakeAgentClientResolver({
+                                    lightdashConfig:
+                                        this.context.lightdashConfig,
+                                    organizationSnowflakeAgentClientModel:
+                                        this.models.getOrganizationSnowflakeAgentClientModel(),
+                                }),
+                            userWarehouseCredentialsModel:
+                                this.models.getUserWarehouseCredentialsModel(),
+                        }),
                     lightdashConfig: this.context.lightdashConfig,
                     organizationAgentIdentityRulesModel:
                         this.models.getOrganizationAgentIdentityRulesModel(),

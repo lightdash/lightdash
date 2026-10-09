@@ -167,6 +167,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
             return {
                 clientCredentials: input.connection,
                 clientOptions: {},
+                agentSignIn: null,
                 cacheable: true,
             };
         }
@@ -251,6 +252,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                     refreshToken: result.refreshToken,
                 },
                 clientOptions: {},
+                agentSignIn: null,
                 cacheable: true,
             };
         } catch (caught) {

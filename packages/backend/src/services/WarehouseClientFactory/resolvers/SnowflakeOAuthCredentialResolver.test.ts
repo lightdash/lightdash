@@ -136,6 +136,7 @@ describe('SnowflakeOAuthCredentialResolver', () => {
                 refreshToken: 'new-refresh',
             },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: true,
         });
         expect(input.stored).toEqual(credentials);
