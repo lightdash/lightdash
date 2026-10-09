@@ -2706,7 +2706,6 @@ export class ProjectService
                 );
             const credentials = prepareSnowflakeOAuthCredentials(
                 resolved.clientCredentials,
-                owner,
             );
 
             return {
@@ -6661,7 +6660,6 @@ export class ProjectService
                             projectUuid: input.projectUuid,
                             credentials: prepareSnowflakeOAuthCredentials(
                                 input.credentials,
-                                null,
                             ),
                             tunnelOptions: this.connectionTestTunnelOptions(),
                         };
@@ -6892,10 +6890,7 @@ export class ProjectService
                     kind: 'bypass',
                     mode: 'connection_test',
                     projectUuid: null,
-                    credentials: prepareSnowflakeOAuthCredentials(
-                        credentials,
-                        null,
-                    ),
+                    credentials: prepareSnowflakeOAuthCredentials(credentials),
                     tunnelOptions: this.connectionTestTunnelOptions(),
                 },
                 context,
@@ -7065,10 +7060,8 @@ export class ProjectService
                 kind: 'bypass',
                 mode: 'timezone_preview',
                 projectUuid: body.mode === 'edit' ? body.projectUuid : null,
-                credentials: prepareSnowflakeOAuthCredentials(
-                    effectiveCredentials,
-                    null,
-                ),
+                credentials:
+                    prepareSnowflakeOAuthCredentials(effectiveCredentials),
             };
         }
         return this.warehouseClientFactory.withWarehouseClient(
@@ -7343,7 +7336,6 @@ export class ProjectService
                 );
             warehouseConnection = prepareSnowflakeOAuthCredentials(
                 resolved.clientCredentials,
-                owner,
             );
         }
 
@@ -7465,10 +7457,7 @@ export class ProjectService
             }
         }
 
-        return prepareSnowflakeOAuthCredentials(warehouseConnection, {
-            kind: 'project',
-            uuid: projectUuid,
-        });
+        return prepareSnowflakeOAuthCredentials(warehouseConnection);
     }
 
     private async withCompileAdapter<T>(
@@ -16933,7 +16922,6 @@ export class ProjectService
                 projectUuid,
                 credentials: prepareSnowflakeOAuthCredentials(
                     project.warehouseConnection,
-                    null,
                 ),
             };
         }

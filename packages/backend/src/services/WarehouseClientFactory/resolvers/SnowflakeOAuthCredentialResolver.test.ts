@@ -28,9 +28,10 @@ import {
     WarehouseCredentialKind,
 } from '../ConnectionContext';
 import {
-    credentialResolution,
+    preparedCredentials,
     type CredentialOwner,
     type CredentialSelection,
+    type PreparedCredentials,
 } from '../CredentialResolver';
 import { CredentialResolverRegistry } from '../CredentialResolverRegistry';
 import { SnowflakeOAuthCredentialResolver } from './SnowflakeOAuthCredentialResolver';
@@ -164,7 +165,9 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             refreshToken: 'grant-refresh',
         });
         expect(validated.connection).toMatchObject(validated.stored);
-        expect(validated.connection[credentialResolution]).toBeDefined();
+        expect(
+            (validated.connection as PreparedCredentials)[preparedCredentials],
+        ).toBe(true);
         expect(f.exchange).toHaveBeenCalledExactlyOnceWith('grant-refresh');
         expect(f.run).not.toHaveBeenCalled();
         expect(f.deps.projectModel.rotateRefreshToken).not.toHaveBeenCalled();

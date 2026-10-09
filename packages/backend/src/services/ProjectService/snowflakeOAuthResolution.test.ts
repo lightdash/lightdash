@@ -14,8 +14,9 @@ import {
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
 import {
-    credentialResolution,
+    preparedCredentials,
     type MaterializedCredentials,
+    type PreparedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import { projectWithSensitiveFields } from './ProjectService.mock';
@@ -138,8 +139,10 @@ describe('ProjectService Snowflake resolver entry points', () => {
                 refreshToken: 'rotated-refresh',
             });
             expect(
-                result.warehouseConnection[credentialResolution],
-            ).toBeDefined();
+                (result.warehouseConnection as PreparedCredentials)[
+                    preparedCredentials
+                ],
+            ).toBe(true);
             expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
                 'stored-refresh',
                 ...(enabled ? [30_000] : []),
@@ -172,7 +175,9 @@ describe('ProjectService Snowflake resolver entry points', () => {
                 token: 'fresh-access',
                 refreshToken: 'rotated-refresh',
             });
-            expect(result[credentialResolution]).toBeDefined();
+            expect((result as PreparedCredentials)[preparedCredentials]).toBe(
+                true,
+            );
             expect(
                 f.organizationWarehouseCredentialsModel.rotateRefreshToken,
             ).toHaveBeenCalledTimes(enabled ? 1 : 0);

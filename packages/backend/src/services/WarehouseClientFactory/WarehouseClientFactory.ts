@@ -57,9 +57,11 @@ import {
 } from './ConnectionContext';
 import {
     credentialResolution,
+    preparedCredentials,
     type CredentialOwner,
     type CredentialSelection,
     type MaterializedCredentials,
+    type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import type {
@@ -768,10 +770,13 @@ export class WarehouseClientFactory {
     }> {
         Sentry.setTag('warehouse.type', credentials.type);
 
-        const { [credentialResolution]: _resolution, ...clientCredentials } =
-            credentials as MaterializedCredentials;
+        const {
+            [credentialResolution]: _resolution,
+            [preparedCredentials]: _prepared,
+            ...clientCredentials
+        } = credentials as MaterializedCredentials & PreparedCredentials;
         const sshTunnel = new SshTunnel(
-            _resolution ? clientCredentials : credentials,
+            _resolution || _prepared ? clientCredentials : credentials,
             tunnelOptions,
         );
         let constructingClient = false;

@@ -71,3 +71,8 @@ export const credentialResolution = Symbol('credentialResolution');
 export type MaterializedCredentials = CreateWarehouseCredentials & {
     [credentialResolution]?: MaterializedCredential;
 };
+
+export const preparedCredentials = Symbol('preparedCredentials');
+export type PreparedCredentials = CreateWarehouseCredentials & {
+    [preparedCredentials]?: true;
+};

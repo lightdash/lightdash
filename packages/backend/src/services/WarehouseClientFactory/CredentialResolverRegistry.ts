@@ -6,10 +6,12 @@ import {
 } from '@lightdash/common';
 import {
     credentialResolution,
+    preparedCredentials,
     type CredentialResolver,
     type CredentialSaveInput,
     type CredentialSelection,
     type MaterializedCredentials,
+    type PreparedCredentials,
     type ValidatedCredential,
 } from './CredentialResolver';
 
@@ -162,10 +164,15 @@ export class CredentialResolverRegistry {
             ]
         )
             return selection.connection;
-        const resolver = this.get(selection.connection, mode);
-        const credentials: MaterializedCredentials = resolver
-            ? await resolver.resolve(selection)
-            : await legacyResolve();
+        const { [preparedCredentials]: prepared, ...unprepared } =
+            selection.connection as PreparedCredentials;
+        const resolver = prepared
+            ? undefined
+            : this.get(selection.connection, mode);
+        let credentials: MaterializedCredentials;
+        if (resolver) credentials = await resolver.resolve(selection);
+        else if (prepared) credentials = unprepared;
+        else credentials = await legacyResolve();
         const transport = this.transports.find(({ matches }) =>
             matches(credentials),
         );

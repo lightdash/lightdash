@@ -35,7 +35,7 @@ import type { WarehouseConnectionModel } from '../../../models/WarehouseConnecti
 import { SnowflakeOAuthRefresher } from '../../OAuthRefresh/SnowflakeOAuthRefresher';
 import { UserService } from '../../UserService';
 import {
-    credentialResolution,
+    preparedCredentials,
     type CredentialOwner,
     type CredentialResolution,
     type CredentialResolver,
@@ -91,24 +91,11 @@ export const prepareSnowflakeOAuthCredentials = <
     T extends CreateWarehouseCredentials,
 >(
     connection: T,
-    owner: CredentialOwner | null,
-): T & Pick<MaterializedCredentials, typeof credentialResolution> => {
-    if (
-        connection.type !== WarehouseTypes.SNOWFLAKE ||
-        connection.authenticationType !== SnowflakeAuthenticationType.SSO ||
-        (connection as MaterializedCredentials)[credentialResolution]
-    )
-        return connection;
-    return {
-        ...connection,
-        [credentialResolution]: {
-            clientOptions: {},
-            cacheable: true,
-            cacheKeyIdentity: cacheKeyIdentity(owner),
-            dispose: async () => {},
-        },
-    };
-};
+): T =>
+    connection.type === WarehouseTypes.SNOWFLAKE &&
+    connection.authenticationType === SnowflakeAuthenticationType.SSO
+        ? { ...connection, [preparedCredentials]: true }
+        : connection;
 
 export class SnowflakeOAuthCredentialResolver implements CredentialResolver<CreateSnowflakeCredentials> {
     private readonly refresher: SnowflakeOAuthRefresher;
@@ -121,7 +108,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
         input: CredentialSaveInput<CreateSnowflakeCredentials>,
     ): Promise<
         ValidatedCredential<
-            CreateSnowflakeCredentials & MaterializedCredentials,
+            CreateSnowflakeCredentials,
             CreateSnowflakeCredentials
         >
     > {
@@ -143,7 +130,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                 });
                 const stored = { ...resolved.clientCredentials, refreshToken };
                 return {
-                    connection: prepareSnowflakeOAuthCredentials(stored, null),
+                    connection: prepareSnowflakeOAuthCredentials(stored),
                     stored,
                 };
             }
