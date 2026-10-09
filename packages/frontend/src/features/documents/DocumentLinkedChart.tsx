@@ -3,18 +3,21 @@ import {
     type ApiError,
     type ApiExecuteAsyncMetricQueryResults,
     type DocumentSavedChartKind,
-    type SemanticChartAsCode,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { ActionIcon, Badge, Group, Text, Tooltip } from '@mantine/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode } from 'react';
 import { lightdashApi } from '../../api';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import MantineIcon from '../../components/common/MantineIcon';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import { useSavedSqlChartResults } from '../sqlRunner/hooks/useSavedSqlChartResults';
 import DocumentChartVisualization from './DocumentChartVisualization';
 import DocumentSqlChartView from './DocumentSqlChartView';
 import ReportChartFrame from './presentation/ReportChartFrame';
+import { toSemanticChartAsCode } from './savedChartContent';
 
 type Props = {
     projectUuid: string;
@@ -35,6 +38,38 @@ const DocumentLinkedChart = (props: Props) =>
     ) : (
         <LinkedSqlChart {...props} />
     );
+
+/** Marks the chart as linked, opens it, then the editor's own actions. */
+const LinkedChartActions = ({
+    href,
+    actions,
+}: {
+    href: string | null;
+    actions?: ReactNode;
+}) => {
+    const isEmbedded = useIsEmbedded();
+    return (
+        <Group gap="xs" wrap="nowrap">
+            <Tooltip label="Shows the saved chart live">
+                <Badge variant="light">Linked</Badge>
+            </Tooltip>
+            {href && !isEmbedded && (
+                <Tooltip label="Open chart">
+                    <ActionIcon
+                        component="a"
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="Open linked chart"
+                    >
+                        <MantineIcon icon={IconExternalLink} />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+            {actions}
+        </Group>
+    );
+};
 
 const LinkedChartMessage = ({
     title,
@@ -95,22 +130,14 @@ const LinkedSavedChart = ({
             <LinkedChartMessage
                 title={attributes.title}
                 error={savedChart.error}
-                actions={actions}
+                actions={<LinkedChartActions href={null} actions={actions} />}
             />
         );
     }
-    const chart = savedChart.data;
-    // A saved chart's config is the runtime form the visualization reads
-    const asCode = {
-        name: attributes.title ?? chart.name,
-        description: attributes.description ?? chart.description,
-        tableName: chart.tableName,
-        metricQuery: chart.metricQuery,
-        chartConfig: chart.chartConfig,
-        tableConfig: chart.tableConfig,
-        pivotConfig: chart.pivotConfig,
-        parameters: chart.parameters,
-    } as SemanticChartAsCode;
+    const asCode = toSemanticChartAsCode(savedChart.data, {
+        name: attributes.title,
+        description: attributes.description,
+    });
     return (
         <DocumentChartVisualization
             projectUuid={projectUuid}
@@ -118,7 +145,12 @@ const LinkedSavedChart = ({
             chart={asCode}
             query={query}
             showTitle
-            actions={actions}
+            actions={
+                <LinkedChartActions
+                    href={`/projects/${projectUuid}/saved/${savedChart.data.uuid}`}
+                    actions={actions}
+                />
+            }
         />
     );
 };
@@ -134,7 +166,7 @@ const LinkedSqlChart = ({ projectUuid, attributes, actions }: Props) => {
             <LinkedChartMessage
                 title={attributes.title}
                 error={chartQuery.error ? (chartQuery.error as ApiError) : null}
-                actions={actions}
+                actions={<LinkedChartActions href={null} actions={actions} />}
             />
         );
     }
@@ -155,7 +187,12 @@ const LinkedSqlChart = ({ projectUuid, attributes, actions }: Props) => {
                 retry: () => void chartResultsQuery.refetch(),
             }}
             showTitle
-            actions={actions}
+            actions={
+                <LinkedChartActions
+                    href={`/projects/${projectUuid}/sql-runner/${chart.slug}`}
+                    actions={actions}
+                />
+            }
         />
     );
 };

@@ -1,6 +1,7 @@
 import {
     ChartType,
     type Document,
+    type DocumentSavedChartKind,
     type SemanticChartAsCode,
 } from '@lightdash/common';
 import {
@@ -12,7 +13,13 @@ import {
     Textarea,
     Tooltip,
 } from '@mantine/core';
-import { IconChartBar, IconCheck, IconDots, IconX } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconCheck,
+    IconDots,
+    IconLink,
+    IconX,
+} from '@tabler/icons-react';
 import { EditorContent } from '@tiptap/react';
 import {
     lazy,
@@ -41,6 +48,10 @@ import {
 } from './editor/documentChartNode';
 import { DocumentEditorProvider } from './editor/DocumentEditorContext';
 import {
+    DOCUMENT_SAVED_CHART_NODE,
+    type DocumentSavedChartAttributes,
+} from './editor/documentSavedChartNode';
+import {
     getDocumentContent,
     getTopLevelInsertPosition,
 } from './editor/documentSerialization';
@@ -55,11 +66,28 @@ import { useUpdateDocumentMetadata } from './useUpdateDocumentMetadata';
 const DocumentChartEditorModal = lazy(
     () => import('./DocumentChartEditorModal'),
 );
+const DocumentSavedChartPickerModal = lazy(
+    () => import('./DocumentSavedChartPickerModal'),
+);
 
-/** Where a chart edit lands: an existing node's position, or an insertion point. */
+/**
+ * Where a chart edit lands: an existing node's position, or an insertion point.
+ * An insert starts empty, or from a copy of a saved chart.
+ */
 type ChartEditorState =
-    | { mode: 'insert'; position: number | null }
-    | { mode: 'edit'; position: number; chart: SemanticChartAsCode };
+    | { kind: 'saved'; position: number | null }
+    | {
+          kind: 'explore';
+          mode: 'insert';
+          position: number | null;
+          chart: SemanticChartAsCode | null;
+      }
+    | {
+          kind: 'explore';
+          mode: 'edit';
+          position: number;
+          chart: SemanticChartAsCode;
+      };
 
 const DocumentEditor = ({
     document,
@@ -97,7 +125,17 @@ const DocumentEditor = ({
     const nameChanged = trimmedName !== document.name;
     const nameValid = trimmedName.length > 0 && trimmedName.length <= 255;
     const onInsertChart = useCallback(
-        (position: number) => setChartEditor({ mode: 'insert', position }),
+        (position: number) =>
+            setChartEditor({
+                kind: 'explore',
+                mode: 'insert',
+                position,
+                chart: null,
+            }),
+        [],
+    );
+    const onInsertSavedChart = useCallback(
+        (position: number) => setChartEditor({ kind: 'saved', position }),
         [],
     );
     const {
@@ -106,6 +144,7 @@ const DocumentEditor = ({
         dirty: contentDirty,
     } = useDocumentEditor(document, {
         onInsertChart: canAuthorCharts ? onInsertChart : null,
+        onInsertSavedChart,
         onEditChart: canAuthorCharts
             ? (position, content) => {
                   if (
@@ -113,6 +152,7 @@ const DocumentEditor = ({
                       isEditableChart(content)
                   ) {
                       setChartEditor({
+                          kind: 'explore',
                           mode: 'edit',
                           position,
                           chart: content.chart,
@@ -202,8 +242,14 @@ const DocumentEditor = ({
         }
     };
 
+    const closeChartEditor = () => {
+        setChartEditor(null);
+        // The modal unmounts without returning focus
+        editor?.commands.focus();
+    };
+
     const applyChart = (chart: SemanticChartAsCode) => {
-        if (!editor || !chartEditor) {
+        if (!editor || !chartEditor || chartEditor.kind === 'saved') {
             return;
         }
         const content = { source: 'semantic' as const, chart };
@@ -256,6 +302,46 @@ const DocumentEditor = ({
             },
         });
         setChartEditor(null);
+    };
+
+    const linkSavedChart = (kind: DocumentSavedChartKind, uuid: string) => {
+        if (!editor || chartEditor?.kind !== 'saved') {
+            return;
+        }
+        editor
+            .chain()
+            .focus()
+            .insertContentAt(
+                getTopLevelInsertPosition(
+                    editor.state.doc,
+                    chartEditor.position ?? editor.state.selection.to,
+                ),
+                {
+                    type: DOCUMENT_SAVED_CHART_NODE,
+                    attrs: {
+                        block: {
+                            type: 'savedChart',
+                            kind,
+                            attributes: { uuid },
+                        },
+                    } satisfies DocumentSavedChartAttributes,
+                },
+            )
+            .run();
+        setChartEditor(null);
+    };
+
+    // A copy opens in its editor, so it can be changed before it's added
+    const copySavedChart = (chart: SemanticChartAsCode) => {
+        if (chartEditor?.kind !== 'saved') {
+            return;
+        }
+        setChartEditor({
+            kind: 'explore',
+            mode: 'insert',
+            position: chartEditor.position,
+            chart,
+        });
     };
 
     return (
@@ -321,8 +407,10 @@ const DocumentEditor = ({
                                     data-tour-hint="Click Add chart"
                                     onClick={() =>
                                         setChartEditor({
+                                            kind: 'explore',
                                             mode: 'insert',
                                             position: null,
+                                            chart: null,
                                         })
                                     }
                                 >
@@ -330,6 +418,22 @@ const DocumentEditor = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
+                        <Tooltip label="Add saved chart">
+                            <ActionIcon
+                                variant="default"
+                                size="lg"
+                                aria-label="Add saved chart"
+                                disabled={busy}
+                                onClick={() =>
+                                    setChartEditor({
+                                        kind: 'saved',
+                                        position: null,
+                                    })
+                                }
+                            >
+                                <MantineIcon icon={IconLink} />
+                            </ActionIcon>
+                        </Tooltip>
                         <Tooltip label="Save document">
                             <ActionIcon
                                 variant="default"
@@ -412,22 +516,28 @@ const DocumentEditor = ({
                     </DocumentEditorProvider>
                 </Stack>
             </DocumentReportLayout>
-            {chartEditor && canAuthorCharts && (
+            {chartEditor?.kind === 'explore' && canAuthorCharts && (
                 <Suspense
                     fallback={<EmptyStateLoader title="Loading chart editor" />}
                 >
                     <DocumentChartEditorModal
-                        chart={
-                            chartEditor.mode === 'edit'
-                                ? chartEditor.chart
-                                : null
-                        }
-                        onClose={() => {
-                            setChartEditor(null);
-                            // The modal unmounts without returning focus
-                            editor?.commands.focus();
-                        }}
+                        chart={chartEditor.chart}
+                        isEditing={chartEditor.mode === 'edit'}
+                        onClose={closeChartEditor}
                         onApply={applyChart}
+                    />
+                </Suspense>
+            )}
+            {chartEditor?.kind === 'saved' && (
+                <Suspense
+                    fallback={<EmptyStateLoader title="Loading saved charts" />}
+                >
+                    <DocumentSavedChartPickerModal
+                        projectUuid={document.projectUuid}
+                        canCopyChart={canAuthorCharts}
+                        onClose={closeChartEditor}
+                        onLink={linkSavedChart}
+                        onCopy={copySavedChart}
                     />
                 </Suspense>
             )}
