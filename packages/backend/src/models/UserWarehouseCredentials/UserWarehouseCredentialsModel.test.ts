@@ -109,7 +109,7 @@ const createModel = ({
         return builder;
     }) as unknown as Knex;
     return new UserWarehouseCredentialsModel({
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig: lightdashConfigWithGoogleOAuthMock,
         database,
         encryptionUtil: passthroughEncryption,
     });
@@ -120,7 +120,7 @@ describe('UserWarehouseCredentialsModel', () => {
         const database = knex({ client: MockClient, dialect: 'pg' });
         const tracker = getTracker();
         const model = new UserWarehouseCredentialsModel({
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             database,
             encryptionUtil: passthroughEncryption,
         });
@@ -186,7 +186,7 @@ describe('UserWarehouseCredentialsModel', () => {
             Promise.resolve([]).then(resolve);
         const database = vi.fn(() => builder) as unknown as Knex;
         const model = new UserWarehouseCredentialsModel({
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             database,
             encryptionUtil: passthroughEncryption,
         });
@@ -232,7 +232,7 @@ describe('UserWarehouseCredentialsModel', () => {
                     name: 'Default',
                     credentials: credentials as never,
                 },
-                lightdashConfigMock.auth.google,
+                lightdashConfigWithGoogleOAuthMock.auth.google,
             );
 
         test('keeps only the access keys of Athena credentials', () => {
@@ -308,7 +308,9 @@ describe('UserWarehouseCredentialsModel', () => {
                 ...validBigqueryCredentials,
                 keyfileContents: {
                     type: 'authorized_user',
-                    client_id: lightdashConfigMock.auth.google.oauth2ClientId!,
+                    client_id:
+                        lightdashConfigWithGoogleOAuthMock.auth.google
+                            .oauth2ClientId!,
                     refresh_token: 'refresh-token',
                 },
             });
@@ -458,7 +460,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 { raw: vi.fn() },
             ) as unknown as Knex;
             const model = new UserWarehouseCredentialsModel({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
                 database,
                 encryptionUtil: passthroughEncryption,
             });
@@ -501,7 +503,7 @@ describe('UserWarehouseCredentialsModel', () => {
             where.mockReturnValue(builder);
             const database = vi.fn(() => builder) as unknown as Knex;
             const model = new UserWarehouseCredentialsModel({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
                 database,
                 encryptionUtil: passthroughEncryption,
             });
@@ -627,6 +629,7 @@ describe('refresh rotation expiry CAS', () => {
         model = new UserWarehouseCredentialsModel({
             database,
             encryptionUtil: passthroughEncryption,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
         });
     });
     beforeEach(() => tracker.reset());
