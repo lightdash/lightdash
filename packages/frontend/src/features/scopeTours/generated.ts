@@ -6794,7 +6794,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-anchor="workspace-editor"]',
                 route: '/projects/:projectUuid/learn/workspace',
-                title: 'Disposable editing (recommended)',
+                title: 'Disposable editing',
                 body: 'This keeps the Lightdash application as your source of truth while still giving you code-based, agent-assisted editing. **Revenue by payment method** is the chart you just downloaded.',
                 interactive: false,
                 advanceOnTargetClick: false,
@@ -6943,7 +6943,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
             {
                 target: '[data-tour-anchor="chart-row"][data-tour-value="Revenue by payment type"]',
                 route: '/projects/:projectUuid/saved',
-                title: 'Disposable editing (recommended)',
+                title: 'Disposable editing',
                 body: 'Treat the downloaded YAML as temporary working files: download, edit by hand or with an AI agent, upload, then discard the local copies instead of committing them. This keeps the Lightdash application as your source of truth while still giving you code-based, agent-assisted editing. **Revenue by payment type** is the chart you just renamed in code.',
                 interactive: false,
                 advanceOnTargetClick: false,

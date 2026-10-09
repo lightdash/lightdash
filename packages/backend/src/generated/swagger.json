@@ -11201,6 +11201,67 @@
                 "required": ["chart", "source"],
                 "type": "object"
             },
+            "Pick_SqlChartAsCode.name-or-sql-or-limit-or-config-or-chartKind_": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    }
+                },
+                "required": ["config", "limit", "name", "sql", "chartKind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentSqlChart": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_SqlChartAsCode.name-or-sql-or-limit-or-config-or-chartKind_"
+                    },
+                    {
+                        "properties": {
+                            "warehouseConnectionUuid": {
+                                "type": "string",
+                                "description": "The stored identity of `connection`, set by the server; dropped as code."
+                            },
+                            "connection": {
+                                "type": "string",
+                                "description": "The warehouse connection's name; omitted for the project's default connection."
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "A SQL Runner chart owned by the Document, in its content-as-code shape."
+            },
+            "DocumentSqlChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/DocumentSqlChart"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["sql"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "DocumentChartContent": {
                 "anyOf": [
                     {
@@ -11208,6 +11269,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DocumentMergeChartContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DocumentSqlChartContent"
                     }
                 ]
             },
@@ -64016,10 +64080,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults-or-ApiExecuteAsyncSqlQueryResults_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncSqlQueryResults"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -64031,7 +64102,8 @@
                 "type": "object"
             },
             "ApiDocumentChartQueryResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults-or-ApiExecuteAsyncSqlQueryResults_",
+                "description": "SQL charts answer with SQL results; the others with metric query results."
             },
             "ExecuteDocumentChartQueryRequest": {
                 "properties": {
@@ -67175,6 +67247,20 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/ApiGetAsyncQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
                     },
                     "status": {
                         "type": "string",
@@ -70505,7 +70591,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.508.0",
+        "version": "2.509.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

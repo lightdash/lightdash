@@ -64,6 +64,12 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
+import {
+    getContentConnectionName,
+    listContentConnections,
+    resolveContentConnection,
+    type ContentConnectionModels,
+} from '../CoderService/handlers/contentConnections';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import type {
@@ -128,6 +134,7 @@ type DocumentServiceArguments = {
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     projectService: ProjectService;
+    warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
 };
 
 const MAX_CONCURRENT_CHART_VALIDATIONS = 4;
@@ -315,7 +322,14 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         input: CreateDocumentRequest,
         change: DocumentChangeContext = API_CHANGE,
-        { uniqueSlug }: { uniqueSlug?: boolean } = {},
+        {
+            uniqueSlug,
+            copiedFrom,
+        }: {
+            uniqueSlug?: boolean;
+            /** The Document being duplicated: its SQL charts count as unchanged. */
+            copiedFrom?: DocumentContent;
+        } = {},
     ): Promise<Document> {
         const project = await this.assertProjectAccess(account, projectUuid);
         const context =
@@ -359,11 +373,18 @@ export class DocumentService extends BaseService {
                 `Document writes require schema version ${DOCUMENT_SCHEMA_VERSION}`,
             );
         }
-        const content = await this.resolveCustomCharts(
+        const content = await this.resolveSqlConnections(
             projectUuid,
-            parseDocumentContent(input.schemaVersion, input.content),
+            await this.resolveCustomCharts(
+                projectUuid,
+                parseDocumentContent(input.schemaVersion, input.content),
+            ),
         );
-        await this.validateCharts(account, projectUuid, content);
+        await this.validateCharts(account, projectUuid, content, undefined, {
+            copiedSqlCharts:
+                copiedFrom &&
+                mapDocumentCharts(copiedFrom, DocumentService.toStoredChart),
+        });
         const created = await this.dependencies.documentModel.create({
             ...input,
             uniqueSlug,
@@ -410,6 +431,7 @@ export class DocumentService extends BaseService {
                 content: source.version.content,
             },
             { source: 'duplicate' },
+            { copiedFrom: source.version.content },
         );
     }
 
@@ -507,14 +529,17 @@ export class DocumentService extends BaseService {
         // Reads add portable slugs; compare against the stored form.
         const previous = mapDocumentCharts(
             document.version.content,
-            DocumentService.withoutDataAppVizSlug,
+            DocumentService.toStoredChart,
         );
-        const content = await this.resolveCustomCharts(
+        const content = await this.resolveSqlConnections(
             projectUuid,
-            parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content, {
+            await this.resolveCustomCharts(
+                projectUuid,
+                parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content, {
+                    previous,
+                }),
                 previous,
-            }),
-            previous,
+            ),
         );
         await this.validateCharts(account, projectUuid, content, previous);
         const updated = {
@@ -553,10 +578,14 @@ export class DocumentService extends BaseService {
         return {
             chartCount: charts.length,
             customChartCount: charts.filter(
-                ({ chart }) =>
-                    chart.chartConfig.type === ChartType.DATA_APP_VIZ,
+                (chartContent) =>
+                    chartContent.source !== 'sql' &&
+                    chartContent.chart.chartConfig.type ===
+                        ChartType.DATA_APP_VIZ,
             ).length,
             mergeChartCount: charts.filter(({ source }) => source === 'merge')
+                .length,
+            sqlChartCount: charts.filter(({ source }) => source === 'sql')
                 .length,
             markdownLength: content.markdown.length,
         };
@@ -950,8 +979,9 @@ export class DocumentService extends BaseService {
                     [string, DocumentChartContent]
                 > => {
                     if (
+                        chartContent.source === 'sql' ||
                         chartContent.chart.chartConfig.type !==
-                        ChartType.DATA_APP_VIZ
+                            ChartType.DATA_APP_VIZ
                     ) {
                         return [id, chartContent];
                     }
@@ -1011,11 +1041,132 @@ export class DocumentService extends BaseService {
         return { ...content, charts: Object.fromEntries(charts) };
     }
 
+    /**
+     * SQL charts are stored with their connection's uuid. A connection name,
+     * as in content as code, wins over a uuid.
+     */
+    private async resolveSqlConnections(
+        projectUuid: string,
+        content: DocumentContent,
+    ): Promise<DocumentContent> {
+        const hasConnection = Object.values(content.charts).some(
+            (chartContent) =>
+                chartContent.source === 'sql' &&
+                (chartContent.chart.connection !== undefined ||
+                    chartContent.chart.warehouseConnectionUuid !== undefined),
+        );
+        if (!hasConnection) {
+            return content;
+        }
+        const connections = await listContentConnections(
+            this.dependencies,
+            projectUuid,
+        );
+        return mapDocumentCharts(content, (chartContent) => {
+            if (chartContent.source !== 'sql') {
+                return chartContent;
+            }
+            const { connection, warehouseConnectionUuid, ...chart } =
+                chartContent.chart;
+            const uuid =
+                connection === undefined
+                    ? (warehouseConnectionUuid ?? null)
+                    : resolveContentConnection(connections, connection);
+            if (uuid !== null && connection === undefined) {
+                // Throws when the uuid is not a connection of this project
+                getContentConnectionName(connections, uuid);
+            }
+            return {
+                source: 'sql',
+                chart:
+                    uuid === null
+                        ? chart
+                        : { ...chart, warehouseConnectionUuid: uuid },
+            };
+        });
+    }
+
+    /** Add each SQL chart's connection name; as code, the uuid is dropped. */
+    private async withSqlConnectionNames(
+        projectUuid: string,
+        content: DocumentContent,
+        { portable = false }: { portable?: boolean } = {},
+    ): Promise<DocumentContent> {
+        const hasConnection = Object.values(content.charts).some(
+            (chartContent) =>
+                chartContent.source === 'sql' &&
+                chartContent.chart.warehouseConnectionUuid !== undefined,
+        );
+        if (!hasConnection) {
+            return content;
+        }
+        const connections = await listContentConnections(
+            this.dependencies,
+            projectUuid,
+        );
+        return mapDocumentCharts(content, (chartContent) => {
+            if (
+                chartContent.source !== 'sql' ||
+                chartContent.chart.warehouseConnectionUuid === undefined
+            ) {
+                return chartContent;
+            }
+            const { warehouseConnectionUuid, ...chart } = chartContent.chart;
+            const connection = connections.find(
+                (candidate) =>
+                    candidate.warehouseConnectionUuid ===
+                    warehouseConnectionUuid,
+            );
+            // A deleted connection keeps its uuid so the content still round-trips
+            if (!connection) {
+                return chartContent;
+            }
+            return {
+                source: 'sql',
+                chart: portable
+                    ? { ...chart, connection: connection.name }
+                    : {
+                          ...chart,
+                          connection: connection.name,
+                          warehouseConnectionUuid,
+                      },
+            };
+        });
+    }
+
+    /** Content as stored: references by uuid, without the names reads add. */
+    private static toStoredChart(
+        content: DocumentChartContent,
+    ): DocumentChartContent {
+        if (
+            content.source === 'sql' &&
+            content.chart.warehouseConnectionUuid !== undefined
+        ) {
+            const { connection, ...chart } = content.chart;
+            return { source: 'sql', chart };
+        }
+        return DocumentService.withoutDataAppVizSlug(content);
+    }
+
+    /** Content as read: references carry their portable names. */
+    private async withReadableNames(
+        projectUuid: string,
+        content: DocumentContent,
+        { portable = false }: { portable?: boolean } = {},
+    ): Promise<DocumentContent> {
+        return this.withSqlConnectionNames(
+            projectUuid,
+            await this.withDataAppVizSlugs(projectUuid, content, { portable }),
+            { portable },
+        );
+    }
+
     /** The stored form of a chart: bindings are kept by uuid only. */
     private static withoutDataAppVizSlug(
         content: DocumentChartContent,
     ): DocumentChartContent {
         if (
+            content.source === 'sql' ||
             content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             content.chart.chartConfig.config?.dataAppVizUuid === undefined ||
             content.chart.chartConfig.config.dataAppVizSlug === undefined
@@ -1042,10 +1193,11 @@ export class DocumentService extends BaseService {
         content: DocumentContent,
         { portable = false }: { portable?: boolean } = {},
     ): Promise<DocumentContent> {
-        const uuids = Object.values(content.charts).flatMap(({ chart }) =>
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
-            chart.chartConfig.config?.dataAppVizUuid
-                ? [chart.chartConfig.config.dataAppVizUuid]
+        const uuids = Object.values(content.charts).flatMap((chartContent) =>
+            chartContent.source !== 'sql' &&
+            chartContent.chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+            chartContent.chart.chartConfig.config?.dataAppVizUuid
+                ? [chartContent.chart.chartConfig.config.dataAppVizUuid]
                 : [],
         );
         if (uuids.length === 0) {
@@ -1058,6 +1210,9 @@ export class DocumentService extends BaseService {
         );
         const slugByUuid = new Map(rows.map((row) => [row.app_id, row.slug]));
         return mapDocumentCharts(content, (chartContent) => {
+            if (chartContent.source === 'sql') {
+                return chartContent;
+            }
             const { chart } = chartContent;
             if (
                 chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
@@ -1088,8 +1243,10 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         content: DocumentContent,
         previous?: DocumentContent,
+        { copiedSqlCharts }: { copiedSqlCharts?: DocumentContent } = {},
     ): Promise<void> {
         parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content, { previous });
+        const copiedCharts = Object.values(copiedSqlCharts?.charts ?? {});
         const limit = pLimit(MAX_CONCURRENT_CHART_VALIDATIONS);
         const previousCharts = Object.values(previous?.charts ?? {});
         // Compile only changed charts: narrative edits must not require chart authoring capabilities.
@@ -1101,6 +1258,16 @@ export class DocumentService extends BaseService {
                             isEqual(previousChart, chartContent),
                         )
                     ) {
+                        return;
+                    }
+                    if (chartContent.source === 'sql') {
+                        if (
+                            !copiedCharts.some((copied) =>
+                                isEqual(copied, chartContent),
+                            )
+                        ) {
+                            await this.assertCanAuthorSql(account, projectUuid);
+                        }
                         return;
                     }
                     const { chart } = chartContent;
@@ -1161,6 +1328,24 @@ export class DocumentService extends BaseService {
                 }),
             ),
         );
+    }
+
+    private async assertCanAuthorSql(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.dependencies.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need SQL Runner access to add or change SQL charts',
+            );
+        }
     }
 
     private async validateQuery({
@@ -1453,7 +1638,7 @@ export class DocumentService extends BaseService {
             ...document,
             version: {
                 ...historical.version,
-                content: await this.withDataAppVizSlugs(
+                content: await this.withReadableNames(
                     projectUuid,
                     historical.version.content,
                 ),
@@ -1768,7 +1953,7 @@ export class DocumentService extends BaseService {
             description: document.description,
             spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             schemaVersion: document.version.schemaVersion,
-            ...(await this.withDataAppVizSlugs(
+            ...(await this.withReadableNames(
                 document.projectUuid,
                 document.version.content,
                 { portable: true },
@@ -1814,7 +1999,7 @@ export class DocumentService extends BaseService {
             ...document,
             version: {
                 ...document.version,
-                content: await this.withDataAppVizSlugs(
+                content: await this.withReadableNames(
                     document.projectUuid,
                     document.version.content,
                 ),

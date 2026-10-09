@@ -442,6 +442,8 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
                 }),
         );
     }

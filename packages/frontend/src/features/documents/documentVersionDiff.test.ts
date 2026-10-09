@@ -1,4 +1,9 @@
-import { ChartType, type DocumentChartContent } from '@lightdash/common';
+import {
+    ChartKind,
+    ChartType,
+    type DocumentSemanticChartContent,
+    type DocumentSqlChartContent,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     diffDocumentVersions,
@@ -8,8 +13,8 @@ import {
 
 const chart = (
     name: string,
-    overrides: Partial<DocumentChartContent['chart']> = {},
-): DocumentChartContent => ({
+    overrides: Partial<DocumentSemanticChartContent['chart']> = {},
+): DocumentSemanticChartContent => ({
     source: 'semantic',
     chart: {
         name,
@@ -272,5 +277,43 @@ describe('content from a newer release', () => {
             { kind: 'added', name: 'Chart from a newer version' },
         ]);
         expect(diff.text).toContainEqual({ type: 'added', text: block });
+    });
+});
+
+describe('SQL charts', () => {
+    const sqlChart: DocumentSqlChartContent = {
+        source: 'sql',
+        chart: {
+            name: 'Orders by status',
+            sql: 'select status, count(*) from orders group by 1',
+            limit: 100,
+            chartKind: ChartKind.TABLE,
+            config: {
+                type: ChartKind.TABLE,
+                metadata: { version: 1 },
+                columns: {},
+                display: undefined,
+            },
+        },
+    };
+    const withSql = (chart: DocumentSqlChartContent) => ({
+        markdown: tag('c1'),
+        charts: { c1: chart },
+    });
+
+    it('names the SQL and row limit when they change', () => {
+        const diff = diffDocumentVersions(
+            withSql(sqlChart),
+            withSql({
+                ...sqlChart,
+                chart: { ...sqlChart.chart, sql: 'select 1', limit: 10 },
+            }),
+        );
+        expect(diff.charts).toEqual([
+            expect.objectContaining({
+                kind: 'changed',
+                changedParts: ['SQL', 'Row limit'],
+            }),
+        ]);
     });
 });

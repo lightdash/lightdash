@@ -8,10 +8,12 @@ import type {
     DocumentAsCode,
     DocumentChartContent,
     DocumentContent,
+    DocumentExploreChartContent,
+    DocumentSqlChartContent,
 } from '../types/document';
 import { ParameterError } from '../types/errors';
 import { parseSavedMergeQuery } from '../types/mergeQuery';
-import { ChartType, type ChartConfig } from '../types/savedCharts';
+import { ChartKind, ChartType, type ChartConfig } from '../types/savedCharts';
 import {
     fromDocumentChartBlocks,
     getDocumentChartBlocks,
@@ -72,6 +74,7 @@ const DOCUMENT_CHART_SOURCE_VERSIONS: Record<
 > = {
     semantic: 1,
     merge: 1,
+    sql: 1,
 };
 
 const isKnownChartSource = (
@@ -80,27 +83,31 @@ const isKnownChartSource = (
     typeof source === 'string' &&
     Object.hasOwn(DOCUMENT_CHART_SOURCE_VERSIONS, source);
 
-let chartValidator: ValidateFunction<DocumentChartContent> | undefined;
+let chartValidator: ValidateFunction<DocumentExploreChartContent> | undefined;
 
 // Lazy compilation keeps importing common safe under browser CSP.
-const createChartValidator = (): ValidateFunction<DocumentChartContent> =>
-    new Ajv({
-        strict: false,
-        validateFormats: false,
-    }).compile<DocumentChartContent>({
-        $defs: chartAsCodeSchema.$defs,
-        oneOf: [false, true].map((merge) => ({
-            type: 'object',
-            additionalProperties: false,
-            required: ['source', 'chart'],
-            properties: {
-                source: { const: merge ? 'merge' : 'semantic' },
-                chart: chartSchema(merge),
-            },
-        })),
-    });
+const createChartValidator =
+    (): ValidateFunction<DocumentExploreChartContent> =>
+        new Ajv({
+            strict: false,
+            validateFormats: false,
+        }).compile<DocumentExploreChartContent>({
+            $defs: chartAsCodeSchema.$defs,
+            oneOf: [false, true].map((merge) => ({
+                type: 'object',
+                additionalProperties: false,
+                required: ['source', 'chart'],
+                properties: {
+                    source: { const: merge ? 'merge' : 'semantic' },
+                    chart: chartSchema(merge),
+                },
+            })),
+        });
 
-const validateChart = (id: string, content: DocumentChartContent): void => {
+const validateChart = (
+    id: string,
+    content: DocumentExploreChartContent,
+): void => {
     const { chart } = content;
     const queries = [
         chart.metricQuery,
@@ -144,6 +151,87 @@ const validateChart = (id: string, content: DocumentChartContent): void => {
 const invalidContent = (message: string) =>
     new ParameterError(`Invalid Document content: ${message}`);
 
+const SQL_CHART_KINDS: readonly string[] = [
+    ChartKind.VERTICAL_BAR,
+    ChartKind.LINE,
+    ChartKind.PIE,
+    ChartKind.BIG_NUMBER,
+    ChartKind.TABLE,
+];
+
+const SQL_CHART_KEYS = [
+    'name',
+    'description',
+    'sql',
+    'limit',
+    'chartKind',
+    'config',
+    'connection',
+    'warehouseConnectionUuid',
+];
+
+/**
+ * A SQL chart checked for its shape; the API boundary validates its
+ * visualization config in full.
+ */
+const readSqlChartEntry = (
+    id: string,
+    entry: Record<string, unknown>,
+): DocumentSqlChartContent => {
+    const fail = (message: string) => invalidContent(`/charts/${id}${message}`);
+    const { source, chart, ...rest } = entry;
+    if (Object.keys(rest).length > 0 || !isRecord(chart)) {
+        throw fail(' must have only source and chart');
+    }
+    const unknownKeys = Object.keys(chart).filter(
+        (key) => !SQL_CHART_KEYS.includes(key),
+    );
+    if (unknownKeys.length > 0) {
+        throw fail(`/chart has unknown fields ${unknownKeys.join(', ')}`);
+    }
+    const {
+        name,
+        description,
+        sql,
+        limit,
+        chartKind,
+        config,
+        connection,
+        warehouseConnectionUuid,
+    } = chart;
+    if (typeof name !== 'string' || name.trim() === '') {
+        throw fail('/chart/name must be a non-empty string');
+    }
+    if (description !== undefined && typeof description !== 'string') {
+        throw fail('/chart/description must be string');
+    }
+    if (typeof sql !== 'string' || sql.trim() === '') {
+        throw fail('/chart/sql must be a non-empty string');
+    }
+    if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1) {
+        throw fail('/chart/limit must be a positive integer');
+    }
+    if (typeof chartKind !== 'string' || !SQL_CHART_KINDS.includes(chartKind)) {
+        throw fail(
+            `/chart/chartKind must be one of ${SQL_CHART_KINDS.join(', ')}`,
+        );
+    }
+    if (!isRecord(config) || config.type !== chartKind) {
+        throw fail('/chart/config must be an object whose type is chartKind');
+    }
+    if (
+        (connection !== undefined && typeof connection !== 'string') ||
+        (warehouseConnectionUuid !== undefined &&
+            typeof warehouseConnectionUuid !== 'string')
+    ) {
+        throw fail('/chart/connection must be string');
+    }
+    return {
+        source: 'sql',
+        chart: chart as DocumentSqlChartContent['chart'],
+    };
+};
+
 /**
  * A chart entry this release reads, validated and without its `version`, or
  * undefined when it comes from a newer release. Throws when a readable entry
@@ -165,6 +253,9 @@ const readChartEntry = (
     }
     if (version > DOCUMENT_CHART_SOURCE_VERSIONS[chart.source]) {
         return undefined;
+    }
+    if (chart.source === 'sql') {
+        return readSqlChartEntry(id, chart);
     }
     chartValidator ??= createChartValidator();
     if (!chartValidator(chart)) {
