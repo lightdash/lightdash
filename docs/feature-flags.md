@@ -276,3 +276,28 @@ previous refresh behavior inside the resolver: no locked reread or request
 deadline, with the legacy rotation-write policy. It does not undo rotations or
 enable a disabled preview credential-resolution path. ENV changes need a process
 restart.
+
+### OAuth scope enforcement
+
+`agent-identity` also enables OAuth scope checks. With that flag off, OAuth
+permissions and scope validation keep their existing behaviour. With it on,
+checks log refusals but preserve existing decisions by default.
+
+`oauth-scope-enforcement` changes those checks from log mode to enforcement.
+It is off by default, has no custom handler and is only resolved when
+`agent-identity` is enabled. Enforcement limits OAuth tokens to their scopes,
+filters MCP tools and rejects invalid requested scopes at grant issuance.
+Personal access tokens, sessions and service accounts keep their permissions.
+
+When `agent-identity` is on, OAuth callers cannot create or rotate personal
+access tokens or service accounts, manage OAuth clients, or rotate SCIM tokens.
+This separate credential guard refuses requests in both log and enforce mode.
+Authentication failures also keep their existing refusal behaviour in both modes.
+
+Both checks use the authenticated user's organisation and user UUID. Console
+organisation and user overrides apply through the standard resolver. Generic
+ENV enable/disable lists keep the precedence described above. There is no
+separate OAuth-scope ENV setting. Console changes apply to the next request or
+grant validation; ENV changes require a process restart. Disabling enforcement
+restores log mode. Disabling agent identity restores the previous behaviour
+without scope-refusal records. Neither change revokes issued tokens.

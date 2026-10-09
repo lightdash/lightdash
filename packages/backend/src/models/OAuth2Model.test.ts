@@ -1,7 +1,15 @@
-import { AnyType, TOKEN_EXCHANGE_GRANT_TYPE } from '@lightdash/common';
+import {
+    AnyType,
+    AuthorizationError,
+    FeatureFlags,
+    TOKEN_EXCHANGE_GRANT_TYPE,
+} from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { isMobileOAuthClient, OAuth2Model } from './OAuth2Model';
 
 const lightdashConfig = {
@@ -15,11 +23,17 @@ const lightdashConfig = {
     },
 } as LightdashConfig;
 
+const featureFlagModel = { get: vi.fn<FeatureFlagModel['get']>() };
+
 const mobileRedirectUri = 'com.lightdash.mobile://oauth/callback';
 const cliRedirectUri = 'http://localhost:*/callback';
 
 describe('OAuth2Model.validateRedirectUri', () => {
-    const model = new OAuth2Model({} as AnyType, lightdashConfig);
+    const model = new OAuth2Model(
+        {} as AnyType,
+        lightdashConfig,
+        featureFlagModel,
+    );
     const client = {
         redirectUris: [
             'http://localhost:8100/callback',
@@ -100,7 +114,11 @@ describe('isMobileOAuthClient', () => {
 
 describe('OAuth2Model refresh token rotation', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const model = new OAuth2Model(database as unknown as Knex, lightdashConfig);
+    const model = new OAuth2Model(
+        database as unknown as Knex,
+        lightdashConfig,
+        featureFlagModel,
+    );
     let tracker: Tracker;
 
     const refreshTokenRow = (overrides: Record<string, unknown> = {}) => ({
@@ -225,7 +243,11 @@ describe('OAuth2Model refresh token rotation', () => {
 
 describe('OAuth2Model mobile refresh token lifetime', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const model = new OAuth2Model(database as unknown as Knex, lightdashConfig);
+    const model = new OAuth2Model(
+        database as unknown as Knex,
+        lightdashConfig,
+        featureFlagModel,
+    );
     let tracker: Tracker;
 
     beforeAll(() => {
@@ -283,7 +305,11 @@ describe('OAuth2Model mobile refresh token lifetime', () => {
 
 describe('OAuth2Model.getClient token exchange grant', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
-    const model = new OAuth2Model(database as unknown as Knex, lightdashConfig);
+    const model = new OAuth2Model(
+        database as unknown as Knex,
+        lightdashConfig,
+        featureFlagModel,
+    );
     let tracker: Tracker;
 
     const clientRow = (redirectUris: string[]) => ({
@@ -342,5 +368,252 @@ describe('OAuth2Model.getClient token exchange grant', () => {
             'refresh_token',
             TOKEN_EXCHANGE_GRANT_TYPE,
         ]);
+    });
+});
+
+describe('OAuth2Model.validateScope', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    const user = { userId: 42, organizationUuid: 'organization-uuid' };
+    const client = {
+        id: 'client-id',
+        grants: ['authorization_code'],
+        scopes: ['read'],
+    };
+    let tracker: Tracker;
+    let warn: ReturnType<typeof vi.spyOn>;
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+
+    beforeEach(() => {
+        featureFlagModel.get.mockReset();
+        tracker.on.select('users').response({ user_uuid: 'user-uuid' });
+        warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+
+    afterEach(() => {
+        tracker.reset();
+        warn.mockRestore();
+    });
+
+    const setFlags = (agentIdentity: boolean, enforcement: boolean) => {
+        featureFlagModel.get.mockImplementation(async ({ featureFlagId }) => ({
+            id: featureFlagId,
+            enabled:
+                featureFlagId === FeatureFlags.AgentIdentity
+                    ? agentIdentity
+                    : enforcement,
+        }));
+    };
+
+    it('rejects a missing user before resolving flags', async () => {
+        tracker.reset();
+        tracker.on.select('users').responseOnce(undefined);
+        await expect(
+            model.validateScope(user, client, ['read']),
+        ).rejects.toBeInstanceOf(AuthorizationError);
+        expect(featureFlagModel.get).not.toHaveBeenCalled();
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('passes through all requested scopes when agent identity is off', async () => {
+        setFlags(false, true);
+        const scopes = ['unknown', 'write'];
+        await expect(model.validateScope(user, client, scopes)).resolves.toBe(
+            scopes,
+        );
+        expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: user.organizationUuid,
+                userUuid: 'user-uuid',
+            },
+        });
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it.each(['unknown', 'write'])(
+        'logs and passes through disallowed %s scope',
+        async (scope) => {
+            setFlags(true, false);
+            const scopes = [scope];
+            await expect(
+                model.validateScope(user, client, scopes),
+            ).resolves.toBe(scopes);
+            expect(warn).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_refusal',
+                {
+                    mode: 'log',
+                    clientId: client.id,
+                    scopes,
+                    method: null,
+                    routeTemplate: null,
+                    toolName: null,
+                    action: 'validateScope',
+                    subjectType: 'OAuthClient',
+                },
+            );
+        },
+    );
+
+    it.each(['unknown', 'write'])(
+        'refuses disallowed %s scope in enforce mode',
+        async (scope) => {
+            setFlags(true, true);
+            await expect(
+                model.validateScope(user, client, [scope]),
+            ).resolves.toBe(false);
+            expect(warn).toHaveBeenCalledExactlyOnceWith(
+                'oauth_scope_refusal',
+                {
+                    mode: 'enforce',
+                    clientId: client.id,
+                    scopes: [scope],
+                    method: null,
+                    routeTemplate: null,
+                    toolName: null,
+                    action: 'validateScope',
+                    subjectType: 'OAuthClient',
+                },
+            );
+        },
+    );
+
+    it.each([
+        [['read'], ['read']],
+        [['write'], ['read', 'write']],
+        [['mcp:read'], ['mcp:read', 'mcp:write']],
+        [['mcp:write'], ['mcp:write']],
+        [
+            ['read', 'mcp:read'],
+            ['read', 'mcp:read', 'write'],
+        ],
+        [['read', 'write', 'mcp:read', 'mcp:write'], []],
+    ])(
+        'accepts known subset %j of registered %j',
+        async (scopes, registeredScopes) => {
+            setFlags(true, true);
+            await expect(
+                model.validateScope(
+                    user,
+                    { ...client, scopes: registeredScopes },
+                    scopes,
+                ),
+            ).resolves.toEqual(scopes);
+            expect(warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([null, 'log', 'enforce'])(
+        'keeps omitted and empty scopes empty in %s mode',
+        async (mode) => {
+            setFlags(mode !== null, mode === 'enforce');
+            await expect(
+                model.validateScope(user, client, []),
+            ).resolves.toEqual([]);
+            await expect(model.validateScope(user, client)).resolves.toEqual(
+                [],
+            );
+            expect(warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it('does not accept an unknown scope even when it is registered', async () => {
+        setFlags(true, true);
+        await expect(
+            model.validateScope(user, { ...client, scopes: ['unknown'] }, [
+                'unknown',
+            ]),
+        ).resolves.toBe(false);
+    });
+
+    it('does not log user or client secrets', async () => {
+        setFlags(true, false);
+        const userWithSecret = { ...user, password: 'user-secret' };
+        await model.validateScope(
+            userWithSecret,
+            {
+                ...client,
+                clientSecret: 'client-secret',
+                redirectUris: ['https://example.com/?secret=private'],
+            },
+            ['write'],
+        );
+        const record = JSON.stringify(warn.mock.calls);
+        expect(record).not.toContain('user-secret');
+        expect(record).not.toContain('client-secret');
+        expect(record).not.toContain('private');
+        expect(record).not.toContain('organization-uuid');
+        expect(record).not.toContain('user-uuid');
+    });
+
+    it('exposes the client registered scopes for grant validation', async () => {
+        tracker.on.select('oauth2_clients').responseOnce({
+            client_id: client.id,
+            redirect_uris: [],
+            grants: client.grants,
+            scopes: client.scopes,
+        });
+        await expect(model.getClient(client.id)).resolves.toMatchObject({
+            scopes: client.scopes,
+        });
+    });
+
+    it('applies Console organisation overrides without ENV or preview defaults and rechecks each grant', async () => {
+        const config = {
+            ...lightdashConfigMock,
+            enabledFeatureFlags: new Set<string>(),
+            disabledFeatureFlags: new Set<string>(),
+            previewFeatureFlags: { enabled: false },
+        };
+        const realFlags = new FeatureFlagModel({
+            database,
+            lightdashConfig: config,
+        });
+        const modelWithRealFlags = new OAuth2Model(database, config, realFlags);
+        let enforce = true;
+        let identity = true;
+        tracker.on.select('feature_flags').response(({ bindings }) => ({
+            flag_id: bindings[0],
+            default_enabled: false,
+        }));
+        tracker.on.select('feature_flag_overrides').response(({ bindings }) => {
+            if (!bindings.includes(user.organizationUuid)) return undefined;
+            return {
+                enabled: bindings.includes(FeatureFlags.AgentIdentity)
+                    ? identity
+                    : enforce,
+            };
+        });
+
+        await expect(
+            modelWithRealFlags.validateScope(user, client, ['write']),
+        ).resolves.toBe(false);
+        enforce = false;
+        await expect(
+            modelWithRealFlags.validateScope(user, client, ['write']),
+        ).resolves.toEqual(['write']);
+        expect(warn).toHaveBeenCalledTimes(2);
+        identity = false;
+        await expect(
+            modelWithRealFlags.validateScope(user, client, ['write']),
+        ).resolves.toEqual(['write']);
+        expect(warn).toHaveBeenCalledTimes(2);
+        identity = true;
+        enforce = true;
+        await expect(
+            modelWithRealFlags.validateScope(user, client, ['write']),
+        ).resolves.toBe(false);
+        expect(warn).toHaveBeenCalledTimes(3);
+        await expect(
+            modelWithRealFlags.validateScope(
+                { ...user, organizationUuid: 'other-organization' },
+                client,
+                ['write'],
+            ),
+        ).resolves.toEqual(['write']);
+        expect(warn).toHaveBeenCalledTimes(3);
     });
 });

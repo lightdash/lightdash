@@ -11,6 +11,7 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
@@ -210,6 +211,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ) {
+        assertOAuthCredentialOperationAllowed(account, 'createOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -251,6 +253,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary> {
+        assertOAuthCredentialOperationAllowed(account, 'updateOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -288,6 +291,7 @@ export class OAuthService extends BaseService {
         account: Account,
         clientId: string,
     ): Promise<void> {
+        assertOAuthCredentialOperationAllowed(account, 'deleteOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||

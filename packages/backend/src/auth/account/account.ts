@@ -27,6 +27,10 @@ import {
     SessionUser,
     UserAccessControls,
 } from '@lightdash/common';
+import {
+    createOAuthScopedAbility,
+    OAuthScopePolicy,
+} from '../oauthScopes/scopedAbility';
 
 /**
  * Creates an ID for the external user. We prefix the ID to prevent hijacking a real user ID.
@@ -358,8 +362,17 @@ export const fromOauth = (
         scope?: string[];
         client: { id: string };
     },
+    scopePolicy: OAuthScopePolicy | null = null,
 ): OauthAccount => {
     const [organization, user] = extractOrganizationFromUser(sessionUser);
+    const ability =
+        scopePolicy === null
+            ? user.ability
+            : createOAuthScopedAbility(user.ability, {
+                  ...scopePolicy,
+                  clientId: token.client.id,
+                  scopes: token.scope ?? [],
+              });
     return createAccount({
         authentication: {
             type: 'oauth',
@@ -371,6 +384,9 @@ export const fromOauth = (
         organization,
         user: {
             ...user,
+            ability,
+            abilityRules:
+                scopePolicy === null ? user.abilityRules : ability.rules,
             type: 'registered',
             id: user.userUuid,
         },
