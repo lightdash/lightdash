@@ -213,11 +213,11 @@ describe('FieldsAndTiles', () => {
             renderWithProviders(<Editor />);
 
             const search = screen.getByTestId(FIELD_SEARCH);
-            expect(search).toHaveAttribute('aria-expanded', 'false');
+            expect(search).not.toHaveAttribute('data-expanded');
             await userEvent.click(search);
             await screen.findByText('Orders');
             // What the editor's Escape handling reads to leave the list alone
-            expect(search).toHaveAttribute('aria-expanded', 'true');
+            expect(search).toHaveAttribute('data-expanded');
             await userEvent.keyboard('{Escape}');
             // The first press only closed the list
             expect(close).not.toHaveBeenCalled();

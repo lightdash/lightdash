@@ -177,7 +177,7 @@ In `FilterConfiguration/`:
   dimensions, plus metrics under `FeatureFlags.MetricDashboardFilters`.
   - A placeholder shows it inline. When no tile has fields it shows the
     shipped "Select a column to filter" select instead (`SqlColumnSelect`).
-  - The shipped picker sets `aria-expanded` on its input, which is how
+  - Mantine marks the shipped picker's input `data-expanded`, which is how
     `useEditorDismiss` leaves Escape to its open list. Once the list is
     closed, Escape in the placeholder's search closes the editor like any
     other input.
