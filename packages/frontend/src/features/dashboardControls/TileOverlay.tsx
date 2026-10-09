@@ -40,6 +40,8 @@ import {
     getTileField,
     getTilesOnTab,
     canTileTakeFilter,
+    isTargetOnRow,
+    isTileFieldKnown,
     setTileField,
     toSqlColumnTarget,
     type SqlColumn,
@@ -60,6 +62,8 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const NO_COLUMNS: SqlColumn[] = [];
 const NO_FIELD_IDS: string[] = [];
+// A tile card's select: the stand-in button, or the real input once used
+const SELECT_SELECTOR = '[aria-haspopup="listbox"]';
 const OWN_GROUP = 'In this filter';
 const OTHER_GROUP = 'Other fields on this tile';
 const STARTER_FIELDS_GROUP = 'Fields on this tile';
@@ -102,10 +106,13 @@ const getFieldTarget = (
 ): DashboardFieldTarget | null => {
     const field = fieldsMap[fieldId];
     if (field) return { fieldId, tableName: field.table };
-    if (rule.target.fieldId === fieldId) return rule.target;
+    if (rule.target.fieldId === fieldId && !rule.target.isSqlColumn)
+        return rule.target;
     const fromTile = Object.values(rule.tileTargets ?? {}).find(
         (target): target is DashboardFieldTarget =>
-            isDashboardFieldTarget(target) && target.fieldId === fieldId,
+            isDashboardFieldTarget(target) &&
+            !target.isSqlColumn &&
+            target.fieldId === fieldId,
     );
     return fromTile ?? null;
 };
@@ -147,7 +154,7 @@ type TileOverlayProps = {
     candidates: string[];
     fieldsMap: FieldsMap;
     highlight: TileHighlight | null;
-    // The clicked field, on the tiles that are on it
+    // The clicked field, on the tiles that are on it. Hover never changes it
     scrollFieldId: string | null;
     // Bucket for the arrival wave
     wave: number;
@@ -427,6 +434,8 @@ const EditedTileOverlays: FC = () => {
             }
             const isSqlTile =
                 (sqlColumnsByTile[tileUuid] ?? NO_COLUMNS).length > 0;
+            // Nothing is written while what the tile offers is not known
+            if (!isTileFieldKnown(tile, fieldsByTile, sqlColumnsByTile)) return;
             const previousFieldId =
                 getTileField(editingRule, tile, fieldsByTile, sqlColumnsByTile)
                     ?.fieldId ?? null;
@@ -503,7 +512,8 @@ const EditedTileOverlays: FC = () => {
         const hasTabs = fieldTiles.thisTabScope !== null;
         const scope = fieldTiles.thisTabScope ?? fieldTiles.everyTabScope;
         const count = isFilter ? scope.unfiltered : scope.applied;
-        if (count === 0) return null;
+        // Not while the tiles' fields load: the count would be a guess
+        if (count === 0 || !fieldTiles.canAct) return null;
         const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
         const where = hasTabs ? ' on this tab' : '';
         const label = `${isFilter ? 'Filter' : 'Clear'} the other ${count}${where} too`;
@@ -523,17 +533,26 @@ const EditedTileOverlays: FC = () => {
     const shownFollowUp = getShownFollowUp();
     const handleFollowUp = useCallbackRef(() => {
         if (shownFollowUp === null) return;
+        // The button leaves once used: its tile's select takes the focus
+        targets[shownFollowUp.tileUuid]
+            ?.querySelector<HTMLElement>(SELECT_SELECTOR)
+            ?.focus();
         shownFollowUp.run();
         setFollowUp(null);
     });
 
-    // A waiting field is offered on every tile that could take it
+    // A waiting field is offered on every tile that could take it. A SQL
+    // column filter has no field: its column is never looked up as one
+    const isSqlColumnFilter = editingRule?.target.isSqlColumn === true;
     const filterFieldIds =
-        editingRule === null
+        editingRule === null || isSqlColumnFilter
             ? NO_FIELD_IDS
-            : [...getFilterFields(editingRule), ...waitingFieldIds];
+            : [
+                  ...getFilterFields(editingRule, dashboardTiles),
+                  ...waitingFieldIds,
+              ];
     const targetField =
-        editingRule === null
+        editingRule === null || isSqlColumnFilter
             ? undefined
             : fieldsMap[editingRule.target.fieldId];
     // Keyed on the filter's fields, not the rule: an edit that keeps them, or
@@ -618,19 +637,21 @@ const EditedTileOverlays: FC = () => {
 
     const filterLabel =
         editingRule.label ??
-        getFieldLabel(editingRule.target.fieldId, fieldsMap);
+        (isSqlColumnFilter
+            ? editingRule.target.fieldId
+            : getFieldLabel(editingRule.target.fieldId, fieldsMap));
     return (
         <>
             {tiles.map((tile, index) => {
                 const element = targets[tile.uuid];
                 if (!element) return null;
-                const tileFieldId =
-                    getTileField(
-                        editingRule,
-                        tile,
-                        fieldsByTile,
-                        sqlColumnsByTile,
-                    )?.fieldId ?? null;
+                const tileTarget = getTileField(
+                    editingRule,
+                    tile,
+                    fieldsByTile,
+                    sqlColumnsByTile,
+                );
+                const tileFieldId = tileTarget?.fieldId ?? null;
                 const sqlColumns = sqlColumnsByTile[tile.uuid] ?? NO_COLUMNS;
                 const isSqlTile = sqlColumns.length > 0;
                 const isDataAppTile = isDashboardDataAppTileType(tile);
@@ -648,24 +669,31 @@ const EditedTileOverlays: FC = () => {
                           doesTileOfferField(tile, fieldId, fieldsByTile),
                       );
                 const candidates = candidatesByTile[tile.uuid] ?? NO_FIELD_IDS;
-                // A tile with none of the filter's fields is still reachable
-                // through a field it could add, a data app tile always is, and
-                // a broken mapping has to stay clearable
+                // Reachable too: a tile that could add a field, a data app
+                // tile, and a broken mapping, which has to stay clearable
                 const isReachable =
                     canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile) &&
                     (isDataAppTile ||
                         missingFieldId !== null ||
                         options.length > 0 ||
                         candidates.length > 0);
-                // Solid blue: filtered. Dashed blue: filtered, but not by the
-                // active field. Dashed grey: not filtered, but could be. A data
-                // app tile that is on is on no particular field
+                // mapped: filtered. other: filtered, not by the active field
+                // (a data app tile that is on). available: could be filtered
+                const isOnTheControl =
+                    isReachable &&
+                    tileFieldId !== null &&
+                    missingFieldId === null;
+                // A SQL column is never one of the filter's fields
+                const isOnRow = (rowId: string | null) =>
+                    rowId !== null &&
+                    isOnTheControl &&
+                    !isDataAppTile &&
+                    isTargetOnRow(editingRule, tileTarget, rowId);
                 const highlight: TileHighlight | null = !isReachable
                     ? null
-                    : tileFieldId === null || missingFieldId !== null
+                    : !isOnTheControl
                       ? 'available'
-                      : activeFieldId === null ||
-                          (!isDataAppTile && tileFieldId === activeFieldId)
+                      : activeFieldId === null || isOnRow(activeFieldId)
                         ? 'mapped'
                         : 'other';
                 return createPortal(
@@ -682,12 +710,10 @@ const EditedTileOverlays: FC = () => {
                         candidates={candidates}
                         fieldsMap={fieldsMap}
                         highlight={highlight}
-                        // Only a tile on the clicked field, while it is the
-                        // active one
+                        // The clicked field, never the hovered one: leaving
+                        // another row would scroll again
                         scrollFieldId={
-                            highlight === 'mapped' &&
-                            activeFieldId !== null &&
-                            activeFieldId === highlightedFieldId
+                            isOnRow(highlightedFieldId)
                                 ? highlightedFieldId
                                 : null
                         }

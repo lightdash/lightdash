@@ -495,6 +495,48 @@ describe('FilterPills', () => {
             expect(queryPill(/Invalid filter/)).toBeNull();
         });
 
+        it('opens no editor until the fields exist, as the shipped pill', async () => {
+            const sqlRule: DashboardFilterRule = {
+                ...savedRule,
+                id: 'sql',
+                label: 'Segment',
+                target: {
+                    fieldId: 'customer_segment',
+                    tableName: 'sql',
+                    isSqlColumn: true,
+                    fallbackType: DimensionType.STRING,
+                },
+            };
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [savedRule, sqlRule],
+                },
+                allFilterableFields: undefined,
+                allFilterableFieldsMap: {},
+                isLoadingDashboardFilters: true,
+            });
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const { rerender } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+
+            expect(pill(/^Status/)).toBeDisabled();
+            await user.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
+            // A SQL column filter waits for no field
+            expect(pill(/^Segment/)).toBeEnabled();
+
+            setContext({
+                allFilterableFields: [statusField, regionField],
+                allFilterableFieldsMap: { orders_status: statusField },
+                isLoadingDashboardFilters: false,
+            });
+            rerender(<FilterPills activeTabUuid={undefined} />);
+            await user.click(pill(/^Status/));
+            expect(open).toHaveBeenCalledWith('saved');
+        });
+
         it('keeps an ordinary pill while the fields are loading', () => {
             setContext({
                 dashboardFilters: { ...filters, dimensions: [brokenRule] },

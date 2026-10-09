@@ -21,6 +21,8 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../providers/Tracking/useTracking';
+import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
 import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/useDashboardFilterField';
 import {
     getDashboardFilterRuleLabel,
@@ -36,7 +38,7 @@ import {
     removeAlternative,
     setRuleRequired,
 } from './requirements';
-import { findFilterRule, toggleFilterLockOnTab } from './sidebarState';
+import { findFilterRule } from './sidebarState';
 
 type RowKey = 'lock' | 'required';
 
@@ -95,6 +97,8 @@ type Props = {
     filterType: FilterType;
     field: DashboardFilterableField | null;
     onChange: (next: DashboardFilterRule) => void;
+    /** Writes the other filters a requirement change touches. */
+    onChangeOthers: (rules: DashboardFilterRule[]) => void;
     /** Opens the bar's "Filter rules"; null when it cannot be reached. */
     onEditRules: (() => void) | null;
 };
@@ -104,19 +108,15 @@ export const ViewerControls: FC<Props> = ({
     filterType,
     field,
     onChange,
+    onChangeOthers,
     onEditRules,
 }) => {
     const getUiString = useUiStrings();
+    const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const setDashboardFilters = useDashboardContext(
-        (c) => c.setDashboardFilters,
-    );
-    const setHaveFiltersChanged = useDashboardContext(
-        (c) => c.setHaveFiltersChanged,
-    );
     const getField = useDashboardFilterField();
 
     const [openRow, setOpenRow] = useState<RowKey | null>(null);
@@ -143,15 +143,41 @@ export const ViewerControls: FC<Props> = ({
         dashboardTabs.length > 1 &&
         (isPerTab || (isLockedSomewhere && !isLockedEverywhere));
 
+    // The pill's lock, on the tab the key stands for: the next rule and the
+    // event it tracks
+    const getLockToggle = (from: DashboardFilterRule, key: string) =>
+        getFilterLockToggle(from, {
+            isLocked: isFilterLockedOnTab(from, key, hasTabs),
+            hasTabs,
+            activeTabUuid: hasTabs ? key : undefined,
+            dashboardUuid,
+        });
+    const toggleLock = (key: string) => {
+        const toggle = getLockToggle(rule, key);
+        if (toggle === null) return;
+        track(toggle.event);
+        onChange(toggle.filterRule);
+    };
     const lockedEverywhereRule = lockKeys
         .filter((key) => !isLocked(key))
-        .reduce((next, key) => toggleFilterLockOnTab(next, key, hasTabs), rule);
-    const setLockedEverywhere = (locked: boolean) =>
+        .reduce(
+            (next, key) => getLockToggle(next, key)?.filterRule ?? next,
+            rule,
+        );
+    // One event per tab whose lock changes, as if each pill lock was clicked
+    const setLockedEverywhere = (locked: boolean) => {
+        lockKeys
+            .filter((key) => isLocked(key) !== locked)
+            .forEach((key) => {
+                const toggle = getLockToggle(rule, key);
+                if (toggle !== null) track(toggle.event);
+            });
         onChange(
             locked
                 ? lockedEverywhereRule
                 : { ...rule, lockedTabUuids: undefined },
         );
+    };
     // Unlocking is always allowed; locking is not when no viewer could then
     // satisfy the filter
     const lockedRequiredMessage = getUiString(
@@ -160,9 +186,12 @@ export const ViewerControls: FC<Props> = ({
     const isLockEverywhereBlocked =
         !isLockedEverywhere &&
         isLockedRequiredMissingValue(lockedEverywhereRule);
-    const isLockBlocked = (key: string) =>
-        !isLocked(key) &&
-        isLockedRequiredMissingValue(toggleFilterLockOnTab(rule, key, hasTabs));
+    const isLockBlocked = (key: string) => {
+        const toggle = isLocked(key) ? null : getLockToggle(rule, key);
+        return (
+            toggle !== null && isLockedRequiredMissingValue(toggle.filterRule)
+        );
+    };
 
     const everyTab = hasTabs ? ' on every tab' : '';
     const lockSummary = isLockedEverywhere
@@ -196,23 +225,13 @@ export const ViewerControls: FC<Props> = ({
     const isRequiredBlocked =
         !isRequired && isLockedRequiredMissingValue(requiredRule);
 
-    // This rule goes through onChange; the other filters are written directly
+    // This rule goes through onChange, the other filters through
+    // onChangeOthers, so the editor knows which ones it wrote
     const writeRules = (next: DashboardFilterRule[]) => {
         const previousById = new Map(allRules.map((r) => [r.id, r]));
         const changed = next.filter((r) => previousById.get(r.id) !== r);
-        const others = new Map(
-            changed.filter((r) => r.id !== rule.id).map((r) => [r.id, r]),
-        );
-        if (others.size > 0) {
-            const swap = (rules: DashboardFilterRule[]) =>
-                rules.map((r) => others.get(r.id) ?? r);
-            setDashboardFilters((filters) => ({
-                ...filters,
-                dimensions: swap(filters.dimensions),
-                metrics: swap(filters.metrics),
-            }));
-            setHaveFiltersChanged(true);
-        }
+        const others = changed.filter((r) => r.id !== rule.id);
+        if (others.length > 0) onChangeOthers(others);
         const own = changed.find((r) => r.id === rule.id);
         if (own) onChange(own);
     };
@@ -270,15 +289,7 @@ export const ViewerControls: FC<Props> = ({
                                         label={tab.name}
                                         checked={isLocked(tab.uuid)}
                                         disabled={isLockBlocked(tab.uuid)}
-                                        onChange={() =>
-                                            onChange(
-                                                toggleFilterLockOnTab(
-                                                    rule,
-                                                    tab.uuid,
-                                                    hasTabs,
-                                                ),
-                                            )
-                                        }
+                                        onChange={() => toggleLock(tab.uuid)}
                                     />
                                 </Box>
                             </Tooltip>

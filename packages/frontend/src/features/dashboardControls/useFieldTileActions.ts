@@ -49,6 +49,9 @@ export type FieldTiles = {
     replacedLabels: string[];
     // Unfiltered tiles the field fits on the tabs that are not active
     otherTabsUnfiltered: number;
+    // False while the tiles' fields are not loaded: an action would write
+    // blind, so none does anything
+    canAct: boolean;
     addToUnfiltered: (tileScope: TileScope) => void;
     switchFromOthers: (tileScope: TileScope) => void;
     clear: (tileScope: TileScope) => void;
@@ -59,11 +62,14 @@ const getRuleFieldTarget = (
     rule: DashboardFilterRule,
     fieldId: string,
 ): DashboardFieldTarget | null => {
-    if (rule.target.fieldId === fieldId) return rule.target;
+    if (rule.target.fieldId === fieldId && !rule.target.isSqlColumn)
+        return rule.target;
     return (
         Object.values(rule.tileTargets ?? {})
             .filter(isDashboardFieldTarget)
-            .find((target) => target.fieldId === fieldId) ?? null
+            .find(
+                (target) => !target.isSqlColumn && target.fieldId === fieldId,
+            ) ?? null
     );
 };
 
@@ -111,6 +117,7 @@ const getSqlColumnScope = (
             tiles,
             fieldsByTile,
             sqlColumnsByTile,
+            true,
         ).applied,
         unfiltered: columnsOnTiles.filter((onTile) => onTile === null).length,
         replaced: replacedFieldIds.length,
@@ -208,9 +215,15 @@ export const useFieldTileActions = (
         const build = (fieldId: string, isSqlColumn: boolean): FieldTiles => {
             const field = isSqlColumn ? null : getField(fieldId);
             const isWaiting = waitingFieldIds.includes(fieldId);
-            const target =
-                getRuleFieldTarget(editingRule, fieldId) ??
-                (field === null ? null : { fieldId, tableName: field.table });
+            const target = isSqlColumn
+                ? null
+                : (getRuleFieldTarget(editingRule, fieldId) ??
+                  (field === null
+                      ? null
+                      : { fieldId, tableName: field.table }));
+            // A SQL column row goes by the tiles' columns, which it only
+            // lists once they are loaded
+            const canAct = isSqlColumn || fieldsByTile !== undefined;
             const getScope = (scopeTiles: DashboardTile[]) =>
                 (isSqlColumn ? getSqlColumnScope : getFieldScope)(
                     editingRule,
@@ -239,7 +252,9 @@ export const useFieldTileActions = (
                     (replacedId) => getField(replacedId)?.label ?? replacedId,
                 ),
                 otherTabsUnfiltered: getScope(otherTabsTiles).unfiltered,
+                canAct,
                 addToUnfiltered: (tileScope) => {
+                    if (!canAct) return;
                     if (isSqlColumn) {
                         updateFilter(
                             applySqlColumn(
@@ -265,6 +280,7 @@ export const useFieldTileActions = (
                     );
                 },
                 switchFromOthers: (tileScope) => {
+                    if (!canAct) return;
                     if (isSqlColumn) {
                         updateFilter(
                             applySqlColumn(
@@ -291,23 +307,31 @@ export const useFieldTileActions = (
                     );
                 },
                 clear: (tileScope) => {
+                    if (!canAct) return;
                     updateFilter(
                         removeFieldFromAll(
                             editingRule,
                             fieldId,
                             tilesByScope[tileScope],
                             fieldsByTile,
+                            sqlColumnsByTile,
+                            isSqlColumn,
                         ),
                     );
                 },
                 remove: () => {
+                    if (!canAct) return;
                     // Its last field: the control goes back to "pick a field",
                     // waiting fields included, and keeps the field's name
                     if (
                         !isWaiting &&
-                        getFilterFields(editingRule).length === 1
+                        getFilterFields(editingRule, dashboardTiles).length ===
+                            1
                     ) {
-                        removeLastField(field?.label ?? fieldId);
+                        // An unknown field has no name: the title stays "Filter"
+                        removeLastField(
+                            field?.label ?? (isSqlColumn ? fieldId : null),
+                        );
                         return;
                     }
                     if (isWaiting) {

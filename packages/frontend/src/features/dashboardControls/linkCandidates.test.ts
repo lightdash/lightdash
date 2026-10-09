@@ -56,13 +56,15 @@ const rule = (
 
 describe('getLinkCandidates', () => {
     it('returns nothing for a tile that is not filterable', () => {
-        expect(getLinkCandidates(rule(), tile, {}, fieldsMap)).toEqual([]);
+        expect(getLinkCandidates(rule(), tile, [tile], {}, fieldsMap)).toEqual(
+            [],
+        );
     });
 
     it('returns nothing when the tile offers the target field', () => {
         const fieldsByTile = { 'tile-1': [ordersDate, paymentsDate] };
         expect(
-            getLinkCandidates(rule(), tile, fieldsByTile, fieldsMap),
+            getLinkCandidates(rule(), tile, [tile], fieldsByTile, fieldsMap),
         ).toEqual([]);
     });
 
@@ -70,7 +72,7 @@ describe('getLinkCandidates', () => {
         const fieldsByTile = { 'tile-1': [paymentsDate] };
         const decided = rule({ tileTargets: { 'tile-1': false } });
         expect(
-            getLinkCandidates(decided, tile, fieldsByTile, fieldsMap),
+            getLinkCandidates(decided, tile, [tile], fieldsByTile, fieldsMap),
         ).toEqual([]);
     });
 
@@ -84,8 +86,15 @@ describe('getLinkCandidates', () => {
                 },
             },
         });
+        const peerTile = { ...tile, uuid: 'tile-2' };
         expect(
-            getLinkCandidates(withPeer, tile, fieldsByTile, fieldsMap),
+            getLinkCandidates(
+                withPeer,
+                tile,
+                [tile, peerTile],
+                fieldsByTile,
+                fieldsMap,
+            ),
         ).toEqual([{ fieldId: 'payments_paid_at', tableName: 'payments' }]);
     });
 
@@ -99,7 +108,7 @@ describe('getLinkCandidates', () => {
             ],
         };
         expect(
-            getLinkCandidates(rule(), tile, fieldsByTile, fieldsMap),
+            getLinkCandidates(rule(), tile, [tile], fieldsByTile, fieldsMap),
         ).toEqual([
             { fieldId: 'payments_shipped_at', tableName: 'payments' },
             { fieldId: 'payments_paid_at', tableName: 'payments' },
@@ -109,12 +118,56 @@ describe('getLinkCandidates', () => {
     it('offers a date filter no timestamp field', () => {
         const fieldsByTile = { 'tile-1': [paymentsRefunded] };
         expect(
-            getLinkCandidates(rule(), tile, fieldsByTile, fieldsMap),
+            getLinkCandidates(rule(), tile, [tile], fieldsByTile, fieldsMap),
         ).toEqual([]);
     });
 
     it('returns nothing when the target field is unknown', () => {
         const fieldsByTile = { 'tile-1': [paymentsDate] };
-        expect(getLinkCandidates(rule(), tile, fieldsByTile, {})).toEqual([]);
+        expect(
+            getLinkCandidates(rule(), tile, [tile], fieldsByTile, {}),
+        ).toEqual([]);
+    });
+
+    it('does not count a peer left behind by a tile that is gone', () => {
+        const fieldsByTile = { 'tile-1': [paymentsShipped, paymentsDate] };
+        const withStalePeer = rule({
+            tileTargets: {
+                'tile-gone': {
+                    fieldId: 'payments_paid_at',
+                    tableName: 'payments',
+                },
+            },
+        });
+        // Not narrowed to the stale peer: every field of the type is offered
+        expect(
+            getLinkCandidates(
+                withStalePeer,
+                tile,
+                [tile],
+                fieldsByTile,
+                fieldsMap,
+            ),
+        ).toHaveLength(2);
+    });
+
+    it('never prompts for a SQL column filter, even when its name is a field id', () => {
+        const fieldsByTile = { 'tile-1': [paymentsDate] };
+        const sqlColumnRule = rule({
+            target: {
+                fieldId: 'orders_created',
+                tableName: 'sql_chart',
+                isSqlColumn: true,
+            },
+        });
+        expect(
+            getLinkCandidates(
+                sqlColumnRule,
+                tile,
+                [tile],
+                fieldsByTile,
+                fieldsMap,
+            ),
+        ).toEqual([]);
     });
 });

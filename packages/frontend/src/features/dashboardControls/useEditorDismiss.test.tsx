@@ -45,6 +45,9 @@ const sidebar: { current: ControlsSidebarContextValue | null } = {
 };
 const onLabelBlur = vi.fn();
 
+// A fields refetch disables the pills for a moment
+const disabledPills = { current: false };
+
 // Stand-ins with the attributes the real bar, editor and tiles render
 const Page: FC = () => {
     const value = useControlsSidebar();
@@ -68,6 +71,7 @@ const Page: FC = () => {
                         key={filter.id}
                         type="button"
                         aria-pressed={editing?.filterId === filter.id}
+                        disabled={disabledPills.current}
                         onClick={() => open(filter.id)}
                     >
                         {`Pill ${filter.id}`}
@@ -318,6 +322,18 @@ describe('dismissing in the controls editor', () => {
             act(() => label().focus());
             escape(label());
             expect(value().isSidebarOpen).toBe(false);
+            expect(addButton()).toHaveFocus();
+        });
+
+        it('goes to "Add" when the pill cannot take it', () => {
+            disabledPills.current = true;
+            // Any change draws the bar again, with its pills disabled
+            act(() => value().setHoveredFieldId('orders_a'));
+            expect(pill('a')).toBeDisabled();
+            act(() => value().close());
+            disabledPills.current = false;
+
+            expect(screen.getByText('Pill a')).toBeDisabled();
             expect(addButton()).toHaveFocus();
         });
 
