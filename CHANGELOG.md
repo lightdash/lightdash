@@ -1,3 +1,10 @@
+## [2.504.1](https://github.com/lightdash/lightdash/compare/2.504.0...2.504.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **mcp:** apply attribute overrides when authorizing metric queries ([#30781](https://github.com/lightdash/lightdash/issues/30781)) ([28be1d6](https://github.com/lightdash/lightdash/commit/28be1d67d6f172b2cb3eeeb4d1ecfbacf5d40625))
+
 # [2.504.0](https://github.com/lightdash/lightdash/compare/2.503.0...2.504.0) (2026-10-09)
 
 
