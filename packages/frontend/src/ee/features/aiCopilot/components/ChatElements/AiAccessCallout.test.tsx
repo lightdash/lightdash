@@ -146,7 +146,9 @@ describe('AI access callout', () => {
                 name: 'Connect your agent to your warehouse',
             }),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Manage agent connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(
             screen.getByText(
                 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.',

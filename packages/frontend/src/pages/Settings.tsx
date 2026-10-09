@@ -50,6 +50,7 @@ import InviteLinkExpirationPanel from '../components/UserSettings/InviteLinkExpi
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
+import { MyAgentConnectionsPanel } from '../components/UserSettings/MyAgentConnectionsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
@@ -192,7 +193,9 @@ const Settings: FC = () => {
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
         allowPasswordAuthentication,
+        showMyAgentConnections,
         hasSocialLogin,
+        isMyAgentConnectionsLoading,
         isHealthLoading,
         healthError,
         isUserLoading,
@@ -276,6 +279,12 @@ const Settings: FC = () => {
                 </Stack>
             ),
         });
+        if (showMyAgentConnections) {
+            allowedRoutes.push({
+                path: '/myAgentConnections',
+                element: <MyAgentConnectionsPanel />,
+            });
+        }
         if (user?.ability.can('create', 'ScheduledDeliveries')) {
             // A user might not be able to create scheduled permissions on the org level but on a specific project
             // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
@@ -841,6 +850,7 @@ const Settings: FC = () => {
         return allowedRoutes;
     }, [
         allowPasswordAuthentication,
+        showMyAgentConnections,
         user?.ability,
         organization,
         project,
@@ -1030,6 +1040,11 @@ const Settings: FC = () => {
         : null;
 
     if (
+        (isMyAgentConnectionsLoading &&
+            matchPath(
+                '/generalSettings/myAgentConnections',
+                location.pathname,
+            )) ||
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||

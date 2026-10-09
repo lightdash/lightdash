@@ -88,6 +88,7 @@ export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 export enum AgentIdentityConnectEntryPoint {
     CHAT_CARD = 'chat_card',
     MY_WAREHOUSE_CONNECTIONS = 'my_warehouse_connections',
+    MY_AGENT_CONNECTIONS = 'my_agent_connections',
     MCP_CONNECT_LINK = 'mcp_connect_link',
     CLI = 'cli',
     MCP_CONSENT = 'mcp_consent',

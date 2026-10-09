@@ -25,5 +25,3 @@ export const identityWarehouseNames = {
 
 export const agentIdentitySentence = (warehouseName: string) =>
     `When AI agents query ${warehouseName}, they run as`;
-
-export const bigQueryAgentConnectionLabel = `${identityWarehouseNames.bigquery}: Agents run as the project's AI service account. Nothing to connect.`;

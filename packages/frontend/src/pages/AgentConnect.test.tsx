@@ -163,6 +163,9 @@ describe('AgentConnect', () => {
                     'This agent connection link is missing a valid project.',
                 ),
             ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'My agent connections' }),
+            ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
             expect(mocks.assign).not.toHaveBeenCalled();
         },
     );
