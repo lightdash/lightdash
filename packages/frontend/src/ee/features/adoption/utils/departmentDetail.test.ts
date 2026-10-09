@@ -12,8 +12,6 @@ import {
     formatOverlapUsage,
     formatTopContentUsage,
     formatVennCount,
-    getActiveCaption,
-    getCoverageCaption,
     getOverlapRowLabel,
     getOverlapSelection,
     getOverlapSelectionLabel,
@@ -322,24 +320,6 @@ describe('getWeeklyChartLabel', () => {
     });
 });
 
-describe('getCoverageCaption', () => {
-    it('counts against the headcount, the same base as the percentage', () => {
-        expect(getCoverageCaption(40, 3)).toBe(
-            '3 of 40 people have an account',
-        );
-        expect(getCoverageCaption(40, 0)).toBe(
-            '0 of 40 people have an account',
-        );
-        expect(getCoverageCaption(2350, 221)).toBe(
-            '221 of 2,350 people have an account',
-        );
-    });
-    it('gives the people on Lightdash without a headcount, as they are all that is counted', () => {
-        expect(getCoverageCaption(null, 3)).toBe('3 people on Lightdash');
-        expect(getCoverageCaption(null, 1)).toBe('1 person on Lightdash');
-    });
-});
-
 describe('formatDepartmentCounts', () => {
     const counts = (
         hasHeadcount: boolean,
@@ -444,33 +424,6 @@ describe('getTopContentPath', () => {
                 projectUuid: PROJECT,
             }),
         ).toBe(`/projects/${PROJECT}/dashboards/d1/view`);
-    });
-});
-
-describe('getActiveCaption', () => {
-    it('leads with the headcount base and adds the account base separately', () => {
-        expect(getActiveCaption(40, 2, 3)).toBe(
-            '2 of 40 people were active · 2 of the 3 with an account',
-        );
-    });
-    it('uses the account base only without a headcount', () => {
-        expect(getActiveCaption(null, 2, 3)).toBe(
-            '2 of the 3 with an account were active',
-        );
-    });
-    it('handles zero members', () => {
-        expect(getActiveCaption(40, 0, 0)).toBe('0 of 40 people were active');
-        expect(getActiveCaption(null, 0, 0)).toBe('No one has an account yet');
-    });
-    it('groups thousands', () => {
-        expect(getActiveCaption(2350, 1126, 1221)).toBe(
-            '1,126 of 2,350 people were active · 1,126 of the 1,221 with an account',
-        );
-    });
-    it('gives the headcount base alone when everyone in the headcount has an account', () => {
-        expect(getActiveCaption(191, 85, 191)).toBe(
-            '85 of 191 people were active',
-        );
     });
 });
 

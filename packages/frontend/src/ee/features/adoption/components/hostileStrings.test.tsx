@@ -85,7 +85,6 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
         isError: false,
         error: null,
     }),
-    useOrgAdoptionSummary: () => ({ data: undefined }),
     // The overlaps as set, and for a chosen overlap the page's own people
     useDepartmentOverlaps: (
         departmentUuid: string | undefined,
