@@ -185,6 +185,17 @@ export const withAnswerEvidence = (
             });
             return result;
         },
+        runSqlChartQuery: async (args) => {
+            const result = await dependencies.runSqlChartQuery(args);
+            evidence.record({
+                ...result,
+                fields: {},
+                maxContextRows: 50,
+                limit: args.limit,
+                scope: args,
+            });
+            return result;
+        },
         runSqlJob: async (args) => {
             const result = await dependencies.runSqlJob(args);
             evidence.record({

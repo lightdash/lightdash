@@ -17,8 +17,10 @@ import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
+    GetSqlChartFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
+    RunSqlChartQueryFn,
     RunSqlJobFn,
     UpdateProgressFn,
     ValidateContentFn,
@@ -62,6 +64,8 @@ type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     getSavedChart: GetSavedChartFn;
+    getSqlChart: GetSqlChartFn;
+    runSqlChartQuery: RunSqlChartQueryFn;
     validateContent: ValidateContentFn;
     maxLimit: number;
     maxContextRows: number;
@@ -162,12 +166,47 @@ const buildShownTable = (
     };
 };
 
+type SqlRows = {
+    rows: Record<string, unknown>[];
+    columns: string[];
+    rowCount: number;
+};
+
+/** The CSV and structured rows for results keyed by column name. */
+const buildSqlRowsOutput = (
+    { rows, columns, rowCount }: SqlRows,
+    maxContextRows: number,
+) => {
+    const shownRows = rows
+        .slice(0, maxContextRows)
+        .map((row) => columns.map((column) => row[column]));
+    const truncationNote = getContextTruncationNote({
+        rowCount,
+        maxContextRows,
+    });
+    return {
+        csv: `${truncationNote}${serializeData(
+            stringify(shownRows, { header: true, columns }),
+            'csv',
+        )}`,
+        truncationNote: truncationNote === '' ? null : truncationNote,
+        table: {
+            rowCount,
+            shownRowCount: shownRows.length,
+            columns: columns.map((label) => ({ fieldId: null, label })),
+            rows: shownRows,
+        },
+    };
+};
+
 export const getRunContentQuery = ({
     reviewQuery,
     updateProgress,
     runAsyncQuery,
     runSavedChartQuery,
     getSavedChart,
+    getSqlChart,
+    runSqlChartQuery,
     validateContent,
     maxLimit,
     maxContextRows,
@@ -246,6 +285,7 @@ export const getRunContentQuery = ({
                     structuredContent: {
                         outcome: 'dataAccessDisabled' as const,
                         chart: null,
+                        sqlChart: null,
                     },
                 });
             }
@@ -271,39 +311,110 @@ export const getRunContentQuery = ({
                 });
             }
 
-            const shownRows = rows.slice(0, maxContextRows);
-            const truncationNote = getContextTruncationNote({
-                rowCount,
+            const output = buildSqlRowsOutput(
+                { rows, columns, rowCount },
                 maxContextRows,
-            });
-            const csv = stringify(
-                shownRows.map((row) => columns.map((column) => row[column])),
-                { header: true, columns },
             );
             return await persistIfResumed({
-                result: `${truncationNote}${serializeData(csv, 'csv')}${review}`,
+                result: `${output.csv}${review}`,
                 metadata: { status: 'success' as const },
                 structuredContent: {
                     outcome: 'rows' as const,
                     chart: null,
-                    rowCount,
-                    shownRowCount: shownRows.length,
-                    columns: columns.map((label) => ({
-                        fieldId: null,
-                        label,
-                    })),
-                    rows: shownRows.map((row) =>
-                        columns.map((column) => row[column]),
-                    ),
+                    sqlChart: null,
+                    ...output.table,
                     review: review === '' ? null : review,
-                    truncationNote:
-                        truncationNote === '' ? null : truncationNote,
+                    truncationNote: output.truncationNote,
                 },
             });
         } catch (error) {
             return persistIfResumed(
                 toolErrorOutput(error, 'Error running SQL query.'),
             );
+        }
+    };
+
+    // Saved SQL was approved when it was saved, so it runs without asking.
+    const runSavedSqlChart = async ({
+        chartSlug,
+        dashboardSlug,
+        limit,
+    }: {
+        chartSlug: string;
+        dashboardSlug: string | null;
+        limit: number | null;
+    }): Promise<RunContentQueryResult> => {
+        try {
+            await updateProgress('Running SQL chart...');
+            const sqlChart = await getSqlChart(chartSlug);
+            const described = {
+                chartUuid: sqlChart.uuid,
+                slug: sqlChart.slug,
+                name: sqlChart.name,
+                sql: sqlChart.sql,
+            };
+            const header = `SQL chart "${sqlChart.name}" (${sqlChart.slug}):\n\`\`\`sql\n${sqlChart.sql}\n\`\`\`\n`;
+
+            if (!enableDataAccess) {
+                return {
+                    result: `${header}Data access is disabled for this agent. Reason about the chart from its SQL above; do not assume specific row values.`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'dataAccessDisabled' as const,
+                        chart: null,
+                        sqlChart: described,
+                    },
+                };
+            }
+
+            const results = await runSqlChartQuery({
+                chartUuid: sqlChart.uuid,
+                dashboardSlug,
+                limit,
+            });
+            const review =
+                (await reviewQuery?.({
+                    kind: 'sql',
+                    sql: sqlChart.sql,
+                    limit: limit ?? DEFAULT_RUN_SQL_LIMIT,
+                })) ?? '';
+
+            if (results.rowCount === 0) {
+                const result = reviewQuery
+                    ? await reviewQuery(
+                          {
+                              kind: 'sql',
+                              sql: sqlChart.sql,
+                              limit: limit ?? DEFAULT_RUN_SQL_LIMIT,
+                          },
+                          { emptyResult: true, review },
+                      )
+                    : NO_RESULTS_RETRY_PROMPT;
+                return {
+                    result: `${header}${result}`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'noResults' as const,
+                        review: reviewQuery ? result : null,
+                    },
+                };
+            }
+
+            const output = buildSqlRowsOutput(results, maxContextRows);
+            return {
+                result: `${header}${output.csv}${review}`,
+                metadata: { status: 'success' as const },
+                structuredContent: {
+                    outcome: 'rows' as const,
+                    chart: null,
+                    sqlChart: described,
+                    ...output.table,
+                    review: review === '' ? null : review,
+                    truncationNote: output.truncationNote,
+                },
+            };
+        } catch (error) {
+            return toolErrorOutput(error, 'Error running SQL chart.');
         }
     };
 
@@ -319,6 +430,19 @@ export const getRunContentQuery = ({
         execute: async ({ source }, { toolCallId }) => {
             if (source.type === 'sql') {
                 return runSqlSource(source, toolCallId);
+            }
+            if (
+                (source.type === 'chart' || source.type === 'dashboardChart') &&
+                source.chartType === 'sql_chart'
+            ) {
+                return runSavedSqlChart({
+                    chartSlug: source.chartSlug,
+                    dashboardSlug:
+                        source.type === 'dashboardChart'
+                            ? source.dashboardSlug
+                            : null,
+                    limit: source.limit,
+                });
             }
             try {
                 await updateProgress('Running content query...');
@@ -345,6 +469,7 @@ export const getRunContentQuery = ({
                             },
                             structuredContent: {
                                 outcome: 'dataAccessDisabled',
+                                sqlChart: null,
                                 chart: describeSavedChartStructure(
                                     uuid,
                                     name,
@@ -443,6 +568,7 @@ export const getRunContentQuery = ({
                         },
                         structuredContent: {
                             outcome: 'rows',
+                            sqlChart: null,
                             chart: describeSavedChartSpec(
                                 uuid,
                                 name,
@@ -502,6 +628,7 @@ export const getRunContentQuery = ({
                         structuredContent: {
                             outcome: 'dataAccessDisabled',
                             chart: null,
+                            sqlChart: null,
                         },
                     };
                 }
@@ -568,6 +695,7 @@ export const getRunContentQuery = ({
                     structuredContent: {
                         outcome: 'rows',
                         chart: null,
+                        sqlChart: null,
                         ...table,
                         columns: table.columns.map(({ label }) => ({
                             fieldId: null,

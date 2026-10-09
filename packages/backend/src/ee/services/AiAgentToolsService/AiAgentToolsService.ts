@@ -28,6 +28,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getValidAiQueryLimit,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isDimension,
     isExploreError,
     isFilterAutocompleteManualOnly,
@@ -134,6 +135,7 @@ import {
     GetExploreFn,
     GetProjectInfoFn,
     GetSavedChartFn,
+    GetSqlChartFn,
     GetVerifiedFieldUsageFn,
     IterateDataAppFn,
     ListContentFn,
@@ -151,6 +153,7 @@ import {
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
+    RunSqlChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
@@ -280,6 +283,7 @@ export type AiAgentToolsRuntime = {
     runAsyncQuery: RunAsyncQueryFn;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
+    runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -303,6 +307,7 @@ export type AiAgentToolsRuntime = {
         import('../ai/types/aiAgentDependencies').GetKnowledgeDocumentContentFn
     >;
     getSavedChart: GetSavedChartFn;
+    getSqlChart: GetSqlChartFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
@@ -746,6 +751,7 @@ export class AiAgentToolsService extends BaseService {
             runSavedChartQuery: (args) =>
                 this.runSavedChartQuery(context, args),
             runSqlJob: (args) => this.runSqlJob(context, args),
+            runSqlChartQuery: (args) => this.runSqlChartQuery(context, args),
             runComposerQueries: (args) =>
                 this.runComposerQueries(context, args),
             listWarehouseTables: (queryContext) =>
@@ -767,6 +773,7 @@ export class AiAgentToolsService extends BaseService {
                 this.getKnowledgeDocumentContent(context, args),
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
+            getSqlChart: (slug) => this.getSqlChartForRuntime(context, slug),
             setupPreviewDeploy: () => this.setupPreviewDeploy(context),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
@@ -3243,36 +3250,7 @@ export class AiAgentToolsService extends BaseService {
                 // the model gets a well-worded error it can act on; this one
                 // is what actually guarantees the query never reaches the
                 // warehouse, whatever the tool layer does.
-                const hyphenatedIdentifiers = isSqlScopeConfigured(
-                    context.sqlScope,
-                )
-                    ? (
-                          await this.featureFlagService.get({
-                              user: context.user,
-                              featureFlagId:
-                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-                          })
-                      ).enabled
-                    : false;
-                const violations = findSqlScopeViolations(
-                    sql,
-                    context.sqlScope,
-                    {
-                        hyphenatedIdentifiers,
-                    },
-                );
-                if (violations.length > 0 && context.sqlScope) {
-                    this.logger.warn(
-                        `Blocked out-of-scope agent SQL for project ${
-                            context.projectUuid
-                        } (agent ${context.agentUuid ?? 'unknown'}): ${violations
-                            .map((v) => v.reference)
-                            .join(', ')}`,
-                    );
-                    throw new ForbiddenError(
-                        formatSqlScopeError(violations, context.sqlScope),
-                    );
-                }
+                await this.assertSqlInAgentScope(context, sql);
 
                 await context.onWarehouseQuery?.();
                 const { queryUuid } =
@@ -3285,71 +3263,240 @@ export class AiAgentToolsService extends BaseService {
                         querySurface: context.querySurface,
                     });
 
-                const maxWaitMs = 5 * 60 * 1000;
-                const startTime = Date.now();
-                let delayMs = 500;
-
-                // eslint-disable-next-line no-constant-condition
-                while (true) {
-                    if (Date.now() - startTime > maxWaitMs) {
-                        throw new TimeoutError(
-                            'SQL query timed out after 5 minutes',
-                        );
-                    }
-
-                    const queryResults =
-                        // eslint-disable-next-line no-await-in-loop
-                        await this.asyncQueryService.getAsyncQueryResults({
-                            account: context.account,
-                            projectUuid: context.projectUuid,
-                            queryUuid,
-                            page: 1,
-                            aiAccessOnly: true,
-                            pageSize: limit,
-                        });
-
-                    if (queryResults.status === QueryHistoryStatus.READY) {
-                        const wrappedRows = (queryResults.rows ?? []) as Record<
-                            string,
-                            AnyType
-                        >[];
-                        const rows = wrappedRows.map((row) =>
-                            Object.fromEntries(
-                                Object.entries(row).map(([k, v]) => [
-                                    k,
-                                    AiAgentToolsService.unwrapCell(v),
-                                ]),
-                            ),
-                        );
-                        return {
-                            queryUuid,
-                            rows,
-                            columns: Object.keys(queryResults.columns),
-                            rowCount: rows.length,
-                        };
-                    }
-
-                    if (queryResults.status === QueryHistoryStatus.ERROR) {
-                        throw new WarehouseQueryError(
-                            `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
-                        );
-                    }
-
-                    if (queryResults.status === QueryHistoryStatus.CANCELLED) {
-                        throw new WarehouseQueryError(
-                            'SQL query was cancelled',
-                        );
-                    }
-
-                    const localDelay = delayMs;
-                    // eslint-disable-next-line no-await-in-loop
-                    await new Promise<void>((resolve) => {
-                        setTimeout(resolve, localDelay);
-                    });
-                    delayMs = Math.min(delayMs * 2, 2000);
-                }
+                return this.waitForSqlResults(context, queryUuid, limit);
             },
         );
+    }
+
+    private getSqlChartForRuntime(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ): ReturnType<GetSqlChartFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.getSqlChart`,
+            { slug },
+            async () => {
+                const sqlChart = await this.savedSqlService.getSqlChart(
+                    context.user,
+                    context.projectUuid,
+                    undefined,
+                    slug,
+                );
+                if (
+                    !AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        sqlChart.space.uuid,
+                    )
+                ) {
+                    throw new NotFoundError(
+                        `SQL chart "${slug}" was not found`,
+                    );
+                }
+                return {
+                    uuid: sqlChart.savedSqlUuid,
+                    slug: sqlChart.slug,
+                    name: sqlChart.name,
+                    sql: sqlChart.sql,
+                };
+            },
+        );
+    }
+
+    private runSqlChartQuery(
+        context: AiAgentToolsRuntimeContext,
+        { chartUuid, dashboardSlug, limit }: Parameters<RunSqlChartQueryFn>[0],
+    ): ReturnType<RunSqlChartQueryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.runSqlChartQuery`,
+            { chartUuid, dashboardSlug, limit },
+            async () => {
+                const sqlChart = await this.savedSqlService.getSqlChart(
+                    context.user,
+                    context.projectUuid,
+                    chartUuid,
+                );
+                const notFound = `SQL chart ${chartUuid} was not found`;
+                if (
+                    !AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        sqlChart.space.uuid,
+                    )
+                ) {
+                    throw new NotFoundError(notFound);
+                }
+                // Saved SQL is not the agent's own, but it still reads only what the agent may read.
+                await this.assertSqlInAgentScope(context, sqlChart.sql);
+
+                const effectiveLimit = getValidAiQueryLimit(
+                    limit,
+                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                );
+                const common = {
+                    account: context.account,
+                    projectUuid: context.projectUuid,
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                    limit: effectiveLimit,
+                    context: context.defaultQueryExecutionContext,
+                    querySurface: context.querySurface,
+                    ...(context.invalidateQueryCache
+                        ? { invalidateCache: true }
+                        : {}),
+                };
+
+                if (!dashboardSlug) {
+                    await context.onWarehouseQuery?.();
+                    const { queryUuid } =
+                        await this.asyncQueryService.executeAsyncSqlChartQuery(
+                            common,
+                        );
+                    return this.waitForSqlResults(
+                        context,
+                        queryUuid,
+                        effectiveLimit,
+                    );
+                }
+
+                const dashboard = await this.dashboardService.getByIdOrSlug(
+                    context.user,
+                    dashboardSlug,
+                    { projectUuid: context.projectUuid },
+                );
+                if (
+                    !AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        dashboard.spaceUuid,
+                    )
+                ) {
+                    throw new NotFoundError(
+                        `Dashboard not found: ${dashboardSlug}`,
+                    );
+                }
+                const tile = dashboard.tiles.find(
+                    (dashboardTile) =>
+                        isDashboardSqlChartTile(dashboardTile) &&
+                        dashboardTile.properties.savedSqlUuid ===
+                            sqlChart.savedSqlUuid,
+                );
+                if (!tile) {
+                    throw new NotFoundError(
+                        `SQL chart ${sqlChart.slug} not found on dashboard ${dashboardSlug}`,
+                    );
+                }
+
+                await context.onWarehouseQuery?.();
+                const { queryUuid } =
+                    await this.asyncQueryService.executeAsyncDashboardSqlChartQuery(
+                        {
+                            ...common,
+                            dashboardUuid: dashboard.uuid,
+                            tileUuid: tile.uuid,
+                            dashboardFilters: dashboard.filters,
+                            dashboardSorts: [],
+                        },
+                    );
+                return this.waitForSqlResults(
+                    context,
+                    queryUuid,
+                    effectiveLimit,
+                );
+            },
+        );
+    }
+
+    private async assertSqlInAgentScope(
+        context: AiAgentToolsRuntimeContext,
+        sql: string,
+    ): Promise<void> {
+        const hyphenatedIdentifiers = isSqlScopeConfigured(context.sqlScope)
+            ? (
+                  await this.featureFlagService.get({
+                      user: context.user,
+                      featureFlagId:
+                          FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
+                  })
+              ).enabled
+            : false;
+        const violations = findSqlScopeViolations(sql, context.sqlScope, {
+            hyphenatedIdentifiers,
+        });
+        if (violations.length > 0 && context.sqlScope) {
+            this.logger.warn(
+                `Blocked out-of-scope agent SQL for project ${
+                    context.projectUuid
+                } (agent ${context.agentUuid ?? 'unknown'}): ${violations
+                    .map((v) => v.reference)
+                    .join(', ')}`,
+            );
+            throw new ForbiddenError(
+                formatSqlScopeError(violations, context.sqlScope),
+            );
+        }
+    }
+
+    private async waitForSqlResults(
+        context: AiAgentToolsRuntimeContext,
+        queryUuid: string,
+        limit: number,
+    ): ReturnType<RunSqlJobFn> {
+        const maxWaitMs = 5 * 60 * 1000;
+        const startTime = Date.now();
+        let delayMs = 500;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            if (Date.now() - startTime > maxWaitMs) {
+                throw new TimeoutError('SQL query timed out after 5 minutes');
+            }
+
+            const queryResults =
+                // eslint-disable-next-line no-await-in-loop
+                await this.asyncQueryService.getAsyncQueryResults({
+                    account: context.account,
+                    projectUuid: context.projectUuid,
+                    queryUuid,
+                    page: 1,
+                    aiAccessOnly: true,
+                    pageSize: limit,
+                });
+
+            if (queryResults.status === QueryHistoryStatus.READY) {
+                const wrappedRows = (queryResults.rows ?? []) as Record<
+                    string,
+                    AnyType
+                >[];
+                const rows = wrappedRows.map((row) =>
+                    Object.fromEntries(
+                        Object.entries(row).map(([k, v]) => [
+                            k,
+                            AiAgentToolsService.unwrapCell(v),
+                        ]),
+                    ),
+                );
+                return {
+                    queryUuid,
+                    rows,
+                    columns: Object.keys(queryResults.columns),
+                    rowCount: rows.length,
+                };
+            }
+
+            if (queryResults.status === QueryHistoryStatus.ERROR) {
+                throw new WarehouseQueryError(
+                    `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
+                );
+            }
+
+            if (queryResults.status === QueryHistoryStatus.CANCELLED) {
+                throw new WarehouseQueryError('SQL query was cancelled');
+            }
+
+            const localDelay = delayMs;
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, localDelay);
+            });
+            delayMs = Math.min(delayMs * 2, 2000);
+        }
     }
 
     private runComposerQueries(

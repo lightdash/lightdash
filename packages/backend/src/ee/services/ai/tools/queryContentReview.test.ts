@@ -65,6 +65,8 @@ const makeDependencies = (rows = [{ a_dim1: 'EMEA', a_met1: 42 }]) => ({
         execution,
     }),
     getSavedChart: vi.fn().mockResolvedValue(chart),
+    getSqlChart: vi.fn(),
+    runSqlChartQuery: vi.fn(),
     validateContent: vi.fn(),
     maxLimit: 50,
     maxContextRows: 50,
@@ -122,7 +124,14 @@ describe('content and saved query review', () => {
             };
         });
         const pending = getRunContentQuery(deps).execute!(
-            { source: { type: 'chart', chartSlug: 'chart', limit: 100 } },
+            {
+                source: {
+                    type: 'chart',
+                    chartType: null,
+                    chartSlug: 'chart',
+                    limit: 100,
+                },
+            },
             options,
         );
         await vi.waitFor(() => expect(deps.reviewQuery).toHaveBeenCalledOnce());
@@ -139,11 +148,17 @@ describe('content and saved query review', () => {
             const source: ToolRunContentQueryArgs['source'] = dashboard
                 ? {
                       type: 'dashboardChart',
+                      chartType: null,
                       chartSlug: 'chart',
                       dashboardSlug: 'dashboard',
                       limit: 100,
                   }
-                : { type: 'chart', chartSlug: 'chart', limit: 100 };
+                : {
+                      type: 'chart',
+                      chartType: null,
+                      chartSlug: 'chart',
+                      limit: 100,
+                  };
             const output = await getRunContentQuery(deps).execute!(
                 { source },
                 options,
@@ -242,6 +257,7 @@ describe('content and saved query review', () => {
                           {
                               source: {
                                   type: 'chart',
+                                  chartType: null,
                                   chartSlug: 'chart',
                                   limit: 100,
                               },
@@ -286,6 +302,7 @@ describe('content and saved query review', () => {
                           {
                               source: {
                                   type: 'chart',
+                                  chartType: null,
                                   chartSlug: 'chart',
                                   limit: 100,
                               },

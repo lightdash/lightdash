@@ -560,6 +560,26 @@ export type RunSavedChartQueryFn = (args: {
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
+/** A saved SQL chart the agent may view; checks view access and agent space and SQL scope. */
+export type GetSqlChartFn = (slug: string) => Promise<{
+    uuid: string;
+    slug: string;
+    name: string;
+    sql: string;
+}>;
+
+/** Runs a saved SQL chart, on its own or with a dashboard's filters. */
+export type RunSqlChartQueryFn = (args: {
+    chartUuid: string;
+    dashboardSlug: string | null;
+    limit: number | null;
+}) => Promise<{
+    queryUuid: string;
+    rows: Record<string, AnyType>[];
+    columns: string[];
+    rowCount: number;
+}>;
+
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
 export type DeferSlackVisualizationFn = (
