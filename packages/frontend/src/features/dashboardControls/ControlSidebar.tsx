@@ -25,6 +25,9 @@ type FilterEditorProps = {
 // never carry over to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const emptiedFieldLabel = useControlsSidebarSelector(
+        (c) => c.emptiedFieldLabel,
+    );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
@@ -112,13 +115,13 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fallbackName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    // An existing control with its last field removed keeps its name
+    // A control that lost its last field keeps the title it had
     const title =
-        isPlaceholder && isNew
+        isPlaceholder && isNew && emptiedFieldLabel === null
             ? 'New filter'
             : hasLabel
               ? label.draft
-              : (fallbackName ?? 'Filter');
+              : (fallbackName ?? emptiedFieldLabel ?? 'Filter');
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
         ? 'Select a field to keep this filter'

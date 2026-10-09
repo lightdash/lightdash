@@ -32,13 +32,13 @@ import {
     getTileFieldCandidateIds,
     getTileStarterFieldIds,
 } from './fieldCandidates';
-import { pluralizeTiles } from './fieldLabels';
 import { LazySelect } from './LazySelect';
 import {
     doesTileOfferField,
     getFilterFields,
     getMissingTileFieldId,
     getTileField,
+    getTilesOnTab,
     canTileTakeFilter,
     setTileField,
     toSqlColumnTarget,
@@ -70,9 +70,8 @@ const SEARCH_THRESHOLD = 8;
 
 type FieldsMap = Record<string, DashboardFilterableField>;
 
-// The last tile changed from its card, and what that change was: the card
-// then offers the same for the rest of the tab. Kept as it was made; whether
-// it still applies is worked out on each render
+// The last change made from a tile card, which that card then offers for the
+// rest of the tab. Whether it still applies is worked out on each render
 type FollowUp = {
     ruleId: string;
     tabUuid: string | null;
@@ -368,6 +367,7 @@ const EditedTileOverlays: FC = () => {
     );
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const activeTab = useDashboardContext((c) => c.activeTab);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const fieldsByTile = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
@@ -386,20 +386,18 @@ const EditedTileOverlays: FC = () => {
         metricFiltersFlag.data?.enabled ?? import.meta.env.DEV;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     const isActive = editingRule !== null;
-    const fieldTileActions = useFieldTileActions();
+    const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const [followUp, setFollowUp] = useState<FollowUp | null>(null);
     const activeTabUuid = activeTab?.uuid ?? null;
 
-    const tiles = useMemo(
-        () =>
-            (dashboardTiles ?? []).filter(
-                (tile) =>
-                    !activeTab ||
-                    !tile.tabUuid ||
-                    tile.tabUuid === activeTab.uuid,
-            ),
-        [dashboardTiles, activeTab],
-    );
+    // As the grid draws them: a tile with no tab, or a stale one, is on the
+    // first tab
+    const tiles = useMemo(() => {
+        const all = dashboardTiles ?? [];
+        return activeTab && dashboardTabs.length > 0
+            ? getTilesOnTab(all, dashboardTabs, activeTab.uuid)
+            : all;
+    }, [dashboardTiles, dashboardTabs, activeTab]);
     const tileUuids = useMemo(() => tiles.map((tile) => tile.uuid), [tiles]);
     const targets = usePortalTargets(
         tileUuids,
@@ -469,11 +467,11 @@ const EditedTileOverlays: FC = () => {
         },
     );
 
-    // Another control or another tab ends it for good: going back does not
-    // bring it back
+    // Another control, another tab or losing the last field ends it for good
     if (
         followUp !== null &&
-        (followUp.ruleId !== editingRule?.id ||
+        (isPlaceholder ||
+            followUp.ruleId !== editingRule?.id ||
             followUp.tabUuid !== activeTabUuid)
     )
         setFollowUp(null);
@@ -508,12 +506,14 @@ const EditedTileOverlays: FC = () => {
         if (count === 0) return null;
         const tileScope: TileScope = hasTabs ? 'this-tab' : 'every-tab';
         const where = hasTabs ? ' on this tab' : '';
+        const label = `${isFilter ? 'Filter' : 'Clear'} the other ${count}${where} too`;
         return {
             tileUuid: followUp.tileUuid,
-            label: `${isFilter ? 'Filter' : 'Clear'} the other ${count}${where} too`,
+            label,
+            // Starts with the visible label, then names the field
             name: isFilter
-                ? `Filter the other ${count} unfiltered ${pluralizeTiles(count)}${where} by ${fieldTiles.label}`
-                : `Clear ${fieldTiles.label} from the other ${count} ${pluralizeTiles(count)}${where}`,
+                ? `${label}, by ${fieldTiles.label}`
+                : `${label}, from ${fieldTiles.label}`,
             run: () =>
                 isFilter
                     ? fieldTiles.addToUnfiltered(tileScope)

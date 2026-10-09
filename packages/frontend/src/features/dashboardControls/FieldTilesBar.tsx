@@ -1,18 +1,19 @@
 import { Button, Divider, Group, Paper, Text } from '@mantine/core';
-import { useLayoutEffect, useMemo, useState, type FC } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { joinLabels, pluralizeTiles } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
 import { getFilterFields } from './peers';
-import { useControlsSidebar } from './useControlsSidebar';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
     useFieldTileActions,
     type FieldTiles,
     type TileScope,
 } from './useFieldTileActions';
 import { usePortalTargets } from './usePortalTargets';
+import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 const GRID_KEY = 'grid';
 const GRID_SELECTOR = '.react-grid-layout';
@@ -83,6 +84,21 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     // Ends the count and each `aria-label`
     const scopeSuffix = hasTabs ? ' on this tab' : '';
     const replacedNames = joinLabels(replacedLabels);
+    const regionRef = useRef<HTMLDivElement>(null);
+    const wasPressedRef = useRef(false);
+    // A pressed button leaves once its action is done: focus stays on the bar
+    useLayoutEffect(() => {
+        const region = regionRef.current;
+        if (!wasPressedRef.current || region === null) return;
+        const focused = document.activeElement;
+        if (region.contains(focused)) return;
+        wasPressedRef.current = false;
+        if (focused === null || focused === document.body) region.focus();
+    });
+    const press = (action: () => void) => () => {
+        wasPressedRef.current = true;
+        action();
+    };
     // Beside a "Replace" button the count alone would be unclear
     const mainLabel =
         replaced > 0
@@ -96,7 +112,9 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
 
     return (
         <Paper
+            ref={regionRef}
             role="region"
+            tabIndex={-1}
             aria-label={`Tiles filtered by ${label}`}
             shadow="xl"
             withBorder={false}
@@ -134,7 +152,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="filled"
                             aria-label={mainName}
-                            onClick={() => addToUnfiltered(tileScope)}
+                            onClick={press(() => addToUnfiltered(tileScope))}
                         >
                             {mainLabel}
                         </Button>
@@ -144,7 +162,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="default"
                             aria-label={`${replaceLabel} with ${label}${scopeSuffix}`}
-                            onClick={() => switchFromOthers(tileScope)}
+                            onClick={press(() => switchFromOthers(tileScope))}
                         >
                             {replaceLabel}
                         </Button>
@@ -159,7 +177,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                                     ? `Clear ${label} from this tab`
                                     : `Clear ${label} from tiles`
                             }
-                            onClick={() => clear(tileScope)}
+                            onClick={press(() => clear(tileScope))}
                         >
                             Clear
                         </Button>
@@ -172,7 +190,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                             size="xs"
                             variant="subtle"
                             aria-label={`Filter ${otherTabsUnfiltered} on other tabs by ${label}`}
-                            onClick={() => addToUnfiltered('other-tabs')}
+                            onClick={press(() => addToUnfiltered('other-tabs'))}
                         >
                             {`Filter ${otherTabsUnfiltered} on other tabs`}
                         </Button>
@@ -186,9 +204,15 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
 // Floats over the tiles while a field is clicked: what it is on, and what
 // would change that. Never for the hovered field
 export const FieldTilesBar: FC = () => {
-    const { editingRule, highlightedFieldId, waitingFieldIds } =
-        useControlsSidebar();
-    const fieldTileActions = useFieldTileActions();
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const highlightedFieldId = useControlsSidebarSelector(
+        (c) => c.highlightedFieldId,
+    );
+    const waitingFieldIds = useControlsSidebarSelector(
+        (c) => c.waitingFieldIds,
+    );
+    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
     const activeTabUuid = useDashboardContext((c) => c.activeTab?.uuid);
 
     const fieldId =

@@ -27,6 +27,9 @@ const mockDashboardContext = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -654,6 +657,86 @@ describe('FieldsAndTiles', () => {
         expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
     });
 
+    describe('focus after a field is removed', () => {
+        const nameOf = (label: string) =>
+            screen.getByRole('button', { name: label });
+        const three = () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                allFilterableFields: [status, region, city],
+                allFilterableFieldsMap: {
+                    orders_status: status,
+                    orders_region: region,
+                    customers_city: city,
+                },
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status, city],
+                },
+            };
+            return rule('orders_status', {
+                'tile-1': REGION,
+                'tile-2': { fieldId: 'customers_city', tableName: 'customers' },
+            });
+        };
+
+        it('goes to the next card, or the previous one for the last card', async () => {
+            // Status, Region and City, each on a tile
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    tile('tile-1'),
+                    tile('tile-2'),
+                    tile('tile-3'),
+                ],
+            };
+            const fields = three();
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status, city],
+                    'tile-3': [status],
+                },
+            };
+            setSidebar(fields);
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('Region'));
+            setSidebar(getUpdatedRule());
+            rerender(<FieldsAndTiles />);
+            // City took Region's place
+            expect(nameOf('City')).toHaveFocus();
+
+            updateFilter.mockClear();
+            await userEvent.click(removeButtonOf('City'));
+            setSidebar(getUpdatedRule());
+            rerender(<FieldsAndTiles />);
+            expect(nameOf('Status')).toHaveFocus();
+        });
+
+        it('goes to the field search when the last field is removed', async () => {
+            setSidebar(rule('orders_status'));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+
+            await userEvent.click(removeButtonOf('Status'));
+            expect(removeLastField).toHaveBeenCalledWith('Status');
+            setSidebar(rule(''), { isPlaceholder: true });
+            rerender(<FieldsAndTiles />);
+
+            expect(screen.getByTestId(FIELD_SEARCH)).toHaveFocus();
+        });
+
+        it('leaves focus alone while nothing was removed', () => {
+            setSidebar(rule('orders_status', { 'tile-1': REGION }));
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
+            setSidebar(rule('orders_status'));
+            rerender(<FieldsAndTiles />);
+
+            expect(document.body).toHaveFocus();
+        });
+    });
+
     it('promotes another field when the first one is removed', async () => {
         setSidebar(rule('orders_status', { 'tile-1': REGION }));
         renderWithProviders(<FieldsAndTiles />);
@@ -693,7 +776,7 @@ describe('FieldsAndTiles', () => {
         expect(updateFilter).not.toHaveBeenCalled();
     });
 
-    it('puts "Add a field" away on Escape and when focus leaves it', async () => {
+    it('puts "Add another field" away on Escape and when focus leaves it', async () => {
         setSidebar(rule('orders_status'));
         renderWithProviders(<Editor />);
         const add = screen.getByRole('button', { name: 'Add another field' });
@@ -733,7 +816,7 @@ describe('FieldsAndTiles', () => {
         expect(fieldSearch()).not.toBeInTheDocument();
     });
 
-    describe('Add a field', () => {
+    describe('Add another field', () => {
         beforeEach(() => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,

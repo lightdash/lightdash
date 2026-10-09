@@ -7,11 +7,13 @@ import {
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, renderHook, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { FieldTilesBar } from './FieldTilesBar';
+import { useFieldTileActions } from './useFieldTileActions';
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -25,6 +27,9 @@ const mockSqlColumnsByTile = vi.hoisted(() => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebarSelector: (
+        selector: (value: Record<string, unknown>) => unknown,
+    ) => selector(mockSidebar.current),
 }));
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -838,6 +843,165 @@ describe('FieldTilesBar', () => {
             // sql-1 is on this tab; sql-3 does not have the column
             expect(Object.keys(next.tileTargets ?? {})).toEqual(['sql-2']);
         });
+    });
+
+    describe('a tile with no tab, or a tab that is gone', () => {
+        const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+        const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+        const Tabbed = () => (
+            <>
+                <div data-tab-uuid="tab-1">
+                    <div className="react-grid-layout" />
+                </div>
+                <FieldTilesBar />
+            </>
+        );
+
+        it.each([
+            ['no tabUuid', undefined],
+            ['a tabUuid that is gone', 'deleted-tab'],
+        ])('is on the first tab, never on the others (%s)', (_, tabUuid) => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    { ...tile('tile-1'), tabUuid: 'tab-1' },
+                    { ...tile('tile-x'), tabUuid },
+                    { ...tile('tile-3'), tabUuid: 'tab-2' },
+                ],
+                dashboardTabs: [TAB_1, TAB_2],
+                activeTab: TAB_1,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status],
+                    'tile-x': [status],
+                    'tile-3': [status],
+                },
+            };
+            setSidebar(
+                rule('orders_status', {
+                    'tile-1': false,
+                    'tile-x': false,
+                    'tile-3': false,
+                }),
+            );
+            renderWithProviders(<Tabbed />);
+
+            expect(countOf()).toHaveTextContent('on 0 of 2 tiles on this tab');
+            expect(buttonTexts()).toEqual([
+                'Filter all 2',
+                'Filter 1 on other tabs',
+            ]);
+
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Filter 1 on other tabs by Status',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toEqual({
+                'tile-1': false,
+                'tile-x': false,
+            });
+
+            updateFilter.mockClear();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Filter all 2 tiles on this tab by Status',
+                }),
+            );
+            expect(getUpdatedRule().tileTargets).toEqual({ 'tile-3': false });
+        });
+    });
+
+    describe('a tile on a field it no longer offers', () => {
+        const GONE = { fieldId: 'orders_gone', tableName: 'orders' };
+
+        it('counts it as a tile of the field, so the bar never reads over', () => {
+            setSidebar(rule('orders_status', { 'tile-1': GONE }), {
+                highlightedFieldId: 'orders_gone',
+            });
+            renderWithProviders(<Dashboard />);
+
+            expect(countOf('orders_gone')).toHaveTextContent(
+                /^on 1 of 1 tile$/,
+            );
+            expect(
+                within(bar('orders_gone'))
+                    .getAllByRole('button')
+                    .map((button) => button.textContent),
+            ).toEqual(['Clear']);
+        });
+
+        it('does the same for a column a SQL chart tile no longer returns', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    { ...tile('sql-1'), type: DashboardTileTypes.SQL_CHART },
+                ],
+                allFilterableFieldsMap: {},
+                filterableFieldsByTileUuid: undefined,
+            };
+            mockSqlColumnsByTile.current = {
+                'sql-1': [{ reference: 'city', type: 'string' }],
+            };
+            const COUNTRY = {
+                fieldId: 'country',
+                tableName: 'sql_chart',
+                isSqlColumn: true,
+            };
+            setSidebar(
+                { ...rule('country', { 'sql-1': COUNTRY }), target: COUNTRY },
+                { highlightedFieldId: 'country' },
+            );
+            renderWithProviders(<Dashboard />);
+
+            expect(countOf('country')).toHaveTextContent(/^on 1 of 1 tile$/);
+        });
+    });
+
+    describe('focus after an action', () => {
+        it('goes to the bar when the pressed button is gone', async () => {
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            const { rerender } = renderWithProviders(<Dashboard />);
+
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Filter the other 1 tile by Status',
+                }),
+            );
+            setSidebar(getUpdatedRule());
+            rerender(<Dashboard />);
+
+            expect(
+                screen.queryByRole('button', { name: /^Filter the other/ }),
+            ).not.toBeInTheDocument();
+            expect(bar()).toHaveFocus();
+        });
+
+        it('is not taken while nothing was pressed', () => {
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            const { rerender } = renderWithProviders(<Dashboard />);
+            setSidebar(rule('orders_status'));
+            rerender(<Dashboard />);
+
+            expect(bar()).not.toHaveFocus();
+        });
+    });
+
+    it('hands back the same actions while nothing they read has changed', () => {
+        setSidebar(rule('orders_status'));
+        const columns = {};
+        const { result, rerender } = renderHook(() =>
+            useFieldTileActions(columns),
+        );
+        const first = result.current;
+        expect(first).not.toBeNull();
+
+        // A hover is no input of the actions
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            hoveredFieldId: 'orders_status',
+        };
+        rerender();
+        expect(result.current).toBe(first);
     });
 
     it('has a named button for every action, with no menu and no border', () => {

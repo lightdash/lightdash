@@ -29,8 +29,12 @@ const mockContainers = vi.hoisted(() => ({
     current: {} as Record<string, Element>,
 }));
 
+const wholeContextReads = vi.hoisted(() => ({ current: 0 }));
 vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebar: () => mockSidebar.current,
+    useControlsSidebar: () => {
+        wholeContextReads.current += 1;
+        return mockSidebar.current;
+    },
     useControlsSidebarSelector: (
         selector: (value: Record<string, unknown>) => unknown,
     ) => selector(mockSidebar.current),
@@ -1224,6 +1228,14 @@ describe('TileOverlays', () => {
         });
     });
 
+    it('reads the controls context through selectors only', () => {
+        wholeContextReads.current = 0;
+        renderWithProviders(<TileOverlays />);
+
+        expect(overlay(both.uuid)).not.toBeNull();
+        expect(wholeContextReads.current).toBe(0);
+    });
+
     it('renders nothing when no control is edited', () => {
         setSidebar({ editingRule: null });
         renderWithProviders(<TileOverlays />);
@@ -1665,7 +1677,7 @@ describe('TileOverlays', () => {
                 'Filter the other 2 on this tab too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 unfiltered tiles on this tab by Status',
+                'Filter the other 2 on this tab too, by Status',
             );
             expect(followUp(second.uuid)).not.toBeInTheDocument();
             expect(followUp(third.uuid)).not.toBeInTheDocument();
@@ -1695,7 +1707,7 @@ describe('TileOverlays', () => {
             applyLastWrite(rerender);
 
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 2 unfiltered tiles on this tab by Region',
+                'Filter the other 2 on this tab too, by Region',
             );
             updateFilter.mockClear();
             await userEvent.click(followUp(first.uuid)!);
@@ -1727,7 +1739,7 @@ describe('TileOverlays', () => {
                 'Clear the other 2 on this tab too',
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Clear Status from the other 2 tiles on this tab',
+                'Clear the other 2 on this tab too, from Status',
             );
 
             updateFilter.mockClear();
@@ -1773,7 +1785,7 @@ describe('TileOverlays', () => {
                 'Filter the other 1 on this tab too',
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Filter the other 1 unfiltered tile on this tab by Status',
+                'Filter the other 1 on this tab too, by Status',
             );
         });
 
@@ -1900,7 +1912,7 @@ describe('TileOverlays', () => {
                 /^Filter the other 3 too$/,
             );
             expect(followUp(first.uuid)).toHaveAccessibleName(
-                'Filter the other 3 unfiltered tiles by Status',
+                'Filter the other 3 too, by Status',
             );
 
             await userEvent.click(followUp(first.uuid)!);
@@ -1911,7 +1923,7 @@ describe('TileOverlays', () => {
                 /^Clear the other 3 too$/,
             );
             expect(followUp(second.uuid)).toHaveAccessibleName(
-                'Clear Status from the other 3 tiles',
+                'Clear the other 3 too, from Status',
             );
         });
 
@@ -1990,7 +2002,7 @@ describe('TileOverlays', () => {
                 'Filter the other 1 on this tab too',
             );
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Filter the other 1 unfiltered tile on this tab by country',
+                'Filter the other 1 on this tab too, by country',
             );
 
             await userEvent.click(followUp(sql.uuid)!);
@@ -2006,8 +2018,83 @@ describe('TileOverlays', () => {
             await userEvent.click(clearButton(sql.uuid)!);
             applyLastWrite(rerender);
             expect(followUp(sql.uuid)).toHaveAccessibleName(
-                'Clear country from the other 1 tile on this tab',
+                'Clear the other 1 on this tab too, from country',
             );
+        });
+
+        it('does not outlive the last field of the filter', async () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTabs: [],
+                activeTab: undefined,
+                dashboardTiles: [first, second, third],
+            };
+            const { rerender } = renderWithProviders(<TileOverlays />);
+            await userEvent.click(clearButton(first.uuid)!);
+            applyLastWrite(rerender);
+            expect(followUp(first.uuid)).toBeInTheDocument();
+
+            // Its only field is removed: the control is empty, with its id
+            setSidebar({
+                editingRule: rule({ target: { fieldId: '', tableName: '' } }),
+                isPlaceholder: true,
+            });
+            rerender(<TileOverlays />);
+            await choose(second.uuid, 'Status');
+            expect(addFirstFieldOnTile).toHaveBeenCalledTimes(1);
+
+            // Back as a filter on the second tile only
+            setSidebar({
+                editingRule: rule({
+                    tileTargets: {
+                        [first.uuid]: false,
+                        [third.uuid]: false,
+                    },
+                }),
+            });
+            rerender(<TileOverlays />);
+            expect(anyFollowUp()).not.toBeInTheDocument();
+        });
+
+        it('counts a tile with no tab on the first tab', async () => {
+            const noTab = {
+                ...tile('tile-no-tab', 'tab-1'),
+                tabUuid: undefined,
+            } as DashboardTile;
+            addContainer(noTab.uuid);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [first, noTab, otherTab],
+                filterableFieldsByTileUuid: {
+                    [first.uuid]: [statusField],
+                    [noTab.uuid]: [statusField],
+                    [otherTab.uuid]: [statusField],
+                },
+            };
+            setSidebar({
+                editingRule: rule({
+                    tileTargets: {
+                        [first.uuid]: false,
+                        [noTab.uuid]: false,
+                        [otherTab.uuid]: false,
+                    },
+                }),
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+
+            await choose(first.uuid, 'Status');
+            applyLastWrite(rerender);
+            expect(followUp(first.uuid)).toHaveTextContent(
+                'Filter the other 1 on this tab too',
+            );
+
+            // On the second tab the tile is not drawn, so it gets no card
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: { uuid: 'tab-2', name: 'Two', order: 1 },
+            };
+            rerender(<TileOverlays />);
+            expect(overlay(noTab.uuid)).toBeNull();
         });
 
         it('re-renders only the cards the follow-up is on or leaves', async () => {

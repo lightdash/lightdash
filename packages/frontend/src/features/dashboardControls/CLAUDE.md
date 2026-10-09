@@ -119,7 +119,7 @@ In `FilterConfiguration/`:
   closed first, as "Done" would (kept when it has a field, dropped
   otherwise), then the other one opens. A control left with no field is
   closed the same way.
-- `removeLastField()` takes the edited control out of the dashboard filters
+- `removeLastField(fieldLabel)` takes the edited control out of the dashboard filters
   and opens a placeholder in its place: same id, label, `required`,
   `requiredGroupId` and `lockedTabUuids`; operator, values, default and
   `singleValue` go with the field. The next `addFirst*` puts the control back
@@ -296,7 +296,15 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `removeLastField()`: the control stays open on "pick a field" with its
   label, the fields that were waiting go too, and it leaves the bar until a
   field is picked. Closing it there drops it; "Discard changes" brings it
-  back as it was opened. The editor keeps its title, not "New filter".
+  back as it was opened. The editor keeps its title, not "New filter" or
+  "Filter": the provider keeps the lost field's name in `emptiedAt`
+  (`emptiedFieldLabel` in the context) until the control has a field again,
+  and an unlabelled control is titled by it.
+- Focus after the trash can, whose button leaves with its card: the card
+  that took its place, else the last card, else "Add another field"; the
+  field search when the control was emptied. `FieldsAndTiles` notes the
+  pressed card in a ref and moves focus in a layout effect once the card is
+  gone. No timer.
 - A card (`FieldRow`) is a legend: icon, name and a trash can on the first
   line, "<table> · x of N tiles" over every tab on the second. A click
   anywhere on it toggles the selection (the name button's `::after` covers the
@@ -321,8 +329,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile is `available`, and it always gets a card so the mapping can be
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
-- `useFieldTileActions()` is the one place a field's counts and actions are
-  worked out, for the card, the bar and the tile cards' follow-up. It
+- `useFieldTileActions(sqlColumnsByTile)` is the one place a field's counts
+  and actions are worked out, for the card, the bar and the tile cards'
+  follow-up. It reads the context through selectors, never the whole value,
+  takes the caller's `useSqlColumnsByTile` result so it is computed once per
+  component, and memoises what it returns. It
   returns `{ forField(fieldId), forSqlColumn(reference) }`, or null with no
   control or a placeholder. `forSqlColumn` is for a column SQL chart tiles
   are mapped to on a filter of any kind (it is never a field of the filter).
@@ -338,8 +349,13 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   empty. Scope is only which tiles are passed to the helpers
   (`tilesByScope`), so an action never writes a tile out of scope. The card
   counts `everyTabScope`; the bar acts on the scope in view.
+- A tile's tab is its effective one (`getEffectiveTabUuid`, `getTilesOnTab`
+  in `peers.ts`): a missing or stale `tabUuid` is the first tab, as the grid
+  draws it. The scopes, the tab badges and the tile cards all use it.
 - A `FieldScope` (`getFieldScope`; `getSqlColumnScope` for a SQL column row)
-  is, of the tiles that offer the field (`possible`): the ones on it
+  is, of the tiles that offer the field or are on it (`possible`, so a tile
+  on a field it no longer offers counts and `applied` never exceeds it, on
+  the card, the bar and the badge alike): the ones on it
   (`applied`), the ones the filter is not on (`unfiltered`) and the ones on
   another field (`replaced`, with `replacedFieldIds`). The three never
   overlap.
@@ -374,6 +390,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     3 tiles on this tab by <field>", "Replace <fields> on 2 tiles with
     <field> on this tab", "Filter 4 on other tabs by <field>" (no "on this
     tab" without tabs). "Clear" is named "Clear <field> from this tab".
+  - A pressed button leaves once its action is done, so focus moves to the
+    region itself (`tabIndex={-1}`), from a layout effect and only when
+    focus would otherwise be on `<body>`.
   - Surface: a `Paper` with no border (`withBorder={false}` over the theme
     default), the `xl` shadow and the body background.
   - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
@@ -496,7 +515,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     or the sidebar update or end it. One exists at a time, on the tile
     changed last.
   - It ends for good when it is used, when the tab or the edited control
-    changes (compared during render, which resets the state; no effect), and
+    changes or the control loses its last field (compared during render,
+    which resets the state; no effect), and
     when the editor closes: `TileOverlays` mounts `EditedTileOverlays` only
     while a control is edited.
   - Never for a placeholder, and never for a data app tile, whose switch

@@ -71,7 +71,7 @@ type SidebarState = {
     isNew: boolean;
     snapshot: ControlsSidebarSnapshot;
     // Where the control sat before its last field was removed, else null
-    emptiedAt: { group: FilterGroup; index: number } | null;
+    emptiedAt: { group: FilterGroup; index: number; fieldLabel: string } | null;
 };
 
 const createPlaceholder = (id: string): DashboardFilterRule => ({
@@ -428,36 +428,42 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     // The control stays open and empty, as a new one starts: same id, label
     // and viewer rules, none of the settings that came with the field's type
-    const removeLastField = useCallback(() => {
-        const current = latest.current;
-        if (current.state === null || current.placeholder !== null) return;
-        const { filterId } = current.state;
-        const rule = findFilterRule(current.dashboardFilters, filterId);
-        if (rule === null) return;
-        const group: FilterGroup = current.dashboardFilters.metrics.some(
-            (metric) => metric.id === filterId,
-        )
-            ? 'metrics'
-            : 'dimensions';
-        const index = current.dashboardFilters[group].findIndex(
-            (candidate) => candidate.id === filterId,
-        );
-        writeState({ ...current.state, emptiedAt: { group, index } });
-        writeFilters((filters) => removeFilterRule(filters, filterId));
-        writeFiltersChanged(true);
-        writePlaceholder({
-            ...createPlaceholder(filterId),
-            label: rule.label,
-            lockedTabUuids: rule.lockedTabUuids,
-            required: rule.required,
-            requiredGroupId: rule.requiredGroupId,
-        });
-        setActiveSection('fields');
-        current.highlightedFieldId = null;
-        setHighlightedFieldId(null);
-        setHoveredFieldId(null);
-        setWaiting(null);
-    }, [writeState, writeFilters, writeFiltersChanged, writePlaceholder]);
+    const removeLastField = useCallback(
+        (fieldLabel: string) => {
+            const current = latest.current;
+            if (current.state === null || current.placeholder !== null) return;
+            const { filterId } = current.state;
+            const rule = findFilterRule(current.dashboardFilters, filterId);
+            if (rule === null) return;
+            const group: FilterGroup = current.dashboardFilters.metrics.some(
+                (metric) => metric.id === filterId,
+            )
+                ? 'metrics'
+                : 'dimensions';
+            const index = current.dashboardFilters[group].findIndex(
+                (candidate) => candidate.id === filterId,
+            );
+            writeState({
+                ...current.state,
+                emptiedAt: { group, index, fieldLabel },
+            });
+            writeFilters((filters) => removeFilterRule(filters, filterId));
+            writeFiltersChanged(true);
+            writePlaceholder({
+                ...createPlaceholder(filterId),
+                label: rule.label,
+                lockedTabUuids: rule.lockedTabUuids,
+                required: rule.required,
+                requiredGroupId: rule.requiredGroupId,
+            });
+            setActiveSection('fields');
+            current.highlightedFieldId = null;
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
+            setWaiting(null);
+        },
+        [writeState, writeFilters, writeFiltersChanged, writePlaceholder],
+    );
 
     const addWaitingField = useCallback((fieldId: string) => {
         if (latest.current.state === null) return;
@@ -641,6 +647,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         () => ({
             editing,
             isNew: state?.isNew ?? false,
+            emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
             editingRule,
             isSidebarOpen,

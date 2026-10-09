@@ -23,7 +23,7 @@ const toTarget = (
 
 // Fields of a newly added tile that a filter could reach but does not yet:
 // the filter's peer fields first, else any field of exactly the target's
-// type, the rule the tile dropdown and "Add a field" use.
+// type, the rule the tile dropdown and "Add another field" use.
 export const getLinkCandidates = (
     rule: DashboardFilterRule,
     tile: DashboardTile,
