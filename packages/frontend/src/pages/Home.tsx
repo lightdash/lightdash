@@ -65,15 +65,19 @@ const Home: FC = () => {
     const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
         enabled: isHomepageBuilderEnabled,
     });
+    const hasPublishedHomepage =
+        isHomepageBuilderEnabled && resolvedHomepage.data?.type === 'homepage';
 
+    // Published blocks handle their own loading; fallback pages need these queries.
     const isLoading =
         onboarding.isInitialLoading ||
         project.isInitialLoading ||
-        isMostPopularAndRecentlyUpdatedLoading ||
-        pinnedItems.isInitialLoading ||
-        favorites.isInitialLoading ||
         isHomepageBuilderFlagLoading ||
-        resolvedHomepage.isInitialLoading;
+        resolvedHomepage.isInitialLoading ||
+        (!hasPublishedHomepage &&
+            (isMostPopularAndRecentlyUpdatedLoading ||
+                pinnedItems.isInitialLoading ||
+                favorites.isInitialLoading));
 
     const error = onboarding.error || project.error;
 
