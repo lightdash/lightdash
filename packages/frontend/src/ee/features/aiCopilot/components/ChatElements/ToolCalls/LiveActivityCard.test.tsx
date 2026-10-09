@@ -254,6 +254,37 @@ describe('LiveActivityCard runSql', () => {
         expect(screen.getByRole('button', { name: 'Reject' })).toBeVisible();
     });
 
+    it('collapses once the approval is decided', () => {
+        const approval = {
+            projectUuid: 'project',
+            agentUuid: 'agent',
+            threadUuid: 'thread',
+        };
+        const { rerender } = renderWithProviders(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{ ...approval, pendingToolCallIds: ['sql-call'] }}
+                />
+            </Provider>,
+        );
+        expect(screen.getByRole('button', { name: 'Approve' })).toBeVisible();
+
+        rerender(
+            <Provider store={store}>
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlToolGroups}
+                    approval={{ ...approval, pendingToolCallIds: [] }}
+                />
+            </Provider>,
+        );
+        expect(
+            screen.getByRole('button', { name: /Running SQL query/ }),
+        ).toHaveAttribute('aria-expanded', 'false');
+    });
+
     it('keeps a user collapse when the stream ends', async () => {
         const { rerender } = renderWithProviders(
             <LiveActivityCard isLive toolGroups={sqlToolGroups} />,

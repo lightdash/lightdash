@@ -676,15 +676,28 @@ export const LiveActivityCard: FC<Props> = ({
     // A call waiting on approval keeps the card "live" so its SQL is reachable.
     const isActive = isLive || hasPendingApproval;
 
+    // Remember the group whose approval was just decided; its SQL was already reviewed.
+    const [wasAwaitingApproval, setWasAwaitingApproval] =
+        useState(hasPendingApproval);
+    const [approvedKeyId, setApprovedKeyId] = useState<string | null>(null);
+    if (wasAwaitingApproval !== hasPendingApproval) {
+        setWasAwaitingApproval(hasPendingApproval);
+        if (!hasPendingApproval) setApprovedKeyId(latestGroup?.keyId ?? null);
+    }
+    const approvalDecided =
+        approvedKeyId !== null && approvedKeyId === latestGroup?.keyId;
+
     // runSql expands by default; composer only while active (the artifact panel
-    // shows the pipeline once done). A user toggle wins until expandKey changes.
+    // shows the pipeline once done); both collapse once their approval is decided.
+    // A user toggle wins until expandKey changes.
     const defaultExpanded =
-        latestGroup?.toolName === 'runSql' ||
         hasPendingApproval ||
-        (isActive && latestGroup?.toolName === 'runComposerQueries');
+        (!approvalDecided &&
+            (latestGroup?.toolName === 'runSql' ||
+                (isActive && latestGroup?.toolName === 'runComposerQueries')));
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
-    }`;
+    }:${approvalDecided}`;
     const [userToggle, setUserToggle] = useState<{
         key: string;
         value: boolean;
