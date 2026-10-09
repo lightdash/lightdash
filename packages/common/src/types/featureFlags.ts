@@ -333,6 +333,12 @@ export enum FeatureFlags {
     AiThreadRetention = 'ai-thread-retention',
 
     /**
+     * Per-organization gate for experimental surfaces in Lightdash Desktop.
+     * Desktop reads it once per sign-in. Off by default; enable per org.
+     */
+    DesktopExperiments = 'desktop-experiments',
+
+    /**
      * External data sources: upload CSV files or connect Google Sheets as
      * project tables. Tables are ingested to typed parquet in object storage,
      * generated as explores (ExploreType.EXTERNAL_SOURCE), and queried on the
