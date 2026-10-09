@@ -418,7 +418,11 @@ import {
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
-import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
+import {
+    assertValidPersistedBigquerySsoKeyfile,
+    bigqueryRuntimeKeyfile,
+    stripBigquerySsoClientSecretForPersistence,
+} from '../../utils/bigquerySsoCredentials';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
@@ -2174,11 +2178,15 @@ export class ProjectService
                         (stored) =>
                             getBigquerySsoCredentials(stored)?.refreshToken ===
                             repair.staleRefreshToken
-                                ? {
-                                      ...stored,
-                                      keyfileContents:
-                                          repair.credentials.keyfileContents,
-                                  }
+                                ? stripBigquerySsoClientSecretForPersistence(
+                                      {
+                                          ...stored,
+                                          keyfileContents:
+                                              repair.credentials
+                                                  .keyfileContents,
+                                      },
+                                      this.lightdashConfig.auth.google,
+                                  )
                                 : null,
                     );
                 if (!swapped) {
@@ -3657,7 +3665,10 @@ export class ProjectService
             provider === PersonSignInProvider.GOOGLE &&
             credentials?.type === WarehouseTypes.BIGQUERY
                 ? await this.isGoogleSharedSignInExpired(
-                      credentials.keyfileContents,
+                      bigqueryRuntimeKeyfile(
+                          credentials,
+                          this.lightdashConfig.auth.google,
+                      ),
                   )
                 : false;
         return {
@@ -5962,6 +5973,11 @@ export class ProjectService
             ),
         };
 
+        updatedProject.warehouseConnection =
+            stripBigquerySsoClientSecretForPersistence(
+                updatedProject.warehouseConnection,
+                this.lightdashConfig.auth.google,
+            );
         this.validateConfigSecrets(updatedProject);
         ProjectService.validateDbtEnvironmentVariables(
             updatedProject.dbtConnection,
@@ -6149,6 +6165,11 @@ export class ProjectService
                 ) as CreateWarehouseCredentials;
         }
 
+        updatedProject.warehouseConnection =
+            stripBigquerySsoClientSecretForPersistence(
+                updatedProject.warehouseConnection,
+                this.lightdashConfig.auth.google,
+            );
         this.validateConfigSecrets(updatedProject);
 
         await this.updateAndPushSsoCredentialsToPreviews({
@@ -16851,9 +16872,12 @@ export class ProjectService
         ): CreateProject => ({
             name: previewName,
             type: ProjectType.PREVIEW,
-            warehouseConnection: maybeOverrideWarehouseConnection(credentials, {
-                schema: `dbt_cloud_pr_${jobId}_${prId}`,
-            }),
+            warehouseConnection: stripBigquerySsoClientSecretForPersistence(
+                maybeOverrideWarehouseConnection(credentials, {
+                    schema: `dbt_cloud_pr_${jobId}_${prId}`,
+                }),
+                this.lightdashConfig.auth.google,
+            ),
             dbtConnection: { type: DbtProjectType.NONE },
             upstreamProjectUuid: projectUuid,
             dbtVersion: project.dbtVersion,
@@ -16886,9 +16910,12 @@ export class ProjectService
                     ...credentials
                 } = warehouseCredentials;
                 previewData.warehouseConnection =
-                    maybeOverrideWarehouseConnection(credentials, {
-                        schema: `dbt_cloud_pr_${jobId}_${prId}`,
-                    });
+                    stripBigquerySsoClientSecretForPersistence(
+                        maybeOverrideWarehouseConnection(credentials, {
+                            schema: `dbt_cloud_pr_${jobId}_${prId}`,
+                        }),
+                        this.lightdashConfig.auth.google,
+                    );
             }
             warehouseRef = {
                 kind: 'compile',

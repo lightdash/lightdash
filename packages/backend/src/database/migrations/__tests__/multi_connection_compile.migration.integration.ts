@@ -447,6 +447,7 @@ describe('Multi-connection compile on the real schema', () => {
                 encryptionUtil,
             });
         warehouseConnectionModel = new WarehouseConnectionModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel,
@@ -455,6 +456,7 @@ describe('Multi-connection compile on the real schema', () => {
             lightdashConfig: lightdashConfigMock,
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
@@ -662,6 +664,7 @@ describe('Multi-connection compile on the real schema', () => {
                 warehouseConnectionCompileModel,
                 userWarehouseCredentialsModel:
                     new UserWarehouseCredentialsModel({
+                        lightdashConfig: lightdashConfigMock,
                         database,
                         encryptionUtil,
                     }),

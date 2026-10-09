@@ -743,6 +743,7 @@ export class ModelRepository
             'warehouseConnectionModel',
             () =>
                 new WarehouseConnectionModel({
+                    lightdashConfig: this.lightdashConfig,
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     organizationWarehouseCredentialsModel:
@@ -756,7 +757,9 @@ export class ModelRepository
             'warehouseConnectionIdentityModel',
             () =>
                 new WarehouseConnectionIdentityModel({
+                    google: this.lightdashConfig.auth.google,
                     database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
         );
     }
@@ -766,6 +769,7 @@ export class ModelRepository
             'warehouseConnectionSwitchModel',
             () =>
                 new WarehouseConnectionSwitchModel({
+                    lightdashConfig: this.lightdashConfig,
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                     organizationWarehouseCredentialsModel:
@@ -1032,6 +1036,7 @@ export class ModelRepository
             'userWarehouseCredentialsModel',
             () =>
                 new UserWarehouseCredentialsModel({
+                    lightdashConfig: this.lightdashConfig,
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),

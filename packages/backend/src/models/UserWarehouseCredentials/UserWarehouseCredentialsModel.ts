@@ -28,6 +28,7 @@ import {
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { Knex } from 'knex';
+import type { LightdashConfig } from '../../config/parseConfig';
 import {
     normalizeDatabricksHost,
     normalizeDatabricksHostLenient,
@@ -39,7 +40,10 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import Logger from '../../logging/logger';
-import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
+import {
+    assertValidPersistedBigquerySsoKeyfile,
+    stripBigquerySsoClientSecretForPersistence,
+} from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 type RefreshTokenExpiry =
@@ -52,6 +56,7 @@ type DeletedAiCredential = {
 };
 
 type UserWarehouseCredentialsModelArguments = {
+    lightdashConfig: LightdashConfig;
     database: Knex;
     encryptionUtil: EncryptionUtil;
 };
@@ -62,12 +67,15 @@ type DbUserWarehouseCredentialsWithProject = DbUserWarehouseCredentials & {
 };
 
 export class UserWarehouseCredentialsModel {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly database: Knex;
 
     private readonly encryptionUtil: EncryptionUtil;
 
     constructor(args: UserWarehouseCredentialsModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
     }
 
@@ -690,6 +698,10 @@ export class UserWarehouseCredentialsModel {
     // would otherwise be resolved from the project connection at query time.
     static normalizeCredentialsForPersistence(
         data: UpsertUserWarehouseCredentials,
+        google: Pick<
+            LightdashConfig['auth']['google'],
+            'oauth2ClientId' | 'oauth2ClientSecret'
+        >,
     ): UpsertUserWarehouseCredentials {
         if (data.credentials.type === WarehouseTypes.BIGQUERY) {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
@@ -718,6 +730,13 @@ export class UserWarehouseCredentialsModel {
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
                 );
             }
+            return {
+                ...data,
+                credentials: stripBigquerySsoClientSecretForPersistence(
+                    data.credentials,
+                    google,
+                ),
+            };
         }
 
         if (data.credentials.type === WarehouseTypes.SNOWFLAKE) {
@@ -831,6 +850,7 @@ export class UserWarehouseCredentialsModel {
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
                 data,
+                this.lightdashConfig.auth.google,
             );
         let encryptedCredentials: Buffer;
         try {
@@ -893,6 +913,7 @@ export class UserWarehouseCredentialsModel {
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
                 dataToPersist,
+                this.lightdashConfig.auth.google,
             );
         let encryptedCredentials: Buffer;
         try {

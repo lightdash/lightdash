@@ -8,6 +8,7 @@ import type { LightdashConfig } from '../../../config/parseConfig';
 import {
     assertValidPersistedBigquerySsoKeyfile,
     hydrateBigquerySsoKeyfile,
+    stripBigquerySsoClientSecretForPersistence,
 } from '../../../utils/bigquerySsoCredentials';
 import type {
     CredentialResolution,
@@ -55,7 +56,6 @@ export class BigquerySsoCredentialResolver implements CredentialResolver<CreateB
                     keyfileContents: {
                         type: 'authorized_user',
                         client_id: this.google.oauth2ClientId!,
-                        client_secret: this.google.oauth2ClientSecret!,
                         refresh_token: refreshToken,
                     },
                 };
@@ -66,7 +66,6 @@ export class BigquerySsoCredentialResolver implements CredentialResolver<CreateB
                     keyfileContents: {
                         type: 'authorized_user',
                         client_id: this.google.oauth2ClientId!,
-                        client_secret: this.google.oauth2ClientSecret!,
                         refresh_token: intent.refreshToken,
                     },
                 };
@@ -78,10 +77,10 @@ export class BigquerySsoCredentialResolver implements CredentialResolver<CreateB
                 );
         }
         assertValidPersistedBigquerySsoKeyfile(credentials.keyfileContents);
-        const stored = {
-            ...credentials,
-            keyfileContents: { ...credentials.keyfileContents },
-        };
+        const stored = stripBigquerySsoClientSecretForPersistence(
+            credentials,
+            this.google,
+        );
         return { connection: stored, stored };
     }
 

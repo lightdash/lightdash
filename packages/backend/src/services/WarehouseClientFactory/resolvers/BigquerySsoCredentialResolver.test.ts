@@ -60,7 +60,7 @@ const fixture = () => {
     return { resolver, getRefreshToken, validateRefreshToken };
 };
 
-it('preserves a supplied refresh token without an exchange', async () => {
+it('preserves a supplied refresh token without an exchange and strips runtime fields', async () => {
     const { resolver, getRefreshToken, validateRefreshToken } = fixture();
     const connection = {
         ...stored,
@@ -77,7 +77,7 @@ it('preserves a supplied refresh token without an exchange', async () => {
         stored: connection,
         intent: { kind: 'preserve' },
     });
-    expect(result).toEqual({ connection, stored: connection });
+    expect(result).toEqual({ connection: stored, stored });
     expect(result.stored).not.toBe(connection);
     expect(connection.keyfileContents.client_secret).toBe('stale-secret');
     expect(getRefreshToken).not.toHaveBeenCalled();
@@ -99,8 +99,6 @@ it('links the current person and validates the BigQuery scope once', async () =>
         client_id:
             lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId,
         refresh_token: 'grant-refresh',
-        client_secret:
-            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientSecret,
     });
 });
 
@@ -131,9 +129,7 @@ it('accepts a verified callback without another exchange', async () => {
     expect(result.stored.keyfileContents.refresh_token).toBe(
         'callback-refresh',
     );
-    expect(result.stored.keyfileContents.client_secret).toBe(
-        lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientSecret,
-    );
+    expect(result.stored.keyfileContents).not.toHaveProperty('client_secret');
     expect(getRefreshToken).not.toHaveBeenCalled();
     expect(validateRefreshToken).not.toHaveBeenCalled();
 });
@@ -293,6 +289,36 @@ it.each([undefined, '', '   '])(
         });
         expect(result.clientCredentials.keyfileContents.client_secret).toBe(
             'stored-secret',
+        );
+        expect(connection.keyfileContents.client_secret).toBe('stored-secret');
+    },
+);
+
+it.each([undefined, '', '   ', 'configured-secret'])(
+    'preserves the only usable secret on save when the configured secret is %j',
+    async (oauth2ClientSecret) => {
+        const resolver = new BigquerySsoCredentialResolver(
+            () => ({
+                ...lightdashConfigWithGoogleOAuthMock.auth.google,
+                oauth2ClientSecret,
+            }),
+            null,
+        );
+        const connection = {
+            ...stored,
+            keyfileContents: {
+                ...stored.keyfileContents,
+                client_secret: 'stored-secret',
+            },
+        };
+        const result = await resolver.validateOnSave({
+            ...selection,
+            connection,
+            stored: connection,
+            intent: { kind: 'preserve' },
+        });
+        expect(result.stored.keyfileContents.client_secret).toBe(
+            oauth2ClientSecret?.trim() ? undefined : 'stored-secret',
         );
         expect(connection.keyfileContents.client_secret).toBe('stored-secret');
     },
