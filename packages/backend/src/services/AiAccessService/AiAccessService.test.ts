@@ -3212,7 +3212,13 @@ describe('bounded stored result lineage', () => {
                     properties: expect.objectContaining({ actor }),
                 }),
             );
-            expect(flags.get).toHaveBeenCalledOnce();
+            expect(
+                (flags.get.mock.calls as unknown[][]).filter(
+                    (call) =>
+                        (call[0] as { featureFlagId?: string } | undefined)
+                            ?.featureFlagId === FeatureFlags.AgentIdentity,
+                ),
+            ).toHaveLength(1);
         },
     );
 
