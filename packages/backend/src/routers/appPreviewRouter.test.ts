@@ -40,10 +40,8 @@ describe('app preview CSP browser image origins', () => {
             }),
         );
 
-
         // form-action 'none' prevents native submissions from
         // navigating externally
-
         expect(directives['form-action']).toEqual(["'none'"]);
     });
 });
