@@ -359,9 +359,19 @@ export class AiAccessService extends BaseService {
                     redirect: 'manual',
                     signal: AbortSignal.timeout(5000),
                 });
-                endpointCheck.status =
-                    response.status < 500 ? 'passed' : 'failed';
-                endpointCheck.detail = `Snowflake answered (HTTP ${response.status}).`;
+                endpointCheck.status = [
+                    200, 302, 303, 307, 400, 401, 403,
+                ].includes(response.status)
+                    ? 'passed'
+                    : 'failed';
+                endpointCheck.detail =
+                    endpointCheck.status === 'passed'
+                        ? `Snowflake answered (HTTP ${response.status}).`
+                        : `The authorization endpoint returned HTTP ${response.status}.${
+                              [404, 405].includes(response.status)
+                                  ? ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.'
+                                  : ''
+                          }`;
                 await response.body?.cancel();
             } catch (error) {
                 endpointCheck.status = 'failed';

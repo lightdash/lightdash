@@ -35,9 +35,6 @@ export const BigQueryAgentSetup = ({
                         >
                             <Stack gap="xs">
                                 <CodeBlock
-                                    codeColorScheme="dark"
-                                    background="dark.7"
-                                    radius="sm"
                                     language="bash"
                                     copyLabel="Copy commands"
                                     code={commands

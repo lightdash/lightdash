@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     enabled: true,
     canManage: true,
     configured: true,
+    missingAccount: false,
     healthLoading: false,
     healthError: false,
     refetch: vi.fn(),
@@ -119,9 +120,11 @@ const apiHandler = async ({
                 'https://backend.example/api/v1/oauth/redirect/snowflake-ai',
             integrationSql: backendSql,
             configured: mocks.configured,
-            missingSettings: mocks.configured
-                ? []
-                : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
+            missingSettings: mocks.missingAccount
+                ? ['SNOWFLAKE_AI_OAUTH_ACCOUNT']
+                : mocks.configured
+                  ? []
+                  : SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
         };
     if (url.endsWith('/verify')) return verification;
     if (method === 'PUT') {
@@ -174,6 +177,7 @@ describe('Organisation agent identity settings', () => {
             enabled: true,
             canManage: true,
             configured: true,
+            missingAccount: false,
             healthLoading: false,
             healthError: false,
         });
@@ -382,6 +386,90 @@ describe('Organisation agent identity settings', () => {
                 screen.queryByText('Not active yet'),
             ).not.toBeInTheDocument(),
         );
+    });
+    it.each([false, true])(
+        'shows the account row only when it is missing (%s)',
+        async (missingAccount) => {
+            mocks.missingAccount = missingAccount;
+            startUnconfigured();
+            await selectAgentSignIn();
+            await screen.findByText(backendSql);
+            SNOWFLAKE_AGENT_OAUTH_SETTINGS.forEach(({ envVar }) =>
+                expect(screen.getByText(envVar)).toBeInTheDocument(),
+            );
+            const accountRow = screen.queryByText('SNOWFLAKE_AI_OAUTH_ACCOUNT');
+            if (missingAccount) {
+                expect(accountRow).toBeInTheDocument();
+                expect(
+                    screen.getByText(
+                        'Account (needed when the token endpoint is not on snowflakecomputing.com)',
+                    ),
+                ).toBeInTheDocument();
+            } else {
+                expect(accountRow).not.toBeInTheDocument();
+            }
+        },
+    );
+    it('resets pending setup when a refetch returns an active saved rule', async () => {
+        const { client } = startUnconfigured();
+        await selectAgentSignIn();
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Verify integration' }),
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', { name: 'Turn on' }),
+            ).toBeEnabled(),
+        );
+        expect(screen.getByText('Not active yet')).toBeInTheDocument();
+        currentOverview = {
+            ...currentOverview,
+            rules: currentOverview.rules.map((rule) =>
+                rule.warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? { ...rule, source: 'agent_sign_in' }
+                    : rule,
+            ),
+        };
+        await act(async () => {
+            await client.invalidateQueries(['ai-access']);
+        });
+        expect(
+            await screen.findByText(
+                /Verified · Snowflake agent integration · checked/,
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'View setup' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Not active yet')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Turn on' }),
+        ).not.toBeInTheDocument();
+        currentOverview = {
+            ...currentOverview,
+            rules: currentOverview.rules.map((rule) =>
+                rule.warehouseType === WarehouseTypes.SNOWFLAKE
+                    ? { ...rule, source: 'marked_person' }
+                    : rule,
+            ),
+        };
+        await act(async () => {
+            await client.invalidateQueries(['ai-access']);
+        });
+        await waitFor(() =>
+            expect(
+                screen.getByRole('combobox', {
+                    name: 'Snowflake agent identity',
+                }),
+            ).toHaveValue(identityLabels.marked_person.label),
+        );
+        await selectAgentSignIn();
+        expect(
+            await screen.findByRole('button', { name: 'Turn on' }),
+        ).toBeDisabled();
+        expect(
+            screen.queryByText('Snowflake answered (HTTP 400).'),
+        ).not.toBeInTheDocument();
     });
     it('cancels without saving and clears verification for the next attempt', async () => {
         startUnconfigured();

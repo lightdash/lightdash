@@ -57,19 +57,19 @@ describe('BigQuery AI service account commands', () => {
                 step: 'create',
                 title: 'Create the service account',
                 command:
-                    'gcloud iam service-accounts create lightdash-agents --project=data-project --display-name="AI agents"',
+                    'gcloud iam service-accounts create lightdash-agents \\\n  --project=data-project \\\n  --display-name="AI agents"',
             },
             {
                 step: 'job_user',
                 title: 'Allow the service account to run jobs',
                 command:
-                    'gcloud projects add-iam-policy-binding job-project --member="serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com" --role="roles/bigquery.jobUser"',
+                    'gcloud projects add-iam-policy-binding job-project \\\n  --member="serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
             },
             {
                 step: 'data_viewer',
                 title: 'Allow the service account to read the dataset',
                 command:
-                    'bq query --project_id=job-project --nouse_legacy_sql \'GRANT `roles/bigquery.dataViewer` ON SCHEMA `data-project`.analytics TO "serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com"\'',
+                    'bq query \\\n  --project_id=job-project \\\n  --nouse_legacy_sql \\\n  \'GRANT `roles/bigquery.dataViewer` ON SCHEMA `data-project`.analytics TO "serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com"\'',
             },
         ]);
     });
@@ -83,8 +83,8 @@ describe('BigQuery AI service account commands', () => {
                 serviceAccountName: 'custom-agent',
             });
             expect(commands.map(({ command }) => command)).toEqual([
-                'gcloud iam service-accounts create custom-agent --project=data-project --display-name="AI agents"',
-                'gcloud projects add-iam-policy-binding data-project --member="serviceAccount:custom-agent@data-project.iam.gserviceaccount.com" --role="roles/bigquery.jobUser"',
+                'gcloud iam service-accounts create custom-agent \\\n  --project=data-project \\\n  --display-name="AI agents"',
+                'gcloud projects add-iam-policy-binding data-project \\\n  --member="serviceAccount:custom-agent@data-project.iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
             ]);
         },
     );
@@ -96,8 +96,8 @@ describe('BigQuery AI service account commands', () => {
             serviceAccountName: 'agent`id`',
         });
         expect(commands.map(({ command }) => command)).toEqual([
-            "gcloud iam service-accounts create 'agent`id`' --project='project'\"'\"'$(whoami)' --display-name=\"AI agents\"",
-            'gcloud projects add-iam-policy-binding \'jobs; echo bad\' --member="serviceAccount:agent\\`id\\`@project\'\\$(whoami).iam.gserviceaccount.com" --role="roles/bigquery.jobUser"',
+            "gcloud iam service-accounts create 'agent`id`' \\\n  --project='project'\"'\"'$(whoami)' \\\n  --display-name=\"AI agents\"",
+            'gcloud projects add-iam-policy-binding \'jobs; echo bad\' \\\n  --member="serviceAccount:agent\\`id\\`@project\'\\$(whoami).iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
         ]);
     });
     it('quotes the complete grant and escapes dataset identifiers', () => {
@@ -108,7 +108,7 @@ describe('BigQuery AI service account commands', () => {
                 dataset: "odd`'$(id)",
             })[2].command,
         ).toBe(
-            "bq query --project_id=data --nouse_legacy_sql 'GRANT `roles/bigquery.dataViewer` ON SCHEMA `data`.`odd\\`'\"'\"'$(id)` TO \"serviceAccount:lightdash-agents@data.iam.gserviceaccount.com\"'",
+            "bq query \\\n  --project_id=data \\\n  --nouse_legacy_sql \\\n  'GRANT `roles/bigquery.dataViewer` ON SCHEMA `data`.`odd\\`'\"'\"'$(id)` TO \"serviceAccount:lightdash-agents@data.iam.gserviceaccount.com\"'",
         );
     });
 });

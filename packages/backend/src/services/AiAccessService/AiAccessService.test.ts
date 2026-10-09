@@ -266,7 +266,8 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
                     clientSecret: 'test-secret',
                     authorizationEndpoint:
                         'https://snowflake.example/authorize',
-                    tokenEndpoint: 'https://snowflake.example/token',
+                    tokenEndpoint:
+                        'https://test-account.snowflakecomputing.com/token',
                 },
             },
         } as LightdashConfig,

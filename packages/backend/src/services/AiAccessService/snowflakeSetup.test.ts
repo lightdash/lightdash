@@ -26,7 +26,8 @@ const setup = () => {
                 clientId: 'test-client',
                 clientSecret: 'test-secret',
                 authorizationEndpoint: 'https://snowflake.example/authorize',
-                tokenEndpoint: 'https://snowflake.example/token',
+                tokenEndpoint:
+                    'https://test-account.snowflakecomputing.com/token',
             },
         },
     };
@@ -107,7 +108,7 @@ describe('Snowflake integration setup', () => {
         expect(verification.checks[1].status).toBe('not_checked');
         expect(fetchMock).not.toHaveBeenCalled();
     });
-    it.each([200, 302, 400, 401, 404, 499])(
+    it.each([200, 302, 303, 307, 400, 401, 403])(
         'accepts HTTP %s without following redirects or sending credentials',
         async (status) => {
             const { service, account, fetchMock, config } = setup();
@@ -135,16 +136,23 @@ describe('Snowflake integration setup', () => {
             );
         },
     );
-    it.each([500, 503])('fails for HTTP %s', async (status) => {
-        const { service, account, fetchMock } = setup();
-        fetchMock.mockResolvedValue({ status });
-        const result = await service.verifySnowflakeSetup(account);
-        expect(result.passed).toBe(false);
-        expect(result.checks[1]).toMatchObject({
-            status: 'failed',
-            detail: `Snowflake answered (HTTP ${status}).`,
-        });
-    });
+    it.each([201, 301, 304, 308, 404, 405, 429, 499, 500, 503])(
+        'fails for HTTP %s',
+        async (status) => {
+            const { service, account, fetchMock } = setup();
+            fetchMock.mockResolvedValue({ status });
+            const result = await service.verifySnowflakeSetup(account);
+            expect(result.passed).toBe(false);
+            expect(result.checks[1]).toMatchObject({
+                status: 'failed',
+                detail: `The authorization endpoint returned HTTP ${status}.${
+                    [404, 405].includes(status)
+                        ? ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.'
+                        : ''
+                }`,
+            });
+        },
+    );
     it.each(['Error', 'TimeoutError', 'AbortError'])(
         'reports a plain reason for %s without exposing the error',
         async (name) => {
@@ -233,6 +241,57 @@ describe('Snowflake integration setup', () => {
                 source: 'marked_person',
             }),
         ).resolves.toMatchObject({ source: 'marked_person' });
+    });
+    it('reports an unresolved account in setup and verification and blocks both write endpoints', async () => {
+        const { service, account, config, fetchMock, rules, settings } =
+            setup();
+        Object.assign(config.auth.snowflakeAi, {
+            account: undefined,
+            tokenEndpoint: 'https://proxy.example/token',
+        });
+        await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject(
+            {
+                configured: false,
+                missingSettings: ['SNOWFLAKE_AI_OAUTH_ACCOUNT'],
+            },
+        );
+        const result = await service.verifySnowflakeSetup(account);
+        expect(result.passed).toBe(false);
+        expect(result.checks[0]).toMatchObject({
+            status: 'failed',
+            detail: 'Missing: SNOWFLAKE_AI_OAUTH_ACCOUNT.',
+        });
+        expect(result.checks[1].status).toBe('not_checked');
+        expect(fetchMock).not.toHaveBeenCalled();
+        await expect(
+            service.updateOrganizationRule(account, WarehouseTypes.SNOWFLAKE, {
+                source: 'agent_sign_in',
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        await expect(
+            service.updateOrganizationSettings(account, {
+                requireVerifiedAgentSessions: true,
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(rules.set).not.toHaveBeenCalled();
+        expect(settings.upsert).not.toHaveBeenCalled();
+        config.auth.snowflakeAi.account = 'test-account';
+        await expect(service.getSnowflakeSetup(account)).resolves.toMatchObject(
+            {
+                configured: true,
+                missingSettings: [],
+            },
+        );
+        await expect(
+            service.verifySnowflakeSetup(account),
+        ).resolves.toMatchObject({
+            passed: true,
+        });
+        await expect(
+            service.updateOrganizationRule(account, WarehouseTypes.SNOWFLAKE, {
+                source: 'agent_sign_in',
+            }),
+        ).resolves.toMatchObject({ source: 'agent_sign_in' });
     });
     it('allows configured agent sign-in', async () => {
         const { service, account } = setup();

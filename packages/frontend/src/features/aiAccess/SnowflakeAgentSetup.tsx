@@ -41,6 +41,18 @@ const SnowflakeSetupSteps = ({
     onVerify: () => void;
 }) => {
     const [copied, setCopied] = useState(false);
+    const missingSettings = new Set(setup.missingSettings);
+    const oauthSettings: { envVar: string; label: string }[] = [
+        ...SNOWFLAKE_AGENT_OAUTH_SETTINGS,
+        ...(missingSettings.has('SNOWFLAKE_AI_OAUTH_ACCOUNT')
+            ? [
+                  {
+                      envVar: 'SNOWFLAKE_AI_OAUTH_ACCOUNT',
+                      label: 'Account (needed when the token endpoint is not on snowflakecomputing.com)',
+                  },
+              ]
+            : []),
+    ];
     return (
         <Stack gap="lg">
             <AgentSetupStep
@@ -49,9 +61,6 @@ const SnowflakeSetupSteps = ({
                 done={copied || setup.configured}
             >
                 <CodeBlock
-                    codeColorScheme="dark"
-                    background="dark.7"
-                    radius="sm"
                     language="sql"
                     code={setup.integrationSql}
                     copyLabel="Copy integration SQL"
@@ -69,19 +78,22 @@ const SnowflakeSetupSteps = ({
                         Your instance operator sets these and restarts the
                         instance.
                     </Text>
-                    {SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar, label }) => (
+                    {oauthSettings.map(({ envVar, label }) => (
                         <Group key={envVar} gap="xs">
                             <Code>{envVar}</Code>
+                            {envVar === 'SNOWFLAKE_AI_OAUTH_ACCOUNT' && (
+                                <Text size="xs">{label}</Text>
+                            )}
                             <Text
                                 size="xs"
                                 c={
-                                    setup.missingSettings.includes(envVar)
+                                    missingSettings.has(envVar)
                                         ? 'orange'
                                         : 'green'
                                 }
-                                aria-label={`${label}: ${setup.missingSettings.includes(envVar) ? 'missing' : 'set'}`}
+                                aria-label={`${label}: ${missingSettings.has(envVar) ? 'missing' : 'set'}`}
                             >
-                                {setup.missingSettings.includes(envVar)
+                                {missingSettings.has(envVar)
                                     ? 'Missing'
                                     : 'Set'}
                             </Text>
@@ -90,7 +102,7 @@ const SnowflakeSetupSteps = ({
                     {setup.missingSettings
                         .filter(
                             (setting) =>
-                                !SNOWFLAKE_AGENT_OAUTH_SETTINGS.some(
+                                !oauthSettings.some(
                                     ({ envVar }) => envVar === setting,
                                 ),
                         )

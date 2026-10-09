@@ -62,12 +62,16 @@ export const buildBigQueryAiServiceAccountCommands = ({
         {
             step: 'create',
             title: 'Create the service account',
-            command: `gcloud iam service-accounts create ${shellWord(serviceAccountName)} --project=${shellWord(project)} --display-name="AI agents"`,
+            command: `gcloud iam service-accounts create ${shellWord(serviceAccountName)} \\
+  --project=${shellWord(project)} \\
+  --display-name="AI agents"`,
         },
         {
             step: 'job_user',
             title: 'Allow the service account to run jobs',
-            command: `gcloud projects add-iam-policy-binding ${shellWord(jobProject)} --member=${doubleQuote(member)} --role="roles/bigquery.jobUser"`,
+            command: `gcloud projects add-iam-policy-binding ${shellWord(jobProject)} \\
+  --member=${doubleQuote(member)} \\
+  --role="roles/bigquery.jobUser"`,
         },
     ];
     if (dataset) {
@@ -81,7 +85,10 @@ export const buildBigQueryAiServiceAccountCommands = ({
         commands.push({
             step: 'data_viewer',
             title: 'Allow the service account to read the dataset',
-            command: `bq query --project_id=${shellWord(jobProject)} --nouse_legacy_sql ${singleQuote(grant)}`,
+            command: `bq query \\
+  --project_id=${shellWord(jobProject)} \\
+  --nouse_legacy_sql \\
+  ${singleQuote(grant)}`,
         });
     }
     return commands;

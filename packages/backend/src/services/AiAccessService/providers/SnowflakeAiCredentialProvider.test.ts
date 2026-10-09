@@ -68,6 +68,7 @@ const setup = () => {
                 authorizationEndpoint:
                     'https://snowflake.example.test/authorize',
                 tokenEndpoint: 'https://snowflake.example.test/token',
+                account: 'account',
                 loginPath: '/login/snowflake-ai',
                 callbackPath: '/login/snowflake-ai/callback',
             },
@@ -212,6 +213,13 @@ describe('SnowflakeAiCredentialProvider', () => {
 
     test('accepts a configured agent sign-in', () => {
         expect(setup().provider.configurationError()).toBeNull();
+    });
+    test('requires an account when the token endpoint does not name one', () => {
+        const { provider, config } = setup();
+        config.auth.snowflakeAi.account = '';
+        expect(provider.configurationError()).toBe(
+            'The Snowflake agent connection is not configured on this instance. Set the SNOWFLAKE_AI_OAUTH_* settings.',
+        );
     });
     test.each([
         'clientId',

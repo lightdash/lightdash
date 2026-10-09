@@ -248,7 +248,7 @@ describe('AI service account card', () => {
             /gcloud iam service-accounts create/,
         );
         expect(code).toHaveTextContent(
-            'gcloud iam service-accounts create lightdash-agents --project=data-project',
+            'gcloud iam service-accounts create lightdash-agents \\ --project=data-project',
         );
         expect(code).toHaveTextContent(
             'gcloud projects add-iam-policy-binding job-project',
@@ -256,7 +256,7 @@ describe('AI service account card', () => {
         expect(code).toHaveTextContent(
             'serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com',
         );
-        expect(code).toHaveTextContent('bq query --project_id=job-project');
+        expect(code).toHaveTextContent('bq query \\ --project_id=job-project');
         expect(code).toHaveTextContent('ON SCHEMA `data-project`.analytics');
         expect(
             screen.getByText('Grant only the data every agent user may see.'),

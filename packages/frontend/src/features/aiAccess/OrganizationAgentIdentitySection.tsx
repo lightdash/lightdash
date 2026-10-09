@@ -166,7 +166,10 @@ const AgentIdentitySettings = () => {
             {settings.data?.rules
                 .filter((rule) => rule.warehouseType in identityWarehouseNames)
                 .map((rule) => (
-                    <AgentIdentityRule key={rule.warehouseType} rule={rule} />
+                    <AgentIdentityRule
+                        key={`${rule.warehouseType}-${rule.source}`}
+                        rule={rule}
+                    />
                 ))}
         </Stack>
     );

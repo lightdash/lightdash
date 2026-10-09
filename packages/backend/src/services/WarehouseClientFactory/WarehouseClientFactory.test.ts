@@ -2691,6 +2691,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                         authorizationEndpoint:
                             'https://snowflake.example.test/authorize',
                         tokenEndpoint: 'https://snowflake.example.test/token',
+                        account: 'test-account',
                     },
                 },
             };

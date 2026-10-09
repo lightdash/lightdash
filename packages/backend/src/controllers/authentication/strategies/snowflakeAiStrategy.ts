@@ -15,6 +15,7 @@ import {
 } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { getSnowflakeAiAccount } from '../../../config/snowflakeAgentConfiguration';
 import Logger from '../../../logging/logger';
 import { AgentConnectStateStore } from './AgentConnectStateStore';
 
@@ -22,18 +23,6 @@ const config = lightdashConfig.auth.snowflakeAi;
 
 export const snowflakeAiSessionCheck = {
     check: checkSnowflakeAgentSessionWithToken,
-};
-
-const getSnowflakeAiAccount = (): string | null => {
-    if (config.account) return config.account;
-    if (!config.tokenEndpoint) return null;
-    try {
-        const host = new URL(config.tokenEndpoint).hostname.toLowerCase();
-        const suffix = '.snowflakecomputing.com';
-        return host.endsWith(suffix) ? host.slice(0, -suffix.length) : null;
-    } catch {
-        return null;
-    }
 };
 
 export const snowflakeAiPassportStrategy = !(
@@ -96,7 +85,7 @@ export const snowflakeAiPassportStrategy = !(
                           'Snowflake did not return a refresh token. Please try signing in again.',
                       );
                   }
-                  const account = getSnowflakeAiAccount();
+                  const account = getSnowflakeAiAccount(config);
                   if (!account) {
                       verification.failureReason =
                           AgentIdentityConnectFailureReason.NOT_CONFIGURED;
