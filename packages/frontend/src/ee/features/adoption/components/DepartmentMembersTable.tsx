@@ -3,7 +3,7 @@ import {
     type DepartmentMember,
 } from '@lightdash/common';
 import { Chip, Group, Pagination, Stack, Table, Text } from '@mantine/core';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import {
     countMembersByFilter,
     filterMembers,
@@ -12,6 +12,7 @@ import {
     formatMemberSource,
     sortMembers,
     type MemberFilter,
+    type PersonHighlight,
 } from '../utils/departmentDetail';
 import { formatCount } from '../utils/format';
 
@@ -33,19 +34,53 @@ const FILTERS: MemberFilter[] = [
 const isMemberFilter = (value: string): value is MemberFilter =>
     FILTERS.some((filter) => filter === value);
 
-export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
-    members,
-}) => {
+const pageOf = (index: number): number => Math.floor(index / PAGE_SIZE) + 1;
+
+type Props = {
+    members: DepartmentMember[];
+    // A person picked on the map: their row is marked, shown and scrolled to
+    highlight: PersonHighlight | null;
+};
+
+export const DepartmentMembersTable: FC<Props> = ({ members, highlight }) => {
     const [filter, setFilter] = useState<MemberFilter>('all');
     const [page, setPage] = useState(1);
     const counts = useMemo(() => countMembersByFilter(members), [members]);
     const sorted = useMemo(() => sortMembers(members), [members]);
+    // A person picked is shown on their page, under the filter chosen if it holds them and under All if not
+    const [shownRequest, setShownRequest] = useState<number | null>(null);
+    if (highlight !== null && highlight.request !== shownRequest) {
+        setShownRequest(highlight.request);
+        const indexIn = (each: MemberFilter) =>
+            filterMembers(sorted, each).findIndex(
+                (member) => member.userUuid === highlight.userUuid,
+            );
+        const index = indexIn(filter);
+        if (index >= 0) {
+            setPage(pageOf(index));
+        } else {
+            const everyone = indexIn('all');
+            if (everyone >= 0) {
+                setFilter('all');
+                setPage(pageOf(everyone));
+            }
+        }
+    }
     const filtered = useMemo(
         () => filterMembers(sorted, filter),
         [sorted, filter],
     );
     const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
     const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    // The row is brought into view and takes focus, so the keyboard and a screen reader land on the person too
+    const highlightedRowRef = useRef<HTMLTableRowElement | null>(null);
+    const request = highlight?.request ?? null;
+    useEffect(() => {
+        const row = highlightedRowRef.current;
+        if (request === null || row === null) return;
+        row.scrollIntoView({ block: 'center' });
+        row.focus({ preventScroll: true });
+    }, [request]);
 
     if (members.length === 0) {
         return (
@@ -97,8 +132,26 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                     )}
                     {visible.map((member) => {
                         const alsoIn = formatAlsoIn(member.sharedWith);
+                        const isHighlighted =
+                            member.userUuid === highlight?.userUuid;
                         return (
-                            <Table.Tr key={member.userUuid}>
+                            <Table.Tr
+                                key={member.userUuid}
+                                ref={
+                                    isHighlighted
+                                        ? highlightedRowRef
+                                        : undefined
+                                }
+                                tabIndex={isHighlighted ? -1 : undefined}
+                                aria-current={
+                                    isHighlighted ? 'true' : undefined
+                                }
+                                bg={
+                                    isHighlighted
+                                        ? 'var(--mantine-primary-color-light)'
+                                        : undefined
+                                }
+                            >
                                 <Table.Td>
                                     <Text fz="sm" fw={500}>
                                         {`${member.firstName} ${member.lastName}`.trim()}

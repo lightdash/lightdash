@@ -9,9 +9,6 @@ export const ADOPTION_NAV_KEYWORDS = [
     'usage',
 ];
 
-export const getDepartmentPath = (departmentUuid: string): string =>
-    `${ADOPTION_PATH}/${departmentUuid}`;
-
 // The page's query string names the view shown and the department selected
 export const VIEW_PARAM = 'view';
 const DEPARTMENT_PARAM = 'department';
@@ -34,6 +31,10 @@ export const withSelectedDepartment = (
     else next.set(DEPARTMENT_PARAM, departmentUuid);
     return next;
 };
+
+// The page with a department selected, whatever the value; the page checks it is a uuid before asking for it
+export const getDepartmentPath = (departmentUuid: string): string =>
+    `${ADOPTION_PATH}?${withSelectedDepartment(new URLSearchParams(), departmentUuid).toString()}`;
 
 export type AdoptionView = 'map' | 'list' | 'waffle';
 

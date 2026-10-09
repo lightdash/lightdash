@@ -69,7 +69,6 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
     ADOPTION = 'adoption',
-    ADOPTION_DEPARTMENT = 'adoption_department',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }

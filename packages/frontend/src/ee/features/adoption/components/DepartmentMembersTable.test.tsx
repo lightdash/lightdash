@@ -1,6 +1,6 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { memberFixture } from '../utils/adoptionFixtures';
 import { DepartmentMembersTable } from './DepartmentMembersTable';
@@ -21,7 +21,9 @@ const bodyRows = () => screen.getAllByRole('row').slice(1);
 
 describe('DepartmentMembersTable', () => {
     it('lists people with no activity in 90 days first, then the least recently active', () => {
-        renderWithProviders(<DepartmentMembersTable members={members} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={members} highlight={null} />,
+        );
         const rows = bodyRows();
         expect(rows).toHaveLength(3);
         expect(within(rows[0]).getByText('never@example.com')).toBeVisible();
@@ -36,7 +38,9 @@ describe('DepartmentMembersTable', () => {
         expect(within(rows[2]).getByText('12')).toBeVisible();
     });
     it('offers every activity filter, with counts', () => {
-        renderWithProviders(<DepartmentMembersTable members={members} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={members} highlight={null} />,
+        );
         const chipLabels = screen
             .getAllByRole('radio')
             .map((chip) =>
@@ -53,7 +57,9 @@ describe('DepartmentMembersTable', () => {
         expect(screen.getByRole('radio', { name: 'All (3)' })).toBeChecked();
     });
     it('filters to people active in the last 30 days', async () => {
-        renderWithProviders(<DepartmentMembersTable members={members} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={members} highlight={null} />,
+        );
         await userEvent.click(screen.getByText('Active in 30 days (1)'));
         expect(bodyRows()).toHaveLength(1);
         expect(
@@ -61,7 +67,9 @@ describe('DepartmentMembersTable', () => {
         ).toBeVisible();
     });
     it('filters to people with no activity in 90 days', async () => {
-        renderWithProviders(<DepartmentMembersTable members={members} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={members} highlight={null} />,
+        );
         await userEvent.click(screen.getByText('No activity in 90 days (1)'));
         expect(bodyRows()).toHaveLength(1);
         expect(
@@ -69,7 +77,9 @@ describe('DepartmentMembersTable', () => {
         ).toBeVisible();
     });
     it('filters to people not active in 30 days', async () => {
-        renderWithProviders(<DepartmentMembersTable members={members} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={members} highlight={null} />,
+        );
         await userEvent.click(screen.getByText('Not active in 30 days (1)'));
         expect(bodyRows()).toHaveLength(1);
         expect(
@@ -84,6 +94,7 @@ describe('DepartmentMembersTable', () => {
                         isActive30d: true,
                     }),
                 ]}
+                highlight={null}
             />,
         );
         await userEvent.click(screen.getByText('No activity in 90 days (0)'));
@@ -100,6 +111,7 @@ describe('DepartmentMembersTable', () => {
                         isActive30d: true,
                     }),
                 ]}
+                highlight={null}
             />,
         );
         expect(screen.getByText('All (1,201)')).toBeVisible();
@@ -117,6 +129,7 @@ describe('DepartmentMembersTable', () => {
                         dashboardViews30d: 5678,
                     }),
                 ]}
+                highlight={null}
             />,
         );
         const [row] = bodyRows();
@@ -124,7 +137,9 @@ describe('DepartmentMembersTable', () => {
         expect(within(row).getByText('5,678')).toBeVisible();
     });
     it('says so when no one has an account', () => {
-        renderWithProviders(<DepartmentMembersTable members={[]} />);
+        renderWithProviders(
+            <DepartmentMembersTable members={[]} highlight={null} />,
+        );
         expect(
             screen.getByText('No one in this department has an account yet'),
         ).toBeVisible();
@@ -143,6 +158,7 @@ describe('DepartmentMembersTable', () => {
                     }),
                     memberFixture('single', null),
                 ]}
+                highlight={null}
             />,
         );
         const [shared, single] = bodyRows();
@@ -158,6 +174,94 @@ describe('DepartmentMembersTable', () => {
             'title',
         );
     });
+    describe('a person picked on the map', () => {
+        // Sixty people, none active, then one active: Ana is on the second page of everyone
+        const many = [
+            ...Array.from({ length: 60 }, (_, index) =>
+                memberFixture(`p${String(index).padStart(2, '0')}`, null),
+            ),
+            memberFixture('ana', new Date().toISOString(), {
+                isActive30d: true,
+            }),
+        ];
+
+        it('is marked, shown on their page, scrolled to and given focus', () => {
+            const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            try {
+                renderWithProviders(
+                    <DepartmentMembersTable
+                        members={many}
+                        highlight={{ userUuid: 'ana', request: 1 }}
+                    />,
+                );
+                const row = screen.getByText('ana@example.com').closest('tr');
+                expect(row).toHaveAttribute('aria-current', 'true');
+                expect(row).toHaveFocus();
+                expect(scrolled.mock.contexts).toContain(row);
+                expect(
+                    screen.getByRole('button', { name: '2' }),
+                ).toHaveAttribute('aria-current', 'page');
+                expect(
+                    bodyRows().filter((each) =>
+                        each.hasAttribute('aria-current'),
+                    ),
+                ).toHaveLength(1);
+            } finally {
+                scrolled.mockRestore();
+            }
+        });
+
+        it('brings back everyone when the filter chosen leaves them out, and scrolls again when picked again', async () => {
+            const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            try {
+                const { rerender } = renderWithProviders(
+                    <DepartmentMembersTable members={many} highlight={null} />,
+                );
+                await userEvent.click(
+                    screen.getByText('No activity in 90 days (60)'),
+                );
+                rerender(
+                    <DepartmentMembersTable
+                        members={many}
+                        highlight={{ userUuid: 'ana', request: 1 }}
+                    />,
+                );
+                expect(
+                    screen.getByRole('radio', { name: 'All (61)' }),
+                ).toBeChecked();
+                expect(
+                    screen.getByText('ana@example.com').closest('tr'),
+                ).toHaveAttribute('aria-current', 'true');
+                expect(scrolled).toHaveBeenCalledOnce();
+                rerender(
+                    <DepartmentMembersTable
+                        members={many}
+                        highlight={{ userUuid: 'ana', request: 2 }}
+                    />,
+                );
+                expect(scrolled).toHaveBeenCalledTimes(2);
+            } finally {
+                scrolled.mockRestore();
+            }
+        });
+
+        it('keeps the filter chosen when it holds them', async () => {
+            const { rerender } = renderWithProviders(
+                <DepartmentMembersTable members={many} highlight={null} />,
+            );
+            await userEvent.click(screen.getByText('Active in 30 days (1)'));
+            rerender(
+                <DepartmentMembersTable
+                    members={many}
+                    highlight={{ userUuid: 'ana', request: 1 }}
+                />,
+            );
+            expect(
+                screen.getByRole('radio', { name: 'Active in 30 days (1)' }),
+            ).toBeChecked();
+            expect(bodyRows()).toHaveLength(1);
+        });
+    });
     it('names three other departments and counts the rest, with every name in its title', () => {
         const departments = ['Sales', 'Finance', 'Marketing', 'Data', 'Legal'];
         renderWithProviders(
@@ -170,6 +274,7 @@ describe('DepartmentMembersTable', () => {
                         })),
                     }),
                 ]}
+                highlight={null}
             />,
         );
         expect(

@@ -10,7 +10,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
-import { useSearchParams } from 'react-router';
+import { Navigate, useParams, useSearchParams } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
@@ -29,6 +29,7 @@ import { DotSwatch } from '../features/adoption/map/MapLegend';
 import {
     ADOPTION_VIEW_LABELS,
     ADOPTION_VIEWS,
+    getDepartmentPath,
     getSelectedDepartment,
     parseAdoptionView,
     VIEW_PARAM,
@@ -36,6 +37,7 @@ import {
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
 import { type MembershipTab } from '../features/adoption/utils/attention';
+import { type PersonHighlight } from '../features/adoption/utils/departmentDetail';
 import {
     getViewStorageKey,
     readStoredView,
@@ -86,6 +88,30 @@ const Adoption: FC = () => {
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
     // Shared with the selected department below the view, so the drawer lists its people without loading everyone's
     const selectedDetail = useDepartmentDetail(selectedUuid ?? undefined);
+    // A person picked on the map is shown in the selected department's people; another selection drops them
+    const [personPick, setPersonPick] = useState<{
+        departmentUuid: string | null;
+        highlight: PersonHighlight | null;
+    }>({ departmentUuid: selectedUuid, highlight: null });
+    if (personPick.departmentUuid !== selectedUuid) {
+        setPersonPick({ departmentUuid: selectedUuid, highlight: null });
+    }
+    const highlight =
+        personPick.departmentUuid === selectedUuid
+            ? personPick.highlight
+            : null;
+    // Picking the same person again is a new request, so their row comes back into view
+    const pickPerson = useCallback(
+        (userUuid: string) =>
+            setPersonPick((previous) => ({
+                departmentUuid: previous.departmentUuid,
+                highlight: {
+                    userUuid,
+                    request: (previous.highlight?.request ?? 0) + 1,
+                },
+            })),
+        [],
+    );
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
     // While a delete is in flight the department answers 404; what was shown stays until it is deselected
     const [isDeleting, setIsDeleting] = useState(false);
@@ -276,6 +302,10 @@ const Adoption: FC = () => {
                                     onSelect={select}
                                     colourBy={colourBy}
                                     onColourByChange={setColourBy}
+                                    selectedUserUuid={
+                                        highlight?.userUuid ?? null
+                                    }
+                                    onPersonClick={pickPerson}
                                 />
                             )}
                             {view === 'list' && (
@@ -309,6 +339,7 @@ const Adoption: FC = () => {
                                 }
                                 canManage={canManage}
                                 isDeleting={isDeleting}
+                                highlight={highlight}
                                 onSelect={select}
                                 onEdit={openEdit}
                                 onPlacePeople={placePeople}
@@ -349,6 +380,12 @@ const Adoption: FC = () => {
             )}
         </SettingsPage>
     );
+};
+
+// The department page's old link, kept so that links already shared open the department on this page
+export const AdoptionDepartmentRedirect: FC = () => {
+    const { departmentUuid = '' } = useParams<{ departmentUuid: string }>();
+    return <Navigate to={getDepartmentPath(departmentUuid)} replace />;
 };
 
 export default Adoption;

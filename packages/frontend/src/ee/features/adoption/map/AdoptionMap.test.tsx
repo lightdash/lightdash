@@ -87,23 +87,36 @@ const summary = (
     };
 };
 
-// The page holds the department selected and the colouring, and deselects; here a stand-in does
+// The page holds the department selected, the colouring and the person picked, and deselects; here a stand-in does
 const MapOnPage: FC<
     Omit<
         ComponentProps<typeof AdoptionMap>,
-        'selectedUuid' | 'onSelect' | 'colourBy' | 'onColourByChange'
+        | 'selectedUuid'
+        | 'onSelect'
+        | 'colourBy'
+        | 'onColourByChange'
+        | 'selectedUserUuid'
+        | 'onPersonClick'
     >
 > = (props) => {
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
+        null,
+    );
     return (
         <>
             <AdoptionMap
                 {...props}
                 selectedUuid={selectedUuid}
-                onSelect={setSelectedUuid}
+                onSelect={(departmentUuid) => {
+                    setSelectedUuid(departmentUuid);
+                    setSelectedUserUuid(null);
+                }}
                 colourBy={colourBy}
                 onColourByChange={setColourBy}
+                selectedUserUuid={selectedUserUuid}
+                onPersonClick={setSelectedUserUuid}
             />
             <button type="button" onClick={() => setSelectedUuid(null)}>
                 Show the organization
@@ -311,6 +324,8 @@ describe('AdoptionMap', () => {
             onSelect,
             colourBy: 'activity' as const,
             onColourByChange: vi.fn(),
+            selectedUserUuid: null,
+            onPersonClick: vi.fn(),
             measureText: estimateTextWidth,
         };
         const { rerender } = renderWithProviders(
@@ -445,6 +460,14 @@ describe('AdoptionMap', () => {
             container.querySelector('svg[role="img"] [data-selected]'),
         ).toHaveAttribute('data-user', 'grace');
         expect(container.querySelectorAll('[data-selected]')).toHaveLength(1);
+        // A click on a dot picks its person too
+        const ada = container.querySelector(
+            'svg[role="img"] [data-user="ada"]',
+        );
+        if (ada) fireEvent.click(ada);
+        expect(
+            container.querySelector('svg[role="img"] [data-selected]'),
+        ).toHaveAttribute('data-user', 'ada');
     });
 
     it('does not fetch the people of a department with more than 150 in view, and draws its dots from the counts', async () => {

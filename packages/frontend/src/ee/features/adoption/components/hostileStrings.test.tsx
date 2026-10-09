@@ -7,10 +7,9 @@ import {
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState, type FC } from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { type ColourBy } from '../map/geometry';
 import { CoverageRowList, MapInspector } from '../map/MapInspector';
@@ -30,6 +29,7 @@ import {
 import { DepartmentDrawer } from './DepartmentDrawer';
 import { DepartmentsTable } from './DepartmentsTable';
 import { MembershipModal } from './MembershipModal';
+import { SelectedDepartment } from './SelectedDepartment';
 import { TopContentList } from './TopContentList';
 
 // Markup, a double quote and a javascript: URL in every string a person can type
@@ -209,6 +209,9 @@ const expectNothingInjected = () => {
 const MapOnPage: FC = () => {
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
+        null,
+    );
     return (
         <AdoptionMap
             summary={{
@@ -222,10 +225,35 @@ const MapOnPage: FC = () => {
             onSelect={setSelectedUuid}
             colourBy={colourBy}
             onColourByChange={setColourBy}
+            selectedUserUuid={selectedUserUuid}
+            onPersonClick={setSelectedUserUuid}
             measureText={estimateTextWidth}
         />
     );
 };
+
+// The department selected on the page, as the page shows it below the view
+const renderSelected = (departmentUuid: string) =>
+    renderWithProviders(
+        <MemoryRouter
+            initialEntries={[
+                `/generalSettings/adoption?department=${departmentUuid}`,
+            ]}
+        >
+            <SelectedDepartment
+                departmentUuid={departmentUuid}
+                organization={metricsFixture(7, null)}
+                colourBy="activity"
+                keySwatch={DotSwatch}
+                canManage
+                isDeleting={false}
+                highlight={null}
+                onSelect={vi.fn()}
+                onEdit={vi.fn()}
+                onPlacePeople={vi.fn()}
+            />
+        </MemoryRouter>,
+    );
 
 describe('typed strings render as text', () => {
     afterEach(() => {
@@ -462,7 +490,7 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('on the department page: title, breadcrumb, key content, sub-departments and people', () => {
+    it('in the department selected: title, breadcrumb, owners, key content, sub-departments and people', () => {
         const PAGE = '11111111-2222-4333-8444-555555555555';
         const PARENT_UUID = '22222222-3333-4444-8555-666666666666';
         const CHILD_UUID = '33333333-4444-4555-8666-777777777777';
@@ -499,35 +527,25 @@ describe('typed strings render as text', () => {
                 }),
             ],
         };
-        renderWithProviders(
-            <MemoryRouter
-                initialEntries={[`/generalSettings/adoption/${PAGE}`]}
-            >
-                <Routes>
-                    <Route
-                        path="/generalSettings/adoption/:departmentUuid"
-                        element={<AdoptionDepartment />}
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        renderSelected(PAGE);
 
         expect(screen.getByRole('heading', { name: NAME })).toBeVisible();
+        // The breadcrumb selects by id, never by name
         expect(screen.getByRole('link', { name: PARENT })).toHaveAttribute(
             'href',
-            `/generalSettings/adoption/${PARENT_UUID}`,
+            `/generalSettings/adoption?department=${PARENT_UUID}`,
         );
-        expect(screen.getByRole('link', { name: CHILD })).toHaveAttribute(
-            'href',
-            `/generalSettings/adoption/${CHILD_UUID}`,
-        );
+        expectLiteral(CHILD);
+        expectLiteral(`Directly in ${NAME}`);
+        expectLiteral(OWNER);
+        expectLiteral(GROUP_OWNER);
         [DASHBOARD, EXPLORE, AGENT].forEach(expectLiteral);
         expectKeyContentLinks();
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectLiteral(EMAIL);
         expectLiteral(`Group ${GROUP}`);
-        // Owners, linked groups and the headcount note are in Edit department, not on the page
-        [OWNER, GROUP_OWNER, NOTE].forEach((text) =>
+        // Linked groups and the headcount note are in Edit department, not here
+        [NOTE].forEach((text) =>
             expect(
                 screen.queryAllByText((content) => content.includes(text)),
             ).toHaveLength(0),
@@ -577,18 +595,7 @@ describe('typed strings render as text', () => {
             },
             members: null,
         };
-        const { container } = renderWithProviders(
-            <MemoryRouter
-                initialEntries={[`/generalSettings/adoption/${PAGE}`]}
-            >
-                <Routes>
-                    <Route
-                        path="/generalSettings/adoption/:departmentUuid"
-                        element={<AdoptionDepartment />}
-                    />
-                </Routes>
-            </MemoryRouter>,
-        );
+        const { container } = renderSelected(PAGE);
 
         // The drawing's title and its regions' names hold the names as typed, as text
         expect(

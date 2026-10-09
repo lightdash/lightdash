@@ -1,25 +1,28 @@
 import {
     type DepartmentDetail,
+    type DepartmentOverlaps,
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
-import { MemoryRouter, useLocation } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import {
     dept,
+    memberFixture,
     metricsFixture,
     placedMetricsFixture,
     withServerHeadcounts,
 } from '../features/adoption/utils/adoptionFixtures';
-import Adoption from './Adoption';
+import Adoption, { AdoptionDepartmentRedirect } from './Adoption';
 
 const OPERATIONS = '11111111-2222-4333-8444-555555555555';
 const STORES = '22222222-2222-4333-8444-555555555555';
 const UNKNOWN = '99999999-2222-4333-8444-555555555555';
+const MARKETING = '33333333-2222-4333-8444-555555555555';
 
 // Operations and Stores under it
 const [operations, stores] = withServerHeadcounts([
@@ -27,11 +30,25 @@ const [operations, stores] = withServerHeadcounts([
     dept('Stores', OPERATIONS, 10, { departmentUuid: STORES }),
 ]);
 
-// A department as the server sends it, with where it sits and what is below it
+// Operations' people: Sue is also in Marketing, Sam is not
+const OPERATIONS_PEOPLE = [
+    memberFixture('sam', null, {
+        departmentUuid: OPERATIONS,
+        departmentName: 'Operations',
+    }),
+    memberFixture('sue', null, {
+        departmentUuid: OPERATIONS,
+        departmentName: 'Operations',
+        sharedWith: [{ departmentUuid: MARKETING, name: 'Marketing' }],
+    }),
+];
+
+// A department as the server sends it, with where it sits, what is below it and its people
 const detailOf = (
     department: DepartmentWithMetrics,
     ancestors: DepartmentDetail['ancestors'],
     children: DepartmentWithMetrics[],
+    members: DepartmentDetail['members'],
 ): DepartmentDetail => ({
     department,
     ancestors,
@@ -42,7 +59,24 @@ const detailOf = (
         orgAverage: 0,
     })),
     topContent: { dashboards: [], explores: [], aiAgents: [] },
-    members: [],
+    members,
+});
+
+// Operations shares Sue with Marketing
+const operationsOverlaps = (
+    members: DepartmentOverlaps['members'],
+): DepartmentOverlaps => ({
+    department: { departmentUuid: OPERATIONS, name: 'Operations' },
+    overlaps: [
+        {
+            departmentUuid: MARKETING,
+            name: 'Marketing',
+            people: 1,
+            active30d: 0,
+        },
+    ],
+    venn: null,
+    members,
 });
 
 const summary = vi.fn();
@@ -57,13 +91,16 @@ vi.mock('../hooks/useOrgDepartments', () => ({
             error: null,
         });
         if (departmentUuid === OPERATIONS) {
-            return answer(detailOf(operations, [], [stores]));
+            return answer(
+                detailOf(operations, [], [stores], OPERATIONS_PEOPLE),
+            );
         }
         if (departmentUuid === STORES) {
             return answer(
                 detailOf(
                     stores,
                     [{ departmentUuid: OPERATIONS, name: 'Operations' }],
+                    [],
                     [],
                 ),
             );
@@ -77,6 +114,22 @@ vi.mock('../hooks/useOrgDepartments', () => ({
                   error: { error: { statusCode: 404, message: 'Not found' } },
               };
     },
+    // Operations' overlap with Marketing, and Sue when it is chosen
+    useDepartmentOverlaps: (
+        departmentUuid: string | undefined,
+        withUuids: string[] = [],
+    ) => ({
+        isInitialLoading: false,
+        isError: false,
+        data:
+            departmentUuid === OPERATIONS
+                ? operationsOverlaps(
+                      withUuids.includes(MARKETING)
+                          ? [OPERATIONS_PEOPLE[1]]
+                          : null,
+                  )
+                : undefined,
+    }),
     useDepartmentMembership: () => ({ data: [], isInitialLoading: false }),
     useSetDepartmentMembers: () => ({ mutate: vi.fn(), isLoading: false }),
     useSetPrimaryDepartment: () => ({ mutate: vi.fn(), isLoading: false }),
@@ -86,16 +139,24 @@ vi.mock('../../components/EChartsReactWrapper', () => ({
     default: () => null,
 }));
 // The map draws with real layout, which jsdom does not have; this one shows what the page gives it
-const { mapSelection } = vi.hoisted(() => ({ mapSelection: vi.fn() }));
+const { mapSelection, mapPerson } = vi.hoisted(() => ({
+    mapSelection: vi.fn(),
+    mapPerson: vi.fn(),
+}));
 vi.mock('../features/adoption/map/AdoptionMap', () => ({
     AdoptionMap: ({
         selectedUuid,
         onSelect,
+        selectedUserUuid,
+        onPersonClick,
     }: {
         selectedUuid: string | null;
         onSelect: (departmentUuid: string | null) => void;
+        selectedUserUuid: string | null;
+        onPersonClick: (userUuid: string) => void;
     }) => {
         mapSelection(selectedUuid);
+        mapPerson(selectedUserUuid);
         return (
             <>
                 <button type="button" onClick={() => onSelect(OPERATIONS)}>
@@ -103,6 +164,9 @@ vi.mock('../features/adoption/map/AdoptionMap', () => ({
                 </button>
                 <button type="button" onClick={() => onSelect(null)}>
                     Select the organization on the map
+                </button>
+                <button type="button" onClick={() => onPersonClick('sue')}>
+                    Pick Sue on the map
                 </button>
             </>
         );
@@ -175,6 +239,7 @@ describe('Adoption', () => {
     beforeEach(() => {
         summary.mockReset();
         mapSelection.mockReset();
+        mapPerson.mockReset();
     });
     afterEach(() => {
         window.localStorage.clear();
@@ -517,5 +582,96 @@ describe('Adoption', () => {
                 screen.getByRole('button', { name: /^Operations,/ }),
             ).toBeInTheDocument();
         });
+
+        it('scrolls to and marks the row of a person picked on the map, whom the map marks too', async () => {
+            const scrolled = vi.spyOn(Element.prototype, 'scrollIntoView');
+            try {
+                renderPage(
+                    organizationSummary(12, 6),
+                    undefined,
+                    `/generalSettings/adoption?view=map&department=${OPERATIONS}`,
+                );
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Pick Sue on the map' }),
+                );
+                const row = screen.getByText('sue@example.com').closest('tr');
+                expect(row).toHaveAttribute('aria-current', 'true');
+                expect(row).toHaveFocus();
+                expect(scrolled.mock.contexts).toContain(row);
+                expect(mapPerson).toHaveBeenLastCalledWith('sue');
+                // Another selection drops the person
+                await userEvent.click(
+                    screen.getByRole('button', { name: /^Stores/ }),
+                );
+                expect(mapPerson).toHaveBeenLastCalledWith(null);
+            } finally {
+                scrolled.mockRestore();
+            }
+        });
+
+        it('starts a department returned to with everyone, whatever overlap was chosen before', async () => {
+            renderPage(
+                organizationSummary(12, 6),
+                undefined,
+                `/generalSettings/adoption?view=list&department=${OPERATIONS}`,
+            );
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 1 person, 0 active',
+                }),
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'Clear filter: Also in Marketing',
+                }),
+            ).toBeInTheDocument();
+            expect(screen.queryByText('sam@example.com')).toBeNull();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Stores/ }),
+            );
+            await userEvent.click(
+                within(
+                    screen.getByRole('navigation', {
+                        name: 'Selected department',
+                    }),
+                ).getByRole('link', { name: 'Operations' }),
+            );
+            expect(
+                screen.queryByRole('button', { name: /^Clear filter/ }),
+            ).toBeNull();
+            expect(screen.getByText('sam@example.com')).toBeInTheDocument();
+        });
+    });
+
+    it("redirects the department page's old link to the department selected on this page", () => {
+        summary.mockReturnValue({
+            isInitialLoading: false,
+            isError: false,
+            data: organizationSummary(12, 6),
+            error: null,
+        });
+        renderWithProviders(
+            <MemoryRouter
+                initialEntries={[`/generalSettings/adoption/${OPERATIONS}`]}
+            >
+                <Routes>
+                    <Route
+                        path="/generalSettings/adoption"
+                        element={<Adoption />}
+                    />
+                    <Route
+                        path="/generalSettings/adoption/:departmentUuid"
+                        element={<AdoptionDepartmentRedirect />}
+                    />
+                </Routes>
+                <Location />
+            </MemoryRouter>,
+        );
+        expect(location()).toHaveTextContent(
+            `/generalSettings/adoption?department=${OPERATIONS}`,
+        );
+        expect(
+            screen.getByRole('heading', { name: 'Operations' }),
+        ).toBeInTheDocument();
     });
 });

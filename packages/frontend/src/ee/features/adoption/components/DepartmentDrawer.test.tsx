@@ -875,28 +875,36 @@ describe('DepartmentForm', { timeout: 20_000 }, () => {
             ).toBeInTheDocument();
         });
 
-        it('shows the first 50 resolved people with a link to the department page for the rest', () => {
+        it('shows the first 50 resolved people with a link that selects the department, keeping the view, for the rest', async () => {
             membership = Array.from({ length: 60 }, (_, index) =>
                 placedIn(`m${index}`, `Member${index}`, ['Ops']),
             );
+            const onClose = vi.fn();
             renderWithProviders(
-                <MemoryRouter>
+                <MemoryRouter
+                    initialEntries={['/generalSettings/adoption?view=list']}
+                >
                     <DepartmentForm
                         department={departments[0]}
                         departments={departments}
                         members={null}
-                        onClose={vi.fn()}
+                        onClose={onClose}
                     />
                 </MemoryRouter>,
             );
             expect(membershipEnabled).toHaveBeenCalledWith(true);
             expect(screen.getByText('Member49 Test')).toBeInTheDocument();
             expect(screen.queryByText('Member50 Test')).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('link', {
-                    name: 'Showing 50 of 60, see everyone on the department page',
-                }),
-            ).toHaveAttribute('href', '/generalSettings/adoption/Ops');
+            const link = screen.getByRole('link', {
+                name: 'Showing 50 of 60, see everyone in the department',
+            });
+            expect(link).toHaveAttribute(
+                'href',
+                '/generalSettings/adoption?view=list&department=Ops',
+            );
+            // Following it closes the drawer, so the department's people show
+            await userEvent.click(link);
+            expect(onClose).toHaveBeenCalled();
         });
 
         it('offers 50 people at a time in the pickers and finds the rest by search', async () => {

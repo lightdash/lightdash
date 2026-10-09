@@ -86,8 +86,7 @@ import { McpGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admi
 import { AiCreditsSettingsPage } from '../ee/features/aiCredits/AiCreditsSettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
-import Adoption from '../ee/pages/Adoption';
-import AdoptionDepartment from '../ee/pages/AdoptionDepartment';
+import Adoption, { AdoptionDepartmentRedirect } from '../ee/pages/Adoption';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
@@ -719,11 +718,7 @@ const Settings: FC = () => {
             });
             allowedRoutes.push({
                 path: '/adoption/:departmentUuid',
-                element: (
-                    <TrackPage name={PageName.ADOPTION_DEPARTMENT}>
-                        <AdoptionDepartment />
-                    </TrackPage>
-                ),
+                element: <AdoptionDepartmentRedirect />,
             });
         }
 

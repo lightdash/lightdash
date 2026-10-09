@@ -22,7 +22,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
 import TruncatedText from '../../../../components/common/TruncatedText';
@@ -37,7 +37,7 @@ import {
     useSetDepartmentOwners,
     useUpdateDepartment,
 } from '../../../hooks/useOrgDepartments';
-import { getDepartmentPath } from '../utils/adoptionNav';
+import { withSelectedDepartment } from '../utils/adoptionNav';
 import {
     buildDepartmentUpdate,
     cleanHeadcountNote,
@@ -113,6 +113,25 @@ const getHeadcountHint = (
     ].join('. ');
 };
 
+// Selects the department on the page, keeping the view, where its people list everyone; the drawer closes to show them
+const SeeEveryoneLink: FC<{
+    departmentUuid: string;
+    onFollow: () => void;
+    children: string;
+}> = ({ departmentUuid, onFollow, children }) => {
+    const [searchParams] = useSearchParams();
+    return (
+        <Anchor
+            component={Link}
+            to={`?${withSelectedDepartment(searchParams, departmentUuid).toString()}`}
+            onClick={onFollow}
+            fz="xs"
+        >
+            {children}
+        </Anchor>
+    );
+};
+
 const getFullName = (person: {
     firstName: string;
     lastName: string;
@@ -136,7 +155,7 @@ export const DepartmentForm: FC<FormProps> = ({
     const setMembers = useSetDepartmentMembers();
     const { data: users = [] } = useOrganizationUsers();
     const { data: groups = [] } = useOrganizationGroups({});
-    // The department page's people leave out anyone who counts elsewhere, so an assigned person missing there needs everyone's list
+    // The selected department's people leave out anyone who counts elsewhere, so an assigned person missing there needs everyone's list
     const isAssignedPersonUnlisted = useMemo(() => {
         if (department === null || members === null) return false;
         const listed = new Set(members.map((member) => member.userUuid));
@@ -474,15 +493,14 @@ export const DepartmentForm: FC<FormProps> = ({
                                         {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, everyone is listed under People on this page`}
                                     </Text>
                                 ) : (
-                                    <Anchor
-                                        component={Link}
-                                        to={getDepartmentPath(
-                                            department.departmentUuid,
-                                        )}
-                                        fz="xs"
+                                    <SeeEveryoneLink
+                                        departmentUuid={
+                                            department.departmentUuid
+                                        }
+                                        onFollow={onClose}
                                     >
-                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, see everyone on the department page`}
-                                    </Anchor>
+                                        {`Showing ${formatCount(RESOLVED_MEMBER_LIMIT)} of ${formatCount(resolvedMembers.length)}, see everyone in the department`}
+                                    </SeeEveryoneLink>
                                 ))}
                         </Stack>
                     )}

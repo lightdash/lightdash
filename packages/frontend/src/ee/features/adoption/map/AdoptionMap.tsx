@@ -56,6 +56,9 @@ type Props = {
     onSelect: (departmentUuid: string | null) => void;
     colourBy: ColourBy;
     onColourByChange: (colourBy: ColourBy) => void;
+    // The person picked on the map, whose row the selected department's people show
+    selectedUserUuid: string | null;
+    onPersonClick: (userUuid: string) => void;
     // Label widths; measured with the page's own font unless one is supplied
     measureText?: TextMeasurer;
 };
@@ -67,14 +70,13 @@ export const AdoptionMap: FC<Props> = ({
     onSelect,
     colourBy,
     onColourByChange,
+    selectedUserUuid,
+    onPersonClick,
     measureText,
 }) => {
     const { departments } = summary;
     // A selected department is shown below the map, which becomes a strip with no panel beside it
     const isStrip = selectedUuid !== null;
-    const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
-        null,
-    );
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
     const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
 
@@ -200,7 +202,6 @@ export const AdoptionMap: FC<Props> = ({
     const focusOn = useCallback(
         (departmentUuid: string | null) => {
             onSelect(departmentUuid);
-            setSelectedUserUuid(null);
             setHighlightedUuid(null);
         },
         [onSelect],
@@ -256,7 +257,7 @@ export const AdoptionMap: FC<Props> = ({
                                 highlightedUuid={highlightedUuid}
                                 selectedUserUuid={selectedUserUuid}
                                 onDepartmentClick={focusOn}
-                                onPersonClick={setSelectedUserUuid}
+                                onPersonClick={onPersonClick}
                             />
                         )}
                     </Box>
@@ -290,9 +291,7 @@ export const AdoptionMap: FC<Props> = ({
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                setSelectedUserUuid(
-                                                    member.userUuid,
-                                                )
+                                                onPersonClick(member.userUuid)
                                             }
                                         >
                                             {`${member.firstName} ${member.lastName}`.trim() ||

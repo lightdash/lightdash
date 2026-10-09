@@ -25,6 +25,10 @@ export type MemberFilter =
     | 'inactive30d'
     | 'noRecordedActivity';
 
+// A person picked on the map, whose row the people table shows; every pick is a new request, so picking the same
+// person again brings their row back into view
+export type PersonHighlight = { userUuid: string; request: number };
+
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ACTIVE_DAYS = 30;
 

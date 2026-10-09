@@ -1,6 +1,8 @@
 import {
     type AdoptionMetrics,
     type DepartmentDetail,
+    type DepartmentMember,
+    type DepartmentOverlaps,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
@@ -12,22 +14,34 @@ import { type ColourBy } from '../map/geometry';
 import { DotSwatch } from '../map/MapLegend';
 import {
     dept,
+    memberFixture,
     metricsFixture,
     withServerHeadcounts,
 } from '../utils/adoptionFixtures';
-import { type WeeklyComparisonPoint } from '../utils/departmentDetail';
+import {
+    type PersonHighlight,
+    type WeeklyComparisonPoint,
+} from '../utils/departmentDetail';
 import { SelectedDepartment } from './SelectedDepartment';
 
 const COMPANY = '00000000-2222-4333-8444-555555555555';
 const DATA = '11111111-2222-4333-8444-555555555555';
 const SCIENCE = '44444444-2222-4333-8444-555555555555';
 const ENGINEERING = '55555555-2222-4333-8444-555555555555';
+const MARKETING = '22222222-2222-4333-8444-555555555555';
+const SALES = '33333333-2222-4333-8444-555555555555';
 
 const detail = vi.fn();
+const overlaps = vi.fn();
 const chartWeeks = vi.fn();
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useDepartmentDetail: (departmentUuid: string | undefined) =>
         detail(departmentUuid),
+    useDepartmentOverlaps: (
+        departmentUuid: string | undefined,
+        withUuids: string[] = [],
+        withoutUuids: string[] = [],
+    ) => overlaps(departmentUuid, withUuids, withoutUuids),
 }));
 vi.mock('./WeeklyActiveChart', () => ({
     WeeklyActiveChart: ({ weeks }: { weeks: WeeklyComparisonPoint[] }) => {
@@ -111,7 +125,8 @@ const leafDetail = (): DepartmentDetail => {
     };
 };
 
-const loaded = (data: DepartmentDetail) => ({
+// A query that has answered, with a department or with its overlaps
+const loaded = <T extends DepartmentDetail | DepartmentOverlaps>(data: T) => ({
     isInitialLoading: false,
     isError: false,
     data,
@@ -123,17 +138,106 @@ const failure = (statusCode: number) => ({
     data: undefined,
     error: { error: { statusCode, message: 'nope' } },
 });
+// What a query answers before it is enabled, and while it loads
+const idle = { isInitialLoading: false, isError: false, data: undefined };
+const pending = { isInitialLoading: true, isError: false, data: undefined };
+
+// Ann is also in Marketing, Bob in Marketing and Sales, Cat only here
+const PEOPLE: DepartmentMember[] = [
+    memberFixture('ann', null, {
+        departmentUuid: DATA,
+        departmentName: 'Data',
+        sharedWith: [{ departmentUuid: MARKETING, name: 'Marketing' }],
+    }),
+    memberFixture('bob', null, {
+        departmentUuid: DATA,
+        departmentName: 'Data',
+        sharedWith: [
+            { departmentUuid: MARKETING, name: 'Marketing' },
+            { departmentUuid: SALES, name: 'Sales' },
+        ],
+    }),
+    memberFixture('cat', null, {
+        departmentUuid: DATA,
+        departmentName: 'Data',
+    }),
+];
+const MEMBERS_IN: Record<string, string[]> = {
+    [MARKETING]: ['ann', 'bob'],
+    [SALES]: ['bob'],
+};
+
+const departmentOverlaps = (): DepartmentOverlaps => ({
+    department: { departmentUuid: DATA, name: 'Data' },
+    overlaps: [
+        {
+            departmentUuid: MARKETING,
+            name: 'Marketing',
+            people: 2,
+            active30d: 0,
+        },
+        { departmentUuid: SALES, name: 'Sales', people: 1, active30d: 0 },
+    ],
+    venn: {
+        sets: [
+            { departmentUuid: DATA, name: 'Data' },
+            { departmentUuid: MARKETING, name: 'Marketing' },
+            { departmentUuid: SALES, name: 'Sales' },
+        ],
+        regions: [
+            { sets: [DATA], people: 1, active30d: 0 },
+            { sets: [MARKETING], people: 40, active30d: 0 },
+            { sets: [SALES], people: 30, active30d: 0 },
+            { sets: [DATA, MARKETING], people: 1, active30d: 0 },
+            { sets: [DATA, SALES], people: 0, active30d: 0 },
+            { sets: [MARKETING, SALES], people: 2, active30d: 0 },
+            { sets: [DATA, MARKETING, SALES], people: 1, active30d: 0 },
+        ],
+    },
+    members: null,
+});
+
+// Like the server: no lists, no people; otherwise the department's people in every "with" and in no "without"
+const answerOverlaps = (
+    departmentUuid: string | undefined,
+    withUuids: string[],
+    withoutUuids: string[],
+) => {
+    if (departmentUuid === undefined) return idle;
+    const isIn = (member: DepartmentMember, uuid: string) =>
+        (MEMBERS_IN[uuid] ?? []).includes(member.userUuid);
+    return loaded({
+        ...departmentOverlaps(),
+        members:
+            withUuids.length === 0 && withoutUuids.length === 0
+                ? null
+                : PEOPLE.filter(
+                      (member) =>
+                          withUuids.every((uuid) => isIn(member, uuid)) &&
+                          !withoutUuids.some((uuid) => isIn(member, uuid)),
+                  ),
+    });
+};
+
+type RenderOptions = {
+    departmentUuid?: string;
+    canManage?: boolean;
+    colourBy?: ColourBy;
+    isDeleting?: boolean;
+    highlight?: PersonHighlight | null;
+};
 
 const renderDetail = ({
     departmentUuid = DATA,
     canManage = false,
-    colourBy = 'activity' as ColourBy,
+    colourBy = 'activity',
     isDeleting = false,
-} = {}) => {
+    highlight = null,
+}: RenderOptions = {}) => {
     const onSelect = vi.fn();
     const onEdit = vi.fn();
     const onPlacePeople = vi.fn();
-    renderWithProviders(
+    const element = (picked: PersonHighlight | null) => (
         <MemoryRouter
             initialEntries={[
                 `/generalSettings/adoption?view=map&department=${departmentUuid}`,
@@ -146,14 +250,30 @@ const renderDetail = ({
                 keySwatch={DotSwatch}
                 canManage={canManage}
                 isDeleting={isDeleting}
+                highlight={picked}
                 onSelect={onSelect}
                 onEdit={onEdit}
                 onPlacePeople={onPlacePeople}
             />
-        </MemoryRouter>,
+        </MemoryRouter>
     );
-    return { onSelect, onEdit, onPlacePeople };
+    const { rerender } = renderWithProviders(element(highlight));
+    // The same department with a person picked on the map
+    const pick = (picked: PersonHighlight) => rerender(element(picked));
+    return { onSelect, onEdit, onPlacePeople, pick };
 };
+
+// The emails of the people listed, in order
+const peopleShown = () =>
+    within(
+        screen.getByRole('table', {
+            name: (_name, element) =>
+                element.querySelector('th')?.textContent === 'Person',
+        }),
+    )
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getByText(/@example\.com$/).textContent);
 
 // The department's own bar, the first drawn, as its parts in order and the share of the bar each takes; the rest is
 // its track, the people without an account
@@ -194,6 +314,8 @@ describe('SelectedDepartment', () => {
     beforeEach(() => {
         detail.mockReset();
         chartWeeks.mockReset();
+        overlaps.mockReset();
+        overlaps.mockReturnValue(idle);
     });
 
     describe('while it cannot be shown', () => {
@@ -377,6 +499,26 @@ describe('SelectedDepartment', () => {
             expect(
                 screen.queryByRole('group', { name: 'Coverage' }),
             ).toBeNull();
+        });
+
+        it('shows no target, even when one is set', () => {
+            detail.mockReturnValue(
+                loaded({
+                    ...departmentDetail({
+                        targetActiveUsers: 120,
+                        targetDate: '2026-12-31',
+                    }),
+                    targetProgress: {
+                        targetActiveUsers: 120,
+                        targetDate: '2026-12-31',
+                        activeUsers: 85,
+                        remaining: 35,
+                        weeksLeft: 12,
+                    },
+                }),
+            );
+            renderDetail();
+            expect(screen.queryByText(/target|to go/i)).toBeNull();
         });
 
         it('splits its bar by role when the view is coloured by role', () => {
@@ -574,6 +716,410 @@ describe('SelectedDepartment', () => {
                 'href',
                 `/generalSettings/adoption?view=map&department=${DATA}`,
             );
+        });
+    });
+
+    describe('every section', () => {
+        // The overlaps of whichever department is asked about, listed without a diagram
+        const overlapsOf = (departmentUuid: string, name: string) =>
+            loaded({
+                ...departmentOverlaps(),
+                department: { departmentUuid, name },
+                venn: null,
+            });
+
+        it.each([
+            [
+                'a department with sub-departments',
+                DATA,
+                departmentDetail,
+                [
+                    'Weekly active people',
+                    'Key content',
+                    'Overlaps',
+                    'Sub-departments',
+                    'People',
+                ],
+            ],
+            [
+                'a department without any',
+                SCIENCE,
+                leafDetail,
+                ['Weekly active people', 'Key content', 'Overlaps', 'People'],
+            ],
+        ])('renders for %s', (_label, departmentUuid, build, sections) => {
+            const built = build();
+            detail.mockReturnValue(loaded({ ...built, members: PEOPLE }));
+            overlaps.mockImplementation((asked: string | undefined) =>
+                asked === undefined
+                    ? idle
+                    : overlapsOf(departmentUuid, built.department.name),
+            );
+            renderDetail({ departmentUuid, canManage: true });
+            const name = built.department.name;
+            expect(
+                screen.getByRole('navigation', {
+                    name: 'Selected department',
+                }),
+            ).toHaveTextContent(name);
+            expect(screen.getByRole('heading', { name })).toHaveFocus();
+            expect(
+                screen.getByRole('button', { name: 'Edit department' }),
+            ).toBeInTheDocument();
+            expect(mainBar().length).toBeGreaterThan(0);
+            expect(legendLines()[0]).toMatch(/^Healthy \d+$/);
+            expect(
+                screen.getByText(/ on Lightdash · \d+ active in 30 days/),
+            ).toBeVisible();
+            expect(
+                screen
+                    .getAllByRole('heading')
+                    .map((heading) => heading.textContent)
+                    .filter(
+                        (title) =>
+                            title !== name &&
+                            !['Dashboards', 'Explores', 'AI agents'].includes(
+                                title ?? '',
+                            ),
+                    ),
+            ).toEqual(sections);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            ).toBeVisible();
+            expect(peopleShown()).toHaveLength(3);
+        });
+    });
+
+    describe('what it uses', () => {
+        it('lists the key content, each item linked to it', () => {
+            const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
+            detail.mockReturnValue(
+                loaded({
+                    ...departmentDetail(),
+                    topContent: {
+                        dashboards: [
+                            {
+                                id: 'd1',
+                                name: 'Sales',
+                                projectUuid: PROJECT,
+                                count: 3,
+                                distinctPeople: 2,
+                            },
+                        ],
+                        explores: [
+                            {
+                                id: `${PROJECT}:orders`,
+                                name: 'orders',
+                                projectUuid: PROJECT,
+                                count: 5,
+                                distinctPeople: 2,
+                            },
+                        ],
+                        aiAgents: [
+                            {
+                                id: 'a1',
+                                name: 'Analyst',
+                                projectUuid: PROJECT,
+                                count: 1,
+                                distinctPeople: 1,
+                            },
+                        ],
+                    },
+                }),
+            );
+            renderDetail();
+            expect(
+                screen.getByRole('heading', { name: 'Key content' }),
+            ).toBeVisible();
+            expect(screen.getByRole('link', { name: 'Sales' })).toHaveAttribute(
+                'href',
+                `/projects/${PROJECT}/dashboards/d1/view`,
+            );
+            expect(
+                screen.getByRole('link', { name: 'orders' }),
+            ).toHaveAttribute('href', `/projects/${PROJECT}/tables/orders`);
+            expect(
+                screen.getByRole('link', { name: 'Analyst' }),
+            ).toHaveAttribute('href', `/projects/${PROJECT}/ai-agents/a1`);
+        });
+    });
+
+    describe('its overlaps and its people', () => {
+        beforeEach(() => {
+            detail.mockReturnValue(
+                loaded({ ...departmentDetail(), members: PEOPLE }),
+            );
+            overlaps.mockImplementation(answerOverlaps);
+        });
+
+        const SECTIONS = [
+            'Weekly active people',
+            'Key content',
+            'Overlaps',
+            'Sub-departments',
+            'People',
+        ];
+        const sectionTitles = () =>
+            screen
+                .getAllByRole('heading')
+                .map((heading) => heading.textContent ?? '')
+                .filter((title) => SECTIONS.includes(title));
+
+        it('come in order after its numbers: key content, overlaps, sub-departments and people', () => {
+            renderDetail();
+            expect(sectionTitles()).toEqual([
+                'Weekly active people',
+                'Key content',
+                'Overlaps',
+                'Sub-departments',
+                'People',
+            ]);
+            expect(
+                screen.getByRole('group', {
+                    name: 'Overlap of Data, Marketing and Sales',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            ).toBeVisible();
+        });
+
+        it('leave the overlaps out when no department outside this one shares its people', () => {
+            overlaps.mockImplementation((departmentUuid: string | undefined) =>
+                departmentUuid === undefined
+                    ? idle
+                    : loaded({
+                          ...departmentOverlaps(),
+                          overlaps: [],
+                          venn: null,
+                      }),
+            );
+            renderDetail();
+            expect(sectionTitles()).toEqual([
+                'Weekly active people',
+                'Key content',
+                'Sub-departments',
+                'People',
+            ]);
+        });
+
+        it("ask for this department's overlaps, and for nobody's people until an overlap is chosen", () => {
+            renderDetail();
+            expect(overlaps).toHaveBeenCalledWith(DATA, [], []);
+            expect(overlaps).toHaveBeenCalledWith(undefined, [], []);
+            overlaps.mock.calls.forEach((call) =>
+                expect([
+                    [DATA, [], []],
+                    [undefined, [], []],
+                ]).toContainEqual(call),
+            );
+            expect(peopleShown()).toEqual([
+                'ann@example.com',
+                'bob@example.com',
+                'cat@example.com',
+            ]);
+        });
+
+        it('say which other departments each person is also in', () => {
+            renderDetail();
+            expect(screen.getByText('Also in Marketing')).toBeVisible();
+            expect(
+                screen.getByText('Also in Marketing and Sales'),
+            ).toBeVisible();
+        });
+
+        it('list only the people also in a department chosen, and the chip brings everyone back', async () => {
+            renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            );
+            expect(overlaps).toHaveBeenLastCalledWith(DATA, [MARKETING], []);
+            expect(peopleShown()).toEqual([
+                'ann@example.com',
+                'bob@example.com',
+            ]);
+            const clear = screen.getByRole('button', {
+                name: 'Clear filter: Also in Marketing',
+            });
+            expect(clear.parentElement).toHaveTextContent(
+                /^Also in Marketing$/,
+            );
+            await userEvent.click(clear);
+            expect(peopleShown()).toEqual([
+                'ann@example.com',
+                'bob@example.com',
+                'cat@example.com',
+            ]);
+            expect(overlaps).toHaveBeenLastCalledWith(undefined, [], []);
+        });
+
+        it('list exactly the people in a region of the diagram chosen', async () => {
+            renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Data and Marketing, 1 person',
+                }),
+            );
+            expect(overlaps).toHaveBeenLastCalledWith(
+                DATA,
+                [MARKETING],
+                [SALES],
+            );
+            expect(peopleShown()).toEqual(['ann@example.com']);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Clear filter: Also in Marketing, not in Sales',
+                }),
+            ).toBeVisible();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Data only, 1 person' }),
+            );
+            expect(overlaps).toHaveBeenLastCalledWith(
+                DATA,
+                [],
+                [MARKETING, SALES],
+            );
+            expect(peopleShown()).toEqual(['cat@example.com']);
+            expect(
+                screen.getByRole('button', {
+                    name: 'Clear filter: Not in Marketing or Sales',
+                }),
+            ).toBeVisible();
+        });
+
+        it('start the people of each overlap on their first page', async () => {
+            const many = Array.from({ length: 60 }, (_, i) =>
+                memberFixture(`m${String(i).padStart(2, '0')}`, null, {
+                    departmentUuid: DATA,
+                    departmentName: 'Data',
+                }),
+            );
+            overlaps.mockImplementation(
+                (departmentUuid: string | undefined, withUuids: string[]) => {
+                    if (departmentUuid === undefined) return idle;
+                    const members = withUuids.includes(MARKETING)
+                        ? many
+                        : withUuids.includes(SALES)
+                          ? [PEOPLE[1]]
+                          : null;
+                    return loaded({ ...departmentOverlaps(), members });
+                },
+            );
+            renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            );
+            await userEvent.click(screen.getByRole('button', { name: '2' }));
+            expect(peopleShown()).toHaveLength(10);
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Sales, 1 person, 0 active',
+                }),
+            );
+            expect(peopleShown()).toEqual(['bob@example.com']);
+        });
+
+        it('show that the people chosen are loading, and offer a retry when they fail', async () => {
+            const refetch = vi.fn();
+            overlaps.mockImplementation(
+                (departmentUuid: string | undefined, withUuids: string[]) => {
+                    if (departmentUuid === undefined) return idle;
+                    return withUuids.includes(SALES)
+                        ? { ...failure(500), refetch }
+                        : withUuids.length > 0
+                          ? pending
+                          : loaded(departmentOverlaps());
+                },
+            );
+            renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            );
+            expect(screen.getByText('Loading people')).toBeVisible();
+            expect(
+                screen.queryByText('ann@example.com'),
+            ).not.toBeInTheDocument();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Sales, 1 person, 0 active',
+                }),
+            );
+            expect(
+                screen.getByText("These people couldn't be loaded"),
+            ).toBeVisible();
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Retry' }),
+            );
+            expect(refetch).toHaveBeenCalledOnce();
+        });
+
+        it('move keyboard focus to the Overlaps heading when the chip is cleared', async () => {
+            renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            );
+            const clear = screen.getByRole('button', {
+                name: 'Clear filter: Also in Marketing',
+            });
+            clear.focus();
+            await userEvent.keyboard('{Enter}');
+            expect(
+                screen.queryByRole('button', { name: /^Clear filter/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('heading', { name: 'Overlaps' }),
+            ).toHaveFocus();
+        });
+
+        it('mark the row of a person picked on the map, keeping the overlap chosen when it holds them', async () => {
+            const { pick } = renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Marketing, 2 people, 0 active',
+                }),
+            );
+            pick({ userUuid: 'bob', request: 1 });
+            expect(peopleShown()).toEqual([
+                'ann@example.com',
+                'bob@example.com',
+            ]);
+            expect(
+                screen.getByText('bob@example.com').closest('tr'),
+            ).toHaveAttribute('aria-current', 'true');
+        });
+
+        it('bring everyone back for a person picked on the map whom the overlap chosen leaves out', async () => {
+            const { pick } = renderDetail();
+            await userEvent.click(
+                screen.getByRole('button', {
+                    name: 'Sales, 1 person, 0 active',
+                }),
+            );
+            expect(peopleShown()).toEqual(['bob@example.com']);
+            pick({ userUuid: 'cat', request: 1 });
+            expect(
+                screen.queryByRole('button', { name: /^Clear filter/ }),
+            ).not.toBeInTheDocument();
+            expect(peopleShown()).toEqual([
+                'ann@example.com',
+                'bob@example.com',
+                'cat@example.com',
+            ]);
+            const row = screen.getByText('cat@example.com').closest('tr');
+            expect(row).toHaveAttribute('aria-current', 'true');
+            expect(row).toHaveFocus();
         });
     });
 });
