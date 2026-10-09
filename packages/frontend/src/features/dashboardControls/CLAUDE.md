@@ -356,11 +356,12 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     and count sit in one `aria-live="polite"` element; each button's
     `aria-label` names the field, the count and the scope ("on this tab",
     "on every tab", nothing without tabs).
-  - Mount: `ControlsSidebarPage` renders it, and it portals into the element
-    the active tab's `.react-grid-layout` sits in (found with
-    `usePortalTargets`: the `[data-tab-uuid]` panel, or the grid wrapper
-    without tab panels), so it lands after the grid and moves no tile.
-  - Position: `position: sticky; bottom` in that element, `width:
+  - Mount: `ControlsSidebarPage` renders it. It finds the active tab's
+    `.react-grid-layout` with `usePortalTargets`, inserts an element of its
+    own right after that grid and portals into it, so it moves no tile. The
+    element is keyed on the grid: a grid mounted again gets a new one, or
+    React would append the new grid after the bar.
+  - Position: that element is `position: sticky; bottom`, `width:
     fit-content` and auto side margins, so it is centred in the dashboard
     content and stays at the bottom of the view while the page scrolls;
     under the last tile row on a short dashboard. `z-index: 3`: above the
