@@ -42,8 +42,8 @@ const PANEL_INSET_PX = 6;
 const EDGE_TOLERANCE_PX = 1e-6;
 const ELLIPSIS = '…';
 
-// Room kept free around the drawing. The bottom holds one hover label under the lowest circle, so a circle
-// as tall as the drawing still shows its label inside the map, which clips anything outside it
+// Room kept free around the drawing. The bottom holds one label under the lowest circle, so a circle as
+// tall as the drawing still shows its label inside the map, which clips anything outside it
 const HOVER_LABEL_BAND_PX =
     LABEL_GAP_PX + LINE_PX.name + LINE_PX.detail + PANEL_INSET_PX;
 const MARGIN = { top: 12, right: 12, bottom: HOVER_LABEL_BAND_PX, left: 12 };
@@ -423,7 +423,42 @@ export const getHoverLabel = (
     };
 };
 
-// Fills the panel with the pack, less the band at the bottom for the lowest circle's hover label
+// A circle narrower than this on screen is named on hover only
+const REST_LABEL_MIN_DIAMETER_PX = 24;
+
+// Each circle of the level in view is named at rest, as and where its hover label would name it. Nothing is
+// moved or resized to make room for the names
+export const getRestLabels = (
+    circles: PackedCircle[],
+    info: Map<string, CircleInfo>,
+    zoom: number,
+    area: Area,
+    measure: TextMeasurer,
+): CircleLabel[] =>
+    circles.flatMap((circle) => {
+        if (
+            circle.depth !== 1 ||
+            circle.r * 2 * zoom < REST_LABEL_MIN_DIAMETER_PX
+        ) {
+            return [];
+        }
+        const label = getHoverLabel(circle, info, zoom, area, measure);
+        return label === null ? [] : [label];
+    });
+
+// A hover label takes the place of its circle's name at rest, and of any other name it would sit on
+export const makeWayForHoverLabel = (
+    labels: CircleLabel[],
+    hover: CircleLabel | undefined,
+): CircleLabel[] =>
+    hover === undefined
+        ? labels
+        : labels.filter(
+              (label) =>
+                  label.id !== hover.id && !boxesOverlap(label.box, hover.box),
+          );
+
+// Fills the panel with the pack, less the band at the bottom for the lowest circle's label
 export const layoutMap = ({
     input,
     area,

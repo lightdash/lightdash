@@ -352,7 +352,8 @@ describe('typed strings render as text', () => {
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // No name is drawn at rest; each circle's label is drawn whole while it is hovered
+        // The department is named at rest, whole; each circle's hover label is drawn whole while it is hovered
+        expect(drawnText('[data-rest-label="hostile"]')).toContain(NAME);
         expect(drawn('[data-label]')).toHaveLength(0);
         hover('child');
         expect(drawnText('[data-label="child"]')).toEqual([`${CHILD} · 10`]);

@@ -26,8 +26,10 @@ import styles from './DepartmentMap.module.css';
 import { truncateLabel, type ColourBy, type PackedCircle } from './geometry';
 import {
     getHoverLabel,
+    getRestLabels,
     getTopLevelGroups,
     getLabelLines,
+    makeWayForHoverLabel,
     TEXT_FONTS,
     type CircleLabel,
     type TextMeasurer,
@@ -194,14 +196,17 @@ DotsLayer.displayName = 'DotsLayer';
 const LabelsLayer = memo<{
     labels: CircleLabel[];
     zoomLevel: number;
-}>(({ labels, zoomLevel }) => (
+    // Names at rest carry data-rest-label and the hover label data-label, so each can be found on its own
+    isAtRest: boolean;
+}>(({ labels, zoomLevel, isAtRest }) => (
     <>
         {labels.flatMap((label) =>
             getLabelLines(label, zoomLevel).map((line) => (
                 <text
                     key={`${label.id}:${line.role}`}
                     className={`${styles.label} ${LINE_CLASSES[line.role]}`}
-                    data-label={label.id}
+                    data-label={isAtRest ? undefined : label.id}
+                    data-rest-label={isAtRest ? label.id : undefined}
                     x={line.x}
                     y={line.y}
                     textAnchor={line.anchor}
@@ -381,6 +386,15 @@ export const DepartmentMap: FC<Props> = ({
         );
         return label === null ? [] : [label];
     }, [shownId, circlesById, info, k, width, height, measureText]);
+    // Every circle of the level in view is named at rest, except where the hover label takes its place
+    const restLabels = useMemo(
+        () => getRestLabels(circles, info, k, { width, height }, measureText),
+        [circles, info, k, width, height, measureText],
+    );
+    const shownRestLabels = useMemo(
+        () => makeWayForHoverLabel(restLabels, hoverLabels[0]),
+        [restLabels, hoverLabels],
+    );
 
     const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
         pressRef.current = { x: event.clientX, y: event.clientY };
@@ -459,7 +473,16 @@ export const DepartmentMap: FC<Props> = ({
                         />
                     </g>
                     {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
-                    <LabelsLayer labels={hoverLabels} zoomLevel={k} />
+                    <LabelsLayer
+                        labels={shownRestLabels}
+                        zoomLevel={k}
+                        isAtRest
+                    />
+                    <LabelsLayer
+                        labels={hoverLabels}
+                        zoomLevel={k}
+                        isAtRest={false}
+                    />
                 </g>
             </svg>
             {/* Empty but for the band that crosses the map while its colouring changes */}

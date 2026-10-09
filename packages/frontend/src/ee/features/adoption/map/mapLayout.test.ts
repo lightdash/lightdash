@@ -18,9 +18,11 @@ import {
     getCaptionVariants,
     getControlsBox,
     getHoverLabel,
+    getRestLabels,
     getTopLevelGroups,
     getLabelLines,
     layoutMap,
+    makeWayForHoverLabel,
     type Area,
     type Box,
     type CircleLabel,
@@ -583,6 +585,79 @@ describe('getHoverLabel', () => {
         expect(hover?.box.y).toBeCloseTo(265 + 227 + 4, 6);
         expect(hover?.box.x).toBeGreaterThan(controls.x + controls.width);
         expect(hover && boxesIntersect(hover.box, controls)).toBe(false);
+    });
+});
+
+describe('getRestLabels', () => {
+    const departments = [
+        d('Ops', null, 30, 9, 4, 0),
+        d('Stores', 'Ops', 20, 6, 4),
+        d('Depots', 'Ops', 10, 3, 0),
+        d('Finance', null, 8, 3, 2),
+    ];
+    const { circles, find } = build(departments);
+    const info = describeCircles(
+        circles,
+        new Map(departments.map((each) => [each.departmentUuid, each])),
+    );
+
+    it('names each circle of the level in view as and where its hover label names it, and none inside them', () => {
+        const labels = getRestLabels(
+            circles,
+            info,
+            1,
+            PANEL,
+            estimateTextWidth,
+        );
+        expect(labels.map((label) => label.id).sort()).toEqual([
+            'Finance',
+            'Ops',
+        ]);
+        labels.forEach((label) =>
+            expect(label).toEqual(
+                getHoverLabel(
+                    find(label.id),
+                    info,
+                    1,
+                    PANEL,
+                    estimateTextWidth,
+                ),
+            ),
+        );
+    });
+    it('names a circle at rest only while it is at least 24 px across on screen', () => {
+        const small = { ...find('Finance'), r: 11.9 };
+        expect(
+            getRestLabels([small], info, 1, PANEL, estimateTextWidth),
+        ).toEqual([]);
+        expect(
+            getRestLabels([small], info, 2, PANEL, estimateTextWidth).map(
+                (label) => label.id,
+            ),
+        ).toEqual(['Finance']);
+    });
+});
+
+describe('makeWayForHoverLabel', () => {
+    const at = (id: string, x: number): CircleLabel => ({
+        id,
+        placement: 'below',
+        isNested: false,
+        name: id,
+        detail: null,
+        box: { x, y: 100, width: 60, height: 16 },
+    });
+    const labels = [at('A', 100), at('B', 150), at('C', 400)];
+
+    it("drops the hovered circle's name at rest and any other name the hover label would sit on", () => {
+        expect(makeWayForHoverLabel(labels, at('A', 100))).toEqual([
+            at('C', 400),
+        ]);
+        // A sub-department's hover label sits on no name at rest here
+        expect(makeWayForHoverLabel(labels, at('Nested', 260))).toEqual(labels);
+    });
+    it('keeps every name at rest while nothing is hovered', () => {
+        expect(makeWayForHoverLabel(labels, undefined)).toBe(labels);
     });
 });
 

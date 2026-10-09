@@ -54,7 +54,7 @@ describe.each([
     ['a flat organization of 13 departments', flatOrganization],
 ])('labels on %s', (_, departments) => {
     it.each(WIDTHS)(
-        'name every circle at the focused level of every view on hover, with its numbers, and draw no label at rest at %i px wide',
+        'name every circle at the focused level of every view, whole with its numbers, inside the panel and off the zoom buttons, at rest and on hover, at %i px wide',
         (width) => {
             const area = { width, height: HEIGHT };
             const controls = getControlsBox(area);
@@ -87,7 +87,8 @@ describe.each([
                         }),
                 ).toEqual([]);
             });
-            // Nothing drawn at rest depends on the view, so the organization's is drawn at every width
+            // At rest each circle of the level in view at least 24 px across carries the label checked above, and
+            // nothing else is drawn; the organization's level is drawn at every width
             const { circles, info } = drawView(departments, null, area);
             const { container, unmount } = renderWithProviders(
                 <DepartmentMap
@@ -110,9 +111,33 @@ describe.each([
             expect(container.querySelectorAll('[data-circle]').length).toBe(
                 circles.length,
             );
+            const named = circles.filter(
+                (circle) => circle.depth === 1 && circle.r * 2 >= 24,
+            );
             expect(
-                container.querySelectorAll('[data-label], svg text'),
-            ).toHaveLength(0);
+                named.map((circle) =>
+                    [
+                        ...container.querySelectorAll(
+                            `[data-rest-label="${circle.id}"]`,
+                        ),
+                    ].map((node) => node.textContent),
+                ),
+            ).toEqual(
+                named.map((circle) => {
+                    const label = getHoverLabel(
+                        circle,
+                        info,
+                        1,
+                        area,
+                        estimateTextWidth,
+                    );
+                    return [label?.name, label?.detail];
+                }),
+            );
+            expect(container.querySelectorAll('svg text')).toHaveLength(
+                named.length * 2,
+            );
+            expect(container.querySelector('[data-label]')).toBeNull();
             unmount();
         },
     );

@@ -295,24 +295,25 @@ describe('AdoptionMap', () => {
                 (node) => node.textContent,
             ),
         ).toEqual(expect.arrayContaining(['Ada', 'Grace', 'Alan']));
-        // No department name at rest; on hover the department's one circle carries its own name
-        expect(
-            [...container.querySelectorAll('svg[role="img"] text')].map(
+        // The department's one circle carries its own name at rest, and the same on hover
+        const texts = (selector: string) =>
+            [...container.querySelectorAll(`svg[role="img"] ${selector}`)].map(
                 (node) => node.textContent,
-            ),
-        ).not.toContain('Finance');
+            );
+        expect(texts('[data-rest-label="own:Finance"]')).toEqual([
+            'Finance',
+            '3 of 8',
+        ]);
         const circle = container.querySelector(
             '[data-kind][data-circle="own:Finance"]',
         );
         expect(circle).not.toBeNull();
         if (circle) fireEvent.pointerOver(circle);
-        expect(
-            [
-                ...container.querySelectorAll(
-                    'svg[role="img"] [data-label="own:Finance"]',
-                ),
-            ].map((node) => node.textContent),
-        ).toEqual(['Finance', '3 of 8']);
+        expect(texts('[data-label="own:Finance"]')).toEqual([
+            'Finance',
+            '3 of 8',
+        ]);
+        expect(texts('[data-rest-label]')).toEqual([]);
         expect(screen.queryByText(/Directly in/)).toBeNull();
         expect(legendCounts()).toEqual([
             { label: 'Active in 30 days', count: 2 },
@@ -1361,7 +1362,44 @@ describe('AdoptionMap', () => {
         });
     });
 
-    it("draws no department names at rest and shows a circle's name and numbers while it is hovered", () => {
+    it('names each department of the level in view at rest, over its numbers, and none of the circles inside them', () => {
+        const { container } = renderMap();
+        const texts = (selector: string) =>
+            [...container.querySelectorAll(`svg[role="img"] ${selector}`)].map(
+                (node) => node.textContent,
+            );
+        expect(texts('[data-rest-label="Ops"]')).toEqual(['Ops', '9 of 30']);
+        expect(texts('[data-rest-label="Finance"]')).toEqual([
+            'Finance',
+            '3 of 8',
+        ]);
+        // Stores and Depots, inside Ops, are named on hover only
+        expect(
+            new Set(
+                [
+                    ...container.querySelectorAll(
+                        'svg[role="img"] [data-rest-label]',
+                    ),
+                ].map((node) => node.getAttribute('data-rest-label')),
+            ),
+        ).toEqual(new Set(['Ops', 'Finance']));
+        expect(
+            container.querySelector('svg[role="img"] [data-label]'),
+        ).toBeNull();
+        // The drawing is described in words as before; its names are not read out
+        expect(
+            screen.getByRole('img', {
+                name: 'Map of the organization: 2 departments, 38 people, 12 on Lightdash placed in a department, 6 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person. The List view has the same numbers as a table',
+            }),
+        ).toBeInTheDocument();
+        const stores = container.querySelector(
+            'svg[role="img"] [data-department="Stores"]',
+        );
+        if (stores) fireEvent.pointerOver(stores);
+        expect(texts('[data-label="Stores"]')).toEqual(['Stores · 20']);
+    });
+
+    it('names a circle at rest only while it is at least 24 px across, names any circle on hover, and swaps a name at rest for the hover label', () => {
         // Forty long names in one small panel
         const crowd = Array.from({ length: 40 }, (_, index) =>
             d(
@@ -1373,33 +1411,64 @@ describe('AdoptionMap', () => {
             ),
         );
         const { container } = renderMap(crowd);
-        expect(
-            container.querySelector('svg[role="img"] [data-label]'),
-        ).toBeNull();
-        expect(container.querySelector('svg[role="img"] text')).toBeNull();
         const circles = [
             ...container.querySelectorAll<SVGCircleElement>(
                 'svg[role="img"] [data-department]',
             ),
         ];
         expect(circles).toHaveLength(40);
-        const [circle] = circles;
-        const id = circle.dataset.department ?? '';
-        fireEvent.pointerOver(circle);
-        const shown = [
-            ...container.querySelectorAll(`[data-label="${id}"]`),
-        ].map((node) => node.textContent);
+        const restLabelOf = (circle: SVGCircleElement) =>
+            container.querySelector(
+                `[data-rest-label="${circle.dataset.department}"]`,
+            );
+        const isSmall = (circle: SVGCircleElement) =>
+            Number(circle.getAttribute('r')) * 2 < 24;
+        const small = circles.filter(isSmall);
+        const large = circles.filter((circle) => !isSmall(circle));
+        expect(small.length).toBeGreaterThan(0);
+        expect(large.length).toBeGreaterThan(0);
+        expect(small.filter((circle) => restLabelOf(circle) !== null)).toEqual(
+            [],
+        );
+        expect(large.filter((circle) => restLabelOf(circle) === null)).toEqual(
+            [],
+        );
+
+        const shownFor = (circle: SVGCircleElement) =>
+            [
+                ...container.querySelectorAll(
+                    `[data-label="${circle.dataset.department}"]`,
+                ),
+            ].map((node) => node.textContent);
+        const [tiny] = small;
+        fireEvent.pointerOver(tiny);
         // In full, with its numbers on the line under it
-        expect(shown).toEqual([id, expect.stringMatching(/^3 of \d+$/)]);
-        fireEvent.pointerLeave(circle);
-        expect(container.querySelector(`[data-label="${id}"]`)).toBeNull();
+        expect(shownFor(tiny)).toEqual([
+            tiny.dataset.department,
+            expect.stringMatching(/^3 of \d+$/),
+        ]);
+        fireEvent.pointerOut(tiny);
+        expect(shownFor(tiny)).toEqual([]);
+
+        const [largest] = large;
+        fireEvent.pointerOver(largest);
+        expect(shownFor(largest)).toHaveLength(2);
+        expect(restLabelOf(largest)).toBeNull();
+        fireEvent.pointerOut(largest);
+        expect(shownFor(largest)).toEqual([]);
+        expect(restLabelOf(largest)).not.toBeNull();
     });
 
-    it("shows a department's name and numbers while its control has keyboard focus", () => {
+    it("shows a department's hover label in place of its name at rest while its control has keyboard focus", () => {
         const { container } = renderMap();
+        const restLabel = () =>
+            container.querySelector(
+                'svg[role="img"] [data-rest-label="Finance"]',
+            );
         expect(
             container.querySelector('svg[role="img"] [data-label]'),
         ).toBeNull();
+        expect(restLabel()).not.toBeNull();
         const control = screen.getByRole('button', { name: /^Finance,/ });
         fireEvent.focus(control);
         expect(
@@ -1409,10 +1478,12 @@ describe('AdoptionMap', () => {
                 ),
             ].map((node) => node.textContent),
         ).toEqual(['Finance', '3 of 8']);
+        expect(restLabel()).toBeNull();
         fireEvent.blur(control);
         expect(
             container.querySelector('svg[role="img"] [data-label]'),
         ).toBeNull();
+        expect(restLabel()).not.toBeNull();
     });
 
     it("keeps a hovered circle's label while the pointer is on one of its people", async () => {
@@ -1442,33 +1513,30 @@ describe('AdoptionMap', () => {
         );
         const { container } = renderMap([hub, ...teams]);
         await userEvent.click(screen.getByRole('button', { name: /^Hub,/ }));
-        const unlabelled = [
+        const withPeople = [
             ...container.querySelectorAll<SVGCircleElement>(
                 'svg[role="img"] [data-department]',
             ),
         ].find(
             (circle) =>
                 container.querySelector(
-                    `[data-label="${circle.dataset.department}"]`,
-                ) === null &&
-                container.querySelector(
                     `[data-dot][data-circle="${circle.dataset.circle}"][data-user]`,
                 ) !== null,
         );
-        expect(unlabelled).toBeDefined();
-        if (!unlabelled) return;
-        const id = unlabelled.dataset.circle ?? '';
+        expect(withPeople).toBeDefined();
+        if (!withPeople) return;
+        const id = withPeople.dataset.circle ?? '';
         const person = container.querySelector<SVGCircleElement>(
             `[data-dot][data-circle="${id}"][data-user]`,
         );
         expect(person).not.toBeNull();
         if (!person) return;
         const shown = () => container.querySelector(`[data-label="${id}"]`);
-        fireEvent.pointerOver(unlabelled);
+        fireEvent.pointerOver(withPeople);
         expect(shown()).not.toBeNull();
         // Onto one of its people, then off the map altogether
         fireEvent(
-            unlabelled,
+            withPeople,
             new MouseEvent('pointerout', {
                 bubbles: true,
                 relatedTarget: person,
