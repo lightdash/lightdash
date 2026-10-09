@@ -254,16 +254,20 @@ export const DepartmentsTable: FC<Props> = ({
                 size: 144,
                 Cell: ({ row }) => {
                     const { department } = row.original;
-                    return department.hasHeadcount ? (
-                        <CellText>
-                            {formatShare(
-                                department.metrics.coveragePct,
-                                department.metrics.memberCount,
-                            )}
-                        </CellText>
-                    ) : (
+                    if (department.hasHeadcount) {
+                        return (
+                            <CellText>
+                                {formatShare(
+                                    department.metrics.coveragePct,
+                                    department.metrics.memberCount,
+                                )}
+                            </CellText>
+                        );
+                    }
+                    // Editors have "Add" in the Headcount column already, so the cell stays empty for them
+                    return canManage ? null : (
                         <CellText c="dimmed">
-                            {getMissingHeadcountWord(canManage)}
+                            {getMissingHeadcountWord(false)}
                         </CellText>
                     );
                 },

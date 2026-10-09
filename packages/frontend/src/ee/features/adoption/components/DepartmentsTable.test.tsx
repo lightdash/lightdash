@@ -346,7 +346,7 @@ describe('DepartmentsTable', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText(/1,200|30 Nov 2026/)).not.toBeInTheDocument();
     });
-    it('shows coverage and activity as plain shares, which never pass 100%, and asks for a missing headcount in place of coverage', () => {
+    it('shows coverage and activity as plain shares, which never pass 100%, and leaves coverage empty where the headcount column offers Add', () => {
         const { unmount } = renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -395,12 +395,13 @@ describe('DepartmentsTable', () => {
                 name: 'Add headcount for Product',
             }),
         ).toBeInTheDocument();
-        // In place of the 100% its own people would give; its activity still shows
+        // Not the 100% its own people would give, nor a second request beside Add; its activity still shows
         const [coverage, active] = within(product)
             .getAllByRole('cell')
             .slice(2);
-        expect(coverage).toHaveTextContent(/^Add headcount$/);
+        expect(coverage.textContent).toBe('');
         expect(within(product).queryByText('100% (5)')).toBeNull();
+        expect(within(product).queryByText('Add headcount')).toBeNull();
         expect(active).toHaveTextContent(/^40% \(2\)$/);
         expect(
             screen.queryByText(/More accounts than headcount|of 8\)/),

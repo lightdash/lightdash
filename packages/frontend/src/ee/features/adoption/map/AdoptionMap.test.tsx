@@ -1087,6 +1087,45 @@ describe('AdoptionMap', () => {
             ]);
         });
 
+        it('asks for headcounts in place of the people without an account in a department opened with none entered on it or below it', async () => {
+            const departments = [
+                d('Hub', null, null, 6, 2, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Team', 'Hub', null, 6, 2),
+                d('Group', null, null, 4, 1, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                d('Squad', 'Group', 10, 4, 1),
+            ];
+            const { unmount } = renderMap(departments);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Hub,/ }),
+            );
+            expect(
+                within(details()).getByText('Add headcounts to see coverage'),
+            ).toBeInTheDocument();
+            expect(panelLegend()).toEqual([
+                'Active 2',
+                'On Lightdash, not active 4',
+            ]);
+            unmount();
+
+            // A headcount entered below the department is enough
+            renderMap(departments);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Group,/ }),
+            );
+            expect(
+                within(details()).queryByText('Add headcounts to see coverage'),
+            ).toBeNull();
+            expect(panelLegend()).toEqual([
+                'Active 1',
+                'On Lightdash, not active 3',
+                'No account 6',
+            ]);
+        });
+
         it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
             renderMap(seededOrganization(), { canManage: false });
             expect(listed('Departments')).toContain('Product | No headcount');

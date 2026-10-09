@@ -89,7 +89,7 @@ In this organization in the last 30 days, ran a query from a dashboard, explore,
 _Avoid_: engaged, retained, MAU
 
 **Coverage**:
-Members divided by effective headcount, as a percentage, so never above 100. A department with no headcount entered on it or below it shows "Add headcount" or "No headcount" instead, as its coverage would only read 100 %.
+Members divided by effective headcount, as a percentage, so never above 100. A department with no headcount entered on it or below it shows no coverage, as it would only read 100 %; the pages ask for a headcount instead.
 _Avoid_: penetration, reach, adoption rate
 
 **Active percentage**:

@@ -163,9 +163,11 @@ export const MapInspector: FC<Props> = ({
 }) => {
     const subtitle =
         department === null ? 'All departments' : (parentName ?? 'Department');
-    // The organization has a coverage figure only once some department has a headcount
+    // Coverage needs a headcount on the open department or below it, or across the organization in any department
     const hasHeadcount =
-        department !== null || rows.some((row) => row.department.hasHeadcount);
+        department === null
+            ? rows.some((row) => row.department.hasHeadcount)
+            : department.hasHeadcount;
     // The people directly in a department beside its sub-departments, as the map draws them
     const direct =
         department === null
