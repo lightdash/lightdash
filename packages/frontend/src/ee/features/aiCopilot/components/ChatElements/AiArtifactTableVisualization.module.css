@@ -1,8 +1,9 @@
+/* Sized by content (incl. scrollbars), capped by the panel; table scrolls inside */
 .tableContainer {
+    display: flex;
+    flex-direction: column;
     flex-shrink: 1;
     overflow: hidden;
-    /* height is computed from rows; keep borders outside it so nothing scrolls */
-    box-sizing: content-box;
 }
 
 .flush {
