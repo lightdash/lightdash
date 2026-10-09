@@ -73,7 +73,7 @@ describe('Difference from previous quick calculation', () => {
         mocks.tableCalculations = [];
     });
 
-    it('creates a numeric calculation using the current sorts, excluding calculations', () => {
+    it('creates a numeric calculation using the percentage shortcut ordering, excluding calculations', () => {
         mocks.sorts = [
             { fieldId: 'orders_date', descending: false },
             { fieldId: 'orders_revenue', descending: true },
@@ -99,8 +99,8 @@ describe('Difference from previous quick calculation', () => {
                 type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
                 fieldId: 'orders_revenue',
                 orderBy: [
-                    { fieldId: 'orders_date', order: 'asc' },
-                    { fieldId: 'orders_revenue', order: 'desc' },
+                    { fieldId: 'orders_date', order: 'desc' },
+                    { fieldId: 'orders_revenue', order: 'asc' },
                 ],
                 partitionBy: [],
             },
@@ -112,6 +112,20 @@ describe('Difference from previous quick calculation', () => {
             payload: calculation,
         });
         expect(mocks.track).toHaveBeenCalledOnce();
+
+        fireEvent.click(
+            screen.getByRole('menuitem', {
+                name: 'Percent change from previous',
+            }),
+        );
+        expect(onCalculationCreated).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                template: {
+                    ...calculation.template,
+                    type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                },
+            }),
+        );
     });
 
     it('creates a calculation when there are no sorts', () => {

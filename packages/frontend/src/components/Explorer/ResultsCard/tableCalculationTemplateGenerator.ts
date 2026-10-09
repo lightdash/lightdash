@@ -39,10 +39,7 @@ export function generateTableCalculationTemplate(
             return {
                 type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
                 fieldId,
-                orderBy: currentSorts.map((sort) => ({
-                    fieldId: sort.fieldId,
-                    order: sort.descending ? 'desc' : 'asc',
-                })),
+                orderBy: mapSortsToOrderBy(currentSorts),
                 partitionBy: [],
             };
 
