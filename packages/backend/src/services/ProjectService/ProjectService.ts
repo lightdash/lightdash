@@ -262,6 +262,7 @@ import {
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
+    UserWarehouseCredentialPurpose,
     UserWarehouseCredentials,
     UserWarehouseCredentialsWithSecrets,
     usesAwsWebIdentity,
@@ -2402,9 +2403,7 @@ export class ProjectService
                 ? {
                       kind: 'user',
                       uuid: source.userWarehouseCredentialsUuid,
-                      purpose:
-                          source.purpose ??
-                          UserWarehouseCredentialPurpose.DEFAULT,
+                      purpose: UserWarehouseCredentialPurpose.DEFAULT,
                   }
                 : {
                       kind: source.kind,
