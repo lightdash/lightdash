@@ -7,7 +7,6 @@ import {
     type CreateWarehouseCredentials,
     type SshTunnelConfiguration,
 } from '@lightdash/common';
-import pick from 'lodash/pick';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -19,6 +18,7 @@ import type {
     CredentialSelection,
     ValidatedCredential,
 } from '../CredentialResolver';
+import { pickRoutingFields } from './aiServiceAccountRoutingFields';
 
 type Selection = CredentialSelection<
     CreateBigqueryCredentials,
@@ -40,26 +40,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
         return {
-            ...pick(connection, [
-                'project',
-                'dataset',
-                'executionProject',
-                'location',
-                'threads',
-                'timeoutSeconds',
-                'priority',
-                'retries',
-                'maximumBytesBilled',
-                'accessUrl',
-                'startOfWeek',
-                'dataTimezone',
-                'useSshTunnel',
-                'sshTunnelHost',
-                'sshTunnelPort',
-                'sshTunnelUser',
-                'sshTunnelPublicKey',
-                'sshTunnelPrivateKey',
-            ] as const),
+            ...pickRoutingFields(WarehouseTypes.BIGQUERY, connection),
             ...credentials,
             authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
             requireUserCredentials: false,
