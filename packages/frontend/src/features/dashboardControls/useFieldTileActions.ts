@@ -1,4 +1,5 @@
 import {
+    isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
@@ -94,10 +95,13 @@ const getSqlColumnScope = (
     const replacedFieldIds = columnsOnTiles.filter(
         (onTile): onTile is string => onTile !== null && onTile !== reference,
     );
-    // On the column without returning it any more: still one of its tiles
+    // On the column without returning it any more: still one of its tiles.
+    // A data app tile follows the rule and is never on a column
     const onColumnOnly = tiles.filter(
         (tile) =>
-            !withColumn.includes(tile) && getFieldIdOn(tile) === reference,
+            !withColumn.includes(tile) &&
+            !isDashboardDataAppTileType(tile) &&
+            getFieldIdOn(tile) === reference,
     );
     return {
         possible: withColumn.length + onColumnOnly.length,

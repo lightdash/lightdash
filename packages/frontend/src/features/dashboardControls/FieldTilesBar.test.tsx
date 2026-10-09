@@ -955,6 +955,33 @@ describe('FieldTilesBar', () => {
 
             expect(countOf('country')).toHaveTextContent(/^on 1 of 1 tile$/);
         });
+
+        it('never counts a data app tile as a tile of a SQL column', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [
+                    { ...tile('sql-1'), type: DashboardTileTypes.SQL_CHART },
+                    { ...tile('app-1'), type: DashboardTileTypes.DATA_APP },
+                ],
+                allFilterableFieldsMap: {},
+                filterableFieldsByTileUuid: undefined,
+            };
+            mockSqlColumnsByTile.current = {
+                'sql-1': [{ reference: 'country', type: 'string' }],
+            };
+            const COUNTRY = {
+                fieldId: 'country',
+                tableName: 'sql_chart',
+                isSqlColumn: true,
+            };
+            setSidebar(
+                { ...rule('country', { 'sql-1': COUNTRY }), target: COUNTRY },
+                { highlightedFieldId: 'country' },
+            );
+            renderWithProviders(<Dashboard />);
+
+            expect(countOf('country')).toHaveTextContent(/^on 1 of 1 tile$/);
+        });
     });
 
     describe('focus after an action', () => {
