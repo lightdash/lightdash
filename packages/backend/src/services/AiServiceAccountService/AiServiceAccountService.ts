@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
+    assertUnreachable,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -510,14 +511,28 @@ export class AiServiceAccountService extends BaseService {
                 context,
                 ({ warehouseClient }) => {
                     onQuery();
-                    return warehouseClient.runQuery(
-                        databricks
-                            ? 'SELECT current_user() AS principal'
-                            : snowflake
-                              ? 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"'
-                              : 'SELECT SESSION_USER() AS principal',
-                        {},
-                    );
+                    const query = (() => {
+                        switch (connection.type) {
+                            case WarehouseTypes.DATABRICKS:
+                                return 'SELECT current_user() AS principal';
+                            case WarehouseTypes.SNOWFLAKE:
+                                return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
+                            case WarehouseTypes.BIGQUERY:
+                            case WarehouseTypes.ATHENA:
+                            case WarehouseTypes.CLICKHOUSE:
+                            case WarehouseTypes.DUCKDB:
+                            case WarehouseTypes.POSTGRES:
+                            case WarehouseTypes.REDSHIFT:
+                            case WarehouseTypes.TRINO:
+                                return 'SELECT SESSION_USER() AS principal';
+                            default:
+                                return assertUnreachable(
+                                    connection,
+                                    'Unknown warehouse type',
+                                );
+                        }
+                    })();
+                    return warehouseClient.runQuery(query, {});
                 },
             );
         const row = Object.fromEntries(
@@ -541,11 +556,27 @@ export class AiServiceAccountService extends BaseService {
         return {
             ok: true,
             principal,
-            observed: snowflake
-                ? { currentUser: principal, currentRole: role }
-                : databricks
-                  ? { currentUser: principal }
-                  : { principal },
+            observed: ((): AiServiceAccountTestResult['observed'] => {
+                switch (connection.type) {
+                    case WarehouseTypes.SNOWFLAKE:
+                        return { currentUser: principal, currentRole: role };
+                    case WarehouseTypes.DATABRICKS:
+                        return { currentUser: principal };
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.DUCKDB:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                        return { principal };
+                    default:
+                        return assertUnreachable(
+                            connection,
+                            'Unknown warehouse type',
+                        );
+                }
+            })(),
             message:
                 principal === null
                     ? 'Connection checked; principal not observed.'

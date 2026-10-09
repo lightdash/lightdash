@@ -219,12 +219,27 @@ export class AiServiceAccountCredentialsModel {
             const value: unknown = JSON.parse(
                 this.args.encryptionUtil.decrypt(row.encrypted_credentials),
             );
-            const payload =
-                row.warehouse_type === WarehouseTypes.DATABRICKS
-                    ? databricksPayloadSchema.parse(value)
-                    : row.warehouse_type === WarehouseTypes.SNOWFLAKE
-                      ? snowflakePayloadSchema.parse(value)
-                      : null;
+            const payload = (() => {
+                switch (row.warehouse_type) {
+                    case WarehouseTypes.DATABRICKS:
+                        return databricksPayloadSchema.parse(value);
+                    case WarehouseTypes.SNOWFLAKE:
+                        return snowflakePayloadSchema.parse(value);
+                    case WarehouseTypes.BIGQUERY:
+                    case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.DUCKDB:
+                    case WarehouseTypes.POSTGRES:
+                    case WarehouseTypes.REDSHIFT:
+                    case WarehouseTypes.TRINO:
+                        return null;
+                    default:
+                        return assertUnreachable(
+                            row.warehouse_type,
+                            'Unknown warehouse type',
+                        );
+                }
+            })();
             const { verification, ...credentials } = payload ?? {
                 verification: undefined,
             };
