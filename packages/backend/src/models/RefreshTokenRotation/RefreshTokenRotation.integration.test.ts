@@ -87,6 +87,7 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
             await releaseRow.promise;
         });
         await rowHeld.promise;
+        const writeStarted = deferred();
         const rotation = new RefreshTokenRotation({
             database,
             inFlight: new Map(),
@@ -105,6 +106,7 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
             exchange: async () => 'after',
             persist: async ({ lockedRefreshToken, result, trx }) => {
                 await trx.transaction(async (savepoint) => {
+                    writeStarted.resolve();
                     await savepoint(tableName)
                         .where({ uuid, refresh_token: lockedRefreshToken })
                         .forUpdate()
@@ -115,11 +117,15 @@ describe('RefreshTokenRotation (PostgreSQL)', () => {
                 });
             },
         });
-        await new Promise<void>((resolve) => {
-            setTimeout(resolve, 6_000);
-        });
-        releaseRow.resolve();
-        await holder;
+        try {
+            await writeStarted.promise;
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, 6_000);
+            });
+        } finally {
+            releaseRow.resolve();
+            await holder;
+        }
         await refresh;
         expect(await database(tableName).where({ uuid }).first()).toMatchObject(
             { refresh_token: 'after' },
