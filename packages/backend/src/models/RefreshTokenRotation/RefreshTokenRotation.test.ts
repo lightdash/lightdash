@@ -37,6 +37,35 @@ const startedRun = (uuid = 'row-1') => {
 describe('RefreshTokenRotation', () => {
     afterEach(() => vi.useRealTimers());
 
+    test.each([
+        ['project', null, 'oauth-refresh:project:row-1:'],
+        ['organization', null, 'oauth-refresh:organization:row-1:'],
+        [
+            'warehouseConnection',
+            null,
+            'oauth-refresh:warehouseConnection:row-1:',
+        ],
+        ['user', 'ai', 'oauth-refresh:user:row-1:ai'],
+        ['credential', null, 'oauth-refresh:credential:row-1'],
+    ] as const)(
+        'preserves the exact %s lock key',
+        async (kind, purpose, expected) => {
+            const { database, raw } = createDatabase();
+            const key =
+                kind === 'credential'
+                    ? { kind, uuid: 'row-1', purpose: null }
+                    : { kind, uuid: 'row-1', purpose };
+            await new RefreshTokenRotation({ database }).run({
+                ...createRun(),
+                key,
+            });
+            expect(raw).toHaveBeenCalledWith(
+                'select pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [expected],
+            );
+        },
+    );
+
     test('passes the lock transaction to the reread and persistence', async () => {
         const { database, raw } = createDatabase();
         const run = createRun();
