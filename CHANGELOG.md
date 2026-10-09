@@ -1,3 +1,24 @@
+# [2.517.0](https://github.com/lightdash/lightdash/compare/2.516.0...2.517.0) (2026-10-09)
+
+
+### Features
+
+* **table-calculations:** add difference from previous quick calculation ([#30821](https://github.com/lightdash/lightdash/issues/30821)) ([e1b095f](https://github.com/lightdash/lightdash/commit/e1b095fd72111dee492cdd32bb2309ceb549a8d0))
+
+# [2.516.0](https://github.com/lightdash/lightdash/compare/2.515.0...2.516.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** audit entries and logs for agent identity changes ([#30795](https://github.com/lightdash/lightdash/issues/30795)) ([bafd416](https://github.com/lightdash/lightdash/commit/bafd41607a7c12b41660134e20f2e4dcc6adad9d))
+
+# [2.515.0](https://github.com/lightdash/lightdash/compare/2.514.0...2.515.0) (2026-10-09)
+
+
+### Features
+
+* **documents:** pick, retitle and open linked saved charts in Documents ([#30783](https://github.com/lightdash/lightdash/issues/30783)) ([1ad4db3](https://github.com/lightdash/lightdash/commit/1ad4db3bbf4aa113383255145fde0786b53834fd)), closes [#30758](https://github.com/lightdash/lightdash/issues/30758)
+
 # [2.514.0](https://github.com/lightdash/lightdash/compare/2.513.0...2.514.0) (2026-10-09)
 
 

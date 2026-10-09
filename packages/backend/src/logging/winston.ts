@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
+import qs from 'qs';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { AuditActor, AuditLogEvent, AuditResource } from './auditLog';
@@ -312,8 +313,36 @@ declare global {
     }
 }
 
-export const sanitizeRequestUrl = (url: string): string =>
-    url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+export const sanitizeRequestUrl = (url: string): string => {
+    const queryStart = url.indexOf('?');
+    if (queryStart === -1) return url;
+    const fragmentStart = url.indexOf('#');
+    if (fragmentStart !== -1 && fragmentStart < queryStart) return url;
+    const queryEnd = fragmentStart === -1 ? url.length : fragmentStart;
+    const query = url.slice(queryStart + 1, queryEnd);
+    const sanitized = query.split('&').map((pair) => {
+        const separator = pair.indexOf('=');
+        if (separator === -1) return pair;
+        const rawName = pair.slice(0, separator);
+        let names: string[];
+        try {
+            names = Object.keys(
+                qs.parse(`${rawName}=x`, { arrayLimit: 1000 }),
+            ).map((name) => name.toLowerCase());
+        } catch {
+            return `${rawName}=[REDACTED]`;
+        }
+        if (
+            names.some((name) =>
+                ['downloadtoken', 'code', 'state'].includes(name),
+            )
+        ) {
+            return `${rawName}=[REDACTED]`;
+        }
+        return pair;
+    });
+    return `${url.slice(0, queryStart + 1)}${sanitized.join('&')}${url.slice(queryEnd)}`;
+};
 
 const safeRequestHeaderNames = new Set([
     'content-length',

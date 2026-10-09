@@ -108,8 +108,12 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
             chartView?: boolean;
             runQueryOnLoad?: boolean;
         }) {
-            const { onExplore, onBackToDashboard, backDestination } =
-                useEmbed();
+            const {
+                onExplore,
+                onBackToDashboard,
+                backDestination,
+                onChartSaved,
+            } = useEmbed();
             return (
                 <div
                     data-testid={
@@ -147,6 +151,15 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
                                     },
                                 } as never,
                             })
+                        }
+                    />
+                    <button
+                        data-testid="explore-save"
+                        onClick={() =>
+                            onChartSaved?.(
+                                { uuid: 'new-chart-uuid' } as never,
+                                'created',
+                            )
                         }
                     />
                     {onBackToDashboard && (
@@ -744,6 +757,27 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         expect(queryByTestId('explore-back')).toBeNull();
     });
 
+    it('emits a chartSaved event through onEvent when the Explore saves a chart', async () => {
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={{ tableName: 'payments' } as never}
+                onEvent={onEvent}
+            />,
+        );
+
+        fireEvent.click(await findByTestId('explore-save'));
+
+        expect(onEvent).toHaveBeenCalledTimes(1);
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'new-chart-uuid', action: 'created' },
+        });
+    });
+
     it('labels the drill-down back destination as the Explore, whatever the token content type', async () => {
         const metricsCatalogToken =
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJtZXRyaWNzQ2F0YWxvZyIsInByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
@@ -962,6 +996,31 @@ describe('SDK Chart edit mode', () => {
 
         expect(await findByTestId('embed-chart-edit')).toBeInTheDocument();
         expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
+    it('emits a chartSaved event through onEvent when the chart is saved', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode
+                onEvent={onEvent}
+            />,
+        );
+
+        fireEvent.click(
+            within(await findByTestId('embed-chart-edit')).getByTestId(
+                'explore-save',
+            ),
+        );
+
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'new-chart-uuid', action: 'created' },
+        });
     });
 
     it('hands the saved chart to the host onExplore when provided', async () => {

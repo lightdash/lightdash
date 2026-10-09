@@ -117,6 +117,7 @@ const renderModal = (initialChart: SemanticChartAsCode | null) => {
                 <MemoryRouter>
                     <DocumentChartEditorModal
                         chart={initialChart}
+                        isEditing={initialChart !== null}
                         onApply={apply}
                         onClose={() => {}}
                     />

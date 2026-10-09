@@ -31,6 +31,8 @@ export type DocumentEditorExtensionOptions = {
     editing?: {
         onInsertChart: ((position: number) => void) | null;
         onEditChart: EditChartHandler | null;
+        /** Opens the saved chart picker at this position. */
+        onInsertSavedChart?: ((position: number) => void) | null;
     };
 };
 
@@ -73,6 +75,7 @@ export const createDocumentEditorExtensions = (
               SlashCommand.configure({
                   items: createDocumentSlashCommandItems({
                       onInsertChart: editing.onInsertChart,
+                      onInsertSavedChart: editing.onInsertSavedChart ?? null,
                   }),
               }),
           ]

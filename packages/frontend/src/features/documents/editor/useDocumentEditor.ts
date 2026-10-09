@@ -68,6 +68,7 @@ export const useDocumentEditor = (
     const baseline = useRef<string>('');
     const canInsertChart = callbacks.onInsertChart !== null;
     const canEditChart = callbacks.onEditChart !== null;
+    const canInsertSavedChart = (callbacks.onInsertSavedChart ?? null) !== null;
     const extensions = useMemo(
         () =>
             createDocumentEditorExtensions(lightdashApi, {
@@ -84,9 +85,21 @@ export const useDocumentEditor = (
                                   content,
                               )
                         : null,
+                    onInsertSavedChart: canInsertSavedChart
+                        ? (position) =>
+                              callbacksRef.current.onInsertSavedChart?.(
+                                  position,
+                              )
+                        : null,
                 },
             }),
-        [document.projectUuid, canInsertChart, canEditChart, lightdashApi],
+        [
+            document.projectUuid,
+            canInsertChart,
+            canEditChart,
+            canInsertSavedChart,
+            lightdashApi,
+        ],
     );
     const editor = useEditor(
         {

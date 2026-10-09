@@ -20,8 +20,12 @@ import {
     type SnowflakeRefreshResult,
 } from '../../../auth/snowflakeOAuthRefresh';
 import { getSnowflakeAgentMissingOAuthSettings } from '../../../config/snowflakeAgentConfiguration';
+import Logger from '../../../logging/logger';
+import { redactCredentialError } from '../../../logging/redactCredentialError';
+import { withCause } from '../../../logging/withCause';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
 import { UserService } from '../../UserService';
+import { type AiAccessEvaluation } from '../AiAccessService';
 import {
     AiSessionFailureReason,
     type AiCredentialProvider,
@@ -72,9 +76,12 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         connection,
         person,
         silentRefresh,
-    }: AiMintArgs<CreateSnowflakeCredentials>): Promise<
-        AiMintedCredentials<CreateSnowflakeCredentials>
-    > {
+        organizationUuid,
+        evaluationKind,
+    }: AiMintArgs<CreateSnowflakeCredentials> & {
+        organizationUuid: string;
+        evaluationKind: AiAccessEvaluation['kind'];
+    }): Promise<AiMintedCredentials<CreateSnowflakeCredentials>> {
         const credential =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 {
@@ -106,7 +113,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             const refreshed = await this.refreshCredential(
                 connection,
                 credential,
-                person.userUuid,
+                { userUuid: person.userUuid, organizationUuid, evaluationKind },
                 true,
             );
             return {
@@ -135,18 +142,43 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 const invalidGrant = /\binvalid_grant\b/.test(
                     `${error?.data ?? ''} ${error?.message ?? ''}`,
                 );
-                throw new AiAccessRefusedError(
-                    invalidGrant
-                        ? AiAccessRefusalReason.SIGN_IN_EXPIRED
-                        : AiAccessRefusalReason.NEEDS_SIGN_IN,
+                const reason = invalidGrant
+                    ? AiAccessRefusalReason.SIGN_IN_EXPIRED
+                    : AiAccessRefusalReason.NEEDS_SIGN_IN;
+                Logger[evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
+                    'Agent sign-in refresh failed',
+                    {
+                        userUuid: person.userUuid,
+                        organizationUuid,
+                        reason,
+                        ...redactCredentialError(error),
+                    },
                 );
+                const refusal = new AiAccessRefusedError(reason);
+                withCause(refusal, error);
+                throw refusal;
             });
-        if (refreshToken !== merged.refreshToken)
-            await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
-                credential.uuid,
-                merged.refreshToken,
-                refreshToken,
+        Logger.info('Agent sign-in refreshed', {
+            userUuid: person.userUuid,
+            organizationUuid,
+        });
+        if (refreshToken !== merged.refreshToken) {
+            const rotated =
+                await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                    credential.uuid,
+                    merged.refreshToken,
+                    refreshToken,
+                );
+            Logger[rotated ? 'info' : 'debug'](
+                rotated
+                    ? 'Agent sign-in refresh token rotated'
+                    : 'Agent sign-in refresh token rotation skipped',
+                {
+                    userUuid: person.userUuid,
+                    organizationUuid,
+                },
             );
+        }
         return {
             identityUuid: credential.uuid,
             credentials: {
@@ -201,7 +233,11 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
     private async refreshCredential(
         connection: CreateSnowflakeCredentials,
         credential: UserWarehouseCredentialsWithSecrets,
-        userUuid: string,
+        logContext: {
+            userUuid: string;
+            organizationUuid: string;
+            evaluationKind: AiAccessEvaluation['kind'];
+        },
         retryRotation: boolean,
     ): Promise<{
         credential: UserWarehouseCredentialsWithSecrets;
@@ -230,12 +266,23 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             });
         } catch (error) {
             const failure = classifySnowflakeRefreshError(error);
+            const logRefreshFailure = () =>
+                Logger[
+                    logContext.evaluationKind === 'diagnostic'
+                        ? 'debug'
+                        : 'warn'
+                ]('Agent sign-in refresh failed', {
+                    userUuid: logContext.userUuid,
+                    organizationUuid: logContext.organizationUuid,
+                    kind: failure.kind,
+                    ...redactCredentialError(error),
+                });
             switch (failure.kind) {
                 case 'grant_gone': {
                     if (retryRotation) {
                         const current = await this.findRotatedCredential(
                             connection,
-                            userUuid,
+                            logContext.userUuid,
                             oldRefreshToken,
                             3,
                         );
@@ -243,29 +290,41 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                             return this.refreshCredential(
                                 connection,
                                 current,
-                                userUuid,
+                                logContext,
                                 false,
                             );
                     }
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    logRefreshFailure();
+                    throw withCause(
+                        new AiAccessRefusedError(
+                            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                        ),
+                        error,
                     );
                 }
                 case 'temporary':
-                    throw new UnexpectedServerError(
-                        'The warehouse sign-in could not be refreshed. Try again in a moment.',
-                        {
-                            code: 'warehouse_oauth_refresh_failed',
-                            retryable: true,
-                        },
+                    logRefreshFailure();
+                    throw withCause(
+                        new UnexpectedServerError(
+                            'The warehouse sign-in could not be refreshed. Try again in a moment.',
+                            {
+                                code: 'warehouse_oauth_refresh_failed',
+                                retryable: true,
+                            },
+                        ),
+                        error,
                     );
                 case 'configuration':
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
-                        {
-                            message:
-                                'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
-                        },
+                    logRefreshFailure();
+                    throw withCause(
+                        new AiAccessRefusedError(
+                            AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                            {
+                                message:
+                                    'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                            },
+                        ),
+                        error,
                     );
                 default:
                     return assertUnreachable(
@@ -274,6 +333,10 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     );
             }
         }
+        Logger.info('Agent sign-in refreshed', {
+            userUuid: logContext.userUuid,
+            organizationUuid: logContext.organizationUuid,
+        });
         if (
             tokens.refreshToken !== oldRefreshToken ||
             (tokens.refreshTokenExpiresAt &&
@@ -281,18 +344,30 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                     credential.expiresAt?.getTime()) ||
             (credential.expiresAt &&
                 credential.expiresAt.getTime() <= Date.now())
-        )
-            await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
-                credential.uuid,
-                oldRefreshToken,
-                tokens.refreshToken,
-                tokens.refreshTokenExpiresAt
-                    ? {
-                          kind: 'reported',
-                          expiresAt: tokens.refreshTokenExpiresAt,
-                      }
-                    : { kind: 'unreported' },
-            );
+        ) {
+            const rotated =
+                await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                    credential.uuid,
+                    oldRefreshToken,
+                    tokens.refreshToken,
+                    tokens.refreshTokenExpiresAt
+                        ? {
+                              kind: 'reported',
+                              expiresAt: tokens.refreshTokenExpiresAt,
+                          }
+                        : { kind: 'unreported' },
+                );
+            if (tokens.refreshToken !== oldRefreshToken)
+                Logger[rotated ? 'info' : 'debug'](
+                    rotated
+                        ? 'Agent sign-in refresh token rotated'
+                        : 'Agent sign-in refresh token rotation skipped',
+                    {
+                        userUuid: logContext.userUuid,
+                        organizationUuid: logContext.organizationUuid,
+                    },
+                );
+        }
         return { credential, tokens, merged: credentials };
     }
 
@@ -320,6 +395,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
             return {
                 ok: false,
                 transient: false,
+                cause: null,
                 checkedAt: new Date(),
                 reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
                 message: 'Snowflake AI access requires an access token.',
@@ -359,6 +435,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 reason = AiSessionFailureReason.WAREHOUSE_ACCESS;
             return {
                 ok: false,
+                cause: error,
                 transient: reason === AiSessionFailureReason.UNKNOWN,
                 checkedAt: new Date(),
                 reason,
@@ -383,6 +460,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
                 return {
                     ok: false,
                     transient: false,
+                    cause: null,
                     checkedAt: new Date(),
                     reason: AiSessionFailureReason.NOT_AGENT_SESSION,
                     message: SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,

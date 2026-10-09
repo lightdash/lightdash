@@ -35,6 +35,7 @@ vi.mock('../../../../api');
 
 vi.mock('react-router', () => ({
     useNavigate: () => vi.fn(),
+    useParams: () => ({}),
     useLocation: () => ({ search: '', pathname: '/' }),
 }));
 

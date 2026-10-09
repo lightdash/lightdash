@@ -4026,6 +4026,10 @@ export class UserService extends BaseService {
                 .get({ user, featureFlagId: FeatureFlags.AgentIdentity })
                 .catch(() => ({ enabled: false }));
             if (enabled) {
+                this.logger.info('Agent sign-in disconnected', {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid ?? null,
+                });
                 trackSafely(() =>
                     this.analytics.track({
                         userId: user.userUuid,

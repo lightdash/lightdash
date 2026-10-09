@@ -30,6 +30,8 @@ import {
 import * as Sentry from '@sentry/node';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type Logger from '../../logging/logger';
+import { redactCredentialError } from '../../logging/redactCredentialError';
+import { withCause } from '../../logging/withCause';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type {
@@ -1054,10 +1056,21 @@ export class WarehouseClientFactory {
                 },
                 reason,
             );
+            this.logger[
+                this.aiAccessEvaluation(context).kind === 'diagnostic'
+                    ? 'debug'
+                    : 'warn'
+            ]('AI service account key refused', {
+                projectUuid,
+                reason,
+                ...redactCredentialError(error),
+            });
         }
-        throw new AiAccessRefusedError(reason, {
+        const refusal = new AiAccessRefusedError(reason, {
             settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
         });
+        withCause(refusal, error);
+        throw refusal;
     }
 
     async attributeSharedSignInExpiry(

@@ -97,6 +97,8 @@ const metricQueryData: MetricQueryDataContext = {
 const outsideEmbed: EmbedContext = {
     t: () => undefined,
     backDestination: 'dashboard',
+    dispatchEmbedEvent: () => false,
+    isEmbedEventReady: false,
     mode: 'direct',
     theme: 'light',
     backgroundColor: null,

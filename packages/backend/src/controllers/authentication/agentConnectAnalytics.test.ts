@@ -918,3 +918,48 @@ describe('agent connect nonce store compatibility', () => {
         }
     });
 });
+
+it('logs a redacted session-check exception once through the existing connect failure', async () => {
+    const f = setup();
+    const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+    Object.assign(f.service, { logger });
+    const attempt = await f.start();
+    const url = new URL(await f.authorize());
+    f.req.query = {
+        code: 'auth-secret',
+        state: url.searchParams.get('state')!,
+    };
+    vi.mocked(snowflakeAiSessionCheck.check).mockRejectedValue(
+        Object.assign(
+            new TypeError(
+                'Connection failed password is abc123\nagent@example.com SELECT secret_column',
+            ),
+            { code: '390318' },
+        ),
+    );
+    expect(await f.callback()).toBe(
+        'http://localhost:4321/done?x=1&error=not_agent_session',
+    );
+    expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
+        'Agent sign-in connect failed',
+        {
+            userUuid: attempt.userId,
+            organizationUuid: attempt.organizationId,
+            reason: FailureReason.SESSION_CHECK_FAILED,
+            errorClass: 'TypeError',
+            errorCode: '390318',
+            errorCategory: null,
+            errorMessage: 'Connection failed password [REDACTED]',
+        },
+    );
+    for (const mock of Object.values(logger)) {
+        for (const line of mock.mock.calls) {
+            expect(JSON.stringify(line)).not.toMatch(
+                /abc123|agent@example.com|secret_column|auth-secret|access-token|refresh-token/,
+            );
+        }
+    }
+    await f.callback();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+    expect(f.upsert).not.toHaveBeenCalled();
+});

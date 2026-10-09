@@ -3,6 +3,8 @@ import {
     type AiAssurance,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { withCause } from '../../../logging/withCause';
+import { type AiAccessEvaluation } from '../AiAccessService';
 
 export type AiMintArgs<T extends CreateWarehouseCredentials> = {
     silentRefresh: boolean;
@@ -26,11 +28,23 @@ export enum AiSessionFailureReason {
     UNKNOWN = 'unknown',
 }
 
+export class AgentSessionCheckError extends Error {
+    constructor(
+        readonly reason: AiSessionFailureReason,
+        message: string,
+        cause: unknown,
+    ) {
+        super(message);
+        withCause(this, cause);
+    }
+}
+
 export type AiSessionProbeResult =
     | { ok: true; checkedAt: Date; observed: Record<string, string | null> }
     | {
           ok: false;
           transient: boolean;
+          cause: unknown;
           checkedAt: Date;
           reason: AiSessionFailureReason;
           message: string;
@@ -45,7 +59,12 @@ export interface AiCredentialProvider<
     missingPrerequisite(
         args: AiMintArgs<T>,
     ): Promise<AiAccessRefusalReason | null>;
-    mint(args: AiMintArgs<T>): Promise<AiMintedCredentials<T>>;
+    mint(
+        args: AiMintArgs<T> & {
+            organizationUuid: string;
+            evaluationKind: AiAccessEvaluation['kind'];
+        },
+    ): Promise<AiMintedCredentials<T>>;
     probe(
         credentials: T,
         assurances: AiAssurance[],

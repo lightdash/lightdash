@@ -2,8 +2,8 @@ import { type Dashboard } from '@lightdash/common';
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { type EmbedMode } from '../../../providers/Embed/types';
+import useEmbed from '../../../providers/Embed/useEmbed';
 import { LightdashEventType } from '../events/types';
-import { useEmbedEventEmitter } from './useEmbedEventEmitter';
 
 type Tab = Dashboard['tabs'][number];
 
@@ -26,7 +26,7 @@ export const useEmbedDashboardTabChange = ({
     visibleTabs,
 }: Args) => {
     const navigate = useNavigate();
-    const { dispatchEmbedEvent } = useEmbedEventEmitter();
+    const { dispatchEmbedEvent } = useEmbed();
 
     return useCallback(
         (tabUuid: string | null) => {

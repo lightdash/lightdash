@@ -8,6 +8,105 @@ import {
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 import { warehouseClientMock } from './utils/QueryBuilder/MetricQueryBuilder.mock';
 
+describe('compileTableCalculationFromTemplate - Difference from previous', () => {
+    it.each(['asc', 'desc'] as const)(
+        'uses the configured %s order',
+        (order) => {
+            const template: TableCalculationTemplate = {
+                type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+                fieldId: 'table_revenue',
+                orderBy: [{ fieldId: 'table_date', order }],
+            };
+
+            expect(
+                compileTableCalculationFromTemplate(
+                    template,
+                    warehouseClientMock,
+                    [{ fieldId: 'other_field', descending: false }],
+                ),
+            ).toBe(
+                `"table_revenue" - LAG("table_revenue") OVER(ORDER BY "table_date" ${order.toUpperCase()} )`,
+            );
+        },
+    );
+
+    it('supports multiple sort and partition fields', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_revenue',
+            orderBy: [
+                { fieldId: 'table_year', order: 'asc' },
+                { fieldId: 'table_month', order: 'desc' },
+            ],
+            partitionBy: ['table_category', 'table_region'],
+        };
+
+        expect(
+            compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            ),
+        ).toBe(
+            '"table_revenue" - LAG("table_revenue") OVER(PARTITION BY "table_category", "table_region" ORDER BY "table_year" ASC, "table_month" DESC )',
+        );
+    });
+
+    it('supports an empty order without introducing a default previous value', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_revenue',
+            orderBy: [],
+            partitionBy: [],
+        };
+
+        expect(
+            compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+            ),
+        ).toBe('"table_revenue" - LAG("table_revenue") OVER()');
+    });
+
+    it('uses the custom bin ordering column', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_revenue',
+            orderBy: [{ fieldId: 'age_range', order: 'asc' }],
+        };
+
+        expect(
+            compileTableCalculationFromTemplate(
+                template,
+                warehouseClientMock,
+                [],
+                new Set(['age_range']),
+            ),
+        ).toBe(
+            '"table_revenue" - LAG("table_revenue") OVER(ORDER BY "age_range_order" ASC )',
+        );
+    });
+
+    it('uses the warehouse field quote character', () => {
+        const template: TableCalculationTemplate = {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_revenue',
+            orderBy: [{ fieldId: 'table_date', order: null }],
+        };
+
+        expect(
+            compileTableCalculationFromTemplate(
+                template,
+                { ...warehouseClientMock, getFieldQuoteChar: () => '`' },
+                [],
+            ),
+        ).toBe(
+            '`table_revenue` - LAG(`table_revenue`) OVER(ORDER BY `table_date` )',
+        );
+    });
+});
+
 describe('compileTableCalculationFromTemplate - Frame Clauses', () => {
     it('Should compile window function with running total frame (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)', () => {
         const template: TableCalculationTemplate = {

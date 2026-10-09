@@ -30,6 +30,8 @@ function useEmbed(): EmbedContext {
             onExplore: (_options: { chart: EmbedExploreChart }) => {},
             t: (_input: UiStringKey) => undefined,
             backDestination: 'dashboard',
+            dispatchEmbedEvent: () => false,
+            isEmbedEventReady: false,
             mode: 'direct',
             theme: 'light',
             backgroundColor: null,

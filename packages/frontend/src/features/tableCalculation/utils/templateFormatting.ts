@@ -7,6 +7,8 @@ export const TemplateTypeLabels: Record<TableCalculationTemplateType, string> =
     {
         [TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS]:
             'Percent change from previous',
+        [TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS]:
+            'Difference from previous',
         [TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE]:
             'Percent of previous value',
         [TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL]:
@@ -26,6 +28,8 @@ export const getTemplateDescription = (
     type: TableCalculationTemplateType,
 ): string => {
     switch (type) {
+        case TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS:
+            return 'Subtracts the previous row value from the current row value.';
         case TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS:
             return 'Calculates the percentage change from the previous row value.';
         case TableCalculationTemplateType.PERCENT_OF_PREVIOUS_VALUE:

@@ -26,7 +26,10 @@ import {
 } from './documentChartEditor';
 
 type Props = {
+    /** The chart to start from; null to start empty. */
     chart: SemanticChartAsCode | null;
+    /** Editing a chart already in the Document, rather than adding one. */
+    isEditing: boolean;
     onApply: (chart: SemanticChartAsCode) => void;
     onClose: () => void;
 };
@@ -55,7 +58,6 @@ const EditorSession = ({
     onExploreSelect: (tableName: string) => void;
     onBackToTables: () => void;
     form: ChartForm;
-    isEditing: boolean;
 }) => {
     useExplorerQueryEffects();
     const version = useExplorerSelector(selectUnsavedChartVersionForSave);
@@ -218,7 +220,6 @@ const DocumentChartEditorModal = (props: Props) => {
             chart={initialChart}
             tableName={tableName}
             form={form}
-            isEditing={props.chart !== null}
             onExploreSelect={setTableName}
             onBackToTables={() => {
                 setInitialChart(null);

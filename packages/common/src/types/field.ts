@@ -441,6 +441,7 @@ export type FrameClause = {
 
 export enum TableCalculationTemplateType {
     PERCENT_CHANGE_FROM_PREVIOUS = 'percent_change_from_previous',
+    DIFFERENCE_FROM_PREVIOUS = 'difference_from_previous',
     PERCENT_OF_PREVIOUS_VALUE = 'percent_of_previous_value',
     PERCENT_OF_COLUMN_TOTAL = 'percent_of_column_total',
     RANK_IN_COLUMN = 'rank_in_column',
@@ -449,6 +450,18 @@ export enum TableCalculationTemplateType {
 }
 
 export type TableCalculationTemplate =
+    | {
+          /** Type of template calculation */
+          type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS;
+          /** Field ID to apply the template to */
+          fieldId: string;
+          /** Fields to order by for window functions */
+          orderBy: {
+              fieldId: string;
+              order: 'asc' | 'desc' | null;
+          }[];
+          partitionBy?: string[];
+      }
     | {
           /** Type of template calculation */
           type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS;

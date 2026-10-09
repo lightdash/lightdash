@@ -17,6 +17,7 @@ import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { getSnowflakeAiAccount } from '../../../config/snowflakeAgentConfiguration';
 import Logger from '../../../logging/logger';
+import { withCause } from '../../../logging/withCause';
 import { AgentConnectStateStore } from './AgentConnectStateStore';
 
 const config = lightdashConfig.auth.snowflakeAi;
@@ -90,13 +91,15 @@ export const snowflakeAiPassportStrategy = !(
                       verification.failureReason =
                           AgentIdentityConnectFailureReason.NOT_CONFIGURED;
                   }
+                  let sessionCheckError: unknown = null;
                   const agentSession = account
                       ? await snowflakeAiSessionCheck
                             .check(account, accessToken, {
                                 accessUrl: new URL(config.tokenEndpoint!)
                                     .origin,
                             })
-                            .catch(() => {
+                            .catch((error: unknown) => {
+                                sessionCheckError = error;
                                 verification.failureReason =
                                     AgentIdentityConnectFailureReason.SESSION_CHECK_FAILED;
                                 return null;
@@ -105,11 +108,16 @@ export const snowflakeAiPassportStrategy = !(
                   if (!agentSession?.agentActivated) {
                       verification.failureReason ??=
                           AgentIdentityConnectFailureReason.NOT_AGENT_SESSION;
-                      throw new ForbiddenError(
+                      const refusal = new ForbiddenError(
                           SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
                       );
+                      throw sessionCheckError === null
+                          ? refusal
+                          : withCause(refusal, sessionCheckError);
                   }
                   Logger.info('Snowflake agent session activated', {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
                       currentRole: agentSession.currentRole,
                       activeRestrictedSessionScopes:
                           agentSession.activeRestrictedSessionScopes,

@@ -383,6 +383,8 @@ describe('UserService', () => {
             'tracks a deleted AI credential with project %s',
             async (projectUuid) => {
                 const { service, credentials, flags } = setupDelete();
+                const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+                Object.assign(service, { logger });
                 credentials.deleteAiCredential.mockResolvedValue({
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     projectUuid,
@@ -390,6 +392,21 @@ describe('UserService', () => {
                 await service.deleteWarehouseCredentials(
                     sessionUser,
                     credentialUuid,
+                );
+                expect(logger.info).toHaveBeenCalledExactlyOnceWith(
+                    'Agent sign-in disconnected',
+                    {
+                        userUuid: sessionUser.userUuid,
+                        organizationUuid: sessionUser.organizationUuid,
+                    },
+                );
+                expect(
+                    JSON.stringify(
+                        Object.values(logger).map((mock) => mock.mock.calls),
+                    ),
+                ).not.toContain(sessionUser.email);
+                expect(JSON.stringify(logger.info.mock.calls)).not.toMatch(
+                    /refresh-token|private_key|SELECT/,
                 );
                 expect(
                     credentials.deleteAiCredential,

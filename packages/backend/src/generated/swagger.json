@@ -1932,6 +1932,10 @@
                     }
                 ]
             },
+            "TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS": {
+                "enum": ["difference_from_previous"],
+                "type": "string"
+            },
             "TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS": {
                 "enum": ["percent_change_from_previous"],
                 "type": "string"
@@ -2019,6 +2023,44 @@
             },
             "TableCalculationTemplate": {
                 "anyOf": [
+                    {
+                        "properties": {
+                            "partitionBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "orderBy": {
+                                "items": {
+                                    "properties": {
+                                        "order": {
+                                            "type": "string",
+                                            "enum": ["asc", "desc", null],
+                                            "nullable": true
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["order", "fieldId"],
+                                    "type": "object"
+                                },
+                                "type": "array",
+                                "description": "Fields to order by for window functions"
+                            },
+                            "fieldId": {
+                                "type": "string",
+                                "description": "Field ID to apply the template to"
+                            },
+                            "type": {
+                                "$ref": "#/components/schemas/TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS",
+                                "description": "Type of template calculation"
+                            }
+                        },
+                        "required": ["orderBy", "fieldId", "type"],
+                        "type": "object"
+                    },
                     {
                         "properties": {
                             "partitionBy": {
@@ -70739,7 +70781,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.514.0",
+        "version": "2.517.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
