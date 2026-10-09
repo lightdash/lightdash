@@ -1,6 +1,8 @@
 import {
+    AgentAccessTestRequest,
     AiServiceAccountCredentialInput,
     AiServiceAccountTestRequest,
+    ApiAgentAccessReportResponse,
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
     ApiErrorPayload,
@@ -111,6 +113,29 @@ export class AiServiceAccountController extends BaseController {
                     projectUuid,
                     connection ?? null,
                     body.credentials,
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/test-access')
+    @OperationId('testAiServiceAccountAccess')
+    async testAccess(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+        @Body() body: AgentAccessTestRequest,
+        @Query() connection?: UUID,
+    ): Promise<ApiAgentAccessReportResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiServiceAccountService()
+                .testAccess(
+                    req.account!,
+                    projectUuid,
+                    connection ?? null,
+                    body,
                 ),
         };
     }

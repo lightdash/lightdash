@@ -103,3 +103,51 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
         });
     },
 );
+
+describe('testAccess route', () => {
+    it('returns FeatureNotEnabledError before any credential work', async () => {
+        const f = setup(false);
+        await expect(
+            f.controller.testAccess('project', f.req, {
+                credentials: null,
+                entryPoint: 'project_agent_identity_page',
+            }),
+        ).rejects.toMatchObject({
+            statusCode: 403,
+            data: { code: 'feature_not_enabled' },
+        });
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+    });
+    it('refuses a caller without project management permission', async () => {
+        const f = setup(true);
+        f.req.account!.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            f.controller.testAccess('project', f.req, {
+                credentials: null,
+                entryPoint: 'project_agent_identity_page',
+            }),
+        ).rejects.toMatchObject({ name: 'ForbiddenError' });
+        expect(f.load).not.toHaveBeenCalled();
+    });
+    it('normalises an omitted connection and forwards the typed request', async () => {
+        const testAccess = vi.fn().mockResolvedValue({ status: 'complete' });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ testAccess }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        const request = {
+            credentials: null,
+            entryPoint: 'project_agent_identity_page',
+        } as const;
+        await expect(
+            controller.testAccess('project', req, request),
+        ).resolves.toEqual({ status: 'ok', results: { status: 'complete' } });
+        expect(testAccess).toHaveBeenCalledWith(
+            req.account,
+            'project',
+            null,
+            request,
+        );
+    });
+});

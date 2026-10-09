@@ -1,7 +1,7 @@
 import { Ability } from '@casl/ability';
 import { type Project } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
@@ -9,6 +9,14 @@ import { useSettingsNavigation } from './useSettingsNavigation';
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: vi.fn() }),
 }));
+
+const flags = vi.hoisted(() => ({ enabled: false }));
+vi.mock('../useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({ data: { enabled: flags.enabled } }),
+}));
+beforeEach(() => {
+    flags.enabled = false;
+});
 
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
@@ -266,4 +274,58 @@ describe('limited project settings navigation', () => {
             ).toEqual(expected);
         },
     );
+});
+
+describe('Agent identity settings navigation', () => {
+    it.each([
+        [true, 'manage', true],
+        [false, 'manage', false],
+        [true, 'update', false],
+        [true, 'view', false],
+    ])('flag %s with %s project permission', (enabled, action, visible) => {
+        flags.enabled = enabled;
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action,
+                                subject: 'Project',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                }),
+            ),
+        );
+        const items = result.current.find(
+            ({ id }) => id === 'current-project',
+        )!.items;
+        const index = items.findIndex(
+            ({ label }) => label === 'Agent identity',
+        );
+        if (visible) {
+            expect(items[index].to).toBe(
+                '/generalSettings/projectManagement/project/agentIdentity',
+            );
+            expect(items[index - 1].label).toBe('Tables configuration');
+        } else expect(index).toBe(-1);
+    });
 });

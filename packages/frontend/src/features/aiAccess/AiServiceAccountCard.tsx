@@ -25,6 +25,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { AgentAccessReportPanel } from './AgentAccessReportPanel';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
 import {
     useAiServiceAccount,
@@ -37,6 +38,7 @@ import {
     identityWarehouseNames,
     inlineIdentityLabel,
 } from './identityLabels';
+import { useTestAgentAccess } from './useTestAgentAccess';
 
 const AiServiceAccountSlotSummary = ({
     projectUuid,
@@ -51,6 +53,7 @@ const AiServiceAccountSlotSummary = ({
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
+    const accessTest = useTestAgentAccess(projectUuid, null);
     const [removing, setRemoving] = useState(false);
     return (
         <>
@@ -64,7 +67,11 @@ const AiServiceAccountSlotSummary = ({
                 <Group gap="xs">
                     <Button
                         variant="default"
-                        disabled={test.isLoading || remove.isLoading}
+                        disabled={
+                            test.isLoading ||
+                            accessTest.isLoading ||
+                            remove.isLoading
+                        }
                         onClick={() => {
                             test.reset();
                             onReplace();
@@ -75,7 +82,7 @@ const AiServiceAccountSlotSummary = ({
                     <Button
                         variant="default"
                         loading={test.isLoading}
-                        disabled={remove.isLoading}
+                        disabled={remove.isLoading || accessTest.isLoading}
                         onClick={() =>
                             test.mutate(
                                 { credentials: null },
@@ -91,15 +98,46 @@ const AiServiceAccountSlotSummary = ({
                         Test
                     </Button>
                     <Button
+                        variant="default"
+                        loading={accessTest.isLoading}
+                        disabled={test.isLoading || remove.isLoading}
+                        onClick={() =>
+                            accessTest.mutate({
+                                credentials: null,
+                                entryPoint: 'project_agent_identity_page',
+                            })
+                        }
+                    >
+                        Test as agent
+                    </Button>
+                    <Button
                         variant="subtle"
                         color="red"
-                        disabled={test.isLoading || remove.isLoading}
+                        disabled={
+                            test.isLoading ||
+                            accessTest.isLoading ||
+                            remove.isLoading
+                        }
                         onClick={() => setRemoving(true)}
                     >
                         Remove
                     </Button>
                 </Group>
             </Group>
+            {accessTest.isLoading ? (
+                <Text size="sm" role="status">
+                    Checking agent access…
+                </Text>
+            ) : (
+                accessTest.data && (
+                    <AgentAccessReportPanel report={accessTest.data} />
+                )
+            )}
+            {accessTest.isError && (
+                <Text size="sm" c="red" role="alert">
+                    Could not test agent access. Try again.
+                </Text>
+            )}
             {test.data && !test.data.ok && (
                 <Text size="sm" role="status">
                     {test.data.message}
@@ -124,6 +162,7 @@ const AiServiceAccountSlotSummary = ({
                     remove.mutate(undefined, {
                         onSuccess: () => {
                             test.reset();
+                            accessTest.reset();
                             setRemoving(false);
                         },
                     })

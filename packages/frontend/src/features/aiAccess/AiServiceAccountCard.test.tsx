@@ -16,6 +16,7 @@ import { lightdashApi } from '../../api';
 import UpdateProjectConnection from '../../components/ProjectConnection/UpdateProjectConnection';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
+import { ProjectAgentIdentityPage } from './ProjectAgentIdentityPage';
 
 const mocks = vi.hoisted(() => ({
     enabled: true,
@@ -100,7 +101,11 @@ const upload = (contents = JSON.stringify(key)) => {
         },
     });
 };
-const setup = (props = project, connectionPage = false) => {
+const setup = (
+    props = project,
+    connectionPage = false,
+    identityPage = false,
+) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false, cacheTime: 0 },
@@ -113,6 +118,8 @@ const setup = (props = project, connectionPage = false) => {
             <MemoryRouter>
                 {connectionPage ? (
                     <UpdateProjectConnection projectUuid="project" />
+                ) : identityPage ? (
+                    <ProjectAgentIdentityPage project={props} />
                 ) : (
                     <AiServiceAccountCard project={props} />
                 )}
@@ -131,6 +138,30 @@ const openForm = async () => {
 };
 
 describe('AI service account card', () => {
+    it('tests saved agent access without changing the existing credential test', async () => {
+        slot = savedSlot;
+        setup();
+        expect(
+            await screen.findByRole('button', { name: 'Test' }),
+        ).toBeVisible();
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Test as agent' }),
+        );
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    version: 'v2',
+                    url: '/projects/project/ai-access/service-account/test-access',
+                    method: 'POST',
+                    sensitive: true,
+                    body: JSON.stringify({
+                        credentials: null,
+                        entryPoint: 'project_agent_identity_page',
+                    }),
+                }),
+            ),
+        );
+    });
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.enabled = true;
@@ -148,6 +179,26 @@ describe('AI service account card', () => {
                             projectsMissingAiServiceAccount: null,
                         },
                     ],
+                };
+            if (url.endsWith('/test-access'))
+                return {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    subject: { kind: 'ai_service_account' },
+                    credentialSource: 'saved',
+                    status: 'failed',
+                    failureReason: 'unknown',
+                    principal: null,
+                    message: 'Could not verify agent access.',
+                    datasets: [],
+                    tables: [],
+                    readableCount: 0,
+                    blockedCount: 0,
+                    errorCount: 0,
+                    checkedCount: 0,
+                    notCheckedCount: 0,
+                    totalCount: null,
+                    truncatedCount: 0,
+                    checkedAt: new Date(),
                 };
             if (url.endsWith('/test'))
                 return {
@@ -534,25 +585,122 @@ describe('AI service account card', () => {
         upload('{}');
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
-    it('mounts outside the connection form and never submits it', async () => {
-        const { container } = setup(project, true);
-        const add = await screen.findByRole('button', {
+    it.each([true, false])(
+        'moves the card off Connection settings with flag %s',
+        (enabled) => {
+            mocks.enabled = enabled;
+            setup(project, true);
+            expect(
+                screen.queryByText('AI service account'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Test as agent' }),
+            ).not.toBeInTheDocument();
+            const link = screen.queryByRole('link', { name: 'Agent identity' });
+            if (enabled)
+                expect(link).toHaveAttribute(
+                    'href',
+                    '/generalSettings/projectManagement/project/agentIdentity',
+                );
+            else expect(link).not.toBeInTheDocument();
+            expect(lightdashApi).not.toHaveBeenCalled();
+        },
+    );
+    it('shows the read-only organization rule, card and Test as agent on the identity page', async () => {
+        slot = savedSlot;
+        setup(project, false, true);
+        expect(
+            await screen.findByText('Organization rule for this warehouse'),
+        ).toBeVisible();
+        expect(screen.getByText('Same credentials as the user')).toBeVisible();
+        expect(screen.getByText(/Set by an organization admin/)).toBeVisible();
+        expect(
+            screen.getByRole('link', { name: 'Organization settings' }),
+        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Test as agent' }),
+        );
+        expect(
+            await screen.findByText('Could not verify agent access.'),
+        ).toBeVisible();
+        expect(screen.getByText('AI service account')).toBeVisible();
+    });
+    it('keeps the access result until the saved slot is removed', async () => {
+        slot = savedSlot;
+        setup(project, false, true);
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Test as agent' }),
+        );
+        await screen.findByText('Could not verify agent access.');
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        await screen.findByText('Signs in as tested-principal');
+        expect(
+            screen.getByText('Could not verify agent access.'),
+        ).toBeVisible();
+        fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+        fireEvent.click(
+            within(await screen.findByRole('dialog')).getByRole('button', {
+                name: 'Remove',
+            }),
+        );
+        await screen.findByRole('button', {
             name: 'Add an AI service account',
         });
-        expect(container.querySelectorAll('form')).toHaveLength(1);
-        expect(add.closest('form')).toBeNull();
-        fireEvent.click(add);
-        upload();
-        const saveButton = within(await screen.findByRole('dialog')).getByRole(
-            'button',
-            { name: 'Save' },
+        expect(
+            screen.queryByText('Could not verify agent access.'),
+        ).not.toBeInTheDocument();
+    });
+    it('clears the access result when the saved key is replaced', async () => {
+        slot = { ...savedSlot, identityUuid: 'previous-identity' };
+        setup(project, false, true);
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Test as agent' }),
         );
+        await screen.findByText('Could not verify agent access.');
+        fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+        const dialog = await screen.findByRole('dialog');
+        expect(
+            screen.getByText('Could not verify agent access.'),
+        ).toBeVisible();
+        upload();
+        const saveButton = within(dialog).getByRole('button', { name: 'Save' });
         await waitFor(() => expect(saveButton).toBeEnabled());
         fireEvent.click(saveButton);
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
         expect(
-            await screen.findByRole('button', { name: 'Replace' }),
-        ).toBeInTheDocument();
-        expect(mocks.submit).not.toHaveBeenCalled();
+            screen.queryByText('Could not verify agent access.'),
+        ).not.toBeInTheDocument();
+    });
+    it.each(['flag', 'permission'])(
+        'does not load the identity page without %s',
+        (gate) => {
+            mocks.enabled = gate !== 'flag';
+            mocks.canManage = gate !== 'permission';
+            setup(project, false, true);
+            expect(lightdashApi).not.toHaveBeenCalled();
+            expect(
+                screen.queryByText('Organization rule for this warehouse'),
+            ).not.toBeInTheDocument();
+        },
+    );
+    it('shows an unsupported warehouse state without fetching rules', () => {
+        setup(
+            {
+                ...project,
+                warehouseConnection: { type: WarehouseTypes.POSTGRES },
+            } as Project,
+            false,
+            true,
+        );
+        expect(
+            screen.getByText(
+                'Agent identity is not available for this warehouse.',
+            ),
+        ).toBeVisible();
+        expect(lightdashApi).not.toHaveBeenCalled();
     });
     it('keeps the form open and reports a failed save', async () => {
         setup();
