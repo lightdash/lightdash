@@ -1,6 +1,7 @@
 import {
     AiResultType,
     QueryExecutionContext,
+    QuerySurface,
     type SessionUser,
 } from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
@@ -28,109 +29,127 @@ const user = {
 } as unknown as SessionUser;
 
 describe('AiAgentService SQL artifact visualization query', () => {
-    it('executes persisted SQL for the current viewer and tracks it', async () => {
-        const query = {
-            queryUuid: 'fresh-query-uuid',
-            cacheMetadata: { cacheHit: false },
-            parameterReferences: [],
-            usedParametersValues: {},
-            resolvedTimezone: null,
-        };
-        const asyncQueryService = {
-            executeAsyncSqlQuery: vi.fn().mockResolvedValue(query),
-        };
-        const analytics = { track: vi.fn() };
-        const aiAgentModel = {
-            getAgent: vi.fn().mockResolvedValue({
+    it.each([
+        ['api', QuerySurface.API],
+        ['web_app', QuerySurface.APP],
+        ['slack', QuerySurface.SLACK],
+    ] as const)(
+        'executes a %s SQL artifact for the viewer with surface %s',
+        async (threadCreatedFrom, querySurface) => {
+            const query = {
+                queryUuid: 'fresh-query-uuid',
+                cacheMetadata: { cacheHit: false },
+                parameterReferences: [],
+                usedParametersValues: {},
+                resolvedTimezone: null,
+            };
+            const asyncQueryService = {
+                executeAsyncSqlQuery: vi.fn().mockResolvedValue(query),
+            };
+            const analytics = { track: vi.fn() };
+            const aiAgentModel = {
+                findSlackPrompt: vi
+                    .fn()
+                    .mockResolvedValue(
+                        threadCreatedFrom === 'slack'
+                            ? { threadCreatedFrom, slackUserId: 'U1' }
+                            : undefined,
+                    ),
+                findWebAppPrompt: vi
+                    .fn()
+                    .mockResolvedValue({ threadCreatedFrom }),
+                getAgent: vi.fn().mockResolvedValue({
+                    uuid: 'agent-uuid',
+                    name: 'Agent',
+                    projectUuid: 'project-uuid',
+                }),
+            };
+            const service = new AiAgentService({
+                aiAgentModel,
+                asyncQueryService,
+                analytics,
+                lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+
+            vi.spyOn(
+                service as unknown as {
+                    getIsCopilotEnabled: () => Promise<boolean>;
+                },
+                'getIsCopilotEnabled',
+            ).mockResolvedValue(true);
+            vi.spyOn(service, 'getAgent').mockResolvedValue({
                 uuid: 'agent-uuid',
                 name: 'Agent',
                 projectUuid: 'project-uuid',
-            }),
-        };
-        const service = new AiAgentService({
-            aiAgentModel,
-            asyncQueryService,
-            analytics,
-            lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
-
-        vi.spyOn(
-            service as unknown as {
-                getIsCopilotEnabled: () => Promise<boolean>;
-            },
-            'getIsCopilotEnabled',
-        ).mockResolvedValue(true);
-        vi.spyOn(service, 'getAgent').mockResolvedValue({
-            uuid: 'agent-uuid',
-            name: 'Agent',
-            projectUuid: 'project-uuid',
-        } as never);
-        vi.spyOn(service, 'getArtifact').mockResolvedValue({
-            artifactUuid: 'artifact-uuid',
-            threadUuid: 'thread-uuid',
-            artifactType: 'chart',
-            savedQueryUuid: null,
-            savedSqlUuid: null,
-            savedDashboardUuid: null,
-            createdAt: new Date(),
-            versionNumber: 1,
-            versionUuid: 'version-uuid',
-            title: 'SQL results',
-            description: null,
-            chartConfig: {
-                source: 'sql',
-                sql: 'select 1',
-                limit: 500,
-            },
-            dashboardConfig: null,
-            promptUuid: 'prompt-uuid',
-            versionCreatedAt: new Date(),
-            verifiedByUserUuid: null,
-            verifiedAt: null,
-        });
-
-        const result = await service.getArtifactVizQuery(user, {
-            projectUuid: 'project-uuid',
-            agentUuid: 'agent-uuid',
-            artifactUuid: 'artifact-uuid',
-            versionUuid: 'version-uuid',
-        });
-
-        expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                sql: 'select 1',
-                limit: 500,
-                context: QueryExecutionContext.AI,
-            }),
-        );
-        expect(result).toEqual({
-            source: 'sql',
-            type: AiResultType.TABLE_RESULT,
-            query,
-            sql: 'select 1',
-            limit: 500,
-            metadata: {
+            } as never);
+            vi.spyOn(service, 'getArtifact').mockResolvedValue({
+                artifactUuid: 'artifact-uuid',
+                threadUuid: 'thread-uuid',
+                artifactType: 'chart',
+                savedQueryUuid: null,
+                savedSqlUuid: null,
+                savedDashboardUuid: null,
+                createdAt: new Date(),
+                versionNumber: 1,
+                versionUuid: 'version-uuid',
                 title: 'SQL results',
                 description: null,
-            },
-        });
-        expect(analytics.track).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'ai_agent.artifact_viz_query',
-                properties: expect.objectContaining({
-                    vizType: AiResultType.TABLE_RESULT,
+                chartConfig: {
                     source: 'sql',
-                    // Ties the render round-trip to the turn that produced
-                    // the artifact, and to query_events for warehouse timings.
-                    promptId: 'prompt-uuid',
-                    queryId: 'fresh-query-uuid',
-                    durationMs: expect.any(Number),
+                    sql: 'select 1',
+                    limit: 500,
+                },
+                dashboardConfig: null,
+                promptUuid: 'prompt-uuid',
+                versionCreatedAt: new Date(),
+                verifiedByUserUuid: null,
+                verifiedAt: null,
+            });
+
+            const result = await service.getArtifactVizQuery(user, {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            });
+
+            expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    projectUuid: 'project-uuid',
+                    sql: 'select 1',
+                    limit: 500,
+                    context: QueryExecutionContext.AI,
+                    querySurface,
                 }),
-            }),
-        );
-    });
+            );
+            expect(result).toEqual({
+                source: 'sql',
+                type: AiResultType.TABLE_RESULT,
+                query,
+                sql: 'select 1',
+                limit: 500,
+                metadata: {
+                    title: 'SQL results',
+                    description: null,
+                },
+            });
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'ai_agent.artifact_viz_query',
+                    properties: expect.objectContaining({
+                        vizType: AiResultType.TABLE_RESULT,
+                        source: 'sql',
+                        // Ties the render round-trip to the turn that produced
+                        // the artifact, and to query_events for warehouse timings.
+                        promptId: 'prompt-uuid',
+                        queryId: 'fresh-query-uuid',
+                        durationMs: expect.any(Number),
+                    }),
+                }),
+            );
+        },
+    );
 
     it('rejects SQL artifact execution in embed context', async () => {
         const asyncQueryService = {

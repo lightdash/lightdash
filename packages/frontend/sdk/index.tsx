@@ -5,6 +5,7 @@ import '@mantine/tiptap/styles.css';
 import '../src/styles/global.css';
 import './styles/sdk.css';
 import {
+    assertUnreachable,
     FilterOperator,
     getErrorMessage,
     type EmbedDashboard as EmbedDashboardType,
@@ -14,6 +15,7 @@ import {
     type UiStringKey,
 } from '@lightdash/common';
 import { Portal, type MantineThemeOverride } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import { ModalsProvider } from '@mantine/modals';
 import {
     useCallback,
@@ -26,19 +28,36 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import {
+    MemoryRouter,
+    Navigate,
+    Outlet,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+} from 'react-router';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
+import { AiAgentsCoreProvider } from '../src/ee/features/aiCopilot/components/Launcher/AiAgentsCoreProvider';
+import { AgentContainerWidthContext } from '../src/ee/features/aiCopilot/hooks/useAgentMaxWidth';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import {
     type LightdashEvent,
     type LightdashEventHandler,
 } from '../src/ee/features/embed/events/types';
 import { embedContractClass } from '../src/ee/features/embed/styles/embedClassContract';
+import { useEmbedRouteNavigation } from '../src/ee/features/embed/useEmbedRouteNavigation';
+import AgentPage from '../src/ee/pages/AiAgents/AgentPage';
+import AgentThreadPage from '../src/ee/pages/AiAgents/AgentThreadPage';
+import AiAgentNewThreadPage from '../src/ee/pages/AiAgents/AiAgentNewThreadPage';
+import AiAgentsNotAuthorizedPage from '../src/ee/pages/AiAgents/AiAgentsNotAuthorizedPage';
+import EmbedAiAgentDashboard from '../src/ee/pages/EmbedAiAgentDashboard';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import {
+    type EmbedAiAgentThreadChange,
     type EmbedExploreChart,
     type EmbedExploreOptions,
 } from '../src/ee/providers/Embed/types';
@@ -96,6 +115,8 @@ type BaseProps = {
     filters?: SdkFilter[];
     contentOverrides?: LanguageMap;
     uiOverrides?: SdkUiOverrides;
+    // Takes over "Explore from here" for saved charts. Without it, Explore
+    // opens inside the embedded component with a back button.
     onExplore?: (options: { chart: SavedChart }) => void;
     onError?: SdkErrorHandler;
     onEvent?: LightdashEventHandler;
@@ -118,16 +139,13 @@ type ChartProps = Omit<BaseProps, 'filters'> & {
 
 type AiAgentProps = Omit<
     BaseProps,
-    | 'contentOverrides'
-    | 'uiOverrides'
-    | 'filters'
-    | 'onExplore'
-    | 'onError'
-    | 'onEvent'
+    'contentOverrides' | 'uiOverrides' | 'filters' | 'onExplore' | 'onEvent'
 > & {
     agentUuid: string;
     onThreadChange?: (options: { threadUuid: string }) => void;
     threadUuid?: string;
+    // Beta: 'native' renders the agent in the host page instead of an iframe
+    renderMode?: 'iframe' | 'native';
 };
 
 type MetricsCatalogProps = Omit<
@@ -262,7 +280,8 @@ const getInitialNavigation = (
     restoredChart: undefined,
 });
 
-// Saved charts go to the host; derived charts (drill-downs) render in place.
+// Saved charts go to the host's onExplore when one is provided; otherwise they
+// render in place like derived charts (drill-downs).
 // Back leaves every drill-down at once and restores the root's query.
 const useEmbedExploreNavigation = (
     onExplore: BaseProps['onExplore'],
@@ -278,8 +297,8 @@ const useEmbedExploreNavigation = (
 
     const handleExplore = useCallback(
         ({ chart, sourceChart }: EmbedExploreOptions) => {
-            if ('uuid' in chart) {
-                onExplore?.({ chart });
+            if ('uuid' in chart && onExplore) {
+                onExplore({ chart });
                 return;
             }
             setState((prev) => ({
@@ -307,6 +326,19 @@ const useEmbedExploreNavigation = (
     };
 };
 
+const getAiAgentPath = ({
+    agentUuid,
+    projectUuid,
+    threadUuid,
+}: {
+    agentUuid: string;
+    projectUuid: string;
+    threadUuid?: string;
+}) =>
+    threadUuid
+        ? `/embed/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`
+        : `/embed/${projectUuid}/ai-agents/${agentUuid}/threads`;
+
 const getAiAgentEmbedUrl = ({
     agentUuid,
     instanceUrl,
@@ -327,10 +359,8 @@ const getAiAgentEmbedUrl = ({
     const normalizedInstanceUrl = instanceUrl.endsWith('/')
         ? instanceUrl
         : `${instanceUrl}/`;
-    const path = threadUuid
-        ? `embed/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`
-        : `embed/${projectUuid}/ai-agents/${agentUuid}/threads`;
-    const url = new URL(path, normalizedInstanceUrl);
+    const path = getAiAgentPath({ agentUuid, projectUuid, threadUuid });
+    const url = new URL(`.${path}`, normalizedInstanceUrl);
 
     if (theme) {
         url.searchParams.set('theme', theme);
@@ -380,9 +410,11 @@ const SdkProviders: FC<
         styles?: { backgroundColor?: string; fontFamily?: string };
         theme?: 'light' | 'dark';
         projectUuid?: string;
+        // Starts the router here and leaves routing to the children
+        initialEntry?: string;
         onError?: SdkErrorHandler;
     }>
-> = ({ children, styles, theme, projectUuid, onError }) => {
+> = ({ children, styles, theme, projectUuid, initialEntry, onError }) => {
     const colorScheme = theme ?? 'light';
     const onErrorRef = useRef(onError);
     onErrorRef.current = onError;
@@ -422,14 +454,19 @@ const SdkProviders: FC<
         }),
         [fontFamily, portalId],
     );
-    const route = projectUuid ? `/projects/${projectUuid}` : '/';
-    const routedChildren = projectUuid ? (
-        <Routes>
-            <Route path="/projects/:projectUuid/*" element={<>{children}</>} />
-        </Routes>
-    ) : (
-        children
-    );
+    const route =
+        initialEntry ?? (projectUuid ? `/projects/${projectUuid}` : '/');
+    const routedChildren =
+        projectUuid && !initialEntry ? (
+            <Routes>
+                <Route
+                    path="/projects/:projectUuid/*"
+                    element={<>{children}</>}
+                />
+            </Routes>
+        ) : (
+            children
+        );
 
     return (
         <>
@@ -955,16 +992,21 @@ const Chart: FC<ChartProps> = ({
     );
 };
 
-const AiAgent: FC<AiAgentProps> = ({
+const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     instanceUrl,
+    onError,
     onThreadChange,
     styles,
     theme,
     threadUuid,
     token: tokenOrTokenPromise,
 }) => {
-    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
     const instanceOrigin = new URL(instanceUrl).origin;
     const targetOrigin =
         typeof window !== 'undefined' && onThreadChange
@@ -1023,6 +1065,207 @@ const AiAgent: FC<AiAgentProps> = ({
             }}
         />
     );
+};
+
+// Follows threadUuid/agentUuid prop changes from the host
+const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
+    path,
+    hasThread,
+}) => {
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const pathnameRef = useRef(pathname);
+    pathnameRef.current = pathname;
+    const lastPathRef = useRef(path);
+
+    useEffect(() => {
+        if (lastPathRef.current === path) return;
+        lastPathRef.current = path;
+        const current = pathnameRef.current;
+        // A thread path also matches its message subroutes; the new-thread
+        // path is a prefix of every thread, so it must match exactly
+        const isOnPath =
+            current === path || (hasThread && current.startsWith(`${path}/`));
+        if (isOnPath) return;
+        void navigate(path);
+    }, [navigate, path, hasThread]);
+
+    return null;
+};
+
+const NativeAiAgentLayout: FC<{
+    agentUuid: string;
+    embedToken: string;
+    hasThread: boolean;
+    onThreadChange: AiAgentProps['onThreadChange'];
+    path: string;
+    projectUuid: string;
+}> = ({
+    agentUuid,
+    embedToken,
+    hasThread,
+    onThreadChange,
+    path,
+    projectUuid,
+}) => {
+    const {
+        savedChart,
+        customSqlProvenanceChartUuid,
+        handleExplore,
+        handleBackToDashboard,
+    } = useEmbedRouteNavigation(projectUuid);
+    const onThreadChangeRef = useRef(onThreadChange);
+    onThreadChangeRef.current = onThreadChange;
+    const handleThreadChange = useCallback(
+        (change: EmbedAiAgentThreadChange) => {
+            if (
+                change.agentUuid !== agentUuid ||
+                change.projectUuid !== projectUuid
+            ) {
+                return;
+            }
+            onThreadChangeRef.current?.({ threadUuid: change.threadUuid });
+        },
+        [agentUuid, projectUuid],
+    );
+
+    return (
+        <EmbedProvider
+            embedToken={embedToken}
+            projectUuid={projectUuid}
+            savedChart={savedChart}
+            customSqlProvenanceChartUuid={customSqlProvenanceChartUuid}
+            onExplore={handleExplore}
+            onBackToDashboard={handleBackToDashboard}
+            onAiAgentThreadChange={handleThreadChange}
+        >
+            <AiAgentsCoreProvider>
+                <AiAgentRouteSync path={path} hasThread={hasThread} />
+                <Outlet />
+            </AiAgentsCoreProvider>
+        </EmbedProvider>
+    );
+};
+
+const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
+    agentUuid,
+    instanceUrl,
+    onError,
+    onThreadChange,
+    styles,
+    theme,
+    threadUuid,
+    token: tokenOrTokenPromise,
+}) => {
+    const tokenContext = useEmbedTokenContext(
+        instanceUrl,
+        tokenOrTokenPromise,
+        onError,
+    );
+    const { ref: containerRef, width: containerWidth } = useElementSize();
+
+    if (!tokenContext) {
+        return null;
+    }
+
+    const path = getAiAgentPath({
+        agentUuid,
+        projectUuid: tokenContext.projectUuid,
+        threadUuid,
+    });
+
+    return (
+        <div
+            ref={containerRef}
+            style={{
+                ...getDashboardContainerStyles(styles, theme),
+                overflow: 'hidden',
+            }}
+        >
+            <AgentContainerWidthContext.Provider
+                value={containerWidth > 0 ? containerWidth : null}
+            >
+                <SdkProviders
+                    initialEntry={path}
+                    styles={styles}
+                    theme={theme}
+                    onError={onError}
+                >
+                    <Routes>
+                        <Route
+                            path="/embed/:projectUuid"
+                            element={
+                                <NativeAiAgentLayout
+                                    agentUuid={agentUuid}
+                                    embedToken={tokenContext.token}
+                                    hasThread={threadUuid !== undefined}
+                                    onThreadChange={onThreadChange}
+                                    path={path}
+                                    projectUuid={tokenContext.projectUuid}
+                                />
+                            }
+                        >
+                            <Route
+                                path="explore/:exploreId"
+                                element={<EmbedExplore />}
+                            />
+                            <Route
+                                path="ai-agents/:agentUuid/dashboards/:agentDashboardUuid"
+                                element={<EmbedAiAgentDashboard />}
+                            >
+                                <Route path="tabs/:tabUuid" />
+                            </Route>
+                            <Route
+                                path="ai-agents/not-authorized"
+                                element={<AiAgentsNotAuthorizedPage />}
+                            />
+                            <Route
+                                path="ai-agents/:agentUuid"
+                                element={<AgentPage />}
+                            >
+                                <Route
+                                    index
+                                    element={<Navigate to="threads" replace />}
+                                />
+                                <Route path="threads">
+                                    <Route
+                                        index
+                                        element={<AiAgentNewThreadPage />}
+                                    />
+                                    <Route
+                                        path=":threadUuid/messages/:promptUuid/debug"
+                                        element={<AgentThreadPage debug />}
+                                    />
+                                    <Route
+                                        path=":threadUuid/messages/:promptUuid"
+                                        element={<AgentThreadPage />}
+                                    />
+                                    <Route
+                                        path=":threadUuid"
+                                        element={<AgentThreadPage />}
+                                    />
+                                </Route>
+                            </Route>
+                        </Route>
+                    </Routes>
+                </SdkProviders>
+            </AgentContainerWidthContext.Provider>
+        </div>
+    );
+};
+
+const AiAgent: FC<AiAgentProps> = ({ renderMode = 'iframe', ...props }) => {
+    switch (renderMode) {
+        case 'iframe':
+            return <IframeAiAgent {...props} />;
+        case 'native':
+            return <NativeAiAgent {...props} />;
+        default:
+            return assertUnreachable(
+                renderMode,
+                'Unknown AI agent render mode',
+            );
+    }
 };
 
 const MetricsCatalog: FC<MetricsCatalogProps> = ({

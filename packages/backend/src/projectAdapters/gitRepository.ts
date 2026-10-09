@@ -9,6 +9,9 @@ import * as fspromises from 'fs-extra';
 import { GitError, type SimpleGit } from 'simple-git';
 import Logger from '../logging/logger';
 
+// simple-git blocks every GIT_* variable passed via .env() unless the instance allows it
+export const GIT_REPOSITORY_ENVIRONMENT = ['GIT_TERMINAL_PROMPT'];
+
 const stripTokensFromUrls = (raw: string) => {
     const pattern = /\/\/(.*)@/g;
     return raw.replace(pattern, '//*****@');

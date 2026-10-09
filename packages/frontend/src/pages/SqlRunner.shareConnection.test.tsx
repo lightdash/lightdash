@@ -261,6 +261,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
@@ -285,6 +286,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
@@ -401,6 +403,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
@@ -424,6 +427,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');
@@ -455,6 +459,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 null,
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Warehouse');
@@ -482,6 +487,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         await user.click(screen.getByRole('button', { name: 'Warehouse' }));
@@ -510,6 +516,7 @@ describe('review PR12b: real SqlRunner page with a shared link', () => {
                 {},
                 true,
                 'finance-uuid',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
             ),
         );
         expect(screen.getByTestId('active')).toHaveTextContent('Finance');

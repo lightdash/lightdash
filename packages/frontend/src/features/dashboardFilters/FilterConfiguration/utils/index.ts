@@ -1,14 +1,21 @@
 import {
     assertUnreachable,
+    DimensionType,
     FilterOperator,
+    getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
+    matchFieldByType,
+    matchFieldByTypeAndName,
+    matchFieldExact,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
     type FilterRule,
+    type FilterType,
+    type ResultColumn,
 } from '@lightdash/common';
 import { produce } from 'immer';
 import isEqual from 'lodash/isEqual';
@@ -28,6 +35,44 @@ export const getValidSqlColumnReferences = (
     columns.flatMap(({ reference }) =>
         typeof reference === 'string' ? [reference] : [],
     );
+
+export const getDefaultField = (
+    fields: DashboardFilterableField[],
+    selectedField: DashboardFilterableField,
+) => {
+    return (
+        fields.find(matchFieldExact(selectedField)) ??
+        fields.find(matchFieldByTypeAndName(selectedField)) ??
+        fields.find(matchFieldByType(selectedField))
+    );
+};
+
+// One entry per column name across the SQL chart tiles
+export const getUniqueSqlColumns = (
+    sqlChartTilesMetadata: Record<string, { columns: ResultColumn[] }>,
+): ResultColumn[] => {
+    const allColumns = Object.values(sqlChartTilesMetadata).flatMap(
+        (tileMetadata) => tileMetadata.columns,
+    );
+    const uniqueColumnsMap = new Map(
+        allColumns.map((column) => [column.reference, column]),
+    );
+    return Array.from(uniqueColumnsMap.values());
+};
+
+// The filter type of a SQL column filter: the column's, else the target's
+export const getSqlColumnFilterType = (
+    columns: ResultColumn[],
+    fieldId: string,
+    fallbackType: DimensionType | undefined,
+): FilterType => {
+    const selectedColumn = columns.find(
+        (column) => column.reference === fieldId,
+    );
+    return getFilterTypeFromItemType(
+        selectedColumn?.type ?? fallbackType ?? DimensionType.STRING,
+    );
+};
 
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.
@@ -224,6 +269,38 @@ export const hasFilterValueSet = (filterRule: DashboardFilterRule) => {
         default:
             return assertUnreachable(filterRule.operator, 'unknown operator');
     }
+};
+
+// What every edit of a rule in the configuration goes through before it is kept
+export const getFilterRuleWithDisabledState = (
+    newFilterRule: DashboardFilterRule,
+    isEditMode: boolean,
+): DashboardFilterRule => {
+    // When a disabled filter has a value set, it should be enabled by setting it to false
+    const isNewFilterDisabled =
+        newFilterRule.disabled && !hasFilterValueSet(newFilterRule);
+
+    // In view mode: if values cleared and not required, set to "any value"
+    const shouldDisableInViewMode =
+        !isEditMode &&
+        !newFilterRule.required &&
+        !hasFilterValueSet(newFilterRule);
+
+    // In edit mode a required filter without a value is valueless
+    // by definition (dashboard save normalizes it to disabled),
+    // so it must not block Apply by demanding a default value
+    const isRequiredWithoutValue =
+        isEditMode &&
+        (!!newFilterRule.required || !!newFilterRule.requiredGroupId) &&
+        !hasFilterValueSet(newFilterRule);
+
+    return {
+        ...newFilterRule,
+        disabled:
+            isNewFilterDisabled ||
+            shouldDisableInViewMode ||
+            isRequiredWithoutValue,
+    };
 };
 
 export const isFilterEnabled = (

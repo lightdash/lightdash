@@ -16,7 +16,10 @@ import {
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
-import { executeSqlQuery } from '../../queryRunner/executeQuery';
+import {
+    cancelAsyncQuery,
+    executeSqlQuery,
+} from '../../queryRunner/executeQuery';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
 
@@ -27,6 +30,9 @@ import { selectSqlRunnerResultsRunner } from './sqlRunnerSlice';
  * @param projectUuid - The project uuid to run the query on
  * @returns The results and the results runner
  */
+const isAbortError = (error: unknown): boolean =>
+    error instanceof DOMException && error.name === 'AbortError';
+
 export const runSqlQuery = createAsyncThunk<
     ResultsAndColumns & { warehouseConnectionUuid: string | null | undefined },
     {
@@ -40,7 +46,7 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async (
         { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue, getState },
+        { rejectWithValue, getState, signal },
     ) => {
         const connectionRoute = (getState() as RootState).sqlRunner
             .connectionRoute ?? { route: 'pending' };
@@ -74,9 +80,19 @@ export const runSqlQuery = createAsyncThunk<
                 parameterValues,
                 true,
                 warehouseConnectionUuid,
+                {
+                    signal,
+                    onQueryStarted: (queryUuid) => {
+                        // Aborting the thunk also tells the warehouse to stop
+                        signal.addEventListener('abort', () => {
+                            void cancelAsyncQuery(projectUuid, queryUuid);
+                        });
+                    },
+                },
             );
             return { ...results, warehouseConnectionUuid };
         } catch (error) {
+            if (isAbortError(error)) throw error;
             reportSharedSignInQueryFailure(projectUuid, error);
             if (isApiError(error)) {
                 return rejectWithValue(error.error);

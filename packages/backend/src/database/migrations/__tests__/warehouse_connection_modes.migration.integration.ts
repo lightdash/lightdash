@@ -16,6 +16,12 @@ const MIGRATION_NAMES = [
     '20260923200200_add_warehouse_connection_bindings',
 ] as const;
 
+const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
+    '20261008120000_add_ai_service_account_credentials',
+] as const;
+
+const LATER_TABLES = ['ai_service_account_credentials'];
+
 const NEW_TABLES = [
     'warehouse_connections',
     'warehouse_connection_user_credentials_preference',
@@ -1114,6 +1120,14 @@ describe('warehouse connection mode schema on every migration', () => {
             await database.raw(
                 `UPDATE projects SET connection_mode = 'single' WHERE connection_mode = 'multi'`,
             );
+            const laterMigrations = await Promise.all(
+                LATER_MIGRATIONS_REFERENCING_CONNECTIONS.map((name) =>
+                    loadMigration(name),
+                ),
+            );
+            await runInOrder([...laterMigrations].reverse(), (migration) =>
+                migration.down(database),
+            );
             await runInOrder(reversed, (migration) => migration.down(database));
             await runInOrder(reversed, (migration) => migration.down(database));
             const beforeColumns = await columnNames();
@@ -1131,6 +1145,9 @@ describe('warehouse connection mode schema on every migration', () => {
 
             await runInOrder(migrations, (migration) => migration.up(database));
             await runInOrder(migrations, (migration) => migration.up(database));
+            await runInOrder(laterMigrations, (migration) =>
+                migration.up(database),
+            );
             const reappliedColumns = await columnNames();
             const sortColumns = (columns: ColumnName[]) =>
                 columns.map(({ table, column }) => `${table}.${column}`).sort();
@@ -1141,6 +1158,7 @@ describe('warehouse connection mode schema on every migration', () => {
             const addedToExistingTables = afterColumns.filter(
                 ({ table, column }) =>
                     !NEW_TABLES.includes(table) &&
+                    !LATER_TABLES.includes(table) &&
                     !beforeColumns.some(
                         (before) =>
                             before.table === table && before.column === column,
@@ -1159,11 +1177,10 @@ describe('warehouse connection mode schema on every migration', () => {
                 ({ column }) => column !== 'warehouse_connection_uuid',
             );
             expect(
-                findReusedColumnNames(
-                    columnsBeforeConnections,
-                    afterColumns,
-                    NEW_TABLES,
-                ),
+                findReusedColumnNames(columnsBeforeConnections, afterColumns, [
+                    ...NEW_TABLES,
+                    ...LATER_TABLES,
+                ]),
             ).toEqual([]);
         });
     });

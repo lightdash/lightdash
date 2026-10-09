@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router';
 import { CHAT_MESSAGE_PARAM, findChatAnchor } from '../../hooks/useChatBackUrl';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
+import { getPendingApprovalIds } from './ToolCalls/utils/sqlApprovalPending';
 
 const SCROLL_TO_BOTTOM_THRESHOLD = {
     streaming: 200,
@@ -48,10 +49,12 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
                 if (!nearBottom) return;
             }
 
-            const node = messagesEndRef.current;
-            if (!node) return;
+            const viewport = scrollAreaRef.current;
+            if (!viewport) return;
+            // Scroll only the chat viewport, never its ancestors: the agent can be
+            // embedded in a host page whose own scroll must not move
             let frame = requestAnimationFrame(() => {
-                node.scrollIntoView({ behavior });
+                viewport.scrollTo({ top: viewport.scrollHeight, behavior });
             });
             return () => cancelAnimationFrame(frame);
         },
@@ -180,6 +183,23 @@ const ThreadScrollToBottom = ({
             window.clearTimeout(timeout);
         };
     }, [isStreaming, scrollToBottom]);
+
+    // The turn is paused on the user, so reveal the approval buttons even if
+    // they scrolled up. The card expands over ~260ms after the call lands.
+    const pendingApprovalKey = streamingState
+        ? getPendingApprovalIds(streamingState).join(',')
+        : '';
+    useEffect(() => {
+        if (!pendingApprovalKey) return;
+        const cancelFrame = scrollToBottom({ behavior: 'auto' });
+        const timeout = window.setTimeout(() => {
+            scrollToBottom({ behavior: 'smooth' });
+        }, 300);
+        return () => {
+            cancelFrame?.();
+            window.clearTimeout(timeout);
+        };
+    }, [pendingApprovalKey, scrollToBottom]);
 
     // Scroll to bottom when the last message gets a chart visualization
     const lastMessage = thread.data?.messages?.at(-1);

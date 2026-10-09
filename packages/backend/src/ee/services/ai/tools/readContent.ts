@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     mcpReadContentArgsSchema,
     mcpReadContentToolDefinition,
-    ParameterError,
     readContentToolDefinition,
     toolReadContentArgsSchema,
     type ToolReadContentStructuredContent,
@@ -53,6 +52,7 @@ const toStructuredContent = (
     switch (read.type) {
         case 'dashboard':
         case 'chart':
+        case 'sql_chart':
         case 'data_app':
             return { ...base, type: read.type, content: read.content };
         case 'document':
@@ -82,40 +82,17 @@ export const getReadContent = ({
         ...definition,
         inputSchema,
         execute: async (args) => {
-            const { slug, type, documentUuid, chartId } = args;
+            const { slug, type } = args;
             try {
                 (documentsEnabled
                     ? mcpReadContentArgsSchema
                     : toolReadContentArgsSchema
                 ).parse(args);
-                const getReadArgs = (): Parameters<ReadContentFn>[0] => {
-                    if (type === 'document' && documentUuid !== undefined) {
-                        if (slug !== undefined) {
-                            throw new ParameterError(
-                                'Documents require exactly one of slug or documentUuid.',
-                            );
-                        }
-                        return {
-                            type,
-                            documentUuid,
-                            chartId: chartId ?? null,
-                        };
-                    }
-                    if (slug === undefined || documentUuid !== undefined) {
-                        throw new ParameterError(
-                            'Reading content requires a slug, or documentUuid for Documents.',
-                        );
-                    }
-                    if (type === 'document') {
-                        return { type, slug, chartId: chartId ?? null };
-                    }
-                    if (chartId !== undefined) {
-                        throw new ParameterError(
-                            'chartId is only available when reading Documents.',
-                        );
-                    }
-                    return { slug, type };
-                };
+                // chartId only applies to Documents; ignore it elsewhere.
+                const getReadArgs = (): Parameters<ReadContentFn>[0] =>
+                    type === 'document'
+                        ? { type, slug, chartId: args.chartId ?? null }
+                        : { slug, type };
                 const read = await readContent(getReadArgs());
                 const structuredContent = toStructuredContent(read);
                 const metadata = {

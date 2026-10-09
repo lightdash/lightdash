@@ -3,6 +3,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QuerySourceType,
+    QuerySurface,
     type Account,
 } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -85,6 +86,7 @@ describe('ExternalQuerySource', () => {
             account,
             projectUuid: 'project-1',
             context: QueryExecutionContext.API,
+            querySurface: undefined,
             sql: 'SELECT * FROM monthly_targets',
             limit: undefined,
             tables: {
@@ -94,6 +96,22 @@ describe('ExternalQuerySource', () => {
             parameters: {},
             invalidateCache: false,
         });
+    });
+
+    it('preserves the submitting query surface', async () => {
+        await source.submitQuery({
+            ...submitArgs,
+            querySurface: QuerySurface.SLACK,
+            context: QueryExecutionContext.AI,
+            query: {
+                sourceType: QuerySourceType.EXTERNAL,
+                sql: 'SELECT * FROM t',
+                tables: ['t'],
+            },
+        });
+        expect(executeAsyncExternalSqlQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ querySurface: QuerySurface.SLACK }),
+        );
     });
 
     it('hands parameters and cache control to the external SQL execution', async () => {

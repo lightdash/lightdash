@@ -12,6 +12,7 @@ import { AiAccessGate } from './AiAccessGate';
 import { getAiAccessRefusal } from './aiAccessRefusal';
 const mocks = vi.hoisted(() => ({
     can: vi.fn(),
+    popup: vi.fn(),
     login: vi.fn(),
     isLoading: false,
     error: null as Error | null,
@@ -28,11 +29,14 @@ vi.mock('../../../../../hooks/useProject', () => ({
     }),
 }));
 vi.mock('../../../../../hooks/useSnowflake', () => ({
-    useSnowflakeAiLoginPopup: () => ({
-        mutate: mocks.login,
-        isLoading: mocks.isLoading,
-        error: mocks.error,
-    }),
+    useSnowflakeAiLoginPopup: (attribution: unknown) => {
+        mocks.popup(attribution);
+        return {
+            mutate: mocks.login,
+            isLoading: mocks.isLoading,
+            error: mocks.error,
+        };
+    },
 }));
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
@@ -92,6 +96,14 @@ describe('AI access callout', () => {
                 screen.getByRole('button', { name: 'Connect agent' }),
             ).toBeEnabled();
             expect(!!screen.queryByRole('heading')).toBe(variant === 'card');
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Connect agent' }),
+            );
+            expect(mocks.login).toHaveBeenCalledOnce();
+            expect(mocks.popup).toHaveBeenLastCalledWith({
+                entryPoint: 'chat_card',
+                projectUuid: 'project',
+            });
             rerender(content(false, false));
             expect(
                 screen.getByRole('textbox', { name: 'Composer' }),
@@ -134,7 +146,9 @@ describe('AI access callout', () => {
                 name: 'Connect your agent to your warehouse',
             }),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Manage agent connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(
             screen.getByText(
                 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.',
@@ -186,7 +200,7 @@ describe('AI access callout', () => {
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
             screen.getByRole('link', { name: 'Review agent identity' }),
-        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        ).toHaveAttribute('href', '/generalSettings/agentIdentity');
         expect(mocks.can).toHaveBeenCalledWith('manage', 'Organization');
     });
     it('does not link other users to settings', () => {
@@ -208,5 +222,29 @@ describe('AI access callout', () => {
             getAiAccessRefusal({ structuredContent: { refusal: null } }),
         ).toBeNull();
         expect(getAiAccessRefusal({ result: 'failed' })).toBeNull();
+    });
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('shows the backend message for %s without sign-in', (reason) => {
+        const message =
+            'Ask an administrator to add or replace the AI service account.';
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...refusal,
+                        reason,
+                        action: AiAccessRefusalAction.ASK_ADMIN,
+                        message,
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.getByText(message)).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect agent' }),
+        ).not.toBeInTheDocument();
     });
 });

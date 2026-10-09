@@ -78,6 +78,7 @@ import {
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
+    getSqlApprovalSql,
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
@@ -259,7 +260,13 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
-import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import {
+    isNativeSqlApprovalToolCall,
+    NATIVE_SQL_APPROVAL_TOOL_NAMES,
+    type NativeSqlApprovalToolName,
+    type SqlApprovalDecision,
+    type SqlApprovalDecisionOnCall,
+} from '../services/ai/tools/sqlApprovals';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
@@ -7481,22 +7488,29 @@ export class AiAgentModel {
         await trx(AiPromptContextTableName).insert(rows);
     }
 
-    /** The Document most recently pinned to any prompt in the thread. */
-    async findThreadDocumentUuid(threadUuid: string): Promise<string | null> {
+    /** Slug of the Document most recently pinned in the thread, or null if none or deleted. */
+    async findThreadDocumentSlug(threadUuid: string): Promise<string | null> {
         const row = await this.database(AiPromptContextTableName)
             .join(
                 AiPromptTableName,
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiPromptContextTableName}.ai_prompt_uuid`,
             )
+            .leftJoin(DocumentsTableName, (join) => {
+                join.on(
+                    `${DocumentsTableName}.document_uuid`,
+                    '=',
+                    `${AiPromptContextTableName}.entity_uuid`,
+                ).andOnNull(`${DocumentsTableName}.deleted_at`);
+            })
             .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
             .andWhere(`${AiPromptContextTableName}.entity_type`, 'document')
             .whereNotNull(`${AiPromptContextTableName}.entity_uuid`)
             .orderBy(`${AiPromptContextTableName}.created_at`, 'desc')
-            .first<Pick<DbAiPromptContext, 'entity_uuid'> | undefined>(
-                `${AiPromptContextTableName}.entity_uuid`,
+            .first<{ slug: string | null } | undefined>(
+                `${DocumentsTableName}.slug`,
             );
-        return row?.entity_uuid ?? null;
+        return row?.slug ?? null;
     }
 
     async getContextForPromptUuids(
@@ -8544,6 +8558,30 @@ export class AiAgentModel {
         });
     }
 
+    async findToolResultsByToolCallIds(
+        promptUuids: string[],
+        toolCallIds: string[],
+    ): Promise<
+        Array<{
+            promptUuid: string;
+            toolCallId: string;
+            toolName: string;
+            metadata: object | null;
+        }>
+    > {
+        if (promptUuids.length === 0 || toolCallIds.length === 0) return [];
+        const rows = await this.database(AiAgentToolResultTableName)
+            .select('ai_prompt_uuid', 'tool_call_id', 'tool_name', 'metadata')
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .whereIn('tool_call_id', toolCallIds);
+        return rows.map((row) => ({
+            promptUuid: row.ai_prompt_uuid,
+            toolCallId: row.tool_call_id,
+            toolName: row.tool_name,
+            metadata: row.metadata ?? null,
+        }));
+    }
+
     async getToolCallsAndResultsForPrompt(
         promptUuid: string,
         options: { includeSubagentToolCalls?: boolean } = {},
@@ -8654,13 +8692,14 @@ export class AiAgentModel {
         }));
     }
 
-    // A runSql call the agent suspended on awaiting approval: it has no result
-    // (never executed) and no recorded decision yet. Used to detect a suspended
-    // run and to post the approval card.
-    async getPendingSqlApprovalForPrompt(
-        promptUuid: string,
-    ): Promise<{ toolCallId: string; sql: string } | null> {
-        const row = await this.database(AiAgentToolCallTableName)
+    // A suspended SQL-approval call: no result and no recorded decision yet.
+    // Used to detect a suspended run and to post the approval card.
+    async getPendingSqlApprovalForPrompt(promptUuid: string): Promise<{
+        toolCallId: string;
+        toolName: NativeSqlApprovalToolName;
+        sql: string;
+    } | null> {
+        const rows = await this.database(AiAgentToolCallTableName)
             .leftJoin(
                 AiAgentToolResultTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
@@ -8672,25 +8711,82 @@ export class AiAgentModel {
                 `${AiSqlApprovalTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
-            .where(`${AiAgentToolCallTableName}.tool_name`, 'runSql')
+            .whereIn(
+                `${AiAgentToolCallTableName}.tool_name`,
+                NATIVE_SQL_APPROVAL_TOOL_NAMES,
+            )
             .whereNull(
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
             )
             .whereNull(`${AiSqlApprovalTableName}.tool_call_id`)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'desc')
-            .first<Pick<DbAiAgentToolCall, 'tool_call_id' | 'tool_args'>>(
+            .select<
+                Pick<
+                    DbAiAgentToolCall,
+                    'tool_call_id' | 'tool_name' | 'tool_args'
+                >[]
+            >(
                 `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
                 `${AiAgentToolCallTableName}.tool_args`,
             );
 
-        if (!row) {
-            return null;
+        for (const row of rows) {
+            if (isNativeSqlApprovalToolCall(row.tool_name, row.tool_args)) {
+                // A call without SQL has nothing to approve, so no card.
+                const sql = getSqlApprovalSql(row.tool_args);
+                if (sql !== null) {
+                    return {
+                        toolCallId: row.tool_call_id,
+                        toolName: row.tool_name,
+                        sql,
+                    };
+                }
+            }
         }
-        const sql =
-            typeof (row.tool_args as { sql?: unknown })?.sql === 'string'
-                ? (row.tool_args as { sql: string }).sql
-                : '';
-        return { toolCallId: row.tool_call_id, sql };
+        return null;
+    }
+
+    async findSqlApprovalDecisionsForPrompt(
+        promptUuid: string,
+    ): Promise<SqlApprovalDecisionOnCall[]> {
+        const rows = await this.database(AiAgentToolCallTableName)
+            .innerJoin(
+                AiSqlApprovalTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiSqlApprovalTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .whereIn(
+                `${AiAgentToolCallTableName}.tool_name`,
+                NATIVE_SQL_APPROVAL_TOOL_NAMES,
+            )
+            .orderBy(`${AiSqlApprovalTableName}.decided_at`, 'asc')
+            .select<
+                Array<
+                    Pick<
+                        DbAiAgentToolCall,
+                        'tool_call_id' | 'tool_name' | 'tool_args'
+                    > &
+                        Pick<
+                            DbAiSqlApproval,
+                            'decision' | 'decided_by_user_uuid'
+                        >
+                >
+            >(
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
+                `${AiAgentToolCallTableName}.tool_args`,
+                `${AiSqlApprovalTableName}.decision`,
+                `${AiSqlApprovalTableName}.decided_by_user_uuid`,
+            );
+        return rows.map((row) => ({
+            toolCallId: row.tool_call_id,
+            toolName: row.tool_name,
+            toolArgs: row.tool_args,
+            decision: row.decision,
+            decidedByUserUuid: row.decided_by_user_uuid,
+        }));
     }
 
     async getToolCallsForPrompt(
@@ -8718,6 +8814,7 @@ export class AiAgentModel {
               threadUuid: string;
               agentUuid: string | null;
               toolName: string;
+              toolArgs: unknown;
               hasResult: boolean;
           }
         | undefined
@@ -8751,11 +8848,13 @@ export class AiAgentModel {
                     threadUuid: string;
                     agentUuid: string | null;
                     toolName: string;
+                    toolArgs: unknown;
                     resultUuid: string | null;
                 }>
             >(
                 `${AiAgentToolCallTableName}.ai_prompt_uuid as promptUuid`,
                 `${AiAgentToolCallTableName}.tool_name as toolName`,
+                `${AiAgentToolCallTableName}.tool_args as toolArgs`,
                 `${AiThreadTableName}.ai_thread_uuid as threadUuid`,
                 `${AiThreadTableName}.agent_uuid as agentUuid`,
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid as resultUuid`,
@@ -8770,6 +8869,7 @@ export class AiAgentModel {
             threadUuid: row.threadUuid,
             agentUuid: row.agentUuid,
             toolName: row.toolName,
+            toolArgs: row.toolArgs,
             hasResult: row.resultUuid !== null,
         };
     }
@@ -10483,6 +10583,7 @@ export class AiAgentModel {
                     threadUuid: targetThreadUuid,
                     createdByUserUuid: targetUserUuid,
                     prompt: sourcePrompt.prompt,
+                    modelConfig: null,
                 },
                 { db: trx },
             );

@@ -11,6 +11,7 @@ import {
     type PivotChartLayout,
     type RawResultRow,
     type ResultColumn,
+    type SortByDirection,
 } from '@lightdash/common';
 import { SqlChartResultsRunner } from '../../../../../features/sqlRunner/runners/SqlRunnerResultsRunnerFrontend';
 import { type ComposerPivotResult } from './useComposerPivot';
@@ -88,6 +89,7 @@ export const buildComposerChartSpec = async ({
     rows,
     x,
     y,
+    sort,
     colors,
 }: {
     kind: ComposerChartKind;
@@ -95,9 +97,10 @@ export const buildComposerChartSpec = async ({
     rows: RawResultRow[];
     x: ResultColumn | null;
     y: ResultColumn[];
+    sort: SortByDirection | null;
     colors: string[];
 }): Promise<ComposerChartSpec> => {
-    const { data, layout } = buildComposerChartData({ rows, x, y });
+    const { data, layout } = buildComposerChartData({ rows, x, y, sort });
     return buildSpec({
         kind,
         resultsRunner: new SqlChartResultsRunner({

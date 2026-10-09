@@ -12,6 +12,7 @@ import {
     DimensionType,
     DOCUMENT_CONVERSATION_TAGS,
     documentAsCodeSchema,
+    doesPatchTouchSqlChartSql,
     Explore,
     FeatureFlags,
     filterExploreByTags,
@@ -39,6 +40,7 @@ import {
     parseDocumentContent,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
@@ -60,6 +62,7 @@ import {
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
+    type SqlChartAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { type DbApp } from '../../../database/entities/apps';
@@ -90,6 +93,7 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -101,10 +105,13 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import type { UserService } from '../../../services/UserService';
 import { wrapSentryTransaction } from '../../../utils';
+import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
+import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
     ComposerNodeStatusUpdate,
@@ -166,6 +173,7 @@ import {
     formatWarehouseTableScopeError,
     isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
+import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import type {
     AppGenerateService,
     DataAppReadSource,
@@ -194,7 +202,11 @@ const isDataAppSearchResult = (
 const CONTENT_AS_CODE_TYPE_LABELS = {
     dashboard: 'Dashboard',
     chart: 'Chart',
+    sql_chart: 'SQL chart',
 } as const satisfies Record<ContentAsCodeType, string>;
+
+export const SQL_CHART_SAVE_PERMISSION_MESSAGE =
+    'You do not have the SQL chart save permission (manage custom SQL) in this project, so SQL charts cannot be saved. Do not retry; ask the user to get this permission or save a chart built from an explore instead.';
 
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
@@ -207,6 +219,7 @@ export type AiAgentToolsRuntimeContext = {
     enableDocuments?: boolean;
     catalogSearchContext: CatalogSearchContext;
     defaultQueryExecutionContext: QueryExecutionContext;
+    querySurface: QuerySurface;
     tags: string[] | null;
     spaceAccess: string[] | null;
     sqlScope?: AgentSqlScope | null;
@@ -303,7 +316,7 @@ export type McpAiAgentToolsRuntime = Omit<
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
-        identifier: { slug: string } | { documentUuid: string },
+        slug: string,
         chartId: string | null,
     ) => Promise<DocumentContentResult>;
     editDocumentContent: (
@@ -351,6 +364,7 @@ type AiAgentToolsServiceDependencies = {
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
@@ -364,6 +378,7 @@ type AiAgentToolsServiceDependencies = {
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiDeepResearchRunModel: AiDeepResearchRunModel;
+    aiAgentModel: Pick<AiAgentModel, 'findToolResultsByToolCallIds'>;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
@@ -417,6 +432,8 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly savedChartService: SavedChartService;
 
+    private readonly savedSqlService: SavedSqlService;
+
     private readonly savedChartModel: SavedChartModel;
 
     private readonly coderService: CoderService;
@@ -436,6 +453,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
+
+    private readonly aiAgentModel: AiAgentToolsServiceDependencies['aiAgentModel'];
 
     private readonly featureFlagService: FeatureFlagService;
 
@@ -523,6 +542,7 @@ export class AiAgentToolsService extends BaseService {
         dashboardService,
         dashboardModel,
         savedChartService,
+        savedSqlService,
         savedChartModel,
         coderService,
         contentService,
@@ -532,6 +552,7 @@ export class AiAgentToolsService extends BaseService {
         aiAgentContentValidation,
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
+        aiAgentModel,
         featureFlagService,
         previewDeploySetupService,
         shareService,
@@ -558,6 +579,7 @@ export class AiAgentToolsService extends BaseService {
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
+        this.savedSqlService = savedSqlService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
@@ -567,6 +589,7 @@ export class AiAgentToolsService extends BaseService {
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
+        this.aiAgentModel = aiAgentModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
@@ -768,8 +791,8 @@ export class AiAgentToolsService extends BaseService {
                 this.getDataAppBuildStatus(context, args),
             createDocumentContent: (content) =>
                 this.createDocumentContent(context, content),
-            readDocumentContent: (identifier, chartId) =>
-                this.readDocumentContent(context, identifier, chartId),
+            readDocumentContent: (slug, chartId) =>
+                this.readDocumentContent(context, slug, chartId),
             editDocumentContent: (slug, edit) =>
                 this.editDocumentContent(context, slug, edit),
             getExplore: this.withMcpRuntimeResult(
@@ -1626,6 +1649,13 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    private static getSqlChartUrl(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ) {
+        return `/projects/${context.projectUuid}/sql-runner/${slug}#chart-link`;
+    }
+
     private static getSpaceUrl(
         context: AiAgentToolsRuntimeContext,
         uuid: string,
@@ -1668,9 +1698,14 @@ export class AiAgentToolsService extends BaseService {
     ): asserts content is ChartAsCode;
 
     private validateContentAsCode(
+        type: 'sql_chart',
+        content: unknown,
+    ): asserts content is SqlChartAsCode;
+
+    private validateContentAsCode(
         type: ContentAsCodeType,
         content: unknown,
-    ): asserts content is DashboardAsCode | ChartAsCode {
+    ): asserts content is DashboardAsCode | ChartAsCode | SqlChartAsCode {
         this.aiAgentContentValidation.validateContent(type, content);
     }
 
@@ -2091,7 +2126,7 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
         if (args.type === 'document') {
-            return this.readDocumentContent(context, args, args.chartId);
+            return this.readDocumentContent(context, args.slug, args.chartId);
         }
         const { slug, type } = args;
         return wrapSentryTransaction(
@@ -2101,6 +2136,7 @@ export class AiAgentToolsService extends BaseService {
                 switch (type) {
                     case 'dashboard':
                     case 'chart':
+                    case 'sql_chart':
                         return this.readContentAsCode(context, { slug, type });
                     case 'data_app': {
                         const source =
@@ -2198,6 +2234,37 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         'chart',
                         savedChart.uuid,
+                    ),
+                };
+            }
+            case 'sql_chart': {
+                const notFound = `SQL chart "${slug}" was not found`;
+                const { sqlCharts } =
+                    await this.coderService.getSqlChartsForRead(
+                        context.user,
+                        context.projectUuid,
+                        [slug],
+                    );
+                const sqlChart = sqlCharts[0];
+                if (!sqlChart) {
+                    throw new NotFoundError(notFound);
+                }
+                await this.assertContentSpaceInScope(
+                    context,
+                    sqlChart.spaceSlug,
+                    notFound,
+                );
+                await this.savedSqlService.assertCanViewSqlChartBySlug(
+                    context.user,
+                    context.projectUuid,
+                    sqlChart.slug,
+                );
+                return {
+                    type: 'sql_chart',
+                    content: sqlChart,
+                    href: AiAgentToolsService.getSqlChartUrl(
+                        context,
+                        sqlChart.slug,
                     ),
                 };
             }
@@ -2552,6 +2619,19 @@ export class AiAgentToolsService extends BaseService {
                         uuid = promotionChanges.charts[0]?.data.uuid;
                         break;
                     }
+                    case 'sql_chart': {
+                        if (args.type !== 'sql_chart') {
+                            throw new ParameterError('Invalid content type');
+                        }
+                        uuid = await this.saveEditedSqlChart(context, {
+                            slug,
+                            current: currentContent.content as SqlChartAsCode,
+                            patch,
+                            patched: patchedContent,
+                            approveSql: args.approveSql,
+                        });
+                        break;
+                    }
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
@@ -2577,11 +2657,14 @@ export class AiAgentToolsService extends BaseService {
                 return {
                     ...editedContent,
                     uuid,
-                    href: AiAgentToolsService.getContentUrl(
-                        context,
-                        type,
-                        uuid,
-                    ),
+                    href:
+                        editedContent.type === 'sql_chart'
+                            ? editedContent.href
+                            : AiAgentToolsService.getContentUrl(
+                                  context,
+                                  editedContent.type,
+                                  uuid,
+                              ),
                     versionUuids: {
                         before: versionBefore?.versionUuid ?? null,
                         after: versionAfter?.versionUuid ?? null,
@@ -2593,16 +2676,17 @@ export class AiAgentToolsService extends BaseService {
 
     private createContent(
         context: AiAgentToolsRuntimeContext,
-        { type, content }: Parameters<CreateContentFn>[0],
+        args: Parameters<CreateContentFn>[0],
     ): ReturnType<CreateContentFn> {
-        if (type === 'document') {
-            return this.createDocumentContent(context, content);
+        if (args.type === 'document') {
+            return this.createDocumentContent(context, args.content);
         }
+        const { type, content } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
             async () => {
-                this.aiAgentContentValidation.validateContent(type, content);
+                this.aiAgentContentValidation.validateNewContent(type, content);
                 await this.assertContentSpaceInScope(
                     context,
                     content.spaceSlug,
@@ -2680,11 +2764,104 @@ export class AiAgentToolsService extends BaseService {
                             ),
                         };
                     }
+                    case 'sql_chart':
+                        return this.createSqlChart(
+                            context,
+                            content,
+                            args.approveSql,
+                        );
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
             },
         );
+    }
+
+    /** Saves an edited SQL chart, asking for approval only when its SQL changed. */
+    private async saveEditedSqlChart(
+        context: AiAgentToolsRuntimeContext,
+        {
+            slug,
+            current,
+            patch,
+            patched,
+            approveSql,
+        }: {
+            slug: string;
+            current: SqlChartAsCode;
+            patch: unknown;
+            patched: unknown;
+            approveSql: ApproveSqlFn;
+        },
+    ): Promise<string | undefined> {
+        this.validateContentAsCode('sql_chart', patched);
+        await this.assertContentSpaceInScope(
+            context,
+            patched.spaceSlug,
+            `SQL chart "${slug}" was not found`,
+        );
+        this.assertCanSaveSqlCharts(context);
+        const sqlChanged = patched.sql !== current.sql;
+        if (sqlChanged || doesPatchTouchSqlChartSql(patch)) {
+            await approveSql({
+                sql: patched.sql,
+                chartName: patched.name,
+                sqlChanged,
+            });
+        }
+        const promotionChanges = await this.coderService.upsertSqlChart(
+            context.user,
+            context.projectUuid,
+            slug,
+            patched,
+        );
+        return promotionChanges.charts[0]?.data.uuid;
+    }
+
+    private assertCanSaveSqlCharts(context: AiAgentToolsRuntimeContext) {
+        if (
+            this.createAuditedAbility(context.user).cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(SQL_CHART_SAVE_PERMISSION_MESSAGE);
+        }
+    }
+
+    private async createSqlChart(
+        context: AiAgentToolsRuntimeContext,
+        content: SqlChartAsCode,
+        approveSql: ApproveSqlFn,
+    ) {
+        this.assertCanSaveSqlCharts(context);
+        await approveSql({
+            sql: content.sql,
+            chartName: content.name,
+            sqlChanged: true,
+        });
+
+        const promotionChanges = await this.coderService.upsertSqlChart(
+            context.user,
+            context.projectUuid,
+            content.slug,
+            content,
+            { mode: 'create' },
+        );
+        const created = promotionChanges.charts[0]?.data;
+        if (!created?.uuid) {
+            throw new NotFoundError(
+                `Created SQL chart "${content.slug}" was not found`,
+            );
+        }
+        const createdContent = await this.readContentAsCode(context, {
+            slug: created.slug,
+            type: 'sql_chart',
+        });
+        return { ...createdContent, uuid: created.uuid };
     }
 
     private validateContent({
@@ -2889,6 +3066,7 @@ export class AiAgentToolsService extends BaseService {
                                 ),
                             },
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters,
                             userAttributeOverrides:
                                 context.userAttributeOverrides,
@@ -2937,6 +3115,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             mergeQuery,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters,
                             mode: { type: 'interactive' },
                             userAttributeOverrides:
@@ -2990,6 +3169,7 @@ export class AiAgentToolsService extends BaseService {
                             chartUuid: args.chartUuid,
                             limit,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             ...(context.invalidateQueryCache
                                 ? { invalidateCache: true }
                                 : {}),
@@ -3039,6 +3219,7 @@ export class AiAgentToolsService extends BaseService {
                         dashboardSorts: [],
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        querySurface: context.querySurface,
                         ...(context.invalidateQueryCache
                             ? { invalidateCache: true }
                             : {}),
@@ -3101,6 +3282,7 @@ export class AiAgentToolsService extends BaseService {
                         sql,
                         limit,
                         context: context.defaultQueryExecutionContext,
+                        querySurface: context.querySurface,
                     });
 
                 const maxWaitMs = 5 * 60 * 1000;
@@ -3218,6 +3400,7 @@ export class AiAgentToolsService extends BaseService {
                             projectUuid: context.projectUuid,
                             queries,
                             context: context.defaultQueryExecutionContext,
+                            querySurface: context.querySurface,
                             parameters: {},
                             userAttributeOverrides:
                                 context.userAttributeOverrides ?? {},
@@ -3540,6 +3723,7 @@ export class AiAgentToolsService extends BaseService {
                     context.source === 'mcp'
                         ? context.defaultQueryExecutionContext
                         : queryContext,
+                    context.querySurface,
                 );
                 return filterWarehouseCatalogToScope(catalog, context.sqlScope);
             },
@@ -3600,6 +3784,7 @@ export class AiAgentToolsService extends BaseService {
                     table,
                     resolvedSchema ?? undefined,
                     resolvedDatabase ?? undefined,
+                    context.querySurface,
                 );
                 return {
                     columns: Object.entries(fields).map(([name, type]) => ({
@@ -3728,6 +3913,7 @@ export class AiAgentToolsService extends BaseService {
                         context.source === 'mcp'
                             ? QueryExecutionContext.MCP_SEARCH_FIELD_VALUES
                             : QueryExecutionContext.AI,
+                        context.querySurface,
                     );
                 const output =
                     context.source === 'mcp' ? results : results.results;
@@ -3801,23 +3987,55 @@ export class AiAgentToolsService extends BaseService {
                 if (!context.agentUuid) {
                     return [];
                 }
-                const [documents, deepResearchRuns] = await Promise.all([
-                    this.aiAgentDocumentModel.findAllForAgent({
-                        organizationUuid: context.organizationUuid,
-                        agentUuid: context.agentUuid,
-                        projectUuid: context.projectUuid,
-                    }),
-                    context.threadUuid
-                        ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
-                              {
-                                  aiThreadUuid: context.threadUuid,
-                                  organizationUuid: context.organizationUuid,
-                                  projectUuid: context.projectUuid,
-                                  createdByUserUuid: context.user.userUuid,
-                              },
-                          )
-                        : [],
-                ]);
+                const [documents, deepResearchRuns, researchDocuments] =
+                    await Promise.all([
+                        this.aiAgentDocumentModel.findAllForAgent({
+                            organizationUuid: context.organizationUuid,
+                            agentUuid: context.agentUuid,
+                            projectUuid: context.projectUuid,
+                        }),
+                        context.threadUuid
+                            ? this.aiDeepResearchRunModel.findReportSummariesByThreadScoped(
+                                  {
+                                      aiThreadUuid: context.threadUuid,
+                                      organizationUuid:
+                                          context.organizationUuid,
+                                      projectUuid: context.projectUuid,
+                                      createdByUserUuid: context.user.userUuid,
+                                  },
+                              )
+                            : [],
+                        this.findThreadResearchDocuments(context),
+                    ]);
+                const publishedResearchDocuments: AiAgentDocumentSummary[] =
+                    researchDocuments.map(({ run, document }) => ({
+                        uuid: run.ai_deep_research_run_uuid,
+                        organizationUuid: run.organization_uuid,
+                        projectUuid: run.project_uuid,
+                        name: document.name,
+                        originalFilename: `${run.ai_deep_research_run_uuid}.md`,
+                        mimeType: 'text/markdown',
+                        contentSizeBytes: Buffer.byteLength(
+                            getDocumentSummaryMarkdown(
+                                document.version.content,
+                            ),
+                        ),
+                        alwaysIncludeInContext: false,
+                        summary: {
+                            description:
+                                'Deep Research report from this conversation, published as a Document.',
+                            definedTerms: [],
+                            relatedExploreNames: [],
+                            useWhen: `Answering follow-up questions about: ${run.prompt}`,
+                            relevance: 'high',
+                            warning: null,
+                        },
+                        agentAccess: [],
+                        createdByUserUuid: run.created_by_user_uuid,
+                        updatedByUserUuid: null,
+                        createdAt: run.created_at,
+                        updatedAt: document.updatedAt,
+                    }));
                 const deepResearchDocuments: AiAgentDocumentSummary[] =
                     deepResearchRuns.map((run) => ({
                         uuid: run.ai_deep_research_run_uuid,
@@ -3845,7 +4063,11 @@ export class AiAgentToolsService extends BaseService {
                         updatedAt: run.updated_at,
                     }));
 
-                return [...documents, ...deepResearchDocuments];
+                return [
+                    ...documents,
+                    ...deepResearchDocuments,
+                    ...publishedResearchDocuments,
+                ];
             },
         );
     }
@@ -3894,12 +4116,77 @@ export class AiAgentToolsService extends BaseService {
                             content: run.result_markdown,
                         };
                     }
+                    const published = (
+                        await this.findThreadResearchDocuments(context)
+                    ).find(
+                        ({ run: researchRun }) =>
+                            researchRun.ai_deep_research_run_uuid ===
+                            args.documentUuid,
+                    );
+                    if (published) {
+                        return {
+                            uuid: published.run.ai_deep_research_run_uuid,
+                            name: published.document.name,
+                            mimeType: 'text/markdown',
+                            content: getDocumentSummaryMarkdown(
+                                published.document.version.content,
+                            ),
+                        };
+                    }
                 }
                 throw new NotFoundError(
                     `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
                 );
             },
         );
+    }
+
+    /** Deep Research reports from this thread that the user can read as Documents. */
+    private async findThreadResearchDocuments(
+        context: AiAgentToolsRuntimeContext,
+    ): Promise<Array<{ run: DbAiDeepResearchRun; document: Document }>> {
+        const { account } = context;
+        // Personal Documents are only readable by the registered user who made them.
+        if (!context.threadUuid || account?.user.type !== 'registered') {
+            return [];
+        }
+        assertRegisteredAccount(account);
+        const runs = await this.aiDeepResearchRunModel.findByThreadScoped({
+            aiThreadUuid: context.threadUuid,
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+            createdByUserUuid: context.user.userUuid,
+        });
+        const references = await findAiDeepResearchRunDocuments(
+            this.aiAgentModel,
+            runs,
+        );
+        const published = await Promise.all(
+            runs.map(async (run) => {
+                const reference = references.get(run.ai_deep_research_run_uuid);
+                if (!reference) {
+                    return null;
+                }
+                try {
+                    const document = await this.documentService.get(
+                        account,
+                        context.projectUuid,
+                        reference.documentUuid,
+                    );
+                    return { run, document };
+                } catch (error) {
+                    // Deleted, or no longer readable by this user.
+                    if (
+                        error instanceof NotFoundError ||
+                        error instanceof ForbiddenError
+                    ) {
+                        return null;
+                    }
+                    throw error;
+                }
+            }),
+        );
+        return published.filter((entry) => entry !== null);
     }
 
     private getSavedChartForRuntime(
@@ -4511,22 +4798,15 @@ export class AiAgentToolsService extends BaseService {
 
     private async readDocumentContent(
         context: AiAgentToolsRuntimeContext,
-        identifier: { slug: string } | { documentUuid: string },
+        slug: string,
         chartId: string | null = null,
     ) {
         assertRegisteredAccount(context.account);
-        const document =
-            'documentUuid' in identifier
-                ? await this.documentService.get(
-                      context.account,
-                      context.projectUuid,
-                      identifier.documentUuid,
-                  )
-                : await this.documentService.getBySlug(
-                      context.account,
-                      context.projectUuid,
-                      identifier.slug,
-                  );
+        const document = await this.documentService.getBySlug(
+            context.account,
+            context.projectUuid,
+            slug,
+        );
         return this.documentContentResult(context, document, chartId);
     }
 
@@ -4569,6 +4849,8 @@ export class AiAgentToolsService extends BaseService {
                 }),
             },
             AiAgentToolsService.documentChange(context),
+            // Like AI chart and dashboard creates, a taken slug gets a suffix.
+            { uniqueSlug: true },
         );
         return this.documentContentResult(context, document);
     }
@@ -4723,6 +5005,7 @@ export class AiAgentToolsService extends BaseService {
                 content: parseDocumentContent(
                     existing.version.schemaVersion,
                     getContent(),
+                    { previous: stored },
                 ),
             },
             {
@@ -4748,11 +5031,15 @@ export class AiAgentToolsService extends BaseService {
             );
         }
         const space = await this.resolveDocumentSpace(context, spaceSlug);
-        await this.documentService.moveToSpace(context.account, {
-            projectUuid: context.projectUuid,
-            itemUuid: document.documentUuid,
-            targetSpaceUuid: space.uuid,
-        });
+        await this.documentService.moveToSpace(
+            context.account,
+            {
+                projectUuid: context.projectUuid,
+                itemUuid: document.documentUuid,
+                targetSpaceUuid: space.uuid,
+            },
+            { change: AiAgentToolsService.documentChange(context) },
+        );
         return this.documentService.get(
             context.account,
             context.projectUuid,

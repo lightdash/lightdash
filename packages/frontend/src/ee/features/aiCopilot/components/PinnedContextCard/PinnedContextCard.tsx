@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getDocumentUrl,
     isTabularThreadFileName,
     type AiPromptContextItem,
 } from '@lightdash/common';
@@ -7,7 +8,7 @@ import { IconTable, IconWindowMaximize, type Icon } from '@tabler/icons-react';
 import { type FC, type MouseEvent } from 'react';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
@@ -110,7 +111,7 @@ const PinnedChartCard: FC<{
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
     const openChartEditor = useAiThreadChartEdit();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const handleClick = openChartEditor
         ? (e: MouseEvent<HTMLAnchorElement>) => {
               if (!isPlainLeftClick(e)) return;
@@ -251,7 +252,11 @@ export const PinnedContextCard: FC<Props> = ({
                 <ContentReferenceLink
                     kind="document"
                     rel="noreferrer"
-                    to={`/projects/${projectUuid}/documents/${item.documentUuid}`}
+                    to={getDocumentUrl(
+                        projectUuid,
+                        item.documentUuid,
+                        item.documentSlug ?? undefined,
+                    )}
                     target="_blank"
                 >
                     {item.displayName ?? item.documentSlug ?? 'Document'}

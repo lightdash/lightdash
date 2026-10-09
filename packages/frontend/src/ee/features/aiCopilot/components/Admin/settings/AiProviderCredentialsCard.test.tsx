@@ -15,6 +15,7 @@ const BEDROCK_MODELS = [
         default: false,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 
@@ -63,6 +64,7 @@ const TOKYO = {
     allowedModels: ['claude-sonnet-4-5'],
     apiKeyHint: 'ABSK...3f2a',
     isDefault: true,
+    inferenceGeography: 'jp' as const,
 };
 
 const US = {
@@ -72,6 +74,7 @@ const US = {
     region: 'us-east-1',
     apiKeyHint: 'ABSK...b71c',
     isDefault: false,
+    inferenceGeography: 'us' as const,
 };
 
 const renderCard = (data: Partial<AiProviderCredentialsList> = {}) => {
@@ -99,6 +102,60 @@ describe('AiProviderCredentialsCard', () => {
         expect(screen.getByText('US (Virginia)')).toBeInTheDocument();
         expect(screen.getByText(/ap-northeast-1/)).toBeInTheDocument();
         expect(screen.getByText('default')).toBeInTheDocument();
+    });
+
+    // Residency is decided by the inference geography, not the region, so a
+    // compliance review must be able to read it off the list.
+    it('shows where inference runs for each credential', () => {
+        renderCard({ credentials: [TOKYO, US] });
+
+        expect(screen.getByText(/inference in Japan/)).toBeInTheDocument();
+        expect(
+            screen.getByText(/inference in United States/),
+        ).toBeInTheDocument();
+    });
+
+    // Widening beyond the region's default is an explicit admin choice for
+    // model availability — it must be stored exactly as selected.
+    it('saves an explicitly widened inference geography', async () => {
+        renderCard();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Add credential' }),
+        );
+        await userEvent.type(
+            screen.getByRole('textbox', { name: 'Name' }),
+            'Tokyo (global models)',
+        );
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'AWS region' }),
+        );
+        await userEvent.click(
+            screen.getByText('Asia Pacific (Tokyo) — ap-northeast-1'),
+        );
+        await userEvent.click(
+            screen.getByRole('combobox', { name: 'Inference geography' }),
+        );
+        await userEvent.click(screen.getByRole('option', { name: 'Global' }));
+        expect(
+            screen.getByText(/served by any supported region worldwide/),
+        ).toBeInTheDocument();
+        await userEvent.type(
+            screen.getByLabelText('Bedrock API key', { selector: 'input' }),
+            'ABSKsecret',
+        );
+        await userEvent.click(screen.getByLabelText('Bedrock allowed models'));
+        await userEvent.click(screen.getByText('Claude Sonnet 4.5'));
+        await userEvent.click(
+            screen.getAllByRole('button', { name: 'Add credential' })[1],
+        );
+
+        await waitFor(() => {
+            expect(createMutation).toHaveBeenCalledWith(
+                expect.objectContaining({ inferenceGeography: 'global' }),
+                expect.anything(),
+            );
+        });
     });
 
     // A key hint is safe to render; the key itself must never reach the client.
@@ -143,6 +200,8 @@ describe('AiProviderCredentialsCard', () => {
                     region: 'ap-northeast-1',
                     allowedModels: ['claude-sonnet-4-5'],
                     apiKey: 'ABSKsecret',
+                    // Narrowest geography for the region, set by default.
+                    inferenceGeography: 'jp',
                 },
                 expect.anything(),
             );
@@ -187,6 +246,7 @@ describe('AiProviderCredentialsCard', () => {
                         label: 'US (Virginia)',
                         region: 'us-west-2',
                         allowedModels: ['claude-sonnet-4-5'],
+                        inferenceGeography: 'us',
                     },
                 },
                 expect.anything(),
@@ -306,6 +366,7 @@ describe('AiProviderCredentialsCard', () => {
                         region: 'ap-northeast-1',
                         allowedModels: ['claude-sonnet-4-5'],
                         apiKey: 'ABSKnew-key',
+                        inferenceGeography: 'jp',
                     },
                 },
                 expect.anything(),

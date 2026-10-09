@@ -1,3 +1,4 @@
+import { getAgentClientLabel, type AgentIdentityClaim } from './agentIdentity';
 import { AI_AGENT_TAG } from './aiPrincipal';
 
 export type UserWithCount = {
@@ -128,6 +129,14 @@ export type ApiDownloadActivity = {
     results: DownloadActivityResults;
 };
 
+export enum QuerySurface {
+    APP = 'app',
+    SLACK = 'slack',
+    MCP = 'mcp',
+    CLI = 'cli',
+    API = 'api',
+}
+
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',
@@ -165,9 +174,16 @@ export enum QueryExecutionContext {
     DESKTOP = 'desktop',
 }
 
+export type AiAccessQueryContext =
+    | QueryExecutionContext.DATA_APP_SAMPLE
+    | QueryExecutionContext.AI
+    | QueryExecutionContext.MCP_RUN_METRIC_QUERY
+    | QueryExecutionContext.MCP_RUN_SQL
+    | QueryExecutionContext.MCP_SEARCH_FIELD_VALUES;
+
 export const isAiAccessQueryContext = (
     context: QueryExecutionContext,
-): boolean =>
+): context is AiAccessQueryContext =>
     context === QueryExecutionContext.DATA_APP_SAMPLE ||
     context === QueryExecutionContext.AI ||
     context === QueryExecutionContext.MCP_RUN_METRIC_QUERY ||
@@ -178,7 +194,16 @@ export const withAgentMarkerTag = <
     T extends { query_context: QueryExecutionContext },
 >(
     tags: T,
-): T & { agent?: 'true' } =>
-    isAiAccessQueryContext(tags.query_context)
-        ? { ...tags, [AI_AGENT_TAG]: 'true' }
+    agentIdentity: AgentIdentityClaim | null = null,
+): T & { agent?: 'true'; agent_surface?: string; agent_client?: string } => {
+    const marked = isAiAccessQueryContext(tags.query_context)
+        ? { ...tags, [AI_AGENT_TAG]: 'true' as const }
         : tags;
+    return agentIdentity
+        ? {
+              ...marked,
+              agent_surface: agentIdentity.act.surface,
+              agent_client: getAgentClientLabel(agentIdentity.act.client_id),
+          }
+        : marked;
+};

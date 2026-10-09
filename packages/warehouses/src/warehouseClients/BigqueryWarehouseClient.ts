@@ -436,15 +436,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     client: BigQuery;
 
+    private readonly agentJobControls: boolean;
+
     constructor(
         credentials: CreateBigqueryCredentials,
-        options?: { agentSession?: boolean },
+        options?: { agentSession?: boolean; agentJobControls?: boolean },
     ) {
         super(
             credentials,
             new BigquerySqlBuilder(credentials.startOfWeek),
             options,
         );
+        this.agentJobControls = options?.agentJobControls ?? false;
         try {
             this.client = new BigQuery({
                 projectId: credentials.executionProject || credentials.project,
@@ -576,10 +579,23 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             timezone?: string;
         },
     ) {
+        const tags = options?.tags;
+        const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(tags);
+        const identityLabels =
+            this.agentJobControls && tags
+                ? (BigqueryWarehouseClient.sanitizeLabelsWithValues(
+                      Object.fromEntries(
+                          ['agent_surface', 'agent_client']
+                              .filter((key) => tags[key] !== undefined)
+                              .map((key) => [key, tags[key]]),
+                      ),
+                  ) ?? {})
+                : {};
         return this.client.createQueryJob({
             query,
             params: options?.values,
             useLegacySql: false,
+            ...(this.agentJobControls ? { useQueryCache: false } : {}),
             // BigQuery has no session timezone; the `time_zone` connection
             // property is the per-job equivalent — naive DATETIME coercions
             // and offset-less literals are read in this zone.
@@ -593,9 +609,26 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             jobTimeoutMs:
                 this.credentials.timeoutSeconds &&
                 this.credentials.timeoutSeconds * 1000,
-            labels: BigqueryWarehouseClient.sanitizeLabelsWithValues(
-                options?.tags,
-            ),
+            labels: this.agentJobControls
+                ? {
+                      agent: 'true',
+                      ...identityLabels,
+                      ...Object.fromEntries(
+                          Object.entries(labels ?? {})
+                              .filter(
+                                  ([key]) =>
+                                      key !== 'agent' &&
+                                      !Object.hasOwn(identityLabels, key),
+                              )
+                              .slice(
+                                  0,
+                                  BigqueryWarehouseClient.MAX_LABELS -
+                                      1 -
+                                      Object.keys(identityLabels).length,
+                              ),
+                      ),
+                  }
+                : labels,
         });
     }
 

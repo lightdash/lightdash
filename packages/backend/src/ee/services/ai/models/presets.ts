@@ -30,6 +30,8 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     hiddenUnlessKeyAccess?: boolean;
     // Kept resolvable for existing configurations, but hidden from new selections
     deprecated?: boolean;
+    // Name of the same-provider preset that replaces a deprecated one
+    supersededBy?: string;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 } & (
@@ -82,6 +84,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 1050000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-6-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -97,6 +100,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 1050000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-6-luna',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -114,6 +118,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 265000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.6-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -131,6 +136,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 265000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.5',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -146,6 +152,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.4',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -161,6 +168,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.2',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -176,6 +184,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.6-luna',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -220,6 +229,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -233,6 +243,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -247,6 +258,7 @@ export const MODEL_PRESETS: {
             reasoningStyle: 'adaptive',
             hiddenUnlessKeyAccess: true,
             deprecated: true,
+            supersededBy: 'claude-opus-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -260,6 +272,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-4-8',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -272,6 +285,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-opus-4-7',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -284,6 +298,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -296,6 +311,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-opus-4-6',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -308,7 +324,20 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-6',
             callOptions: { temperature: 0.2 },
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-haiku-5-5',
+            provider: 'anthropic',
+            modelId: 'claude-haiku-5-5',
+            displayName: 'Claude Haiku 5.5',
+            description: 'Newest fast model for lightweight tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
             providerOptions: undefined,
         },
         {
@@ -331,6 +360,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -410,6 +440,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -423,6 +454,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -446,7 +478,20 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-5',
             callOptions: { temperature: 0.2 },
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-haiku-5-5',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-haiku-5-5',
+            displayName: 'Claude Haiku 5.5',
+            description: 'Newest fast model for lightweight tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
             providerOptions: undefined,
         },
         {
@@ -469,6 +514,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },

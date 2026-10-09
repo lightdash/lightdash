@@ -4,6 +4,7 @@ import {
     BigqueryCredentials,
     CreateBigqueryCredentials,
     CreatePostgresCredentials,
+    CreateWarehouseCredentials,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
@@ -440,6 +441,16 @@ export const CompletePostgresCredentials: CreatePostgresCredentials = {
 };
 
 export const singleRouteProjectModelMethods = {
+    async getWarehouseCredentialsForProjectUncached(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => Promise<CreateWarehouseCredentials>;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
     async requireSingleConnectionRoute() {
         return 'single' as const;
     },

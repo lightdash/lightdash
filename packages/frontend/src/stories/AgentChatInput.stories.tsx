@@ -73,6 +73,7 @@ const models: AiModelOption[] = [
         default: true,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
     {
         name: 'claude-haiku',
@@ -83,6 +84,7 @@ const models: AiModelOption[] = [
         default: false,
         supportsReasoning: false,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 
@@ -132,6 +134,7 @@ const storyQueryClient = createQueryClient({
     FeatureFlags.MultiSourceQuery,
     FeatureFlags.ComposeSqlRunner,
     FeatureFlags.AiThreadRetention,
+    FeatureFlags.AiAgentFastDecisions,
 ].forEach((flag) => {
     storyQueryClient.setQueryData(['feature-flag', flag], enabledFlag(flag));
 });
@@ -140,6 +143,21 @@ storyQueryClient.setQueryData(
     ['ai-organization-runtime-settings'],
     runtimeSettings,
 );
+storyQueryClient.setQueryData(['feature-flag', FeatureFlags.AgentIdentity], {
+    id: FeatureFlags.AgentIdentity,
+    enabled: false,
+});
+storyQueryClient.setQueryData(['projectAiAgents', projectUuid, agentUuid], {
+    ...agents[0],
+    projectUuid,
+    enableSqlMode: true,
+    adminOnly: false,
+    spaceAccess: [],
+    groupAccess: [],
+    userAccess: [],
+    integrations: [],
+    tags: null,
+});
 
 // The suggestions query key includes the SQL-mode toggle and, for
 // post-response mode, the thread/message pair — seed every combination the
@@ -235,7 +253,9 @@ const StatefulInput = ({
     ...props
 }: StatefulInputProps) => {
     const [sqlMode, setSqlMode] = useState(false);
-    const [selectedModelId, setSelectedModelId] = useState(models[0].modelId);
+    const [selectedModelId, setSelectedModelId] = useState(
+        `${models[0].provider}:${models[0].name}`,
+    );
     const [extendedThinking, setExtendedThinking] = useState(false);
 
     return (

@@ -76,6 +76,8 @@ export class FeatureFlagModel {
                     this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
                     options,
                 ),
+            [FeatureFlags.AgentIdentitySilentRefresh]: (flagArgs, options) =>
+                this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.SharedSignInExpiryMessage]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.SharedSignInReconnect]: (flagArgs, options) =>

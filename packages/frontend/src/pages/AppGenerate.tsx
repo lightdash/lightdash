@@ -1134,7 +1134,7 @@ const AppGenerate: FC = () => {
         }) => {
             if (!projectUuid) return;
             window.open(
-                getAiAgentThreadPath(projectUuid, agentUuid, threadUuid),
+                getAiAgentThreadPath(projectUuid, agentUuid, threadUuid, false),
                 '_blank',
                 'noopener',
             );

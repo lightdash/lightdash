@@ -10,6 +10,7 @@ import {
     type ApiDocumentChartQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
+    type ApiDocumentsLinkingChartResponse,
     type ApiDocumentVersionListResponse,
     type ApiErrorPayload,
     type ApiJobScheduledResponse,
@@ -410,6 +411,41 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .getAsCode(req.account, projectUuid, documentUuidOrSlug),
+        };
+    }
+
+    /**
+     * The Documents you can view whose current version links a saved chart or saved SQL chart
+     * @summary Documents linking a chart
+     * @param savedChartUuid The saved chart; pass this or savedSqlUuid
+     * @param savedSqlUuid The saved SQL chart; pass this or savedChartUuid
+     */
+    @Get('linking-chart')
+    @OperationId('ListDocumentsLinkingChart')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async listDocumentsLinkingChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() savedChartUuid?: UUID,
+        @Query() savedSqlUuid?: UUID,
+    ): Promise<ApiDocumentsLinkingChartResponse> {
+        assertRegisteredAccount(req.account);
+        const chartUuid = savedChartUuid ?? savedSqlUuid;
+        if (!chartUuid || (savedChartUuid && savedSqlUuid)) {
+            throw new ParameterError(
+                'Pass exactly one of savedChartUuid or savedSqlUuid',
+            );
+        }
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .listDocumentsLinkingChart(
+                    req.account,
+                    projectUuid,
+                    savedChartUuid ? 'chart' : 'sqlChart',
+                    chartUuid,
+                ),
         };
     }
 

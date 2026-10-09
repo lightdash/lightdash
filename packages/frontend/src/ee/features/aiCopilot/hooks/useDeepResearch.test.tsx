@@ -98,6 +98,8 @@ const getRun = (status: 'running' | 'completed') => ({
 
         deadlineMs: 600_000,
     },
+    metrics: { findingsCount: null },
+    document: null,
     errorMessage: null,
     cancellationRequestedAt: null,
     createdAt: '2026-07-15T09:00:00.000Z',

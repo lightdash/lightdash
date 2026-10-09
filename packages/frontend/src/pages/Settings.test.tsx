@@ -1,4 +1,5 @@
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
     CommercialFeatureFlags,
     DbtProjectType,
     FeatureFlags,
@@ -35,6 +36,7 @@ const renderSettings = (
     isSoftDeleteEnabled = true,
     // A settings page outside the project's own; `page` is under it otherwise.
     initialPath = `${base}/${page}`,
+    agentIdentityEnabled: boolean | null = false,
 ) => {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
@@ -67,6 +69,19 @@ const renderSettings = (
     ].forEach((id) => {
         queryClient.setQueryData(['feature-flag', id], { id, enabled: false });
     });
+    if (agentIdentityEnabled === null) {
+        queryClient.removeQueries(['feature-flag', FeatureFlags.AgentIdentity]);
+    } else {
+        queryClient.setQueryData(['feature-flag', FeatureFlags.AgentIdentity], {
+            id: FeatureFlags.AgentIdentity,
+            enabled: agentIdentityEnabled,
+        });
+    }
+    queryClient.setQueryData(['ai-access', 'org', 'agent-identity'], {
+        requireVerifiedAgentSessions: false,
+        rules: [],
+    });
+    queryClient.setQueryData(['organization-warehouse-credentials'], []);
     nock(BASE_API_URL)
         .get('/api/v1/user/account')
         .reply(200, {
@@ -327,4 +342,145 @@ describe('limited project settings routes', () => {
             ).toHaveAttribute('href', `${base}/recentlyDeleted`);
         },
     );
+});
+
+describe('Agent identity settings routes', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+
+    const manageOrganization = {
+        action: 'manage',
+        subject: 'Organization',
+    } satisfies LightdashUserWithAbilityRules['abilityRules'][number];
+
+    it.each([
+        { enabled: true, canManage: true },
+        { enabled: true, canManage: false },
+        { enabled: false, canManage: true },
+        { enabled: false, canManage: false },
+    ])(
+        'gates the sidebar and route with %j',
+        async ({ enabled, canManage }) => {
+            renderSettings(
+                '',
+                canManage ? [viewProject, manageOrganization] : [viewProject],
+                true,
+                AGENT_IDENTITY_SETTINGS_PATH,
+                enabled,
+            );
+
+            if (enabled && canManage) {
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Agent identity',
+                    }),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getAllByRole('heading', { name: 'Agent identity' }),
+                ).toHaveLength(1);
+                expect(
+                    screen.getByRole('link', { name: 'Agent identity' }),
+                ).toHaveAttribute('href', '/generalSettings/agentIdentity');
+                expect(
+                    screen.getByText(/Choose who AI agents run as/),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getByRole('link', { name: 'Warehouse credentials' }),
+                ).toHaveAttribute(
+                    'href',
+                    '/generalSettings/warehouseCredentials',
+                );
+                for (const link of screen.getAllByRole('link', {
+                    name: 'My warehouse connections',
+                })) {
+                    expect(link).toHaveAttribute(
+                        'href',
+                        '/generalSettings/myWarehouseConnections',
+                    );
+                }
+                expect(
+                    screen.getByRole('status', { name: 'Current URL' }),
+                ).toHaveTextContent('/generalSettings/agentIdentity');
+            } else {
+                expect(
+                    await screen.findByRole('heading', { name: 'Profile' }),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByRole('link', { name: 'Agent identity' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByRole('heading', { name: 'Agent identity' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('status', { name: 'Current URL' }),
+                ).toHaveTextContent('/generalSettings/profile');
+            }
+        },
+    );
+
+    it('keeps a direct visit open while the feature flag loads', async () => {
+        nock(BASE_API_URL)
+            .get(`/api/v2/feature-flag/${FeatureFlags.AgentIdentity}`)
+            .delayBody(100)
+            .reply(200, {
+                status: 'ok',
+                results: { id: FeatureFlags.AgentIdentity, enabled: true },
+            });
+        renderSettings(
+            '',
+            [viewProject, manageOrganization],
+            true,
+            AGENT_IDENTITY_SETTINGS_PATH,
+            null,
+        );
+
+        expect(
+            await screen.findByRole('heading', { name: 'Agent identity' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/agentIdentity');
+    });
+
+    it('keeps Warehouse credentials available without the agent identity card', async () => {
+        renderSettings(
+            '',
+            [
+                viewProject,
+                manageOrganization,
+                {
+                    action: 'manage',
+                    subject: 'OrganizationWarehouseCredentials',
+                },
+            ],
+            true,
+            '/generalSettings/warehouseCredentials',
+            true,
+        );
+
+        expect(
+            await screen.findByRole('heading', {
+                name: 'Warehouse credentials',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('No warehouse credentials'),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/Choose who AI agents run as/),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Agent identity' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Agent identity' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('status', { name: 'Current URL' }),
+        ).toHaveTextContent('/generalSettings/warehouseCredentials');
+    });
 });

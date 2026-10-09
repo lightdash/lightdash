@@ -72,10 +72,12 @@ const FORBIDDEN_SIGNATURES = [
 //     global-this probes (try/catch-guarded), and Vega's expression compiler —
 //     now bypassed at render by the `ast: true` interpreter (CustomVisualization).
 //   eval(: highlight.js keyword regex text, vega-dataflow `.eval()` method.
+//   Comment text: markdown-it's ruler.mjs doc comment (`fn: Function()`),
+//     pulled in by the SDK AI agent.
 // A fresh build is the canonical count; a stale local Vite/rollup cache only ever
 // lowers it, so this exact ceiling never false-fails — only a genuinely new
 // code-generator pushes the total above it.
-const BASELINE = 31;
+const BASELINE = 32;
 
 const regressions = FORBIDDEN_SIGNATURES.map((s) => ({
     ...s,

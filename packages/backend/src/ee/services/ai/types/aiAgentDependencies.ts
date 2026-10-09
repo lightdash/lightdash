@@ -48,6 +48,7 @@ import {
     SlackPrompt,
     SourceQuery,
     SourceQuerySubmission,
+    SqlChartAsCode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
@@ -55,10 +56,12 @@ import {
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
+    AiAgentSqlApprovalDecidedEvent,
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
     AiAgentToolCallEvent,
@@ -72,6 +75,11 @@ import type {
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
 import { AiAgentSkill } from '../skills/types';
+import type {
+    ApproveSqlFn,
+    SqlApprovalDecisionOnCall,
+    SqlAutoApprovalSource,
+} from '../tools/sqlApprovals';
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;
@@ -345,8 +353,7 @@ export type DocumentContentResult = {
 export type ReadContentFn = (
     args:
         | { slug: string; type: ReadContentType }
-        | { type: 'document'; slug: string; chartId: string | null }
-        | { type: 'document'; documentUuid: string; chartId: string | null },
+        | { type: 'document'; slug: string; chartId: string | null },
 ) => Promise<
     | DocumentContentResult
     | {
@@ -357,6 +364,11 @@ export type ReadContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           href: string;
       }
     | {
@@ -376,6 +388,13 @@ export type EditContentFn = (
               slug: string;
               type: 'dashboard' | 'chart';
               patch: unknown;
+          }
+        | {
+              slug: string;
+              type: 'sql_chart';
+              patch: unknown;
+              // Runs only when the patch changes the SQL, before saving.
+              approveSql: ApproveSqlFn;
           }
         | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
 ) => Promise<
@@ -400,6 +419,16 @@ export type EditContentFn = (
               after: string | null;
           };
       }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
 >;
 
 type CreateContentArgs =
@@ -410,10 +439,24 @@ type CreateContentArgs =
     | {
           type: 'chart';
           content: ChartAsCode;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
       };
 
+type CreateSqlChartArgs = {
+    type: 'sql_chart';
+    content: SqlChartAsCode;
+    // Runs after validation and permission checks, before anything is saved.
+    approveSql: ApproveSqlFn;
+};
+
 export type CreateContentFn = (
-    args: CreateContentArgs | { type: 'document'; content: McpDocumentAsCode },
+    args:
+        | Exclude<CreateContentArgs, { type: 'sql_chart' }>
+        | CreateSqlChartArgs
+        | { type: 'document'; content: McpDocumentAsCode },
 ) => Promise<
     | DocumentContentResult
     | {
@@ -425,6 +468,12 @@ export type CreateContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           uuid: string;
           href: string;
       }
@@ -606,7 +655,8 @@ export type TrackEventFn = (
         | AiAgentToolCallEvent
         | AiAgentToolCallCompletedEvent
         | AiAgentToolCallFailedEvent
-        | AiAgentFindContentCoverageEvent,
+        | AiAgentFindContentCoverageEvent
+        | AiAgentSqlApprovalDecidedEvent,
 ) => void;
 
 export type SearchFieldValuesFn = (args: {
@@ -738,15 +788,22 @@ export type WaitForSqlApprovalFn = (
     timeoutMs?: number,
 ) => Promise<'approved' | 'rejected' | 'timeout'>;
 
-export type RecordSqlApprovalFn = (
-    toolCallId: string,
-    decision: 'approved' | 'rejected',
-    decidedByUserUuid: string | null,
-) => Promise<boolean>;
+/** Records an automatic approval; human decisions are recorded by the service. */
+export type RecordSqlApprovalFn = (args: {
+    toolCallId: string;
+    toolName: SqlApprovalToolName;
+    decidedByUserUuid: string | null;
+    source: SqlAutoApprovalSource;
+}) => Promise<boolean>;
 
 export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,
 ) => Promise<boolean>;
+
+/** The SQL approval decisions recorded for a prompt's tool calls. */
+export type ListSqlApprovalDecisionsFn = (
+    promptUuid: string,
+) => Promise<SqlApprovalDecisionOnCall[]>;
 
 export type LoadAgentSkillFn = (
     name: string,

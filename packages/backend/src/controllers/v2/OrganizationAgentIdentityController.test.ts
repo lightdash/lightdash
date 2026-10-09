@@ -1,7 +1,16 @@
 import { Ability } from '@casl/ability';
-import { FeatureFlags, type PossibleAbilities } from '@lightdash/common';
+import {
+    FeatureFlags,
+    WarehouseTypes,
+    type OrganizationAgentIdentityRule,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import { type Request } from 'express';
+import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { buildAccount } from '../../auth/account/account.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { type LightdashConfig } from '../../config/parseConfig';
+import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { AiAccessService } from '../../services/AiAccessService/AiAccessService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
@@ -14,12 +23,62 @@ const setup = () => {
             async (
                 _uuid: string,
                 settings: { requireVerifiedAgentSessions: boolean },
-            ) => settings,
+            ) => ({
+                settings,
+                previousSource: 'marked_person',
+                changed: settings.requireVerifiedAgentSessions,
+            }),
         ),
+    };
+    const rules = {
+        get: vi.fn(async () => ({ source: 'marked_person' })),
+        list: vi.fn(
+            async (): Promise<OrganizationAgentIdentityRule[]> => [
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+            ],
+        ),
+        set: vi.fn(async () => ({
+            previousSource: 'marked_person',
+            changed: true,
+        })),
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        analytics: analyticsMock,
+        aiServiceAccountCredentialsModel: {
+            findProjectsMissingSlot: vi.fn(async () => []),
+        },
         featureFlagModel: flags,
+        lightdashConfig: {
+            ...lightdashConfigMock,
+            license: {
+                ...lightdashConfigMock.license,
+                licenseKey: 'test-license',
+            },
+            auth: {
+                ...lightdashConfigMock.auth,
+                snowflakeAi: {
+                    ...lightdashConfigMock.auth.snowflakeAi,
+                    clientId: 'test-client',
+                    clientSecret: 'test-secret',
+                    authorizationEndpoint:
+                        'https://snowflake.example/authorize',
+                    tokenEndpoint:
+                        'https://test-account.snowflakecomputing.com/token',
+                },
+            },
+        } as LightdashConfig,
+        organizationAgentIdentityRulesModel:
+            rules as unknown as OrganizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel:
             model as unknown as OrganizationAgentIdentitySettingsModel,
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
@@ -28,14 +87,28 @@ const setup = () => {
     } as ServiceRepository);
     const account = buildAccount();
     const req = { account } as Request;
-    return { controller, model, account, req, flags };
+    return { controller, model, rules, account, req, flags };
 };
 
 test('allows an authenticated member to read their organization settings', async () => {
     const { controller, model, account, req } = setup();
     expect(await controller.getSettings(req)).toEqual({
         status: 'ok',
-        results: { requireVerifiedAgentSessions: false },
+        results: {
+            requireVerifiedAgentSessions: false,
+            rules: [
+                {
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+            ],
+        },
     });
     expect(model.get).toHaveBeenCalledWith(
         account.organization.organizationUuid,
@@ -51,7 +124,7 @@ test('rejects a non-admin update with 403', async () => {
 });
 
 test('allows an organization admin to update their own settings', async () => {
-    const { controller, model, req, account } = setup();
+    const { controller, model, rules, req, account } = setup();
     account.user.ability = new Ability<PossibleAbilities>([
         {
             action: 'manage',
@@ -61,13 +134,26 @@ test('allows an organization admin to update their own settings', async () => {
             },
         },
     ]);
+    const updatedRules: OrganizationAgentIdentityRule[] = [
+        {
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            source: 'agent_sign_in',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
+            warehouseType: WarehouseTypes.BIGQUERY,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+    ];
+    rules.list.mockResolvedValue(updatedRules);
     expect(
         await controller.updateSettings(req, {
             requireVerifiedAgentSessions: true,
         }),
     ).toEqual({
         status: 'ok',
-        results: { requireVerifiedAgentSessions: true },
+        results: { requireVerifiedAgentSessions: true, rules: updatedRules },
     });
     expect(model.upsert).toHaveBeenCalledWith(
         account.organization.organizationUuid,
@@ -120,3 +206,68 @@ test.each(['get', 'put'])(
         expect(model.upsert).not.toHaveBeenCalled();
     },
 );
+
+test.each([
+    [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
+    [WarehouseTypes.BIGQUERY, 'ai_service_account'],
+] as const)('returns the updated %s rule', async (warehouseType, source) => {
+    const { controller, rules, account, req } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: {
+                organizationUuid: account.organization.organizationUuid,
+            },
+        },
+    ]);
+    expect(
+        await controller.updateRule(req, warehouseType, {
+            source,
+        }),
+    ).toEqual({
+        status: 'ok',
+        results: {
+            warehouseType,
+            source,
+            projectsMissingAiServiceAccount:
+                source === 'ai_service_account' ? [] : null,
+        },
+    });
+    expect(rules.set).toHaveBeenCalledWith(
+        account.organization.organizationUuid,
+        warehouseType,
+        { source },
+    );
+});
+
+test('rejects a rule update scoped to another organization', async () => {
+    const { controller, rules, account, req } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: { organizationUuid: 'other-org' },
+        },
+    ]);
+    await expect(
+        controller.updateRule(req, WarehouseTypes.BIGQUERY, {
+            source: 'ai_service_account',
+        }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(rules.set).not.toHaveBeenCalled();
+});
+
+test('gates the per-warehouse PUT before writing', async () => {
+    const { controller, rules, req, flags } = setup();
+    flags.get.mockResolvedValue({ enabled: false });
+    await expect(
+        controller.updateRule(req, WarehouseTypes.BIGQUERY, {
+            source: 'ai_service_account',
+        }),
+    ).rejects.toMatchObject({
+        name: 'FeatureNotEnabledError',
+        statusCode: 403,
+    });
+    expect(rules.set).not.toHaveBeenCalled();
+});

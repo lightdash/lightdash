@@ -2,7 +2,10 @@
 import {
     Account,
     AdminNotificationType,
+    AgentIdentityConnectEntryPoint,
+    AgentIdentityConnectFailureReason,
     AI_WRITEBACK_STAGES,
+    AiAccessRefusalReason,
     AiAgentSkillVersionSource,
     AiCreditAllowanceAlertThreshold,
     AnyType,
@@ -31,12 +34,16 @@ import {
     ProjectMemberRole,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     RequestMethod,
     SchedulerFormat,
     SchedulerResourceType,
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AgentAccessReport,
+    type AgentAccessTestEntryPoint,
+    type AgentActorSurface,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -48,6 +55,7 @@ import {
     type AiDeepResearchFailureStage,
     type AiDeepResearchTerminalReason,
     type AiDeepResearchTerminalStatus,
+    type AiIdentitySource,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
@@ -69,6 +77,7 @@ import {
     type PlaygroundProjectTrigger,
     type PullRequestProvider,
     type SemanticQueryUsage,
+    type SqlApprovalToolName,
     type WarehousePhaseTimings,
 } from '@lightdash/common';
 import Analytics, {
@@ -364,6 +373,64 @@ type WarehouseConnectionChangedEvent = BaseTrack & {
         changedCredentials: boolean | null;
         changedDatabaseSettings: boolean | null;
     };
+};
+
+type AgentIdentityServiceAccountEventProperties = {
+    organizationId: string;
+    projectId: string;
+    userId: string;
+    warehouseType: WarehouseTypes;
+};
+
+type AgentIdentityServiceAccountSavedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_saved';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties & {
+        operation: 'created' | 'updated';
+    };
+};
+
+type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_tested';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties & {
+        result: 'success' | 'failure';
+        failureReason: 'connection_failed' | 'query_failed' | null;
+        credentialSource: 'submitted' | 'saved';
+    };
+};
+
+type AgentIdentityAccessTestedEvent = BaseTrack & {
+    event: 'agent_identity.access_tested';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties &
+        Pick<
+            AgentAccessReport,
+            | 'credentialSource'
+            | 'status'
+            | 'failureReason'
+            | 'readableCount'
+            | 'blockedCount'
+            | 'errorCount'
+            | 'checkedCount'
+            | 'notCheckedCount'
+            | 'totalCount'
+            | 'truncatedCount'
+        > & {
+            connectionUuid: string | null;
+            subjectKind: 'ai_service_account';
+            entryPoint: AgentAccessTestEntryPoint;
+            datasetCount: number;
+            durationMs: number;
+            capReached: boolean;
+            deadlineReached: boolean;
+        };
+};
+
+type AgentIdentityServiceAccountDeletedEvent = BaseTrack & {
+    event: 'agent_identity.service_account_deleted';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties;
 };
 
 type WarehouseConnectionTestCompletedEvent = BaseTrack & {
@@ -1718,6 +1785,8 @@ export type DocumentChartCounts = {
     chartCount: number;
     customChartCount: number;
     mergeChartCount: number;
+    sqlChartCount: number;
+    savedChartLinkCount: number;
     markdownLength: number;
 };
 
@@ -1771,6 +1840,22 @@ export type DocumentViewEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         documentId: string;
+    };
+};
+
+export type DocumentMovedEvent = BaseTrack & {
+    event: 'document.moved';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        documentId: string;
+        /** Null when a personal Document was saved to a Space. */
+        sourceSpaceId: string | null;
+        targetSpaceId: string;
+        source: DocumentChangeSource;
+        aiPromptId?: string;
+        aiThreadId?: string;
     };
 };
 
@@ -3232,6 +3317,32 @@ export type AiAgentThreadRenamedEvent = BaseTrack & {
     };
 };
 
+/** One row per SQL approval outcome: the first recorded decision per tool call, or a timeout. */
+export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
+    event: 'ai_agent.sql_approval_decided';
+    // Decider, or the asked user on timeout; anonymousId when absent.
+    userId?: string;
+    anonymousId?: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        toolCallId: string;
+        toolName: SqlApprovalToolName;
+        decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
+        // same_turn_approval: the same SQL was approved earlier in the turn.
+        source:
+            | 'web'
+            | 'slack'
+            | 'auto_approve'
+            | 'thread_auto_approve'
+            | 'same_turn_approval';
+        isAutoApproved: boolean;
+        isThreadAutoApproval: boolean;
+    };
+};
+
 export type AiAgentThreadsRetentionCleanedEvent = BaseTrack & {
     event: 'ai_agent.threads_retention_cleaned';
     anonymousId: string;
@@ -4546,7 +4657,105 @@ export type MobilePushNotificationEvent =
           };
       });
 
+type AgentIdentityTrack = BaseTrack &
+    (
+        | {
+              userId: string;
+              anonymousId?: never;
+          }
+        | {
+              userId?: never;
+              anonymousId: string;
+          }
+    );
+
+export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.rule_updated';
+    properties: {
+        organizationId: string;
+        userId: string | null;
+        warehouseType: WarehouseTypes;
+        source: AiIdentitySource;
+        previousSource: AiIdentitySource;
+    };
+};
+
+export type AgentQueryRefusedProperties = {
+    actor: { surface: AgentActorSurface; clientId: string | null } | null;
+    organizationId: string;
+    projectId: string;
+    userId: string | null;
+    warehouseConnectionId: string | null;
+    surface: QuerySurface;
+    warehouseType: WarehouseTypes;
+    reason: AiAccessRefusalReason;
+};
+
+export type AgentQueryRefusedEvent = AgentIdentityTrack & {
+    event: 'query.refused';
+    properties: AgentQueryRefusedProperties;
+};
+
+export type AgentIdentityConnectProperties = {
+    organizationId: string;
+    userId: string;
+    projectId: string | null;
+    entryPoint: AgentIdentityConnectEntryPoint;
+    warehouseType: WarehouseTypes.SNOWFLAKE;
+    connectAttemptId: string;
+};
+
+export type AgentIdentityConnectStartedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connect_started';
+    properties: AgentIdentityConnectProperties;
+};
+
+export type AgentIdentityConnectedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connected';
+    properties: AgentIdentityConnectProperties & {
+        failureReason: null;
+    };
+};
+
+export type AgentIdentityConnectFailedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.connect_failed';
+    properties: AgentIdentityConnectProperties & {
+        failureReason: AgentIdentityConnectFailureReason;
+    };
+};
+
+export type AgentIdentityDisconnectedEvent = AgentIdentityTrack & {
+    event: 'agent_identity.disconnected';
+    properties: {
+        organizationId: string | null;
+        userId: string;
+        projectId: string | null;
+        warehouseType: WarehouseTypes;
+    };
+};
+
+export type AgentIdentityExpiredEvent = AgentIdentityTrack & {
+    event: 'agent_identity.expired';
+    properties: Omit<AgentQueryRefusedProperties, 'reason'> & {
+        reason: AiAccessRefusalReason.SIGN_IN_EXPIRED;
+    };
+};
+
+type AgentIdentityEvent =
+    | AgentIdentityRuleUpdatedEvent
+    | AgentQueryRefusedEvent
+    | AgentIdentityConnectStartedEvent
+    | AgentIdentityConnectedEvent
+    | AgentIdentityConnectFailedEvent
+    | AgentIdentityDisconnectedEvent
+    | AgentIdentityExpiredEvent;
+
 type TypedEvent =
+    | AgentIdentityEvent
+    | AgentIdentityServiceAccountSavedEvent
+    | AgentIdentityServiceAccountTestedEvent
+    | AgentIdentityAccessTestedEvent
+    | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
     | CreateUserEvent
     | UpdateUserEvent
@@ -4706,6 +4915,7 @@ type TypedEvent =
     | AiAgentThreadDeletedEvent
     | AiAgentThreadPinnedEvent
     | AiAgentThreadRenamedEvent
+    | AiAgentSqlApprovalDecidedEvent
     | AiAgentThreadsRetentionCleanedEvent
     | AiAgentProvisioningFailedEvent
     | AiAgentGithubMcpConnectedEvent
@@ -4719,6 +4929,7 @@ type TypedEvent =
     | DocumentUpdatedEvent
     | DocumentOwnerAssignedEvent
     | DocumentDeletedEvent
+    | DocumentMovedEvent
     | DocumentRestoredEvent
     | DocumentViewEvent
     | AiAgentSkillCreatedEvent

@@ -45,6 +45,7 @@ const AgentConnect = () => {
     const { data: health } = useHealth();
     const flag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const project = searchParams.get('project');
+    const entryPoint = searchParams.get('entryPoint');
     const hasValidProject = project !== null && isUuid(project);
     const siteUrl = health?.siteUrl;
     const target = siteUrl
@@ -54,11 +55,13 @@ const AgentConnect = () => {
 
     useEffect(() => {
         if (enabled && hasValidProject && siteUrl) {
+            const params = new URLSearchParams({ redirect: target, project });
+            if (entryPoint !== null) params.set('entryPoint', entryPoint);
             window.location.assign(
-                `${siteUrl}/api/v1/login/snowflake-ai?redirect=${encodeURIComponent(target)}`,
+                `${siteUrl}/api/v1/login/snowflake-ai?${params}`,
             );
         }
-    }, [enabled, hasValidProject, siteUrl, target]);
+    }, [enabled, hasValidProject, siteUrl, target, project, entryPoint]);
 
     const explanation = !hasValidProject
         ? 'This agent connection link is missing a valid project.'
@@ -80,9 +83,15 @@ const AgentConnect = () => {
                         action={
                             <Anchor
                                 component={Link}
-                                to="/generalSettings/myWarehouseConnections"
+                                to={
+                                    enabled
+                                        ? '/generalSettings/myAgentConnections'
+                                        : '/generalSettings/myWarehouseConnections'
+                                }
                             >
-                                My warehouse connections
+                                {enabled
+                                    ? 'My agent connections'
+                                    : 'My warehouse connections'}
                             </Anchor>
                         }
                     />

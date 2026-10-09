@@ -311,6 +311,7 @@ export const lightdashConfigMock: LightdashConfig = {
         exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
+        agentResultIdentityCheckEnabled: true,
         decisions: {
             provider: 'jev',
             apiKey: null,
@@ -486,6 +487,13 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    warehouseClient: {
+        releaseSshTunnelOnScopeExit: true,
+        resolveCompileCredentials: true,
+        resolveDbtCloudPreviewCredentials: true,
+        resolveTimezonePreviewCredentials: true,
+        resolveTestAndCompileCredentials: true,
+    },
     motherduckInstanceCache: {
         enabled: false,
         projectUuids: [],
@@ -504,6 +512,11 @@ export const lightdashConfigMock: LightdashConfig = {
     appRuntime: {
         enabled: false,
         dataAppCodingAgent: 'claude',
+        dataAppGatewayBaseUrls: {
+            anthropic: null,
+            bedrock: null,
+            openai: null,
+        },
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,
@@ -572,4 +585,16 @@ export const lightdashConfigMock: LightdashConfig = {
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
     previewFeatureFlags: { enabled: false },
+};
+
+export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    auth: {
+        ...lightdashConfigMock.auth,
+        google: {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: 'test-google-client-id',
+            oauth2ClientSecret: 'test-google-client-secret',
+        },
+    },
 };

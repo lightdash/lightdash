@@ -97,6 +97,7 @@ describe('getComposerVizPanelValue', () => {
         expect(fieldConfig(value).y.map((y) => y.reference)).toEqual([
             'revenue',
         ]);
+        expect(getComposerVizSort(value)).toBe(SortByDirection.ASC);
     });
 });
 
@@ -415,7 +416,7 @@ describe('summary and rendering helpers', () => {
         ).toBeNull();
     });
 
-    test('a pivot is needed for a split, an aggregation or a sort', () => {
+    test('a pivot is needed for a split or an aggregation, not for an x sort', () => {
         expect(composerVizNeedsPivot(layout())).toBe(false);
         expect(
             composerVizNeedsPivot(
@@ -439,13 +440,13 @@ describe('summary and rendering helpers', () => {
                 layout({
                     sortBy: [
                         {
-                            reference: 'revenue',
+                            reference: 'month',
                             direction: SortByDirection.DESC,
                         },
                     ],
                 }),
             ),
-        ).toBe(true);
+        ).toBe(false);
     });
 });
 

@@ -75,6 +75,41 @@ describe('health', () => {
             BaseResponse,
         );
     });
+    it.each([undefined, 'test-account'])(
+        'requires an account for Snowflake AI behind a proxy (%s)',
+        async (account) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    license: {
+                        ...lightdashConfigMock.license,
+                        licenseKey: 'test-license',
+                    },
+                    auth: {
+                        ...lightdashConfigMock.auth,
+                        snowflakeAi: {
+                            ...lightdashConfigMock.auth.snowflakeAi,
+                            account,
+                            clientId: 'test-client',
+                            clientSecret: 'test-secret',
+                            authorizationEndpoint:
+                                'https://proxy.example/authorize',
+                            tokenEndpoint: 'https://proxy.example/token',
+                        },
+                    },
+                },
+                licenseService: validLicenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                learnSandboxService: learnSandboxServiceMock,
+            });
+            const health = await service.getHealthState(undefined);
+            expect(health.auth.snowflakeAi.enabled).toBe(Boolean(account));
+        },
+    );
     it('Should return last version as undefined when fails fetch', async () => {
         (getDockerHubVersion as import('vitest').Mock).mockImplementationOnce(
             () => undefined,

@@ -19,9 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import PageHeader from '../../../../components/common/Page/PageHeader';
 import { cartesianChartSelectors } from '../../../../components/DataViz/store/selectors';
-import { EditableText } from '../../../../components/VisualizationConfigs/common/EditableText';
 import { useGitIntegration } from '../../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../../hooks/health/useHealth';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -35,7 +33,6 @@ import {
     EditorTabs,
     setActiveEditorTab,
     toggleModal,
-    updateName,
 } from '../../store/sqlRunnerSlice';
 import { isBitbucketCloudConnection } from '../../utils/isBitbucketCloudConnection';
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
@@ -44,9 +41,6 @@ import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
 import classes from './HeaderCreate.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
-
-const DEFAULT_SQL_NAME = 'Untitled SQL query';
-const DEFAULT_NAME_VIRTUAL_VIEW = 'Untitled virtual view';
 
 /** Anchor for scope walkthroughs (data-tour-via): the Save chart button. */
 const saveChartAnchor = {
@@ -91,8 +85,13 @@ export const HeaderCreate: FC = () => {
     );
 
     const dispatch = useAppDispatch();
-    const name = useAppSelector((state) => state.sqlRunner.name);
     const loadedColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
+    const sql = useAppSelector((state) => state.sqlRunner.sql);
+    const hasUnrunChanges = useAppSelector(
+        (state) => state.sqlRunner.hasUnrunChanges,
+    );
+    // Saving captures the query as it last ran, so the editor must match that run
+    const needsRun = !loadedColumns || hasUnrunChanges || !sql?.trim();
     const isSaveModalOpen = useAppSelector(
         (state) => state.sqlRunner.modals.saveChartModal.isOpen,
     );
@@ -265,13 +264,6 @@ export const HeaderCreate: FC = () => {
         }
     }, []);
 
-    const untitledName = useMemo(() => {
-        if (ctaAction === 'createVirtualView') {
-            return DEFAULT_NAME_VIRTUAL_VIEW;
-        }
-        return DEFAULT_SQL_NAME;
-    }, [ctaAction]);
-
     const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
     const createShareUrl = useCreateSqlRunnerShareUrl();
@@ -283,7 +275,7 @@ export const HeaderCreate: FC = () => {
     }, [createShareUrl, clipboard, showToastSuccess]);
 
     const isCtaDisabled =
-        !loadedColumns ||
+        needsRun ||
         (ctaAction === 'save' && !canSaveChart) ||
         (ctaAction === 'createVirtualView' && !canCreateVirtualView) ||
         (ctaAction === 'writeBackToDbt' &&
@@ -313,248 +305,216 @@ export const HeaderCreate: FC = () => {
 
     return (
         <>
-            <PageHeader variant="query">
-                <Group justify="space-between" flex={1} miw={0}>
-                    <Group gap="two" miw={0} maw="100%">
-                        {hasAnyAction && (
-                            <EditableText
-                                heading
-                                size="md"
-                                w={{ base: '100%', md: 400 }}
-                                placeholder={untitledName}
-                                value={name}
-                                onChange={(e) =>
-                                    dispatch(updateName(e.currentTarget.value))
-                                }
-                            />
-                        )}
-                    </Group>
+            <Group gap="xs" wrap="nowrap">
+                {hasAnyAction && (
+                    <Tooltip
+                        label="Run the query to save it"
+                        disabled={!needsRun}
+                    >
+                        <Button.Group>
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftSection={getCtaIcon(ctaAction)}
+                                disabled={isCtaDisabled}
+                                onClick={handleCtaClick}
+                                {...(ctaAction === 'save'
+                                    ? saveChartAnchor
+                                    : ctaAction === 'createVirtualView'
+                                      ? virtualViewAnchor
+                                      : {})}
+                            >
+                                {getCtaLabels(ctaAction).label}
+                            </Button>
+                            <Menu
+                                disabled={needsRun || !hasAnyAction}
+                                position="bottom-end"
+                                withArrow
+                                offset={2}
+                                arrowOffset={10}
+                            >
+                                <Menu.Target>
+                                    <Button
+                                        size="xs"
+                                        p={4}
+                                        disabled={needsRun || !hasAnyAction}
+                                        variant="default"
+                                        // Anchor for scope walkthroughs (data-tour-via)
+                                        data-tour-anchor="sql-cta-menu"
+                                        data-tour-hint="Open the save options"
+                                    >
+                                        <MantineIcon
+                                            icon={IconChevronDown}
+                                            size="sm"
+                                        />
+                                    </Button>
+                                </Menu.Target>
 
-                    <Group gap="xs">
-                        {hasAnyAction && (
-                            <Button.Group>
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    leftSection={getCtaIcon(ctaAction)}
-                                    disabled={isCtaDisabled}
-                                    onClick={handleCtaClick}
-                                    {...(ctaAction === 'save'
-                                        ? saveChartAnchor
-                                        : ctaAction === 'createVirtualView'
-                                          ? virtualViewAnchor
-                                          : {})}
-                                >
-                                    {getCtaLabels(ctaAction).label}
-                                </Button>
-                                <Menu
-                                    disabled={!loadedColumns || !hasAnyAction}
-                                    position="bottom-end"
-                                    withArrow
-                                    offset={2}
-                                    arrowOffset={10}
-                                >
-                                    <Menu.Target>
-                                        <Button
-                                            size="xs"
-                                            p={4}
-                                            disabled={
-                                                !loadedColumns || !hasAnyAction
-                                            }
-                                            variant="default"
-                                            // Anchor for scope walkthroughs (data-tour-via)
-                                            data-tour-anchor="sql-cta-menu"
-                                            data-tour-hint="Open the save options"
-                                        >
-                                            <MantineIcon
-                                                icon={IconChevronDown}
-                                                size="sm"
-                                            />
-                                        </Button>
-                                    </Menu.Target>
-
-                                    <Menu.Dropdown>
-                                        <Tooltip
-                                            label="You don't have permission to save SQL charts in this project."
-                                            maw={400}
-                                            position="top"
-                                            disabled={canSaveChart}
-                                        >
-                                            <Group
-                                                className={classes.menuOption}
-                                            >
-                                                <Menu.Item
-                                                    disabled={!canSaveChart}
-                                                    onClick={() => {
-                                                        setUserSelectedCtaAction(
-                                                            'save',
-                                                        );
-                                                    }}
-                                                >
-                                                    <Stack gap="two">
-                                                        <Text
-                                                            fz="xs"
-                                                            fw={600}
-                                                            c={
-                                                                ctaAction ===
-                                                                    'save' &&
-                                                                canSaveChart
-                                                                    ? 'blue'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'save',
-                                                                ).label
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            fz="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'save',
-                                                                ).description
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Menu.Item>
-                                            </Group>
-                                        </Tooltip>
-
-                                        <Tooltip
-                                            label="You don't have permission to create virtual views in this project."
-                                            maw={400}
-                                            position="top"
-                                            disabled={canCreateVirtualView}
-                                        >
-                                            <Group
-                                                className={classes.menuOption}
-                                            >
-                                                <Menu.Item
-                                                    disabled={
-                                                        !canCreateVirtualView
-                                                    }
-                                                    onClick={() => {
-                                                        setUserSelectedCtaAction(
-                                                            'createVirtualView',
-                                                        );
-                                                    }}
-                                                    // Anchor for scope walkthroughs (data-tour-via)
-                                                    data-tour-anchor="sql-cta-virtual-view"
-                                                    data-tour-hint="Choose Create virtual view"
-                                                >
-                                                    <Stack gap="two">
-                                                        <Text
-                                                            fw={600}
-                                                            fz="xs"
-                                                            c={
-                                                                ctaAction ===
-                                                                    'createVirtualView' &&
-                                                                canCreateVirtualView
-                                                                    ? 'blue'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'createVirtualView',
-                                                                ).label
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            fz="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'createVirtualView',
-                                                                ).description
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Menu.Item>
-                                            </Group>
-                                        </Tooltip>
-
-                                        <Tooltip
-                                            label={writeBackDisabledMessage}
-                                            maw={400}
-                                            position="top"
-                                            disabled={
-                                                writeBackDisabledMessage ===
-                                                undefined
-                                            }
-                                            onClick={() => {
-                                                if (writeBackOpenUrl)
-                                                    window.open(
-                                                        writeBackOpenUrl,
-                                                        '_blank',
-                                                        'noopener,noreferrer',
+                                <Menu.Dropdown>
+                                    <Tooltip
+                                        label="You don't have permission to save SQL charts in this project."
+                                        maw={400}
+                                        position="top"
+                                        disabled={canSaveChart}
+                                    >
+                                        <Group className={classes.menuOption}>
+                                            <Menu.Item
+                                                disabled={!canSaveChart}
+                                                onClick={() => {
+                                                    setUserSelectedCtaAction(
+                                                        'save',
                                                     );
-                                            }}
-                                        >
-                                            <Group
-                                                className={classes.menuOption}
+                                                }}
                                             >
-                                                <Menu.Item
-                                                    disabled={
-                                                        writeBackDisabledMessage !==
-                                                        undefined
-                                                    }
-                                                    onClick={() => {
-                                                        setUserSelectedCtaAction(
-                                                            'writeBackToDbt',
-                                                        );
-                                                    }}
-                                                >
-                                                    <Stack gap="two">
-                                                        <Text
-                                                            fw={600}
-                                                            fz="xs"
-                                                            c={
-                                                                ctaAction ===
-                                                                    'writeBackToDbt' &&
-                                                                canWriteBackToDbt
-                                                                    ? 'blue'
-                                                                    : undefined
-                                                            }
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).label
-                                                            }
-                                                        </Text>
-                                                        <Text
-                                                            fz="xs"
-                                                            c="dimmed"
-                                                        >
-                                                            {
-                                                                getCtaLabels(
-                                                                    'writeBackToDbt',
-                                                                ).description
-                                                            }
-                                                        </Text>
-                                                    </Stack>
-                                                </Menu.Item>
-                                            </Group>
-                                        </Tooltip>
-                                    </Menu.Dropdown>
-                                </Menu>
-                            </Button.Group>
-                        )}
-                        <ActionIcon
-                            variant="default"
-                            onClick={handleCreateShareUrl}
-                        >
-                            <MantineIcon icon={IconLink} />
-                        </ActionIcon>
-                    </Group>
-                </Group>
-            </PageHeader>
+                                                <Stack gap="two">
+                                                    <Text
+                                                        fz="xs"
+                                                        fw={600}
+                                                        c={
+                                                            ctaAction ===
+                                                                'save' &&
+                                                            canSaveChart
+                                                                ? 'blue'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {
+                                                            getCtaLabels('save')
+                                                                .label
+                                                        }
+                                                    </Text>
+                                                    <Text fz="xs" c="dimmed">
+                                                        {
+                                                            getCtaLabels('save')
+                                                                .description
+                                                        }
+                                                    </Text>
+                                                </Stack>
+                                            </Menu.Item>
+                                        </Group>
+                                    </Tooltip>
+
+                                    <Tooltip
+                                        label="You don't have permission to create virtual views in this project."
+                                        maw={400}
+                                        position="top"
+                                        disabled={canCreateVirtualView}
+                                    >
+                                        <Group className={classes.menuOption}>
+                                            <Menu.Item
+                                                disabled={!canCreateVirtualView}
+                                                onClick={() => {
+                                                    setUserSelectedCtaAction(
+                                                        'createVirtualView',
+                                                    );
+                                                }}
+                                                // Anchor for scope walkthroughs (data-tour-via)
+                                                data-tour-anchor="sql-cta-virtual-view"
+                                                data-tour-hint="Choose Create virtual view"
+                                            >
+                                                <Stack gap="two">
+                                                    <Text
+                                                        fw={600}
+                                                        fz="xs"
+                                                        c={
+                                                            ctaAction ===
+                                                                'createVirtualView' &&
+                                                            canCreateVirtualView
+                                                                ? 'blue'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {
+                                                            getCtaLabels(
+                                                                'createVirtualView',
+                                                            ).label
+                                                        }
+                                                    </Text>
+                                                    <Text fz="xs" c="dimmed">
+                                                        {
+                                                            getCtaLabels(
+                                                                'createVirtualView',
+                                                            ).description
+                                                        }
+                                                    </Text>
+                                                </Stack>
+                                            </Menu.Item>
+                                        </Group>
+                                    </Tooltip>
+
+                                    <Tooltip
+                                        label={writeBackDisabledMessage}
+                                        maw={400}
+                                        position="top"
+                                        disabled={
+                                            writeBackDisabledMessage ===
+                                            undefined
+                                        }
+                                        onClick={() => {
+                                            if (writeBackOpenUrl)
+                                                window.open(
+                                                    writeBackOpenUrl,
+                                                    '_blank',
+                                                    'noopener,noreferrer',
+                                                );
+                                        }}
+                                    >
+                                        <Group className={classes.menuOption}>
+                                            <Menu.Item
+                                                disabled={
+                                                    writeBackDisabledMessage !==
+                                                    undefined
+                                                }
+                                                onClick={() => {
+                                                    setUserSelectedCtaAction(
+                                                        'writeBackToDbt',
+                                                    );
+                                                }}
+                                            >
+                                                <Stack gap="two">
+                                                    <Text
+                                                        fw={600}
+                                                        fz="xs"
+                                                        c={
+                                                            ctaAction ===
+                                                                'writeBackToDbt' &&
+                                                            canWriteBackToDbt
+                                                                ? 'blue'
+                                                                : undefined
+                                                        }
+                                                    >
+                                                        {
+                                                            getCtaLabels(
+                                                                'writeBackToDbt',
+                                                            ).label
+                                                        }
+                                                    </Text>
+                                                    <Text fz="xs" c="dimmed">
+                                                        {
+                                                            getCtaLabels(
+                                                                'writeBackToDbt',
+                                                            ).description
+                                                        }
+                                                    </Text>
+                                                </Stack>
+                                            </Menu.Item>
+                                        </Group>
+                                    </Tooltip>
+                                </Menu.Dropdown>
+                            </Menu>
+                        </Button.Group>
+                    </Tooltip>
+                )}
+                <Tooltip label="Copy link to this query">
+                    <ActionIcon
+                        variant="default"
+                        aria-label="Copy link to this query"
+                        onClick={handleCreateShareUrl}
+                    >
+                        <MantineIcon icon={IconLink} />
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
             <SaveSqlChartModal
                 key={`${isSaveModalOpen}-saveChartModal`}
                 opened={isSaveModalOpen}

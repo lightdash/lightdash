@@ -3,11 +3,12 @@ import {
     AiAccessRefusalReason,
     type AiAccessForUser,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { rem, Text } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as api from '../../../../../api';
 import { aiAccessApi } from '../../../../../features/aiAccess/api';
@@ -68,9 +69,11 @@ const Composer = () => {
 const Gate = () => {
     const access = useAiAccessGate('project-1');
     return (
-        <AiAccessGate projectUuid="project-1" variant="card" {...access}>
-            <Composer />
-        </AiAccessGate>
+        <MemoryRouter>
+            <AiAccessGate projectUuid="project-1" variant="card" {...access}>
+                <Composer />
+            </AiAccessGate>
+        </MemoryRouter>
     );
 };
 
@@ -114,18 +117,123 @@ describe('AiAccessGate', () => {
         flag.isLoading = false;
     });
 
+    describe.each([
+        { variant: 'card' as const, minHeight: 260 },
+        { variant: 'inline' as const, minHeight: 160 },
+    ])('$variant layout', ({ variant, minHeight }) => {
+        it('renders allowed children directly in the parent container', () => {
+            const { container } = renderWithProviders(
+                <MemoryRouter>
+                    <AiAccessGate
+                        projectUuid="project-1"
+                        variant={variant}
+                        refusal={null}
+                        isLoading={false}
+                        isError={false}
+                        refetch={vi.fn()}
+                    >
+                        <Composer />
+                        <Text>Suggestions</Text>
+                    </AiAccessGate>
+                </MemoryRouter>,
+            );
+
+            expect(screen.getByText('Composer').parentElement).toBe(container);
+            expect(screen.getByText('Suggestions').parentElement).toBe(
+                container,
+            );
+        });
+
+        it('reserves the variant height on the loading placeholder', () => {
+            renderWithProviders(
+                <MemoryRouter>
+                    <AiAccessGate
+                        projectUuid="project-1"
+                        variant={variant}
+                        refusal={undefined}
+                        isLoading
+                        isError={false}
+                        refetch={vi.fn()}
+                    >
+                        <Composer />
+                    </AiAccessGate>
+                </MemoryRouter>,
+            );
+
+            expect(
+                screen.getByTestId('ai-access-placeholder').style.minHeight,
+            ).toBe(rem(minHeight));
+        });
+
+        it.each(['refusal', 'error'] as const)(
+            'preserves the reserved height when loading resolves to %s',
+            (outcome) => {
+                const props = {
+                    projectUuid: 'project-1',
+                    variant,
+                    refetch: vi.fn(),
+                };
+                const { rerender } = renderWithProviders(
+                    <MemoryRouter>
+                        <AiAccessGate
+                            {...props}
+                            refusal={undefined}
+                            isLoading
+                            isError={false}
+                        >
+                            <Composer />
+                        </AiAccessGate>
+                    </MemoryRouter>,
+                );
+                const placeholderHeight = screen.getByTestId(
+                    'ai-access-placeholder',
+                ).style.minHeight;
+
+                rerender(
+                    <MemoryRouter>
+                        <AiAccessGate
+                            {...props}
+                            refusal={
+                                outcome === 'refusal' ? refusal : undefined
+                            }
+                            isLoading={false}
+                            isError={outcome === 'error'}
+                        >
+                            <Composer />
+                        </AiAccessGate>
+                    </MemoryRouter>,
+                );
+
+                const button = screen.getByRole('button', {
+                    name: outcome === 'refusal' ? 'Connect agent' : 'Try again',
+                });
+                const reservedSpace = button.closest(
+                    '.mantine-Paper-root',
+                )?.parentElement;
+                expect(reservedSpace?.style.minHeight).toBe(placeholderHeight);
+                expect(reservedSpace?.style.minHeight).toBe(rem(minHeight));
+                expect(
+                    screen.queryByTestId('ai-access-placeholder'),
+                ).not.toBeInTheDocument();
+                expect(screen.queryByText('Composer')).not.toBeInTheDocument();
+            },
+        );
+    });
+
     it('holds an idle query without access data', () => {
         renderWithProviders(
-            <AiAccessGate
-                projectUuid="project-1"
-                variant="card"
-                refusal={undefined}
-                isLoading={false}
-                isError={false}
-                refetch={vi.fn()}
-            >
-                <Composer />
-            </AiAccessGate>,
+            <MemoryRouter>
+                <AiAccessGate
+                    projectUuid="project-1"
+                    variant="card"
+                    refusal={undefined}
+                    isLoading={false}
+                    isError={false}
+                    refetch={vi.fn()}
+                >
+                    <Composer />
+                </AiAccessGate>
+            </MemoryRouter>,
         );
         expect(screen.getByTestId('ai-access-placeholder')).toBeVisible();
         expect(composerRender).not.toHaveBeenCalled();

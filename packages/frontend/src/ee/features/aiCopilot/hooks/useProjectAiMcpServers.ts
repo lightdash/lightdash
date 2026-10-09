@@ -23,7 +23,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
-import { isEmbedAiAgentRoute } from './aiAgentRouting';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
 export const AGENT_AI_MCP_SERVERS_KEY = 'agentAiMcpServers';
@@ -293,16 +293,14 @@ export const useProjectAiMcpServers = (
         ApiError
     >,
 ) => {
+    const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiProjectMcpServerListResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
         queryFn: () => listProjectAiMcpServers(projectUuid!),
         ...options,
-        enabled:
-            !isEmbedAiAgentRoute() &&
-            !!projectUuid &&
-            options?.enabled !== false,
+        enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch MCP servers',
@@ -318,6 +316,7 @@ export const useAgentAiMcpServers = (
     agentUuid: string | undefined,
     options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
 ) => {
+    const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
@@ -325,7 +324,7 @@ export const useAgentAiMcpServers = (
         queryFn: () => listAgentAiMcpServers(projectUuid!, agentUuid!),
         ...options,
         enabled:
-            !isEmbedAiAgentRoute() &&
+            !isEmbed &&
             !!projectUuid &&
             !!agentUuid &&
             options?.enabled !== false,
@@ -511,16 +510,15 @@ export const useGithubMcpAvailability = (
         ApiAiMcpGithubAvailabilityResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiMcpGithubAvailabilityResponse['results'], ApiError>({
+) => {
+    const isEmbed = useIsEmbedded();
+    return useQuery<ApiAiMcpGithubAvailabilityResponse['results'], ApiError>({
         queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
         queryFn: () => getGithubMcpAvailability(projectUuid!),
         ...options,
-        enabled:
-            !isEmbedAiAgentRoute() &&
-            !!projectUuid &&
-            options?.enabled !== false,
+        enabled: !isEmbed && !!projectUuid && options?.enabled !== false,
     });
+};
 
 export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();

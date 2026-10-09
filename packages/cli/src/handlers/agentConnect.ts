@@ -1,9 +1,12 @@
 import {
+    AgentIdentityConnectEntryPoint,
     generateOAuthErrorResponse,
     generateOAuthSuccessResponse,
     ParameterError,
+    type AiAccessForUser,
 } from '@lightdash/common';
 import * as http from 'http';
+import type { Ora } from 'ora';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
@@ -31,31 +34,19 @@ const getFailureReason = (error: string): string => {
     }
 };
 
-const pollForConnection = async (projectUuid: string): Promise<boolean> => {
-    const deadline = Date.now() + 120_000;
-    const poll = async (): Promise<boolean> => {
-        await new Promise<void>((resolve) => {
-            setTimeout(resolve, Math.min(3000, deadline - Date.now()));
-        });
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) return false;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try {
-            const access = await Promise.race([
-                getAgentAccess(projectUuid),
-                new Promise<undefined>((resolve) => {
-                    timer = setTimeout(() => resolve(undefined), remaining);
-                }),
-            ]);
-            if (access === undefined) return false;
-            if (access.refusal === null) return true;
-        } finally {
-            clearTimeout(timer);
-        }
-        return poll();
-    };
-    return poll();
+const formatRemaining = (milliseconds: number): string => {
+    const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 };
+
+type ConnectOutcome =
+    | { status: 'connected'; access: AiAccessForUser }
+    | { status: 'failed'; code: string }
+    | { status: 'user_not_connected' }
+    | { status: 'timeout' };
+
+const isConnected = (access: AiAccessForUser): boolean =>
+    access.refusal === null && access.identity === 'connected_person';
 
 export const agentConnectHandler = async (
     options: AgentConnectOptions,
@@ -63,7 +54,7 @@ export const agentConnectHandler = async (
     GlobalState.setVerbose(options.verbose);
     const projectUuid = await resolveAgentProject(options.project);
     const access = await getAgentAccess(projectUuid);
-    if (access.refusal === null && access.identity === 'connected_person') {
+    if (isConnected(access)) {
         console.error('Agent already connected');
         return;
     }
@@ -105,15 +96,14 @@ export const agentConnectHandler = async (
         );
     }
 
+    const requests = new AbortController();
+    let stopped = false;
     let resolveCallback: () => void;
     let rejectCallback: (error: Error) => void;
     const callback = new Promise<void>((resolve, reject) => {
         resolveCallback = resolve;
         rejectCallback = reject;
-    }).then(
-        () => ({ status: 'connected' as const }),
-        (error: Error) => ({ status: 'failed' as const, code: error.message }),
-    );
+    });
     const server = http.createServer((req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost');
         if (req.method !== 'GET' || url.pathname !== '/done') {
@@ -141,7 +131,11 @@ export const agentConnectHandler = async (
             resolveCallback();
         }
     });
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let countdownTimer: ReturnType<typeof setInterval> | null = null;
+    let browserTimer: ReturnType<typeof setTimeout> | null = null;
+    let spinner: Ora | null = null;
     try {
         await new Promise<void>((resolve, reject) => {
             server.once('error', reject);
@@ -157,43 +151,151 @@ export const agentConnectHandler = async (
         GlobalState.debug(`> Agent callback server listening on ${redirect}`);
         const connectUrl = new URL(access.refusal.connectUrl);
         connectUrl.searchParams.set('redirect', redirect);
+        connectUrl.searchParams.set(
+            'entryPoint',
+            AgentIdentityConnectEntryPoint.CLI,
+        );
+        const interactive =
+            process.stderr.isTTY === true &&
+            !GlobalState.isNonInteractive() &&
+            (!process.env.CI || process.env.CI === 'false');
+        const deadline = Date.now() + timeout * 1000;
+        const expiry = new Promise<ConnectOutcome>((resolve) => {
+            timer = setTimeout(
+                () => resolve({ status: 'timeout' }),
+                timeout * 1000,
+            );
+        });
         const result = Promise.race([
-            callback,
-            new Promise<{ status: 'timeout' }>((resolve) => {
-                timer = setTimeout(
-                    () => resolve({ status: 'timeout' }),
-                    timeout * 1000,
-                );
+            callback.then(
+                async (): Promise<ConnectOutcome> => {
+                    try {
+                        const currentAccess = await getAgentAccess(
+                            projectUuid,
+                            requests.signal,
+                        );
+                        return isConnected(currentAccess)
+                            ? { status: 'connected', access: currentAccess }
+                            : { status: 'user_not_connected' };
+                    } catch {
+                        if (!stopped)
+                            GlobalState.debug(
+                                '> Could not refresh agent access after approval',
+                            );
+                        return expiry;
+                    }
+                },
+                (error: Error): ConnectOutcome => ({
+                    status: 'failed',
+                    code: error.message,
+                }),
+            ),
+            expiry,
+            new Promise<ConnectOutcome>((resolve) => {
+                let polling = false;
+                pollTimer = setInterval(async () => {
+                    if (polling || stopped || Date.now() >= deadline) return;
+                    polling = true;
+                    try {
+                        const currentAccess = await getAgentAccess(
+                            projectUuid,
+                            requests.signal,
+                        );
+                        if (!stopped && isConnected(currentAccess)) {
+                            resolve({
+                                status: 'connected',
+                                access: currentAccess,
+                            });
+                        }
+                    } catch {
+                        if (!stopped)
+                            GlobalState.debug(
+                                '> Could not poll agent access; retrying',
+                            );
+                    } finally {
+                        polling = false;
+                    }
+                }, 3000);
             }),
         ]);
-        console.error(`\n${styles.title('🔐 Agent connection')}`);
-        console.error('Opening browser for authentication...');
+        console.error('Your agent needs to sign in to Snowflake as you, once.');
+        console.error(`\n  Open: ${connectUrl.href}`);
+        const opened = await Promise.race([
+            openBrowser(connectUrl.href).catch(() => false),
+            new Promise<boolean>((resolve) => {
+                browserTimer = setTimeout(() => resolve(false), 1500);
+            }),
+            result.then(() => false),
+        ]);
+        if (browserTimer) clearTimeout(browserTimer);
         console.error(
-            "If the browser doesn't open automatically, please visit:",
+            opened
+                ? '  Opened in your browser.'
+                : '  Open this link in a browser to approve.',
         );
-        console.error(`${styles.secondary(connectUrl.href)}\n`);
-        await openBrowser(connectUrl.href);
-        const outcome = await result;
-        if (outcome.status === 'failed') {
+        const waiting = 'Waiting for you to approve in the browser…';
+        if (interactive) {
+            console.error('');
+            const waitingText = () =>
+                `${waiting} (link expires in ${formatRemaining(deadline - Date.now())})`;
+            spinner = GlobalState.startSpinner({
+                text: waitingText(),
+                stream: process.stderr,
+                isEnabled: true,
+            });
+            countdownTimer = setInterval(() => {
+                if (spinner) spinner.text = waitingText();
+            }, 1000);
+        } else {
+            const expiresAt = new Date(deadline).toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
             console.error(
-                `Agent connection failed: ${getFailureReason(outcome.code)}`,
+                `  Link expires in ${formatRemaining(deadline - Date.now())} (at ${expiresAt}).\n`,
             );
-            process.exitCode = 1;
+            console.error(waiting);
+        }
+        const outcome = await result;
+        if (outcome.status === 'connected') {
+            const connectedAccess = outcome.access;
+            const principal = connectedAccess.principalName ?? 'you';
+            const until = connectedAccess.expiresAt
+                ? ` until ${new Date(
+                      connectedAccess.expiresAt,
+                  ).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                  })}`
+                : '';
+            const connected = `${interactive ? styles.success('Connected.') : 'Connected.'} Agents now run as ${interactive ? styles.bold(principal) : principal} in an agent session${until}.`;
+            if (spinner) spinner.succeed(connected);
+            else console.error(connected);
+            console.error('Run your last command again.');
             return;
         }
-        if (
-            outcome.status === 'connected' ||
-            (await pollForConnection(projectUuid))
-        ) {
-            console.error('Agent connected');
-            return;
+        spinner?.stop();
+        if (outcome.status === 'user_not_connected') {
+            console.error(
+                'You approved in the browser, but this Lightdash user is still not connected. Check the browser is signed in to Lightdash as the same user, then run `lightdash agent connect` again.',
+            );
+        } else {
+            console.error(
+                outcome.status === 'failed'
+                    ? `Connection failed: ${getFailureReason(outcome.code)} Run \`lightdash agent connect\` to try again.`
+                    : 'The link expired before you approved it. Run `lightdash agent connect` to get a new link.',
+            );
         }
-        console.error(
-            'Agent connection did not complete. Run `lightdash agent status` after you approve in the browser.',
-        );
         process.exitCode = 1;
     } finally {
-        clearTimeout(timer);
+        stopped = true;
+        requests.abort();
+        if (timer) clearTimeout(timer);
+        if (pollTimer) clearInterval(pollTimer);
+        if (countdownTimer) clearInterval(countdownTimer);
+        if (browserTimer) clearTimeout(browserTimer);
+        spinner?.stop();
         await new Promise<void>((resolve) => {
             server.close(() => resolve());
             server.closeAllConnections();

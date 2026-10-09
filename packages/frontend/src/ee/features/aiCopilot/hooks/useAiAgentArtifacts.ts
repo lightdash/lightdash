@@ -19,6 +19,7 @@ import {
     isAiAgentAuthorizationError,
 } from '../../../../features/aiAccess/errors';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
 export const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
@@ -100,6 +101,7 @@ export const useAiAgentArtifact = ({
     versionUuid,
     options,
 }: UseAiAgentArtifactProps) => {
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -129,7 +131,7 @@ export const useAiAgentArtifact = ({
         onError: (error) => {
             if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
@@ -170,6 +172,7 @@ export const useSetArtifactVersionVerified = (
     agentUuid: string,
     { showSuccessAction = true }: { showSuccessAction?: boolean } = {},
 ) => {
+    const isEmbed = useIsEmbedded();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -238,7 +241,7 @@ export const useSetArtifactVersionVerified = (
         onError: ({ error }) => {
             if (isAiAgentAuthorizationError(error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
             } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({

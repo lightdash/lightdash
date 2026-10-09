@@ -4,37 +4,13 @@ import { DimensionType } from '../types/field';
 import type { ParametersValuesMap } from '../types/parameters';
 import { WarehouseTypes } from '../types/projects';
 import { TimeFrames } from '../types/timeFrames';
-import type { WarehouseClient } from '../types/warehouse';
+import type { WarehouseSqlBuilder } from '../types/warehouse';
 import type { VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
-import { createVirtualView } from './virtualView';
+import { createVirtualView, getVirtualViewWarehouseType } from './virtualView';
 import { defaultNullSafeEqualSql } from './warehouse';
 
-const fakeWarehouseClient: WarehouseClient = {
-    getSessionTimezone: async () => null,
-    credentials: {
-        type: WarehouseTypes.POSTGRES,
-        host: '',
-        user: '',
-        password: '',
-        port: 5432,
-        dbname: '',
-        schema: '',
-        sshTunnelHost: '',
-        sshTunnelPort: 22,
-        sshTunnelUser: '',
-    },
-    getCatalog: async () => ({}),
-    streamQuery: async () => {},
-    executeAsyncQuery: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        phaseTimings: {},
-    }),
-    runQuery: async () => ({ fields: {}, rows: [] }),
-    test: async () => {},
+const fakeWarehouseSqlBuilder: WarehouseSqlBuilder = {
     getStartOfWeek: () => WeekDay.MONDAY,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     supportsCteMaterialization: () => true,
@@ -47,16 +23,6 @@ const fakeWarehouseClient: WarehouseClient = {
     getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getMetricSql: () => '',
     concatString: (...args: string[]) => args.join(''),
-    getAllTables: async () => [],
-    listDatabases: async () => ({
-        databases: [],
-        truncated: false,
-        limit: 100,
-    }),
-    getTablesForDatabase: async () => [],
-    getFields: async () => ({}),
-    parseWarehouseCatalog: () => ({}),
-    parseError: (error: Error) => error,
     escapeString: (value: string) => value,
     castToTimestamp: (date: Date) =>
         `CAST('${date.toISOString()}' AS TIMESTAMP)`,
@@ -85,12 +51,32 @@ const columns: VizColumn[] = [
 ];
 
 describe('createVirtualView', () => {
+    test.each([
+        [SupportedDbtAdapter.BIGQUERY, WarehouseTypes.BIGQUERY],
+        [SupportedDbtAdapter.DATABRICKS, WarehouseTypes.DATABRICKS],
+        [SupportedDbtAdapter.SPARK, WarehouseTypes.DATABRICKS],
+        [SupportedDbtAdapter.SNOWFLAKE, WarehouseTypes.SNOWFLAKE],
+        [SupportedDbtAdapter.REDSHIFT, WarehouseTypes.REDSHIFT],
+        [SupportedDbtAdapter.POSTGRES, WarehouseTypes.POSTGRES],
+        [SupportedDbtAdapter.DUCKDB, WarehouseTypes.DUCKDB],
+        [SupportedDbtAdapter.TRINO, WarehouseTypes.TRINO],
+        [SupportedDbtAdapter.CLICKHOUSE, WarehouseTypes.CLICKHOUSE],
+        [SupportedDbtAdapter.ATHENA, WarehouseTypes.ATHENA],
+    ])('maps %s adapter metadata to %s warehouse metadata', (adapter, type) => {
+        expect(getVirtualViewWarehouseType(adapter)).toBe(type);
+        const result = createVirtualView('my_view', 'SELECT 1', [], {
+            ...fakeWarehouseSqlBuilder,
+            getAdapterType: () => adapter,
+        });
+        expect(result.tables.my_view.database).toBe(type);
+    });
+
     test('should create a virtual view with basic properties', () => {
         const result = createVirtualView(
             'my_view',
             'SELECT order_id, status FROM orders',
             columns,
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         expect(result.type).toBe(ExploreType.VIRTUAL);
@@ -111,7 +97,7 @@ describe('createVirtualView', () => {
             'my_view',
             sql,
             columns,
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
             undefined, // label
             parameterValues,
         );
@@ -134,7 +120,7 @@ describe('createVirtualView', () => {
             'my_view',
             sql,
             columns,
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
             undefined,
             parameterValues,
         );
@@ -150,7 +136,7 @@ describe('createVirtualView', () => {
             'my_view',
             'SELECT 1 AS "total""revenue"',
             [{ reference: 'total"revenue', type: DimensionType.NUMBER }],
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         expect(result.tables.my_view.dimensions['total"revenue'].sql).toBe(
@@ -162,7 +148,7 @@ describe('createVirtualView', () => {
             'my_view',
             'SELECT order_id, status FROM orders',
             columns,
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         expect(
@@ -178,7 +164,7 @@ describe('createVirtualView', () => {
             'my_view',
             'SELECT order_date FROM orders',
             [{ reference: 'order_date', type: DimensionType.DATE }],
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         const { dimensions } = result.tables.my_view;
@@ -211,7 +197,7 @@ describe('createVirtualView', () => {
             'my_view',
             'SELECT created_at FROM orders',
             [{ reference: 'created_at', type: DimensionType.TIMESTAMP }],
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         const { dimensions } = result.tables.my_view;
@@ -237,7 +223,7 @@ describe('createVirtualView', () => {
                 { reference: 'order_date', type: DimensionType.DATE },
                 { reference: 'order_date_week', type: DimensionType.STRING },
             ],
-            fakeWarehouseClient,
+            fakeWarehouseSqlBuilder,
         );
 
         const collidingDimension =

@@ -1,4 +1,8 @@
-import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
+import {
+    type AgentIdentityConnectEntryPoint,
+    type ApiError,
+    type ApiSuccessEmpty,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../api';
@@ -7,15 +11,28 @@ import { getAiAccessRefusal } from '../features/aiAccess/errors';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
+type AgentConnectAttribution = {
+    entryPoint: AgentIdentityConnectEntryPoint;
+    projectUuid: string | null;
+};
+
 // TODO: This is a stub for the actual implementation
 //       It could maybe be abstracted into a generic oauth login hook
 const triggerSnowflakeLogin = async (
     siteUrl: string,
     loginPath: '/login/snowflake' | '/login/snowflake-ai',
+    attribution: AgentConnectAttribution | null,
 ) => {
     return new Promise<void>((resolve, reject) => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
-        const loginUrl = `${siteUrl}/api/v1${loginPath}?isPopup=true`;
+        const params = new URLSearchParams({ isPopup: 'true' });
+        if (loginPath === '/login/snowflake-ai' && attribution) {
+            params.set('entryPoint', attribution.entryPoint);
+            if (attribution.projectUuid !== null) {
+                params.set('project', attribution.projectUuid);
+            }
+        }
+        const loginUrl = `${siteUrl}/api/v1${loginPath}?${params}`;
         console.info(`Opening popup with url: ${loginUrl}`);
 
         const popupWindow = window.open(
@@ -65,6 +82,7 @@ export function useSnowflakeLoginPopup({
             triggerSnowflakeLogin(
                 health.data?.siteUrl || '',
                 '/login/snowflake',
+                null,
             ),
         onSuccess: async () => {
             // Invalidate user warehouse credentials since the backend creates
@@ -88,7 +106,7 @@ export function useSnowflakeLoginPopup({
     }, [ssoMutation, health.data?.auth.snowflake.enabled]);
 }
 
-export function useSnowflakeAiLoginPopup() {
+export function useSnowflakeAiLoginPopup(attribution: AgentConnectAttribution) {
     const t = useUiStrings();
     const health = useHealth();
     const queryClient = useQueryClient();
@@ -98,6 +116,7 @@ export function useSnowflakeAiLoginPopup() {
             triggerSnowflakeLogin(
                 health.data?.siteUrl || '',
                 '/login/snowflake-ai',
+                attribution,
             ),
         onSuccess: async () => {
             await Promise.all([

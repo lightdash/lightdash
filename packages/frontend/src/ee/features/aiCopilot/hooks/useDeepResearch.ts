@@ -22,6 +22,7 @@ import useUser from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import {
     registerDeepResearchRun,
     replaceDeepResearchRun,
@@ -281,16 +282,18 @@ export const useStartDeepResearchForThreadMutation = (
 const useDeepResearchThreadRuns = (
     projectUuid: string | undefined,
     threadUuid: string,
-) =>
-    useQuery<AiDeepResearchRun[], ApiError>({
+) => {
+    const isEmbed = useIsEmbedded();
+    return useQuery<AiDeepResearchRun[], ApiError>({
         queryKey: [DEEP_RESEARCH_QUERY_KEY, projectUuid, 'thread', threadUuid],
         queryFn: () => listDeepResearchRuns(projectUuid ?? '', threadUuid),
-        enabled: !!projectUuid && !!threadUuid,
+        enabled: !isEmbed && !!projectUuid && !!threadUuid,
         refetchInterval: (runs) =>
             runs?.some((run) => !isAiDeepResearchRunTerminal(run.status))
                 ? DEEP_RESEARCH_POLL_INTERVAL_MS
                 : false,
     });
+};
 
 type DeepResearchEngagementRun = Pick<
     AiDeepResearchRun,
@@ -607,6 +610,7 @@ export const useDeepResearchReport = (
                       sourceCount: null,
                       resultMarkdown: runQuery.data.resultMarkdown,
                       isReportExpired: runQuery.data.isReportExpired,
+                      document: runQuery.data.document,
                   }
                 : undefined,
         [runQuery.data],

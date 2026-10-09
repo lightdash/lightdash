@@ -9,9 +9,8 @@ import { clearPreview } from '../../store/aiArtifactSlice';
 import { ContentLink } from './ContentLink';
 import { type ContentType } from './rehypeContentLinks';
 
-vi.mock('../../hooks/aiAgentRouting', async (original) => ({
-    ...(await original<object>()),
-    isEmbedAiAgentRoute: () => true,
+vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
+    default: () => true,
 }));
 
 const THREAD_PATH = '/embed/project-1/ai-agents/agent-1/threads/thread-1';

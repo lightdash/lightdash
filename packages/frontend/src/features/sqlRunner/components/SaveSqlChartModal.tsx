@@ -31,10 +31,8 @@ import {
     updateName,
     type SqlRunnerConnectionRequest,
 } from '../store/sqlRunnerSlice';
-import { SqlQueryBeforeSaveAlert } from './SqlQueryBeforeSaveAlert';
 
 enum ModalStep {
-    Warning = 'warning',
     InitialInfo = 'initialInfo',
     SelectDestination = 'selectDestination',
 }
@@ -59,7 +57,6 @@ type SaveSqlChartModalContentProps = Props & {
     sql: string;
     limit: number;
     currentVizConfig: AllVizChartConfig;
-    hasUnrunChanges: boolean;
     connectionRequest: SqlRunnerConnectionRequest;
     redirectOnSuccess?: boolean;
     onSaved?: (
@@ -95,17 +92,12 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
     sql,
     limit,
     currentVizConfig,
-    hasUnrunChanges,
     connectionRequest,
     redirectOnSuccess,
     onSaved,
 }) => {
     const { user } = useApp();
     const { showToastError } = useToaster();
-
-    const initialStep = hasUnrunChanges
-        ? ModalStep.Warning
-        : ModalStep.InitialInfo;
 
     const form = useForm<FormValues>({
         initialValues: {
@@ -117,7 +109,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         validate: zodResolver(saveChartFormSchema),
     });
 
-    const modalSteps = useModalSteps<ModalStep>(initialStep, {
+    const modalSteps = useModalSteps<ModalStep>(ModalStep.InitialInfo, {
         validators: {
             [ModalStep.InitialInfo]: () => !!form.values.name,
         },
@@ -261,16 +253,6 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
         spaceManagement.createSpaceMutation.isLoading;
 
     const renderActions = () => {
-        if (modalSteps.currentStep === ModalStep.Warning) {
-            return (
-                <Button
-                    onClick={() => modalSteps.goToStep(ModalStep.InitialInfo)}
-                >
-                    Next
-                </Button>
-            );
-        }
-
         if (modalSteps.currentStep === ModalStep.InitialInfo) {
             return (
                 <Button
@@ -325,17 +307,10 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
             onClose={onClose}
             title="Save Chart"
             icon={IconChartBar}
-            cancelLabel={
-                modalSteps.currentStep === ModalStep.Warning ? false : undefined
-            }
             leftActions={renderLeftActions()}
             actions={renderActions()}
         >
-            {modalSteps.currentStep === ModalStep.Warning && (
-                <SqlQueryBeforeSaveAlert />
-            )}
-
-            {modalSteps.currentStep !== ModalStep.Warning && (
+            {
                 <form
                     id={SAVE_CHART_FORM_ID}
                     onSubmit={form.onSubmit(handleOnSubmit)}
@@ -381,7 +356,7 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
                         />
                     )}
                 </form>
-            )}
+            }
         </MantineModal>
     );
 };
@@ -389,9 +364,6 @@ export const SaveSqlChartModalContent: FC<SaveSqlChartModalContentProps> = ({
 export const SaveSqlChartModal: FC<Props> = (props) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
-    );
     const name = useAppSelector((state) => state.sqlRunner.name);
     const description = useAppSelector((state) => state.sqlRunner.description);
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -423,7 +395,6 @@ export const SaveSqlChartModal: FC<Props> = (props) => {
             sql={sql}
             limit={limit ?? DEFAULT_SQL_LIMIT}
             currentVizConfig={currentVizConfig}
-            hasUnrunChanges={hasUnrunChanges}
             connectionRequest={connectionRequest}
             onSaved={(_, savedName) => {
                 dispatch(updateName(savedName));

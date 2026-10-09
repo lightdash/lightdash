@@ -48,6 +48,7 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
                     rightSection={item.isBeta ? <BetaBadge /> : undefined}
                     // Navigation anchors for scope walkthroughs (data-tour-via):
                     //   data-tour-nav="validator" data-tour-hint="Open the Validator"
+                    //   data-tour-nav="recently-deleted" data-tour-hint="Open Recently deleted"
                     data-tour-nav={item.tourNav}
                 />
             );

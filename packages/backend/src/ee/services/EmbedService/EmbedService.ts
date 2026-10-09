@@ -112,6 +112,7 @@ import {
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import { wrapSentryTransaction } from '../../../utils';
 import {
     redactExploreSql,
@@ -1068,35 +1069,6 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async _getWarehouseClient(
-        account: AnonymousAccount,
-        projectUuid: string,
-        explore: Explore,
-    ) {
-        // Resolve via ProjectService so OAuth tokens are refreshed before use
-        // (e.g. Databricks oauth_m2m must exchange client_id+secret for an
-        // access token — fetching the raw row from the model would yield an
-        // empty `token` and crash the warehouse client).
-        const credentials =
-            await this.projectService.getWarehouseCredentialsForEmbed({
-                projectUuid,
-                account,
-                binding: { kind: 'explore', exploreName: explore.name },
-            });
-
-        const { warehouseClient, sshTunnel } =
-            await this.projectService._getWarehouseClient(
-                projectUuid,
-                credentials,
-                {
-                    snowflakeVirtualWarehouse: explore.warehouse,
-                    databricksCompute: explore.databricksCompute,
-                },
-            );
-
-        return { warehouseClient, sshTunnel };
-    }
-
     // eslint-disable-next-line class-methods-use-this
     private getAccessControls(account: AnonymousAccount): UserAccessControls {
         const { userAttributes, intrinsicUserAttributes } =
@@ -1166,63 +1138,91 @@ export class EmbedService extends BaseService {
         combinedParameters?: ParametersValuesMap;
         useTimezoneAwareDateTrunc: boolean;
     }) {
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            account,
-            projectUuid,
-            explore,
-        );
-
-        const { userAttributes, intrinsicUserAttributes } =
-            this.getAccessControls(account);
-
-        // Filter the explore access and fields based on the user attributes
-        const filteredExplore = getFilteredExplore(explore, userAttributes);
-
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            filteredExplore,
-        );
-
-        const compiledQuery = new QueryComposer(
-            { metricQuery },
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Embed organization is unavailable');
+        }
+        return this.projectService.warehouseClientFactory.withWarehouseClient(
             {
-                explore: filteredExplore,
-                warehouseSqlBuilder: warehouseClient,
-                intrinsicUserAttributes,
-                userAttributes,
-                timezone,
-                dateZoom: dateZoomGranularity
-                    ? {
-                          granularity: dateZoomGranularity,
-                      }
-                    : undefined,
-                parameters: combinedParameters,
-                availableParameterDefinitions,
-                useTimezoneAwareDateTrunc,
-                columnTimezone: getColumnTimezone(warehouseClient.credentials),
-                dataTimezone: warehouseClient.credentials.dataTimezone,
-            },
-        ).compile();
-
-        const results =
-            await this.projectService.getResultsFromCacheOrWarehouse({
+                kind: 'binding',
                 projectUuid,
-                userUuid: null,
-                user: {
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                    organizationName: account.organization.name,
+                binding: { kind: 'explore', exploreName: explore.name },
+                overrides: {
+                    snowflakeVirtualWarehouse: explore.warehouse,
+                    databricksCompute: explore.databricksCompute,
                 },
-                context: QueryExecutionContext.EMBED,
-                warehouseClient,
-                metricQuery,
-                resolvedTimezone: timezone,
-                query: compiledQuery.query,
-                queryTags,
-                invalidateCache: false,
-            });
-        await sshTunnel.disconnect();
-        return { ...results, fields: compiledQuery.fields };
+            },
+            connectionContextFromUser(
+                {
+                    userUuid: account.user.id,
+                    isRegisteredUser: false,
+                    isServiceAccount: false,
+                },
+                {
+                    organizationUuid,
+                    queryContext: QueryExecutionContext.EMBED,
+                },
+            ),
+            async ({ warehouseClient }) => {
+                const { userAttributes, intrinsicUserAttributes } =
+                    this.getAccessControls(account);
+
+                // Filter the explore access and fields based on the user attributes
+                const filteredExplore = getFilteredExplore(
+                    explore,
+                    userAttributes,
+                );
+
+                const availableParameterDefinitions =
+                    await this.getAvailableParameters(
+                        projectUuid,
+                        filteredExplore,
+                    );
+
+                const compiledQuery = new QueryComposer(
+                    { metricQuery },
+                    {
+                        explore: filteredExplore,
+                        warehouseSqlBuilder: warehouseClient,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                        timezone,
+                        dateZoom: dateZoomGranularity
+                            ? {
+                                  granularity: dateZoomGranularity,
+                              }
+                            : undefined,
+                        parameters: combinedParameters,
+                        availableParameterDefinitions,
+                        useTimezoneAwareDateTrunc,
+                        columnTimezone: getColumnTimezone(
+                            warehouseClient.credentials,
+                        ),
+                        dataTimezone: warehouseClient.credentials.dataTimezone,
+                    },
+                ).compile();
+
+                const results =
+                    await this.projectService.getResultsFromCacheOrWarehouse({
+                        projectUuid,
+                        userUuid: null,
+                        user: {
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                            organizationName: account.organization.name,
+                        },
+                        context: QueryExecutionContext.EMBED,
+                        warehouseClient,
+                        metricQuery,
+                        resolvedTimezone: timezone,
+                        query: compiledQuery.query,
+                        queryTags,
+                        invalidateCache: false,
+                    });
+                return { ...results, fields: compiledQuery.fields };
+            },
+        );
     }
 
     // Chart embeds (no dashboard) ignore the chart saved values, unchanged from before

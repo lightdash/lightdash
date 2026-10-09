@@ -23,6 +23,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
+import { within } from 'storybook/test';
 import { AgentChatDisplay } from '../ee/features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentSuggestionChips } from '../ee/features/aiCopilot/components/ChatElements/AgentSuggestionChips';
 import {
@@ -30,6 +31,8 @@ import {
     type DataAppBuildCardState,
 } from '../ee/features/aiCopilot/components/ChatElements/DataAppBuildCard/DataAppBuildCard';
 import { DotsLoader } from '../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
+import { SqlRunToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/SqlRunToolCallDescription';
+import { ToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ToolCallDescription';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { LiveActivityCard } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import type { LiveActivityToolGroup } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
@@ -254,6 +257,7 @@ const composerApproval = {
     agentUuid: 'agent-uuid',
     threadUuid: 'thread-uuid',
     pendingToolCallIds: ['composer-call'],
+    decidedToolCallIds: [],
 };
 
 const ComposerPipelineScenario = () => (
@@ -266,7 +270,7 @@ const ComposerPipelineScenario = () => (
                 <LiveActivityCard
                     toolGroups={composerActivity}
                     isLive
-                    composerApproval={composerApproval}
+                    approval={composerApproval}
                 />
             </Section>
             <Section
@@ -308,6 +312,143 @@ const ComposerPipelineScenario = () => (
         </StorySurface>
     </Provider>
 );
+
+const sqlChartSql =
+    'SELECT o.status AS order_status, AVG(p.amount) AS average_payment_amount FROM jaffle.payments AS p JOIN jaffle.orders AS o ON o.order_id = p.order_id GROUP BY o.status';
+
+const sqlChartCall: ToolCallSummary = {
+    toolCallId: 'sql-chart-call',
+    toolName: 'createContent',
+    toolArgs: {
+        type: 'sql_chart',
+        content: {
+            name: 'Average payment by order status',
+            description: null,
+            slug: 'average-payment-by-order-status',
+            spaceSlug: 'sales',
+            sql: sqlChartSql,
+            limit: 500,
+            chartKind: ChartKind.VERTICAL_BAR,
+            version: 1,
+            config: {
+                metadata: { version: 1 },
+                type: ChartKind.VERTICAL_BAR,
+                fieldConfig: {
+                    x: { reference: 'order_status', type: 'category' },
+                    y: [
+                        {
+                            reference: 'average_payment_amount',
+                            aggregation: 'any',
+                        },
+                    ],
+                    groupBy: [],
+                },
+                display: {},
+            },
+        },
+    },
+};
+
+const sqlChartActivity: LiveActivityToolGroup[] = [
+    {
+        keyId: 'sql-chart',
+        toolName: 'createContent',
+        calls: [sqlChartCall],
+    },
+];
+
+const SqlChartApprovalScenario = () => (
+    <Provider store={store}>
+        <StorySurface>
+            <Section
+                title="SQL chart · awaiting approval"
+                description="Saving a SQL chart waits on the user; the card shows the SQL, chart name, space and chart kind. Buttons post to a fake API here."
+            >
+                <LiveActivityCard
+                    toolGroups={sqlChartActivity}
+                    isLive
+                    approval={{
+                        ...composerApproval,
+                        pendingToolCallIds: ['sql-chart-call'],
+                    }}
+                />
+            </Section>
+            <Section
+                title="SQL chart · saved"
+                description="Once approved and saved, the row keeps the chart summary without actions."
+            >
+                <LiveActivityCard
+                    toolGroups={sqlChartActivity}
+                    isLive={false}
+                />
+            </Section>
+        </StorySurface>
+    </Provider>
+);
+
+const SqlApprovalExpandScenario = () => (
+    <Provider store={store}>
+        <StorySurface>
+            <Section
+                title="SQL approval · expand"
+                description="The expand button opens the SQL in a modal with the same approve / reject actions. Close leaves the call pending. Shown at chat panel width."
+            >
+                <Stack maw={420} gap="lg">
+                    <SqlRunToolCallDescription
+                        sql={sqlChartSql}
+                        limit={500}
+                        approval={{
+                            projectUuid,
+                            agentUuid: 'agent-uuid',
+                            threadUuid: 'thread-uuid-expand',
+                            toolCallId: 'run-sql',
+                        }}
+                    />
+                    <LiveActivityCard
+                        toolGroups={sqlChartActivity}
+                        isLive
+                        approval={{
+                            ...composerApproval,
+                            threadUuid: 'thread-uuid-expand',
+                            pendingToolCallIds: ['sql-chart-call'],
+                        }}
+                    />
+                </Stack>
+            </Section>
+        </StorySurface>
+    </Provider>
+);
+
+const SqlCompletedExpandScenario = () => (
+    <Provider store={store}>
+        <StorySurface>
+            <Section
+                title="Completed SQL · expand"
+                description="SQL that already ran or was saved opens in the same modal without approval actions."
+            >
+                <Stack maw={420} gap="lg">
+                    <ToolCallDescription
+                        toolName="runSql"
+                        toolCall={runSqlCall}
+                    />
+                    <ToolCallDescription
+                        toolName="createContent"
+                        toolCall={sqlChartCall}
+                    />
+                </Stack>
+            </Section>
+        </StorySurface>
+    </Provider>
+);
+
+const openExpandedSql =
+    (index: number) =>
+    async ({ canvasElement }: { canvasElement: HTMLElement }) => {
+        const buttons = await within(canvasElement).findAllByRole('button', {
+            name: 'Expand SQL',
+        });
+        buttons[index]?.click();
+    };
 
 const suggestions: AgentSuggestion[] = [
     {
@@ -1413,6 +1554,33 @@ export const ApprovalAndFailure: Story = {
 
 export const ComposerPipeline: Story = {
     render: () => <ComposerPipelineScenario />,
+};
+
+export const SqlChartApproval: Story = {
+    render: () => <SqlChartApprovalScenario />,
+};
+
+export const SqlApprovalExpand: Story = {
+    render: () => <SqlApprovalExpandScenario />,
+};
+
+export const SqlApprovalExpandedRunSql: Story = {
+    render: () => <SqlApprovalExpandScenario />,
+    play: openExpandedSql(0),
+};
+
+export const SqlApprovalExpandedSqlChart: Story = {
+    render: () => <SqlApprovalExpandScenario />,
+    play: openExpandedSql(1),
+};
+
+export const SqlCompletedExpand: Story = {
+    render: () => <SqlCompletedExpandScenario />,
+};
+
+export const SqlCompletedExpandedRunSql: Story = {
+    render: () => <SqlCompletedExpandScenario />,
+    play: openExpandedSql(0),
 };
 
 export const TwoTurnChatThread: Story = {

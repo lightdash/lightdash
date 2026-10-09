@@ -29,6 +29,43 @@ import {
     up as personalUp,
 } from '../20261006100000_allow_personal_documents';
 
+const KNOWN_CHART = {
+    source: 'semantic',
+    chart: {
+        name: 'Orders by status',
+        description: '',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: ChartType.TABLE },
+    },
+};
+const FUTURE_KIND_CHART = { source: 'image', image: { url: 'logo.png' } };
+const FUTURE_VERSION_CHART = { ...KNOWN_CHART, version: 99 };
+const FUTURE_BLOCK_TAG = '<data-app-embed slug="monthly-revenue">';
+/** Stored content as a newer release could write it. */
+const FUTURE_DOCUMENT_CONTENT = {
+    markdown: [
+        '<document-chart id="c1">',
+        '<document-chart id="c2">',
+        '<document-chart id="c3">',
+        FUTURE_BLOCK_TAG,
+        'Closing text.',
+    ].join('\n\n'),
+    charts: {
+        c1: KNOWN_CHART,
+        c2: FUTURE_KIND_CHART,
+        c3: FUTURE_VERSION_CHART,
+    },
+};
+
 describe('DocumentModel PostgreSQL integration', () => {
     let database: Knex;
     let transaction: Knex.Transaction;
@@ -696,6 +733,33 @@ describe('DocumentModel PostgreSQL integration', () => {
         ).rejects.toThrow('Document not found');
     });
 
+    test('a taken slug conflicts unless it is only a base for a unique slug', async () => {
+        const document = await model.create({
+            ...input,
+            slug: 'weekly-review',
+        });
+        await expect(
+            model.create({ ...input, slug: document.slug }),
+        ).rejects.toThrow(
+            'A document with this slug already exists in this project',
+        );
+        const copy = await model.create({
+            ...input,
+            slug: document.slug,
+            uniqueSlug: true,
+        });
+        expect(copy.slug).toBe('weekly-review-1');
+        await expect(
+            model.getBySlug(input.projectUuid, document.slug),
+        ).resolves.toEqual(document);
+        const fresh = await model.create({
+            ...input,
+            slug: 'monthly-review',
+            uniqueSlug: true,
+        });
+        expect(fresh.slug).toBe('monthly-review');
+    });
+
     test.each(['document', 'space'] as const)(
         'slug lookup hides a deleted %s',
         async (deletedResource) => {
@@ -717,6 +781,79 @@ describe('DocumentModel PostgreSQL integration', () => {
             ).rejects.toThrow('Document not found');
         },
     );
+
+    test('content from a newer release is read, kept through edits and stored unchanged', async () => {
+        const document = await model.create(input);
+        const row = await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .first('document_id');
+        if (!row) {
+            throw new Error('Created Document row missing');
+        }
+        const documentId = row.document_id;
+        await transaction(DocumentVersionsTableName).insert({
+            document_id: documentId,
+            version_number: 2,
+            schema_version: 2,
+            markdown: FUTURE_DOCUMENT_CONTENT.markdown,
+            chart_data: JSON.stringify(FUTURE_DOCUMENT_CONTENT.charts),
+            created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .update({ next_chart_number: 4 });
+
+        const future = await model.get(
+            input.projectUuid,
+            document.documentUuid,
+        );
+        expect(future.version.content.unsupportedCharts).toEqual({
+            c2: FUTURE_KIND_CHART,
+            c3: FUTURE_VERSION_CHART,
+        });
+
+        const markdown = future.version.content.markdown.replace(
+            'Closing text.',
+            'Edited closing text.',
+        );
+        const edited = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: future.version.versionUuid,
+                content: { markdown, charts: future.version.content.charts },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        const stored = await transaction(DocumentVersionsTableName)
+            .where({
+                document_id: documentId,
+                version_number: edited.version.versionNumber,
+            })
+            .first('markdown', 'chart_data');
+        expect(stored).toEqual({
+            markdown,
+            chart_data: FUTURE_DOCUMENT_CONTENT.charts,
+        });
+        expect(markdown).toContain(FUTURE_BLOCK_TAG);
+
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    expectedSpaceUuid: input.spaceUuid,
+                    baseVersionUuid: edited.version.versionUuid,
+                    content: {
+                        ...edited.version.content,
+                        markdown: `${markdown}\n\n<another-block>`,
+                    },
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow("<another-block> isn't supported by this version");
+    });
 
     test('whole-content replacement preserves history and rejects stale writes', async () => {
         const document = await model.create(input);

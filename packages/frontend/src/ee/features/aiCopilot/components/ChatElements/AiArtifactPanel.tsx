@@ -33,7 +33,7 @@ import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
@@ -137,13 +137,14 @@ const AiArtifactPanelContent: FC<
             artifactData?.chartConfig,
         );
         const { user } = useApp();
+        const isEmbed = useIsEmbedded();
         const canManageAgent = useAiAgentPermission({
             action: 'manage',
             projectUuid: artifact.projectUuid,
         });
         // Mirrors the thread mutation rule: the thread owner or an agent manager, never an embed.
         const canEditThread =
-            !isEmbedAiAgentRoute() &&
+            !isEmbed &&
             !!thread &&
             (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
         const artifactChartConfig = artifactData?.chartConfig;

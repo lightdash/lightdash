@@ -1,10 +1,8 @@
-const AI_AGENT_THREAD_CHANGED_EVENT = 'lightdash:aiAgentThreadChanged';
+import { useCallback } from 'react';
+import { type EmbedAiAgentThreadChange } from '../../../providers/Embed/types';
+import useEmbed from '../../../providers/Embed/useEmbed';
 
-type EmbedAiAgentThreadChange = {
-    agentUuid: string;
-    projectUuid: string;
-    threadUuid: string;
-};
+const AI_AGENT_THREAD_CHANGED_EVENT = 'lightdash:aiAgentThreadChanged';
 
 const getTargetOrigin = () => {
     const targetOrigin = new URLSearchParams(window.location.search).get(
@@ -22,7 +20,7 @@ const getTargetOrigin = () => {
     }
 };
 
-export const emitEmbedAiAgentThreadChange = ({
+const postEmbedAiAgentThreadChange = ({
     agentUuid,
     projectUuid,
     threadUuid,
@@ -47,5 +45,16 @@ export const emitEmbedAiAgentThreadChange = ({
             timestamp: Date.now(),
         },
         targetOrigin,
+    );
+};
+
+export const useEmitEmbedAiAgentThreadChange = () => {
+    const { onAiAgentThreadChange } = useEmbed();
+    return useCallback(
+        (change: EmbedAiAgentThreadChange) =>
+            onAiAgentThreadChange
+                ? onAiAgentThreadChange(change)
+                : postEmbedAiAgentThreadChange(change),
+        [onAiAgentThreadChange],
     );
 };

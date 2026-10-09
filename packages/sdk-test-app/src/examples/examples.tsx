@@ -5,6 +5,7 @@ import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { ErrorHandlingExamplePage } from './ErrorHandlingExamplePage';
+import { ExploreFromHereExamplePage } from './ExploreFromHereExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { HostStylesExamplePage } from './HostStylesExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
@@ -50,6 +51,16 @@ export const examples: ExampleDefinition[] = [
             'Embed a single saved chart in view or edit mode and drill down without leaving the host app.',
         sourcePath: 'packages/sdk-test-app/src/examples/ChartExamplePage.tsx',
         component: ChartExamplePage,
+    },
+    {
+        slug: 'explore-from-here',
+        path: '/examples/explore-from-here',
+        title: 'Explore from here demo',
+        description:
+            'Open a saved dashboard tile in Explore inside the embed, or hand it to the host with onExplore.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/ExploreFromHereExamplePage.tsx',
+        component: ExploreFromHereExamplePage,
     },
     {
         slug: 'content-catalog',

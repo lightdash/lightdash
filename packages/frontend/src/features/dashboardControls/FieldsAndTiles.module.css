@@ -1,0 +1,126 @@
+.row {
+    --controls-ease: ease-in-out;
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+    --controls-duration-hover: 0.12s;
+
+    position: relative;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+    animation: rowEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+/* The fill lifts off the surface in both schemes; a border alone makes the
+   card look sunken in dark mode */
+.row:hover {
+    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-default-hover);
+}
+
+/* A field on no tile yet reads as unfinished */
+.row[data-waiting] {
+    border-style: dashed;
+}
+
+.rowHighlighted,
+.rowHighlighted:hover {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-light);
+}
+
+.rowHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+}
+
+.rowMain {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.rowMain[data-highlighted] {
+    outline: none;
+}
+
+/* The name button covers the whole card, so a click anywhere toggles it */
+.rowMain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+/* The press scales the name, not the button: a transform on the button would
+   shrink the click area above to the button itself */
+.rowLabel {
+    transition: transform var(--controls-duration-hover) var(--controls-ease);
+}
+
+.rowMain:active > .rowLabel {
+    transform: scale(0.98);
+}
+
+/* Keyed by the count, so a changed number fades in */
+.rowCount {
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+    font-variant-numeric: tabular-nums;
+    animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
+}
+
+/* Above the card-wide click area. Hidden, never unmounted: focus on the name
+   shows it, so the keyboard reaches it */
+.rowRemove {
+    position: relative;
+    z-index: 1;
+    visibility: hidden;
+}
+
+.row:hover .rowRemove,
+.row:focus-within .rowRemove,
+.rowHighlighted .rowRemove {
+    visibility: visible;
+}
+
+.addFieldSelect {
+    align-self: stretch;
+}
+
+.hint {
+    padding: var(--mantine-spacing-xs);
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+@keyframes rowEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row,
+    .rowCount {
+        animation: none;
+    }
+
+    .rowLabel {
+        transition: none;
+    }
+}

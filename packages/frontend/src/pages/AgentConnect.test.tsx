@@ -66,7 +66,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('AgentConnect', () => {
     it('sends a cold visitor to login with the full connection URL as the return location', () => {
-        const search = `?project=${project}&redirect=%2Fagent-connected`;
+        const search = `?project=${project}&redirect=%2Fagent-connected&entryPoint=mcp_connect_link`;
         const router = createMemoryRouter(
             [
                 {
@@ -103,7 +103,7 @@ describe('AgentConnect', () => {
         renderPage(`project=${project}&redirect=${encodeURIComponent(target)}`);
         expect(mocks.flag).toHaveBeenCalledWith(FeatureFlags.AgentIdentity);
         expect(mocks.assign).toHaveBeenCalledExactlyOnceWith(
-            `https://app.example/api/v1/login/snowflake-ai?redirect=${encodeURIComponent(target)}`,
+            `https://app.example/api/v1/login/snowflake-ai?redirect=${encodeURIComponent(target)}&project=${project}`,
         );
         expect(screen.getByText('Connecting your agent…')).toBeInTheDocument();
     });
@@ -123,9 +123,19 @@ describe('AgentConnect', () => {
             `project=${project}&redirect=${encodeURIComponent(redirect)}`,
         );
         expect(mocks.assign).toHaveBeenCalledExactlyOnceWith(
-            'https://app.example/api/v1/login/snowflake-ai?redirect=%2Fagent-connected',
+            `https://app.example/api/v1/login/snowflake-ai?redirect=%2Fagent-connected&project=${project}`,
         );
     });
+
+    it.each(['mcp_connect_link', 'cli', 'unrecognised value+&'])(
+        'forwards the entry point unchanged: %s',
+        (entryPoint) => {
+            renderPage(new URLSearchParams({ project, entryPoint }).toString());
+            const url = new URL(mocks.assign.mock.calls[0][0]);
+            expect(url.searchParams.get('entryPoint')).toBe(entryPoint);
+            expect(url.searchParams.get('project')).toBe(project);
+        },
+    );
 
     it('explains when the feature flag is off', () => {
         mocks.flag.mockReturnValue({
@@ -153,6 +163,9 @@ describe('AgentConnect', () => {
                     'This agent connection link is missing a valid project.',
                 ),
             ).toBeInTheDocument();
+            expect(
+                screen.getByRole('link', { name: 'My agent connections' }),
+            ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
             expect(mocks.assign).not.toHaveBeenCalled();
         },
     );

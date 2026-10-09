@@ -74,7 +74,6 @@ const saveWith = async (connectionRequest: SqlRunnerConnectionRequest) => {
                 sql="select 1"
                 limit={10}
                 currentVizConfig={config}
-                hasUnrunChanges={false}
                 connectionRequest={connectionRequest}
             />
         </Provider>,

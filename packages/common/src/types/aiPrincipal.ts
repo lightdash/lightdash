@@ -1,3 +1,5 @@
+import assertUnreachable from '../utils/assertUnreachable';
+import { type AgentIdentityClaim, type AiActorKind } from './agentIdentity';
 import { type AnyType } from './any';
 import {
     type CreateWarehouseCredentials,
@@ -33,12 +35,27 @@ export type AiWarehouseCapabilities = {
 };
 
 type AiExecutionAudit = {
+    actorKind: AiActorKind;
     personUuid: string;
     principalRef: string;
     queryTags: Record<string, string>;
 };
 
-export type AiExecutionPlan =
+export type AiExecutionPlan = {
+    agentIdentity?: AgentIdentityClaim | null;
+    sourceIdentities?: {
+        queryUuid: string;
+        agentIdentity: AgentIdentityClaim | null;
+    }[];
+} & (
+    | {
+          identity: 'ai_service_account';
+          identityUuid: string;
+          credentialUuid: string;
+          credentials: CreateWarehouseCredentials;
+          assurances: AiAssurance[];
+          audit: AiExecutionAudit & { userUuid: string | null };
+      }
     | {
           identity: 'connected_person';
           identityUuid: string;
@@ -50,7 +67,8 @@ export type AiExecutionPlan =
           identity: 'marked_person';
           assurances: [{ kind: 'agent_marker'; level: AiAgentMarkerLevel }];
           audit: AiExecutionAudit & { userUuid: string | null };
-      };
+      }
+);
 
 export type AiMarkerTestResult = {
     ok: boolean;
@@ -67,9 +85,38 @@ export type ApiAiMarkerTestResponse = {
 
 export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 
+export enum AgentIdentityConnectEntryPoint {
+    CHAT_CARD = 'chat_card',
+    MY_WAREHOUSE_CONNECTIONS = 'my_warehouse_connections',
+    MY_AGENT_CONNECTIONS = 'my_agent_connections',
+    MCP_CONNECT_LINK = 'mcp_connect_link',
+    CLI = 'cli',
+    MCP_CONSENT = 'mcp_consent',
+    OAUTH_CONSENT = 'oauth_consent',
+    SLACK_LINK = 'slack_link',
+    UNKNOWN = 'unknown',
+}
+
+export enum AgentIdentityConnectFailureReason {
+    ACCESS_DENIED = 'access_denied',
+    OAUTH_ERROR = 'oauth_error',
+    STATE_MISMATCH = 'state_mismatch',
+    TOKEN_EXCHANGE_FAILED = 'token_exchange_failed',
+    NO_REFRESH_TOKEN = 'no_refresh_token',
+    NOT_AGENT_SESSION = 'not_agent_session',
+    SESSION_CHECK_FAILED = 'session_check_failed',
+    LICENSE_REQUIRED = 'license_required',
+    ORGANIZATION_REQUIRED = 'organization_required',
+    NOT_CONFIGURED = 'not_configured',
+    CREDENTIAL_SAVE_FAILED = 'credential_save_failed',
+    SIGN_IN_FAILED = 'sign_in_failed',
+}
+
 export enum AiAccessRefusalReason {
     RESULT_NOT_AGENT_PRODUCED = 'result_not_agent_produced',
     PRINCIPAL_FAILED = 'principal_failed',
+    AI_SERVICE_ACCOUNT_MISSING = 'ai_service_account_missing',
+    AI_SERVICE_ACCOUNT_INVALID = 'ai_service_account_invalid',
     NEEDS_SIGN_IN = 'needs_sign_in',
     SIGN_IN_EXPIRED = 'sign_in_expired',
     WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
@@ -97,6 +144,10 @@ export const getAiAccessRefusalMessage = (
     reason: AiAccessRefusalReason,
 ): string => {
     switch (reason) {
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+            return 'AI agents on this connection run as the AI service account, and none is set up. Ask an admin to add it on the project connection.';
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
+            return 'The AI service account on this connection could not sign in. Ask an admin to check it on the project connection.';
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
             return 'AI cannot use these results because your current agent connection did not produce them. Run the query again through your agent.';
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
@@ -111,10 +162,11 @@ export const getAiAccessRefusalMessage = (
             return 'AI access runs as a signed-in person. Embedded viewers cannot use it on this connection.';
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
             return 'AI access runs as a person. Service accounts cannot use it on this connection.';
-        default: {
-            const exhaustive: never = reason;
-            return String(exhaustive);
-        }
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown AI access refusal reason',
+            );
     }
 };
 
@@ -126,16 +178,19 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return AiAccessRefusalAction.SIGN_IN;
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
             return AiAccessRefusalAction.ASK_ADMIN;
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
             return null;
-        default: {
-            const exhaustive: never = reason;
-            return exhaustive;
-        }
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown AI access refusal reason',
+            );
     }
 };
 
@@ -156,14 +211,16 @@ export type ApiOrganizationAgentIdentitySettingsResponse = {
 
 export type AiAccessForUser = {
     requirementSource: 'organization' | null;
-    identity: 'marked_person' | 'connected_person' | null;
+    identity: AiExecutionPlan['identity'] | null;
+    source: 'marked_person' | 'agent_sign_in' | 'ai_service_account' | null;
     marker: AiAgentMarker | null;
     projectUuid: string;
     warehouseConnectionUuid: string | null;
     enabled: boolean;
-    principalKind: 'person' | null;
+    principalKind: 'person' | 'service_account' | null;
     refusal: AiAccessRefusal | null;
     expiresAt: Date | null;
+    principalName: string | null;
 };
 
 export type ApiAiWarehouseCapabilitiesResponse = {
@@ -174,4 +231,19 @@ export type ApiAiWarehouseCapabilitiesResponse = {
 export type ApiAiAccessForUserResponse = {
     status: 'ok';
     results: AiAccessForUser;
+};
+
+export const getAiExecutionCredentialUuid = (
+    plan: AiExecutionPlan | null,
+): string | null => {
+    if (plan === null) return null;
+    switch (plan.identity) {
+        case 'connected_person':
+        case 'ai_service_account':
+            return plan.identityUuid;
+        case 'marked_person':
+            return null;
+        default:
+            return assertUnreachable(plan, 'Unknown AI execution identity');
+    }
 };

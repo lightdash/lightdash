@@ -27,31 +27,31 @@ describe('SQL Runner (new)', () => {
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains(/^orders$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."orders"`,
-        );
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."orders"`);
 
         // Verify that the query is run and the results are displayed
-        cy.contains('Run query').click();
+        cy.get('[data-testid="sql-runner-run-button"]').click();
 
         cy.get('#sql-runner-panel-results').within(() => {
-            cy.get('table thead th').should('have.length', 22);
-            cy.get('table thead th').eq(0).should('contain.text', 'order_id');
+            // The first column is the row index.
+            cy.get('table thead th').should('have.length', 23);
+            cy.get('table thead th').eq(0).should('contain.text', '#');
+            cy.get('table thead th').eq(1).should('contain.text', 'order_id');
             cy.get('table thead th')
-                .eq(1)
+                .eq(2)
                 .should('contain.text', 'customer_id');
-            cy.get('table thead th').eq(2).should('contain.text', 'order_date');
-            cy.get('table thead th').eq(3).should('contain.text', 'status');
+            cy.get('table thead th').eq(3).should('contain.text', 'order_date');
+            cy.get('table thead th').eq(4).should('contain.text', 'status');
             cy.get('table tbody tr')
                 .first()
                 .within(() => {
                     cy.get('td').eq(0).should('contain.text', '1');
                     cy.get('td').eq(1).should('contain.text', '1');
+                    cy.get('td').eq(2).should('contain.text', '1');
                     cy.get('td')
-                        .eq(2)
+                        .eq(3)
                         .should('contain.text', '2023-03-15T00:00:00.000Z');
-                    cy.get('td').eq(3).should('contain.text', 'returned');
+                    cy.get('td').eq(4).should('contain.text', 'returned');
                 });
         });
 
@@ -64,11 +64,8 @@ describe('SQL Runner (new)', () => {
 
         // Verify that the query is replaced with the new table suggestion and the new results are displayed
         cy.contains(/^customers$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."customers"`,
-        );
-        cy.contains('Run query').click();
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."customers"`);
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         // TODO: Verify that the user is warned when a query has not been run yet
@@ -87,18 +84,15 @@ describe('SQL Runner (new)', () => {
 
     // todo: remove
     it.skip('Should verify that the chart is displayed', () => {
-        // Verify that the Run query button is disabled by default
-        cy.contains('Run query').should('be.disabled');
+        // Verify that the Run button is disabled by default
+        cy.get('[data-testid="sql-runner-run-button"]').should('be.disabled');
 
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains(/^customers$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."customers"`,
-        );
-        cy.contains('Run query').click();
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."customers"`);
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         // Verify that the chart is ready to be configured
@@ -139,18 +133,15 @@ describe('SQL Runner (new)', () => {
 
     // todo: move to unit test
     it.skip('Should verify that the all chart types are displayed', () => {
-        // Verify that the Run query button is disabled by default
-        cy.contains('Run query').should('be.disabled');
+        // Verify that the Run button is disabled by default
+        cy.get('[data-testid="sql-runner-run-button"]').should('be.disabled');
 
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains(/^customers$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."customers"`,
-        );
-        cy.contains('Run query').click();
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."customers"`);
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         // Verify that the chart is ready to be configured
@@ -205,7 +196,7 @@ describe('SQL Runner (new)', () => {
         // Filter the virtualized catalog so the target table is rendered.
         cy.get('input[placeholder="Search tables"]').type('customers');
         cy.contains(/^customers$/).click();
-        cy.contains('Run query').click();
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         cy.contains('label', 'Chart').click();
@@ -241,19 +232,16 @@ describe('SQL Runner (new)', () => {
     });
 
     it('Should save a chart', () => {
-        // Verify that the Run query button is disabled by default
-        cy.contains('Run query').should('be.disabled');
+        // Verify that the Run button is disabled by default
+        cy.get('[data-testid="sql-runner-run-button"]').should('be.disabled');
 
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         // Filter the virtualized catalog so the target table is rendered.
         cy.get('input[placeholder="Search tables"]').type('customers');
         cy.contains(/^customers$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."customers"`,
-        );
-        cy.contains('Run query').click();
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."customers"`);
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         // View chart
@@ -292,7 +280,7 @@ describe('SQL Runner (new)', () => {
         cy.get('.monaco-editor')
             .type(`{selectall}{del}SELECT * FROM "${schema}"."jaffle"."orders"`)
             .wait(1000);
-        cy.contains('Run query').click();
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'order_id');
 
         // Verify that there are errors to be fixed and fix them
@@ -336,18 +324,15 @@ describe('SQL Runner (new)', () => {
 
     // todo: remove
     it.skip('Should not trigger an extra query to the warehouse when styling a chart', () => {
-        // Verify that the Run query button is disabled by default
-        cy.contains('Run query').should('be.disabled');
+        // Verify that the Run button is disabled by default
+        cy.get('[data-testid="sql-runner-run-button"]').should('be.disabled');
 
         // Verify that the query is run
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);
         cy.contains(/^customers$/).click();
-        cy.contains(
-            '.monaco-editor',
-            `SELECT * FROM "${schema}"."jaffle"."customers"`,
-        );
-        cy.contains('Run query').click();
+        cy.contains('.monaco-editor', `SELECT * FROM "jaffle"."customers"`);
+        cy.get('[data-testid="sql-runner-run-button"]').click();
         cy.get('table thead th').eq(0).should('contain.text', 'customer_id');
 
         // Verify that the chart is ready to be configured

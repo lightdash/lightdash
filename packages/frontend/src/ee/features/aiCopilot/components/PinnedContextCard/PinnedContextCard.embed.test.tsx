@@ -4,9 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { PinnedContextCard } from './PinnedContextCard';
 
-vi.mock('../../hooks/aiAgentRouting', async (original) => ({
-    ...(await original<object>()),
-    isEmbedAiAgentRoute: () => true,
+vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
+    default: () => true,
 }));
 vi.mock('../ThreadChartEditor/useAiThreadChartEdit', () => ({
     useAiThreadChartEdit: () => null,

@@ -29,6 +29,10 @@
         "1.112.0": {
             "minPreviousVersion": "1.111.0",
             "note": "Auto-recorded at release 1.112.0: a destructive migration here is safe to roll past only when upgrading from 1.111.0 or later."
+        },
+        "2.498.0": {
+            "minPreviousVersion": "2.497.1",
+            "note": "Auto-recorded at release 2.498.0: a destructive migration here is safe to roll past only when upgrading from 2.497.1 or later."
         }
     }
 }

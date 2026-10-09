@@ -13,6 +13,8 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
 ): SettingsContext => ({
+    showMyAgentConnections: false,
+    isMyAgentConnectionsLoading: false,
     user: undefined,
     health: undefined,
     organization: undefined,
@@ -45,6 +47,8 @@ const settingsContext = (
     hasSocialLogin: false,
     isGroupManagementEnabled: false,
     isWarehouseCredentialsEnabled: false,
+    isAgentIdentityEnabled: false,
+    isAgentIdentityFlagLoading: false,
     isGitProject: false,
     projectSettingsAccess: { type: 'none', defaultPage: null },
     isProjectSettingsAccessLoading: false,
@@ -264,6 +268,95 @@ describe('limited project settings navigation', () => {
                     .find((section) => section.id === 'current-project')
                     ?.items.map(({ label, to }) => ({ label, to })),
             ).toEqual(expected);
+        },
+    );
+});
+
+describe('Agent identity settings navigation', () => {
+    it.each([
+        [true, 'manage', true],
+        [false, 'manage', false],
+        [true, 'update', false],
+        [true, 'view', false],
+    ])('flag %s with %s project permission', (enabled, action, visible) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    isAgentIdentityEnabled: enabled,
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action,
+                                subject: 'Project',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                }),
+            ),
+        );
+        const items = result.current.find(
+            ({ id }) => id === 'current-project',
+        )!.items;
+        const index = items.findIndex(
+            ({ label }) => label === 'Agent identity',
+        );
+        if (visible) {
+            expect(items[index].to).toBe(
+                '/generalSettings/projectManagement/project/agentIdentity',
+            );
+            expect(items[index - 1].label).toBe('Tables configuration');
+        } else expect(index).toBe(-1);
+    });
+});
+
+describe('My agent connections navigation', () => {
+    it.each([true, false])(
+        'uses shared visibility %s',
+        (showMyAgentConnections) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({ showMyAgentConnections }),
+                ),
+            );
+            const items = result.current.find(
+                ({ id }) => id === 'your-settings',
+            )!.items;
+            const index = items.findIndex(
+                ({ label }) => label === 'My agent connections',
+            );
+            if (showMyAgentConnections) {
+                expect(items[index - 1].label).toBe('My warehouse connections');
+                expect(items[index]).toMatchObject({
+                    to: '/generalSettings/myAgentConnections',
+                    keywords: [
+                        'agent',
+                        'ai',
+                        'mcp',
+                        'snowflake',
+                        'bigquery',
+                        'connect',
+                    ],
+                });
+            } else {
+                expect(index).toBe(-1);
+            }
         },
     );
 });

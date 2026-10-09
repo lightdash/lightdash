@@ -11157,6 +11157,20 @@
             "SemanticChartAsCode": {
                 "$ref": "#/components/schemas/Pick_ChartAsCode.name-or-description-or-tableName-or-metricQuery-or-chartConfig-or-tableConfig-or-pivotConfig-or-parameters_"
             },
+            "DocumentSemanticChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/SemanticChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["semantic"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
             "MergeChartAsCode": {
                 "allOf": [
                     {
@@ -11173,35 +11187,91 @@
                     }
                 ]
             },
-            "DocumentChartContent": {
-                "anyOf": [
+            "DocumentMergeChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/MergeChartAsCode"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["merge"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
+            "Pick_SqlChartAsCode.name-or-sql-or-limit-or-config-or-chartKind_": {
+                "properties": {
+                    "config": {
+                        "$ref": "#/components/schemas/AllVizChartConfig"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "chartKind": {
+                        "$ref": "#/components/schemas/ChartKind"
+                    }
+                },
+                "required": ["config", "limit", "name", "sql", "chartKind"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentSqlChart": {
+                "allOf": [
                     {
-                        "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/SemanticChartAsCode"
-                            },
-                            "source": {
-                                "type": "string",
-                                "enum": ["semantic"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["chart", "source"],
-                        "type": "object"
+                        "$ref": "#/components/schemas/Pick_SqlChartAsCode.name-or-sql-or-limit-or-config-or-chartKind_"
                     },
                     {
                         "properties": {
-                            "chart": {
-                                "$ref": "#/components/schemas/MergeChartAsCode"
-                            },
-                            "source": {
+                            "warehouseConnectionUuid": {
                                 "type": "string",
-                                "enum": ["merge"],
-                                "nullable": false
+                                "description": "The stored identity of `connection`, set by the server; dropped as code."
+                            },
+                            "connection": {
+                                "type": "string",
+                                "description": "The warehouse connection's name; omitted for the project's default connection."
+                            },
+                            "description": {
+                                "type": "string"
                             }
                         },
-                        "required": ["chart", "source"],
                         "type": "object"
+                    }
+                ],
+                "description": "A SQL Runner chart owned by the Document, in its content-as-code shape."
+            },
+            "DocumentSqlChartContent": {
+                "properties": {
+                    "chart": {
+                        "$ref": "#/components/schemas/DocumentSqlChart"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["sql"],
+                        "nullable": false
+                    }
+                },
+                "required": ["chart", "source"],
+                "type": "object"
+            },
+            "DocumentChartContent": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/DocumentSemanticChartContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DocumentMergeChartContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DocumentSqlChartContent"
                     }
                 ]
             },
@@ -11219,6 +11289,10 @@
             },
             "DocumentContent": {
                 "properties": {
+                    "unsupportedCharts": {
+                        "$ref": "#/components/schemas/Record_string.unknown_",
+                        "description": "Charts saved by a newer release, kept verbatim so saving the Document\nhere doesn't lose them. Omitted when there are none."
+                    },
                     "charts": {
                         "$ref": "#/components/schemas/DocumentCharts"
                     },
@@ -27705,6 +27779,11 @@
             },
             "AiModelOption": {
                 "properties": {
+                    "supersededBy": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Current same-provider model that replaces a deprecated one; null unless it is in this list"
+                    },
                     "deprecated": {
                         "type": "boolean"
                     },
@@ -27734,6 +27813,7 @@
                     }
                 },
                 "required": [
+                    "supersededBy",
                     "deprecated",
                     "supportsReasoning",
                     "default",
@@ -40057,8 +40137,16 @@
                 "enum": ["bedrock"],
                 "nullable": false
             },
+            "BedrockInferenceGeography": {
+                "type": "string",
+                "enum": ["jp", "us", "eu", "apac", "global"]
+            },
             "AiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography",
+                        "description": "Effective geography — the stored choice or the region's default."
+                    },
                     "isDefault": {
                         "type": "boolean"
                     },
@@ -40085,6 +40173,7 @@
                     }
                 },
                 "required": [
+                    "inferenceGeography",
                     "isDefault",
                     "apiKeyHint",
                     "allowedModels",
@@ -40200,6 +40289,9 @@
             },
             "CreateAiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography"
+                    },
                     "apiKey": {
                         "type": "string"
                     },
@@ -40230,6 +40322,9 @@
             },
             "UpdateAiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography"
+                    },
                     "apiKey": {
                         "type": "string"
                     },
@@ -40393,6 +40488,22 @@
                     "provider_error",
                     "internal_error"
                 ]
+            },
+            "AiDeepResearchRunDocument": {
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["slug", "name", "documentUuid"],
+                "type": "object",
+                "description": "The Document a run published its report to."
             },
             "AiDeepResearchLimits": {
                 "properties": {
@@ -40832,6 +40943,15 @@
                     "budget": {
                         "$ref": "#/components/schemas/AiDeepResearchBudget"
                     },
+                    "document": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchRunDocument"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Null until the report is published as a Document."
+                    },
                     "isReportExpired": {
                         "type": "boolean"
                     },
@@ -40895,6 +41015,7 @@
                     "metrics",
                     "executionContextSnapshot",
                     "budget",
+                    "document",
                     "isReportExpired",
                     "reportExpiredAt",
                     "reportExpiresAt",
@@ -63959,10 +64080,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults-or-ApiExecuteAsyncSqlQueryResults_": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApiExecuteAsyncSqlQueryResults"
+                            }
+                        ]
                     },
                     "status": {
                         "type": "string",
@@ -63974,7 +64102,8 @@
                 "type": "object"
             },
             "ApiDocumentChartQueryResponse": {
-                "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults_"
+                "$ref": "#/components/schemas/ApiSuccess_ApiExecuteAsyncMetricQueryResults-or-ApiExecuteAsyncSqlQueryResults_",
+                "description": "SQL charts answer with SQL results; the others with metric query results."
             },
             "ExecuteDocumentChartQueryRequest": {
                 "properties": {
@@ -64415,6 +64544,51 @@
             },
             "ApiDocumentAsCodeResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DocumentAsCode_"
+            },
+            "Pick_DocumentSummary.documentUuid-or-name-or-slug-or-spaceUuid_": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Null for a personal Document, visible only to its creator and admins."
+                    },
+                    "documentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "slug", "spaceUuid", "documentUuid"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DocumentLinkingChart": {
+                "$ref": "#/components/schemas/Pick_DocumentSummary.documentUuid-or-name-or-slug-or-spaceUuid_",
+                "description": "A Document whose current version links a saved chart."
+            },
+            "ApiSuccess_DocumentLinkingChart-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/DocumentLinkingChart"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDocumentsLinkingChartResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DocumentLinkingChart-Array_"
             },
             "KnexPaginatedData_ValidationResponse-Array_": {
                 "properties": {
@@ -67128,6 +67302,20 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess_ApiExecuteAsyncMetricQueryResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiExecuteAsyncMetricQueryResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "CalculateTotalKind": {
                 "type": "string",
                 "enum": [
@@ -67853,6 +68041,174 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AiIdentitySource": {
+                "type": "string",
+                "enum": ["marked_person", "agent_sign_in", "ai_service_account"]
+            },
+            "OrganizationAgentIdentityRule": {
+                "properties": {
+                    "projectsMissingAiServiceAccount": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "projectUuid"],
+                            "type": "object"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/AiIdentitySource"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    }
+                },
+                "required": [
+                    "projectsMissingAiServiceAccount",
+                    "source",
+                    "warehouseType"
+                ],
+                "type": "object"
+            },
+            "OrganizationAgentIdentityOverview": {
+                "properties": {
+                    "rules": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationAgentIdentityRule"
+                        },
+                        "type": "array"
+                    },
+                    "requireVerifiedAgentSessions": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["rules", "requireVerifiedAgentSessions"],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentityOverviewResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentityOverview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "OrganizationAgentIdentitySnowflakeSetup": {
+                "properties": {
+                    "configured": {
+                        "type": "boolean"
+                    },
+                    "missingSettings": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "integrationSql": {
+                        "type": "string"
+                    },
+                    "redirectUri": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "configured",
+                    "missingSettings",
+                    "integrationSql",
+                    "redirectUri"
+                ],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentitySnowflakeSetupResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySnowflakeSetup"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "OrganizationAgentIdentitySnowflakeVerify": {
+                "properties": {
+                    "checks": {
+                        "items": {
+                            "properties": {
+                                "detail": {
+                                    "type": "string"
+                                },
+                                "required": {
+                                    "type": "boolean"
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "enum": ["passed", "failed", "not_checked"]
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "id": {
+                                    "type": "string",
+                                    "enum": [
+                                        "oauth_client",
+                                        "authorize_endpoint",
+                                        "agent_session"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "detail",
+                                "required",
+                                "status",
+                                "label",
+                                "id"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "passed": {
+                        "type": "boolean"
+                    },
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": ["checks", "passed", "checkedAt"],
+                "type": "object"
+            },
+            "ApiOrganizationAgentIdentitySnowflakeVerifyResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OrganizationAgentIdentitySnowflakeVerify"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "OrganizationAgentIdentitySettings": {
                 "properties": {
                     "requireVerifiedAgentSessions": {
@@ -67862,10 +68218,10 @@
                 "required": ["requireVerifiedAgentSessions"],
                 "type": "object"
             },
-            "ApiOrganizationAgentIdentitySettingsResponse": {
+            "ApiOrganizationAgentIdentityRuleResponse": {
                 "properties": {
                     "results": {
-                        "$ref": "#/components/schemas/OrganizationAgentIdentitySettings"
+                        "$ref": "#/components/schemas/OrganizationAgentIdentityRule"
                     },
                     "status": {
                         "type": "string",
@@ -67874,6 +68230,15 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateOrganizationAgentIdentityRule": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/AiIdentitySource"
+                    }
+                },
+                "required": ["source"],
                 "type": "object"
             },
             "FeatureFlag": {
@@ -69650,6 +70015,455 @@
                 "type": "string",
                 "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             },
+            "WarehouseServiceAuthMethod": {
+                "type": "string",
+                "enum": [
+                    "password",
+                    "private_key",
+                    "oauth_m2m",
+                    "iam",
+                    "access_key",
+                    "iam_role",
+                    "web_identity",
+                    "token"
+                ]
+            },
+            "AiServiceAccountSlot": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "credentialSubjectUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/WarehouseServiceAuthMethod"
+                    },
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "enum": ["connection"],
+                        "nullable": false
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["ai_service_account"],
+                        "nullable": false
+                    },
+                    "warehouseConnectionUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "identityUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "credentialSubjectUserUuid",
+                    "updatedByUserUuid",
+                    "createdByUserUuid",
+                    "method",
+                    "warehouseType",
+                    "scope",
+                    "kind",
+                    "warehouseConnectionUuid",
+                    "projectUuid",
+                    "identityUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiAiServiceAccountSlotResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountSlot"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "BigqueryAuthenticationType.PRIVATE_KEY": {
+                "enum": ["private_key"],
+                "type": "string"
+            },
+            "AiServiceAccountCredentialInput": {
+                "properties": {
+                    "keyfileContents": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType.PRIVATE_KEY"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    }
+                },
+                "required": ["authenticationType", "type"],
+                "type": "object"
+            },
+            "Record_string.string-or-null_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string",
+                    "nullable": true
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiServiceAccountTestResult": {
+                "properties": {
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "observed": {
+                        "$ref": "#/components/schemas/Record_string.string-or-null_"
+                    },
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "checkedAt",
+                    "message",
+                    "observed",
+                    "principal",
+                    "ok"
+                ],
+                "type": "object"
+            },
+            "ApiAiServiceAccountTestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiServiceAccountTestResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AiServiceAccountTestRequest": {
+                "properties": {
+                    "credentials": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountCredentialInput"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["credentials"],
+                "type": "object"
+            },
+            "AgentAccessDataset": {
+                "properties": {
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                "required": ["database", "schema"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentTableStatus": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["readable"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": ["access_denied"],
+                                "nullable": false
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["blocked"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": [
+                                    "not_found",
+                                    "quota",
+                                    "timeout",
+                                    "unavailable",
+                                    "unsupported",
+                                    "unknown"
+                                ]
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "enum": ["timeout"],
+                                "nullable": false
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["not_checked"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["reason", "kind"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AgentAccessTable": {
+                "properties": {
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AgentTableStatus"
+                    }
+                },
+                "required": ["database", "schema", "name", "status"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentAccessReport": {
+                "properties": {
+                    "warehouseType": {
+                        "$ref": "#/components/schemas/WarehouseTypes"
+                    },
+                    "subject": {
+                        "properties": {
+                            "kind": {
+                                "type": "string",
+                                "enum": ["ai_service_account"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["kind"],
+                        "type": "object"
+                    },
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "credentialSource": {
+                        "type": "string",
+                        "enum": ["saved", "submitted"]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["complete", "partial", "failed"]
+                    },
+                    "failureReason": {
+                        "type": "string",
+                        "enum": [
+                            "invalid_credentials",
+                            "job_permission_denied",
+                            "warehouse_denied",
+                            "baseline_failed",
+                            "timeout",
+                            "quota",
+                            "unavailable",
+                            "unknown",
+                            null
+                        ],
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "datasets": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAccessDataset"
+                        },
+                        "type": "array"
+                    },
+                    "tables": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentAccessTable"
+                        },
+                        "type": "array"
+                    },
+                    "readableCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "blockedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "checkedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "notCheckedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "truncatedCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "warehouseType",
+                    "subject",
+                    "principal",
+                    "credentialSource",
+                    "status",
+                    "failureReason",
+                    "message",
+                    "datasets",
+                    "tables",
+                    "readableCount",
+                    "blockedCount",
+                    "errorCount",
+                    "checkedCount",
+                    "notCheckedCount",
+                    "totalCount",
+                    "truncatedCount",
+                    "checkedAt"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiAgentAccessReportResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentAccessReport"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentAccessTestEntryPoint": {
+                "type": "string",
+                "enum": ["project_agent_identity_page"],
+                "nullable": false
+            },
+            "AgentAccessTestRequest": {
+                "properties": {
+                    "credentials": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountCredentialInput"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "entryPoint": {
+                        "$ref": "#/components/schemas/AgentAccessTestEntryPoint"
+                    }
+                },
+                "required": ["credentials", "entryPoint"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "AiAgentMarkerLevel": {
                 "enum": [
                     "verified_session",
@@ -69721,6 +70535,8 @@
                 "enum": [
                     "result_not_agent_produced",
                     "principal_failed",
+                    "ai_service_account_missing",
+                    "ai_service_account_invalid",
                     "needs_sign_in",
                     "sign_in_expired",
                     "warehouse_not_supported",
@@ -69775,6 +70591,10 @@
             },
             "AiAccessForUser": {
                 "properties": {
+                    "principalName": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "expiresAt": {
                         "type": "string",
                         "format": "date-time",
@@ -69790,7 +70610,7 @@
                     },
                     "principalKind": {
                         "type": "string",
-                        "enum": ["person", null],
+                        "enum": ["person", "service_account", null],
                         "nullable": true
                     },
                     "enabled": {
@@ -69811,9 +70631,24 @@
                         ],
                         "nullable": true
                     },
+                    "source": {
+                        "type": "string",
+                        "enum": [
+                            "marked_person",
+                            "agent_sign_in",
+                            "ai_service_account",
+                            null
+                        ],
+                        "nullable": true
+                    },
                     "identity": {
                         "type": "string",
-                        "enum": ["marked_person", "connected_person", null],
+                        "enum": [
+                            "marked_person",
+                            "ai_service_account",
+                            "connected_person",
+                            null
+                        ],
                         "nullable": true
                     },
                     "requirementSource": {
@@ -69823,6 +70658,7 @@
                     }
                 },
                 "required": [
+                    "principalName",
                     "expiresAt",
                     "refusal",
                     "principalKind",
@@ -69830,6 +70666,7 @@
                     "warehouseConnectionUuid",
                     "projectUuid",
                     "marker",
+                    "source",
                     "identity",
                     "requirementSource"
                 ],
@@ -69848,15 +70685,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "Record_string.string-or-null_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string",
-                    "nullable": true
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "AiMarkerTestResult": {
                 "properties": {
@@ -69911,7 +70739,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.478.0",
+        "version": "2.514.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -73326,6 +74154,16 @@
                     {
                         "in": "query",
                         "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "The newest Document schema version the client reads. An older version is refused with an upgrade message.",
+                        "in": "query",
+                        "name": "schemaVersion",
                         "required": false,
                         "schema": {
                             "format": "double",
@@ -108691,6 +109529,65 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/documents/linking-chart": {
+            "get": {
+                "operationId": "ListDocumentsLinkingChart",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDocumentsLinkingChartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "The Documents you can view whose current version links a saved chart or saved SQL chart",
+                "summary": "Documents linking a chart",
+                "tags": ["Documents"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The saved chart; pass this or savedSqlUuid",
+                        "in": "query",
+                        "name": "savedChartUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "description": "The saved SQL chart; pass this or savedChartUuid",
+                        "in": "query",
+                        "name": "savedSqlUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v2/projects/{projectUuid}/validate": {
             "get": {
                 "operationId": "ListValidationResults",
@@ -110995,7 +111892,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySettingsResponse"
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentityOverviewResponse"
                                 }
                             }
                         }
@@ -111023,7 +111920,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySettingsResponse"
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentityOverviewResponse"
                                 }
                             }
                         }
@@ -111048,6 +111945,115 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/OrganizationAgentIdentitySettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/org/agent-identity/snowflake/setup": {
+            "get": {
+                "operationId": "getOrganizationAgentIdentitySnowflakeSetup",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySnowflakeSetupResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-identity/snowflake/verify": {
+            "post": {
+                "operationId": "verifyOrganizationAgentIdentitySnowflakeSetup",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentitySnowflakeVerifyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-identity/{warehouseType}": {
+            "put": {
+                "operationId": "updateOrganizationAgentIdentityRule",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentityRuleResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "warehouseType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/WarehouseTypes"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrganizationAgentIdentityRule"
                             }
                         }
                     }
@@ -112847,6 +113853,267 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/service-account": {
+            "get": {
+                "operationId": "getAiServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "upsertAiServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiServiceAccountCredentialInput"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteAiServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/service-account/test": {
+            "post": {
+                "operationId": "testAiServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountTestResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiServiceAccountTestRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/projects/{projectUuid}/ai-access/service-account/test-access": {
+            "post": {
+                "operationId": "testAiServiceAccountAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentAccessReportResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "connection",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentAccessTestRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/projects/{projectUuid}/ai-access/capabilities": {

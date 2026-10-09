@@ -1,4 +1,5 @@
 import {
+    AiAccessRefusal,
     AiAgent,
     AiAgentDocumentContext,
     AiDeepResearchBudget,
@@ -75,6 +76,7 @@ import {
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
+    ListSqlApprovalDecisionsFn,
     ListThreadComposerPipelinesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
@@ -336,7 +338,10 @@ export type PerformanceMetrics = {
     ) => void;
 };
 
+export type OnAiAccessRefusal = (refusal: AiAccessRefusal) => void;
+
 export type AiAgentDependencies = {
+    onAiAccessRefusal?: OnAiAccessRefusal;
     chartExportArtifacts?: ArtifactChartExportAccess;
     listExplores: ListExploresFn;
     getExplore: GetExploreFn;
@@ -413,6 +418,7 @@ export type AiAgentDependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

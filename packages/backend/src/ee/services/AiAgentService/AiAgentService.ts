@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AgentSuggestion,
     AgentSummaryContext,
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
@@ -9,6 +10,7 @@ import {
     AI_THREAD_FILE_INLINE_BUDGET_BYTES,
     AI_THREAD_FILE_MOUNT_PATH,
     AI_USER_THREAD_CREATED_FROM,
+    AiAccessRefusal,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -130,6 +132,7 @@ import {
     isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
+    isSqlApprovalToolCall,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -150,6 +153,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     ReadinessScore,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
@@ -190,6 +194,7 @@ import {
     type MetricQuery,
     type PivotConfiguration,
     type SessionUser,
+    type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
@@ -286,6 +291,10 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import {
+    agentExecutionContext,
+    fillScopedSlackAppId,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -424,14 +433,13 @@ import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
-    filterModelsForOrg,
-    getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    getOrgModelOptions,
     MODEL_PRESETS,
-    presetToModelOption,
     resolveKeyManagement,
+    resolveModelConfigForPrompt,
 } from '../ai/models';
 import {
     OrgAiCopilotConfigResolver,
@@ -461,8 +469,16 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
+import {
+    buildSqlApprovalDecidedEvent,
+    getRejectedOutput,
+    getSqlApprovalHeading,
+    isNativeSqlApprovalToolCall,
+    toStoredSqlApprovalDecision,
+    type NativeSqlApprovalToolName,
+    type StorableSqlApprovalDecisionRecord,
+} from '../ai/tools/sqlApprovals';
 import {
     AiAgentArgs,
     AiAgentDependencies,
@@ -473,6 +489,7 @@ import {
     type AiAgentRequestingUserRole,
     type AiDeepResearchExecutionRole,
     type AiDeepResearchStepUsage,
+    type OnAiAccessRefusal,
 } from '../ai/types/aiAgent';
 import {
     ClosePullRequestFn,
@@ -518,6 +535,7 @@ import {
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
+    getAiAccessRefusalBlocks,
     getChannelLinkAgentSelectionBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
@@ -530,6 +548,7 @@ import {
     getSqlArtifactCardBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
@@ -562,6 +581,7 @@ import {
 } from '../AiAgentToolsService/AiAgentToolsService';
 import { type AiCreditService } from '../AiCreditService';
 import { type AiDeepResearchSubmittedReport } from '../AiDeepResearchService/AiDeepResearchService';
+import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
 import { isDeepResearchRawSqlMcpTool } from '../AiDeepResearchService/toolClassification';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
@@ -589,6 +609,7 @@ import {
     runPromptInputRequestClassification,
     shouldClassifyPromptInputRequestForUpdate,
 } from './promptInputRequestClassifier';
+import { querySurfaceFromPrompt } from './querySurface';
 import {
     deliverSlackArtifactImages,
     type SlackArtifactDeliveryRuntime,
@@ -611,6 +632,13 @@ import {
     type AiUsageViewerAttribution,
 } from './usageAttribution';
 import { getWritebackConnectionSupport } from './writebackConnection';
+
+type SlackAiAccessRefusalState = {
+    selected: AiAccessRefusal | null;
+    delivered: boolean;
+    select: OnAiAccessRefusal;
+    markDelivered: () => void;
+};
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -1295,6 +1323,37 @@ export class AiAgentService extends BaseService {
             modelName: modelConfig?.modelName ?? null,
             reasoningEnabled: modelConfig?.reasoning ?? null,
         };
+    }
+
+    // Runs once per prompt so the recorded model is the one that actually
+    // serves it; a pinned deprecated preset is swapped for its replacement.
+    private async resolvePromptModelConfig({
+        organizationUuid,
+        projectUuid,
+        credentialUuid,
+        agentModelConfig,
+        requestedModelConfig,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        credentialUuid: string | null;
+        agentModelConfig: AiAgentModelConfig | null;
+        requestedModelConfig: AiAgentModelConfig | null;
+    }): Promise<AiAgentModelConfig | null> {
+        const modelConfig =
+            requestedModelConfig ??
+            agentModelConfig ??
+            (await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                organizationUuid,
+            ));
+        if (!modelConfig) return null;
+        const { catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
+                organizationUuid,
+                projectUuid,
+                credentialUuid,
+            });
+        return resolveModelConfigForPrompt(catalogue, modelConfig);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -3222,6 +3281,7 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
+                QuerySurface.APP,
             );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
@@ -3527,12 +3587,23 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    private async getArtifactQuerySurface(
+        promptUuid: string | null,
+    ): Promise<QuerySurface> {
+        if (promptUuid === null) return QuerySurface.APP;
+        const prompt =
+            (await this.aiAgentModel.findSlackPrompt(promptUuid)) ??
+            (await this.aiAgentModel.findWebAppPrompt(promptUuid));
+        return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
+    }
+
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
         parameters: ParametersValuesMap | null,
+        querySurface: QuerySurface,
         // Set for custom chart type answers (built from the artifact
         // envelope): pivot derivation follows the type's schema instead of
         // the builtin groupBy path.
@@ -3603,6 +3674,7 @@ export class AiAgentService extends BaseService {
                 projectUuid,
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
+                querySurface,
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
                 userAttributeOverrides,
@@ -3645,6 +3717,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
+        querySurface: QuerySurface,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
@@ -3657,6 +3730,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             mergeQuery,
             context: QueryExecutionContext.AI,
+            querySurface,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
             userAttributeOverrides,
@@ -3787,22 +3861,13 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const [copilotConfig, orgModelOverrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfig({
+        const { copilotConfig, catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid: agent.projectUuid,
                 credentialUuid: agent.providerCredentialUuid,
-            }),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
-        const defaultModel = getDefaultModel(copilotConfig);
-
-        return filterModelsForOrg(
-            getAvailableModels(copilotConfig),
-            orgModelOverrides,
-        ).map((preset) => presetToModelOption(preset, defaultModel));
+            });
+        return getOrgModelOptions(catalogue, getDefaultModel(copilotConfig));
     }
 
     async listAgentThreads(
@@ -4235,10 +4300,8 @@ export class AiAgentService extends BaseService {
                 'Tool call does not belong to the supplied agent',
             );
         }
-        if (
-            context.toolName !== 'runSql' &&
-            context.toolName !== 'runComposerQueries'
-        ) {
+        const { toolName } = context;
+        if (!isSqlApprovalToolCall(toolName, context.toolArgs)) {
             throw new ParameterError(
                 `Tool call ${toolCallId} is not a SQL approval`,
             );
@@ -4277,35 +4340,24 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // The SQL ultimately runs under the prompt issuer's identity, but
-        // approving raw SQL is itself a privileged action — require the
-        // approver to hold the same SqlRunner scope so a thread reader
-        // without that ability can't trigger execution.
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid,
-                        threadUuid,
-                        toolCallId,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You need the SqlRunner permission to approve SQL execution',
-            );
-        }
+        this.assertCanApproveSql(user, {
+            toolName,
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            metadata: { agentUuid, threadUuid, toolCallId },
+        });
 
-        const recorded = await this.aiAgentModel.recordSqlApproval(
+        const recorded = await this.recordSqlApprovalDecision({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            agentUuid,
+            threadUuid,
             toolCallId,
+            toolName,
             decision,
-            user.userUuid,
-        );
+            source: 'web',
+            userUuid: user.userUuid,
+        });
         this.enqueueMobilePushThreadReconciliation(threadUuid);
         if (!recorded) {
             // A decision was already in place for this tool call — likely a
@@ -4315,18 +4367,97 @@ export class AiAgentService extends BaseService {
                 `SQL approval for ${toolCallId} was already recorded; retrying Slack resume if applicable.`,
             );
         }
-        if (context.toolName === 'runSql') {
-            await this.resumeSlackSqlApproval(context.promptUuid);
+        if (isNativeSqlApprovalToolCall(toolName, context.toolArgs)) {
+            await this.resumeSlackSqlApproval(context.promptUuid, null);
         }
 
         return { decision };
     }
 
-    private async resumeSlackSqlApproval(promptUuid: string): Promise<void> {
+    // Approving is privileged even though the SQL runs as the prompt issuer:
+    // raw SQL needs SqlRunner, saving a SQL chart needs CustomSql.
+    private assertCanApproveSql(
+        user: SessionUser,
+        {
+            toolName,
+            organizationUuid,
+            projectUuid,
+            metadata,
+        }: {
+            toolName: SqlApprovalToolName;
+            organizationUuid: string;
+            projectUuid: string;
+            metadata: {
+                agentUuid: string;
+                threadUuid: string;
+                toolCallId: string;
+            };
+        },
+    ): void {
+        const ability = this.createAuditedAbility(user);
+        switch (toolName) {
+            case 'runSql':
+            case 'runComposerQueries':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the SqlRunner permission to approve SQL execution',
+                    );
+                }
+                return;
+            case 'createContent':
+            case 'editContent':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('CustomSql', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the CustomSql permission to save SQL charts to approve this SQL',
+                    );
+                }
+                return;
+            default:
+                assertUnreachable(toolName, 'Unknown SQL approval tool');
+        }
+    }
+
+    private async recordSqlApprovalDecision(
+        record: StorableSqlApprovalDecisionRecord,
+    ): Promise<boolean> {
+        const recorded = await this.aiAgentModel.recordSqlApproval(
+            record.toolCallId,
+            toStoredSqlApprovalDecision(record.decision),
+            record.userUuid,
+        );
+        if (recorded) {
+            this.analytics.track(buildSqlApprovalDecidedEvent(record));
+        }
+        return recorded;
+    }
+
+    private async resumeSlackSqlApproval(
+        promptUuid: string,
+        slackAppId: string | null,
+    ): Promise<void> {
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (!prompt) return;
 
         await this.schedulerClient.slackAiPrompt({
+            slackAppId,
             slackPromptUuid: prompt.promptUuid,
             userUuid: prompt.createdByUserUuid,
             projectUuid: prompt.projectUuid,
@@ -4542,6 +4673,8 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Every prompt, first or follow-up, resolves the same way so a thread
+    // follows the agent's current model unless the user picked one explicitly.
     async createAgentThread(
         user: SessionUser,
         agentUuid: string,
@@ -4622,17 +4755,13 @@ export class AiAgentService extends BaseService {
             battleProfile: body.battleProfile ?? null,
         });
 
-        const organizationDefaultModelConfig =
-            body.modelConfig || agent.modelConfig
-                ? undefined
-                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
-                      organizationUuid,
-                  );
-        const modelConfig =
-            body.modelConfig ??
-            agent.modelConfig ??
-            organizationDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            credentialUuid: agent.providerCredentialUuid,
+            agentModelConfig: agent.modelConfig,
+            requestedModelConfig: body.modelConfig ?? null,
+        });
 
         if (body.prompt) {
             const promptUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -4839,12 +4968,20 @@ export class AiAgentService extends BaseService {
             runtimeOptions?.spaceAccess,
         );
 
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            credentialUuid: agent.providerCredentialUuid,
+            agentModelConfig: agent.modelConfig,
+            requestedModelConfig: body.modelConfig ?? null,
+        });
+
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
             context,
-            modelConfig: body.modelConfig,
+            modelConfig,
             hidden: body.hidden,
             externalUserId: runtimeOptions?.externalUserId ?? null,
         });
@@ -4945,6 +5082,7 @@ export class AiAgentService extends BaseService {
                 app.name,
                 body.appUuid,
             )}`,
+            modelConfig: null,
             context: [
                 {
                     type: 'data_app_restore',
@@ -9087,6 +9225,7 @@ export class AiAgentService extends BaseService {
                 user,
                 projectUuid,
                 parsed,
+                await this.getArtifactQuerySurface(artifact.promptUuid),
                 runtimeOptions?.userAttributeOverrides,
             );
             this.analytics.track({
@@ -9141,6 +9280,9 @@ export class AiAgentService extends BaseService {
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
                 context: QueryExecutionContext.AI,
+                querySurface: await this.getArtifactQuerySurface(
+                    artifact.promptUuid,
+                ),
             });
 
             this.analytics.track({
@@ -9198,6 +9340,7 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.metricQuery,
             artifactChartConfig.config,
             parsedVizConfig.parameters,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             customChartType,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -9338,6 +9481,7 @@ export class AiAgentService extends BaseService {
             parsedVizConfig.metricQuery,
             chartConfig,
             parsedVizConfig.parameters,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             undefined,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -10924,9 +11068,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';
-                    return `- Document "${name}" (documentUuid: ${item.documentUuid}${
-                        item.documentSlug ? `, slug: ${item.documentSlug}` : ''
-                    }) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, documentUuid) before answering or editing, and save changes with editContent.`;
+                    const slugText = item.documentSlug ?? '(slug unavailable)';
+                    return `- Document "${name}" (documentSlug: ${slugText}) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, slug) before answering or editing, and save changes with editContent.`;
                 }
                 case 'data_app_element': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -11366,22 +11509,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (isCurrentPrompt) {
                     options.pendingRejectedSqlApprovalResults?.push(
                         ...toolCallsAndResults.flatMap(
-                            ({ toolCall, toolResult, approvalDecision }) =>
-                                toolCall.toolName === 'runSql' &&
-                                approvalDecision === 'rejected' &&
-                                toolResult === null
-                                    ? [
-                                          {
-                                              promptUuid:
-                                                  message.ai_prompt_uuid,
-                                              toolCallId: toolCall.toolCallId,
-                                              toolName: toolCall.toolName,
-                                              result: RUN_SQL_REJECTED_OUTPUT.result,
-                                              metadata:
-                                                  RUN_SQL_REJECTED_OUTPUT.metadata,
-                                          },
-                                      ]
-                                    : [],
+                            ({ toolCall, toolResult, approvalDecision }) => {
+                                if (
+                                    approvalDecision !== 'rejected' ||
+                                    toolResult !== null
+                                ) {
+                                    return [];
+                                }
+                                const base = {
+                                    promptUuid: message.ai_prompt_uuid,
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName: toolCall.toolName,
+                                };
+                                if (
+                                    !isNativeSqlApprovalToolCall(
+                                        toolCall.toolName,
+                                        toolCall.toolArgs,
+                                    )
+                                ) {
+                                    return [];
+                                }
+                                return [
+                                    {
+                                        ...base,
+                                        ...getRejectedOutput(toolCall.toolName),
+                                    },
+                                ];
+                            },
                         ),
                     );
                 }
@@ -12106,7 +12260,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }): NonNullable<AiAgentDependencies['chartExportArtifacts']> {
         const access: Omit<
             NonNullable<AiAgentDependencies['chartExportArtifacts']>,
-            'prepareVersion'
+            'prepareVersion' | 'prepareSqlVersion'
         > = {
             list: async () => {
                 const artifacts =
@@ -12192,19 +12346,50 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
             },
         };
+        const findArtifactUuid = async (versionUuid: string) => {
+            const artifactUuid =
+                await this.aiAgentModel.findArtifactUuidByVersionUuid(
+                    versionUuid,
+                );
+            if (artifactUuid === undefined) {
+                throw new NotFoundError(
+                    `No chart with versionUuid ${versionUuid} in this conversation`,
+                );
+            }
+            return artifactUuid;
+        };
         return {
             ...access,
-            prepareVersion: async (versionUuid) => {
-                const artifactUuid =
-                    await this.aiAgentModel.findArtifactUuidByVersionUuid(
-                        versionUuid,
-                    );
-                if (artifactUuid === undefined) {
-                    throw new NotFoundError(
-                        `No chart with versionUuid ${versionUuid} in this conversation`,
+            prepareVersion: async (versionUuid) =>
+                access.prepare({
+                    artifactUuid: await findArtifactUuid(versionUuid),
+                    versionUuid,
+                }),
+            prepareSqlVersion: async (versionUuid) => {
+                const artifact = await this.getArtifact(
+                    user,
+                    projectUuid,
+                    agentUuid,
+                    await findArtifactUuid(versionUuid),
+                    versionUuid,
+                );
+                if (artifact.threadUuid !== threadUuid) {
+                    throw new ForbiddenError(
+                        'Only results in the current conversation can be placed here.',
                     );
                 }
-                return access.prepare({ artifactUuid, versionUuid });
+                await this.assertEmbedThreadInSpace(
+                    artifact.threadUuid,
+                    runtimeOptions,
+                );
+                const config = artifact.chartConfig;
+                return config && 'source' in config && config.source === 'sql'
+                    ? {
+                          title: artifact.title,
+                          sql: config.sql,
+                          limit: config.limit,
+                      }
+                    : null;
             },
         };
     }
@@ -12251,6 +12436,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: options?.enableDocuments ?? false,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            querySurface: querySurfaceFromPrompt(prompt),
             tags: runtimeAgentSettings.tags,
             spaceAccess:
                 options?.runtimeOptions?.spaceAccess ??
@@ -13176,6 +13362,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId,
         prompt,
         scope,
+        querySurface,
     }: {
         user: SessionUser;
         projectUuid: string;
@@ -13183,6 +13370,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         fieldId: string;
         prompt: string;
         scope: AndFilterGroup | undefined;
+        querySurface: QuerySurface;
     }): Promise<string[]> {
         const search = (term: string, limit: number) =>
             this.projectService
@@ -13198,6 +13386,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     undefined,
                     undefined,
                     QueryExecutionContext.AI,
+                    querySurface,
                 )
                 .then(({ results }) =>
                     results.filter(
@@ -13345,6 +13534,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 exploreName: explore.name,
                                 fieldId: candidateFieldId,
                                 prompt: prompt.prompt,
+                                querySurface: querySurfaceFromPrompt(prompt),
                                 scope: getValueSearchScope(
                                     artifact,
                                     candidateFieldId,
@@ -14119,8 +14309,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: AiWebAppPrompt;
         agent: AiAgent;
     }): Promise<DocumentTurnContext | null> {
-        const [documentUuid, promptContext] = await Promise.all([
-            this.aiAgentModel.findThreadDocumentUuid(prompt.threadUuid),
+        const [documentSlug, promptContext] = await Promise.all([
+            this.aiAgentModel.findThreadDocumentSlug(prompt.threadUuid),
             this.aiAgentModel.getContextForPromptUuids([prompt.promptUuid]),
         ]);
         // Other pinned content could be what "it" means, so only the agent can tell.
@@ -14128,7 +14318,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptContext.get(prompt.promptUuid) ?? []
         ).some((item) => item.type !== 'document');
         if (
-            documentUuid === null ||
+            documentSlug === null ||
             pinsOtherContent ||
             !this.canUseContentTools(user, agent, prompt)
         ) {
@@ -14152,6 +14342,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             enableDocuments: true,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
+            querySurface: querySurfaceFromPrompt(prompt),
             tags: agent.tags,
             spaceAccess: agent.spaceAccess,
             agentUuid: agent.uuid,
@@ -14160,7 +14351,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const document = await runtime.readContent({
             type: 'document',
-            documentUuid,
+            slug: documentSlug,
             chartId: null,
         });
         if (
@@ -14337,6 +14528,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             prompt: SlackPrompt;
             stream: false;
+            onSlackAccessRefusal?: OnAiAccessRefusal;
             onSlackTableResults?: (
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
@@ -14363,6 +14555,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         options: {
             canManageAgent: boolean;
             aiCreditCheck: AiCreditCheck | null;
+            onSlackAccessRefusal?: OnAiAccessRefusal;
             onSlackTableResults?: (
                 results: ReadonlyMap<string, SlackTableQueryResults>,
             ) => void;
@@ -14770,6 +14963,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
+            fillScopedSlackAppId(slackSettings?.appId ?? null);
             hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
             slackLinksOnly = !!slackSettings?.aiLinksOnly;
         }
@@ -14891,9 +15085,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     ),
                 }),
             ]);
+        const researchDocuments = await findAiDeepResearchRunDocuments(
+            this.aiAgentModel,
+            threadDeepResearchRuns,
+        );
         const deepResearchContextRuns =
             AiAgentService.selectDeepResearchContextRuns(
-                threadDeepResearchRuns,
+                threadDeepResearchRuns.map((run) => ({
+                    ...run,
+                    has_report:
+                        run.has_report ||
+                        researchDocuments.has(run.ai_deep_research_run_uuid),
+                })),
             );
         const latestDeepResearchProgress =
             await this.aiDeepResearchRunModel.findLatestProgressByRunUuids(
@@ -15532,6 +15735,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
 
         const dependencies: AiAgentDependencies = {
+            onAiAccessRefusal: options.onSlackAccessRefusal,
             recordMcpToolCall,
             listExplores,
             getExplore,
@@ -15801,14 +16005,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             waitForSqlApproval: (toolCallId, timeoutMs) =>
                 this.aiAgentModel.waitForSqlApproval(toolCallId, timeoutMs),
-            recordSqlApproval: (toolCallId, decision, decidedByUserUuid) =>
-                this.aiAgentModel.recordSqlApproval(
+            recordSqlApproval: ({
+                toolCallId,
+                toolName,
+                decidedByUserUuid,
+                source,
+            }) =>
+                this.recordSqlApprovalDecision({
+                    organizationUuid: prompt.organizationUuid,
+                    projectUuid: prompt.projectUuid,
+                    agentUuid: agentSettings.uuid,
+                    threadUuid: prompt.threadUuid,
                     toolCallId,
-                    decision,
-                    decidedByUserUuid,
-                ),
+                    toolName,
+                    decision: 'approved',
+                    source,
+                    userUuid: decidedByUserUuid,
+                }),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
+            listSqlApprovalDecisions: (promptUuid) =>
+                this.aiAgentModel.findSqlApprovalDecisionsForPrompt(promptUuid),
             loadSkill: async (name, loadOptions) => {
                 const builtIn =
                     await this.aiAgentToolsService.loadAgentSkill(name);
@@ -16150,17 +16367,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   agentUuid: data.agentUuid,
               })
             : undefined;
-        const orgDefaultModelConfig =
-            data.modelConfig || agent?.modelConfig
-                ? null
-                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
-                      user.organizationUuid,
-                  );
-        const modelConfig =
-            data.modelConfig ??
-            agent?.modelConfig ??
-            orgDefaultModelConfig ??
-            undefined;
+        const modelConfig = await this.resolvePromptModelConfig({
+            organizationUuid: user.organizationUuid,
+            projectUuid: data.projectUuid,
+            credentialUuid: agent?.providerCredentialUuid ?? null,
+            agentModelConfig: agent?.modelConfig ?? null,
+            requestedModelConfig: data.modelConfig ?? null,
+        });
 
         if (!threadUuid) {
             createdThread = true;
@@ -16298,11 +16511,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent,
         response,
         runtimeTableResults,
+        accessRefusal,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
         agent: AiAgent | undefined;
         response: string;
+        accessRefusal: AiAccessRefusal | null;
         runtimeTableResults: ReadonlyMap<string, SlackTableQueryResults>;
     }): Promise<(Block | KnownBlock)[]> {
         const referencedArtifactsMap =
@@ -16506,6 +16721,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
             ...sqlArtifactBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
+            ...getAiAccessRefusalBlocks(
+                accessRefusal,
+                this.lightdashConfig.siteUrl,
+            ),
             ...feedbackBlocks,
             ...historyBlocks,
         ];
@@ -16550,6 +16769,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        accessRefusalState,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -16559,6 +16779,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             splitMarkdownIntoMessages(
@@ -16587,6 +16808,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ':scroll: This answer was too long to show in Slack.',
                 threadUrl,
             ),
+            ...getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            ),
         ];
         // Notification fallback only; keep it small.
         const notificationText = slackifiedMarkdown.slice(0, 3000);
@@ -16608,6 +16835,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     },
                 ],
             });
+            if (isLast(0)) {
+                accessRefusalState.markDelivered();
+            }
         } catch (error) {
             if (!isSlackMessageTooLongError(error)) throw error;
             await this.slackClient
@@ -16618,6 +16848,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     messageTs: streamTs,
                     chunks: [{ type: 'blocks', blocks: linkFallbackBlocks }],
                 })
+                .then(accessRefusalState.markDelivered)
                 .catch((e) =>
                     Logger.error(
                         'Failed to post Slack answer link fallback',
@@ -16642,6 +16873,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     unfurl_links: false,
                     ...(agentName ? { username: agentName } : {}),
                 });
+                if (isLast(index)) {
+                    accessRefusalState.markDelivered();
+                }
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
                 // eslint-disable-next-line no-await-in-loop
@@ -16655,6 +16889,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to post Slack answer link fallback',
@@ -16674,6 +16909,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse,
         slackifiedMarkdown,
         trailingBlocks,
+        accessRefusalState,
     }: {
         slackPrompt: SlackPrompt;
         threadTs: string;
@@ -16682,6 +16918,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackResponse: string;
         slackifiedMarkdown: string;
         trailingBlocks: (Block | KnownBlock)[];
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
             splitMarkdownIntoMessages(
@@ -16710,6 +16947,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 ':scroll: This answer was too long to show in Slack.',
                 threadUrl,
             ),
+            ...getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            ),
         ];
         // Notification fallback only; keep it small.
         const notificationText = slackifiedMarkdown.slice(0, 3000);
@@ -16731,6 +16974,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     unfurl_links: false,
                     ...(agentName ? { username: agentName } : {}),
                 });
+                if (isLast(index)) {
+                    accessRefusalState.markDelivered();
+                }
                 firstMessageTs = firstMessageTs ?? posted.ts;
             } catch (error) {
                 if (!isSlackMessageTooLongError(error)) throw error;
@@ -16745,6 +16991,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to post Slack answer link fallback',
@@ -16796,21 +17043,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackPrompt: SlackPrompt;
         threadTs: string;
         toolCallId: string;
+        toolName: NativeSqlApprovalToolName;
         sql: string;
         agentName?: string;
     }): Promise<void> {
+        const heading = getSqlApprovalHeading(input.toolName);
         await this.slackClient.postMessage({
             organizationUuid: input.slackPrompt.organizationUuid,
             channel: input.slackPrompt.slackChannelId,
             thread_ts: input.threadTs,
             username: input.agentName,
-            text: 'Awaiting approval to run SQL',
+            text: heading,
             blocks: renderSqlApprovalBlocks(
                 {
                     kind: 'pending',
                     sql: input.sql,
                     toolCallId: input.toolCallId,
                     threadUuid: input.slackPrompt.threadUuid,
+                    heading,
                     native: true,
                 },
                 this.lightdashConfig.siteUrl,
@@ -16885,6 +17135,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent,
         chatHistoryMessages,
         canManageAgent,
+        accessRefusalState,
     }: {
         user: SessionUser;
         slackPrompt: SlackPrompt;
@@ -16892,8 +17143,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         agent: AiAgent | undefined;
         chatHistoryMessages: ModelMessage[];
         canManageAgent: boolean;
+        accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<boolean> {
         const threadTs = slackPrompt.slackThreadTs || slackPrompt.promptSlackTs;
+        const getAccessRefusalBlocks = () =>
+            getAiAccessRefusalBlocks(
+                accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
+                this.lightdashConfig.siteUrl,
+            );
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
 
@@ -17324,6 +17583,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     threadMessages,
                     aiCreditCheck: { isEmbedViewer: false },
                     onSlackStepProgress: appendTaskUpdate,
+                    onSlackAccessRefusal: accessRefusalState.select,
                     onSlackTableResults: (results) => {
                         runtimeTableResults = results;
                     },
@@ -17361,6 +17621,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackPrompt,
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
+                    toolName: pendingApproval.toolName,
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
@@ -17385,12 +17646,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         chunks: [
                             {
                                 type: 'blocks',
-                                blocks: getMarkdownBlocks(
-                                    'No response generated.',
-                                ),
+                                blocks: [
+                                    ...getMarkdownBlocks(
+                                        'No response generated.',
+                                    ),
+                                    ...getAccessRefusalBlocks(),
+                                ],
                             },
                         ],
                     });
+                    accessRefusalState.markDelivered();
                     await persistCardResponseTs();
                 } else {
                     await this.slackClient.postMessage({
@@ -17398,10 +17663,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
                         text: 'No response generated.',
-                        blocks: getMarkdownBlocks('No response generated.'),
+                        blocks: [
+                            ...getMarkdownBlocks('No response generated.'),
+                            ...getAccessRefusalBlocks(),
+                        ],
                         ...(agent?.name ? { username: agent.name } : {}),
                     });
                 }
+                accessRefusalState.markDelivered();
                 return false;
             }
 
@@ -17412,6 +17681,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agent,
                 response,
                 runtimeTableResults,
+                accessRefusal: accessRefusalState.delivered
+                    ? null
+                    : accessRefusalState.selected,
             });
             const blocksFinishedAt = Date.now();
             const visibleResponse = stripSlackVisualizationSelection(response);
@@ -17436,6 +17708,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    accessRefusalState,
                 });
                 await persistCardResponseTs();
             } else {
@@ -17447,6 +17720,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackResponse,
                     slackifiedMarkdown,
                     trailingBlocks: blocks,
+                    accessRefusalState,
                 });
             }
 
@@ -17532,10 +17806,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                             agent?.uuid,
                                         ),
                                     ),
+                                    ...getAccessRefusalBlocks(),
                                 ],
                             },
                         ],
                     })
+                    .then(accessRefusalState.markDelivered)
                     .catch((e) =>
                         Logger.error(
                             'Failed to finalize Slack stream after msg_too_long',
@@ -17578,10 +17854,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     text: `:warning: ${userFacingMessage}`,
                                 },
                             },
+                            ...getAccessRefusalBlocks(),
                         ],
                     },
                 ],
             });
+            accessRefusalState.markDelivered();
             await persistCardResponseTs();
             Logger.error('Failed to generate Slack agent response', error);
             return answerDelivered;
@@ -17594,12 +17872,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     // TODO: user permissions
-    async replyToSlackPrompt(promptUuid: string): Promise<void> {
+    async replyToSlackPrompt(
+        promptUuid: string,
+        slackAppId: string | null = null,
+    ): Promise<void> {
         const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        await this.generateSlackPromptReply(promptUuid, slackPrompt);
+        await agentExecutionContext.run(
+            { surface: AgentActorSurface.SLACK_AGENT, clientId: slackAppId },
+            () => this.generateSlackPromptReply(promptUuid, slackPrompt),
+        );
     }
 
     private async generateSlackPromptReply(
@@ -17607,6 +17891,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
         initialSlackPrompt: SlackPrompt,
     ): Promise<void> {
         const slackPrompt: SlackPrompt = initialSlackPrompt;
+        const accessRefusalState: SlackAiAccessRefusalState = {
+            selected: null,
+            delivered: false,
+            select: (refusal) => {
+                accessRefusalState.selected = selectSlackAiAccessRefusal(
+                    accessRefusalState.selected,
+                    refusal,
+                );
+            },
+            markDelivered: () => {
+                if (accessRefusalState.selected !== null) {
+                    accessRefusalState.delivered = true;
+                }
+            },
+        };
 
         // Resolved inside the try so it's available to the catch when a later
         // step fails; the catch tolerates it being undefined.
@@ -17687,6 +17986,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agent,
                 chatHistoryMessages,
                 canManageAgent,
+                accessRefusalState,
             });
             if (
                 replyDelivered &&
@@ -17727,6 +18027,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             text: `🔴 ${userFacingMessage}`,
                         },
                     },
+                    ...getAiAccessRefusalBlocks(
+                        accessRefusalState.delivered
+                            ? null
+                            : accessRefusalState.selected,
+                        this.lightdashConfig.siteUrl,
+                    ),
                     {
                         type: 'context',
                         elements: [
@@ -17746,6 +18052,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 username: agent?.name,
             });
 
+            accessRefusalState.markDelivered();
             Logger.error('Failed to generate response:', e);
             throw new Error('Failed to generate response');
         }
@@ -17975,6 +18282,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
     // eslint-disable-next-line class-methods-use-this
     public handleViewArtifact(app: App) {
+        app.action('ai_access_connect', async ({ ack }) => {
+            await ack();
+        });
+        app.action('ai_access_settings', async ({ ack }) => {
+            await ack();
+        });
         app.action('view_artifact', async ({ ack }) => {
             await ack();
             // TODO :: track analytics
@@ -18023,7 +18336,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // web approval path (decideSqlApproval) before recording.
                 const approvalContext =
                     await this.aiAgentModel.findSqlApprovalContext(toolCallId);
-                if (!approvalContext?.agentUuid) {
+                if (
+                    !approvalContext?.agentUuid ||
+                    !isSqlApprovalToolCall(
+                        approvalContext.toolName,
+                        approvalContext.toolArgs,
+                    )
+                ) {
                     await respond({
                         text: 'This SQL approval request is no longer available.',
                         replace_original: false,
@@ -18031,12 +18350,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     });
                     return;
                 }
+                const { toolName } = approvalContext;
 
                 if (!context.teamId) {
                     return;
                 }
 
-                let decidedBy: SessionUser;
+                let decisionRecord: StorableSqlApprovalDecisionRecord;
                 try {
                     const organizationUuid =
                         await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
@@ -18052,7 +18372,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             'Slack account is not linked to a user',
                         );
                     }
-                    decidedBy =
+                    const decidedBy =
                         await this.userModel.findSessionUserAndOrgByUuid(
                             identity.userUuid,
                             organizationUuid,
@@ -18066,24 +18386,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             `Agent not found: ${approvalContext.agentUuid}`,
                         );
                     }
-                    if (
-                        this.createAuditedAbility(decidedBy).cannot(
-                            'manage',
-                            subject('SqlRunner', {
-                                organizationUuid,
-                                projectUuid: agent.projectUuid,
-                                metadata: {
-                                    agentUuid: approvalContext.agentUuid,
-                                    threadUuid,
-                                    toolCallId,
-                                },
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            'You need the SqlRunner permission to approve SQL execution',
-                        );
-                    }
+                    this.assertCanApproveSql(decidedBy, {
+                        toolName,
+                        organizationUuid,
+                        projectUuid: agent.projectUuid,
+                        metadata: {
+                            agentUuid: approvalContext.agentUuid,
+                            threadUuid,
+                            toolCallId,
+                        },
+                    });
+                    decisionRecord = {
+                        organizationUuid,
+                        projectUuid: agent.projectUuid,
+                        agentUuid: approvalContext.agentUuid,
+                        threadUuid,
+                        toolCallId,
+                        toolName,
+                        decision: rawDecision,
+                        source: 'slack',
+                        userUuid: decidedBy.userUuid,
+                    };
                 } catch (error) {
                     Logger.warn(
                         `Slack SQL approval denied for Slack user ${
@@ -18106,11 +18429,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     );
                 }
 
-                const recorded = await this.aiAgentModel.recordSqlApproval(
-                    toolCallId,
-                    decision,
-                    decidedBy.userUuid,
-                );
+                const recorded =
+                    await this.recordSqlApprovalDecision(decisionRecord);
 
                 // Resume the suspended run once, on the first recorded decision.
                 // The reply job rebuilds history with the approval response, so
@@ -18118,6 +18438,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (isNative && recorded) {
                     await this.resumeSlackSqlApproval(
                         approvalContext.promptUuid,
+                        body.api_app_id ?? null,
                     );
                 }
 
@@ -19318,12 +19639,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         userUuid,
         channelId,
         threadTs,
+        slackAppId,
     }: {
         agentConfig: AiAgent;
         slackPromptUuid: string;
         userUuid: string;
         channelId: string;
         threadTs: string;
+        slackAppId: string | null;
     }): Promise<void> {
         // Best-effort: a failed status call shouldn't block scheduling.
         void this.slackClient
@@ -19340,6 +19663,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         await this.schedulerClient.slackAiPrompt({
             slackPromptUuid,
+            slackAppId,
             userUuid,
             projectUuid: agentConfig.projectUuid,
             organizationUuid: agentConfig.organizationUuid,
@@ -19508,6 +19832,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,
@@ -19634,6 +19959,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     private async createSlackPromptFromAction(args: {
+        slackAppId: string | null;
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -19661,6 +19987,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: args.slackAppId,
             agentConfig: args.agentConfig,
             slackPromptUuid,
             userUuid: args.userUuid,
@@ -19856,6 +20183,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // A meta-query is not forwarded to the agent, but the choice
                 // still binds the thread so the next turn keeps this agent.
                 await this.createSlackPromptFromAction({
+                    slackAppId: slackSettings.appId ?? null,
                     channelId,
                     threadTs,
                     agentConfig,
@@ -20134,6 +20462,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
 
                     await this.schedulerClient.slackAiPrompt({
+                        slackAppId: slackSettings.appId ?? null,
                         slackPromptUuid,
                         userUuid,
                         projectUuid,
@@ -20428,6 +20757,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }
 
                     await this.createSlackPromptFromAction({
+                        slackAppId: slackSettings.appId ?? null,
                         channelId,
                         threadTs,
                         agentConfig,
@@ -20818,6 +21148,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig,
             slackPromptUuid,
             userUuid,
@@ -21108,6 +21439,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,

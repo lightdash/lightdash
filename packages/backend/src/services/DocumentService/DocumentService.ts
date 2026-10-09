@@ -8,10 +8,14 @@ import {
     DOCUMENT_SCHEMA_VERSION,
     FeatureFlags,
     ForbiddenError,
+    formatDocumentTag,
     getContentAsCodePathFromLtreePath,
     getDataAppVizChartConfigErrors,
+    getDocumentSavedChartLinks,
     getLtreePathFromContentAsCodePath,
+    getSavedChartTagName,
     mapDocumentCharts,
+    mapDocumentSavedChartLinks,
     matchDocumentChartKeys,
     NotFoundError,
     ParameterError,
@@ -27,8 +31,10 @@ import {
     type DocumentAsCodeList,
     type DocumentChartContent,
     type DocumentContent,
+    type DocumentLinkingChart,
     type DocumentList,
     type DocumentQueryReference,
+    type DocumentSavedChartKind,
     type DocumentSummary,
     type DocumentVersionList,
     type DuplicateDocumentRequest,
@@ -55,6 +61,7 @@ import type { ContentVerificationModel } from '../../models/ContentVerificationM
 import type {
     DocumentContentUpdate,
     DocumentModel,
+    SavedChartForLink,
 } from '../../models/DocumentModel';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -64,6 +71,12 @@ import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
+import {
+    getContentConnectionName,
+    listContentConnections,
+    resolveContentConnection,
+    type ContentConnectionModels,
+} from '../CoderService/handlers/contentConnections';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import type {
@@ -128,6 +141,7 @@ type DocumentServiceArguments = {
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     projectService: ProjectService;
+    warehouseConnectionModel: ContentConnectionModels['warehouseConnectionModel'];
 };
 
 const MAX_CONCURRENT_CHART_VALIDATIONS = 4;
@@ -315,6 +329,14 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         input: CreateDocumentRequest,
         change: DocumentChangeContext = API_CHANGE,
+        {
+            uniqueSlug,
+            copiedFrom,
+        }: {
+            uniqueSlug?: boolean;
+            /** The Document being duplicated: its SQL charts count as unchanged. */
+            copiedFrom?: DocumentContent;
+        } = {},
     ): Promise<Document> {
         const project = await this.assertProjectAccess(account, projectUuid);
         const context =
@@ -358,13 +380,26 @@ export class DocumentService extends BaseService {
                 `Document writes require schema version ${DOCUMENT_SCHEMA_VERSION}`,
             );
         }
-        const content = await this.resolveCustomCharts(
+        const content = await this.resolveSavedChartLinks(
+            account,
             projectUuid,
-            parseDocumentContent(input.schemaVersion, input.content),
+            await this.resolveSqlConnections(
+                projectUuid,
+                await this.resolveCustomCharts(
+                    projectUuid,
+                    parseDocumentContent(input.schemaVersion, input.content),
+                ),
+            ),
+            copiedFrom,
         );
-        await this.validateCharts(account, projectUuid, content);
+        await this.validateCharts(account, projectUuid, content, undefined, {
+            copiedSqlCharts:
+                copiedFrom &&
+                mapDocumentCharts(copiedFrom, DocumentService.toStoredChart),
+        });
         const created = await this.dependencies.documentModel.create({
             ...input,
+            uniqueSlug,
             spaceUuid: input.spaceUuid ?? null,
             content,
             projectUuid,
@@ -408,6 +443,7 @@ export class DocumentService extends BaseService {
                 content: source.version.content,
             },
             { source: 'duplicate' },
+            { copiedFrom: source.version.content },
         );
     }
 
@@ -505,11 +541,23 @@ export class DocumentService extends BaseService {
         // Reads add portable slugs; compare against the stored form.
         const previous = mapDocumentCharts(
             document.version.content,
-            DocumentService.withoutDataAppVizSlug,
+            DocumentService.toStoredChart,
         );
-        const content = await this.resolveCustomCharts(
+        const content = await this.resolveSavedChartLinks(
+            account,
             projectUuid,
-            parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
+            await this.resolveSqlConnections(
+                projectUuid,
+                await this.resolveCustomCharts(
+                    projectUuid,
+                    parseDocumentContent(
+                        DOCUMENT_SCHEMA_VERSION,
+                        input.content,
+                        { previous },
+                    ),
+                    previous,
+                ),
+            ),
             previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
@@ -549,11 +597,16 @@ export class DocumentService extends BaseService {
         return {
             chartCount: charts.length,
             customChartCount: charts.filter(
-                ({ chart }) =>
-                    chart.chartConfig.type === ChartType.DATA_APP_VIZ,
+                (chartContent) =>
+                    chartContent.source !== 'sql' &&
+                    chartContent.chart.chartConfig.type ===
+                        ChartType.DATA_APP_VIZ,
             ).length,
             mergeChartCount: charts.filter(({ source }) => source === 'merge')
                 .length,
+            sqlChartCount: charts.filter(({ source }) => source === 'sql')
+                .length,
+            savedChartLinkCount: getDocumentSavedChartLinks(content).length,
             markdownLength: content.markdown.length,
         };
     }
@@ -769,7 +822,14 @@ export class DocumentService extends BaseService {
         },
         {
             tx,
-        }: { tx?: Knex; checkForAccess?: boolean; trackEvent?: boolean } = {},
+            trackEvent = true,
+            change = API_CHANGE,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+            change?: DocumentChangeContext;
+        } = {},
     ): Promise<void> {
         if (!targetSpaceUuid) {
             throw new ParameterError('Documents must belong to a Space');
@@ -816,6 +876,9 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        if (trackEvent) {
+            this.trackMoved(account, document, targetSpaceUuid, change);
+        }
     }
 
     /**
@@ -870,6 +933,28 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        this.trackMoved(account, document, targetSpaceUuid, API_CHANGE);
+    }
+
+    private trackMoved(
+        account: RegisteredAccount,
+        document: Document,
+        targetSpaceUuid: string,
+        change: DocumentChangeContext,
+    ): void {
+        this.dependencies.analytics.track({
+            event: 'document.moved',
+            userId: account.user.userUuid,
+            properties: {
+                organizationId: document.organizationUuid,
+                projectId: document.projectUuid,
+                documentId: document.documentUuid,
+                sourceSpaceId: document.spaceUuid,
+                targetSpaceId: targetSpaceUuid,
+                source: change.source,
+                ...DocumentService.getAiProperties(change),
+            },
+        });
     }
 
     private static validateMetadata(
@@ -914,8 +999,9 @@ export class DocumentService extends BaseService {
                     [string, DocumentChartContent]
                 > => {
                     if (
+                        chartContent.source === 'sql' ||
                         chartContent.chart.chartConfig.type !==
-                        ChartType.DATA_APP_VIZ
+                            ChartType.DATA_APP_VIZ
                     ) {
                         return [id, chartContent];
                     }
@@ -975,11 +1061,304 @@ export class DocumentService extends BaseService {
         return { ...content, charts: Object.fromEntries(charts) };
     }
 
+    /**
+     * Resolve each link to a saved chart to its uuid. Links new in this write
+     * must point at a chart of this project, outside a dashboard, that the
+     * author can view; links already in `previous` are kept as they are, even
+     * when their chart has been deleted since.
+     */
+    private async resolveSavedChartLinks(
+        account: RegisteredAccount,
+        projectUuid: string,
+        content: DocumentContent,
+        previous?: DocumentContent,
+    ): Promise<DocumentContent> {
+        const links = getDocumentSavedChartLinks(content);
+        if (links.length === 0) {
+            return content;
+        }
+        const previousLinks = new Set(
+            previous
+                ? getDocumentSavedChartLinks(previous).map(
+                      (link) => `${link.kind}:${link.attributes.uuid}`,
+                  )
+                : [],
+        );
+        const findCharts = (kind: DocumentSavedChartKind) => {
+            const ofKind = links.filter((link) => link.kind === kind);
+            return this.dependencies.documentModel.findSavedChartsForLinks(
+                projectUuid,
+                kind,
+                {
+                    uuids: ofKind.flatMap(({ attributes }) =>
+                        attributes.uuid ? [attributes.uuid] : [],
+                    ),
+                    slugs: ofKind.flatMap(({ attributes }) =>
+                        attributes.slug ? [attributes.slug] : [],
+                    ),
+                },
+            );
+        };
+        const charts = (
+            await Promise.all([findCharts('chart'), findCharts('sqlChart')])
+        ).flat();
+        const findChart = ({
+            kind,
+            attributes,
+        }: (typeof links)[number]): SavedChartForLink | undefined =>
+            charts.find(
+                (chart) =>
+                    chart.kind === kind &&
+                    (attributes.uuid
+                        ? chart.uuid === attributes.uuid
+                        : chart.slugs.includes(attributes.slug)),
+            );
+        const wasLinked = (link: (typeof links)[number], uuid?: string) =>
+            uuid !== undefined && previousLinks.has(`${link.kind}:${uuid}`);
+        const newCharts = links.flatMap((link) => {
+            const chart = findChart(link);
+            // A chart deleted since it was linked keeps its tag, so the Document stays editable
+            if (wasLinked(link, link.attributes.uuid ?? chart?.uuid)) {
+                return [];
+            }
+            const tag = formatDocumentTag({
+                name: getSavedChartTagName(link.kind),
+                attributes: link.attributes,
+            });
+            if (!chart || chart.isDeleted) {
+                throw new ParameterError(
+                    `${tag} doesn't match a chart in this project`,
+                );
+            }
+            if (chart.dashboardUuid !== null || chart.spaceUuid === null) {
+                throw new ParameterError(
+                    `${tag} is a chart saved in a dashboard, which can't be linked`,
+                );
+            }
+            return [{ ...chart, spaceUuid: chart.spaceUuid, tag }];
+        });
+        await this.assertCanViewLinkedCharts(account, newCharts);
+        return mapDocumentSavedChartLinks(content, (link) => {
+            const { slug, uuid, ...attributes } = link.attributes;
+            return { uuid: findChart(link)?.uuid ?? uuid, ...attributes };
+        });
+    }
+
+    private async assertCanViewLinkedCharts(
+        account: RegisteredAccount,
+        charts: Array<SavedChartForLink & { spaceUuid: string; tag: string }>,
+    ): Promise<void> {
+        if (charts.length === 0) {
+            return;
+        }
+        const results =
+            await this.dependencies.spacePermissionService.resolveAccessBatch(
+                account.user.userUuid,
+                charts.map(
+                    (chart): AccessTarget =>
+                        chart.kind === 'chart'
+                            ? {
+                                  type: 'chart',
+                                  chartUuid: chart.uuid,
+                                  dashboardUuid: null,
+                                  spaceUuid: chart.spaceUuid,
+                              }
+                            : {
+                                  type: 'sqlChart',
+                                  savedSqlUuid: chart.uuid,
+                                  spaceUuid: chart.spaceUuid,
+                              },
+                ),
+            );
+        const ability = this.createAuditedAbility(account);
+        const denied = charts.find(
+            (chart, index) =>
+                !results[index]?.context ||
+                ability.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...results[index].context,
+                        metadata:
+                            chart.kind === 'chart'
+                                ? { savedChartUuid: chart.uuid }
+                                : { savedSqlUuid: chart.uuid },
+                    }),
+                ),
+        );
+        if (denied) {
+            throw new ForbiddenError(
+                `You don't have access to the chart in ${denied.tag}`,
+            );
+        }
+    }
+
+    /** As code, links name their chart by slug; a chart deleted since keeps its uuid. */
+    private async withSavedChartSlugs(
+        projectUuid: string,
+        content: DocumentContent,
+    ): Promise<DocumentContent> {
+        const links = getDocumentSavedChartLinks(content);
+        if (links.length === 0) {
+            return content;
+        }
+        const uuidsOf = (kind: DocumentSavedChartKind) =>
+            links.flatMap((link) =>
+                link.kind === kind && link.attributes.uuid
+                    ? [link.attributes.uuid]
+                    : [],
+            );
+        const charts = (
+            await Promise.all(
+                (['chart', 'sqlChart'] as const).map((kind) =>
+                    this.dependencies.documentModel.findSavedChartsForLinks(
+                        projectUuid,
+                        kind,
+                        { uuids: uuidsOf(kind), slugs: [] },
+                    ),
+                ),
+            )
+        ).flat();
+        return mapDocumentSavedChartLinks(content, (link) => {
+            const chart = charts.find(
+                (candidate) =>
+                    candidate.kind === link.kind &&
+                    candidate.uuid === link.attributes.uuid,
+            );
+            const slug = chart?.slugs[chart.slugs.length - 1];
+            if (slug === undefined) {
+                return link.attributes;
+            }
+            const { uuid, ...attributes } = link.attributes;
+            return { slug, ...attributes };
+        });
+    }
+
+    /**
+     * SQL charts are stored with their connection's uuid. A connection name,
+     * as in content as code, wins over a uuid.
+     */
+    private async resolveSqlConnections(
+        projectUuid: string,
+        content: DocumentContent,
+    ): Promise<DocumentContent> {
+        const hasConnection = Object.values(content.charts).some(
+            (chartContent) =>
+                chartContent.source === 'sql' &&
+                (chartContent.chart.connection !== undefined ||
+                    chartContent.chart.warehouseConnectionUuid !== undefined),
+        );
+        if (!hasConnection) {
+            return content;
+        }
+        const connections = await listContentConnections(
+            this.dependencies,
+            projectUuid,
+        );
+        return mapDocumentCharts(content, (chartContent) => {
+            if (chartContent.source !== 'sql') {
+                return chartContent;
+            }
+            const { connection, warehouseConnectionUuid, ...chart } =
+                chartContent.chart;
+            const uuid =
+                connection === undefined
+                    ? (warehouseConnectionUuid ?? null)
+                    : resolveContentConnection(connections, connection);
+            if (uuid !== null && connection === undefined) {
+                // Throws when the uuid is not a connection of this project
+                getContentConnectionName(connections, uuid);
+            }
+            return {
+                source: 'sql',
+                chart:
+                    uuid === null
+                        ? chart
+                        : { ...chart, warehouseConnectionUuid: uuid },
+            };
+        });
+    }
+
+    /** Add each SQL chart's connection name; as code, the uuid is dropped. */
+    private async withSqlConnectionNames(
+        projectUuid: string,
+        content: DocumentContent,
+        { portable = false }: { portable?: boolean } = {},
+    ): Promise<DocumentContent> {
+        const hasConnection = Object.values(content.charts).some(
+            (chartContent) =>
+                chartContent.source === 'sql' &&
+                chartContent.chart.warehouseConnectionUuid !== undefined,
+        );
+        if (!hasConnection) {
+            return content;
+        }
+        const connections = await listContentConnections(
+            this.dependencies,
+            projectUuid,
+        );
+        return mapDocumentCharts(content, (chartContent) => {
+            if (
+                chartContent.source !== 'sql' ||
+                chartContent.chart.warehouseConnectionUuid === undefined
+            ) {
+                return chartContent;
+            }
+            const { warehouseConnectionUuid, ...chart } = chartContent.chart;
+            const connection = connections.find(
+                (candidate) =>
+                    candidate.warehouseConnectionUuid ===
+                    warehouseConnectionUuid,
+            );
+            // A deleted connection keeps its uuid so the content still round-trips
+            if (!connection) {
+                return chartContent;
+            }
+            return {
+                source: 'sql',
+                chart: portable
+                    ? { ...chart, connection: connection.name }
+                    : {
+                          ...chart,
+                          connection: connection.name,
+                          warehouseConnectionUuid,
+                      },
+            };
+        });
+    }
+
+    /** Content as stored: references by uuid, without the names reads add. */
+    private static toStoredChart(
+        content: DocumentChartContent,
+    ): DocumentChartContent {
+        if (
+            content.source === 'sql' &&
+            content.chart.warehouseConnectionUuid !== undefined
+        ) {
+            const { connection, ...chart } = content.chart;
+            return { source: 'sql', chart };
+        }
+        return DocumentService.withoutDataAppVizSlug(content);
+    }
+
+    /** Content as read: references carry their portable names. */
+    private async withReadableNames(
+        projectUuid: string,
+        content: DocumentContent,
+        { portable = false }: { portable?: boolean } = {},
+    ): Promise<DocumentContent> {
+        return this.withSqlConnectionNames(
+            projectUuid,
+            await this.withDataAppVizSlugs(projectUuid, content, { portable }),
+            { portable },
+        );
+    }
+
     /** The stored form of a chart: bindings are kept by uuid only. */
     private static withoutDataAppVizSlug(
         content: DocumentChartContent,
     ): DocumentChartContent {
         if (
+            content.source === 'sql' ||
             content.chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             content.chart.chartConfig.config?.dataAppVizUuid === undefined ||
             content.chart.chartConfig.config.dataAppVizSlug === undefined
@@ -1006,10 +1385,11 @@ export class DocumentService extends BaseService {
         content: DocumentContent,
         { portable = false }: { portable?: boolean } = {},
     ): Promise<DocumentContent> {
-        const uuids = Object.values(content.charts).flatMap(({ chart }) =>
-            chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
-            chart.chartConfig.config?.dataAppVizUuid
-                ? [chart.chartConfig.config.dataAppVizUuid]
+        const uuids = Object.values(content.charts).flatMap((chartContent) =>
+            chartContent.source !== 'sql' &&
+            chartContent.chart.chartConfig.type === ChartType.DATA_APP_VIZ &&
+            chartContent.chart.chartConfig.config?.dataAppVizUuid
+                ? [chartContent.chart.chartConfig.config.dataAppVizUuid]
                 : [],
         );
         if (uuids.length === 0) {
@@ -1022,6 +1402,9 @@ export class DocumentService extends BaseService {
         );
         const slugByUuid = new Map(rows.map((row) => [row.app_id, row.slug]));
         return mapDocumentCharts(content, (chartContent) => {
+            if (chartContent.source === 'sql') {
+                return chartContent;
+            }
             const { chart } = chartContent;
             if (
                 chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
@@ -1052,8 +1435,10 @@ export class DocumentService extends BaseService {
         projectUuid: string,
         content: DocumentContent,
         previous?: DocumentContent,
+        { copiedSqlCharts }: { copiedSqlCharts?: DocumentContent } = {},
     ): Promise<void> {
-        parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content);
+        parseDocumentContent(DOCUMENT_SCHEMA_VERSION, content, { previous });
+        const copiedCharts = Object.values(copiedSqlCharts?.charts ?? {});
         const limit = pLimit(MAX_CONCURRENT_CHART_VALIDATIONS);
         const previousCharts = Object.values(previous?.charts ?? {});
         // Compile only changed charts: narrative edits must not require chart authoring capabilities.
@@ -1065,6 +1450,16 @@ export class DocumentService extends BaseService {
                             isEqual(previousChart, chartContent),
                         )
                     ) {
+                        return;
+                    }
+                    if (chartContent.source === 'sql') {
+                        if (
+                            !copiedCharts.some((copied) =>
+                                isEqual(copied, chartContent),
+                            )
+                        ) {
+                            await this.assertCanAuthorSql(account, projectUuid);
+                        }
                         return;
                     }
                     const { chart } = chartContent;
@@ -1125,6 +1520,24 @@ export class DocumentService extends BaseService {
                 }),
             ),
         );
+    }
+
+    private async assertCanAuthorSql(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.dependencies.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('SqlRunner', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need SQL Runner access to add or change SQL charts',
+            );
+        }
     }
 
     private async validateQuery({
@@ -1224,6 +1637,32 @@ export class DocumentService extends BaseService {
             items: items.slice(0, limit),
             nextOffset: items.length > limit ? offset + limit : null,
         };
+    }
+
+    /** The Documents you can view whose current version links this saved chart. */
+    async listDocumentsLinkingChart(
+        account: RegisteredAccount,
+        projectUuid: string,
+        kind: DocumentSavedChartKind,
+        chartUuid: string,
+    ): Promise<DocumentLinkingChart[]> {
+        await this.assertProjectAccess(account, projectUuid);
+        const documents =
+            await this.dependencies.documentModel.findDocumentsLinkingChart(
+                projectUuid,
+                kind,
+                chartUuid,
+            );
+        const viewable = new Set(
+            await this.filterViewableUuids(
+                account,
+                [projectUuid],
+                documents.map(({ documentUuid }) => documentUuid),
+            ),
+        );
+        return documents.filter(({ documentUuid }) =>
+            viewable.has(documentUuid),
+        );
     }
 
     async filterViewableUuids(
@@ -1417,7 +1856,7 @@ export class DocumentService extends BaseService {
             ...document,
             version: {
                 ...historical.version,
-                content: await this.withDataAppVizSlugs(
+                content: await this.withReadableNames(
                     projectUuid,
                     historical.version.content,
                 ),
@@ -1469,8 +1908,22 @@ export class DocumentService extends BaseService {
     async listAsCode(
         account: RegisteredAccount,
         projectUuid: UUID,
-        { slugs, offset = 0 }: { slugs?: string[]; offset?: number } = {},
+        {
+            slugs,
+            offset = 0,
+            schemaVersion = DOCUMENT_SCHEMA_VERSION,
+        }: {
+            slugs?: string[];
+            offset?: number;
+            /** The newest Document schema version the client reads. */
+            schemaVersion?: number;
+        } = {},
     ): Promise<DocumentAsCodeList> {
+        if (schemaVersion < DOCUMENT_SCHEMA_VERSION) {
+            throw new ParameterError(
+                `Documents use schema version ${DOCUMENT_SCHEMA_VERSION}, which this client doesn't support. Upgrade the CLI to download them.`,
+            );
+        }
         await this.assertContentAsCodeAccess(account, projectUuid, 'view');
         const limit = pLimit(MAX_CONCURRENT_AS_CODE_READS);
         if (slugs !== undefined && slugs.length > 0) {
@@ -1536,17 +1989,19 @@ export class DocumentService extends BaseService {
         slug: string,
         input: unknown,
     ): Promise<ContentAsCodeUpsertAction> {
-        const desired = parseDocumentAsCode(input);
+        await this.assertContentAsCodeAccess(account, projectUuid, 'create');
+        const existing = await this.findBySlug(account, projectUuid, slug);
+        const desired = parseDocumentAsCode(input, {
+            previous: existing?.version.content,
+        });
         if (desired.slug !== slug) {
             throw new ParameterError('Document path and body slugs must match');
         }
         DocumentService.validateMetadata(desired);
-        await this.assertContentAsCodeAccess(account, projectUuid, 'create');
         const space = await this.findSpaceByAsCodeSlug(
             projectUuid,
             desired.spaceSlug,
         );
-        const existing = await this.findBySlug(account, projectUuid, slug);
         if (existing === undefined) {
             await this.create(account, projectUuid, {
                 name: desired.name,
@@ -1573,7 +2028,8 @@ export class DocumentService extends BaseService {
         }
         if (
             current.markdown !== matched.markdown ||
-            !isEqual(current.charts, matched.charts)
+            !isEqual(current.charts, matched.charts) ||
+            !isEqual(current.unsupportedCharts, matched.unsupportedCharts)
         ) {
             await this.updateContent(
                 account,
@@ -1584,6 +2040,7 @@ export class DocumentService extends BaseService {
                     content: {
                         markdown: desired.markdown,
                         charts: desired.charts,
+                        unsupportedCharts: desired.unsupportedCharts,
                     },
                 },
             );
@@ -1714,10 +2171,13 @@ export class DocumentService extends BaseService {
             description: document.description,
             spaceSlug: getContentAsCodePathFromLtreePath(space.path),
             schemaVersion: document.version.schemaVersion,
-            ...(await this.withDataAppVizSlugs(
+            ...(await this.withSavedChartSlugs(
                 document.projectUuid,
-                document.version.content,
-                { portable: true },
+                await this.withReadableNames(
+                    document.projectUuid,
+                    document.version.content,
+                    { portable: true },
+                ),
             )),
         };
     }
@@ -1760,7 +2220,7 @@ export class DocumentService extends BaseService {
             ...document,
             version: {
                 ...document.version,
-                content: await this.withDataAppVizSlugs(
+                content: await this.withReadableNames(
                     document.projectUuid,
                     document.version.content,
                 ),

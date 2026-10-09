@@ -4,6 +4,8 @@ import {
     mcpCreateContentArgsSchema,
     mcpCreateContentToolDefinition,
     toolCreateContentArgsSchema,
+    toolSqlChartAsCodeSchema,
+    type SqlChartAsCode,
     type ToolCreateContentOutput,
     type ToolCreateContentStructuredContent,
 } from '@lightdash/common';
@@ -12,15 +14,23 @@ import type { CreateContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import type {
-    ExecuteStructuredToolResult,
-    ExecuteToolErrorResult,
+import {
+    toolFailure,
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import {
+    approveClientSql,
+    SqlNotApprovedError,
+    type ApproveSqlFn,
+} from './sqlApprovals';
+import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     createContent: CreateContentFn;
+    sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
 };
@@ -55,7 +65,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart' | 'document';
+    type: ToolCreateContentStructuredContent['type'];
     warnings: string[];
 }) => {
     const warningText =
@@ -86,62 +96,105 @@ const toCreatedContent = (
 
 export const getCreateContent = ({
     createContent,
+    sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     artifacts,
-}: Dependencies) =>
-    tool({
+}: Dependencies) => {
+    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'createContent');
+
+    const getCreateArgs = async (
+        args: { type: string; content: unknown },
+        approveSql: ApproveSqlFn,
+    ): Promise<Parameters<CreateContentFn>[0]> => {
+        switch (args.type) {
+            case 'document':
+                return {
+                    type: 'document',
+                    content: await resolveDocumentContent(
+                        args.content,
+                        artifacts,
+                    ),
+                };
+            case 'sql_chart':
+                return {
+                    type: 'sql_chart',
+                    content: toolSqlChartAsCodeSchema.parse(
+                        args.content,
+                    ) as SqlChartAsCode,
+                    approveSql,
+                };
+            default:
+                return args as Parameters<CreateContentFn>[0];
+        }
+    };
+
+    return tool({
         ...(documentsEnabled
             ? mcpCreateContentToolDefinition.for('agent')
             : toolDefinition),
-        execute: async (args): Promise<ExecuteCreateContentResult> => {
+        needsApproval: sqlChartGate.needsApproval,
+        execute: (
+            args,
+            { toolCallId },
+        ): Promise<ExecuteCreateContentResult> => {
             const { type, content } = args;
-            try {
-                (documentsEnabled
-                    ? mcpCreateContentArgsSchema
-                    : toolCreateContentArgsSchema
-                ).parse(args);
-                const result = await createContent({
-                    type,
-                    content:
-                        type === 'document'
-                            ? await resolveDocumentContent(content, artifacts)
-                            : content,
-                } as Parameters<CreateContentFn>[0]);
-                const created = toCreatedContent(
-                    result,
-                    getContentWarnings(result),
-                );
-                const metadata = {
-                    status: 'success' as const,
-                    slug: created.slug,
-                    name: created.name,
-                    uuid: created.uuid,
-                    href: created.href,
-                    warnings: created.warnings,
-                    ...(created.type === 'document'
-                        ? { versionUuid: created.versionUuid }
-                        : {}),
-                };
 
-                return {
-                    result: contentResult({
-                        content:
-                            result.type === 'document'
-                                ? result
-                                : created.content,
+            const run = async (
+                approveSql: ApproveSqlFn | null,
+            ): Promise<ExecuteCreateContentResult> => {
+                try {
+                    (documentsEnabled
+                        ? mcpCreateContentArgsSchema
+                        : toolCreateContentArgsSchema
+                    ).parse(args);
+                    const result = await createContent(
+                        await getCreateArgs(
+                            args,
+                            approveSql ?? approveClientSql,
+                        ),
+                    );
+                    const created = toCreatedContent(
+                        result,
+                        getContentWarnings(result),
+                    );
+                    const metadata = {
+                        status: 'success' as const,
+                        slug: created.slug,
+                        name: created.name,
+                        uuid: created.uuid,
                         href: created.href,
-                        type: created.type,
                         warnings: created.warnings,
-                    }),
-                    metadata,
-                    structuredContent: created,
-                };
-            } catch (error) {
-                return toolErrorOutput(
-                    error,
-                    `Error creating ${type} "${content.slug}". Content was not created.`,
-                );
-            }
+                        ...(created.type === 'document'
+                            ? { versionUuid: created.versionUuid }
+                            : {}),
+                    };
+
+                    return {
+                        result: contentResult({
+                            content:
+                                result.type === 'document'
+                                    ? result
+                                    : created.content,
+                            href: created.href,
+                            type: created.type,
+                            warnings: created.warnings,
+                        }),
+                        metadata,
+                        structuredContent: created,
+                    };
+                } catch (error) {
+                    if (error instanceof SqlNotApprovedError) {
+                        return toolFailure(error.message);
+                    }
+                    return toolErrorOutput(
+                        error,
+                        `Error creating ${type} "${content.slug}". Content was not created.`,
+                    );
+                }
+            };
+
+            return sqlChartGate.run({ toolCallId, args }, run);
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

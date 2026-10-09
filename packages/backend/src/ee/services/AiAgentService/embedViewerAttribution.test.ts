@@ -79,6 +79,9 @@ const buildService = () => {
             get: vi.fn(async () => ({ id: 'ai-copilot', enabled: true })),
         },
         groupsModel: { findUserInGroups: vi.fn(async () => []) },
+        aiOrganizationSettingsService: {
+            getDefaultModelConfig: vi.fn(async () => null),
+        },
         lightdashConfig: { ai: { copilot: {} } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
 

@@ -14,11 +14,11 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
-import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
     const projectUuid = useProjectUuid();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return (
         <AiAgentPageLayout isEmbed={isEmbed}>

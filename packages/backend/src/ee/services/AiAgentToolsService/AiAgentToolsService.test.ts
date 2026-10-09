@@ -1,3 +1,4 @@
+import { Ability } from '@casl/ability';
 import {
     Account,
     CatalogType,
@@ -9,9 +10,11 @@ import {
     ForbiddenError,
     JobStatusType,
     NotFoundError,
+    PossibleAbilities,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     SourceQuery,
@@ -24,6 +27,7 @@ import {
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -100,6 +104,7 @@ const makeService = ({
     },
     dashboardService = {},
     savedChartService = {},
+    savedSqlService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
@@ -107,6 +112,10 @@ const makeService = ({
     jobModel = { get: vi.fn() },
     aiAgentDocumentModel = {},
     aiDeepResearchRunModel = {},
+    aiAgentModel = {
+        findToolResultsByToolCallIds: vi.fn().mockResolvedValue([]),
+    },
+    documentService = {},
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
@@ -130,6 +139,7 @@ const makeService = ({
     spaceModel?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
+    savedSqlService?: Record<string, unknown> | SavedSqlService;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?: Record<string, unknown>;
@@ -137,6 +147,8 @@ const makeService = ({
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
     aiDeepResearchRunModel?: Record<string, unknown>;
+    aiAgentModel?: Record<string, unknown>;
+    documentService?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
@@ -206,12 +218,15 @@ const makeService = ({
         spaceModel,
         dashboardService,
         savedChartService,
+        savedSqlService,
         coderService,
         contentService,
         aiAgentContentValidation,
         projectContextModel: {},
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
+        aiAgentModel,
+        documentService,
         featureFlagService,
         previewDeploySetupService: {},
         shareService: {},
@@ -239,6 +254,8 @@ function makeRuntimeContext(
         organizationUuid,
         projectUuid,
         source: 'ai_agent',
+        querySurface:
+            overrides.source === 'mcp' ? QuerySurface.MCP : QuerySurface.SLACK,
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
@@ -258,6 +275,7 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             QueryExecutionContext.AI,
+            QuerySurface.SLACK,
         );
         await service
             .createRuntime(
@@ -272,8 +290,86 @@ describe('AiAgentToolsService', () => {
             user,
             projectUuid,
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            QuerySurface.MCP,
         );
     });
+
+    it.each([QuerySurface.SLACK, QuerySurface.API])(
+        'forwards %s for SQL, metric and field queries',
+        async (querySurface) => {
+            const executeAsyncSqlQuery = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'sql' });
+            const executeMetricQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'metric', rows: [] });
+            const searchFieldUniqueValues = vi
+                .fn()
+                .mockResolvedValue({ results: ['paid'] });
+            const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
+                searchFieldUniqueValues,
+                asyncQueryService: {
+                    executeAsyncSqlQuery,
+                    executeMetricQueryAndGetResults,
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                    }),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ querySurface }),
+            );
+            await runtime.runSqlJob({ sql: 'select 1', limit: 10 });
+            await runtime.runAsyncQuery({
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customMetrics: null,
+            });
+            await runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'paid',
+            });
+            expect(executeAsyncSqlQuery).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+            );
+            expect(
+                executeMetricQueryAndGetResults,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+                expect.anything(),
+            );
+            expect(searchFieldUniqueValues).toHaveBeenCalledExactlyOnceWith(
+                user,
+                projectUuid,
+                'orders',
+                'orders_status',
+                'paid',
+                100,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                QueryExecutionContext.AI,
+                querySurface,
+            );
+        },
+    );
 
     const makeProjectSpace = (uuid: string, path: string, name: string) => ({
         uuid,
@@ -784,6 +880,7 @@ describe('AiAgentToolsService', () => {
                 'orders',
                 'jaffle',
                 'analytics',
+                QuerySurface.SLACK,
             );
         });
 
@@ -824,6 +921,7 @@ describe('AiAgentToolsService', () => {
                     'orders',
                     'jaffle',
                     'postgres3',
+                    QuerySurface.SLACK,
                 );
             },
         );
@@ -856,6 +954,7 @@ describe('AiAgentToolsService', () => {
                 'orders',
                 'analytics',
                 'main',
+                QuerySurface.SLACK,
             );
         });
     });
@@ -1009,6 +1108,7 @@ describe('AiAgentToolsService', () => {
                     findReportSummariesByThreadScoped: vi
                         .fn()
                         .mockResolvedValue([run]),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
@@ -1064,6 +1164,141 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        const publishedRun = {
+            ...run,
+            ai_deep_research_run_uuid: 'published-run',
+            prompt_uuid: 'prompt-uuid',
+            result_markdown: null,
+        };
+        const publishedDocument = {
+            documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+            name: 'Revenue fell in spring',
+            slug: 'revenue-fell-in-spring',
+            updatedAt: new Date('2026-07-29T10:06:00.000Z'),
+            version: {
+                content: {
+                    markdown: '# Spring dip\n\nOrders fell.',
+                    charts: {},
+                },
+            },
+        };
+        const registeredAccount = {
+            ...account,
+            user: { id: userUuid, type: 'registered' },
+        } as unknown as Account;
+        const publishedServices = (
+            documentService: Record<string, unknown>,
+        ) => ({
+            aiAgentDocumentModel: {
+                findAllForAgent: vi.fn().mockResolvedValue([]),
+                getContentForAgent: vi.fn().mockResolvedValue(undefined),
+            },
+            aiDeepResearchRunModel: {
+                findReportSummariesByThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue([]),
+                findReportByUuidThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+                findByThreadScoped: vi.fn().mockResolvedValue([publishedRun]),
+            },
+            aiAgentModel: {
+                findToolResultsByToolCallIds: vi.fn().mockResolvedValue([
+                    {
+                        promptUuid: 'prompt-uuid',
+                        toolCallId: 'deep-research-published-run-document',
+                        toolName: 'createContent',
+                        metadata: {
+                            status: 'success',
+                            uuid: publishedDocument.documentUuid,
+                            name: publishedDocument.name,
+                            slug: publishedDocument.slug,
+                        },
+                    },
+                ]),
+            },
+            documentService,
+        });
+
+        it('lists a report published as a Document as a thread document', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi.fn().mockResolvedValue(publishedDocument),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
+                expect.objectContaining({
+                    uuid: 'published-run',
+                    name: 'Revenue fell in spring',
+                    mimeType: 'text/markdown',
+                }),
+            ]);
+        });
+
+        it('reads a published report through the Document', async () => {
+            const get = vi.fn().mockResolvedValue(publishedDocument);
+            const service = makeService(publishedServices({ get }));
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).resolves.toEqual({
+                uuid: 'published-run',
+                name: 'Revenue fell in spring',
+                mimeType: 'text/markdown',
+                content: '# Spring dip\n\nOrders fell.',
+            });
+            expect(get).toHaveBeenCalledWith(
+                registeredAccount,
+                projectUuid,
+                publishedDocument.documentUuid,
+            );
+        });
+
+        it('skips a published report the user can no longer read', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new NotFoundError('Document not found'),
+                        ),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([]);
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).rejects.toThrow(
+                'Knowledge document published-run is not accessible to this agent.',
+            );
+        });
+
         it('rejects runs without an accessible report', async () => {
             const service = makeService({
                 aiAgentDocumentModel: {
@@ -1073,6 +1308,7 @@ describe('AiAgentToolsService', () => {
                     findReportByUuidThreadScoped: vi
                         .fn()
                         .mockResolvedValue(undefined),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
@@ -1880,6 +2116,7 @@ describe('AiAgentToolsService', () => {
                 chartUuid: 'allowed-chart-uuid',
                 limit: 100,
                 context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.SLACK,
             },
             undefined,
             onQueryPrepared,
@@ -1953,7 +2190,7 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             coderService: { upsertDashboard },
-            aiAgentContentValidation: { validateContent: vi.fn() },
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
         });
         const runtime = service.createRuntime(
             makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
@@ -2076,6 +2313,504 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    describe('SQL charts', () => {
+        const makeSqlChartContent = (
+            overrides: Record<string, unknown> = {},
+        ) => ({
+            name: 'Orders by status',
+            description: null,
+            slug: 'orders-by-status',
+            spaceSlug: 'allowed-space',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+            chartKind: 'vertical_bar',
+            version: 1,
+            config: {
+                metadata: { version: 1 },
+                type: 'vertical_bar',
+                fieldConfig: {
+                    x: { reference: 'status', type: 'category' },
+                    y: [{ reference: 'orders', aggregation: 'sum' }],
+                    groupBy: [],
+                },
+                display: {},
+            },
+            ...overrides,
+        });
+
+        const userWithoutCustomSql = {
+            ...user,
+            ability: {
+                ...user.ability,
+                relevantRuleFor: vi.fn(
+                    (_action: string, caslSubject: unknown) =>
+                        (caslSubject as { __caslSubjectType__?: string })
+                            .__caslSubjectType__ === 'CustomSql'
+                            ? null
+                            : { inverted: false },
+                ),
+            },
+        } as unknown as SessionUser;
+
+        const sqlChartUuid = 'sql-chart-uuid';
+        const sqlChartSpaceUuid = 'allowed-space-uuid';
+
+        // Real SavedSqlService so chart-level CASL rules are evaluated.
+        const makeSavedSqlService = () => {
+            const sqlChartRow = {
+                savedSqlUuid: sqlChartUuid,
+                slug: 'orders-by-status',
+                project: { projectUuid },
+                space: { uuid: sqlChartSpaceUuid },
+            };
+            return new SavedSqlService({
+                savedSqlModel: {
+                    getBySlug: vi.fn().mockResolvedValue(sqlChartRow),
+                    getByUuid: vi.fn().mockResolvedValue(sqlChartRow),
+                },
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn(
+                        async (_userUuid: string, targets: unknown[]) =>
+                            targets.map((target) => ({
+                                target,
+                                context: {
+                                    organizationUuid,
+                                    projectUuid,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                },
+                            })),
+                    ),
+                },
+            } as unknown as ConstructorParameters<typeof SavedSqlService>[0]);
+        };
+
+        const userDeniedSqlChartView = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' },
+                { subject: 'CustomSql', action: 'manage' },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    inverted: true,
+                    conditions: { 'metadata.savedSqlUuid': sqlChartUuid },
+                },
+            ]),
+        } as unknown as SessionUser;
+
+        const makeSqlChartService = ({
+            upsertSqlChart = vi.fn().mockResolvedValue({
+                charts: [
+                    {
+                        data: {
+                            uuid: 'sql-chart-uuid',
+                            slug: 'orders-by-status-1',
+                        },
+                    },
+                ],
+                spaces: [],
+                dashboards: [],
+            }),
+            spaceModel,
+        }: {
+            upsertSqlChart?: import('vitest').Mock;
+            spaceModel?: Record<string, unknown>;
+        } = {}) => {
+            const getSqlChartsForRead = vi.fn(
+                async (_user: SessionUser, _project: string, [slug]) => ({
+                    sqlCharts: [makeSqlChartContent({ slug })],
+                }),
+            );
+            const getCurrentContentVersionBySlug = vi
+                .fn()
+                .mockResolvedValueOnce({ versionUuid: 'version-before' })
+                .mockResolvedValue({ versionUuid: 'version-after' });
+            const service = makeService({
+                spaceModel,
+                savedSqlService: makeSavedSqlService(),
+                coderService: {
+                    upsertSqlChart,
+                    getSqlChartsForRead,
+                    getCurrentContentVersionBySlug,
+                },
+                aiAgentContentValidation:
+                    new AiAgentContentValidation() as unknown as Record<
+                        string,
+                        unknown
+                    >,
+            });
+            return { service, upsertSqlChart, getSqlChartsForRead };
+        };
+
+        it('saves an approved SQL chart with a unique slug on the primary connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const created = await runtime.createContent({
+                type: 'sql_chart',
+                content: makeSqlChartContent() as never,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledOnce();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.not.objectContaining({ connection: expect.anything() }),
+                { mode: 'create' },
+            );
+            expect(created).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                content: { slug: 'orders-by-status-1' },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status-1#chart-link`,
+            });
+        });
+
+        it('writes nothing when the SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not create a SQL chart outside the scoped agent spaces', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('names the SQL chart save permission without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a malformed SQL chart body before asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const { sql, ...withoutSql } = makeSqlChartContent();
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: { ...withoutSql, tableName: 'orders' } as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'New SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a SQL chart body that picks a connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent({
+                        connection: 'secondary',
+                        tableName: 'orders',
+                    }) as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'New SQL chart is invalid:\n- /connection is not allowed: SQL charts always run on the primary connection\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('reads a SQL chart by slug', async () => {
+            const { service, getSqlChartsForRead } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).resolves.toMatchObject({
+                type: 'sql_chart',
+                content: { sql: makeSqlChartContent().sql },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+            });
+            expect(getSqlChartsForRead).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                ['orders-by-status'],
+            );
+        });
+
+        it('does not read a SQL chart the user may not view, even with space access', async () => {
+            const { service } = makeSqlChartService();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userDeniedSqlChartView }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('saves an edit that leaves the SQL untouched without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const edited = await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/limit', value: 100 }],
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ limit: 100 }),
+            );
+            expect(edited).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+                versionUuids: {
+                    before: 'version-before',
+                    after: 'version-after',
+                },
+            });
+        });
+
+        it('asks for approval of the new SQL before saving an edit that changes it', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const sql = 'select status from orders';
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(approveSql.mock.invocationCallOrder[0]).toBeLessThan(
+                upsertSqlChart.mock.invocationCallOrder[0],
+            );
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ sql }),
+            );
+        });
+
+        it('settles an edit that rewrites the SQL unchanged without new SQL to approve', async () => {
+            const { service } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const { sql } = makeSqlChartContent();
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: false,
+            });
+        });
+
+        it('writes nothing when the new SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not move a SQL chart into a space outside the scoped agent spaces', async () => {
+            const hasSpaceWithPathAndUuids = vi
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: { hasSpaceWithPathAndUuids },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/spaceSlug',
+                            value: 'blocked-space',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('refuses an edit without the SQL chart save permission', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a patch that changes the SQL other than to a literal value', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        { op: 'replace', path: '/sql', value: 'select 2' },
+                        { op: 'copy', from: '/description', path: '/sql' },
+                    ],
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'Patch contains disallowed paths:\n- patch[1].path: "copy" cannot change "/sql"; use "replace" with the full SQL string',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects patches to read-only SQL chart fields', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/connection',
+                            value: 'Finance',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(
+                'patch[0].path: Patch path "/connection" is not allowed',
+            );
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not read a SQL chart outside the scoped agent spaces', async () => {
+            const { service } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('syncDbtProject', () => {
@@ -2318,6 +3053,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             queries: composerQueries,
             context: QueryExecutionContext.AI,
+            querySurface: QuerySurface.SLACK,
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,

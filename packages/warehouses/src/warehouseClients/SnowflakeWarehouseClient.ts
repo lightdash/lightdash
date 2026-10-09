@@ -775,6 +775,28 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     quotedIdentifiersIgnoreCase?: boolean;
 
     static formatQueryTag(tags: Record<string, string>): string {
+        if (
+            tags.agent_surface !== undefined &&
+            tags.agent_client !== undefined
+        ) {
+            const prioritized: Record<string, string> = {
+                agent: tags.agent ?? 'true',
+                agent_surface: tags.agent_surface,
+                agent_client: tags.agent_client,
+            };
+            for (const [key, value] of Object.entries(tags).filter(
+                ([tagKey]) => !Object.hasOwn(prioritized, tagKey),
+            )) {
+                const candidate = { ...prioritized, [key]: value };
+                if (
+                    Array.from(JSON.stringify(candidate)).length <=
+                    SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH
+                ) {
+                    prioritized[key] = value;
+                }
+            }
+            return JSON.stringify(prioritized).replace(/'/g, "''");
+        }
         return Array.from(JSON.stringify(tags))
             .slice(0, SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH)
             .join('')

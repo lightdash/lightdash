@@ -53,9 +53,40 @@ const baseContentSchema = z.object({
     verification: z.unknown().optional(),
 });
 
+export const SQL_CHART_KINDS = [
+    'vertical_bar',
+    'line',
+    'pie',
+    'big_number',
+    'table',
+] as const;
+
+export type SqlChartKind = (typeof SQL_CHART_KINDS)[number];
+
+export const toolSqlChartAsCodeSchema = baseContentSchema
+    .omit({ verified: true, verification: true })
+    .extend({
+        sql: z
+            .string()
+            .min(1)
+            .describe(
+                'Read-only warehouse SQL (SELECT or WITH) run on the primary connection.',
+            ),
+        limit: z.number().int().positive(),
+        chartKind: z.enum(SQL_CHART_KINDS).describe('Must equal config.type.'),
+        config: z
+            .object({ type: z.enum(SQL_CHART_KINDS) })
+            .passthrough()
+            .describe(
+                'SQL chart config: { metadata: { version: 1 }, type, fieldConfig, display } for charts, or { metadata, type: "table", columns, display } for tables. See sql-chart-reference.',
+            ),
+    })
+    .passthrough()
+    .describe('Full SQL chart JSON to create.');
+
 export const toolCreateContentArgsSchema = z.object({
     type: z
-        .enum(['dashboard', 'chart'])
+        .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to create.'),
     content: z.union([
         baseContentSchema
@@ -80,6 +111,7 @@ export const toolCreateContentArgsSchema = z.object({
             })
             .passthrough()
             .describe('Full Chart JSON to create.'),
+        toolSqlChartAsCodeSchema,
     ]),
 });
 
@@ -121,6 +153,7 @@ export const toolCreateContentStructuredContentSchema = z.discriminatedUnion(
     [
         z.object({ type: z.literal('dashboard'), ...createdContentShape }),
         z.object({ type: z.literal('chart'), ...createdContentShape }),
+        z.object({ type: z.literal('sql_chart'), ...createdContentShape }),
         z.object({
             type: z.literal('document'),
             ...createdContentShape,

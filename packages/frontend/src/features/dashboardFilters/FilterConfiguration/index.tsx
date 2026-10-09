@@ -2,17 +2,12 @@ import {
     assertUnreachable,
     createDashboardFilterRuleFromField,
     createDashboardFilterRuleFromSqlColumn,
-    DimensionType,
     FilterType,
     getFilterTypeFromItem,
-    getFilterTypeFromItemType,
     getItemId,
     isDashboardDataAppTileType,
     isField,
     isFilterableField,
-    matchFieldByType,
-    matchFieldByTypeAndName,
-    matchFieldExact,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -29,7 +24,6 @@ import {
     Stack,
     Tabs,
     Text,
-    Select,
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
@@ -47,9 +41,14 @@ import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
+import SqlColumnSelect from './SqlColumnSelect';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
+    getDefaultField,
     getFilterRuleRevertableObject,
+    getFilterRuleWithDisabledState,
+    getSqlColumnFilterType,
+    getUniqueSqlColumns,
     hasFilterValueSet,
     hasSavedFilterValueChanged,
     isFilterEnabled,
@@ -71,17 +70,6 @@ interface Props {
     onSave: (value: DashboardFilterRule) => void;
     onEditRequirementRules?: () => void;
 }
-
-const getDefaultField = (
-    fields: DashboardFilterableField[],
-    selectedField: DashboardFilterableField,
-) => {
-    return (
-        fields.find(matchFieldExact(selectedField)) ??
-        fields.find(matchFieldByTypeAndName(selectedField)) ??
-        fields.find(matchFieldByType(selectedField))
-    );
-};
 
 const FilterConfiguration: FC<Props> = ({
     isEditMode,
@@ -163,49 +151,19 @@ const FilterConfiguration: FC<Props> = ({
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
-            setDraftFilterRule(() => {
-                // When a disabled filter has a value set, it should be enabled by setting it to false
-                const isNewFilterDisabled =
-                    newFilterRule.disabled && !hasFilterValueSet(newFilterRule);
-
-                // In view mode: if values cleared and not required, set to "any value"
-                const shouldDisableInViewMode =
-                    !isEditMode &&
-                    !newFilterRule.required &&
-                    !hasFilterValueSet(newFilterRule);
-
-                // In edit mode a required filter without a value is valueless
-                // by definition (dashboard save normalizes it to disabled),
-                // so it must not block Apply by demanding a default value
-                const isRequiredWithoutValue =
-                    isEditMode &&
-                    (!!newFilterRule.required ||
-                        !!newFilterRule.requiredGroupId) &&
-                    !hasFilterValueSet(newFilterRule);
-
-                return {
-                    ...newFilterRule,
-                    disabled:
-                        isNewFilterDisabled ||
-                        shouldDisableInViewMode ||
-                        isRequiredWithoutValue,
-                };
-            });
+            setDraftFilterRule(() =>
+                getFilterRuleWithDisabledState(newFilterRule, isEditMode),
+            );
         },
         [setDraftFilterRule, isEditMode],
     );
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
-    const columnsOptions = useMemo(() => {
-        const allColumns = Object.values(sqlChartTilesMetadata).flatMap(
-            (tileMetadata) => tileMetadata.columns,
-        );
-        const uniqueColumnsMap = new Map(
-            allColumns.map((column) => [column.reference, column]),
-        );
-        return Array.from(uniqueColumnsMap.values());
-    }, [sqlChartTilesMetadata]);
+    const columnsOptions = useMemo(
+        () => getUniqueSqlColumns(sqlChartTilesMetadata),
+        [sqlChartTilesMetadata],
+    );
 
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
@@ -237,13 +195,10 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         if (draftFilterRule?.target.fieldId) {
-            const selectedColumn = columnsOptions.find(
-                (column) => column.reference === draftFilterRule.target.fieldId,
-            );
-            return getFilterTypeFromItemType(
-                selectedColumn?.type ??
-                    draftFilterRule.target.fallbackType ??
-                    DimensionType.STRING,
+            return getSqlColumnFilterType(
+                columnsOptions,
+                draftFilterRule.target.fieldId,
+                draftFilterRule.target.fallbackType,
             );
         }
 
@@ -486,43 +441,11 @@ const FilterConfiguration: FC<Props> = ({
                                     popoverProps={inlinePopoverProps}
                                 />
                             ) : (
-                                <Select
-                                    allowDeselect={false}
-                                    size="xs"
-                                    label={
-                                        <Text fw={500} fz="sm">
-                                            {getUiString(
-                                                'filters.config.selectColumn',
-                                            )}{' '}
-                                            <Text c="red" span>
-                                                *
-                                            </Text>{' '}
-                                        </Text>
-                                    }
-                                    placeholder={getUiString(
-                                        'filters.config.searchColumnPlaceholder',
-                                    )}
-                                    comboboxProps={{
-                                        withinPortal:
-                                            inlinePopoverProps.withinPortal,
-                                    }}
-                                    onDropdownOpen={inlinePopoverProps.onOpen}
-                                    onDropdownClose={inlinePopoverProps.onClose}
+                                <SqlColumnSelect
+                                    columns={columnsOptions}
                                     value={draftFilterRule?.target.fieldId}
-                                    data={columnsOptions.map(
-                                        ({ reference }) => reference,
-                                    )}
-                                    onChange={(newValue) => {
-                                        if (!newValue) return;
-                                        const selectedColumn =
-                                            columnsOptions.find(
-                                                (column) =>
-                                                    column.reference ===
-                                                    newValue,
-                                            );
-                                        if (!selectedColumn) return;
-                                        handleChangeColumn(selectedColumn);
-                                    }}
+                                    popoverProps={inlinePopoverProps}
+                                    onChange={handleChangeColumn}
                                 />
                             )
                         ) : selectedField ? (

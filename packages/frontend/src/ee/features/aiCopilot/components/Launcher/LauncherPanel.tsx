@@ -31,6 +31,7 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../deepResearch/types';
+import { useAiAgentModelSelection } from '../../hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
@@ -553,10 +554,13 @@ const ExistingThreadPanel: FC<{
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
-    const firstAssistantMessage = thread?.messages?.find(
-        (message) => message.role === 'assistant',
-    );
-    const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
+    const { explicitModelConfig, selectedModel } = useAiAgentModelSelection({
+        projectUuid,
+        agentUuid: agent.uuid,
+        defaultModelConfig: agent.modelConfig,
+    });
+    // Model can't change mid-thread; the status bar shows what the next message uses.
+    const threadModelName = selectedModel?.displayName ?? null;
 
     const handleSubmit = ({
         message,
@@ -575,7 +579,7 @@ const ExistingThreadPanel: FC<{
 
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig,
+            modelConfig: explicitModelConfig,
             context: curatedContext.context,
             optimisticContext: curatedContext.optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
@@ -604,7 +608,7 @@ const ExistingThreadPanel: FC<{
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig,
+                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 })
             ).uuid;
@@ -626,7 +630,7 @@ const ExistingThreadPanel: FC<{
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig,
+                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 }),
             startRun: startDeepResearch.mutateAsync,
@@ -710,6 +714,7 @@ const ExistingThreadPanel: FC<{
                         agentUuid={agent.uuid}
                         fullWidth
                         threadUuid={threadId}
+                        threadModelName={threadModelName}
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

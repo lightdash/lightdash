@@ -1,6 +1,10 @@
+import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { type StreamPart } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
-import { planDashboardAiAgentChanges } from './dashboardAiAgentChangePlanner';
+import {
+    getDashboardTilesForChart,
+    planDashboardAiAgentChanges,
+} from './dashboardAiAgentChangePlanner';
 
 const dashboardEditPart = {
     type: 'toolCall',
@@ -119,6 +123,78 @@ const chartCreatePart = {
     },
 } as StreamPart;
 
+const sqlChartEditPart = {
+    type: 'toolCall',
+    toolCallId: 'sql-chart-edit',
+    toolName: 'editContent',
+    isPreliminary: false,
+    toolArgs: {
+        type: 'sql_chart',
+        slug: 'orders-by-status-sql',
+        patch: [],
+    },
+    toolResult: {
+        result: '{}',
+        metadata: {
+            status: 'success',
+            slug: 'orders-by-status-sql',
+            name: 'Orders by status (SQL)',
+            uuid: 'sql-chart-uuid',
+            href: '/projects/project-uuid/sql-runner/orders-by-status-sql',
+            warnings: [],
+            versionUuids: { before: null, after: null },
+        },
+        structuredContent: {
+            type: 'sql_chart',
+            href: '/projects/project-uuid/sql-runner/orders-by-status-sql',
+            content: {},
+            warnings: [],
+        },
+    },
+} as StreamPart;
+
+const sqlChartCreatePart = {
+    type: 'toolCall',
+    toolCallId: 'sql-chart-create',
+    toolName: 'createContent',
+    isPreliminary: false,
+    toolArgs: {
+        type: 'sql_chart',
+        content: {
+            slug: 'new-orders-sql',
+            name: 'New orders (SQL)',
+            description: null,
+            spaceSlug: 'shared',
+            version: 1,
+            contentType: 'sql_chart',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+            chartKind: 'vertical_bar',
+            config: { type: 'vertical_bar' },
+        },
+    },
+    toolResult: {
+        result: '{}',
+        metadata: {
+            status: 'success',
+            slug: 'new-orders-sql',
+            name: 'New orders (SQL)',
+            uuid: 'sql-chart-uuid',
+            href: '/projects/project-uuid/sql-runner/new-orders-sql',
+            warnings: [],
+        },
+        structuredContent: {
+            type: 'sql_chart',
+            slug: 'new-orders-sql',
+            name: 'New orders (SQL)',
+            uuid: 'sql-chart-uuid',
+            href: '/projects/project-uuid/sql-runner/new-orders-sql',
+            content: {},
+            warnings: [],
+        },
+    },
+} as StreamPart;
+
 describe('planDashboardAiAgentChanges', () => {
     it('plans a dashboard refresh for current dashboard edits', () => {
         expect(
@@ -126,12 +202,12 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
-                pendingChartSlugToFocus: null,
+                pendingChartToFocus: null,
             }),
         ).toEqual({
             handledToolCallIds: ['dashboard-edit'],
-            actions: [{ type: 'refreshDashboard', focusChartSlug: undefined }],
-            pendingChartSlugToFocus: null,
+            actions: [{ type: 'refreshDashboard', focusChart: null }],
+            pendingChartToFocus: null,
         });
     });
 
@@ -141,18 +217,18 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [chartEditPart],
                 handledToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
-                pendingChartSlugToFocus: null,
+                pendingChartToFocus: null,
             }),
         ).toEqual({
             handledToolCallIds: ['chart-edit'],
             actions: [
                 {
                     type: 'refreshChart',
-                    chartSlug: 'orders-over-time',
+                    chart: { type: 'chart', slug: 'orders-over-time' },
                     focusTile: true,
                 },
             ],
-            pendingChartSlugToFocus: null,
+            pendingChartToFocus: null,
         });
     });
 
@@ -162,17 +238,17 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [chartCreatePart],
                 handledToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
-                pendingChartSlugToFocus: null,
+                pendingChartToFocus: null,
             }),
         ).toEqual({
             handledToolCallIds: ['chart-create'],
             actions: [
                 {
                     type: 'refreshDashboard',
-                    focusChartSlug: 'new-orders-chart',
+                    focusChart: { type: 'chart', slug: 'new-orders-chart' },
                 },
             ],
-            pendingChartSlugToFocus: 'new-orders-chart',
+            pendingChartToFocus: { type: 'chart', slug: 'new-orders-chart' },
         });
     });
 
@@ -182,17 +258,20 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
                 currentDashboardSlug: 'jaffle-dashboard',
-                pendingChartSlugToFocus: 'new-orders-chart',
+                pendingChartToFocus: {
+                    type: 'chart',
+                    slug: 'new-orders-chart',
+                },
             }),
         ).toEqual({
             handledToolCallIds: ['dashboard-edit'],
             actions: [
                 {
                     type: 'refreshDashboard',
-                    focusChartSlug: 'new-orders-chart',
+                    focusChart: { type: 'chart', slug: 'new-orders-chart' },
                 },
             ],
-            pendingChartSlugToFocus: 'new-orders-chart',
+            pendingChartToFocus: { type: 'chart', slug: 'new-orders-chart' },
         });
     });
 
@@ -202,12 +281,68 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(),
                 currentDashboardSlug: 'other-dashboard',
-                pendingChartSlugToFocus: null,
+                pendingChartToFocus: null,
             }),
         ).toEqual({
             handledToolCallIds: ['dashboard-edit'],
             actions: [],
-            pendingChartSlugToFocus: null,
+            pendingChartToFocus: null,
+        });
+    });
+
+    it('plans a focused SQL chart refresh for SQL chart edits', () => {
+        expect(
+            planDashboardAiAgentChanges({
+                parts: [sqlChartEditPart],
+                handledToolCallIds: new Set(),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: null,
+            }),
+        ).toEqual({
+            handledToolCallIds: ['sql-chart-edit'],
+            actions: [
+                {
+                    type: 'refreshChart',
+                    chart: { type: 'sql_chart', slug: 'orders-by-status-sql' },
+                    focusTile: true,
+                },
+            ],
+            pendingChartToFocus: null,
+        });
+    });
+
+    it('focuses a created SQL chart once the agent adds it to the current dashboard', () => {
+        expect(
+            planDashboardAiAgentChanges({
+                parts: [sqlChartCreatePart, dashboardEditPart],
+                handledToolCallIds: new Set(),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: null,
+            }),
+        ).toEqual({
+            handledToolCallIds: ['sql-chart-create', 'dashboard-edit'],
+            actions: [
+                {
+                    type: 'refreshDashboard',
+                    focusChart: { type: 'sql_chart', slug: 'new-orders-sql' },
+                },
+            ],
+            pendingChartToFocus: { type: 'sql_chart', slug: 'new-orders-sql' },
+        });
+    });
+
+    it('waits for a dashboard edit before refreshing for a created SQL chart', () => {
+        expect(
+            planDashboardAiAgentChanges({
+                parts: [sqlChartCreatePart],
+                handledToolCallIds: new Set(),
+                currentDashboardSlug: 'jaffle-dashboard',
+                pendingChartToFocus: null,
+            }),
+        ).toEqual({
+            handledToolCallIds: ['sql-chart-create'],
+            actions: [],
+            pendingChartToFocus: { type: 'sql_chart', slug: 'new-orders-sql' },
         });
     });
 
@@ -217,12 +352,74 @@ describe('planDashboardAiAgentChanges', () => {
                 parts: [dashboardEditPart],
                 handledToolCallIds: new Set(['dashboard-edit']),
                 currentDashboardSlug: 'jaffle-dashboard',
-                pendingChartSlugToFocus: null,
+                pendingChartToFocus: null,
             }),
         ).toEqual({
             handledToolCallIds: [],
             actions: [],
-            pendingChartSlugToFocus: null,
+            pendingChartToFocus: null,
         });
+    });
+});
+
+const tileBase = { x: 0, y: 0, h: 3, w: 6, tabUuid: undefined };
+
+const savedChartTile: DashboardTile = {
+    ...tileBase,
+    uuid: 'saved-chart-tile',
+    type: DashboardTileTypes.SAVED_CHART,
+    properties: {
+        savedChartUuid: 'saved-chart-uuid',
+        chartSlug: 'orders',
+    },
+};
+
+const sqlChartTile: DashboardTile = {
+    ...tileBase,
+    uuid: 'sql-chart-tile',
+    type: DashboardTileTypes.SQL_CHART,
+    properties: {
+        savedSqlUuid: 'saved-sql-uuid',
+        chartName: 'Orders (SQL)',
+        chartSlug: 'orders',
+    },
+};
+
+const unsavedSqlChartTile: DashboardTile = {
+    ...tileBase,
+    uuid: 'unsaved-sql-chart-tile',
+    type: DashboardTileTypes.SQL_CHART,
+    properties: {
+        savedSqlUuid: null,
+        chartName: 'Orders (SQL)',
+        chartSlug: 'orders',
+    },
+};
+
+describe('getDashboardTilesForChart', () => {
+    const tiles = [savedChartTile, sqlChartTile, unsavedSqlChartTile];
+
+    it('matches saved chart tiles for charts', () => {
+        expect(
+            getDashboardTilesForChart(tiles, { type: 'chart', slug: 'orders' }),
+        ).toEqual({ type: 'chart', tiles: [savedChartTile] });
+    });
+
+    it('matches SQL chart tiles for SQL charts sharing a slug with a chart', () => {
+        expect(
+            getDashboardTilesForChart(tiles, {
+                type: 'sql_chart',
+                slug: 'orders',
+            }),
+        ).toEqual({ type: 'sql_chart', tiles: [sqlChartTile] });
+    });
+
+    it('matches nothing for unknown slugs', () => {
+        expect(
+            getDashboardTilesForChart(tiles, {
+                type: 'sql_chart',
+                slug: 'missing',
+            }),
+        ).toEqual({ type: 'sql_chart', tiles: [] });
     });
 });

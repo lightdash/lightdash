@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
+    AgentActorSurface,
+    AgentIdentityConnectEntryPoint,
+    AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
     AI_AGENT_TAG,
     AI_PRINCIPAL_QUERY_TAG,
@@ -9,39 +13,91 @@ import {
     AiAgentMarkerLevel,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildAgentIdentityClaim,
+    buildSnowflakeAgentIntegrationSql,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
+    getAgentIdentityWarehouseTypes,
+    getAiExecutionCredentialUuid,
+    getSnowflakeAgentRedirectUri,
     isAiAccessQueryContext,
+    isAllowedAgentIdentitySource,
+    ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     UnexpectedServerError,
     WarehouseTypes,
     type Account,
     type AiAccessForUser,
+    type AiActorKind,
     type AiExecutionPlan,
     type AiMarkerTestResult,
     type AiWarehouseCapabilities,
     type CreateWarehouseCredentials,
+    type OrganizationAgentIdentityOverview,
+    type OrganizationAgentIdentityRule,
     type OrganizationAgentIdentitySettings,
+    type OrganizationAgentIdentitySnowflakeSetup,
+    type OrganizationAgentIdentitySnowflakeVerify,
     type QueryHistory,
     type SessionUser,
+    type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
+import {
+    LightdashAnalytics,
+    type AgentIdentityConnectProperties,
+} from '../../analytics/LightdashAnalytics';
+import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
+import {
+    getSnowflakeAgentMissingSettings,
+    isSnowflakeAgentConfigured,
+} from '../../config/snowflakeAgentConfiguration';
+import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    type QueryHistoryModel,
+    type QueryHistoryWithLineage,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
 import { BaseService } from '../BaseService';
+import {
+    connectionContextFromUser,
+    connectionSurfaceFromQuerySurface,
+    getAccountAgentIdentityFacts,
+    getAgentActor,
+} from '../WarehouseClientFactory/ConnectionContext';
+import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
+import {
+    getQueryIdentityLineage,
+    getQuerySourceParameters,
+} from './queryResultLineage';
+
+export type AgentConnectAttempt = Omit<
+    AgentIdentityConnectProperties,
+    'warehouseType'
+>;
+
+export type AiAccessEvaluation =
+    | { kind: 'query'; surface: QuerySurface }
+    | { kind: 'result_read' }
+    | { kind: 'diagnostic' };
 
 export type ResolvePlanArgs = {
+    evaluation: AiAccessEvaluation;
     projectUuid: string;
     organizationUuid: string;
     warehouseConnectionUuid: string | null;
@@ -50,11 +106,17 @@ export type ResolvePlanArgs = {
     userUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
+    serviceAccountUuid?: string | null;
+    oauthClientId?: string | null;
+    agentActor?: { surface: AgentActorSurface; clientId: string | null } | null;
 };
 
-type AccessArgs = Omit<ResolvePlanArgs, 'context'>;
+type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
 
 type AiAccessServiceArguments = {
+    analytics: Pick<LightdashAnalytics, 'track'>;
+    aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
+    organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     lightdashConfig: LightdashConfig;
     featureFlagModel: FeatureFlagModel;
@@ -67,6 +129,12 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
+
+    private readonly analytics: Pick<LightdashAnalytics, 'track'>;
+
+    private readonly organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
+
     private readonly organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -86,6 +154,9 @@ export class AiAccessService extends BaseService {
     private readonly providerRegistry: AiCredentialProviderRegistry;
 
     constructor({
+        analytics,
+        aiServiceAccountCredentialsModel,
+        organizationAgentIdentityRulesModel,
         organizationAgentIdentitySettingsModel,
         lightdashConfig,
         featureFlagModel,
@@ -97,6 +168,11 @@ export class AiAccessService extends BaseService {
         providerRegistry,
     }: AiAccessServiceArguments) {
         super();
+        this.analytics = analytics;
+        this.aiServiceAccountCredentialsModel =
+            aiServiceAccountCredentialsModel;
+        this.organizationAgentIdentityRulesModel =
+            organizationAgentIdentityRulesModel;
         this.organizationAgentIdentitySettingsModel =
             organizationAgentIdentitySettingsModel;
         this.lightdashConfig = lightdashConfig;
@@ -117,10 +193,12 @@ export class AiAccessService extends BaseService {
         }
     }
 
-    async getAgentConnectPrompt(
-        user: SessionUser,
-    ): Promise<
-        | { required: true; reason: 'needs_sign_in' | 'sign_in_expired' }
+    async getAgentConnectPrompt(user: SessionUser): Promise<
+        | {
+              required: true;
+              reason: 'needs_sign_in' | 'sign_in_expired';
+              projectUuid: string;
+          }
         | { required: false }
     > {
         const { organizationUuid, userUuid } = user;
@@ -129,11 +207,12 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled({ organizationUuid, userUuid }))
         )
             return { required: false };
-        const settings =
-            await this.organizationAgentIdentitySettingsModel.get(
-                organizationUuid,
-            );
-        if (!settings.requireVerifiedAgentSessions) return { required: false };
+        const rule = await this.organizationAgentIdentityRulesModel.get(
+            organizationUuid,
+            WarehouseTypes.SNOWFLAKE,
+            'person',
+        );
+        if (rule.source !== 'agent_sign_in') return { required: false };
         const projects =
             await this.projectModel.getAllByOrganizationUuid(organizationUuid);
         const ability = this.createAuditedAbility(user);
@@ -156,32 +235,54 @@ export class AiAccessService extends BaseService {
         const reason = await provider.missingPrerequisite({
             connection,
             person: { userUuid, email: user.email ?? '' },
+            silentRefresh: await this.isSilentRefreshEnabled(
+                { userUuid, organizationUuid },
+                provider.warehouseType,
+            ),
         });
         if (
             reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         )
-            return { required: true, reason };
+            return { required: true, reason, projectUuid: project.projectUuid };
         return { required: false };
     }
 
     async getOrganizationSettings(
         account: Account,
-    ): Promise<OrganizationAgentIdentitySettings> {
+    ): Promise<OrganizationAgentIdentityOverview> {
         assertIsAccountWithOrg(account);
         await this.assertFeatureEnabled({
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
         });
-        return this.organizationAgentIdentitySettingsModel.get(
-            account.organization.organizationUuid,
+        const { organizationUuid } = account.organization;
+        const [settings, rules] = await Promise.all([
+            this.organizationAgentIdentitySettingsModel.get(organizationUuid),
+            this.organizationAgentIdentityRulesModel.list(organizationUuid),
+        ]);
+        const canManage = this.createAuditedAbility(account).can(
+            'manage',
+            subject('Organization', { organizationUuid }),
         );
+        return {
+            ...settings,
+            rules: await Promise.all(
+                rules.map(async (rule) => ({
+                    ...rule,
+                    projectsMissingAiServiceAccount:
+                        canManage && rule.source === 'ai_service_account'
+                            ? await this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
+                                  organizationUuid,
+                                  rule.warehouseType,
+                              )
+                            : null,
+                })),
+            ),
+        };
     }
 
-    async updateOrganizationSettings(
-        account: Account,
-        settings: OrganizationAgentIdentitySettings,
-    ): Promise<OrganizationAgentIdentitySettings> {
+    private async authorizeSnowflakeSetup(account: Account): Promise<string> {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         await this.assertFeatureEnabled({
@@ -196,10 +297,249 @@ export class AiAccessService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        return this.organizationAgentIdentitySettingsModel.upsert(
+        return organizationUuid;
+    }
+
+    async getSnowflakeSetup(
+        account: Account,
+    ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
+        await this.authorizeSnowflakeSetup(account);
+        const redirectUri = getSnowflakeAgentRedirectUri(
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            redirectUri,
+            integrationSql: buildSnowflakeAgentIntegrationSql({ redirectUri }),
+            missingSettings: getSnowflakeAgentMissingSettings(
+                this.lightdashConfig,
+            ),
+            configured: isSnowflakeAgentConfigured(this.lightdashConfig),
+        };
+    }
+
+    async verifySnowflakeSetup(
+        account: Account,
+    ): Promise<OrganizationAgentIdentitySnowflakeVerify> {
+        const organizationUuid = await this.authorizeSnowflakeSetup(account);
+        const missingSettings = getSnowflakeAgentMissingSettings(
+            this.lightdashConfig,
+        );
+        const configured = isSnowflakeAgentConfigured(this.lightdashConfig);
+        const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
+            {
+                id: 'oauth_client',
+                label: 'OAuth client settings',
+                required: true,
+                status: configured ? 'passed' : 'failed',
+                detail: configured
+                    ? 'All OAuth client settings are set.'
+                    : `Missing: ${missingSettings.join(', ')}.`,
+            },
+        ];
+        const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
+            {
+                id: 'authorize_endpoint',
+                label: 'Authorization endpoint',
+                required: true,
+                status: 'not_checked',
+                detail: 'Set the missing OAuth client settings before checking the endpoint.',
+            };
+        if (configured) {
+            try {
+                const endpoint = new URL(
+                    this.lightdashConfig.auth.snowflakeAi
+                        .authorizationEndpoint!,
+                );
+                endpoint.username = '';
+                endpoint.password = '';
+                endpoint.search = '';
+                endpoint.hash = '';
+                const response = await fetch(endpoint.href, {
+                    method: 'GET',
+                    redirect: 'manual',
+                    signal: AbortSignal.timeout(5000),
+                });
+                endpointCheck.status = [
+                    200, 302, 303, 307, 400, 401, 403,
+                ].includes(response.status)
+                    ? 'passed'
+                    : 'failed';
+                endpointCheck.detail =
+                    endpointCheck.status === 'passed'
+                        ? `Snowflake answered (HTTP ${response.status}).`
+                        : `The authorization endpoint returned HTTP ${response.status}.${
+                              [404, 405].includes(response.status)
+                                  ? ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.'
+                                  : ''
+                          }`;
+                await response.body?.cancel();
+            } catch (error) {
+                endpointCheck.status = 'failed';
+                endpointCheck.detail =
+                    error instanceof Error &&
+                    (error.name === 'TimeoutError' ||
+                        error.name === 'AbortError')
+                        ? 'The authorization endpoint did not respond within 5 seconds.'
+                        : 'Could not reach the authorization endpoint.';
+            }
+        }
+        checks.push(endpointCheck);
+        const hasAgentSession =
+            await this.userWarehouseCredentialsModel.hasOrganizationAiSnowflakeCredential(
+                organizationUuid,
+            );
+        checks.push({
+            id: 'agent_session',
+            label: 'Agent session',
+            required: false,
+            status: hasAgentSession ? 'passed' : 'not_checked',
+            detail: hasAgentSession
+                ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
+                : 'No one has connected their agent yet. Connect your own agent in My warehouse connections to confirm Snowflake marks sessions as agent sessions.',
+        });
+        return {
+            checkedAt: new Date(),
+            passed: checks.every(
+                (check) => !check.required || check.status === 'passed',
+            ),
+            checks,
+        };
+    }
+
+    private assertSnowflakeAgentConfigured(): void {
+        if (!isSnowflakeAgentConfigured(this.lightdashConfig)) {
+            throw new ParameterError(
+                'The Snowflake agent integration is not configured on this instance',
+            );
+        }
+    }
+
+    async updateOrganizationSettings(
+        account: Account,
+        settings: OrganizationAgentIdentitySettings,
+    ): Promise<OrganizationAgentIdentityOverview> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (settings.requireVerifiedAgentSessions)
+            this.assertSnowflakeAgentConfigured();
+        const {
+            settings: savedSettings,
+            previousSource,
+            changed,
+        } = await this.organizationAgentIdentitySettingsModel.upsert(
             organizationUuid,
             settings,
         );
+        const source = savedSettings.requireVerifiedAgentSessions
+            ? 'agent_sign_in'
+            : 'marked_person';
+        if (changed) {
+            const userId = this.analyticsUserId({
+                userUuid: account.user.id,
+                isRegisteredUser: account.user.type === 'registered',
+                isServiceAccount: account.isServiceAccount(),
+            });
+            trackSafely(() =>
+                this.analytics.track({
+                    ...(userId !== null
+                        ? { userId }
+                        : { anonymousId: LightdashAnalytics.anonymousId }),
+                    event: 'agent_identity.rule_updated',
+                    properties: {
+                        organizationId: organizationUuid,
+                        userId,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        source,
+                        previousSource,
+                    },
+                }),
+            );
+        }
+        return {
+            ...savedSettings,
+            rules: await this.organizationAgentIdentityRulesModel.list(
+                organizationUuid,
+            ),
+        };
+    }
+
+    async updateOrganizationRule(
+        account: Account,
+        warehouseType: WarehouseTypes,
+        rule: UpdateOrganizationAgentIdentityRule,
+    ): Promise<OrganizationAgentIdentityRule> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        await this.assertFeatureEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+        });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            !getAgentIdentityWarehouseTypes().includes(warehouseType) ||
+            !isAllowedAgentIdentitySource(warehouseType, rule.source)
+        ) {
+            throw new ParameterError(
+                'This identity source is not supported for the warehouse type',
+            );
+        }
+        if (
+            warehouseType === WarehouseTypes.SNOWFLAKE &&
+            rule.source === 'agent_sign_in'
+        ) {
+            this.assertSnowflakeAgentConfigured();
+        }
+        const { previousSource, changed } =
+            await this.organizationAgentIdentityRulesModel.set(
+                organizationUuid,
+                warehouseType,
+                rule,
+            );
+        if (changed) {
+            trackSafely(() =>
+                this.analytics.track({
+                    event: 'agent_identity.rule_updated',
+                    userId: account.user.id,
+                    properties: {
+                        organizationId: organizationUuid,
+                        userId: account.user.id,
+                        warehouseType,
+                        source: rule.source,
+                        previousSource,
+                    },
+                }),
+            );
+        }
+        return {
+            warehouseType,
+            source: rule.source,
+            projectsMissingAiServiceAccount:
+                rule.source === 'ai_service_account'
+                    ? await this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
+                          organizationUuid,
+                          warehouseType,
+                      )
+                    : null,
+        };
     }
 
     private async authorizeProject(
@@ -219,6 +559,64 @@ export class AiAccessService extends BaseService {
             throw new ForbiddenError();
         }
         return organizationUuid;
+    }
+
+    async getConnectProjectId(
+        account: Account | null,
+        project: unknown,
+        organizationId: string,
+    ): Promise<string | null> {
+        if (!account || typeof project !== 'string' || !isUuid(project)) {
+            return null;
+        }
+        try {
+            const projectOrganizationId = await this.authorizeProject(
+                account,
+                project,
+                'view',
+            );
+            return projectOrganizationId === organizationId ? project : null;
+        } catch {
+            return null;
+        }
+    }
+
+    trackConnectStarted(attempt: AgentConnectAttempt): void {
+        trackSafely(() =>
+            this.analytics.track({
+                userId: attempt.userId,
+                event: 'agent_identity.connect_started',
+                properties: {
+                    ...attempt,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+            }),
+        );
+    }
+
+    trackConnectOutcome(
+        attempt: AgentConnectAttempt,
+        failureReason: AgentIdentityConnectFailureReason | null,
+    ): void {
+        const properties: AgentIdentityConnectProperties = {
+            ...attempt,
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        trackSafely(() =>
+            this.analytics.track(
+                failureReason === null
+                    ? {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connected',
+                          properties: { ...properties, failureReason: null },
+                      }
+                    : {
+                          userId: attempt.userId,
+                          event: 'agent_identity.connect_failed',
+                          properties: { ...properties, failureReason },
+                      },
+            ),
+        );
     }
 
     private async loadConnection(
@@ -414,11 +812,22 @@ export class AiAccessService extends BaseService {
             projectUuid,
             warehouseConnectionUuid,
             userUuid:
-                plan.identity === 'marked_person'
-                    ? plan.audit.userUuid
-                    : plan.audit.personUuid,
+                plan.identity === 'connected_person'
+                    ? plan.audit.personUuid
+                    : plan.audit.userUuid,
             identity: plan.identity,
-            principalKind: 'person',
+            actorKind: plan.audit.actorKind,
+            actorSurface: plan.agentIdentity?.act.surface ?? null,
+            actorClientId: plan.agentIdentity?.act.client_id ?? null,
+            principalKind:
+                plan.identity === 'ai_service_account'
+                    ? 'service_account'
+                    : plan.audit.actorKind,
+            credentialUuid:
+                plan.identity === 'ai_service_account'
+                    ? plan.credentialUuid
+                    : getAiExecutionCredentialUuid(plan),
+            identityUuid: getAiExecutionCredentialUuid(plan),
             principalRef: plan.audit.principalRef,
             context,
         });
@@ -437,12 +846,50 @@ export class AiAccessService extends BaseService {
         return enabled;
     }
 
-    private async requiresAgentIdentity(args: AccessArgs): Promise<boolean> {
-        if (args.connection.type !== WarehouseTypes.SNOWFLAKE) return false;
-        const settings = await this.organizationAgentIdentitySettingsModel.get(
-            args.organizationUuid,
-        );
-        return settings.requireVerifiedAgentSessions;
+    private async isSilentRefreshEnabled(
+        args: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
+        warehouseType: WarehouseTypes,
+    ): Promise<boolean> {
+        if (warehouseType !== WarehouseTypes.SNOWFLAKE) return false;
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
+        });
+        return enabled;
+    }
+
+    private actorKind(args: AccessArgs): AiActorKind {
+        return args.isServiceAccount ? 'service_account' : 'person';
+    }
+
+    private async markedPlan(args: AccessArgs): Promise<AiExecutionPlan> {
+        const email =
+            args.isRegisteredUser && !args.isServiceAccount
+                ? (await this.userModel.getUserDetailsByUuid(args.userUuid))
+                      .email
+                : null;
+        return {
+            identity: 'marked_person',
+            assurances: [
+                {
+                    kind: 'agent_marker',
+                    level: describeAgentMarker(args.connection.type).level,
+                },
+            ],
+            audit: {
+                actorKind: this.actorKind(args),
+                personUuid: args.userUuid,
+                userUuid:
+                    args.isRegisteredUser || args.isServiceAccount
+                        ? args.userUuid
+                        : null,
+                principalRef: email ?? args.userUuid,
+                queryTags: { [AI_AGENT_TAG]: 'true' },
+            },
+        };
     }
 
     private async provider(args: AccessArgs): Promise<AiCredentialProvider> {
@@ -470,9 +917,28 @@ export class AiAccessService extends BaseService {
         return provider;
     }
 
+    private connectEntryPoint(
+        surface: QuerySurface,
+    ): AgentIdentityConnectEntryPoint {
+        switch (surface) {
+            case QuerySurface.MCP:
+                return AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK;
+            case QuerySurface.SLACK:
+                return AgentIdentityConnectEntryPoint.SLACK_LINK;
+            case QuerySurface.APP:
+                return AgentIdentityConnectEntryPoint.CHAT_CARD;
+            case QuerySurface.API:
+            case QuerySurface.CLI:
+                return AgentIdentityConnectEntryPoint.UNKNOWN;
+            default:
+                return assertUnreachable(surface, 'Unknown query surface');
+        }
+    }
+
     private withRefusalUrls(
         error: AiAccessRefusedError,
         projectUuid: string,
+        entryPoint: AgentIdentityConnectEntryPoint,
     ): AiAccessRefusedError {
         if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
             const connectUrl = new URL(
@@ -481,6 +947,7 @@ export class AiAccessService extends BaseService {
             );
             connectUrl.searchParams.set('project', projectUuid);
             connectUrl.searchParams.set('redirect', '/agent-connected');
+            connectUrl.searchParams.set('entryPoint', entryPoint);
             return new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
@@ -493,10 +960,82 @@ export class AiAccessService extends BaseService {
         ) {
             return new AiAccessRefusedError(error.refusal.reason, {
                 message: error.refusal.message,
-                settingsUrl: '/generalSettings/warehouseCredentials',
+                settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
             });
         }
         return error;
+    }
+
+    private analyticsUserId({
+        userUuid,
+        isRegisteredUser,
+        isServiceAccount,
+    }: Pick<AccessArgs, 'userUuid' | 'isRegisteredUser' | 'isServiceAccount'>):
+        | string
+        | null {
+        return isRegisteredUser && !isServiceAccount ? userUuid : null;
+    }
+
+    trackQueryRefusal(
+        args: Pick<
+            ResolvePlanArgs,
+            | 'agentActor'
+            | 'evaluation'
+            | 'organizationUuid'
+            | 'projectUuid'
+            | 'warehouseConnectionUuid'
+            | 'userUuid'
+            | 'isRegisteredUser'
+            | 'isServiceAccount'
+        > & { warehouseType: WarehouseTypes },
+        reason: AiAccessRefusalReason,
+    ): void {
+        if (args.evaluation.kind === 'query') {
+            const userId = this.analyticsUserId(args);
+            const actor =
+                userId !== null
+                    ? { userId }
+                    : { anonymousId: LightdashAnalytics.anonymousId };
+            const properties = {
+                organizationId: args.organizationUuid,
+                projectId: args.projectUuid,
+                userId,
+                warehouseConnectionId: args.warehouseConnectionUuid,
+                surface: args.evaluation.surface,
+                warehouseType: args.warehouseType,
+                reason,
+                actor:
+                    args.agentActor !== undefined
+                        ? args.agentActor
+                        : getAgentActor({
+                              surface: connectionSurfaceFromQuerySurface(
+                                  args.evaluation.surface,
+                                  null,
+                              ),
+                              person: null,
+                              aiClient: null,
+                          }),
+            };
+            trackSafely(() =>
+                this.analytics.track({
+                    ...actor,
+                    event: 'query.refused',
+                    properties,
+                }),
+            );
+            if (properties.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED) {
+                trackSafely(() =>
+                    this.analytics.track({
+                        ...actor,
+                        event: 'agent_identity.expired',
+                        properties: {
+                            ...properties,
+                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                        },
+                    }),
+                );
+            }
+        }
     }
 
     private logRefusal(args: AccessArgs, error: AiAccessRefusedError): void {
@@ -505,7 +1044,8 @@ export class AiAccessService extends BaseService {
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             userUuid: args.userUuid,
             reason: error.refusal.reason,
-            principalKind: 'person',
+            actorKind: this.actorKind(args),
+            principalKind: this.actorKind(args),
         });
     }
 
@@ -515,32 +1055,114 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
-        if (!(await this.requiresAgentIdentity(args))) {
-            const email =
-                args.isRegisteredUser && !args.isServiceAccount
-                    ? (await this.userModel.getUserDetailsByUuid(args.userUuid))
-                          .email
-                    : null;
-            return {
-                identity: 'marked_person',
-                assurances: [
-                    {
-                        kind: 'agent_marker',
-                        level: describeAgentMarker(args.connection.type).level,
-                    },
-                ],
-                audit: {
-                    personUuid: args.userUuid,
-                    userUuid:
-                        args.isRegisteredUser || args.isServiceAccount
-                            ? args.userUuid
-                            : null,
-                    principalRef: email ?? args.userUuid,
-                    queryTags: { [AI_AGENT_TAG]: 'true' },
-                },
-            };
-        }
+        const actor = resolveQueryAgentActor({
+            context: args.context,
+            querySurface:
+                args.evaluation.kind === 'query'
+                    ? args.evaluation.surface
+                    : null,
+            oauthClientId: args.oauthClientId ?? null,
+            explicitActor: args.agentActor,
+        });
+        const plan = await this.resolveEnabledPlan({
+            ...args,
+            agentActor: actor,
+        });
+        const subjectUuid = args.isServiceAccount
+            ? args.serviceAccountUuid
+            : args.userUuid;
+        return {
+            ...plan,
+            agentIdentity:
+                actor &&
+                subjectUuid &&
+                (args.isRegisteredUser || args.isServiceAccount)
+                    ? buildAgentIdentityClaim({
+                          subject: {
+                              type: args.isServiceAccount
+                                  ? 'service_account'
+                                  : 'user',
+                              uuid: subjectUuid,
+                          },
+                          ...actor,
+                      })
+                    : null,
+        };
+    }
+
+    private async resolveEnabledPlan(
+        args: ResolvePlanArgs,
+    ): Promise<AiExecutionPlan> {
+        const rule = await this.organizationAgentIdentityRulesModel.get(
+            args.organizationUuid,
+            args.connection.type,
+            this.actorKind(args),
+        );
         try {
+            if (rule.source === 'marked_person')
+                return await this.markedPlan(args);
+            if (!args.isRegisteredUser && !args.isServiceAccount) {
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
+                );
+            }
+            if (rule.source === 'ai_service_account') {
+                let saved;
+                try {
+                    saved =
+                        await this.aiServiceAccountCredentialsModel.getSecrets(
+                            args.projectUuid,
+                            args.warehouseConnectionUuid,
+                            true,
+                        );
+                } catch {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    );
+                }
+                if (saved === null) {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                    );
+                }
+                let credentials;
+                try {
+                    credentials = applyAiServiceAccountCredentials(
+                        args.connection,
+                        saved.secrets,
+                    );
+                } catch {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    );
+                }
+                return {
+                    identity: 'ai_service_account',
+                    identityUuid: saved.slot.identityUuid,
+                    credentialUuid: saved.slot.uuid,
+                    credentials,
+                    assurances: [
+                        {
+                            kind: 'agent_marker',
+                            level: describeAgentMarker(args.connection.type)
+                                .level,
+                        },
+                        { kind: 'result_cache_off' },
+                    ],
+                    audit: {
+                        actorKind: this.actorKind(args),
+                        personUuid: args.userUuid,
+                        userUuid: args.userUuid,
+                        principalRef: saved.slot.uuid,
+                        queryTags: { [AI_AGENT_TAG]: 'true' },
+                    },
+                };
+            }
+            if (rule.source !== 'agent_sign_in')
+                return assertUnreachable(
+                    rule.source,
+                    'Unknown AI identity source',
+                );
             const provider = await this.provider(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
@@ -553,6 +1175,10 @@ export class AiAccessService extends BaseService {
                 await provider.mint({
                     connection: args.connection,
                     person: { userUuid: args.userUuid, email },
+                    silentRefresh: await this.isSilentRefreshEnabled(
+                        args,
+                        provider.warehouseType,
+                    ),
                 });
             const probe = await provider.probe(credentials, assurances);
             if (!probe.ok)
@@ -565,6 +1191,7 @@ export class AiAccessService extends BaseService {
                 credentials,
                 assurances,
                 audit: {
+                    actorKind: this.actorKind(args),
                     personUuid: args.userUuid,
                     principalRef: args.userUuid,
                     queryTags: { [AI_PRINCIPAL_QUERY_TAG]: args.userUuid },
@@ -575,8 +1202,15 @@ export class AiAccessService extends BaseService {
                 const refusalError = this.withRefusalUrls(
                     error,
                     args.projectUuid,
+                    args.evaluation.kind === 'query'
+                        ? this.connectEntryPoint(args.evaluation.surface)
+                        : AgentIdentityConnectEntryPoint.UNKNOWN,
                 );
                 this.logRefusal(args, refusalError);
+                this.trackQueryRefusal(
+                    { ...args, warehouseType: args.connection.type },
+                    refusalError.refusal.reason,
+                );
                 throw refusalError;
             }
             throw error;
@@ -586,129 +1220,438 @@ export class AiAccessService extends BaseService {
     async assertCanReadResults(
         account: Account,
         projectUuid: string,
-        queryHistory: QueryHistory,
-        ancestors = new Set<string>(),
+        queryHistory: QueryHistoryWithLineage,
+        {
+            agentProducedOnly = false,
+            evaluation = { kind: 'result_read' },
+        }: {
+            agentProducedOnly?: boolean;
+            evaluation?: AiAccessEvaluation;
+        } = {},
     ): Promise<AiExecutionPlan | null> {
-        if (ancestors.has(queryHistory.queryUuid)) {
-            throw new AiAccessRefusedError(
-                AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
-            );
-        }
-        const { connection, organizationUuid } = await this.loadConnection(
+        const plans = await this.assertCanReadResultsForQueries(
             account,
             projectUuid,
-            queryHistory.warehouseConnectionUuid ?? null,
-            'view',
+            [{ queryHistory, agentProducedOnly }],
+            evaluation,
         );
-        const plan = await this.resolvePlan({
-            projectUuid,
-            organizationUuid,
-            warehouseConnectionUuid:
-                queryHistory.warehouseConnectionUuid ?? null,
-            connection,
-            context: QueryExecutionContext.AI,
-            userUuid: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-        if (queryHistory.status === QueryHistoryStatus.READY) {
-            const execution = await this.queryHistoryModel.getDuckdbExecution(
-                queryHistory.queryUuid,
-            );
-            const sources = Object.values(execution?.references ?? {});
-            if (sources.length > 0) {
-                const nextAncestors = new Set(ancestors).add(
-                    queryHistory.queryUuid,
+        return plans.get(queryHistory.queryUuid) ?? null;
+    }
+
+    async assertCanReadResultsForQueries(
+        account: Account,
+        projectUuid: string,
+        roots: {
+            queryHistory: QueryHistoryWithLineage;
+            agentProducedOnly: boolean;
+        }[],
+        evaluation: AiAccessEvaluation = { kind: 'result_read' },
+        onIdentityEnabled?: () => void,
+        queryContext: QueryExecutionContext | null = null,
+    ): Promise<Map<string, AiExecutionPlan | null>> {
+        const uniqueRoots = [
+            ...new Map(
+                roots.map((root) => [root.queryHistory.queryUuid, root]),
+            ).values(),
+        ];
+        const relevantRoots = uniqueRoots.filter(
+            ({ queryHistory: root, agentProducedOnly }) => {
+                const { references } = getQuerySourceParameters(
+                    root.requestParameters,
                 );
-                const sourcePlans = await Promise.all(
-                    sources.map(async (queryUuid) => {
-                        const source = await this.queryHistoryModel.get(
-                            queryUuid,
-                            projectUuid,
-                            account,
-                        );
-                        return this.assertCanReadResults(
-                            account,
-                            projectUuid,
-                            source,
-                            nextAncestors,
-                        );
-                    }),
+                return (
+                    !agentProducedOnly ||
+                    isAiAccessQueryContext(root.context) ||
+                    !!root.requestParameters?.aiSignInCredentialUuid ||
+                    Object.keys(references ?? {}).length > 0 ||
+                    root.duckdbExecutionReferences === undefined ||
+                    Object.keys(root.duckdbExecutionReferences ?? {}).length > 0
                 );
-                const connectedPlan = sourcePlans.find(
-                    (sourcePlan) => sourcePlan?.identity === 'connected_person',
-                );
-                if (
-                    sourcePlans.some(
-                        (sourcePlan) =>
-                            sourcePlan?.identity === 'connected_person' &&
-                            sourcePlan.identityUuid !==
-                                queryHistory.requestParameters
-                                    .aiSignInCredentialUuid,
-                    )
-                ) {
-                    throw new AiAccessRefusedError(
-                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
-                    );
-                }
-                return connectedPlan ?? plan;
-            }
-        }
+            },
+        );
+        if (relevantRoots.length === 0) return new Map();
+        const { queryHistory } = relevantRoots[0];
+        const organizationUuid =
+            queryHistory.organizationUuid ??
+            (await this.projectModel.getSummary(projectUuid)).organizationUuid;
         if (
-            plan?.identity === 'connected_person' &&
-            queryHistory.status === QueryHistoryStatus.READY &&
-            queryHistory.requestParameters.aiSignInCredentialUuid !==
-                plan.identityUuid
+            !(await this.isEnabled({
+                userUuid: account.user.id,
+                organizationUuid,
+            }))
         ) {
-            throw new AiAccessRefusedError(
+            return new Map();
+        }
+
+        const agentActor =
+            evaluation.kind === 'query'
+                ? resolveQueryAgentActor({
+                      context:
+                          queryContext ??
+                          QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                      querySurface: evaluation.surface,
+                      oauthClientId:
+                          getAccountAgentIdentityFacts(account).oauthClientId,
+                  })
+                : null;
+        onIdentityEnabled?.();
+        const maxNodes = 500;
+        const maxDepth = 50;
+        const refuse = () =>
+            new AiAccessRefusedError(
                 AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
             );
+        const nodes = new Map<
+            string,
+            {
+                queryHistory: QueryHistory;
+                sources: string[];
+                isDuckdbExecution: boolean;
+            }
+        >();
+        const visited = new Set(
+            uniqueRoots.map((root) => root.queryHistory.queryUuid),
+        );
+        if (visited.size > maxNodes) throw refuse();
+        const rootLevel = await Promise.all(
+            uniqueRoots.map(async ({ queryHistory: root }) => {
+                if (root.duckdbExecutionReferences === undefined) {
+                    return {
+                        queryHistory: root,
+                        execution:
+                            await this.queryHistoryModel.getDuckdbExecution(
+                                root.queryUuid,
+                            ),
+                    };
+                }
+                return {
+                    queryHistory: root,
+                    execution:
+                        root.duckdbExecutionReferences === null
+                            ? null
+                            : { references: root.duckdbExecutionReferences },
+                };
+            }),
+        );
+        const readLevel = async (
+            level: typeof rootLevel,
+            depth: number,
+        ): Promise<void> => {
+            const next = new Set<string>();
+            for (const node of level) {
+                const { references } = getQuerySourceParameters(
+                    node.queryHistory.requestParameters,
+                );
+                const sources = [
+                    ...new Set([
+                        ...Object.values(references ?? {}),
+                        ...Object.values(node.execution?.references ?? {}),
+                    ]),
+                ];
+                nodes.set(node.queryHistory.queryUuid, {
+                    queryHistory: node.queryHistory,
+                    sources,
+                    isDuckdbExecution: node.execution !== null,
+                });
+                for (const uuid of sources) {
+                    if (!visited.has(uuid)) {
+                        visited.add(uuid);
+                        if (visited.size > maxNodes) throw refuse();
+                        next.add(uuid);
+                    }
+                }
+            }
+            if (next.size === 0) return;
+            if (depth >= maxDepth) throw refuse();
+            const nextLevel =
+                await this.queryHistoryModel.getManyWithDuckdbExecutions(
+                    [...next],
+                    projectUuid,
+                    account,
+                );
+            return readLevel(nextLevel, depth + 1);
+        };
+        await readLevel(rootLevel, 0);
+
+        const active = new Set<string>();
+        const heights = new Map<string, number>();
+        const ordered: string[] = [];
+        const visit = (uuid: string, pathDepth: number): number => {
+            if (active.has(uuid) || pathDepth > maxDepth) throw refuse();
+            const knownHeight = heights.get(uuid);
+            if (knownHeight !== undefined) {
+                if (pathDepth + knownHeight > maxDepth) throw refuse();
+                return knownHeight;
+            }
+            active.add(uuid);
+            let height = 0;
+            for (const source of nodes.get(uuid)!.sources) {
+                height = Math.max(height, 1 + visit(source, pathDepth + 1));
+            }
+            active.delete(uuid);
+            heights.set(uuid, height);
+            ordered.push(uuid);
+            return height;
+        };
+        const enforcedNodes = new Set<string>();
+        const enforce = (uuid: string) => {
+            if (enforcedNodes.has(uuid)) return;
+            enforcedNodes.add(uuid);
+            nodes.get(uuid)!.sources.forEach(enforce);
+        };
+        for (const root of uniqueRoots) {
+            visit(root.queryHistory.queryUuid, 0);
+            if (!root.agentProducedOnly) enforce(root.queryHistory.queryUuid);
         }
-        return plan;
+
+        const plans = new Map<string, AiExecutionPlan | null>();
+        const warehouseTypesByConnection = new Map<
+            string | null,
+            WarehouseTypes
+        >();
+        const plansByConnection = new Map<
+            string | null,
+            Promise<AiExecutionPlan>
+        >();
+        await [...nodes.values()].reduce(
+            async (previous, { queryHistory: node, isDuckdbExecution }) => {
+                await previous;
+                const uuid = node.queryUuid;
+                if (
+                    !enforcedNodes.has(node.queryUuid) &&
+                    !node.requestParameters?.aiSignInCredentialUuid &&
+                    !isAiAccessQueryContext(node.context)
+                ) {
+                    plans.set(uuid, null);
+                    return;
+                }
+                const warehouseConnectionUuid =
+                    node.warehouseConnectionUuid ?? null;
+                let planPromise = plansByConnection.get(
+                    warehouseConnectionUuid,
+                );
+                if (!planPromise) {
+                    planPromise = (async () => {
+                        const { connection } = await this.loadConnection(
+                            account,
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            'view',
+                        );
+                        warehouseTypesByConnection.set(
+                            warehouseConnectionUuid,
+                            connection.type,
+                        );
+                        return this.resolveEnabledPlan({
+                            evaluation,
+                            agentActor,
+                            projectUuid,
+                            organizationUuid,
+                            warehouseConnectionUuid,
+                            connection,
+                            context: QueryExecutionContext.AI,
+                            userUuid: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
+                        });
+                    })();
+                    plansByConnection.set(warehouseConnectionUuid, planPromise);
+                }
+                const plan = await planPromise;
+                const generation = getAiExecutionCredentialUuid(plan);
+                if (
+                    node.status === QueryHistoryStatus.READY &&
+                    ((!isDuckdbExecution &&
+                        this.lightdashConfig?.ai
+                            ?.agentResultIdentityCheckEnabled !== false) ||
+                        generation !== null) &&
+                    (node.requestParameters?.aiSignInCredentialUuid ?? null) !==
+                        generation
+                ) {
+                    this.trackQueryRefusal(
+                        {
+                            evaluation,
+                            agentActor,
+                            organizationUuid,
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            warehouseType: warehouseTypesByConnection.get(
+                                warehouseConnectionUuid,
+                            )!,
+                            userUuid: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                            isServiceAccount: account.isServiceAccount(),
+                        },
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    );
+                    throw refuse();
+                }
+                plans.set(uuid, plan);
+            },
+            Promise.resolve(),
+        );
+        for (const uuid of ordered) {
+            const { queryHistory: node, sources } = nodes.get(uuid)!;
+            const plan = plans.get(uuid) ?? null;
+            const sourcePlans = sources.map(
+                (source) => plans.get(source) ?? null,
+            );
+            const credentialPlan = sourcePlans.find(
+                (sourcePlan) =>
+                    getAiExecutionCredentialUuid(sourcePlan) !== null,
+            );
+            if (
+                plan !== null &&
+                node.status === QueryHistoryStatus.READY &&
+                sourcePlans.some(
+                    (sourcePlan) =>
+                        getAiExecutionCredentialUuid(sourcePlan) !== null &&
+                        getAiExecutionCredentialUuid(sourcePlan) !==
+                            node.requestParameters?.aiSignInCredentialUuid,
+                )
+            ) {
+                this.trackQueryRefusal(
+                    {
+                        evaluation,
+                        agentActor,
+                        organizationUuid,
+                        projectUuid,
+                        warehouseConnectionUuid:
+                            node.warehouseConnectionUuid ?? null,
+                        warehouseType: warehouseTypesByConnection.get(
+                            node.warehouseConnectionUuid ?? null,
+                        )!,
+                        userUuid: account.user.id,
+                        isRegisteredUser: account.isRegisteredUser(),
+                        isServiceAccount: account.isServiceAccount(),
+                    },
+                    AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                );
+                throw refuse();
+            }
+            const resolvedPlan = credentialPlan ?? plan;
+            const sourceIdentities = getQueryIdentityLineage(
+                sources.map((source) => nodes.get(source)!.queryHistory),
+            );
+            plans.set(
+                uuid,
+                resolvedPlan === null
+                    ? null
+                    : {
+                          ...resolvedPlan,
+                          agentIdentity: node.agentIdentity ?? null,
+                          sourceIdentities,
+                      },
+            );
+            this.logger.info('Agent result lineage', {
+                queryUuid: uuid,
+                projectUuid,
+                agentIdentity: node.agentIdentity ?? null,
+                sourceIdentities,
+            });
+        }
+        return plans;
     }
 
     async getAiAccessForUser(args: AccessArgs): Promise<AiAccessForUser> {
         const enabled = await this.isEnabled(args);
-        const required = enabled && (await this.requiresAgentIdentity(args));
+        const rule = enabled
+            ? await this.organizationAgentIdentityRulesModel.get(
+                  args.organizationUuid,
+                  args.connection.type,
+                  this.actorKind(args),
+              )
+            : null;
         const result: AiAccessForUser = {
-            requirementSource: required ? 'organization' : null,
+            requirementSource:
+                rule && rule.source !== 'marked_person' ? 'organization' : null,
+            source: rule?.source ?? null,
             identity: enabled ? 'marked_person' : null,
             marker: enabled ? describeAgentMarker(args.connection.type) : null,
             projectUuid: args.projectUuid,
             warehouseConnectionUuid: args.warehouseConnectionUuid,
             enabled,
-            principalKind: enabled ? 'person' : null,
+            principalKind: enabled ? this.actorKind(args) : null,
             refusal: null,
             expiresAt: null,
+            principalName: null,
         };
-        if (!required) return result;
-        result.identity = 'connected_person';
+        if (!rule || rule.source === 'marked_person') return result;
         try {
-            const provider = await this.provider(args);
-            const { email } = await this.userModel.getUserDetailsByUuid(
-                args.userUuid,
-            );
-            if (!email)
-                throw new UnexpectedServerError(
-                    'AI access needs the person to have an email address',
+            if (!args.isRegisteredUser && !args.isServiceAccount) {
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
                 );
-            const missingPrerequisite = await provider.missingPrerequisite({
-                connection: args.connection,
-                person: { userUuid: args.userUuid, email },
-            });
-            if (missingPrerequisite !== null)
-                throw new AiAccessRefusedError(missingPrerequisite);
-            const credential =
-                await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
-                    {
-                        userUuid: args.userUuid,
-                        warehouseType: args.connection.type,
-                    },
-                );
-            result.expiresAt = credential?.expiresAt ?? null;
+            }
+            switch (rule.source) {
+                case 'ai_service_account': {
+                    result.identity = 'ai_service_account';
+                    result.principalKind = 'service_account';
+                    const slot =
+                        await this.aiServiceAccountCredentialsModel.getSlot(
+                            args.projectUuid,
+                            args.warehouseConnectionUuid,
+                        );
+                    if (slot === null) {
+                        throw new AiAccessRefusedError(
+                            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                        );
+                    }
+                    if (
+                        slot.warehouseType !== WarehouseTypes.BIGQUERY ||
+                        slot.method !== 'private_key'
+                    ) {
+                        throw new AiAccessRefusedError(
+                            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        );
+                    }
+                    return result;
+                }
+                case 'agent_sign_in': {
+                    result.identity = 'connected_person';
+                    const provider = await this.provider(args);
+                    const { email } = await this.userModel.getUserDetailsByUuid(
+                        args.userUuid,
+                    );
+                    if (!email)
+                        throw new UnexpectedServerError(
+                            'AI access needs the person to have an email address',
+                        );
+                    const missing = await provider.missingPrerequisite({
+                        connection: args.connection,
+                        person: { userUuid: args.userUuid, email },
+                        silentRefresh: await this.isSilentRefreshEnabled(
+                            args,
+                            provider.warehouseType,
+                        ),
+                    });
+                    if (missing !== null) {
+                        throw new AiAccessRefusedError(missing);
+                    }
+                    const credential =
+                        await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
+                            {
+                                userUuid: args.userUuid,
+                                warehouseType: args.connection.type,
+                            },
+                        );
+                    result.expiresAt = credential?.expiresAt ?? null;
+                    result.principalName = credential ? email : null;
+                    break;
+                }
+                default:
+                    assertUnreachable(
+                        rule.source,
+                        'Unknown AI identity source',
+                    );
+            }
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = this.withRefusalUrls(error, args.projectUuid);
+            const refusalError = this.withRefusalUrls(
+                error,
+                args.projectUuid,
+                AgentIdentityConnectEntryPoint.UNKNOWN,
+            );
             this.logRefusal(args, refusalError);
             result.refusal = refusalError.refusal;
         }

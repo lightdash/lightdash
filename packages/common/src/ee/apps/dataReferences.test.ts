@@ -217,6 +217,97 @@ describe('extractDataAppDataReferences', () => {
                 additionalMetrics: [],
                 customDimensions: [],
             });
+            expect(ref.unresolved).toEqual(['customSql']);
+        });
+
+        it('reports missing interpolated SQL even when field names resolve', () => {
+            const extracted = extractDataAppDataReferences(
+                app(
+                    [
+                        "import { query } from '@lightdash/query-sdk';",
+                        "const EXPLORE = 'orders'; const METRIC = 'order_count';",
+                        "query(EXPLORE).tableCalculations([{ name: 'share', displayName: 'Share',",
+                        'sql: `\\${${EXPLORE}.${METRIC}} / SUM(\\${${EXPLORE}.${METRIC}}) OVER ()` }]);',
+                    ].join('\n'),
+                ),
+            );
+            expect(extracted.references[0]).toMatchObject({
+                localFields: ['share'],
+                customSql: { tableCalculations: [] },
+                unresolved: ['customSql'],
+            });
+            expect(extracted.stats).toMatchObject({
+                fullyResolved: 0,
+                partiallyResolved: 1,
+            });
+        });
+
+        it.each([
+            "const extras = [sumWhen('completed', '${TABLE}.completed')];",
+            "const extras = ['completed'].map(name => sumWhen(name, '${TABLE}.completed'));",
+        ])(
+            'keeps literal SQL but reports helper-built definitions: %s',
+            (definitions) => {
+                const [ref] = queries(
+                    app(
+                        [
+                            "import { query } from '@lightdash/query-sdk';",
+                            "const sumWhen = (name, condition) => ({name, table: 'orders', type: 'sum', sql: `CASE WHEN ${condition} THEN 1 ELSE 0 END`});",
+                            definitions,
+                            "const last = {name: 'last', table: 'orders', type: 'max', sql: '${TABLE}.created_at'};",
+                            "query('orders').additionalMetrics([...extras, last]);",
+                        ].join('\n'),
+                    ),
+                );
+                expect(ref.customSql?.additionalMetrics).toEqual([
+                    { table: 'orders', sql: '${TABLE}.created_at' },
+                ]);
+                expect(ref.unresolved).toEqual(['customSql', 'localFields']);
+            },
+        );
+
+        it('does not require custom SQL for bins, formulas, or calculation templates', () => {
+            const [ref] = queries(
+                app(`
+                import { query } from '@lightdash/query-sdk';
+                query('orders')
+                    .customDimensions([{id: 'amount_bin', name: 'Amount', type: 'bin',
+                        table: 'orders', dimensionId: 'orders_amount', binType: 'fixed_width', binWidth: 10}])
+                    .tableCalculations([
+                        {name: 'ratio', displayName: 'Ratio', formula: '1 / 2'},
+                        {name: 'running', displayName: 'Running', template: {type: 'running_total'}},
+                    ]);
+            `),
+            );
+            expect(ref.unresolved).toEqual([]);
+            expect(ref.customSql).toEqual({
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            });
+        });
+
+        it('resolves imported SQL constants and arrays without inlining definitions', () => {
+            const [ref] = queries([
+                file(
+                    'src/fields.ts',
+                    [
+                        "const SQL = '${orders.order_count} / SUM(${orders.order_count}) OVER ()';",
+                        "export const calculations = [{name: 'share', displayName: 'Share', sql: SQL}];",
+                    ].join('\n'),
+                ),
+                file(
+                    'src/App.tsx',
+                    `
+                    import { query } from '@lightdash/query-sdk';
+                    import { calculations } from './fields';
+                    query('orders').tableCalculations([...calculations]);
+                `,
+                ),
+            ]);
+            expect(ref.customSql?.tableCalculations).toEqual([
+                '${orders.order_count} / SUM(${orders.order_count}) OVER ()',
+            ]);
             expect(ref.unresolved).toEqual([]);
         });
 

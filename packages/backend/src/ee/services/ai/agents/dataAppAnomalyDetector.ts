@@ -113,6 +113,7 @@ Rules:
 - Every claim names its period and its scope (which region, product, segment, etc.).
 - "Notable" means a material change against a comparison in the data, a breach of a target in the data, or an outlier among peers in the same table. Ordinary variation is not notable.
 - Assess each source section on its own before writing the summary. A row several times its peers in the same section, or a period several times its neighbouring periods, is notable even when every other section looks ordinary.
+- Respect periodicity. On daily data, compare a day against the same weekday in prior weeks, not against its calendar neighbours. A pattern that repeats every week — weekend spikes or dips, quiet Mondays — is the baseline, not an anomaly. Flag such a day only when it breaks its own like-for-like baseline (this Saturday far above or below recent Saturdays). The same applies to any recurring cycle visible in the data, such as month-end or quarter-end peaks.
 - The largest category, the dominant share or the top of a ranking is not a finding by itself. Report it only when the data shows it changed or breaches a comparison.
 - Do not explain causes. Do not speculate about why. That is a separate step.
 - When the data has no comparison period, say so in limitations instead of inferring a trend.

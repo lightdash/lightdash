@@ -205,6 +205,53 @@
 
 /* --- card editor surface --- */
 
+/* Full-width strip on one edge; the grip pill only shows on hover. */
+.resizeHandle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 2;
+    height: rem(10px);
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+.resizeHandle[data-placement='top'] {
+    top: 0;
+}
+
+.resizeHandle[data-placement='bottom'] {
+    bottom: 0;
+}
+
+.resizeHandle::before {
+    content: '';
+    position: absolute;
+    top: rem(3px);
+    left: 50%;
+    width: rem(32px);
+    height: rem(4px);
+    transform: translateX(-50%);
+    border-radius: rem(2px);
+    background: var(--mantine-color-dimmed);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.resizeHandle:hover::before,
+.resizeHandle:focus-visible::before {
+    opacity: 1;
+}
+
+.resizeHandle:focus-visible {
+    outline: none;
+}
+
+.root[data-resized] .editorContent {
+    height: var(--composer-editor-height);
+    max-height: none;
+}
+
 .editorContent {
     padding: rem(22px) rem(24px) rem(10px);
     line-height: 1.5;

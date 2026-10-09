@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getDocumentUrl,
     dataAppContextKey,
     dataAppElementContextKey,
     dataAppRestoreContextKey,
@@ -179,7 +180,11 @@ export const getPromptContextItemHref = (
         case 'data_app':
             return dataAppHref(projectUuid, item.appUuid);
         case 'document':
-            return `/projects/${projectUuid}/documents/${item.documentUuid}`;
+            return getDocumentUrl(
+                projectUuid,
+                item.documentUuid,
+                item.documentSlug ?? undefined,
+            );
         // A theme is an organization setting with no in-thread destination.
         case 'design':
             return null;

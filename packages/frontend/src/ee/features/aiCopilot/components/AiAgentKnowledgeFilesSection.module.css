@@ -1,3 +1,74 @@
+.panel {
+    overflow: hidden;
+}
+
+/* The detail pane has a fixed height so switching documents never resizes
+   the section; the list is pinned to it. */
+.detailPane {
+    flex: 1;
+    min-width: 0;
+}
+
+.listPane {
+    position: relative;
+    flex: 0 0 34%;
+    max-width: 280px;
+    background-color: var(--mantine-color-ldGray-0);
+    border-right: 1px solid var(--mantine-color-default-border);
+}
+
+.listPaneInner {
+    position: absolute;
+    inset: 0;
+}
+
+.listHeader {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.fileRow {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-md);
+    transition: background-color 120ms ease;
+}
+
+.fileRow:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.fileRow[data-selected] {
+    background-color: var(--mantine-color-body);
+    border-color: var(--mantine-color-default-border);
+}
+
+.fileIcon {
+    flex-shrink: 0;
+}
+
+.usageCard {
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.usageCard[data-checked] {
+    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.usageCard:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.usageIndicator {
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
 .summaryReveal {
     animation: summaryReveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -14,11 +85,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .summaryReveal {
+    .summaryReveal,
+    .fileRow,
+    .usageCard {
         animation: none;
+        transition: none;
     }
-}
-
-.fileIcon {
-    flex-shrink: 0;
 }

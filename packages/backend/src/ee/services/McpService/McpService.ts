@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentIdentityConnectEntryPoint,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
@@ -78,6 +79,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    QuerySurface,
     readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
@@ -1033,6 +1035,7 @@ export class McpService extends BaseService {
             organizationUuid,
             projectUuid,
             source: 'mcp',
+            querySurface: QuerySurface.MCP,
             catalogSearchContext: CatalogSearchContext.MCP,
             defaultQueryExecutionContext:
                 QueryExecutionContext.MCP_RUN_METRIC_QUERY,
@@ -2134,6 +2137,7 @@ export class McpService extends BaseService {
 
                 const createContentTool = getCreateContent({
                     createContent: toolsRuntime.createContent,
+                    sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
                     const document = await toolsRuntime.createDocumentContent(
@@ -2193,6 +2197,7 @@ export class McpService extends BaseService {
 
                 const editContentTool = getEditContent({
                     editContent: toolsRuntime.editContent,
+                    sqlChartSaving: { mode: 'client_approved' },
                 });
                 if (args.type === 'document') {
                     if (
@@ -2319,13 +2324,32 @@ export class McpService extends BaseService {
             };
         }
         if (
+            access.refusal === null &&
+            access.identity === 'ai_service_account'
+        ) {
+            return {
+                status: 'not_required' as const,
+                message:
+                    "Agents run as the project's AI service account. Nothing to connect.",
+                connectUrl: null,
+                expiresAt: null,
+            };
+        }
+        if (
             access.refusal?.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             access.refusal?.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
         ) {
+            const connectUrl = access.refusal.connectUrl
+                ? new URL(access.refusal.connectUrl)
+                : null;
+            connectUrl?.searchParams.set(
+                'entryPoint',
+                AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
+            );
             return {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
-                connectUrl: access.refusal.connectUrl,
+                connectUrl: connectUrl?.href ?? null,
                 expiresAt: null,
             };
         }
@@ -2772,20 +2796,8 @@ export class McpService extends BaseService {
                     readContent: toolsRuntime.readContent,
                 });
                 if (args.type === 'document') {
-                    if (
-                        (args.slug === undefined) ===
-                        (args.documentUuid === undefined)
-                    ) {
-                        throw new ParameterError(
-                            'Reading a Document requires exactly one of slug or documentUuid',
-                        );
-                    }
-                    const identifier =
-                        args.documentUuid !== undefined
-                            ? { documentUuid: args.documentUuid }
-                            : { slug: args.slug as string };
                     const document = await toolsRuntime.readDocumentContent(
-                        identifier,
+                        args.slug,
                         args.chartId ?? null,
                     );
                     return this.buildScopedResponse(
@@ -2794,14 +2806,6 @@ export class McpService extends BaseService {
                         document,
                         projectUuid,
                         args.agentUuid,
-                    );
-                }
-                if (
-                    args.slug === undefined ||
-                    args.documentUuid !== undefined
-                ) {
-                    throw new ParameterError(
-                        'Reading charts, dashboards and data apps requires slug',
                     );
                 }
                 const result = await readContentTool.execute!(

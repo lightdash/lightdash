@@ -99,6 +99,10 @@ const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    // The server settles this turn's SQL approvals itself.
+    autoApproveSql: boolean;
     content: string;
     parts: StreamPart[];
     connection: AiAgentThreadStreamConnection;
@@ -127,7 +131,12 @@ type State = Record<string, AiAgentThreadStreamingState>;
 const initialState: State = {};
 const initialThread: Omit<
     AiAgentThreadStreamingState,
-    'threadUuid' | 'messageUuid' | 'timing'
+    | 'threadUuid'
+    | 'messageUuid'
+    | 'projectUuid'
+    | 'agentUuid'
+    | 'autoApproveSql'
+    | 'timing'
 > = {
     content: '',
     parts: [],
@@ -144,13 +153,21 @@ export const aiAgentThreadStreamSlice = createSlice({
     reducers: {
         startStreaming: (
             state,
-            action: PayloadAction<{ threadUuid: string; messageUuid: string }>,
+            action: PayloadAction<
+                Pick<
+                    AiAgentThreadStreamingState,
+                    | 'threadUuid'
+                    | 'messageUuid'
+                    | 'projectUuid'
+                    | 'agentUuid'
+                    | 'autoApproveSql'
+                >
+            >,
         ) => {
-            const { threadUuid, messageUuid } = action.payload;
+            const { threadUuid } = action.payload;
 
             state[threadUuid] = {
-                threadUuid,
-                messageUuid,
+                ...action.payload,
                 ...initialThread,
                 timing: {
                     startedAt: Date.now(),

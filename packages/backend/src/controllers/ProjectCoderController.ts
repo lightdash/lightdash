@@ -1039,18 +1039,17 @@ export class ProjectCoderController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return codeSuccess(
-            await this.services
-                .getCoderService()
-                .upsertSqlChart(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    slug,
-                    { ...sqlChart, description: sqlChart.description ?? null },
-                    sqlChart.skipSpaceCreate,
-                    sqlChart.publicSpaceCreate,
-                    sqlChart.force,
-                    sqlChart.spaceNames,
-                ),
+            await this.services.getCoderService().upsertSqlChart(
+                toSessionUser(req.account),
+                projectUuid,
+                slug,
+                { ...sqlChart, description: sqlChart.description ?? null },
+                {
+                    skipSpaceCreate: sqlChart.skipSpaceCreate,
+                    publicSpaceCreate: sqlChart.publicSpaceCreate,
+                    spaceNames: sqlChart.spaceNames,
+                },
+            ),
         );
     }
 
@@ -1551,6 +1550,7 @@ export class ProjectCoderController extends BaseController {
     /**
      * List the Documents you can view, in code representation
      * @summary List Documents as code
+     * @param schemaVersion The newest Document schema version the client reads. An older version is refused with an upgrade message.
      */
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
@@ -1562,12 +1562,17 @@ export class ProjectCoderController extends BaseController {
         @Request() req: express.Request,
         @Query() slugs?: string[],
         @Query() offset?: number,
+        @Query() schemaVersion?: number,
     ): Promise<ApiDocumentAsCodeListResponse> {
         assertRegisteredAccount(req.account);
         return codeSuccess(
             await this.services
                 .getDocumentService()
-                .listAsCode(req.account, projectUuid, { slugs, offset }),
+                .listAsCode(req.account, projectUuid, {
+                    slugs,
+                    offset,
+                    schemaVersion,
+                }),
         );
     }
 

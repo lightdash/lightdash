@@ -1155,6 +1155,7 @@ describe('AiAgentService thread data app restore', () => {
             threadUuid,
             createdByUserUuid: context.testUser.userUuid,
             prompt: 'Build me a revenue app',
+            modelConfig: null,
         });
         await aiAgentModel.updateModelResponse({
             promptUuid: firstPromptUuid,

@@ -63,28 +63,7 @@ export function FollowProjectModal({
                     disabled={isLoading}
                     {...form.getInputProps('note')}
                 />
-                <Callout
-                    variant="info"
-                    color="ldGray"
-                    mt="sm"
-                    px="sm"
-                    py="xs"
-                    radius="sm"
-                    bg="ldGray.0"
-                    styles={{
-                        root: {
-                            border: '1px solid var(--mantine-color-ldGray-2)',
-                        },
-                        icon: {
-                            color: 'var(--mantine-color-ldGray-4)',
-                            marginInlineEnd: 'var(--mantine-spacing-xs)',
-                        },
-                        message: {
-                            color: 'var(--mantine-color-ldGray-7)',
-                            fontSize: 'var(--mantine-font-size-xs)',
-                        },
-                    }}
-                >
+                <Callout variant="neutral" mt="sm" px="sm" py="xs">
                     Your organization and user details, including your name and
                     email address, will be shared with the Lightdash team along
                     with your note.

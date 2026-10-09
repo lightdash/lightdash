@@ -220,4 +220,22 @@ describe('useAiAccessGate', () => {
         await waitFor(() => expect(result.current.isLoading).toBe(false));
         expect(me).toHaveBeenLastCalledWith('project-2', null);
     });
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('blocks the composer for %s', async (reason) => {
+        const adminRefusal = {
+            ...refusal,
+            reason,
+            action: AiAccessRefusalAction.ASK_ADMIN,
+        };
+        vi.spyOn(aiAccessApi, 'me').mockResolvedValue({
+            refusal: adminRefusal,
+        } as AiAccessForUser);
+        const { result } = setup('project-1');
+        await waitFor(() =>
+            expect(result.current.refusal).toEqual(adminRefusal),
+        );
+        expect(result.current.disabled).toBe(true);
+    });
 });

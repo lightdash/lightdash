@@ -10,6 +10,7 @@ export enum FeatureFlags {
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
+    AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */
@@ -78,6 +79,14 @@ export enum FeatureFlags {
      * tab content.
      */
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
+
+    /**
+     * Enable dashboard controls: the new bar and sidebar for filter
+     * controls.
+     * Rolled out per organization. Temporary: remove once the new bar
+     * replaces the shipped one.
+     */
+    DashboardControls = 'dashboard-controls',
 
     /**
      * Enable creating and editing metric filters on dashboards.
@@ -331,6 +340,12 @@ export enum FeatureFlags {
      * per-org on demand for enterprise customers.
      */
     AiThreadRetention = 'ai-thread-retention',
+
+    /**
+     * Per-organization gate for experimental surfaces in Lightdash Desktop.
+     * Desktop reads it once per sign-in. Off by default; enable per org.
+     */
+    DesktopExperiments = 'desktop-experiments',
 
     /**
      * External data sources: upload CSV files or connect Google Sheets as

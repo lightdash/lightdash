@@ -54,8 +54,8 @@ minimumReleaseAgeExclude:
   - postcss@8.5.10 || 8.5.18 || 8.5.23
   # Renovate security update: i18next-http-backend@3.0.5 || 4.0.2
   - i18next-http-backend@3.0.5 || 4.0.2
-  # Renovate security update: simple-git@3.36.0
-  - simple-git@3.36.0
+  # Renovate security update: simple-git@3.36.0 || 4.0.2
+  - simple-git@3.36.0 || 4.0.2
   # Renovate security update: dompurify@3.4.0 || 3.4.13
   - dompurify@3.4.0 || 3.4.13
   # Renovate security update: yaml@2.8.3
@@ -108,6 +108,8 @@ minimumReleaseAgeExclude:
   - csv-parse@7.0.2
   # Renovate security update: scim-patch@0.9.3
   - scim-patch@0.9.3
+  # Renovate security update: @modelcontextprotocol/sdk@1.31.0
+  - "@modelcontextprotocol/sdk@1.31.0"
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production

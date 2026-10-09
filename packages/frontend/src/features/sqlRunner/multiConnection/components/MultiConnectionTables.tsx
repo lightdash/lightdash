@@ -1,11 +1,10 @@
 import {
     assertUnreachable,
     PartitionType,
-    WarehouseTableType,
     type PartitionColumn,
+    type WarehouseTableType,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Badge,
     Box,
     Button,
@@ -14,9 +13,7 @@ import {
     Highlight,
     Loader,
     ScrollArea,
-    SegmentedControl,
     Text,
-    TextInput,
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
@@ -25,17 +22,10 @@ import {
     IconAlertTriangle,
     IconChevronDown,
     IconChevronRight,
-    IconCloudDataConnection,
     IconDatabase,
-    IconEye,
-    IconEyeTable,
     IconFolder,
-    IconList,
     IconLock,
     IconPlugConnected,
-    IconSearch,
-    IconTable,
-    IconX,
     type Icon,
 } from '@tabler/icons-react';
 import { useVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
@@ -53,14 +43,19 @@ import { CopyActionIcon } from '../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../hooks/useIsTruncated';
 import scrollAreaClasses from '../../../../styles/ScrollArea.module.css';
+import { TablesToolbar } from '../../components/TablesToolbar';
+import { useRecentTables } from '../../hooks/useRecentTables';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSql } from '../../store/sqlRunnerSlice';
+import { MIN_TABLE_SEARCH_LENGTH } from '../../utils/tableRows';
+import { getTableTypeDisplay } from '../../utils/tableTypeDisplay';
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useReportMissingConnection } from '../hooks/useReportMissingConnection';
 import { useTrackedConnectionSwitch } from '../hooks/useTrackedConnectionSwitch';
 import { useWarehouseTree } from '../hooks/useWarehouseTree';
 import { tableClickOutcome } from '../utils/activeConnection';
 import {
+    buildRecentWarehouseRows,
     buildWarehouseTreeRows,
     catalogHasViews,
     qualifiedTableName,
@@ -75,28 +70,9 @@ import {
 } from './ConnectionSwitchPrompt';
 import styles from './MultiConnectionTables.module.css';
 
-const GROUP_ROW_HEIGHT = 34;
-const TABLE_ROW_HEIGHT = 30;
+const GROUP_ROW_HEIGHT = 28;
+const TABLE_ROW_HEIGHT = 28;
 const MESSAGE_ROW_HEIGHT = 32;
-const MIN_SEARCH_LENGTH = 3;
-
-const getTableTypeDisplay = (
-    tableType: WarehouseTableType | undefined,
-): { icon: Icon; label: string } => {
-    switch (tableType) {
-        case WarehouseTableType.VIEW:
-            return { icon: IconEye, label: 'View' };
-        case WarehouseTableType.MATERIALIZED_VIEW:
-            return { icon: IconEyeTable, label: 'Materialized view' };
-        case WarehouseTableType.EXTERNAL:
-            return { icon: IconCloudDataConnection, label: 'External table' };
-        case WarehouseTableType.TABLE:
-        case undefined:
-            return { icon: IconTable, label: 'Table' };
-        default:
-            return assertUnreachable(tableType, 'Unknown table type');
-    }
-};
 
 const partitionFilter = (partitionColumn: PartitionColumn | undefined) => {
     if (partitionColumn) {
@@ -267,6 +243,47 @@ const GroupItem: FC<{
     ),
 );
 
+const SectionItem: FC<{ label: string }> = ({ label }) => (
+    <Group className={styles.section}>
+        <Text fz="xs" fw={500} c="inherit">
+            {label}
+        </Text>
+    </Group>
+);
+
+const RecentItem: FC<{
+    identity: TableIdentity;
+    partitionColumn: PartitionColumn | undefined;
+    tableType: WarehouseTableType | undefined;
+    onSelect: (
+        identity: TableIdentity,
+        partitionColumn: PartitionColumn | undefined,
+    ) => void;
+}> = memo(({ identity, partitionColumn, tableType, onSelect }) => {
+    const typeDisplay = getTableTypeDisplay(tableType);
+    return (
+        <UnstyledButton
+            ff="inherit"
+            onClick={() => onSelect(identity, partitionColumn)}
+            fz="sm"
+            className={styles.recentButton}
+        >
+            <MantineIcon
+                icon={typeDisplay.icon}
+                size="sm"
+                className={styles.rowIcon}
+                aria-label={typeDisplay.label}
+            />
+            <Text fz="sm" truncate>
+                {identity.table}
+            </Text>
+            <Text fz="xs" c="ldGray.5" ml="auto" flex="0 0 auto">
+                {identity.schema}
+            </Text>
+        </UnstyledButton>
+    );
+});
+
 const LoadingItem: FC<{ depth: number }> = ({ depth }) => (
     <Group
         gap="xs"
@@ -345,49 +362,6 @@ type RowExpansion = {
 };
 const NO_OVERRIDES: Record<string, boolean> = {};
 
-const TYPE_FILTER_OPTIONS: {
-    value: 'all' | TableTypeFilter;
-    icon: Icon;
-    label: string;
-}[] = [
-    { value: 'all', icon: IconList, label: 'Show all' },
-    { value: 'tables', icon: IconTable, label: 'Only tables' },
-    { value: 'views', icon: IconEye, label: 'Only views' },
-];
-
-const TableTypeToggle: FC<{
-    value: TableTypeFilter | null;
-    onChange: (value: TableTypeFilter | null) => void;
-}> = ({ value, onChange }) => (
-    <SegmentedControl
-        size="xs"
-        withItemsBorders={false}
-        value={value ?? 'all'}
-        aria-label="Filter tables by type"
-        classNames={{
-            root: styles.typeFilter,
-            label: styles.typeFilterLabel,
-        }}
-        onChange={(next) =>
-            onChange(next === 'all' ? null : (next as TableTypeFilter))
-        }
-        data={TYPE_FILTER_OPTIONS.map((option) => ({
-            value: option.value,
-            label: (
-                <Tooltip label={option.label} openDelay={400}>
-                    <Box component="span" lh={0} display="flex">
-                        <MantineIcon
-                            icon={option.icon}
-                            size={14}
-                            aria-label={option.label}
-                        />
-                    </Box>
-                </Tooltip>
-            ),
-        }))}
-    />
-);
-
 const isSameTable = (
     identity: TableIdentity,
     activeTable: TableIdentity | undefined,
@@ -419,6 +393,17 @@ const VirtualRow: FC<{
     onSelect,
 }) => {
     switch (row.type) {
+        case 'section':
+            return <SectionItem label={row.label} />;
+        case 'recent':
+            return (
+                <RecentItem
+                    identity={row.identity}
+                    partitionColumn={row.partitionColumn}
+                    tableType={row.tableType}
+                    onSelect={onSelect}
+                />
+            );
         case 'connection':
             return (
                 <GroupItem
@@ -500,6 +485,8 @@ const VirtualRow: FC<{
 const rowHeight = (row: WarehouseTreeRow | undefined): number => {
     switch (row?.type) {
         case 'table':
+        case 'recent':
+        case 'section':
             return TABLE_ROW_HEIGHT;
         case 'loading':
         case 'error':
@@ -646,11 +633,14 @@ const TablesStatus: FC<{
     return null;
 };
 
-export const MultiConnectionTables: FC = () => {
+export const MultiConnectionTables: FC<{
+    onRefresh: () => void;
+    isRefreshDisabled: boolean;
+}> = ({ onRefresh, isRefreshDisabled }) => {
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 500);
     const effectiveSearch =
-        debouncedSearch.trim().length >= MIN_SEARCH_LENGTH
+        debouncedSearch.trim().length >= MIN_TABLE_SEARCH_LENGTH
             ? debouncedSearch
             : '';
 
@@ -667,6 +657,7 @@ export const MultiConnectionTables: FC = () => {
         [expansion, filterKey],
     );
     const {
+        projectUuid,
         activeConnectionUuid,
         activeConnection,
         connectionNameFor,
@@ -724,6 +715,21 @@ export const MultiConnectionTables: FC = () => {
     const [pendingSwitch, setPendingSwitch] =
         useState<PendingConnectionSwitch | null>(null);
 
+    const { recentTables, addRecentTable } = useRecentTables(
+        `${projectUuid}:${activeConnectionUuid ?? 'none'}`,
+    );
+    const rememberTable = useCallback(
+        (identity: TableIdentity) => {
+            if (identity.connectionId !== activeConnectionUuid) return;
+            addRecentTable({
+                database: identity.database,
+                schema: identity.schema,
+                table: identity.table,
+            });
+        },
+        [activeConnectionUuid, addRecentTable],
+    );
+
     const openTable = useCallback(
         (
             identity: TableIdentity,
@@ -738,8 +744,9 @@ export const MultiConnectionTables: FC = () => {
                 ),
             );
             setActiveTable(identity);
+            rememberTable(identity);
         },
-        [dispatch, quoteChar, setActiveTable],
+        [dispatch, quoteChar, setActiveTable, rememberTable],
     );
 
     const handleTableSelect = useCallback(
@@ -760,6 +767,7 @@ export const MultiConnectionTables: FC = () => {
 
             if (outcome === 'select-only') {
                 setActiveTable(identity);
+                rememberTable(identity);
                 return;
             }
 
@@ -786,6 +794,7 @@ export const MultiConnectionTables: FC = () => {
             switchConnection,
             connectionNameFor,
             setActiveTable,
+            rememberTable,
         ],
     );
 
@@ -801,17 +810,37 @@ export const MultiConnectionTables: FC = () => {
         [loadedCatalogs],
     );
 
-    const rows = useMemo(
-        () =>
-            buildWarehouseTreeRows({
-                connections,
+    const rows = useMemo(() => {
+        const treeRows = buildWarehouseTreeRows({
+            connections,
+            getUnitState,
+            isExpanded: isRowExpanded,
+            search: effectiveSearch,
+            typeFilter,
+        });
+        const isFiltering = effectiveSearch !== '' || typeFilter !== null;
+        if (isFiltering || !activeConnectionUuid) return treeRows;
+        return [
+            ...buildRecentWarehouseRows({
+                connectionId: activeConnectionUuid,
+                recentTables,
                 getUnitState,
-                isExpanded: isRowExpanded,
-                search: effectiveSearch,
-                typeFilter,
+                allLabel: hasSeveralConnections
+                    ? 'All connections'
+                    : 'All schemas',
             }),
-        [connections, getUnitState, isRowExpanded, effectiveSearch, typeFilter],
-    );
+            ...treeRows,
+        ];
+    }, [
+        connections,
+        getUnitState,
+        isRowExpanded,
+        effectiveSearch,
+        typeFilter,
+        activeConnectionUuid,
+        recentTables,
+        hasSeveralConnections,
+    ]);
 
     const viewportRef = useRef<HTMLDivElement>(null);
     const virtualizer = useVirtualizer({
@@ -821,8 +850,6 @@ export const MultiConnectionTables: FC = () => {
         getItemKey: (index) => rows[index]?.id ?? index,
         overscan: 10,
     });
-
-    const showClear = search.length > 0;
 
     return (
         <>
@@ -835,53 +862,18 @@ export const MultiConnectionTables: FC = () => {
                 />
             )}
 
-            <Group gap="xs" wrap="nowrap">
-                <Tooltip
-                    opened={
-                        search.length > 0 && search.length < MIN_SEARCH_LENGTH
-                    }
-                    label={`Enter at least ${MIN_SEARCH_LENGTH} characters to search`}
-                >
-                    <TextInput
-                        className={styles.searchInput}
-                        size="sm"
-                        disabled={!isSuccess && !debouncedSearch}
-                        classNames={{ section: styles.searchSection }}
-                        leftSection={
-                            isLoading ? (
-                                <Loader size="xs" />
-                            ) : (
-                                <MantineIcon icon={IconSearch} />
-                            )
-                        }
-                        rightSectionPointerEvents="all"
-                        rightSection={
-                            showClear ? (
-                                <ActionIcon
-                                    aria-label="Clear search"
-                                    onMouseDown={(event) =>
-                                        event.preventDefault()
-                                    }
-                                    size="xs"
-                                    onClick={() => setSearch('')}
-                                >
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            ) : null
-                        }
-                        placeholder="Search tables"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </Tooltip>
-
-                {hasViews ? (
-                    <TableTypeToggle
-                        value={typeFilter}
-                        onChange={setTypeFilter}
-                    />
-                ) : null}
-            </Group>
+            <TablesToolbar
+                search={search}
+                onSearchChange={setSearch}
+                isSearchDisabled={!isSuccess && !debouncedSearch}
+                isLoading={isLoading}
+                typeFilter={typeFilter}
+                onTypeFilterChange={setTypeFilter}
+                hasViews={hasViews}
+                groupDevSchemas={null}
+                onRefresh={onRefresh}
+                isRefreshDisabled={isRefreshDisabled}
+            />
 
             <VirtualTreeList
                 rows={rows}

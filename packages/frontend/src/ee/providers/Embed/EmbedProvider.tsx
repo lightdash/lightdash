@@ -38,6 +38,7 @@ import {
     type EmbedBackDestination,
     type EmbedExploreChart,
     type EmbedExploreOptions,
+    type EmbedAiAgentThreadChange,
     type EmbedMode,
     type InMemoryEmbed,
 } from './types';
@@ -61,6 +62,7 @@ type Props = {
     customSqlProvenanceChartUuid?: UUID;
     savedQueryUuid?: string;
     appUuid?: string;
+    onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
 };
 
 const decodeEmbedJwtPayload = (
@@ -102,6 +104,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     customSqlProvenanceChartUuid,
     savedQueryUuid,
     appUuid,
+    onAiAgentThreadChange,
 }) => {
     const embedToken = encodedToken || window.location.hash.replace('#', '');
     const params = useParams();
@@ -240,6 +243,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,
             timezone: embedTimezone,
+            onAiAgentThreadChange,
         };
     }, [
         embed?.projectUuid,
@@ -267,6 +271,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         embedThemeParams.theme,
         embedThemeParams.backgroundColor,
         embedTimezone,
+        onAiAgentThreadChange,
     ]);
 
     return (

@@ -416,6 +416,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         asyncQueryService: repository.getAsyncQueryService(),
                         queryHistoryModel: models.getQueryHistoryModel(),
                         userModel: models.getUserModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        documentService: repository.getDocumentService(),
                         executor: (run, executionContext) =>
                             executorHolder.execute!(run, executionContext),
                     });
@@ -707,6 +709,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardService: repository.getDashboardService(),
                     dashboardModel: models.getDashboardModel(),
                     savedChartService: repository.getSavedChartService(),
+                    savedSqlService: repository.getSavedSqlService(),
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
@@ -722,6 +725,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     aiDeepResearchRunModel:
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
@@ -1521,8 +1525,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             .getAppGenerateService<AppGenerateService>()
                             .getCustomSqlProvenance(args),
                 }),
-            cacheService: ({ models, clients }) =>
+            cacheService: ({ context, models, clients }) =>
                 new CommercialCacheService({
+                    lightdashConfig: context.lightdashConfig,
                     queryHistoryModel: models.getQueryHistoryModel(),
                     projectModel: models.getProjectModel(),
                     storageClient: clients.getResultsFileStorageClient(),

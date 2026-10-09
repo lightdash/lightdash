@@ -14,6 +14,7 @@ import {
 import { SqlRunnerSidebar } from '../features/sqlRunner';
 import { ContentPanel } from '../features/sqlRunner/components/ContentPanel';
 import { Header } from '../features/sqlRunner/components/Header';
+import { HeaderCreate } from '../features/sqlRunner/components/Header/HeaderCreate';
 import { useSavedSqlChart } from '../features/sqlRunner/hooks/useSavedSqlCharts';
 import { useSqlRunnerShareUrl } from '../features/sqlRunner/hooks/useSqlRunnerShareUrl';
 import { SqlRunnerConnectionScope } from '../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
@@ -267,9 +268,16 @@ const SqlRunner = ({
                             virtualViewState={virtualViewState}
                         />
                     ) : (
-                        <Header mode={params.slug ? 'edit' : 'create'} />
+                        params.slug && <Header mode="edit" />
                     )}
-                    <ContentPanel />
+                    <ContentPanel
+                        toolbarActions={
+                            !params.slug &&
+                            !(mode === 'virtualView' && virtualViewState) ? (
+                                <HeaderCreate />
+                            ) : undefined
+                        }
+                    />
                 </Stack>
             </Page>
         </SqlRunnerConnectionScope>

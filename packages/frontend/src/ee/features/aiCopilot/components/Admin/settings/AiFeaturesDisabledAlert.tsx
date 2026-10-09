@@ -1,14 +1,15 @@
 import { Alert, Text } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { Link } from 'react-router';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
 
 export const AiFeaturesDisabledAlert = () => (
     <Alert
-        icon={<IconInfoCircle />}
+        icon={<MantineIcon icon={IconInfoCircle} />}
         color="orange"
         title="Ask AI features are currently disabled for all users"
     >
-        <Text c="ldGray.7" size="xs">
+        <Text size="xs">
             Re-enable them from{' '}
             <Text
                 span

@@ -1,7 +1,8 @@
 import {
     ChartType,
     MergeJoinType,
-    type DocumentChartContent,
+    type DocumentExploreChartContent,
+    type DocumentSemanticChartContent,
 } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
@@ -22,6 +23,9 @@ const mocks = vi.hoisted(() => ({
     visualization: vi.fn(),
 }));
 
+vi.mock('./useCanManageSqlRunner', () => ({
+    useCanManageSqlRunner: () => false,
+}));
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({ canViewExplore: mocks.canExplore }),
 }));
@@ -66,9 +70,12 @@ vi.mock('../../components/LightdashVisualization', () => ({
     },
 }));
 
-type ChartFixture = { type: 'chart'; content: DocumentChartContent };
+type ChartFixture = { type: 'chart'; content: DocumentExploreChartContent };
 
-const semanticCell: ChartFixture = {
+const semanticCell: {
+    type: 'chart';
+    content: DocumentSemanticChartContent;
+} = {
     type: 'chart',
     content: {
         source: 'semantic',
@@ -90,7 +97,7 @@ const semanticCell: ChartFixture = {
     },
 };
 
-const renderChart = (cell = semanticCell, showTitle = true) => {
+const renderChart = (cell: ChartFixture = semanticCell, showTitle = true) => {
     return render(
         <MantineProvider env="test">
             <DocumentChart

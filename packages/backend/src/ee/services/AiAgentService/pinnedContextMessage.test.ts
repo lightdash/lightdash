@@ -449,13 +449,14 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
         ]);
 
         expect(content).toContain(
-            '- Document "Q3 revenue review" (documentUuid: doc-1, slug: q3-revenue-review)',
+            '- Document "Q3 revenue review" (documentSlug: q3-revenue-review)',
         );
+        expect(content).toContain('type document, slug');
         expect(content).toContain('they mean this Document');
         expect(content).toContain('editContent');
     });
 
-    it('still identifies a Document whose slug could not be resolved', () => {
+    it('marks the slug unavailable when the Document could not be resolved', () => {
         const content = buildMessage([
             {
                 type: 'document',
@@ -467,7 +468,7 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
         ]);
 
         expect(content).toContain(
-            '- Document "(name unavailable)" (documentUuid: doc-1)',
+            '- Document "(name unavailable)" (documentSlug: (slug unavailable))',
         );
     });
 });

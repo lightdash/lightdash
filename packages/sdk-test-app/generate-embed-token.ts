@@ -353,6 +353,14 @@ async function main() {
             expiresIn: '24h',
         });
         const embedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${dashboardToken}`;
+        const exploreFromHereEmbedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${jwt.sign(
+            {
+                ...dashboardPayload,
+                content: { ...dashboardPayload.content, canExplore: true },
+            },
+            rawSecret,
+            { expiresIn: '24h' },
+        )}`;
         const aiAgentPayload = aiAgent
             ? {
                   content: {
@@ -567,6 +575,7 @@ async function main() {
                     aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
                     aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
+                    exploreFromHereEmbedUrl,
                     aiAgentEmbedUrl,
                     metricsCatalogEmbedUrl,
                     metricsCatalogNoSqlEmbedUrl,
@@ -582,6 +591,9 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        console.log(
+            `VITE_EXPLORE_FROM_HERE_EMBED_URL="${exploreFromHereEmbedUrl}"`,
+        );
         console.log(
             `VITE_METRICS_CATALOG_EMBED_URL="${metricsCatalogEmbedUrl}"`,
         );

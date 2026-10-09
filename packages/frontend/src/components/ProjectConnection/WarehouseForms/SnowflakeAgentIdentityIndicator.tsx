@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, FeatureFlags } from '@lightdash/common';
 import { Anchor, Group, Stack, Text } from '@mantine/core';
 import { IconShieldLock } from '@tabler/icons-react';
 import { Link } from 'react-router';
@@ -27,7 +27,7 @@ const SnowflakeAgentIdentityIndicator = ({
                 </Text>
                 <Anchor
                     component={Link}
-                    to="/generalSettings/warehouseCredentials"
+                    to={AGENT_IDENTITY_SETTINGS_PATH}
                     size="sm"
                 >
                     Organisation settings

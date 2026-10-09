@@ -8,7 +8,7 @@ import { WarehouseClient } from '@lightdash/warehouses';
 import fs from 'fs';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
-import simpleGit, { SimpleGit, SimpleGitProgressEvent } from 'simple-git';
+import { SimpleGit, simpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
 import {
@@ -18,7 +18,7 @@ import {
     type TrackingParams,
 } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { GitRepository } from './gitRepository';
+import { GIT_REPOSITORY_ENVIRONMENT, GitRepository } from './gitRepository';
 
 export type DbtGitProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
@@ -99,6 +99,7 @@ export class DbtGitProjectAdapter
         this.branch = gitBranch;
         this.repository = repository;
         this.git = simpleGit({
+            allowEnvironment: GIT_REPOSITORY_ENVIRONMENT,
             progress({ method, stage, progress }: SimpleGitProgressEvent) {
                 Logger.debug(
                     `git.${method} ${stage} stage ${progress}% complete`,

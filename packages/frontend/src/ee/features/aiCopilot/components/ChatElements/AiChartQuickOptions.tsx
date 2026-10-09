@@ -47,8 +47,8 @@ import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getEmbedExploreSearch } from '../../../embed/embedNavigation';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
@@ -114,7 +114,7 @@ export const AiChartQuickOptions = ({
     const { user } = useApp();
     const ability = useAbilityContext();
     const { content, writeActions, embedToken } = useEmbed();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const getBackUrl = useChatBackUrl();
     const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
     const navigate = useNavigate();

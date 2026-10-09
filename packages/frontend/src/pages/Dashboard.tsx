@@ -41,6 +41,7 @@ import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
@@ -58,6 +59,8 @@ import {
     useRebaseDraftMutation,
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
+import { ControlsSidebarPage } from '../features/dashboardControls/ControlsSidebarPage';
+import { DashboardHeaderGuard } from '../features/dashboardControls/DashboardHeaderGuard';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
@@ -935,6 +938,14 @@ const Dashboard: FC = () => {
     );
     const isChartEditorEnabled =
         authoringEnabled && chartEditorFlag.data?.enabled === true;
+    const dashboardControlsFlag = useServerFeatureFlag(
+        FeatureFlags.DashboardControls,
+    );
+    const isDashboardControlsEnabled =
+        dashboardControlsFlag.data?.enabled === true;
+    const DashboardPage = isDashboardControlsEnabled
+        ? ControlsSidebarPage
+        : Page;
     const dashboardCustomMetricsFlag = useServerFeatureFlag(
         FeatureFlags.DashboardCustomMetrics,
     );
@@ -1433,9 +1444,11 @@ const Dashboard: FC = () => {
                                 Save
                             </Button>
                             <Button
-                                color="green.7"
                                 leftSection={
-                                    <IconCircleCheckFilled size={16} />
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
+                                        color="green.7"
+                                    />
                                 }
                                 loading={isSavingVerified}
                                 onClick={() => confirmVerifiedSave(true)}
@@ -1469,14 +1482,20 @@ const Dashboard: FC = () => {
                 )}
             </MantineModal>
 
-            <Page
+            <DashboardPage
                 title={dashboard.name}
                 noContentPadding
                 withFullHeight
                 fullPageScroll
             >
                 <div>
-                    <DashboardHeader {...dashboardHeaderProps} />
+                    {isDashboardControlsEnabled ? (
+                        <DashboardHeaderGuard>
+                            <DashboardHeader {...dashboardHeaderProps} />
+                        </DashboardHeaderGuard>
+                    ) : (
+                        <DashboardHeader {...dashboardHeaderProps} />
+                    )}
 
                     {isChartEditorEnabled && dashboard.uuid ? (
                         <DashboardChartEditorModal
@@ -1610,7 +1629,7 @@ const Dashboard: FC = () => {
                         onConfirm={duplicateModalHandlers.close}
                     />
                 )}
-            </Page>
+            </DashboardPage>
         </>
     );
 };

@@ -6,6 +6,7 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    getPatchedSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
@@ -37,7 +38,7 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { type SqlApprovalTarget } from '../SqlApprovalCard';
+import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import type { ToolCallSummary } from '../utils/types';
 import {
     ComposerQueriesToolCallDescription,
@@ -64,6 +65,10 @@ import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
 import { ScheduledDeliveryToolCallDescription } from './ScheduledDeliveryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
+import {
+    SqlChartToolCallDescription,
+    type SqlChartToolArgs,
+} from './SqlChartToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
@@ -74,12 +79,13 @@ type ToolReadContentArgs = {
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'document';
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    patch?: unknown;
 };
 
 type ToolCreateContentArgs = {
-    content?: { slug?: string };
-    type?: 'dashboard' | 'chart' | 'document';
+    content?: { slug?: string } & SqlChartToolArgs;
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
 };
 
 export const ToolCallDescription: FC<{
@@ -92,15 +98,9 @@ export const ToolCallDescription: FC<{
      * persisted views, which render the pipeline without indicators.
      */
     composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
-    /** Approval target while a composer pipeline's SQL nodes await a decision. */
-    composerApproval?: SqlApprovalTarget;
-}> = ({
-    toolName,
-    toolCall,
-    toolResult,
-    composerNodeStatuses,
-    composerApproval,
-}) => {
+    /** Approval target while this call's SQL awaits the user's decision. */
+    approval?: SqlApprovalTarget;
+}> = ({ toolName, toolCall, toolResult, composerNodeStatuses, approval }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -236,6 +236,7 @@ export const ToolCallDescription: FC<{
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
+                    approval={approval}
                 />
             );
         case 'runComposerQueries':
@@ -245,7 +246,7 @@ export const ToolCallDescription: FC<{
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
                     nodeStatuses={composerNodeStatuses}
-                    approval={composerApproval}
+                    approval={approval}
                 />
             );
         case 'readContent':
@@ -265,6 +266,23 @@ export const ToolCallDescription: FC<{
         case 'editContent':
             const editContentToolArgs =
                 toolCall.toolArgs as ToolEditContentArgs;
+            if (
+                editContentToolArgs.type === 'sql_chart' &&
+                editContentToolArgs.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="edit"
+                        slug={editContentToolArgs.slug}
+                        chart={{
+                            sql:
+                                getPatchedSql(editContentToolArgs.patch) ??
+                                undefined,
+                        }}
+                        approval={approval ?? null}
+                    />
+                );
+            }
             return editContentToolArgs.slug && editContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="edit"
@@ -277,6 +295,19 @@ export const ToolCallDescription: FC<{
         case 'createContent':
             const createContentToolArgs =
                 toolCall.toolArgs as ToolCreateContentArgs;
+            if (
+                createContentToolArgs.type === 'sql_chart' &&
+                createContentToolArgs.content?.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="create"
+                        slug={createContentToolArgs.content.slug}
+                        chart={createContentToolArgs.content}
+                        approval={approval ?? null}
+                    />
+                );
+            }
             return createContentToolArgs.content?.slug &&
                 createContentToolArgs.type ? (
                 <ContentEditorToolCallDescription

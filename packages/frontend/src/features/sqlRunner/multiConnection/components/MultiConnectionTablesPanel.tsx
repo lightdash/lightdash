@@ -1,9 +1,8 @@
-import { Box, LoadingOverlay, Stack, Text } from '@mantine/core';
-import { IconGripHorizontal } from '@tabler/icons-react';
+import { Box, LoadingOverlay, Text } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../components/common/ResizableSplitter';
-import resizeHandleStyles from '../../components/ResizeHandle.module.css';
+import handleStyles from '../../components/ResizeHandle.module.css';
+import styles from '../../components/TablesPanel.module.css';
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { MultiConnectionTableFields } from './MultiConnectionTableFields';
 import { MultiConnectionTables } from './MultiConnectionTables';
@@ -11,7 +10,9 @@ import { MultiConnectionTables } from './MultiConnectionTables';
 export const MultiConnectionTablesPanel: FC<{
     isRefreshing: boolean;
     refreshError: string | null;
-}> = ({ isRefreshing, refreshError }) => {
+    onRefresh: () => void;
+    isRefreshDisabled: boolean;
+}> = ({ isRefreshing, refreshError, onRefresh, isRefreshDisabled }) => {
     const { activeTable } = useActiveConnection();
 
     return (
@@ -24,30 +25,25 @@ export const MultiConnectionTablesPanel: FC<{
             )}
             <ResizableSplitter
                 orientation="vertical"
-                withHandle
-                lineSize={6}
-                handleColor="ldGray.1"
-                handleIcon={
-                    <MantineIcon
-                        color="gray"
-                        icon={IconGripHorizontal}
-                        size={8}
-                    />
-                }
-                classNames={{ handle: resizeHandleStyles.resizeHandle }}
+                lineSize={9}
+                handleColor="transparent"
+                classNames={{ handle: handleStyles.resizeHandle }}
             >
                 <ResizableSplitter.Pane
                     id="sql-runner-connection-tables"
                     defaultSize={50}
+                    className={styles.pane}
                 >
-                    <Stack gap="xs" h="100%">
-                        <MultiConnectionTables />
-                    </Stack>
+                    <MultiConnectionTables
+                        onRefresh={onRefresh}
+                        isRefreshDisabled={isRefreshDisabled}
+                    />
                 </ResizableSplitter.Pane>
                 {activeTable && (
                     <ResizableSplitter.Pane
                         id="sql-runner-connection-table-fields"
                         defaultSize={50}
+                        className={styles.pane}
                     >
                         <MultiConnectionTableFields />
                     </ResizableSplitter.Pane>

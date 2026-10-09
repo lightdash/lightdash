@@ -12,8 +12,16 @@ import {
     type EditChartHandler,
 } from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
+import {
+    DOCUMENT_SAVED_CHART_NODE,
+    DocumentSavedChartNode,
+} from './documentSavedChartNode';
 import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
 import { DocumentTable } from './documentTableMarkdown';
+import {
+    DOCUMENT_UNSUPPORTED_NODE,
+    DocumentUnsupportedNode,
+} from './documentUnsupportedNode';
 import { EmptyLineCleanup } from './emptyLineCleanup';
 
 export type DocumentEditorExtensionOptions = {
@@ -26,7 +34,7 @@ export type DocumentEditorExtensionOptions = {
 };
 
 const DocumentWithCharts = Document.extend({
-    content: `(block | ${DOCUMENT_CHART_NODE})+`,
+    content: `(block | ${DOCUMENT_CHART_NODE} | ${DOCUMENT_SAVED_CHART_NODE} | ${DOCUMENT_UNSUPPORTED_NODE})+`,
 });
 
 export const createDocumentEditorExtensions = ({
@@ -53,6 +61,8 @@ export const createDocumentEditorExtensions = ({
     DocumentChartNode.configure({
         onEditChart: editing?.onEditChart ?? null,
     }),
+    DocumentSavedChartNode,
+    DocumentUnsupportedNode,
     ...(editing
         ? [
               EmptyLineCleanup,

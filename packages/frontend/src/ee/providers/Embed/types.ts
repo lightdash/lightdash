@@ -94,4 +94,12 @@ export interface EmbedContext {
     backgroundColor: string | null;
     // Session query timezone (IANA), set via ?timezone=<IANA> URL param; overrides the chart pin
     timezone: string | null;
+    // SDK-rendered AI agents report thread changes here instead of postMessage
+    onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
 }
+
+export type EmbedAiAgentThreadChange = {
+    agentUuid: string;
+    projectUuid: string;
+    threadUuid: string;
+};

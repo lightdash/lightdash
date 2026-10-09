@@ -26,6 +26,7 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    SNOWFLAKE_AI_CALLBACK_PATH,
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
@@ -1825,6 +1826,7 @@ export type LightdashConfig = {
     };
     logging: LoggingConfig;
     ai: {
+        agentResultIdentityCheckEnabled: boolean;
         copilot: AiCopilotConfigSchemaType;
         decisions: AiDecisionProviderConfig;
         /** OpenAI's Decisions API, the alternative fast-decision provider for battles. */
@@ -2027,6 +2029,13 @@ export type LightdashConfig = {
         ingestLeaseMs: number;
         garbageCollectionBatchSize: number;
     };
+    warehouseClient: {
+        releaseSshTunnelOnScopeExit: boolean;
+        resolveCompileCredentials: boolean;
+        resolveDbtCloudPreviewCredentials: boolean;
+        resolveTimezonePreviewCredentials: boolean;
+        resolveTestAndCompileCredentials: boolean;
+    };
     motherduckInstanceCache: {
         enabled: boolean;
         projectUuids: string[];
@@ -2119,6 +2128,11 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     /** Coding agent invoked by the data-app generation pipeline. */
     dataAppCodingAgent: 'claude' | 'codex';
+    dataAppGatewayBaseUrls: {
+        anthropic: string | null;
+        bedrock: string | null;
+        openai: string | null;
+    };
     lightdashOrigin: string;
     cdnOrigin: string | null;
     /**
@@ -2689,6 +2703,26 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     return {
         enabled,
         dataAppCodingAgent,
+        dataAppGatewayBaseUrls: {
+            anthropic: process.env.DATA_APPS_ANTHROPIC_BASE_URL
+                ? normalizeAnthropicGatewayBaseUrl(
+                      process.env.DATA_APPS_ANTHROPIC_BASE_URL,
+                      'DATA_APPS_ANTHROPIC_BASE_URL',
+                  )
+                : null,
+            bedrock: process.env.DATA_APPS_BEDROCK_BASE_URL
+                ? normalizeLlmGatewayBaseUrl(
+                      process.env.DATA_APPS_BEDROCK_BASE_URL,
+                      'DATA_APPS_BEDROCK_BASE_URL',
+                  )
+                : null,
+            openai: process.env.DATA_APPS_OPENAI_BASE_URL
+                ? normalizeLlmGatewayBaseUrl(
+                      process.env.DATA_APPS_OPENAI_BASE_URL,
+                      'DATA_APPS_OPENAI_BASE_URL',
+                  )
+                : null,
+        },
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
@@ -3476,7 +3510,7 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
                 tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
-                callbackPath: '/oauth/redirect/snowflake-ai',
+                callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,
@@ -3862,6 +3896,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING === 'true',
         },
         ai: {
+            agentResultIdentityCheckEnabled:
+                process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED !== 'false',
             copilot: copilotConfig,
             decisions: {
                 provider: 'jev',
@@ -4076,6 +4112,21 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GC_BATCH_SIZE',
                 ) ?? 100,
+        },
+        warehouseClient: {
+            releaseSshTunnelOnScopeExit:
+                process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED !== 'false',
+            resolveCompileCredentials:
+                process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED !== 'false',
+            resolveDbtCloudPreviewCredentials:
+                process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
+            resolveTestAndCompileCredentials:
+                process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
+            resolveTimezonePreviewCredentials:
+                process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
         },
         motherduckInstanceCache,
         usageEvents: {

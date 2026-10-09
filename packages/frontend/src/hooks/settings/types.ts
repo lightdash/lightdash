@@ -59,6 +59,8 @@ export type SettingsNavigationSection = {
  * router, sidebar nav, and a future settings search all derive from it.
  */
 export type SettingsContext = {
+    showMyAgentConnections: boolean;
+    isMyAgentConnectionsLoading: boolean;
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;
@@ -96,6 +98,8 @@ export type SettingsContext = {
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
+    isAgentIdentityEnabled: boolean;
+    isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;
     /** Which project settings the user can open; see `getProjectSettingsAccess`. */
     projectSettingsAccess: ProjectSettingsAccess;

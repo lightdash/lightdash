@@ -2,9 +2,11 @@ import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
+import { shouldShowMyAgentConnections } from '../../components/UserSettings/MyAgentConnectionsPanel/visibility';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiCreditUsage } from '../../ee/features/aiCredits/hooks/useAiCreditUsage';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
+import { useOrganizationAgentIdentitySettings } from '../../features/aiAccess/api';
 import useApp from '../../providers/App/useApp';
 import { useOrganization } from '../organization/useOrganization';
 import { useActiveProjectUuid } from '../useActiveProject';
@@ -30,6 +32,15 @@ export const useSettingsContext = (): SettingsContext => {
         CommercialFeatureFlags.Scim,
     );
 
+    const {
+        data: agentIdentityFlag,
+        isInitialLoading: isAgentIdentityFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const agentIdentitySettings = useOrganizationAgentIdentitySettings();
+    const showMyAgentConnections = shouldShowMyAgentConnections(
+        agentIdentityFlag?.enabled === true,
+        agentIdentitySettings.data?.rules ?? [],
+    );
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const isAiCopilotEnabledOrTrial =
         aiOrganizationSettingsQuery.isSuccess &&
@@ -225,7 +236,13 @@ export const useSettingsContext = (): SettingsContext => {
         (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
         isWarehouseCredentialsFeatureFlagEnabled;
 
+    const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
+
     return {
+        showMyAgentConnections,
+        isMyAgentConnectionsLoading:
+            isAgentIdentityFlagLoading ||
+            agentIdentitySettings.isInitialLoading,
         user,
         health,
         organization,
@@ -261,6 +278,8 @@ export const useSettingsContext = (): SettingsContext => {
         hasSocialLogin,
         isGroupManagementEnabled,
         isWarehouseCredentialsEnabled,
+        isAgentIdentityEnabled,
+        isAgentIdentityFlagLoading,
         isGitProject,
         projectSettingsAccess,
         isProjectSettingsAccessLoading,

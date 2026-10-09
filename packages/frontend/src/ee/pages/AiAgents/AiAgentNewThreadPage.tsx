@@ -51,11 +51,8 @@ import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedCon
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { ThreadRetentionNotice } from '../../features/aiCopilot/components/ThreadRetentionNotice';
 import { type StartDeepResearchArgs } from '../../features/aiCopilot/deepResearch/types';
-import {
-    getAiAgentPageBase,
-    isEmbedAiAgentRoute,
-} from '../../features/aiCopilot/hooks/aiAgentRouting';
-import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
+import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { useEmitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import { useAiAgentBattleModeEnabled } from '../../features/aiCopilot/hooks/useAiAgentBattleModeEnabled';
 import {
     getAiAgentModelConfig,
@@ -75,6 +72,7 @@ import { setThreadSqlMode } from '../../features/aiCopilot/store/aiAgentThreadMo
 import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 import styles from './AiAgentNewThreadPage.module.css';
 
@@ -103,7 +101,8 @@ const AiAgentNewThreadPage: FC = () => {
     const projectUuid = useProjectUuid();
     const accessGate = useAiAccessGate(projectUuid);
     const { track } = useTracking();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
+    const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -207,10 +206,11 @@ const AiAgentNewThreadPage: FC = () => {
     );
 
     const {
+        agentDefault,
+        explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        modelConfig,
         modelOptions,
         selectedModel,
         selectedModelKey,
@@ -313,9 +313,7 @@ const AiAgentNewThreadPage: FC = () => {
                     }),
                 ]).then(([threadA, threadB]) =>
                     navigate(
-                        `${getAiAgentPageBase(
-                            projectUuid,
-                        )}/${agentUuid}/threads/battle/${threadA.uuid}/${threadB.uuid}`,
+                        `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/battle/${threadA.uuid}/${threadB.uuid}`,
                     ),
                 );
                 return;
@@ -327,7 +325,7 @@ const AiAgentNewThreadPage: FC = () => {
                 optimisticContext: mergedOptimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
-                modelConfig,
+                modelConfig: explicitModelConfig,
             });
         },
         [
@@ -339,7 +337,7 @@ const AiAgentNewThreadPage: FC = () => {
             previewItems,
             sqlModeAvailable,
             sqlMode,
-            modelConfig,
+            explicitModelConfig,
             isPinnedContextReady,
             isBattle,
             projectUuid,
@@ -349,6 +347,7 @@ const AiAgentNewThreadPage: FC = () => {
             battleType,
             navigate,
             track,
+            isEmbed,
         ],
     );
 
@@ -363,7 +362,7 @@ const AiAgentNewThreadPage: FC = () => {
                 prompt: question,
                 context: contextInput,
                 optimisticContext: previewItems,
-                modelConfig,
+                modelConfig: explicitModelConfig,
                 skipAgentResponse: true,
             });
             await startDeepResearch.mutateAsync({
@@ -379,7 +378,7 @@ const AiAgentNewThreadPage: FC = () => {
             contextInput,
             createAgentThread,
             isPinnedContextReady,
-            modelConfig,
+            explicitModelConfig,
             previewItems,
             setPendingPrompt,
             startDeepResearch,
@@ -575,6 +574,7 @@ const AiAgentNewThreadPage: FC = () => {
                                     ? handleExtendedThinkingChange
                                     : undefined
                             }
+                            agentDefault={isBattle ? undefined : agentDefault}
                             sqlMode={sqlModeAvailable ? sqlMode : undefined}
                             onSqlModeChange={
                                 sqlModeAvailable

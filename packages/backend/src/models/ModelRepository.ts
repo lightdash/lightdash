@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppAccessModel } from './AppAccessModel';
@@ -46,6 +47,7 @@ import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
+import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
@@ -178,6 +180,8 @@ export type ModelManifest = {
     userFavoritesModel: UserFavoritesModel;
     userModel: UserModel;
     userOAuthGrantsModel: UserOAuthGrantsModel;
+    aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
+    organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
     organizationAgentIdentitySettingsModel: OrganizationAgentIdentitySettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -991,12 +995,34 @@ export class ModelRepository
         );
     }
 
+    public getAiServiceAccountCredentialsModel(): AiServiceAccountCredentialsModel {
+        return this.getModel(
+            'aiServiceAccountCredentialsModel',
+            () =>
+                new AiServiceAccountCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
+    public getOrganizationAgentIdentityRulesModel(): OrganizationAgentIdentityRulesModel {
+        return this.getModel(
+            'organizationAgentIdentityRulesModel',
+            () =>
+                new OrganizationAgentIdentityRulesModel({
+                    database: this.database,
+                }),
+        );
+    }
+
     public getOrganizationAgentIdentitySettingsModel(): OrganizationAgentIdentitySettingsModel {
         return this.getModel(
             'organizationAgentIdentitySettingsModel',
             () =>
                 new OrganizationAgentIdentitySettingsModel({
                     database: this.database,
+                    rulesModel: this.getOrganizationAgentIdentityRulesModel(),
                 }),
         );
     }

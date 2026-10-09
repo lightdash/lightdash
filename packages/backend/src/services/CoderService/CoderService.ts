@@ -228,6 +228,14 @@ type CoderServiceArguments = {
     >;
 };
 
+type SqlChartsAsCodeResult = {
+    sqlCharts: SqlChartAsCode[];
+    missingIds: string[];
+    spaces: SpaceAsCode[];
+    total: number;
+    offset: number;
+};
+
 type UpsertContentAsCodeOptions = {
     skipSpaceCreate?: boolean;
     publicSpaceCreate?: boolean;
@@ -2882,7 +2890,7 @@ export class CoderService extends BaseService {
     async getCurrentContentVersionBySlug(
         user: SessionUser,
         projectUuid: string,
-        type: 'dashboard' | 'chart',
+        type: 'dashboard' | 'chart' | 'sql_chart',
         slug: string,
     ): Promise<{ contentUuid: string; versionUuid: string | null }> {
         const { name: projectName, organizationUuid } =
@@ -2942,6 +2950,21 @@ export class CoderService extends BaseService {
                     versionUuid: version?.versionUuid ?? null,
                 };
             }
+            case 'sql_chart': {
+                const [sqlChart] = await this.savedSqlModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                });
+                if (!sqlChart) {
+                    throw new NotFoundError(
+                        `SQL chart with slug "${slug}" not found`,
+                    );
+                }
+                return {
+                    contentUuid: sqlChart.saved_sql_uuid,
+                    versionUuid: sqlChart.saved_sql_version_uuid,
+                };
+            }
             default:
                 return assertUnreachable(type, 'Invalid content type');
         }
@@ -2952,13 +2975,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartIds?: string[],
         offset?: number,
-    ): Promise<{
-        sqlCharts: SqlChartAsCode[];
-        missingIds: string[];
-        spaces: SpaceAsCode[];
-        total: number;
-        offset: number;
-    }> {
+    ): Promise<SqlChartsAsCodeResult> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -2978,6 +2995,36 @@ export class CoderService extends BaseService {
                 'You are not allowed to download SQL charts',
             );
         }
+
+        return this.findSqlChartsAsCode(user, project, chartIds, offset, {
+            includeAccess: true,
+        });
+    }
+
+    // Slug-list read for AI/MCP read_content: no export gate; private-space
+    // filtering still applies and access blocks are left out.
+    async getSqlChartsForRead(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<SqlChartsAsCodeResult> {
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+        return this.findSqlChartsAsCode(user, project, slugs, undefined, {
+            includeAccess: false,
+        });
+    }
+
+    private async findSqlChartsAsCode(
+        user: SessionUser,
+        project: Project,
+        chartIds: string[] | undefined,
+        offset: number | undefined,
+        { includeAccess }: { includeAccess: boolean },
+    ): Promise<SqlChartsAsCodeResult> {
+        const { projectUuid } = project;
 
         // For SQL charts, we use slugs directly (no UUID to slug conversion needed)
         // since SQL charts are only identified by slug in the as-code workflow
@@ -3060,17 +3107,19 @@ export class CoderService extends BaseService {
                 : { ...sqlChart, connection };
         });
 
-        // getSqlCharts is the export path itself (gated above), so access
-        // blocks always ride along. Dashboard-owned SQL charts never reach
-        // this listing (the space join excludes them) and are not grantable.
-        const sqlChartAccessByUuid = await this.getPortableDirectAccessByUuid(
-            user,
-            project.organizationUuid,
-            DirectAccessResourceType.SQL_CHART,
-            paginatedSqlChartRows.flatMap((row) =>
-                row.space_uuid ? [row.saved_sql_uuid] : [],
-            ),
-        );
+        // Access blocks only ride along on the export path. Dashboard-owned
+        // SQL charts never reach this listing (the space join excludes them)
+        // and are not grantable.
+        const sqlChartAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.SQL_CHART,
+                  paginatedSqlChartRows.flatMap((row) =>
+                      row.space_uuid ? [row.saved_sql_uuid] : [],
+                  ),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
         const sqlChartsWithPolicies = transformedSqlCharts.map(
             (sqlChart, index) => {
                 const access = sqlChartAccessByUuid.get(
@@ -4250,11 +4299,17 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         sqlChartAsCode: SqlChartAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: Pick<
+            UpsertContentAsCodeOptions,
+            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames' | 'mode'
+        > = {},
     ): Promise<PromotionChanges> {
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            spaceNames,
+            mode = 'upsert',
+        } = options;
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -4280,10 +4335,15 @@ export class CoderService extends BaseService {
             contentLabel: `SQL chart ${slug}`,
         });
 
-        const sqlChartRows = await this.savedSqlModel.find({
-            slugs: [slug],
-            projectUuid,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating the SQL chart that already owns it.
+        const sqlChartRows =
+            mode === 'upsert'
+                ? await this.savedSqlModel.find({
+                      slugs: [slug],
+                      projectUuid,
+                  })
+                : [];
         const existingSqlChart = sqlChartRows[0];
 
         // SQL chart uploads mirror SavedSqlService. Check CustomSql before
@@ -4395,19 +4455,14 @@ export class CoderService extends BaseService {
                 spaceUuid: space.uuid,
                 slug: sqlChartAsCode.slug, // Force the slug from the YAML file
             };
-            const { savedSqlUuid } =
-                binding === undefined
-                    ? await this.savedSqlModel.create(
-                          user.userUuid,
-                          projectUuid,
-                          sqlChartToCreate,
-                      )
-                    : await this.savedSqlModel.create(
-                          user.userUuid,
-                          projectUuid,
-                          sqlChartToCreate,
-                          binding,
-                      );
+            const created = await this.savedSqlModel.create(
+                user.userUuid,
+                projectUuid,
+                sqlChartToCreate,
+                binding,
+                { slugMode: mode === 'create' ? 'unique' : 'exact' },
+            );
+            const { savedSqlUuid, slug: createdSlug } = created;
 
             this.logger.info(
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4418,7 +4473,7 @@ export class CoderService extends BaseService {
             await this.stampAppliedSqlChartSnapshot(
                 user,
                 projectUuid,
-                sqlChartAsCode.slug,
+                createdSlug,
                 false,
             );
 
@@ -4431,7 +4486,7 @@ export class CoderService extends BaseService {
                         data: {
                             uuid: savedSqlUuid,
                             name: sqlChartAsCode.name,
-                            slug: sqlChartAsCode.slug,
+                            slug: createdSlug,
                             spaceSlug: sqlChartAsCode.spaceSlug,
                         } as PromotionChanges['charts'][0]['data'],
                     },

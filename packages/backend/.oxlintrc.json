@@ -380,6 +380,21 @@
     },
     "overrides": [
         {
+            "files": ["src/**/*.ts"],
+            "rules": { "lightdash/no-direct-warehouse-client": "error" }
+        },
+        {
+            "files": [
+                "src/services/WarehouseClientFactory/**",
+                "src/models/ProjectModel/ProjectModel.ts",
+                "src/database/seeds/**",
+                "**/*.test.ts",
+                "**/*.mock.ts",
+                "src/database/migrations/__tests__/**"
+            ],
+            "rules": { "lightdash/no-direct-warehouse-client": "off" }
+        },
+        {
             "files": [
                 "src/*.ts",
                 "src/analytics/**/*.ts",

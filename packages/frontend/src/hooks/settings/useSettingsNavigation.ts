@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { AGENT_IDENTITY_SETTINGS_PATH } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -87,6 +88,8 @@ export const useSettingsNavigation = (
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -143,6 +146,24 @@ export const useSettingsNavigation = (
             children: [],
             exact: true,
         });
+
+        if (showMyAgentConnections) {
+            yourSettings.push({
+                label: 'My agent connections',
+                to: '/generalSettings/myAgentConnections',
+                icon: IconPlugConnected,
+                keywords: [
+                    'agent',
+                    'ai',
+                    'mcp',
+                    'snowflake',
+                    'bigquery',
+                    'connect',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
 
         if (ability?.can('create', 'ScheduledDeliveries')) {
             yourSettings.push({
@@ -634,6 +655,23 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
+            organizationItems.push({
+                label: 'Agent identity',
+                to: AGENT_IDENTITY_SETTINGS_PATH,
+                icon: IconIdBadge2,
+                keywords: [
+                    'agents',
+                    'identity',
+                    'warehouse',
+                    'snowflake',
+                    'bigquery',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         const mcpChildren: SettingsNavigationItem[] = [
             {
                 label: 'Connect',
@@ -778,6 +816,7 @@ export const useSettingsNavigation = (
                 keywords: ['trash', 'restore', 'deleted'],
                 children: [],
                 exact: true,
+                tourNav: 'recently-deleted',
             },
         };
 
@@ -814,6 +853,25 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                ...(isAgentIdentityEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+                    ? [
+                          {
+                              label: 'Agent identity',
+                              to: `${base}/agentIdentity`,
+                              icon: IconIdBadge2,
+                              keywords: ['ai', 'agent', 'credentials'],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
                 ...(isAiCopilotEnabledOrTrial
@@ -1253,6 +1311,8 @@ export const useSettingsNavigation = (
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,

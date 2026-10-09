@@ -185,11 +185,27 @@ the proper fix is to use the standard resolver across entry points.
 
 ## Agent identity
 
-`agent-identity` enables the organisation "Require agent identity" switch and
-its API, the agent connection section in My warehouse connections, and the
-connect gate in AI chat. The same flag gates Snowflake agent sign-in, AI access
-checks, warehouse capabilities and marker tests. Disabled routes return a typed
-`FeatureNotEnabledError` with HTTP 403.
+`agent-identity` enables organisation identity rules for each warehouse type and
+their API, the agent connection section in My warehouse connections, and the
+connect gate in AI chat. The same flag gates Snowflake agent sign-in, BigQuery
+AI service account slots, AI access checks, warehouse capabilities and marker
+tests. Disabled routes return a typed `FeatureNotEnabledError` with HTTP 403.
+
+Snowflake rules select the same credentials as the user or a separate agent
+sign-in for each person. BigQuery rules select the same credentials as the user
+or the AI service account saved on each project connection. Both actor rows use
+the same rule. Service accounts cannot use a personal Snowflake agent sign-in.
+
+Required rules refuse queries when the selected identity is missing. Optional
+rules fall back to the user's credentials when it is missing. A saved BigQuery
+AI service account that cannot sign in always refuses the query. Its queries
+bypass result caches and pre-aggregates, carry the agent label, and disable the
+BigQuery query cache. Replacing its credentials invalidates prior result
+provenance.
+
+During a rolling deploy, new pods read per-type rules. Old pods read the legacy
+Snowflake switch. Rule writes keep that switch in sync with a required Snowflake
+agent sign-in rule. BigQuery slot rules take effect on new pods.
 
 The flag is off by default outside previews and uses the standard resolver with
 no custom handler. Preview defaults enable it. Use organisation overrides for
@@ -205,10 +221,32 @@ configure data access.
 Each sign-in and token refresh checks agent activation with the new token. Each
 new AI connection checks activation again and disables cached results. A failed
 check refuses the connection. AI and dashboard credentials use separate rows and
-client cache entries. Credential selection also requires the organisation's
-"Require agent identity" switch.
+client cache entries. Credential selection follows the organisation's
+Snowflake identity rule.
 
 Console changes apply to the next backend flag resolution. Reload or refetch the
 page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
+
+### Snowflake silent agent refresh
+
+`agent-identity-silent-refresh` is a default-on defect-fix kill switch. The
+handler uses the standard database resolver with a true fallback. Console user
+and organisation overrides and instance defaults apply. The generic ENV lists
+have the precedence described above; there is no per-feature ENV setting.
+
+The flag is resolved for the requesting user and organisation only after
+`agent-identity` is enabled and a Snowflake agent sign-in provider is selected.
+Other identity sources and disabled agent identity add no flag or credential
+reads. It affects query refresh and side-effect-free connection status checks.
+
+When on, the OAuth endpoint decides whether the grant is alive. Successful
+refreshes update the token and grant deadline together through a guarded write.
+Temporary failures keep credentials and return a retryable error. A confirmed
+`invalid_grant` refusal emits expiry analytics on query evaluations. When off,
+the stored-deadline checks and legacy refresh-error mapping apply.
+
+Console changes affect the next resolution without a restart. ENV changes need
+a process restart. Disabling this flag does not undo token rotations or revoke
+issued tokens. It does not change non-agent Snowflake authentication.

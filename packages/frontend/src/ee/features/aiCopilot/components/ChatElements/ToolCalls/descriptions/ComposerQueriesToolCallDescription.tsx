@@ -1,5 +1,4 @@
 import {
-    formatSql,
     QuerySourceType,
     type ToolComposerQueriesArgs,
     type ToolComposerQueryNode,
@@ -25,12 +24,15 @@ import {
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC } from 'react';
-import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
-import { SqlApprovalActions, type SqlApprovalTarget } from '../SqlApprovalCard';
+import {
+    SqlApprovalActions,
+    type SqlApprovalTarget,
+} from '../SqlApprovalActions';
 import { ToolCallChip } from '../ToolCallChip';
 import rowStyles from '../ToolCallRow.module.css';
+import { ToolCallSqlBlock } from '../ToolCallSqlBlock';
 import styles from './ComposerQueriesToolCallDescription.module.css';
 
 /**
@@ -44,9 +46,6 @@ export type ComposerQueryNodeStatus =
     | { status: 'running' }
     | { status: 'success' }
     | { status: 'error'; errorMessage: string | null };
-
-/** Approval target for the SQL nodes of a pipeline waiting on the user. */
-export type ComposerApprovalTarget = Omit<SqlApprovalTarget, 'toolCallId'>;
 
 type ComposerQueriesToolCallDescriptionProps = {
     queries: ToolComposerQueriesArgs['queries'];
@@ -149,16 +148,6 @@ const getNodePresentation = (
 
 const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
     const canViewSql = useCanViewAiAgentSql();
-    const formattedSql = useMemo(() => {
-        if (!canViewSql || !('sql' in node) || !node.sql) return null;
-        return formatSql(
-            node.sql,
-            node.sourceType === QuerySourceType.DUCKDB ||
-                node.sourceType === QuerySourceType.EXTERNAL
-                ? WarehouseTypes.DUCKDB
-                : undefined,
-        );
-    }, [node, canViewSql]);
 
     if (node.sourceType === QuerySourceType.SEMANTIC_LAYER) {
         return (
@@ -172,11 +161,18 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
             </Group>
         );
     }
-    return formattedSql ? (
-        <Box className={styles.code}>
-            <CodeBlock code={formattedSql} language="sql" />
-        </Box>
-    ) : null;
+    if (!canViewSql || !node.sql) return null;
+    return (
+        <ToolCallSqlBlock
+            sql={node.sql}
+            dialect={
+                node.sourceType === QuerySourceType.DUCKDB ||
+                node.sourceType === QuerySourceType.EXTERNAL
+                    ? WarehouseTypes.DUCKDB
+                    : undefined
+            }
+        />
+    );
 };
 
 const ComposerQueryNode: FC<{
@@ -265,7 +261,9 @@ const ComposerQueryNode: FC<{
             <Collapse expanded={open} transitionDuration={200}>
                 <Stack gap={6} className={styles.body}>
                     <NodeBody node={node} />
-                    {showApproval ? <SqlApprovalActions {...approval} /> : null}
+                    {showApproval ? (
+                        <SqlApprovalActions {...approval} review={null} />
+                    ) : null}
                 </Stack>
             </Collapse>
         </Box>

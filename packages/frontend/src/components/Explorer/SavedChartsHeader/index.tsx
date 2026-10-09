@@ -537,7 +537,16 @@ const SavedChartsHeader: FC = () => {
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
                             {!isFullscreen && (
-                                <HeaderMetadata gap="xs">
+                                <HeaderMetadata
+                                    gap="xs"
+                                    data-tour-scope="manage:DeletedContent"
+                                    data-tour-step="1"
+                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                    data-tour-label="Inspect the restored chart"
+                                    data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
+                                    data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
+                                    data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
+                                >
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
                                         user={

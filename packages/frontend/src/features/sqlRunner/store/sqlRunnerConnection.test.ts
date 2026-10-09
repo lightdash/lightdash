@@ -40,6 +40,7 @@ const results = (rows: number) => ({
     fileUrl: `/results-${rows}`,
     results: Array.from({ length: rows }, (_, index) => ({ id: index })),
     columns: [{ reference: 'id' }],
+    durationMs: null,
 });
 
 const run = () =>
@@ -96,6 +97,7 @@ describe('SQL runner runs on the active connection', () => {
             {},
             true,
             'finance-uuid',
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
         expect(store.getState().sqlRunner.sqlRows).toHaveLength(1);
     });
@@ -124,6 +126,7 @@ describe('SQL runner runs on the active connection', () => {
             {},
             true,
             undefined,
+            expect.objectContaining({ signal: expect.any(AbortSignal) }),
         );
     });
 

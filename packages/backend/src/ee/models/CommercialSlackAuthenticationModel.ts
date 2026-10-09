@@ -11,7 +11,10 @@ import { SlackChannelProjectMappingsTableName } from '../database/entities/slack
 export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel {
     async getInstallationFromOrganizationUuid(
         organizationUuid: string,
-    ): Promise<Omit<SlackSettings, 'hasRequiredScopes'> | undefined> {
+    ): Promise<
+        | (Omit<SlackSettings, 'hasRequiredScopes'> & { appId: string | null })
+        | undefined
+    > {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
                 'organizations',
@@ -33,6 +36,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
         if (row === undefined) return undefined;
 
         const slackSettings = {
+            appId: row.installation?.appId ?? null,
             createdAt: row.created_at,
             slackTeamName: row.installation?.team?.name || 'Slack',
             organizationUuid: row.organization_uuid,

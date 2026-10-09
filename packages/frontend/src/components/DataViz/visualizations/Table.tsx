@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     SortByDirection,
     type IResultsRunner,
     type RawResultRow,
@@ -15,6 +16,7 @@ import {
 } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import { clsx } from 'clsx';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
 import {
@@ -28,6 +30,11 @@ import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
 import { type CellContextMenuProps } from '../../common/Table/types';
 import { useTableDataModel } from '../hooks/useTableDataModel';
+import styles from './Table.module.css';
+
+const COMPACT_ROW_HEIGHT_PX = 28;
+
+type TableDensity = 'default' | 'compact';
 
 type TableProps<T extends IResultsRunner> = {
     columnsConfig: VizColumnsConfig;
@@ -36,6 +43,11 @@ type TableProps<T extends IResultsRunner> = {
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
     enableJsonViewer?: boolean;
+    /** `compact` is the dense monospace grid used for raw SQL results. */
+    density?: TableDensity;
+    /** Warehouse type per column: shown under the header name and used to
+     *  right-align numbers. Only read by the compact variant. */
+    columnTypes?: Record<string, DimensionType>;
 };
 
 const SqlRunnerCellContextMenu = ({
@@ -72,8 +84,11 @@ export const Table = <T extends IResultsRunner>({
     thSortConfig,
     onTHClick,
     enableJsonViewer = false,
+    density = 'default',
+    columnTypes = {},
 }: TableProps<T>) => {
     const theme = useMantineTheme();
+    const isCompact = density === 'compact';
     const {
         tableWrapperRef,
         getColumnsCount,
@@ -86,9 +101,11 @@ export const Table = <T extends IResultsRunner>({
         },
         resultsRunner,
         enableJsonViewer,
+        rowHeight: isCompact ? COMPACT_ROW_HEIGHT_PX : undefined,
     });
 
-    const columnsCount = getColumnsCount();
+    // The compact grid prepends a row-index column.
+    const columnsCount = getColumnsCount() + (isCompact ? 1 : 0);
     const { headerGroups, virtualRows, rowModelRows } = getTableData();
 
     return (
@@ -108,9 +125,19 @@ export const Table = <T extends IResultsRunner>({
             }}
             className="sentry-block ph-no-capture"
         >
-            <TableStyled>
+            <TableStyled className={clsx(isCompact && styles.compact)}>
                 <thead>
                     <tr>
+                        {isCompact && (
+                            <th
+                                className={styles.rowIndex}
+                                style={{
+                                    backgroundColor: theme.colors.ldGray[0],
+                                }}
+                            >
+                                #
+                            </th>
+                        )}
                         {headerGroups.map((headerGroup) =>
                             headerGroup.headers.map((header) => {
                                 const sortConfig = thSortConfig?.[header.id];
@@ -154,9 +181,37 @@ export const Table = <T extends IResultsRunner>({
                                             )}
                                             {/* TODO: do we need to check if it's a
                                         placeholder? */}
-                                            {flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext(),
+                                            {isCompact ? (
+                                                <span
+                                                    className={
+                                                        styles.headerLabel
+                                                    }
+                                                >
+                                                    {flexRender(
+                                                        header.column.columnDef
+                                                            .header,
+                                                        header.getContext(),
+                                                    )}
+                                                    {columnTypes[header.id] && (
+                                                        <span
+                                                            className={
+                                                                styles.columnType
+                                                            }
+                                                        >
+                                                            {
+                                                                columnTypes[
+                                                                    header.id
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            ) : (
+                                                flexRender(
+                                                    header.column.columnDef
+                                                        .header,
+                                                    header.getContext(),
+                                                )
                                             )}
 
                                             {onClick &&
@@ -187,18 +242,31 @@ export const Table = <T extends IResultsRunner>({
                     {virtualRows.map(({ index }) => {
                         return (
                             <Tr key={index} $index={index}>
+                                {isCompact && (
+                                    <td className={styles.rowIndex}>
+                                        {index + 1}
+                                    </td>
+                                )}
                                 {rowModelRows[index]
                                     .getVisibleCells()
                                     .map((cell) => {
                                         const cellValue =
                                             cell.getValue() as RawResultRow[0];
+                                        const isNull =
+                                            cellValue === null ||
+                                            cellValue === undefined;
 
                                         return (
                                             <BodyCell
                                                 key={cell.id}
                                                 index={index}
                                                 cell={cell}
-                                                isNumericItem={false}
+                                                isNumericItem={
+                                                    isCompact &&
+                                                    columnTypes[
+                                                        cell.column.id
+                                                    ] === DimensionType.NUMBER
+                                                }
                                                 hasData={!!cellValue}
                                                 isLargeText={
                                                     (
@@ -212,13 +280,22 @@ export const Table = <T extends IResultsRunner>({
                                                         : undefined
                                                 }
                                             >
-                                                {cell.getIsPlaceholder()
-                                                    ? null
-                                                    : flexRender(
-                                                          cell.column.columnDef
-                                                              .cell,
-                                                          cell.getContext(),
-                                                      )}
+                                                {cell.getIsPlaceholder() ? null : isCompact &&
+                                                  isNull ? (
+                                                    <span
+                                                        className={
+                                                            styles.nullValue
+                                                        }
+                                                    >
+                                                        null
+                                                    </span>
+                                                ) : (
+                                                    flexRender(
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                        cell.getContext(),
+                                                    )
+                                                )}
                                             </BodyCell>
                                         );
                                     })}

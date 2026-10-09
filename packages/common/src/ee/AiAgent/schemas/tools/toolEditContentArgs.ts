@@ -7,7 +7,7 @@ export const TOOL_EDIT_CONTENT_DESCRIPTION =
 export const toolEditContentArgsSchema = z.object({
     slug: z.string().min(1).describe('Slug of the dashboard or chart to edit'),
     type: z
-        .enum(['dashboard', 'chart'])
+        .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to edit'),
     patch: z
         .array(z.unknown())
@@ -45,7 +45,7 @@ export const toolEditContentStructuredContentSchema = z.discriminatedUnion(
     'type',
     [
         z.object({
-            type: z.enum(['dashboard', 'chart']),
+            type: z.enum(['dashboard', 'chart', 'sql_chart']),
             href: editedContentHrefSchema,
             content: z
                 .record(z.string(), z.unknown())

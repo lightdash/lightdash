@@ -1514,6 +1514,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
               "data_app",
             ],
             "type": "string",
@@ -1739,6 +1740,85 @@ Usage tips:
                 ],
                 "type": "object",
               },
+              {
+                "additionalProperties": {},
+                "properties": {
+                  "chartKind": {
+                    "description": "Must equal config.type.",
+                    "enum": [
+                      "vertical_bar",
+                      "line",
+                      "pie",
+                      "big_number",
+                      "table",
+                    ],
+                    "type": "string",
+                  },
+                  "config": {
+                    "additionalProperties": {},
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "vertical_bar",
+                          "line",
+                          "pie",
+                          "big_number",
+                          "table",
+                        ],
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "type",
+                    ],
+                    "type": "object",
+                  },
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "limit": {
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "type": "integer",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "sql": {
+                    "description": "Read-only warehouse SQL (SELECT or WITH) run on the primary connection.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "contentType",
+                  "sql",
+                  "chartKind",
+                  "config",
+                ],
+                "type": "object",
+              },
             ],
           },
           "projectUuid": {
@@ -1752,6 +1832,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
             ],
             "type": "string",
           },
@@ -1805,6 +1886,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
             ],
             "type": "string",
           },

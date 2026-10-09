@@ -8,6 +8,7 @@ import {
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
+import type { LightdashConfig } from '../../../../config/parseConfig';
 import { overlayOrgProviderApiKeys } from '../OrgAiCopilotConfigResolver';
 import {
     applyStreamingCapability,
@@ -17,9 +18,12 @@ import {
     getDefaultModel,
     getFastModelForAccessibleKey,
     getModel,
+    getOrgModelCatalogue,
+    getOrgModelOptions,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
-    presetToModelOption,
+    resolveModelConfigForPrompt,
+    type OrgModelOverrides,
 } from './index';
 import type { ModelPreset, ModelPresetProvider } from './presets';
 
@@ -32,6 +36,28 @@ vi.mock('ai', async () => {
 });
 
 const baseCopilotConfig = lightdashConfigMock.ai.copilot;
+
+const noOrgOverrides: OrgModelOverrides = {
+    modelVisibility: null,
+    keyAccessibleModelIds: null,
+};
+
+const orgCatalogue = (
+    config: LightdashConfig['ai']['copilot'],
+    overrides: OrgModelOverrides,
+) => getOrgModelCatalogue(getAvailableModels(config), overrides);
+
+const orgOptions = (
+    config: LightdashConfig['ai']['copilot'],
+    overrides: OrgModelOverrides,
+) =>
+    getOrgModelOptions(
+        orgCatalogue(config, overrides),
+        getDefaultModel(config),
+    );
+
+const instanceOptions = (config: LightdashConfig['ai']['copilot']) =>
+    orgOptions(config, noOrgOverrides);
 
 const copilotConfigWithStreaming = (supportsStreaming: boolean) => ({
     ...baseCopilotConfig,
@@ -420,9 +446,7 @@ describe('GPT Sol and Luna model lifecycle', () => {
                     },
                 },
             };
-            const options = getAvailableModels(config).map((preset) =>
-                presetToModelOption(preset, getDefaultModel(config)),
-            );
+            const options = instanceOptions(config);
             expect(options).toContainEqual(
                 expect.objectContaining({
                     name: modelName,
@@ -444,9 +468,7 @@ describe('GPT Sol and Luna model lifecycle', () => {
         ['gpt-6-sol', 'GPT-6 Sol'],
         ['gpt-6-luna', 'GPT-6 Luna'],
     ])('offers %s for agent selection', (modelName, displayName) => {
-        const options = getAvailableModels(baseCopilotConfig).map((preset) =>
-            presetToModelOption(preset, getDefaultModel(baseCopilotConfig)),
-        );
+        const options = instanceOptions(baseCopilotConfig);
         expect(options).toContainEqual(
             expect.objectContaining({
                 name: modelName,
@@ -575,6 +597,58 @@ describe('Sonnet model lifecycle', () => {
             );
             expect(newModel.callOptions.temperature).toBeUndefined();
             expect(newModel.providerOptions).toMatchObject(
+                provider === 'anthropic'
+                    ? {
+                          anthropic: {
+                              thinking: { type: 'adaptive' },
+                              effort: 'medium',
+                          },
+                      }
+                    : {
+                          bedrock: {
+                              reasoningConfig: {
+                                  type: 'adaptive',
+                                  maxReasoningEffort: 'medium',
+                              },
+                          },
+                      },
+            );
+        },
+    );
+});
+
+describe('Haiku model lifecycle', () => {
+    it.each(['anthropic', 'bedrock'] as const)(
+        'enables adaptive reasoning for Haiku 5.5 on %s',
+        (provider) => {
+            const config = {
+                ...baseCopilotConfig,
+                providers: {
+                    anthropic: {
+                        apiKey: 'test',
+                        modelName: 'claude-haiku-5-5',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                        supportsContextManagement: true,
+                    },
+                    bedrock: {
+                        apiKey: 'test',
+                        region: 'us-east-1',
+                        modelName: 'claude-haiku-5-5',
+                        embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                        customHeaders: {},
+                        supportsStreaming: true,
+                    },
+                },
+            };
+            const model = getModel(config, { provider, enableReasoning: true });
+            expect(model.model.modelId).toBe(
+                provider === 'anthropic'
+                    ? 'claude-haiku-5-5'
+                    : 'us.anthropic.claude-haiku-5-5',
+            );
+            expect(model.callOptions.temperature).toBeUndefined();
+            expect(model.providerOptions).toMatchObject(
                 provider === 'anthropic'
                     ? {
                           anthropic: {
@@ -1234,5 +1308,255 @@ describe('organization Bedrock routing', () => {
                 .filter((preset) => preset.provider === 'bedrock')
                 .map((preset) => preset.name),
         ).toEqual(['claude-sonnet-4-5']);
+    });
+});
+
+describe('deprecated model superseding', () => {
+    const anthropicConfig = {
+        ...baseCopilotConfig,
+        providers: {
+            anthropic: {
+                apiKey: 'test',
+                modelName: 'claude-sonnet-5-5',
+                customHeaders: {},
+                supportsStreaming: true,
+                supportsContextManagement: true,
+            },
+        },
+    };
+    const restrictedToSonnet5: OrgModelOverrides = {
+        modelVisibility: {
+            anthropic: {
+                enabled: true,
+                allowedModels: ['claude-sonnet-5', 'claude-haiku-4-5'],
+            },
+        },
+        keyAccessibleModelIds: null,
+    };
+    const pinnedSonnet5 = {
+        modelName: 'claude-sonnet-5',
+        modelProvider: 'anthropic',
+    };
+
+    it('names the current replacement on a deprecated model option', () => {
+        const options = instanceOptions(anthropicConfig);
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-5',
+                deprecated: true,
+                supersededBy: 'claude-sonnet-5-5',
+            }),
+        );
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-5-5',
+                deprecated: false,
+                supersededBy: null,
+            }),
+        );
+    });
+
+    it('follows the replacement chain past retired intermediates', () => {
+        const options = instanceOptions(anthropicConfig);
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-4',
+                supersededBy: 'claude-sonnet-5-5',
+            }),
+        );
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-opus-4-6',
+                supersededBy: 'claude-opus-5-5',
+            }),
+        );
+    });
+
+    it('offers no replacement when the chain ends on a model this instance does not ship', () => {
+        const restricted = {
+            ...anthropicConfig,
+            providers: {
+                anthropic: {
+                    ...anthropicConfig.providers.anthropic,
+                    availableModels: ['claude-sonnet-5', 'claude-haiku-4-5'],
+                },
+            },
+        };
+        expect(instanceOptions(restricted)).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-5',
+                deprecated: true,
+                supersededBy: null,
+            }),
+        );
+    });
+
+    it('runs a prompt pinned to a deprecated model on its replacement, keeping the reasoning choice', () => {
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                {
+                    ...pinnedSonnet5,
+                    reasoning: true,
+                },
+            ),
+        ).toEqual({
+            modelName: 'claude-sonnet-5-5',
+            modelProvider: 'anthropic',
+            reasoning: true,
+        });
+    });
+
+    it('keeps a prompt on a current model or an unknown one untouched', () => {
+        const current = {
+            modelName: 'claude-sonnet-5-5',
+            modelProvider: 'anthropic',
+            reasoning: false,
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                current,
+            ),
+        ).toBe(current);
+        const unknown = {
+            modelName: 'not-a-preset',
+            modelProvider: 'anthropic',
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                unknown,
+            ),
+        ).toBe(unknown);
+    });
+
+    it('keeps a deprecated model when the instance ships no replacement for it', () => {
+        const restricted = {
+            ...anthropicConfig,
+            providers: {
+                anthropic: {
+                    ...anthropicConfig.providers.anthropic,
+                    availableModels: ['claude-sonnet-5'],
+                },
+            },
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(restricted, noOrgOverrides),
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+    });
+
+    it('keeps a prompt on the pinned model when the org has not allowed the replacement', () => {
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, restrictedToSonnet5),
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+    });
+
+    it('does not offer a replacement the org has not allowed', () => {
+        const options = orgOptions(anthropicConfig, restrictedToSonnet5);
+        expect(options).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-sonnet-5',
+                deprecated: true,
+                supersededBy: null,
+            }),
+        );
+        expect(options.map((option) => option.name)).not.toContain(
+            'claude-sonnet-5-5',
+        );
+    });
+
+    it('neither swaps nor offers a replacement when the org disabled the provider', () => {
+        const anthropicDisabled: OrgModelOverrides = {
+            modelVisibility: { anthropic: { enabled: false } },
+            keyAccessibleModelIds: null,
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, anthropicDisabled),
+                pinnedSonnet5,
+            ),
+        ).toBe(pinnedSonnet5);
+        expect(orgOptions(anthropicConfig, anthropicDisabled)).toEqual([]);
+    });
+
+    it('still reaches the replacement when only an intermediate is hidden from the org', () => {
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(anthropicConfig, noOrgOverrides),
+                {
+                    modelName: 'claude-opus-4-7',
+                    modelProvider: 'anthropic',
+                },
+            ),
+        ).toEqual({
+            modelName: 'claude-opus-5-5',
+            modelProvider: 'anthropic',
+        });
+    });
+
+    it('still reaches the replacement when the instance ships only the two ends of the chain', () => {
+        const endsOnly = {
+            ...anthropicConfig,
+            providers: {
+                anthropic: {
+                    ...anthropicConfig.providers.anthropic,
+                    availableModels: ['claude-opus-4-7', 'claude-opus-5-5'],
+                },
+            },
+        };
+        expect(instanceOptions(endsOnly)).toContainEqual(
+            expect.objectContaining({
+                name: 'claude-opus-4-7',
+                deprecated: true,
+                supersededBy: 'claude-opus-5-5',
+            }),
+        );
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(endsOnly, noOrgOverrides),
+                {
+                    modelName: 'claude-opus-4-7',
+                    modelProvider: 'anthropic',
+                },
+            ),
+        ).toEqual({
+            modelName: 'claude-opus-5-5',
+            modelProvider: 'anthropic',
+        });
+    });
+
+    it('resolves a Bedrock pin by preset name to the Bedrock replacement', () => {
+        const bedrockConfig = {
+            ...baseCopilotConfig,
+            providers: {
+                bedrock: {
+                    apiKey: 'test',
+                    region: 'us-east-1',
+                    modelName: 'claude-sonnet-5-5',
+                    embeddingModelName: 'amazon.titan-embed-text-v2:0',
+                    customHeaders: {},
+                    supportsStreaming: true,
+                },
+            },
+        };
+        expect(
+            resolveModelConfigForPrompt(
+                orgCatalogue(bedrockConfig, noOrgOverrides),
+                {
+                    modelName: 'claude-sonnet-4-5',
+                    modelProvider: 'bedrock',
+                },
+            ),
+        ).toEqual({
+            modelName: 'claude-sonnet-5-5',
+            modelProvider: 'bedrock',
+        });
     });
 });

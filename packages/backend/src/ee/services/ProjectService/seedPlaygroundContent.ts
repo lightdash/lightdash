@@ -397,6 +397,7 @@ export const seedPlaygroundContent = async ({
                     prompt: {
                         createdByUserUuid: user.userUuid,
                         prompt: content.deepResearch.prompt,
+                        modelConfig: null,
                     },
                 });
             await aiAgentModel.updateThreadTitle({

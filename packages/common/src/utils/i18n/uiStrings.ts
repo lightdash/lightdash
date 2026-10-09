@@ -339,6 +339,8 @@ export const DEFAULT_UI_STRINGS = {
     'dashboard.exportAllTiles': 'Export all tiles',
     'dashboard.printPage': 'Print this page',
     'aiAgent.unavailable': "AI isn't available right now.",
+    'aiAgent.modelSelector.retired': 'Retired',
+    'aiAgent.modelSelector.agentDefault': 'Agent default',
     'explorer.back': 'Back',
     'explorer.backToDashboard': 'Back to Dashboard',
     'explorer.backToChart': 'Back to Chart',

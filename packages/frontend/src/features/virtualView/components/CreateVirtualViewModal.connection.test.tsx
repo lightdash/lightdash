@@ -53,6 +53,7 @@ const withResults = (connectionRoute: SqlRunnerConnectionRoute) => {
                 fileUrl: '/results',
                 results: [{ id: 1 }],
                 columns: [{ reference: 'id' }],
+                durationMs: null,
                 warehouseConnectionUuid: connection,
             },
             'request-id',

@@ -104,6 +104,7 @@ import {
     type OneTimePasscodeFailureReason,
     type OneTimePasscodePurpose,
 } from '../analytics/LightdashAnalytics';
+import { trackSafely } from '../analytics/trackSafely';
 import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
@@ -4011,13 +4012,34 @@ export class UserService extends BaseService {
                 userWarehouseCredentialsUuid,
             );
         }
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'user_warehouse_credentials.deleted',
-            properties: {
-                credentialsId: userWarehouseCredentialsUuid,
-            },
-        });
+        trackSafely(() =>
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'user_warehouse_credentials.deleted',
+                properties: {
+                    credentialsId: userWarehouseCredentialsUuid,
+                },
+            }),
+        );
+        if (deletedAi) {
+            const { enabled } = await this.featureFlagModel
+                .get({ user, featureFlagId: FeatureFlags.AgentIdentity })
+                .catch(() => ({ enabled: false }));
+            if (enabled) {
+                trackSafely(() =>
+                    this.analytics.track({
+                        userId: user.userUuid,
+                        event: 'agent_identity.disconnected',
+                        properties: {
+                            organizationId: user.organizationUuid ?? null,
+                            userId: user.userUuid,
+                            projectId: deletedAi.projectUuid,
+                            warehouseType: deletedAi.warehouseType,
+                        },
+                    }),
+                );
+            }
+        }
     }
 
     private getRedirectUri(issuer: OpenIdIdentityIssuerType) {

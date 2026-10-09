@@ -422,6 +422,24 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
         });
     });
 
+    describe('schema', () => {
+        test('allowances live on the contract, with no entitlement leftovers', async () => {
+            expect(
+                await transaction.schema.hasTable('ai_credit_entitlements'),
+            ).toBe(false);
+            expect(
+                await transaction.schema.hasColumn(
+                    'ai_credit_holds',
+                    'ai_credit_entitlement_uuid',
+                ),
+            ).toBe(false);
+            const { rows } = await transaction.raw<{ rows: unknown[] }>(
+                `SELECT 1 FROM pg_indexes WHERE indexname = 'ai_credit_holds_allowance_exhausted_entitlement_unique'`,
+            );
+            expect(rows).toHaveLength(0);
+        });
+    });
+
     describe('ledger retention', () => {
         const retentionCutoffDays = 90;
         const longAgo = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000);

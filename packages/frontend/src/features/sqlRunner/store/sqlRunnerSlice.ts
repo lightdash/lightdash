@@ -18,6 +18,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { createSelector } from 'reselect';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
+import { resolveSqlErrorPosition } from '../utils/sqlErrorPosition';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
 import { prepareAndFetchChartData, runSqlQuery } from './thunks';
 
@@ -98,6 +99,7 @@ export interface SqlRunnerState {
     warehouseConnectionType: WarehouseTypes | undefined;
     sqlColumns: VizColumn[] | undefined;
     sqlRows: RawResultRow[] | undefined;
+    sqlDurationMs: number | null;
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
@@ -105,6 +107,10 @@ export interface SqlRunnerState {
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
     queryErrorProjectUuid: string | undefined;
     editorHighlightError: MonacoHighlightChar | undefined;
+    // Asks the editor to move its cursor; the counter makes repeat requests distinct
+    editorRevealRequest:
+        | (MonacoHighlightChar & { requestId: number })
+        | undefined;
     parameterValues: ParametersValuesMap;
     connectionRoute: SqlRunnerConnectionRoute;
 }
@@ -155,12 +161,14 @@ export const initialState: SqlRunnerState = {
     warehouseConnectionType: undefined,
     sqlColumns: undefined,
     sqlRows: undefined,
+    sqlDurationMs: null,
     activeConfigs: [ChartKind.TABLE, ChartKind.VERTICAL_BAR],
     fetchResultsOnLoad: false,
     queryIsLoading: false,
     queryError: undefined,
     queryErrorProjectUuid: undefined,
     editorHighlightError: undefined,
+    editorRevealRequest: undefined,
     parameterValues: {},
     connectionRoute: { route: 'pending' },
 };
@@ -202,6 +210,7 @@ export const sqlRunnerSlice = createSlice({
                 columns: state.sqlColumns,
                 fileUrl: state.fileUrl,
                 results: state.sqlRows,
+                durationMs: state.sqlDurationMs,
             };
         },
     },
@@ -347,6 +356,15 @@ export const sqlRunnerSlice = createSlice({
         ) => {
             state.editorHighlightError = action.payload;
         },
+        requestEditorReveal: (
+            state,
+            action: PayloadAction<MonacoHighlightChar>,
+        ) => {
+            state.editorRevealRequest = {
+                ...action.payload,
+                requestId: (state.editorRevealRequest?.requestId ?? 0) + 1,
+            };
+        },
         setConnectionRoute: (
             state,
             action: PayloadAction<SqlRunnerConnectionRoute>,
@@ -364,6 +382,7 @@ export const sqlRunnerSlice = createSlice({
             if (previous !== undefined && previous !== next) {
                 state.sqlColumns = undefined;
                 state.sqlRows = undefined;
+                state.sqlDurationMs = null;
                 state.queryUuid = undefined;
                 state.fileUrl = undefined;
             }
@@ -386,6 +405,7 @@ export const sqlRunnerSlice = createSlice({
                 }
                 state.sqlColumns = action.payload.columns;
                 state.sqlRows = action.payload.results;
+                state.sqlDurationMs = action.payload.durationMs;
                 state.queryUuid = action.payload.queryUuid;
                 state.fileUrl = action.payload.fileUrl;
                 state.editorHighlightError = undefined;
@@ -444,18 +464,26 @@ export const sqlRunnerSlice = createSlice({
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
                 state.queryIsLoading = false;
+                // A cancelled run is not an error; the previous results stand
+                if (action.meta.aborted) return;
                 state.queryErrorProjectUuid = action.meta.arg.projectUuid;
                 state.queryError =
                     action.payload ??
                     action.error ??
                     new Error('Unexpected query error');
 
-                state.editorHighlightError = action.payload?.data
-                    ? {
-                          line: Number(action.payload.data.lineNumber),
-                          char: Number(action.payload.data.charNumber),
-                      }
-                    : undefined;
+                state.editorHighlightError =
+                    action.payload?.data &&
+                    action.payload.data.lineNumber !== undefined
+                        ? resolveSqlErrorPosition(action.meta.arg.sql, {
+                              lineNumber: Number(
+                                  action.payload.data.lineNumber,
+                              ),
+                              charNumber: Number(
+                                  action.payload.data.charNumber,
+                              ),
+                          })
+                        : undefined;
             })
             .addCase(prepareAndFetchChartData.pending, (state) => {
                 state.queryIsLoading = true;
@@ -485,6 +513,7 @@ export const {
     setWarehouseConnectionType,
     setMode,
     setEditorHighlightError,
+    requestEditorReveal,
     setState,
     updateParameterValue,
     clearParameterValues,

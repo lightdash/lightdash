@@ -1,4 +1,4 @@
-import { Button, Group, Kbd, Tooltip } from '@mantine/core';
+import { Button, Group, Kbd, Loader, Text, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconPlayerPlay } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -17,15 +17,14 @@ const RunSqlQueryButton: FC<{
     const maxLimit = health.data?.query.maxLimit ?? 5000;
 
     const os = useOs();
+    const modifierKey = os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl';
 
     return (
         <Button.Group>
             <Tooltip
                 label={
                     <Group gap={4} wrap="nowrap">
-                        <Kbd size="xs">
-                            {os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl'}
-                        </Kbd>
+                        <Kbd size="xs">{modifierKey}</Kbd>
                         <Kbd size="xs">↵</Kbd>
                     </Group>
                 }
@@ -34,15 +33,26 @@ const RunSqlQueryButton: FC<{
             >
                 <Button
                     size="xs"
-                    leftSection={<MantineIcon icon={IconPlayerPlay} />}
+                    leftSection={
+                        isLoading ? (
+                            <Loader size={14} color="currentColor" />
+                        ) : (
+                            <MantineIcon icon={IconPlayerPlay} />
+                        )
+                    }
+                    rightSection={
+                        <Text component="span" fz="xs" fw={400} opacity={0.6}>
+                            {modifierKey}↵
+                        </Text>
+                    }
                     onClick={onSubmit}
-                    loading={isLoading}
-                    disabled={disabled}
+                    disabled={disabled || isLoading}
                     // Anchor for scope walkthroughs (data-tour-via)
                     data-tour-anchor="sql-runner-run"
                     data-tour-hint="Run the query"
+                    data-testid="sql-runner-run-button"
                 >
-                    Run query
+                    Run
                 </Button>
             </Tooltip>
             {onLimitChange !== undefined && (

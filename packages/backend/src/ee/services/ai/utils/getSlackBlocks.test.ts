@@ -1,4 +1,6 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     ChartType,
     DimensionType,
     FilterOperator,
@@ -12,6 +14,7 @@ import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
     getAgentSelectionBlocks,
+    getAiAccessRefusalBlocks,
     getMarkdownBlocks,
     getMemoryCitationBlocks,
     getModernArtifactCardBlocks,
@@ -19,6 +22,7 @@ import {
     getProjectSelectionBlocks,
     getSlackToolTitle,
     getSqlArtifactCardBlocks,
+    selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from './getSlackBlocks';
 import { mockOrdersExplore } from './validationExplore.mock';
@@ -2017,5 +2021,142 @@ describe('Slack AI agent blocks', () => {
                 expect(JSON.parse(option.value)).not.toHaveProperty('c');
             }
         });
+    });
+});
+
+describe('Slack AI access refusals', () => {
+    const siteUrl = 'https://lightdash.example.com/base/';
+    const connectUrl =
+        'https://lightdash.example.com/connect?token=a%2Fb&entryPoint=slack_link&next=%2Fpath+here';
+    const signIn = new AiAccessRefusedError(
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        { connectUrl },
+    ).refusal;
+    const askAdmin = new AiAccessRefusedError(
+        AiAccessRefusalReason.PRINCIPAL_FAILED,
+        { settingsUrl: '/generalSettings/agentIdentity' },
+    ).refusal;
+
+    it.each([
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+    ])(
+        'renders the exact sign-in blocks for %s and preserves the URL',
+        (reason) => {
+            const { refusal } = new AiAccessRefusedError(reason, {
+                connectUrl,
+            });
+            expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([
+                {
+                    type: 'section',
+                    text: { type: 'plain_text', text: refusal.message },
+                },
+                {
+                    type: 'actions',
+                    elements: [
+                        {
+                            type: 'button',
+                            action_id: 'ai_access_connect',
+                            text: { type: 'plain_text', text: 'Connect agent' },
+                            url: connectUrl,
+                        },
+                    ],
+                },
+            ]);
+        },
+    );
+
+    it.each([
+        [
+            '/generalSettings/agentIdentity',
+            'https://lightdash.example.com/generalSettings/agentIdentity',
+        ],
+        ['settings/agent', 'https://lightdash.example.com/base/settings/agent'],
+        [
+            'https://other.example.com/settings?next=%2Fpath+here',
+            'https://other.example.com/settings?next=%2Fpath+here',
+        ],
+    ])(
+        'renders the exact settings blocks for %s',
+        (settingsUrl, expectedUrl) => {
+            expect(
+                getAiAccessRefusalBlocks({ ...askAdmin, settingsUrl }, siteUrl),
+            ).toEqual([
+                {
+                    type: 'section',
+                    text: { type: 'plain_text', text: askAdmin.message },
+                },
+                {
+                    type: 'actions',
+                    elements: [
+                        {
+                            type: 'button',
+                            action_id: 'ai_access_settings',
+                            text: {
+                                type: 'plain_text',
+                                text: 'Open agent settings',
+                            },
+                            url: expectedUrl,
+                        },
+                    ],
+                },
+            ]);
+        },
+    );
+
+    it.each([
+        null,
+        { ...signIn, action: null },
+        { ...signIn, connectUrl: null },
+        { ...signIn, connectUrl: '' },
+        { ...signIn, connectUrl: '   ' },
+        { ...askAdmin, settingsUrl: null },
+        { ...askAdmin, settingsUrl: '' },
+        { ...askAdmin, settingsUrl: '   ' },
+    ])('omits blocks for an ineligible refusal: %j', (refusal) => {
+        expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([]);
+    });
+
+    it('prefers sign-in over ask-admin in either order', () => {
+        expect(
+            selectSlackAiAccessRefusal(
+                selectSlackAiAccessRefusal(null, askAdmin),
+                signIn,
+            ),
+        ).toBe(signIn);
+        expect(
+            selectSlackAiAccessRefusal(
+                selectSlackAiAccessRefusal(null, signIn),
+                askAdmin,
+            ),
+        ).toBe(signIn);
+    });
+
+    it('keeps the first eligible refusal of each action', () => {
+        expect(
+            selectSlackAiAccessRefusal(signIn, {
+                ...signIn,
+                connectUrl: 'https://different.example.com',
+            }),
+        ).toBe(signIn);
+        expect(
+            selectSlackAiAccessRefusal(askAdmin, {
+                ...askAdmin,
+                settingsUrl: '/different',
+            }),
+        ).toBe(askAdmin);
+    });
+
+    it('ignores ineligible incoming refusals', () => {
+        for (const refusal of [
+            { ...signIn, connectUrl: null },
+            { ...askAdmin, settingsUrl: '' },
+            { ...signIn, action: null },
+        ]) {
+            expect(selectSlackAiAccessRefusal(null, refusal)).toBeNull();
+            expect(selectSlackAiAccessRefusal(askAdmin, refusal)).toBe(
+                askAdmin,
+            );
+        }
     });
 });

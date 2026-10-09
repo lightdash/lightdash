@@ -76,6 +76,15 @@ follows until its outcome lands. Lives in the AI agent store for the session
 only; nothing is persisted.
 _Avoid_: subscription, poll registration, tracked build
 
+**Agent default**:
+The model picker entry that drops an explicit model pick so the composer
+follows the agent's current model again. Shown as selected whenever no pick is
+stored for that agent in this browser. See
+[ai-agent-model-resolution.md](../ai-agent-model-resolution.md) for the
+resolution order.
+_Avoid_: default model (ambiguous with the organization default), reset,
+auto
+
 **Skill**:
 A named unit of guidance the AI agent can follow: a description, a markdown
 body, and optional resource files. Built-in skills ship with Lightdash;
@@ -92,6 +101,14 @@ correct answers. It carries a drafted skill (name, description, instructions)
 and lands in triage, where "Create skill" opens the skill editor prefilled
 and resolves the card on save.
 _Avoid_: skill suggestion, auto-skill, skill finding
+
+**SQL chart**:
+A chart saved from raw warehouse SQL rather than from an explore. Lives
+alongside semantic-layer charts in content as code (type `sql_chart`) and on
+dashboards as a SQL chart tile. The AI agent may run SQL in a thread, and
+may save a SQL chart only after the user approves that SQL for publication,
+unless the thread has approved SQL once and for all.
+_Avoid_: SQL Runner chart, saved SQL, raw SQL chart
 
 ## MCP servers
 

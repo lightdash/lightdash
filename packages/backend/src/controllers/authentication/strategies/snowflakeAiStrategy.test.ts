@@ -1,5 +1,10 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    buildSnowflakeAgentIntegrationSql,
+    FeatureFlags,
+    getSnowflakeAgentRedirectUri,
+} from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
@@ -69,6 +74,7 @@ const callVerify = async (
         }),
     );
     const service = new AiAccessService({
+        analytics: analyticsMock,
         featureFlagModel: { get },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const user = { userUuid: 'user-uuid', organizationUuid: 'org-uuid' };
@@ -259,4 +265,34 @@ describe('Snowflake AI OAuth callback', () => {
         ]);
         expect(result.done).toHaveBeenCalledWith(null, result.user);
     });
+});
+
+describe('Snowflake agent redirect URI', () => {
+    it.each([
+        'https://instance.example',
+        'https://instance.example/',
+        'https://instance.example/nested/path/',
+    ])(
+        'uses the same URI in Passport and setup SQL for %s',
+        async (siteUrl) => {
+            const previousSiteUrl = lightdashConfig.siteUrl;
+            try {
+                lightdashConfig.siteUrl = siteUrl;
+                vi.resetModules();
+                const { snowflakeAiPassportStrategy: strategy } =
+                    await import('./snowflakeAiStrategy');
+                const callbackURL = (
+                    strategy as unknown as { _callbackURL: string }
+                )._callbackURL;
+                expect(callbackURL).toBe(getSnowflakeAgentRedirectUri(siteUrl));
+                expect(
+                    buildSnowflakeAgentIntegrationSql({
+                        redirectUri: getSnowflakeAgentRedirectUri(siteUrl),
+                    }),
+                ).toContain(`OAUTH_REDIRECT_URI = '${callbackURL}'`);
+            } finally {
+                lightdashConfig.siteUrl = previousSiteUrl;
+            }
+        },
+    );
 });
