@@ -1,5 +1,5 @@
 import { Button, Divider, Group, Paper, Text } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useLayoutEffect, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -20,11 +20,12 @@ const getGridSelector = (key: string) =>
         ? GRID_SELECTOR
         : `[data-tab-uuid="${key}"] ${GRID_SELECTOR}`;
 
-// The element the active tab's tile grid sits in: the bar goes after the grid
-const useGridContainer = (
+// An element of ours right after the active tab's tile grid, where the bar
+// floats. Keyed on the grid, so it follows a grid that is mounted again
+const useBarHost = (
     activeTabUuid: string | undefined,
     isEnabled: boolean,
-): Element | null => {
+): HTMLElement | null => {
     const keys = useMemo(
         () =>
             activeTabUuid === undefined
@@ -41,7 +42,21 @@ const useGridContainer = (
         anyGrid !== undefined && anyGrid.closest(TAB_PANEL_SELECTOR) === null
             ? anyGrid
             : undefined;
-    return (tabGrid ?? loneGrid)?.parentElement ?? null;
+    const grid = tabGrid ?? loneGrid ?? null;
+
+    const [host, setHost] = useState<HTMLElement | null>(null);
+    useLayoutEffect(() => {
+        if (grid === null) return;
+        const element = document.createElement('div');
+        element.className = classes.host;
+        grid.after(element);
+        setHost(element);
+        return () => {
+            element.remove();
+            setHost(null);
+        };
+    }, [grid]);
+    return host;
 };
 
 type ScopeGroupProps = {
@@ -219,9 +234,9 @@ export const FieldTilesBar: FC = () => {
             ? highlightedFieldId
             : null;
     const isShown = getFieldTiles !== null && fieldId !== null;
-    const container = useGridContainer(activeTabUuid, isShown);
+    const host = useBarHost(activeTabUuid, isShown);
 
-    if (getFieldTiles === null || fieldId === null || container === null)
+    if (getFieldTiles === null || fieldId === null || host === null)
         return null;
-    return createPortal(<Bar fieldTiles={getFieldTiles(fieldId)} />, container);
+    return createPortal(<Bar fieldTiles={getFieldTiles(fieldId)} />, host);
 };

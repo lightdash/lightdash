@@ -188,7 +188,7 @@ describe('FieldTilesBar', () => {
 
             const grid = screen.getByTestId('grid');
             // After the grid, so it takes no space above the tiles
-            expect(grid.nextElementSibling).toBe(bar());
+            expect(grid.nextElementSibling).toBe(bar().parentElement);
             expect(grid.previousElementSibling).toBeNull();
 
             setSidebar(rule('orders_status'), { highlightedFieldId: null });
@@ -404,14 +404,18 @@ describe('FieldTilesBar', () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             const { rerender } = renderWithProviders(<TabbedDashboard />);
 
-            expect(screen.getByTestId('grid-1').nextElementSibling).toBe(bar());
+            expect(screen.getByTestId('grid-1').nextElementSibling).toBe(
+                bar().parentElement,
+            );
             expect(countOf('This tab')).toHaveTextContent('This tab1 of 2');
             expect(countOf('This tab')).toHaveAttribute('aria-live', 'polite');
             expect(countOf('Every tab')).toHaveTextContent('Every tab2 of 3');
 
             setTabs(TAB_2);
             rerender(<TabbedDashboard />);
-            expect(screen.getByTestId('grid-2').nextElementSibling).toBe(bar());
+            expect(screen.getByTestId('grid-2').nextElementSibling).toBe(
+                bar().parentElement,
+            );
             expect(screen.getByTestId('grid-1').nextElementSibling).toBeNull();
             expect(countOf('This tab')).toHaveTextContent('This tab1 of 1');
         });
