@@ -1,79 +1,18 @@
-import {
-    ActionIcon,
-    Box,
-    Center,
-    Group,
-    Highlight,
-    Loader,
-    ScrollArea,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import { useDebouncedValue, useHover } from '@mantine/hooks';
-import { IconSearch, IconX } from '@tabler/icons-react';
+import { useDebouncedValue } from '@mantine/hooks';
 import Fuse from 'fuse.js';
-import { memo, useMemo, useState, type FC } from 'react';
-import { CopyActionIcon } from '../../../../components/common/CopyActionIcon';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import { TableFieldIcon } from '../../../../components/DataViz/Icons';
-import { useIsTruncated } from '../../../../hooks/useIsTruncated';
-import scrollAreaClasses from '../../../../styles/ScrollArea.module.css';
+import { useMemo, useState, type FC } from 'react';
+import { TableFieldsList } from '../../components/TableFieldsList';
 import { type WarehouseTableField } from '../../hooks/useTableFields';
+import { useAppSelector } from '../../store/hooks';
 import { useActiveConnection } from '../hooks/useActiveConnection';
 import { useConnectionTableFields } from '../hooks/useConnectionCatalog';
+import { qualifiedTableName } from '../utils/warehouseTreeRows';
 
-const MIN_SEARCH_LENGTH = 3;
-
-const TableField: FC<{
-    activeTable: string;
-    field: WarehouseTableField;
-    search: string | undefined;
-}> = memo(({ activeTable, field, search }) => {
-    const { ref: hoverRef, hovered } = useHover();
-    const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
-    return (
-        <Group gap="xs" wrap="nowrap" ref={hoverRef}>
-            {hovered ? (
-                <CopyActionIcon
-                    value={`${activeTable}.${field.name}`}
-                    copiedLabel="Copied to clipboard"
-                    tooltipPosition="right"
-                    size={16}
-                    bg="ldGray.1"
-                />
-            ) : (
-                <TableFieldIcon fieldType={field.type} />
-            )}
-            <Tooltip label={field.name} disabled={!isTruncated}>
-                <Text
-                    ref={truncatedRef}
-                    fw={500}
-                    p={4}
-                    fz="sm"
-                    c="ldGray.7"
-                    flex={1}
-                    truncate
-                >
-                    <Highlight
-                        component="span"
-                        highlight={search || ''}
-                        inherit
-                    >
-                        {field.name}
-                    </Highlight>
-                </Text>
-            </Tooltip>
-            <Text fz="xs" c="ldGray.5">
-                {field.type}
-            </Text>
-        </Group>
-    );
-});
+const MIN_SEARCH_LENGTH = 2;
 
 export const MultiConnectionTableFields: FC = () => {
     const { projectUuid, activeTable } = useActiveConnection();
+    const quoteChar = useAppSelector((state) => state.sqlRunner.quoteChar);
 
     const [search, setSearch] = useState<string>('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -106,76 +45,23 @@ export const MultiConnectionTableFields: FC = () => {
         return fuse.search(effectiveSearch).map((result) => result.item);
     }, [fields, effectiveSearch]);
 
-    if (!activeTable) {
-        return (
-            <Center p="md">
-                <Text c="ldGray.4">No table selected</Text>
-            </Center>
-        );
-    }
+    if (!activeTable) return null;
+
+    const pathParts = [activeTable.database, activeTable.schema].filter(
+        (part) => part !== '',
+    );
 
     return (
-        <Stack gap="xs" h="100%" pt="sm">
-            <Box px="sm">
-                <Text fz="sm" fw={600} c="ldGray.7">
-                    {activeTable.table}
-                </Text>
-                <TextInput
-                    size="xs"
-                    radius="md"
-                    disabled={!isSuccess}
-                    leftSection={
-                        isInitialLoading ? (
-                            <Loader size="xs" />
-                        ) : (
-                            <MantineIcon icon={IconSearch} />
-                        )
-                    }
-                    rightSectionPointerEvents="all"
-                    rightSection={
-                        search ? (
-                            <ActionIcon
-                                aria-label="Clear search"
-                                onMouseDown={(event) => event.preventDefault()}
-                                size="xs"
-                                onClick={() => setSearch('')}
-                            >
-                                <MantineIcon icon={IconX} />
-                            </ActionIcon>
-                        ) : null
-                    }
-                    placeholder="Search fields"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                />
-            </Box>
-            {isSuccess && visibleFields.length > 0 && (
-                <ScrollArea
-                    offsetScrollbars
-                    scrollbars="y"
-                    classNames={{ content: scrollAreaClasses.verticalContent }}
-                    flex={1}
-                    type="auto"
-                    scrollbarSize={8}
-                    pl="sm"
-                >
-                    <Stack gap={0}>
-                        {visibleFields.map((field) => (
-                            <TableField
-                                key={field.name}
-                                activeTable={activeTable.table}
-                                field={field}
-                                search={effectiveSearch}
-                            />
-                        ))}
-                    </Stack>
-                </ScrollArea>
-            )}
-            {isSuccess && visibleFields.length === 0 && (
-                <Center p="sm">
-                    <Text c="ldGray.4">No results found</Text>
-                </Center>
-            )}
-        </Stack>
+        <TableFieldsList
+            pathPrefix={pathParts.length > 0 ? pathParts.join('.') : null}
+            table={activeTable.table}
+            copyValue={qualifiedTableName(activeTable, quoteChar)}
+            fields={visibleFields}
+            isLoading={isInitialLoading}
+            isReady={isSuccess}
+            search={search}
+            onSearchChange={setSearch}
+            highlight={effectiveSearch}
+        />
     );
 };

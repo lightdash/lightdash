@@ -168,6 +168,7 @@ describe('formatIdentifier', () => {
             formatIdentifier('orders', '"', {
                 quotePreference: 'never',
                 casePreference: 'uppercase',
+                qualification: 'full',
             }),
         ).toBe('ORDERS');
     });

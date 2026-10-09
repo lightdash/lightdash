@@ -1,10 +1,15 @@
 import { PartitionType, WarehouseTableType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    ALL_SCHEMAS_SECTION_ID,
+    buildRecentRows,
     buildTableRows,
+    catalogHasDevSchemas,
     catalogHasViews,
+    DEV_SCHEMAS_GROUP_ID,
     filterTablesBySchema,
     isActiveSchema,
+    RECENT_SECTION_ID,
     type SchemaTables,
 } from './tableRows';
 
@@ -44,6 +49,7 @@ describe('buildTableRows', () => {
                 databaseLabel: null,
                 isExpanded: false,
                 tableCount: 3,
+                depth: 0,
             },
             {
                 type: 'schema',
@@ -53,6 +59,7 @@ describe('buildTableRows', () => {
                 databaseLabel: null,
                 isExpanded: false,
                 tableCount: 1,
+                depth: 0,
             },
         ]);
     });
@@ -79,6 +86,7 @@ describe('buildTableRows', () => {
             table: 'orders',
             partitionColumn,
             tableType: undefined,
+            depth: 0,
         });
         expect(rows[3]).toMatchObject({
             table: 'payments',
@@ -130,6 +138,122 @@ describe('buildTableRows', () => {
         );
 
         expect(rows).toMatchObject([{ type: 'schema', databaseLabel: null }]);
+    });
+});
+
+const withDevSchemas: SchemaTables[] = [
+    ...tablesBySchema,
+    {
+        database: 'warehouse',
+        schema: 'dbt_cloud_pr_1045437_829',
+        tables: { orders: {} },
+    },
+    {
+        database: 'warehouse',
+        schema: 'dbt_cloud_pr_1045437_830',
+        tables: { orders: {}, customers: {} },
+    },
+];
+
+describe('buildTableRows with dev schema grouping', () => {
+    it('folds dev schemas into one collapsed node after the others', () => {
+        const rows = buildTableRows(withDevSchemas, () => false, false, {
+            isGroupExpanded: false,
+        });
+
+        expect(rows.map((row) => row.id)).toEqual([
+            'schema:warehouse.jaffle',
+            'schema:warehouse.staging',
+            DEV_SCHEMAS_GROUP_ID,
+        ]);
+        expect(rows[2]).toMatchObject({
+            type: 'group',
+            label: 'dev & pr schemas',
+            isExpanded: false,
+            schemaCount: 2,
+        });
+    });
+
+    it('indents dev schemas and their tables inside the expanded group', () => {
+        const rows = buildTableRows(
+            withDevSchemas,
+            (_, { schema }) => schema === 'dbt_cloud_pr_1045437_830',
+            false,
+            { isGroupExpanded: true },
+        );
+
+        expect(rows.slice(2)).toMatchObject([
+            { type: 'group', isExpanded: true },
+            { type: 'schema', schema: 'dbt_cloud_pr_1045437_829', depth: 1 },
+            { type: 'schema', schema: 'dbt_cloud_pr_1045437_830', depth: 1 },
+            { type: 'table', table: 'orders', depth: 1 },
+            { type: 'table', table: 'customers', depth: 1 },
+        ]);
+        expect(rows.slice(0, 2)).toMatchObject([
+            { type: 'schema', depth: 0 },
+            { type: 'schema', depth: 0 },
+        ]);
+    });
+
+    it('emits no group when nothing matches the dev pattern', () => {
+        const rows = buildTableRows(tablesBySchema, () => false, false, {
+            isGroupExpanded: true,
+        });
+
+        expect(rows.map((row) => row.type)).toEqual(['schema', 'schema']);
+    });
+
+    it('reports whether a catalog has dev schemas', () => {
+        expect(catalogHasDevSchemas(withDevSchemas)).toBe(true);
+        expect(catalogHasDevSchemas(tablesBySchema)).toBe(false);
+    });
+});
+
+describe('buildRecentRows', () => {
+    it('wraps recent tables in their own section before the schema list', () => {
+        const rows = buildRecentRows(
+            [
+                { database: 'warehouse', schema: 'jaffle', table: 'orders' },
+                { database: 'warehouse', schema: 'jaffle', table: 'payments' },
+            ],
+            tablesBySchema,
+        );
+
+        expect(rows).toEqual([
+            { type: 'section', id: RECENT_SECTION_ID, label: 'Recent' },
+            {
+                type: 'recent',
+                id: 'recent:warehouse.jaffle.orders',
+                database: 'warehouse',
+                schema: 'jaffle',
+                table: 'orders',
+                partitionColumn,
+                tableType: undefined,
+            },
+            {
+                type: 'recent',
+                id: 'recent:warehouse.jaffle.payments',
+                database: 'warehouse',
+                schema: 'jaffle',
+                table: 'payments',
+                partitionColumn: undefined,
+                tableType: WarehouseTableType.VIEW,
+            },
+            {
+                type: 'section',
+                id: ALL_SCHEMAS_SECTION_ID,
+                label: 'All schemas',
+            },
+        ]);
+    });
+
+    it('drops tables that are no longer in the catalog', () => {
+        const rows = buildRecentRows(
+            [{ database: 'warehouse', schema: 'jaffle', table: 'gone' }],
+            tablesBySchema,
+        );
+
+        expect(rows).toEqual([]);
     });
 });
 

@@ -6,6 +6,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    ALL_SECTION_ID,
+    buildRecentWarehouseRows,
     buildWarehouseTreeRows,
     catalogHasViews,
     collectEnabledUnits,
@@ -508,6 +510,61 @@ describe('buildWarehouseTreeRows', () => {
                 table: 'movies',
             },
         ]);
+    });
+});
+
+describe('buildRecentWarehouseRows', () => {
+    const getUnitState = (unit: { database: string }): TableUnitState =>
+        unit.database === 'AwsDataCatalog'
+            ? loaded(athenaCatalog)
+            : unit.database === 'broken'
+              ? { status: 'error', message: 'nope' }
+              : { status: 'idle' };
+
+    it('wraps the recent tables in sections and carries catalog details', () => {
+        const rows = buildRecentWarehouseRows({
+            connectionId: CONNECTION_ID,
+            recentTables: [
+                {
+                    database: 'AwsDataCatalog',
+                    schema: 'jaffle',
+                    table: 'orders',
+                },
+                { database: 'lazy', schema: 'main', table: 'events' },
+            ],
+            getUnitState,
+            allLabel: 'All schemas',
+        });
+
+        expect(rows).toMatchObject([
+            { type: 'section', label: 'Recent' },
+            {
+                type: 'recent',
+                identity: {
+                    connectionId: CONNECTION_ID,
+                    database: 'AwsDataCatalog',
+                    schema: 'jaffle',
+                    table: 'orders',
+                },
+                partitionColumn,
+            },
+            { type: 'recent', identity: { database: 'lazy', table: 'events' } },
+            { type: 'section', id: ALL_SECTION_ID, label: 'All schemas' },
+        ]);
+    });
+
+    it('drops tables a loaded database no longer has, and broken databases', () => {
+        const rows = buildRecentWarehouseRows({
+            connectionId: CONNECTION_ID,
+            recentTables: [
+                { database: 'AwsDataCatalog', schema: 'jaffle', table: 'gone' },
+                { database: 'broken', schema: 'main', table: 'events' },
+            ],
+            getUnitState,
+            allLabel: 'All schemas',
+        });
+
+        expect(rows).toEqual([]);
     });
 });
 

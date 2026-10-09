@@ -10,14 +10,19 @@ import {
     type ApiErrorDetail,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
+    Button,
+    CopyButton,
+    Divider,
     Group,
-    Paper,
+    Kbd,
+    Loader,
+    Skeleton,
     Stack,
     Text,
     ActionIcon,
     Indicator,
-    LoadingOverlay,
     SegmentedControl,
     Title,
     Transition,
@@ -26,6 +31,7 @@ import {
 import {
     useElementSize,
     useHotkeys,
+    useOs,
     type SplitterPaneSize,
 } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -34,7 +40,7 @@ import {
     IconAlertCircle,
     IconChartHistogram,
     IconCode,
-    IconTable,
+    IconIndentIncrease,
 } from '@tabler/icons-react';
 import {
     useCallback,
@@ -43,11 +49,11 @@ import {
     useRef,
     useState,
     type FC,
+    type ReactNode,
 } from 'react';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
-import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { updateChartSortBy } from '../../../components/DataViz/store/actions/commonChartActions';
 import {
     cartesianChartSelectors,
@@ -84,6 +90,7 @@ import {
     selectSqlQueryResults,
     selectSqlRunnerResultsRunner,
     setActiveEditorTab,
+    requestEditorReveal,
     setEditorHighlightError,
     setSql,
     setSqlLimit,
@@ -94,7 +101,7 @@ import { executeSqlDownloadQuery } from '../utils/executeSqlDownloadQuery';
 import styles from './ContentPanel.module.css';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
-import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
+import { type MonacoHighlightChar } from './SqlEditor';
 import { SqlQueryHistory } from './SqlQueryHistory';
 import { SqlRunnerChart } from './SqlRunnerChart';
 import { SqlRunnerEditor } from './SqlRunnerEditor';
@@ -110,7 +117,7 @@ const useQueryErrorToast = (
     queryError: ApiErrorDetail | SerializedError | Error | undefined,
     projectUuid: string | undefined,
 ) => {
-    const { showToastError, showToastApiError } = useToaster();
+    const { showToastApiError } = useToaster();
     useEffect(() => {
         if (queryError && isPreviewWarehouseSignInExpiredError(queryError)) {
             showToastApiError({
@@ -118,18 +125,103 @@ const useQueryErrorToast = (
                 apiError: queryError,
                 projectUuid,
             });
-        } else if (queryError) {
-            showToastError({
-                title: 'Could not fetch SQL query results',
-                subtitle: queryError.message,
-            });
         } else {
             notifications.clean();
         }
-    }, [queryError, projectUuid, showToastError, showToastApiError]);
+    }, [queryError, projectUuid, showToastApiError]);
 };
 
-export const ContentPanel: FC = () => {
+const ElapsedTime: FC = () => {
+    const [elapsedMs, setElapsedMs] = useState(0);
+    useEffect(() => {
+        const startedAt = Date.now();
+        const timer = setInterval(
+            () => setElapsedMs(Date.now() - startedAt),
+            100,
+        );
+        return () => clearInterval(timer);
+    }, []);
+    return <>{(elapsedMs / 1000).toFixed(1)}s</>;
+};
+
+const SKELETON_WIDTHS = [
+    [120, 64],
+    [96, 48],
+    [140, 72],
+    [80, 56],
+    [128, 40],
+    [104, 64],
+    [88, 48],
+    [136, 60],
+];
+
+const ResultsSkeleton: FC = () => (
+    <Box>
+        {SKELETON_WIDTHS.map(([first, second], index) => (
+            <Box key={index} className={styles.skeletonRow}>
+                <Skeleton height={8} width={20} radius="xl" />
+                <Skeleton height={8} width={first} radius="xl" />
+                <Skeleton height={8} width={second} radius="xl" />
+            </Box>
+        ))}
+    </Box>
+);
+
+const EmptyResultsHints: FC = () => {
+    const os = useOs();
+    const modifierKey = os === 'macos' || os === 'ios' ? '⌘' : 'Ctrl';
+    return (
+        <Group gap={4} wrap="nowrap" className={styles.emptyHints}>
+            <Kbd size="xs">{modifierKey}</Kbd>
+            <Kbd size="xs">↵</Kbd>
+            <Text fz="xs" c="dimmed" mr="xs">
+                run
+            </Text>
+            <Kbd size="xs">⇧{modifierKey}↵</Kbd>
+            <Text fz="xs" c="dimmed">
+                selection
+            </Text>
+        </Group>
+    );
+};
+
+const QueryErrorBlock: FC<{
+    message: string;
+    position: MonacoHighlightChar | undefined;
+    onReveal: (position: MonacoHighlightChar) => void;
+}> = ({ message, position, onReveal }) => (
+    <Stack gap="xs" className={styles.errorBlock}>
+        <Group gap="xs" wrap="nowrap" align="flex-start">
+            <MantineIcon icon={IconAlertCircle} color="red" />
+            <Text fz="xs" fw={500} c="red" flex={1}>
+                {message}
+            </Text>
+            {position && (
+                <Anchor
+                    component="button"
+                    type="button"
+                    fz="xs"
+                    onClick={() => onReveal(position)}
+                >
+                    Line {position.line}
+                </Anchor>
+            )}
+        </Group>
+        <Group gap="xs">
+            <CopyButton value={message}>
+                {({ copied, copy }) => (
+                    <Button size="xs" variant="default" onClick={copy}>
+                        {copied ? 'Copied' : 'Copy error'}
+                    </Button>
+                )}
+            </CopyButton>
+        </Group>
+    </Stack>
+);
+
+export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
+    toolbarActions,
+}) => {
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
@@ -154,6 +246,8 @@ export const ContentPanel: FC = () => {
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+    // The in-flight SQL run, so Cancel can abort it
+    const runPromiseRef = useRef<{ abort: () => void } | null>(null);
     const lastFailedRun = useRef<
         | { kind: 'sql'; args: Parameters<typeof runSqlQuery>[0] }
         | { kind: 'visualization'; projectUuid: string }
@@ -252,10 +346,14 @@ export const ContentPanel: FC = () => {
                     projectUuid,
                     parameterValues,
                 };
-                const result = await dispatch(runSqlQuery(args));
-                lastFailedRun.current = runSqlQuery.rejected.match(result)
-                    ? { kind: 'sql', args }
-                    : null;
+                const promise = dispatch(runSqlQuery(args));
+                runPromiseRef.current = promise;
+                const result = await promise;
+                runPromiseRef.current = null;
+                lastFailedRun.current =
+                    runSqlQuery.rejected.match(result) && !result.meta.aborted
+                        ? { kind: 'sql', args }
+                        : null;
 
                 // If we're on viz tab, also fetch chart data after SQL completes
                 if (
@@ -310,6 +408,17 @@ export const ContentPanel: FC = () => {
     }, [dispatch, projectUuid]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
+
+    const handleCancelQuery = useCallback(() => {
+        runPromiseRef.current?.abort();
+    }, []);
+    const handleRevealError = useCallback(
+        (position: MonacoHighlightChar) => {
+            dispatch(setActiveEditorTab(EditorTabs.SQL));
+            dispatch(requestEditorReveal(position));
+        },
+        [dispatch],
+    );
 
     const handleFormatSql = useCallback(() => {
         if (!sql) return;
@@ -415,6 +524,33 @@ export const ContentPanel: FC = () => {
         return health.data?.query.defaultLimit ?? DEFAULT_SQL_LIMIT;
     }, [health]);
 
+    const resultsSummary = useMemo(() => {
+        if (!queryResults) return '';
+        const parts = [
+            `${queryResults.results.length.toLocaleString()} rows${
+                showLimitText ? `, limited to ${defaultQueryLimit}` : ''
+            }`,
+        ];
+        if (queryResults.durationMs !== null) {
+            parts.push(
+                queryResults.durationMs < 1000
+                    ? `${Math.round(queryResults.durationMs)}ms`
+                    : `${(queryResults.durationMs / 1000).toFixed(1)}s`,
+            );
+        }
+        return parts.join(' · ');
+    }, [queryResults, showLimitText, defaultQueryLimit]);
+
+    const resultsColumnTypes = useMemo(
+        () =>
+            Object.fromEntries(
+                (queryResults?.columns ?? []).flatMap((column) =>
+                    column.type ? [[column.reference, column.type]] : [],
+                ),
+            ),
+        [queryResults],
+    );
+
     useEffect(() => {
         if (!limit) {
             dispatch(setSqlLimit(defaultQueryLimit));
@@ -515,14 +651,14 @@ export const ContentPanel: FC = () => {
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
-        <Stack gap={0} p="lg" className={styles.root}>
+        <Stack gap={0} className={styles.root}>
             <Tooltip.Group>
                 <ResizableSplitter
                     orientation="vertical"
                     sizes={hideResultsPanel ? [100, 0] : panelSizes}
                     onSizeChange={setPanelSizes}
                     resizable={!hideResultsPanel}
-                    lineSize="var(--mantine-spacing-md)"
+                    lineSize={9}
                     handleColor="transparent"
                     classNames={{ handle: styles.resizeHandle }}
                     styles={{
@@ -537,8 +673,8 @@ export const ContentPanel: FC = () => {
                         min={30}
                         className={styles.panel}
                     >
-                        <Paper className={styles.card}>
-                            <Box className={styles.cardHeader}>
+                        <Box className={styles.pane}>
+                            <Box className={styles.paneHeader}>
                                 <Group justify="space-between">
                                     <Indicator
                                         color="red.6"
@@ -553,7 +689,7 @@ export const ContentPanel: FC = () => {
                                                     ? 'none'
                                                     : undefined
                                             }
-                                            size="sm"
+                                            size="xs"
                                             data={[
                                                 {
                                                     value: EditorTabs.SQL,
@@ -568,8 +704,12 @@ export const ContentPanel: FC = () => {
                                                                 gap={4}
                                                                 wrap="nowrap"
                                                             >
-                                                                <SqlEditorPreferencesPopover />
-
+                                                                <MantineIcon
+                                                                    color="dimmed"
+                                                                    icon={
+                                                                        IconCode
+                                                                    }
+                                                                />
                                                                 <Text fz="sm">
                                                                     SQL
                                                                 </Text>
@@ -644,33 +784,25 @@ export const ContentPanel: FC = () => {
                                         isError={isProjectParametersError}
                                     />
                                     {activeEditorTab === EditorTabs.SQL && (
-                                        <SqlQueryHistory />
-                                    )}
-                                    <RunSqlQueryButton
-                                        isLoading={isLoadingSqlQuery}
-                                        disabled={!sql}
-                                        onSubmit={() => handleRunQuery(sql)}
-                                        {...(canSetSqlLimit
-                                            ? {
-                                                  onLimitChange: (l) =>
-                                                      dispatch(setSqlLimit(l)),
-                                                  limit,
-                                              }
-                                            : {})}
-                                    />
-                                    {activeEditorTab === EditorTabs.SQL && (
-                                        <Tooltip
-                                            label="Format SQL"
-                                            position="bottom"
-                                        >
-                                            <ActionIcon
-                                                onClick={handleFormatSql}
-                                                disabled={!sql}
-                                                variant="default"
+                                        <>
+                                            <SqlQueryHistory />
+                                            <Tooltip
+                                                label="Format SQL"
+                                                position="bottom"
                                             >
-                                                <MantineIcon icon={IconCode} />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                                <ActionIcon
+                                                    aria-label="Format SQL"
+                                                    onClick={handleFormatSql}
+                                                    disabled={!sql}
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconIndentIncrease
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        </>
                                     )}
                                     {activeEditorTab ===
                                         EditorTabs.VISUALIZATION &&
@@ -721,11 +853,34 @@ export const ContentPanel: FC = () => {
                                             />
                                         )
                                     )}
+                                    {toolbarActions && (
+                                        <>
+                                            <Divider
+                                                orientation="vertical"
+                                                className={
+                                                    styles.toolbarDivider
+                                                }
+                                            />
+                                            {toolbarActions}
+                                        </>
+                                    )}
+                                    <RunSqlQueryButton
+                                        isLoading={isLoadingSqlQuery}
+                                        disabled={!sql}
+                                        onSubmit={() => handleRunQuery(sql)}
+                                        {...(canSetSqlLimit
+                                            ? {
+                                                  onLimitChange: (l) =>
+                                                      dispatch(setSqlLimit(l)),
+                                                  limit,
+                                              }
+                                            : {})}
+                                    />
                                 </Group>
                             </Box>
                             <Box
                                 ref={inputSectionRef}
-                                className={styles.cardBody}
+                                className={styles.paneBody}
                             >
                                 <Box
                                     className={styles.editorSurface}
@@ -878,7 +1033,7 @@ export const ContentPanel: FC = () => {
                                     </ConditionalVisibility>
                                 </Box>
                             </Box>
-                        </Paper>
+                        </Box>
                     </ResizableSplitter.Pane>
 
                     <ResizableSplitter.Pane
@@ -888,38 +1043,68 @@ export const ContentPanel: FC = () => {
                         hidden={hideResultsPanel}
                         className={`${styles.panel} sentry-block ph-no-capture`}
                     >
-                        <Paper className={styles.card}>
-                            <Box className={styles.cardHeader}>
-                                <Group gap="sm">
-                                    <Title order={6}>Results</Title>
-                                    {queryResults?.results && (
-                                        <Text fz="xs" c="dimmed">
-                                            {resultsRunner.getRows().length}{' '}
-                                            rows
-                                            {showLimitText
-                                                ? `, limited to ${defaultQueryLimit}`
-                                                : ''}
-                                        </Text>
-                                    )}
-                                </Group>
+                        <Box className={styles.pane}>
+                            <Box className={styles.paneHeader}>
+                                {isLoadingSqlQuery ? (
+                                    <>
+                                        <Group gap="xs" wrap="nowrap">
+                                            <Loader
+                                                size={12}
+                                                color="ldGray.9"
+                                            />
+                                            <Text fz="xs" c="ldGray.7">
+                                                Running · <ElapsedTime />
+                                            </Text>
+                                        </Group>
+                                        {runPromiseRef.current && (
+                                            <Button
+                                                size="xs"
+                                                variant="default"
+                                                onClick={handleCancelQuery}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        )}
+                                    </>
+                                ) : (
+                                    <Group gap="sm">
+                                        <Title order={6}>Results</Title>
+                                        {queryResults?.results && (
+                                            <Text fz="xs" c="dimmed">
+                                                {resultsSummary}
+                                            </Text>
+                                        )}
+                                    </Group>
+                                )}
                             </Box>
-                            <Box className={styles.resultsBody}>
-                                <LoadingOverlay
-                                    pos="absolute"
-                                    loaderProps={{
-                                        size: 'xs',
-                                    }}
-                                    visible={isLoadingSqlQuery}
-                                />
-                                {!queryResults?.results && (
-                                    <SuboptimalState
-                                        icon={IconTable}
-                                        title="No results yet"
-                                        description="Run the query to see its rows here."
+                            <Box
+                                className={styles.resultsBody}
+                                data-running={isLoadingSqlQuery || undefined}
+                            >
+                                {isLoadingSqlQuery && (
+                                    <Box className={styles.runningBar} />
+                                )}
+                                {queryError && !isLoadingSqlQuery && (
+                                    <QueryErrorBlock
+                                        message={
+                                            queryError.message ??
+                                            'Unknown error'
+                                        }
+                                        position={editorHighlightError}
+                                        onReveal={handleRevealError}
                                     />
                                 )}
+                                {!queryResults?.results &&
+                                    (isLoadingSqlQuery ? (
+                                        <ResultsSkeleton />
+                                    ) : (
+                                        !queryError && <EmptyResultsHints />
+                                    ))}
                                 {queryResults?.results && resultsRunner && (
-                                    <>
+                                    <Box
+                                        className={styles.previousResults}
+                                        h="100%"
+                                    >
                                         <ConditionalVisibility
                                             isVisible={showSqlResultsTable}
                                         >
@@ -930,8 +1115,10 @@ export const ContentPanel: FC = () => {
                                                     {}
                                                 }
                                                 enableJsonViewer
+                                                density="compact"
+                                                columnTypes={resultsColumnTypes}
                                                 flexProps={{
-                                                    mah: '100%',
+                                                    h: '100%',
                                                 }}
                                             />
                                         </ConditionalVisibility>
@@ -1010,10 +1197,10 @@ export const ContentPanel: FC = () => {
                                                     </>
                                                 )}
                                         </ConditionalVisibility>
-                                    </>
+                                    </Box>
                                 )}
                             </Box>
-                        </Paper>
+                        </Box>
                     </ResizableSplitter.Pane>
                 </ResizableSplitter>
             </Tooltip.Group>

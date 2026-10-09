@@ -1,13 +1,83 @@
-.schemaButton {
+.row {
+    --tree-depth: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
     width: 100%;
-    padding: rem(6px) rem(8px);
+    height: rem(28px);
+    padding: 0 rem(8px) 0 calc(rem(8px) + var(--tree-depth) * rem(22px));
     border-radius: var(--mantine-radius-md);
-    color: var(--mantine-color-text);
-    transition: background-color 120ms ease;
+    transition:
+        background-color 120ms ease,
+        color 120ms ease;
 }
 
-.schemaButton:hover {
+.row[data-depth='1'] {
+    --tree-depth: 1;
+}
+
+.row[data-depth='2'] {
+    --tree-depth: 2;
+}
+
+.section {
+    composes: row;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.schemaButton {
+    composes: row;
+    color: var(--mantine-color-text);
+}
+
+.schemaButton:hover,
+.groupButton:hover,
+.tableButton:hover {
     background-color: var(--mantine-color-default-hover);
+}
+
+.groupButton {
+    composes: row;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton {
+    composes: row;
+    padding-left: calc(rem(30px) + var(--tree-depth) * rem(22px));
+    color: var(--mantine-color-ldGray-7);
+}
+
+.tableButton:hover {
+    color: var(--mantine-color-text);
+}
+
+.tableButton[data-active] {
+    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.tableButton[data-active]:hover {
+    background-color: light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13));
+}
+
+.recentButton {
+    composes: row;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.recentButton:hover {
+    background-color: var(--mantine-color-default-hover);
+    color: var(--mantine-color-text);
+}
+
+.rowIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+}
+
+.tableButton[data-active] .rowIcon {
+    color: var(--mantine-color-text);
 }
 
 .schemaLabel {
@@ -35,75 +105,34 @@
     overflow-wrap: anywhere;
 }
 
-.chevron {
-    flex-shrink: 0;
-    color: var(--mantine-color-dimmed);
-}
-
-.tableButton {
-    border-radius: var(--mantine-radius-md);
-    padding: rem(4px) rem(8px) rem(4px) rem(28px);
-    color: var(--mantine-color-ldGray-7);
-    transition:
-        background-color 120ms ease,
-        color 120ms ease;
-}
-
-.tableButton:hover {
-    background-color: var(--mantine-color-default-hover);
-    color: var(--mantine-color-text);
-}
-
-.tableButton[data-active] {
-    background-color: light-dark(rgb(24 24 27 / 0.07), rgb(236 236 238 / 0.09));
-    color: var(--mantine-color-text);
-    font-weight: 500;
-}
-
-.tableButton[data-active]:hover {
-    background-color: light-dark(rgb(24 24 27 / 0.1), rgb(236 236 238 / 0.13));
-}
-
-.tableIcon {
-    flex-shrink: 0;
-    color: var(--mantine-color-dimmed);
-}
-
-.tableButton[data-active] .tableIcon {
-    color: var(--mantine-color-text);
-}
-
 .copyButton {
     position: absolute;
-    top: rem(4px);
+    top: rem(2px);
     right: rem(6px);
 }
 
-.searchInput {
-    min-width: 0;
-    flex: 1;
-}
-
-.searchSection[data-position='right'] {
-    justify-content: flex-end;
-    align-items: center;
-    padding-inline-end: rem(4px);
-}
-
-/* Mantine 9 uses --sc-padding for labels and a separate root inset.
-   Keep this compact enough to sit beside the 32px search field. */
-.typeFilter {
-    --sc-padding: 0 rem(6px);
-    flex-shrink: 0;
-    height: rem(26px);
-    padding: rem(2px);
-}
-
-.typeFilterLabel {
+.list {
+    position: relative;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+    flex-direction: column;
+    flex: 1;
     min-height: 0;
-    line-height: 0;
+}
+
+/* Rows slide under a short fade instead of clipping against the toolbar */
+.fade {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    left: 0;
+    right: rem(8px);
+    height: var(--mantine-spacing-md);
+    background: linear-gradient(var(--mantine-color-body), transparent);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.fade[data-visible] {
+    opacity: 1;
 }

@@ -42,8 +42,11 @@ const ResultsDownloadButton: FC<Props> = ({
     return (
         <Popover withArrow disabled={disabled}>
             <Popover.Target>
-                <Tooltip label="Download results">
-                    <ActionIcon variant="default" disabled={disabled}>
+                <Tooltip label="Download results" position="bottom">
+                    <ActionIcon
+                        aria-label="Download results"
+                        disabled={disabled}
+                    >
                         <MantineIcon icon={IconDownload} />
                     </ActionIcon>
                 </Tooltip>
