@@ -1,3 +1,11 @@
+## [2.504.2](https://github.com/lightdash/lightdash/compare/2.504.1...2.504.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai:** stop serving results from a removed agent identity ([#30796](https://github.com/lightdash/lightdash/issues/30796)) ([2f4e206](https://github.com/lightdash/lightdash/commit/2f4e2067a8e6bb73db5513ad5e55a61e13c4e7b5))
+* **ai:** teach the data-app anomaly detector that weekly seasonality is baseline ([#30803](https://github.com/lightdash/lightdash/issues/30803)) ([a093980](https://github.com/lightdash/lightdash/commit/a093980e1a00dd44ef8480ed335d19bbae447102))
+
 ## [2.504.1](https://github.com/lightdash/lightdash/compare/2.504.0...2.504.1) (2026-10-09)
 
 
