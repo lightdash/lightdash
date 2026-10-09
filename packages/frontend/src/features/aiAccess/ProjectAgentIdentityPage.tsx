@@ -1,20 +1,12 @@
 import { subject } from '@casl/ability';
-import {
-    AGENT_IDENTITY_SETTINGS_PATH,
-    FeatureFlags,
-    WarehouseTypes,
-    type Project,
-} from '@lightdash/common';
-import { Anchor, Stack, Text, Title } from '@mantine/core';
-import { Link } from 'react-router';
+import { FeatureFlags, WarehouseTypes, type Project } from '@lightdash/common';
+import { Text } from '@mantine/core';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
-import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 import { useOrganizationAgentIdentitySettings } from './api';
-import { identityLabels } from './identityLabels';
 
 const ProjectAgentIdentityContent = ({ project }: { project: Project }) => {
     const settings = useOrganizationAgentIdentitySettings();
@@ -30,32 +22,7 @@ const ProjectAgentIdentityContent = ({ project }: { project: Project }) => {
                 onRetry={() => void settings.refetch()}
             />
         );
-    return (
-        <Stack gap="lg">
-            <SettingsCard>
-                <Stack gap="xs">
-                    <Title order={5}>
-                        Organization rule for this warehouse
-                    </Title>
-                    <Text size="sm">{identityLabels[rule.source].label}</Text>
-                    <Text size="sm" c="dimmed">
-                        {identityLabels[rule.source].helper}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                        Set by an organization admin.{' '}
-                        <Anchor
-                            component={Link}
-                            to={AGENT_IDENTITY_SETTINGS_PATH}
-                            size="sm"
-                        >
-                            Organization settings
-                        </Anchor>
-                    </Text>
-                </Stack>
-            </SettingsCard>
-            <AiServiceAccountCard project={project} />
-        </Stack>
-    );
+    return <AiServiceAccountCard project={project} />;
 };
 
 export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {

@@ -89,6 +89,7 @@ export const DatabricksAiServiceAccountForm = ({
             <Stack gap="sm">
                 <TextInput
                     label="Client ID"
+                    description="The service principal's application ID"
                     required
                     disabled={busy}
                     value={form.values.oauthClientId}
