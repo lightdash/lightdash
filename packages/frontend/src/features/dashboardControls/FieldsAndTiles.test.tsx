@@ -669,12 +669,12 @@ describe('FieldsAndTiles', () => {
             await screen.findByText('Remove field');
             expect(menuItemNames()).toEqual([
                 'Unfiltered tiles1',
-                'All tiles2',
                 'Clear from tiles',
                 'Remove field',
             ]);
             expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
             expect(screen.queryByText(/^Every tab/)).not.toBeInTheDocument();
+            // Nothing to replace, so "All tiles" would repeat the item above
             // Between apply and clear, and before "Remove field"
             expect(dividerCount()).toBe(2);
         });
@@ -705,7 +705,7 @@ describe('FieldsAndTiles', () => {
             expect(dividerCount()).toBe(0);
         });
 
-        it('applies a field that is on no tile to every tile that offers it', async () => {
+        it('applies a field that is on no tile through "Unfiltered tiles"', async () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': false, 'tile-2': false }),
             );
@@ -714,7 +714,9 @@ describe('FieldsAndTiles', () => {
             expect(screen.getByText('Orders · 0 of 2 tiles')).toBeVisible();
             openRowMenu('Status');
             fireEvent.click(
-                await screen.findByLabelText('Apply Status to all 2 tiles'),
+                await screen.findByLabelText(
+                    'Add Status to the 2 unfiltered tiles',
+                ),
             );
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
@@ -776,13 +778,30 @@ describe('FieldsAndTiles', () => {
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
-        it('has no replace line when nothing would be replaced', async () => {
-            setSidebar(rule('orders_status', { 'tile-1': false }));
-            renderWithProviders(<FieldsAndTiles />);
+        it('offers "All tiles" only when it would replace another field', async () => {
+            setSidebar(
+                rule('orders_status', { 'tile-1': false, 'tile-2': false }),
+            );
+            const { rerender } = renderWithProviders(<FieldsAndTiles />);
 
             openRowMenu('Status');
             await screen.findByText('Remove field');
+            expect(menuItemNames()).toEqual([
+                'Unfiltered tiles2',
+                'Remove field',
+            ]);
+            expect(screen.queryByText('All tiles')).not.toBeInTheDocument();
             expect(screen.queryByText(/^Replaces /)).not.toBeInTheDocument();
+
+            setSidebar(
+                rule('orders_status', { 'tile-1': REGION, 'tile-2': false }),
+            );
+            rerender(<FieldsAndTiles />);
+            expect(menuItemNames()).toEqual([
+                'Unfiltered tiles1',
+                'All tilesReplaces Region on 1 tile2',
+                'Remove field',
+            ]);
         });
 
         it('names every field it replaces', async () => {
@@ -876,9 +895,7 @@ describe('FieldsAndTiles', () => {
                 screen.getAllByRole('menuitem').map((item) => item.textContent),
             ).toEqual([
                 'Unfiltered tiles1',
-                'All tiles2',
                 'Unfiltered tiles1',
-                'All tiles3',
                 'Clear from this tab',
                 'Clear from every tab',
                 'Remove field',
@@ -928,7 +945,6 @@ describe('FieldsAndTiles', () => {
             expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
             expect(menuItemNames()).toEqual([
                 'Unfiltered tiles1',
-                'All tiles3',
                 'Clear from every tab',
                 'Remove field',
             ]);
@@ -1030,7 +1046,6 @@ describe('FieldsAndTiles', () => {
             expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
             expect(menuItemNames()).toEqual([
                 'Unfiltered tiles1',
-                'All tiles3',
                 'Clear from this tab',
                 'Clear from every tab',
                 'Remove field',
@@ -1107,11 +1122,7 @@ describe('FieldsAndTiles', () => {
 
         openRowMenu('Status');
         await screen.findByText('Remove field');
-        expect(menuItemNames()).toEqual([
-            'Unfiltered tiles2',
-            'All tiles2',
-            'Remove field',
-        ]);
+        expect(menuItemNames()).toEqual(['Unfiltered tiles2', 'Remove field']);
     });
 
     it('removes one of several fields', async () => {

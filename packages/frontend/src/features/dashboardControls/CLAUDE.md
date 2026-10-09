@@ -343,12 +343,13 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     from every tab"; a divider, "Remove field". Without tabs: "Unfiltered
     tiles", "All tiles", "Clear from tiles", "Remove field", and no label.
   - An item that would change nothing is not rendered, never disabled:
-    "Unfiltered tiles" with none, "All tiles" when `unfiltered + replaced`
-    is 0, a clear when the field is on no tile of its scope. A label shows
-    only above an item of its group, and a divider only between two
-    sections that both have one. "Remove field" is always there.
-  - "All tiles" says what it replaces before the click, as a second line
-    inside the item: "Replaces <fields> on N tiles", repeated in its
+    "Unfiltered tiles" with none, "All tiles" when `replaced` is 0 (with
+    nothing to replace it would only repeat "Unfiltered tiles"), a clear
+    when the field is on no tile of its scope. A label shows only above an
+    item of its group, and a divider only between two sections that both
+    have one. "Remove field" is always there.
+  - "All tiles" always says what it replaces before the click, as a second
+    line inside the item: "Replaces <fields> on N tiles", repeated in its
     `aria-label`. The `aria-label` of an apply item names the field, the
     count and the scope ("on this tab", "on every tab", nothing without
     tabs).

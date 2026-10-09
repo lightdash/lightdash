@@ -67,11 +67,10 @@ const ApplyItems: FC<ApplyItemsProps> = ({
                     Unfiltered tiles
                 </Menu.Item>
             )}
-            {hasApplyItems(scope) && (
+            {/* With nothing to replace it would only repeat the item above */}
+            {replaced > 0 && (
                 <Menu.Item
-                    aria-label={
-                        replaced > 0 ? `${allLabel}. ${replaces}` : allLabel
-                    }
+                    aria-label={`${allLabel}. ${replaces}`}
                     rightSection={
                         <Text fz="xs" c="dimmed" className={classes.itemCount}>
                             {possible}
@@ -80,11 +79,9 @@ const ApplyItems: FC<ApplyItemsProps> = ({
                     onClick={onAll}
                 >
                     All tiles
-                    {replaced > 0 && (
-                        <Text fz="xs" c="dimmed">
-                            {replaces}
-                        </Text>
-                    )}
+                    <Text fz="xs" c="dimmed">
+                        {replaces}
+                    </Text>
                 </Menu.Item>
             )}
         </>
