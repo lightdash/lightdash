@@ -260,6 +260,10 @@ describe('AI service account card', () => {
             screen.queryByRole('button', { name: 'Replace' }),
         ).not.toBeInTheDocument();
         expect(
+            screen.queryByRole('button', { name: 'Test as agent' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
+        expect(
             screen.getByRole('button', {
                 name: 'Set up the AI service account',
             }),
@@ -303,8 +307,12 @@ describe('AI service account card', () => {
         const { client } = setup();
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
         await screen.findByText('Signs in as tested-principal');
-        fireEvent.click(screen.getByRole('button', { name: 'Test as agent' }));
-        await screen.findByText('Could not verify agent access.');
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Set up the AI service account',
+            }),
+        );
+        expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
 
         parent = {
             ...parentAccount,
@@ -317,7 +325,7 @@ describe('AI service account card', () => {
                 screen.queryByText('Signs in as tested-principal'),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByText('Could not verify agent access.'),
+                screen.queryByLabelText('Step 3 done'),
             ).not.toBeInTheDocument();
         });
         expect(
@@ -345,20 +353,6 @@ describe('AI service account card', () => {
                 url: '/projects/project/ai-access/service-account/test',
                 method: 'POST',
                 body: JSON.stringify({ credentials: null }),
-            }),
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Test as agent' }));
-        expect(
-            await screen.findByText('Could not verify agent access.'),
-        ).toBeVisible();
-        expect(lightdashApi).toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/projects/project/ai-access/service-account/test-access',
-                method: 'POST',
-                body: JSON.stringify({
-                    credentials: null,
-                    entryPoint: 'project_agent_identity_page',
-                }),
             }),
         );
     });

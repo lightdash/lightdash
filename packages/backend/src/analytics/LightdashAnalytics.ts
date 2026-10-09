@@ -420,7 +420,6 @@ type AgentIdentityAccessTestedEvent = BaseTrack & {
         > & {
             connectionUuid: string | null;
             subjectKind: 'ai_service_account';
-            inheritedFromProjectUuid: string | null;
             entryPoint: AgentAccessTestEntryPoint;
             datasetCount: number;
             durationMs: number;

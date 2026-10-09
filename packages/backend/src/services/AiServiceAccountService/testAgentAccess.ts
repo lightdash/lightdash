@@ -27,22 +27,14 @@ import {
     applyAiServiceAccountCredentials,
     mergeAiServiceAccountCredentials,
 } from './applyAiServiceAccountCredentials';
-import {
-    AiServiceAccountSlotResolutionError,
-    AiServiceAccountSlotResolver,
-    type AiServiceAccountSlotDependencies,
-} from './resolveAiServiceAccountSlot';
 
-type Dependencies = AiServiceAccountSlotDependencies & {
+type Dependencies = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     aiServiceAccountCredentialsModel: Pick<
         AiServiceAccountCredentialsModel,
-        'getSecrets' | 'getReplaceableSecrets' | 'getSlot'
+        'getSecrets' | 'getReplaceableSecrets'
     >;
-    projectModel: Pick<
-        ProjectModel,
-        'findExploreTableSummariesFromCache' | 'getSummary'
-    >;
+    projectModel: Pick<ProjectModel, 'findExploreTableSummariesFromCache'>;
     warehouseClientFactory: Pick<WarehouseClientFactory, 'withWarehouseClient'>;
 };
 
@@ -139,7 +131,6 @@ export const testAgentAccess = async (
         phase: 'credentials' | 'identity' | 'baseline' | 'tables';
     } = { phase: 'credentials' };
     let deadlineReached = false;
-    let inheritedFromProjectUuid: string | null = null;
     let report: AgentAccessReport = {
         warehouseType: connection.type,
         subject: { kind: 'ai_service_account' },
@@ -185,19 +176,12 @@ export const testAgentAccess = async (
             },
         );
     try {
-        const resolved =
-            request.credentials === null
-                ? await new AiServiceAccountSlotResolver(deps).resolve({
-                      projectUuid,
-                      connection: warehouseConnectionUuid,
-                  })
-                : null;
-        inheritedFromProjectUuid = resolved?.inherited
-            ? resolved.sourceProjectUuid
-            : null;
         const secrets =
             request.credentials === null
-                ? (resolved?.slot.secrets ?? null)
+                ? await deps.aiServiceAccountCredentialsModel.getSecrets(
+                      projectUuid,
+                      warehouseConnectionUuid,
+                  )
                 : mergeAiServiceAccountCredentials(
                       request.credentials,
                       await deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
@@ -336,8 +320,6 @@ export const testAgentAccess = async (
                     : 'complete';
         });
     } catch (error) {
-        if (error instanceof AiServiceAccountSlotResolutionError)
-            inheritedFromProjectUuid = error.inheritedFromProjectUuid;
         if (error instanceof NotFoundError && progress.phase === 'credentials')
             throw error;
         const classified = classifyBigqueryAccessError(
@@ -385,7 +367,6 @@ export const testAgentAccess = async (
                 warehouseType: connection.type,
                 subjectKind: report.subject.kind,
                 credentialSource: report.credentialSource,
-                inheritedFromProjectUuid,
                 entryPoint: request.entryPoint,
                 status: report.status,
                 failureReason: report.failureReason,

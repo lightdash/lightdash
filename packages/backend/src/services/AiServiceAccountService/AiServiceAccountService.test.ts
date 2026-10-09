@@ -523,6 +523,7 @@ describe('testAccess boundaries', () => {
     });
     it('normalises an original connection UUID before loading the saved key', async () => {
         const f = setup();
+        f.model.getSecrets.mockResolvedValue(secrets);
         f.getConnection.mockResolvedValue({ isOriginal: true });
         await f.service.testAccess(
             f.account,
@@ -530,7 +531,7 @@ describe('testAccess boundaries', () => {
             'original-uuid',
             request,
         );
-        expect(f.model.getSecrets).toHaveBeenCalledWith('project', null, true);
+        expect(f.model.getSecrets).toHaveBeenCalledWith('project', null);
     });
     it('rejects an unrelated connection before secrets or clients', async () => {
         const f = setup();

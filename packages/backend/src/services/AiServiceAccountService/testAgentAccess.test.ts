@@ -1,7 +1,6 @@
 import {
     BigqueryAuthenticationType,
     NotFoundError,
-    ProjectType,
     WarehouseTypes,
     type AgentAccessReport,
     type CreateBigqueryCredentials,
@@ -53,21 +52,11 @@ const setup = () => {
     const deps = {
         analytics: { track: vi.fn() },
         aiServiceAccountCredentialsModel: {
-            getSecrets: vi.fn().mockResolvedValue({
-                slot: { uuid: 'slot', identityUuid: 'generation' },
-                secrets,
-            }),
-            getSlot: vi.fn(),
+            getSecrets: vi.fn().mockResolvedValue(secrets),
             getReplaceableSecrets: vi.fn().mockResolvedValue(secrets),
         },
         projectModel: {
-            getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),
             findExploreTableSummariesFromCache: vi.fn().mockResolvedValue({}),
-        },
-        warehouseConnectionModel: {
-            getProject: vi.fn().mockResolvedValue({ projectUuid: 'project' }),
-            get: vi.fn().mockResolvedValue({ isOriginal: false }),
-            list: vi.fn().mockResolvedValue([]),
         },
         warehouseClientFactory: { withWarehouseClient },
     };
@@ -424,7 +413,6 @@ describe('testAgentAccess', () => {
                 warehouseType: WarehouseTypes.BIGQUERY,
                 subjectKind: 'ai_service_account',
                 credentialSource: 'saved',
-                inheritedFromProjectUuid: null,
                 entryPoint: 'project_agent_identity_page',
                 status: 'complete',
                 failureReason: null,
@@ -445,30 +433,4 @@ describe('testAgentAccess', () => {
             report.principal,
         );
     });
-});
-
-it('tests a parent key using the preview baseline and connection', async () => {
-    const f = setup();
-    const saved = await f.deps.aiServiceAccountCredentialsModel.getSecrets();
-    f.deps.projectModel.getSummary.mockImplementation(async (uuid: string) => ({
-        organizationUuid: 'org',
-        type: uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
-        upstreamProjectUuid: uuid === 'project' ? 'parent' : undefined,
-    }));
-    f.deps.aiServiceAccountCredentialsModel.getSecrets.mockImplementation(
-        async (uuid: string) => (uuid === 'parent' ? saved : null),
-    );
-    expect(await f.run()).toMatchObject({ status: 'complete' });
-    expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
-        projectUuid: 'project',
-        credentials: { project: 'normal-project', dataset: 'dataset' },
-    });
-    expect(f.deps.analytics.track).toHaveBeenCalledWith(
-        expect.objectContaining({
-            properties: expect.objectContaining({
-                inheritedFromProjectUuid: 'parent',
-            }),
-        }),
-    );
-    vi.restoreAllMocks();
 });

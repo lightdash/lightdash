@@ -174,21 +174,22 @@ const AiServiceAccountSummary = ({
                     >
                         Test
                     </Button>
-                    <Button
-                        variant="default"
-                        loading={accessTest.isLoading}
-                        disabled={test.isLoading || remove.isLoading}
-                        onClick={() =>
-                            accessTest.mutate({
-                                credentials: null,
-                                entryPoint: 'project_agent_identity_page',
-                            })
-                        }
-                    >
-                        Test as agent
-                    </Button>
                     {slot && (
                         <>
+                            <Button
+                                variant="default"
+                                loading={accessTest.isLoading}
+                                disabled={test.isLoading || remove.isLoading}
+                                onClick={() =>
+                                    accessTest.mutate({
+                                        credentials: null,
+                                        entryPoint:
+                                            'project_agent_identity_page',
+                                    })
+                                }
+                            >
+                                Test as agent
+                            </Button>
                             {parent && (
                                 <Button
                                     variant="default"
@@ -210,19 +211,23 @@ const AiServiceAccountSummary = ({
                     )}
                 </Group>
             </Group>
-            {accessTest.isLoading ? (
-                <Text size="sm" role="status">
-                    Checking agent access…
-                </Text>
-            ) : (
-                accessTest.data && (
-                    <AgentAccessReportPanel report={accessTest.data} />
-                )
-            )}
-            {accessTest.isError && (
-                <Text size="sm" c="red" role="alert">
-                    Could not test agent access. Try again.
-                </Text>
+            {slot && (
+                <>
+                    {accessTest.isLoading ? (
+                        <Text size="sm" role="status">
+                            Checking agent access…
+                        </Text>
+                    ) : (
+                        accessTest.data && (
+                            <AgentAccessReportPanel report={accessTest.data} />
+                        )
+                    )}
+                    {accessTest.isError && (
+                        <Text size="sm" c="red" role="alert">
+                            Could not test agent access. Try again.
+                        </Text>
+                    )}
+                </>
             )}
             {test.data && !test.data.ok && (
                 <Text size="sm" role="status">
