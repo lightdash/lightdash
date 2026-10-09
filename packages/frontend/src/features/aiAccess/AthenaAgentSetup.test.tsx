@@ -33,17 +33,25 @@ describe('Athena agent setup', () => {
         ])
             expect(screen.getByText(title)).toBeVisible();
         expect(
-            screen.getByText(/Create an IAM role for agents/),
-        ).toHaveTextContent('its own Athena workgroup and S3 results location');
+            screen.getByText(/Use a dedicated IAM user for agents/),
+        ).toHaveTextContent('rotate its keys regularly');
+        expect(
+            screen.getByText(/Use a dedicated IAM user for agents/),
+        ).toHaveTextContent('Keys from an assumed role expire within hours');
+        expect(
+            screen.getByText(/If you rotate keys automatically/),
+        ).toHaveTextContent('use an IAM role instead');
         expect(
             screen.getByText(/Run as a Lake Formation administrator/),
-        ).toHaveTextContent('role ARN, not the session ARN');
+        ).toHaveTextContent(
+            'IAM user ARN, or the role ARN and not the session ARN',
+        );
         expect(screen.getByText(/To limit rows or columns/)).toHaveTextContent(
             'grant a data filter instead',
         );
         expect(
             screen.getByText(/Test checks the AWS identity/),
-        ).toHaveTextContent('Session keys expire');
+        ).toHaveTextContent('Add the access keys');
     });
     it('copies each generated policy and grant with connection routing only', async () => {
         const writeText = vi.fn().mockResolvedValue(undefined);

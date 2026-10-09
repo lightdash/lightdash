@@ -28,20 +28,15 @@ export const AthenaAgentSetup = ({
             createContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Create an IAM role for agents with its own Athena
-                        workgroup and S3 results location.
+                        Create an Athena workgroup and an S3 results location
+                        for agents.
                     </Text>
-                    <Text size="sm" fw={500}>
-                        Role trust policy
-                    </Text>
-                    <CodeBlock
-                        language="json"
-                        copyLabel="Copy role trust policy"
-                        code={commands.roleTrustPolicy}
-                    />
                     <Text size="sm" c="dimmed">
-                        Replace the placeholders. The trusted caller also needs
-                        permission to assume the role.
+                        Use a dedicated IAM user for agents, with only the
+                        permissions agents need, and rotate its keys regularly.
+                        Keys from an assumed role expire within hours and
+                        Lightdash can't renew them yet, so agents would be
+                        refused until you paste new keys.
                     </Text>
                     <Text size="sm" fw={500}>
                         Permission policy
@@ -52,17 +47,31 @@ export const AthenaAgentSetup = ({
                         code={commands.permissionPolicy}
                     />
                     <Text size="sm" c="dimmed">
-                        Attach this policy to the role. KMS keys and
+                        Attach this policy to the IAM user. KMS keys and
                         cross-account catalogs need extra permissions.
                     </Text>
+                    <Text size="sm" fw={500}>
+                        Role trust policy (optional)
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        If you rotate keys automatically, you can use an IAM
+                        role instead. Attach the permission policy to the role
+                        and use this trust policy. The trusted caller also needs
+                        permission to assume the role.
+                    </Text>
+                    <CodeBlock
+                        language="json"
+                        copyLabel="Copy role trust policy"
+                        code={commands.roleTrustPolicy}
+                    />
                 </Stack>
             }
             grantContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
-                        Run as a Lake Formation administrator. Use the role ARN,
-                        not the session ARN, and repeat for each permitted
-                        table.
+                        Run as a Lake Formation administrator. Use the IAM user
+                        ARN, or the role ARN and not the session ARN. Repeat for
+                        each permitted table.
                     </Text>
                     <Text size="sm" fw={500}>
                         Lake Formation grant
@@ -86,7 +95,7 @@ export const AthenaAgentSetup = ({
                     />
                 </Stack>
             }
-            addHelp="Assume the role and add the session keys, workgroup and results location. Session keys expire, so replace them before they do. Test checks the AWS identity and runs a simple query."
+            addHelp="Add the access keys, workgroup and results location. Test checks the AWS identity and runs a simple query."
         />
     );
 };
