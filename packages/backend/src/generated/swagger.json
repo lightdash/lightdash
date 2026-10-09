@@ -70254,6 +70254,23 @@
             },
             "AiServiceAccountParent": {
                 "properties": {
+                    "credentialsReadable": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "identityUuid": {
+                        "type": "string"
+                    },
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -70261,29 +70278,17 @@
                             }
                         ],
                         "nullable": true
-                    },
-                    "principal": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "identityUuid": {
-                        "type": "string"
-                    },
-                    "projectName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "projectUuid": {
-                        "type": "string"
                     }
                 },
                 "required": [
-                    "principal",
-                    "identityUuid",
+                    "credentialsReadable",
+                    "projectUuid",
                     "projectName",
-                    "projectUuid"
+                    "identityUuid",
+                    "principal"
                 ],
-                "type": "object"
+                "type": "object",
+                "additionalProperties": true
             },
             "WarehouseServiceAuthMethod": {
                 "type": "string",
@@ -70390,6 +70395,9 @@
                         ],
                         "nullable": true
                     },
+                    "credentialsReadable": {
+                        "type": "boolean"
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -70399,7 +70407,12 @@
                         "nullable": true
                     }
                 },
-                "required": ["results", "status", "parent"],
+                "required": [
+                    "results",
+                    "status",
+                    "parent",
+                    "credentialsReadable"
+                ],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -70483,6 +70496,45 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "SnowflakeAuthenticationType.PRIVATE_KEY": {
+                "enum": ["private_key"],
+                "type": "string"
+            },
+            "SnowflakeAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType.PRIVATE_KEY"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "privateKey": {
+                        "type": "string"
+                    },
+                    "privateKeyPass": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "type",
+                    "authenticationType",
+                    "user",
+                    "role",
+                    "warehouse"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "AiServiceAccountCredentialInput": {
                 "anyOf": [
                     {
@@ -70490,6 +70542,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DatabricksAiServiceAccountCredentialInput"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SnowflakeAiServiceAccountCredentialInput"
                     }
                 ]
             },
@@ -70815,7 +70870,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.526.0",
+        "version": "2.527.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -1,3 +1,10 @@
+# [2.527.0](https://github.com/lightdash/lightdash/compare/2.526.0...2.527.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** AI service account for Snowflake connections ([#30842](https://github.com/lightdash/lightdash/issues/30842)) ([730af6d](https://github.com/lightdash/lightdash/commit/730af6d0f30c200da1d71ee67d8ba7f518832fbc)), closes [PKCS#1](https://github.com/PKCS/issues/1)
+
 # [2.526.0](https://github.com/lightdash/lightdash/compare/2.525.0...2.526.0) (2026-10-09)
 
 

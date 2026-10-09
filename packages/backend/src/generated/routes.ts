@@ -71648,38 +71648,36 @@ const models: TsoaRoute.Models = {
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiServiceAccountParent: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                verification: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'AiServiceAccountTestResult' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                },
-                principal: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                identityUuid: { dataType: 'string', required: true },
-                projectName: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                projectUuid: { dataType: 'string', required: true },
+        dataType: 'refObject',
+        properties: {
+            credentialsReadable: { dataType: 'boolean', required: true },
+            projectUuid: { dataType: 'string', required: true },
+            projectName: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
             },
-            validators: {},
+            identityUuid: { dataType: 'string', required: true },
+            principal: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountTestResult' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
         },
+        additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseServiceAuthMethod: {
@@ -71779,6 +71777,7 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            credentialsReadable: { dataType: 'boolean', required: true },
             verification: {
                 dataType: 'union',
                 subSchemas: [
@@ -71854,6 +71853,34 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'SnowflakeAuthenticationType.PRIVATE_KEY': {
+        dataType: 'refEnum',
+        enums: ['private_key'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SnowflakeAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.SNOWFLAKE', required: true },
+            authenticationType: {
+                ref: 'SnowflakeAuthenticationType.PRIVATE_KEY',
+                required: true,
+            },
+            user: { dataType: 'string', required: true },
+            role: { dataType: 'string', required: true },
+            warehouse: { dataType: 'string', required: true },
+            privateKey: { dataType: 'string' },
+            privateKeyPass: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiServiceAccountCredentialInput: {
         dataType: 'refAlias',
         type: {
@@ -71861,6 +71888,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'BigqueryAiServiceAccountCredentialInput' },
                 { ref: 'DatabricksAiServiceAccountCredentialInput' },
+                { ref: 'SnowflakeAiServiceAccountCredentialInput' },
             ],
             validators: {},
         },
