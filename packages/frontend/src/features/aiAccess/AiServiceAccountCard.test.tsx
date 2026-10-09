@@ -1,4 +1,5 @@
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
     BigqueryAuthenticationType,
     DbtProjectType,
     ProjectType,
@@ -24,6 +25,8 @@ import { lightdashApi } from '../../api';
 import UpdateProjectConnection from '../../components/ProjectConnection/UpdateProjectConnection';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
+import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
+import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
 import { ProjectAgentIdentityPage } from './ProjectAgentIdentityPage';
 
 const mocks = vi.hoisted(() => ({
@@ -172,7 +175,7 @@ const setup = (
 const openForm = async () => {
     fireEvent.click(
         await screen.findByRole('button', {
-            name: 'Add an AI service account',
+            name: 'Add AI service account',
         }),
     );
     return screen.findByRole('dialog', { name: 'AI service account' });
@@ -227,6 +230,516 @@ describe('AI service account card', () => {
             return slot;
         });
     });
+    describe.each([
+        [WarehouseTypes.BIGQUERY, 'BigQuery', 'Key file'],
+        [WarehouseTypes.SNOWFLAKE, 'Snowflake', 'Key pair'],
+        [WarehouseTypes.DATABRICKS, 'Databricks', 'Client ID and secret'],
+    ] as const)('%s status presentation', (type, name, method) => {
+        const props = {
+            ...project,
+            warehouseConnection: { ...project.warehouseConnection, type },
+        } as Project;
+        const missing =
+            'Agents are refused on this project until you add an AI service account.';
+        const unused = `Agents on this project use each person's own ${name} credentials. The organization rule decides this.`;
+        const used = `Agents on this project run as this account. The organization rule for ${name} requires it.`;
+        const unreadableParent =
+            "Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.";
+        const scenarios = [
+            'in use',
+            'not in use',
+            'empty not in use',
+            'missing required',
+            'inherited',
+            'unreadable parent required',
+            'unreadable parent not required',
+            'own unreadable required',
+            'own unreadable not required',
+        ] as const;
+        beforeEach(() => {
+            warehouseType = type;
+        });
+        it.each(scenarios)(
+            'renders %s with status first and guide last',
+            async (scenario) => {
+                const empty =
+                    scenario === 'missing required' ||
+                    scenario === 'empty not in use';
+                const inherited =
+                    scenario === 'inherited' ||
+                    scenario.startsWith('unreadable parent');
+                const required = ![
+                    'not in use',
+                    'empty not in use',
+                    'unreadable parent not required',
+                    'own unreadable not required',
+                ].includes(scenario);
+                source = required ? 'ai_service_account' : 'marked_person';
+                slot =
+                    empty || inherited
+                        ? null
+                        : { ...savedSlot, warehouseType: type };
+                parent = inherited
+                    ? {
+                          ...parentAccount,
+                          credentialsReadable:
+                              !scenario.startsWith('unreadable parent'),
+                      }
+                    : null;
+                credentialsReadable = !scenario.startsWith('own unreadable');
+                const { container } = setup({
+                    ...props,
+                    type: inherited ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+                });
+                const guide = await screen.findByRole('button', {
+                    name: 'How to set up the AI service account',
+                });
+                expect(guide).toHaveAttribute('aria-expanded', String(empty));
+                const refused =
+                    scenario === 'missing required' ||
+                    scenario === 'unreadable parent required';
+                const statusText =
+                    scenario === 'missing required'
+                        ? missing
+                        : scenario === 'unreadable parent required'
+                          ? `Agents are refused on this preview. ${unreadableParent}`
+                          : required
+                            ? used
+                            : unused;
+                const status = screen.getByText(statusText);
+                if (refused) {
+                    expect(
+                        screen.queryByText('In use'),
+                    ).not.toBeInTheDocument();
+                    expect(
+                        screen.queryByText('Not in use'),
+                    ).not.toBeInTheDocument();
+                    expect(screen.getByRole('alert')).toHaveTextContent(
+                        statusText,
+                    );
+                } else {
+                    const badge = screen.getByText(
+                        required ? 'In use' : 'Not in use',
+                    );
+                    expect(badge.closest('[data-variant]')).toHaveAttribute(
+                        'data-variant',
+                        'light',
+                    );
+                    expect(
+                        screen.getByRole('heading', {
+                            name: 'AI service account',
+                        }).parentElement,
+                    ).toContainElement(badge);
+                    expect(
+                        screen.getByRole('link', {
+                            name: 'Organization settings',
+                        }),
+                    ).toHaveAttribute('href', AGENT_IDENTITY_SETTINGS_PATH);
+                }
+                if (scenario === 'unreadable parent not required')
+                    expect(screen.getByRole('alert')).toHaveTextContent(
+                        unreadableParent,
+                    );
+                if (scenario.startsWith('own unreadable'))
+                    expect(screen.getByRole('alert')).toHaveTextContent(
+                        "The AI service account can't be read. Replace it.",
+                    );
+                const summary = empty
+                    ? screen.getByRole('button', {
+                          name: 'Add AI service account',
+                      })
+                    : (screen.queryByText(
+                          /^Uses the AI service account from/,
+                      ) ?? screen.getByText(/^(Signs in as|Not tested yet)/));
+                expect(status.compareDocumentPosition(summary)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                expect(summary.compareDocumentPosition(guide)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                if (!empty)
+                    expect(
+                        summary.compareDocumentPosition(
+                            screen.getByText(method),
+                        ),
+                    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+                expect(status.compareDocumentPosition(summary)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                expect(summary.compareDocumentPosition(guide)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                if (empty) {
+                    expect(summary).toHaveAttribute('data-variant', 'filled');
+                    expect(
+                        summary.closest('[data-variant="dotted"]'),
+                    ).toBeNull();
+                } else {
+                    expect(
+                        screen
+                            .getAllByRole('button')
+                            .map((button) => button.textContent),
+                    ).toEqual(
+                        inherited
+                            ? [
+                                  'Test',
+                                  "Add this preview's own account",
+                                  'How to set up the AI service account',
+                              ]
+                            : [
+                                  'Test',
+                                  'Replace',
+                                  'Remove',
+                                  'How to set up the AI service account',
+                              ],
+                    );
+                    if (scenario === 'inherited') {
+                        expect(
+                            screen.getByText(
+                                /Uses the AI service account from/,
+                            ),
+                        ).toHaveTextContent(
+                            'Uses the AI service account from Production, the parent project. Changes there apply here on the next query.',
+                        );
+                        expect(
+                            screen.getByRole('link', { name: 'Production' }),
+                        ).toHaveAttribute(
+                            'href',
+                            '/generalSettings/projectManagement/parent-project/agentIdentity',
+                        );
+                    }
+                    fireEvent.click(guide);
+                }
+                expect(
+                    screen.getByText(`Create the account in ${name}`),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getByText('Grant it only the data agents may read'),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getByText('Add it here and select Test'),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByLabelText('Step 1 done'),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByLabelText('Step 2 done'),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByLabelText('Step 3 done'),
+                ).not.toBeInTheDocument();
+                expect(container).not.toHaveTextContent(' · ');
+                expect(container).not.toHaveTextContent('M2M');
+                expect(container).not.toHaveTextContent('agent-active');
+                expect(lightdashApi).not.toHaveBeenCalledWith(
+                    expect.objectContaining({ method: 'POST' }),
+                );
+            },
+        );
+        it.each(['failure', 'error'] as const)(
+            'completes step 3 only after a passed Test and reports %s in an Alert',
+            async (failure) => {
+                slot = { ...savedSlot, warehouseType: type };
+                setup(props);
+                fireEvent.click(
+                    await screen.findByRole('button', {
+                        name: 'How to set up the AI service account',
+                    }),
+                );
+                expect(
+                    screen.queryByLabelText('Step 3 done'),
+                ).not.toBeInTheDocument();
+                if (failure === 'failure')
+                    vi.mocked(lightdashApi).mockResolvedValueOnce({
+                        ...snowflakeVerification,
+                        ok: false,
+                        principal: null,
+                        message: 'Test failed.',
+                    });
+                else
+                    vi.mocked(lightdashApi).mockRejectedValueOnce({
+                        error: { message: 'Test failed.' },
+                    });
+                fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+                const alert = await screen.findByRole('alert');
+                expect(alert).toHaveTextContent('Test failed.');
+                expect(alert).toHaveClass('mantine-Alert-root');
+                expect(
+                    screen.queryByLabelText('Step 3 done'),
+                ).not.toBeInTheDocument();
+                fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+                expect(
+                    await screen.findByLabelText('Step 3 done'),
+                ).toBeInTheDocument();
+                expect(screen.getByText(/^Tested /)).toHaveTextContent(
+                    `Tested ${formatAiServiceAccountDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatAiServiceAccountDate(savedSlot.updatedAt)}.`,
+                );
+                expect(lightdashApi).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        method: 'POST',
+                        body: JSON.stringify({ credentials: null }),
+                    }),
+                );
+            },
+        );
+        it('keeps a readable parent with no principal in use', async () => {
+            source = 'ai_service_account';
+            parent = { ...parentAccount, principal: null };
+            setup(props);
+            expect(await screen.findByText('In use')).toBeVisible();
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Not tested yet. Select Test to see who it signs in as.',
+                ),
+            ).toBeVisible();
+        });
+        it('uses own credentials ahead of an unreadable parent and orders preview controls', async () => {
+            source = 'ai_service_account';
+            slot = { ...savedSlot, warehouseType: type };
+            parent = { ...parentAccount, credentialsReadable: false };
+            setup({ ...props, type: ProjectType.PREVIEW });
+            await screen.findByText('In use');
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(
+                screen
+                    .getAllByRole('button')
+                    .map((button) => button.textContent),
+            ).toEqual([
+                'Test',
+                'Replace',
+                "Use the parent's account",
+                'Remove',
+                'How to set up the AI service account',
+            ]);
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: "Use the parent's account",
+                }),
+            );
+            const dialog = await screen.findByRole('dialog', {
+                name: "Use the parent's account",
+            });
+            expect(
+                within(dialog).getByText(
+                    "Remove this preview's own account and use the parent project's account? Agents use it on the next query.",
+                ),
+            ).toBeVisible();
+            expect(
+                within(dialog).getByText('parent@example.test'),
+            ).toBeVisible();
+        });
+        it('uses a plain parent reference when its name is unavailable', async () => {
+            source = 'ai_service_account';
+            parent = {
+                ...parentAccount,
+                projectName: null,
+                credentialsReadable: false,
+            };
+            setup(props);
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                "Agents are refused on this preview. Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of the parent project to replace it.",
+            );
+            expect(
+                screen.queryByRole('link', { name: 'Production' }),
+            ).not.toBeInTheDocument();
+        });
+        it('shows passed observations and dates without treating a BigQuery parent principal as a passed Test', async () => {
+            parent = { ...parentAccount, verification: snowflakeVerification };
+            setup(props);
+            const guide = await screen.findByRole('button', {
+                name: 'How to set up the AI service account',
+            });
+            fireEvent.click(guide);
+            if (type === WarehouseTypes.BIGQUERY) {
+                expect(
+                    screen.getByText('Signs in as parent@example.test'),
+                ).toBeVisible();
+                expect(
+                    screen.queryByLabelText('Step 3 done'),
+                ).not.toBeInTheDocument();
+                expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
+            } else {
+                expect(
+                    screen.getByLabelText('Step 3 done'),
+                ).toBeInTheDocument();
+                expect(
+                    screen.getByText(
+                        `Tested ${formatAiServiceAccountDate(snowflakeVerification.checkedAt)}.`,
+                    ),
+                ).toBeVisible();
+            }
+            expect(screen.queryByText(/Added /)).not.toBeInTheDocument();
+        });
+        it('renders nothing with the flag off', () => {
+            mocks.enabled = false;
+            const { container } = setup(props);
+            expect(container.querySelector('.mantine-Card-root')).toBeNull();
+            expect(
+                screen.queryByText('AI service account'),
+            ).not.toBeInTheDocument();
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
+            expect(lightdashApi).not.toHaveBeenCalled();
+        });
+        it.each(scenarios)('derives the pure status for %s', (scenario) => {
+            const required = ![
+                'not in use',
+                'empty not in use',
+                'unreadable parent not required',
+                'own unreadable not required',
+            ].includes(scenario);
+            const inherited =
+                scenario === 'inherited' ||
+                scenario.startsWith('unreadable parent');
+            const empty =
+                scenario === 'missing required' ||
+                scenario === 'empty not in use';
+            const result = getAiServiceAccountStatus({
+                rule: {
+                    warehouseType: type,
+                    source: required ? 'ai_service_account' : 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                slot: empty || inherited ? null : savedSlot,
+                parent: inherited
+                    ? {
+                          ...parentAccount,
+                          credentialsReadable:
+                              !scenario.startsWith('unreadable parent'),
+                      }
+                    : null,
+                credentialsReadable: !scenario.startsWith('own unreadable'),
+            });
+            expect(result).toEqual({
+                badge:
+                    scenario === 'missing required' ||
+                    scenario === 'unreadable parent required'
+                        ? null
+                        : required
+                          ? 'In use'
+                          : 'Not in use',
+                message:
+                    scenario === 'missing required' ||
+                    scenario === 'unreadable parent required'
+                        ? null
+                        : required
+                          ? used
+                          : unused,
+                alert:
+                    scenario === 'missing required'
+                        ? { color: 'yellow', message: missing }
+                        : scenario.startsWith('unreadable parent')
+                          ? {
+                                color: 'red',
+                                message: `${required ? 'Agents are refused on this preview. ' : ''}${unreadableParent}`,
+                            }
+                          : scenario.startsWith('own unreadable')
+                            ? {
+                                  color: 'red',
+                                  message:
+                                      "The AI service account can't be read. Replace it.",
+                              }
+                            : null,
+            });
+        });
+    });
+    it.each([true, false])(
+        'shows the Snowflake per-person agent sign-in rule with own slot %s',
+        async (hasSlot) => {
+            warehouseType = WarehouseTypes.SNOWFLAKE;
+            source = 'agent_sign_in';
+            slot = hasSlot ? { ...savedSlot, warehouseType } : null;
+            setup(snowflakeProject);
+            expect(await screen.findByText('Not in use')).toBeVisible();
+            expect(
+                screen.getByText(
+                    "Agents on this project use each person's own agent sign-in for Snowflake. The organization rule decides this.",
+                ),
+            ).toBeVisible();
+        },
+    );
+    it('keeps an initially open guide open after BigQuery Save without Test', async () => {
+        setup();
+        const dialog = await openForm();
+        upload();
+        const save = within(dialog).getByRole('button', { name: 'Save' });
+        await waitFor(() => expect(save).toBeEnabled());
+        fireEvent.click(save);
+        await screen.findByRole('button', { name: 'Replace' });
+        expect(
+            screen.getByRole('button', {
+                name: 'How to set up the AI service account',
+            }),
+        ).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
+        expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'POST' }),
+        );
+    });
+    it('keeps the BigQuery parent principal gate after a passed Test', async () => {
+        parent = { ...parentAccount, principal: null };
+        setup();
+        fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
+        await screen.findByText(/^Tested /);
+        expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Not tested yet. Select Test to see who it signs in as.',
+            ),
+        ).toBeVisible();
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'How to set up the AI service account',
+            }),
+        );
+        expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
+    });
+    it('derives own-slot precedence and readable unknown-parent status without mutation', () => {
+        const rule = {
+            warehouseType: WarehouseTypes.BIGQUERY as const,
+            source: 'ai_service_account' as const,
+            projectsMissingAiServiceAccount: null,
+        };
+        const unreadableParent = {
+            ...parentAccount,
+            credentialsReadable: false,
+        };
+        expect(
+            getAiServiceAccountStatus({
+                rule,
+                slot: savedSlot,
+                parent: unreadableParent,
+                credentialsReadable: true,
+            }),
+        ).toMatchObject({ badge: 'In use', alert: null });
+        expect(unreadableParent.credentialsReadable).toBe(false);
+        expect(
+            getAiServiceAccountStatus({
+                rule,
+                slot: null,
+                parent: { ...parentAccount, principal: null },
+                credentialsReadable: false,
+            }),
+        ).toMatchObject({ badge: 'In use', alert: null });
+        expect(
+            getAiServiceAccountStatus({
+                rule: {
+                    ...rule,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    source: 'agent_sign_in',
+                },
+                slot: null,
+                parent: null,
+                credentialsReadable: false,
+            }),
+        ).toEqual({
+            badge: 'Not in use',
+            message:
+                "Agents on this project use each person's own agent sign-in for Snowflake. The organization rule decides this.",
+            alert: null,
+        });
+    });
     describe('Databricks', () => {
         const databricksProject = {
             ...project,
@@ -255,12 +768,8 @@ describe('AI service account card', () => {
             expect(
                 await screen.findByText('Signs in as recorded-principal'),
             ).toBeVisible();
-            expect(
-                screen.getByText('Databricks service principal · OAuth M2M'),
-            ).toBeVisible();
-            expect(screen.getByText(/Last checked/)).toHaveTextContent(
-                'Last updated',
-            );
+            expect(screen.getByText('Client ID and secret')).toBeVisible();
+            expect(screen.getByText(/Tested/)).toHaveTextContent('Added');
             expect(
                 screen.getAllByRole('button', { name: 'Test' }),
             ).toHaveLength(1);
@@ -277,7 +786,7 @@ describe('AI service account card', () => {
             setup(databricksProject);
             expect(
                 await screen.findByText(
-                    'Not checked yet. Run Test to see who it signs in as.',
+                    'Not tested yet. Select Test to see who it signs in as.',
                 ),
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
@@ -315,7 +824,7 @@ describe('AI service account card', () => {
             await client.invalidateQueries(['ai-access']);
             expect(
                 await screen.findByText(
-                    'Not checked yet. Run Test to see who it signs in as.',
+                    'Not tested yet. Select Test to see who it signs in as.',
                 ),
             ).toBeVisible();
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
@@ -342,7 +851,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'Use a different service principal',
+                    name: "Add this preview's own account",
                 }),
             );
             expect(
@@ -361,7 +870,7 @@ describe('AI service account card', () => {
             setup({ ...databricksProject, type: ProjectType.PREVIEW });
             fireEvent.click(
                 await screen.findByRole('button', {
-                    name: "Use the parent's credentials",
+                    name: "Use the parent's account",
                 }),
             );
             const dialog = await screen.findByRole('dialog');
@@ -371,11 +880,11 @@ describe('AI service account card', () => {
             );
             fireEvent.click(
                 within(dialog).getByRole('button', {
-                    name: "Use the parent's credentials",
+                    name: "Use the parent's account",
                 }),
             );
             expect(
-                await screen.findByText('From parent project'),
+                await screen.findByText(/Uses the AI service account from/),
             ).toBeVisible();
             expect(
                 screen.getByText('Signs in as recorded-principal'),
@@ -386,11 +895,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(databricksProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'refused until an AI service account is added',
+                'Agents are refused on this project until you add an AI service account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add an AI service account',
+                    name: 'Add AI service account',
                 }),
             ).toBeVisible();
         });
@@ -411,7 +920,9 @@ describe('AI service account card', () => {
         source = 'ai_service_account';
         parent = parentAccount;
         setup();
-        expect(await screen.findByText('From parent project')).toBeVisible();
+        expect(
+            await screen.findByText(/Uses the AI service account from/),
+        ).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Production' }),
         ).toHaveAttribute(
@@ -423,7 +934,7 @@ describe('AI service account card', () => {
         ).toBeVisible();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Add an AI service account' }),
+            screen.queryByRole('button', { name: 'Add AI service account' }),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Remove' }),
@@ -434,11 +945,13 @@ describe('AI service account card', () => {
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expect(
             screen.getByRole('button', {
-                name: 'Set up the AI service account',
+                name: 'How to set up the AI service account',
             }),
         ).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(
-            screen.getByRole('button', { name: 'Use a different key' }),
+            screen.getByRole('button', {
+                name: "Add this preview's own account",
+            }),
         );
         const dialog = await screen.findByRole('dialog', {
             name: 'AI service account',
@@ -451,23 +964,29 @@ describe('AI service account card', () => {
             await screen.findByRole('button', { name: 'Replace' }),
         ).toBeVisible();
         expect(
-            screen.queryByText('From parent project'),
+            screen.queryByText(/Uses the AI service account from/),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: "Use the parent's key" }),
+            screen.getByRole('button', { name: "Use the parent's account" }),
         ).toBeVisible();
     });
     it('keeps inherited controls available when the parent key cannot be read', async () => {
-        parent = { ...parentAccount, principal: null };
+        parent = {
+            ...parentAccount,
+            principal: null,
+            credentialsReadable: false,
+        };
         setup();
         expect(
             await screen.findByText(
-                "The parent project's key could not be read.",
+                "Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.",
             ),
         ).toBeVisible();
         expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Use a different key' }),
+            screen.getByRole('button', {
+                name: "Add this preview's own account",
+            }),
         ).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
     });
@@ -478,7 +997,7 @@ describe('AI service account card', () => {
         await screen.findByText('Signs in as tested-principal');
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'Set up the AI service account',
+                name: 'How to set up the AI service account',
             }),
         );
         expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
@@ -504,8 +1023,14 @@ describe('AI service account card', () => {
     it('does not link a parent the user cannot view', async () => {
         parent = { ...parentAccount, projectName: null };
         setup();
-        expect(await screen.findByText('the parent project')).toBeVisible();
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(
+            await screen.findByText(
+                'Uses the AI service account from the parent project. Changes there apply here on the next query.',
+            ),
+        ).toBeVisible();
+        expect(
+            screen.queryByRole('link', { name: 'Production' }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByText('Signs in as parent@example.test'),
         ).toBeVisible();
@@ -530,23 +1055,27 @@ describe('AI service account card', () => {
         parent = parentAccount;
         const { invalidate } = setup();
         fireEvent.click(
-            await screen.findByRole('button', { name: "Use the parent's key" }),
+            await screen.findByRole('button', {
+                name: "Use the parent's account",
+            }),
         );
         const dialog = await screen.findByRole('dialog', {
-            name: "Use the parent's key",
+            name: "Use the parent's account",
         });
         expect(dialog).toHaveTextContent(
-            "Remove this project's key and use the parent project's key (parent@example.test)? Agent queries use the parent's key on the next query.",
+            "Remove this preview's own account and use the parent project's account? Agents use it on the next query.",
         );
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
         fireEvent.click(
             within(dialog).getByRole('button', {
-                name: "Use the parent's key",
+                name: "Use the parent's account",
             }),
         );
-        expect(await screen.findByText('From parent project')).toBeVisible();
+        expect(
+            await screen.findByText(/Uses the AI service account from/),
+        ).toBeVisible();
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
@@ -563,7 +1092,9 @@ describe('AI service account card', () => {
         parent = parentAccount;
         setup();
         fireEvent.click(
-            await screen.findByRole('button', { name: "Use the parent's key" }),
+            await screen.findByRole('button', {
+                name: "Use the parent's account",
+            }),
         );
         fireEvent.click(
             within(await screen.findByRole('dialog')).getByRole('button', {
@@ -573,7 +1104,7 @@ describe('AI service account card', () => {
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
-        expect(screen.getByText('Service account key file')).toBeVisible();
+        expect(screen.getByText('Key file')).toBeVisible();
     });
     it('hides the parent action when an own key has no parent', async () => {
         slot = savedSlot;
@@ -582,7 +1113,7 @@ describe('AI service account card', () => {
             await screen.findByRole('button', { name: 'Remove' }),
         ).toBeVisible();
         expect(
-            screen.queryByRole('button', { name: "Use the parent's key" }),
+            screen.queryByRole('button', { name: "Use the parent's account" }),
         ).not.toBeInTheDocument();
     });
     it.each(['warehouse', 'flag', 'permission', 'unsaved'])(
@@ -614,14 +1145,19 @@ describe('AI service account card', () => {
         expect(code).toHaveTextContent(
             'gcloud iam service-accounts create lightdash-agents \\ --project=data-project',
         );
-        expect(code).toHaveTextContent(
+        const grants = screen.getByText(
+            /gcloud projects add-iam-policy-binding/,
+        );
+        expect(grants).toHaveTextContent(
             'gcloud projects add-iam-policy-binding job-project',
         );
-        expect(code).toHaveTextContent(
+        expect(grants).toHaveTextContent(
             'serviceAccount:lightdash-agents@data-project.iam.gserviceaccount.com',
         );
-        expect(code).toHaveTextContent('bq query \\ --project_id=job-project');
-        expect(code).toHaveTextContent('ON SCHEMA `data-project`.analytics');
+        expect(grants).toHaveTextContent(
+            'bq query \\ --project_id=job-project',
+        );
+        expect(grants).toHaveTextContent('ON SCHEMA `data-project`.analytics');
         expect(
             screen.getByText('Grant only the data every agent user may see.'),
         ).toBeInTheDocument();
@@ -640,18 +1176,18 @@ describe('AI service account card', () => {
             ),
         ).toBeInTheDocument();
         expect(
-            screen.getByText(/gcloud iam service-accounts create/),
+            screen.getByText(/gcloud projects add-iam-policy-binding/),
         ).not.toHaveTextContent('bq query');
     });
-    it('collapses setup for a saved key and marks upload and successful Test steps done', async () => {
+    it('collapses setup for a saved key and marks only a successful Test done', async () => {
         slot = savedSlot;
         setup();
         const control = await screen.findByRole('button', {
-            name: 'Set up the AI service account',
+            name: 'How to set up the AI service account',
         });
         expect(control).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(control);
-        expect(screen.getByLabelText('Step 2 done')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Step 2 done')).not.toBeInTheDocument();
         expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Test' }));
         expect(await screen.findByLabelText('Step 3 done')).toBeInTheDocument();
@@ -660,15 +1196,15 @@ describe('AI service account card', () => {
         setup();
         expect(
             await screen.findByRole('button', {
-                name: 'Add an AI service account',
+                name: 'Add AI service account',
             }),
         ).toBeInTheDocument();
         expect(
             screen.queryByText(/When AI agents query/),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('link', { name: 'Organisation settings' }),
-        ).not.toBeInTheDocument();
+            screen.getAllByRole('link', { name: 'Organization settings' }),
+        ).toHaveLength(1);
         expect(
             screen.queryByText(/Agents use the same credentials as the user/),
         ).not.toBeInTheDocument();
@@ -679,34 +1215,24 @@ describe('AI service account card', () => {
         source = 'ai_service_account';
         setup();
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'AI agents on this connection are refused until an AI service account is added.',
+            'Agents are refused on this project until you add an AI service account.',
         );
     });
-    it.each([
-        [
-            'marked_person',
-            "Queries are tagged as agent queries. Warehouse policies can't act on the tag.",
-        ],
-        [
-            'ai_service_account',
-            "Admins add it on each project connection. Everyone's agent gets that account's access.",
-        ],
-    ] as const)(
-        'shows the %s helper only in the organization rule card',
-        async (ruleSource, helper) => {
+    it.each(['marked_person', 'ai_service_account'] as const)(
+        'shows the %s rule within the AI service account card',
+        async (ruleSource) => {
             source = ruleSource;
+            slot = savedSlot;
             setup(project, false, true);
-            const heading = await screen.findByRole('heading', {
-                name: 'Organization rule for this warehouse',
-            });
-            expect(screen.getAllByText(helper)).toHaveLength(1);
+            await screen.findByRole('button', { name: 'Test' });
             expect(
-                within(heading.parentElement!).getByText(helper),
-            ).toBeVisible();
+                screen.queryByText('Organization rule for this warehouse'),
+            ).not.toBeInTheDocument();
             expect(
-                screen.getAllByRole('link', {
-                    name: /Organi[sz]ation settings/,
-                }),
+                screen.getAllByRole('heading', { name: 'AI service account' }),
+            ).toHaveLength(1);
+            expect(
+                screen.getAllByRole('link', { name: 'Organization settings' }),
             ).toHaveLength(1);
             expect(
                 screen.queryByText(/When AI agents query/),
@@ -727,10 +1253,8 @@ describe('AI service account card', () => {
             body: JSON.stringify({ credentials: null }),
             sensitive: true,
         });
-        expect(
-            screen.getByText('Service account key file'),
-        ).toBeInTheDocument();
-        expect(screen.getByText(/Last updated/)).toBeInTheDocument();
+        expect(screen.getByText('Key file')).toBeInTheDocument();
+        expect(screen.getByText(/Added/)).toBeInTheDocument();
     });
     it('tests an unsaved key without showing the file principal or secrets', async () => {
         setup();
@@ -932,7 +1456,7 @@ describe('AI service account card', () => {
             within(confirmation).getByRole('button', { name: 'Remove' }),
         );
         await screen.findByRole('button', {
-            name: 'Add an AI service account',
+            name: 'Add AI service account',
         });
         expect(
             screen.queryByText('Signs in as tested-principal'),
@@ -985,7 +1509,7 @@ describe('AI service account card', () => {
         );
         expect(
             await screen.findByRole('button', {
-                name: 'Add an AI service account',
+                name: 'Add AI service account',
             }),
         ).toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith({
@@ -1044,11 +1568,12 @@ describe('AI service account card', () => {
     it('shows the read-only organization rule, card and single Test button on the identity page', async () => {
         slot = savedSlot;
         setup(project, false, true);
+        expect(await screen.findByText('Not in use')).toBeVisible();
         expect(
-            await screen.findByText('Organization rule for this warehouse'),
+            screen.getByText(
+                "Agents on this project use each person's own BigQuery credentials. The organization rule decides this.",
+            ),
         ).toBeVisible();
-        expect(screen.getByText('Same credentials as the user')).toBeVisible();
-        expect(screen.getByText(/Set by an organization admin/)).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Organization settings' }),
         ).toHaveAttribute('href', '/generalSettings/agentIdentity');
@@ -1123,9 +1648,7 @@ describe('AI service account card', () => {
             }),
         );
         expect(dialog).toBeInTheDocument();
-        expect(
-            screen.getByText('Service account key file'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Key file')).toBeInTheDocument();
     });
     it('shows API failures from Test and allows retry', async () => {
         slot = savedSlot;
@@ -1153,7 +1676,7 @@ describe('AI service account card', () => {
             await screen.findByText('Could not load the AI service account.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Add an AI service account' }),
+            screen.queryByRole('button', { name: 'Add AI service account' }),
         ).not.toBeInTheDocument();
     });
     describe('Snowflake', () => {
@@ -1168,13 +1691,15 @@ describe('AI service account card', () => {
         it('shows setup and the missing-slot warning without BigQuery setup', async () => {
             setup(snowflakeProject);
             await screen.findByRole('button', {
-                name: 'Add an AI service account',
+                name: 'Add AI service account',
             });
             expect(
-                screen.getByText(/AI agents on this connection are refused/),
+                screen.getByText(/Agents are refused on this project/),
             ).toBeVisible();
             expect(
-                screen.getByText(/Use a separate Snowflake user and role/),
+                screen.getByText(
+                    /Use TYPE = SERVICE_AGENT so Snowflake marks these sessions as agent sessions./,
+                ),
             ).toBeVisible();
             expect(screen.getByText(/CREATE USER AI_AGENT/)).toHaveTextContent(
                 "RSA_PUBLIC_KEY = '<public key without PEM headers>'",
@@ -1194,15 +1719,15 @@ describe('AI service account card', () => {
                 setup(snowflakeProject);
                 expect(
                     await screen.findByText(
-                        'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                        'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
                     ),
                 ).toBeVisible();
-                const title = screen.getByText('Snowflake key pair');
+                const title = screen.getByText('Key pair');
                 const principal = screen.getByText(
-                    'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
                 );
-                const dates = screen.getByText(/Last checked/);
-                expect(title.compareDocumentPosition(principal)).toBe(
+                const dates = screen.getByText(/Tested/);
+                expect(principal.compareDocumentPosition(title)).toBe(
                     Node.DOCUMENT_POSITION_FOLLOWING,
                 );
                 expect(principal.compareDocumentPosition(dates)).toBe(
@@ -1210,15 +1735,13 @@ describe('AI service account card', () => {
                 );
                 expect(dates).toBeVisible();
                 if (owner === 'own')
-                    expect(dates).toHaveTextContent(
-                        /Last checked .+ · Last updated/,
-                    );
+                    expect(dates).toHaveTextContent(/Tested .+\. Added/);
                 expect(
                     screen.queryByRole('button', { name: 'Test as agent' }),
                 ).not.toBeInTheDocument();
                 if (owner === 'inherited')
                     expect(
-                        screen.getByText('From parent project'),
+                        screen.getByText(/Uses the AI service account from/),
                     ).toBeVisible();
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
                 await waitFor(() =>
@@ -1256,21 +1779,27 @@ describe('AI service account card', () => {
                 setup(snowflakeProject);
                 expect(await screen.findByRole('alert')).toHaveTextContent(
                     owner === 'own'
-                        ? 'The AI service account cannot be read. Use a different key.'
-                        : 'The parent AI service account cannot be read. Use a different key.',
+                        ? "The AI service account can't be read. Replace it."
+                        : "Agents are refused on this preview. Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.",
                 );
-                expect(
-                    screen.queryByText(
-                        'Not checked yet. Run Test to see who it signs in as.',
-                    ),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByText(/Signs in as/),
-                ).not.toBeInTheDocument();
+                if (owner === 'own')
+                    expect(
+                        screen.getByText(
+                            'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
+                        ),
+                    ).toBeVisible();
+                else
+                    expect(
+                        screen.getByText(
+                            'Not tested yet. Select Test to see who it signs in as.',
+                        ),
+                    ).toBeVisible();
                 expect(
                     screen.getByRole('button', {
                         name:
-                            owner === 'own' ? 'Replace' : 'Use a different key',
+                            owner === 'own'
+                                ? 'Replace'
+                                : "Add this preview's own account",
                     }),
                 ).toBeEnabled();
                 expect(lightdashApi).not.toHaveBeenCalledWith(
@@ -1293,7 +1822,7 @@ describe('AI service account card', () => {
                 }
                 setup(snowflakeProject);
                 const guidance = await screen.findByText(
-                    'Not checked yet. Run Test to see who it signs in as.',
+                    'Not tested yet. Select Test to see who it signs in as.',
                 );
                 expect(guidance).toBeVisible();
                 expect(guidance).not.toHaveAttribute('role');
@@ -1301,13 +1830,13 @@ describe('AI service account card', () => {
                     color: 'var(--mantine-color-dimmed)',
                 });
                 expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-                expect(
-                    screen.queryByText(/Last checked/),
-                ).not.toBeInTheDocument();
+                expect(screen.queryByText(/Tested/)).not.toBeInTheDocument();
                 expect(
                     screen.getByRole('button', {
                         name:
-                            owner === 'own' ? 'Replace' : 'Use a different key',
+                            owner === 'own'
+                                ? 'Replace'
+                                : "Add this preview's own account",
                     }),
                 ).toBeEnabled();
                 vi.mocked(lightdashApi).mockResolvedValueOnce({
@@ -1327,7 +1856,7 @@ describe('AI service account card', () => {
             saved();
             setup(snowflakeProject);
             await screen.findByText(
-                'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
             );
             vi.mocked(lightdashApi).mockRejectedValueOnce({
                 error: { message: 'Sign-in failed.' },
@@ -1337,7 +1866,9 @@ describe('AI service account card', () => {
                 'Sign-in failed.',
             );
             expect(
-                screen.getByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+                screen.getByText(
+                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
+                ),
             ).toBeVisible();
         });
         it('replaces stale local observations when the slot generation changes', async () => {
@@ -1364,10 +1895,14 @@ describe('AI service account card', () => {
                 await client.invalidateQueries(['ai-access']);
             });
             expect(
-                await screen.findByText('Signs in as NEW_USER · NEW_ROLE'),
+                await screen.findByText(
+                    'Signs in as NEW_USER with role NEW_ROLE',
+                ),
             ).toBeVisible();
             expect(
-                screen.queryByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+                screen.queryByText(
+                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
+                ),
             ).not.toBeInTheDocument();
         });
         it('keeps the prior slot and inputs after a failed replacement', async () => {
@@ -1412,7 +1947,9 @@ describe('AI service account card', () => {
                 }),
             ).toHaveValue('new_user');
             expect(
-                screen.getByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+                screen.getByText(
+                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
+                ),
             ).toBeVisible();
         });
         it('returns to the parent only after removal is confirmed', async () => {
@@ -1431,21 +1968,28 @@ describe('AI service account card', () => {
             setup(snowflakeProject);
             fireEvent.click(
                 await screen.findByRole('button', {
-                    name: "Use the parent's key",
+                    name: "Use the parent's account",
                 }),
             );
             const modal = within(await screen.findByRole('dialog'));
+            expect(
+                modal.getByText('PARENT with role PARENT_ROLE'),
+            ).toBeVisible();
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
             );
             fireEvent.click(
-                modal.getByRole('button', { name: "Use the parent's key" }),
+                modal.getByRole('button', { name: "Use the parent's account" }),
             );
             expect(
-                await screen.findByText('Signs in as PARENT · PARENT_ROLE'),
+                await screen.findByText(
+                    'Signs in as PARENT with role PARENT_ROLE',
+                ),
             ).toBeVisible();
             expect(
-                screen.queryByText('Signs in as OBSERVED_USER · OBSERVED_ROLE'),
+                screen.queryByText(
+                    'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
+                ),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Remove' }),
@@ -1465,7 +2009,7 @@ describe('AI service account card', () => {
                 ).not.toBeInTheDocument();
                 expect(
                     screen.queryByText(
-                        /Use a separate Snowflake user and role/,
+                        /Use TYPE = SERVICE_AGENT so Snowflake marks these sessions as agent sessions./,
                     ),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();

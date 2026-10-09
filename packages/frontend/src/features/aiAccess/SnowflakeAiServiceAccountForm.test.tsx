@@ -187,7 +187,7 @@ describe('Snowflake AI service account form', () => {
         await waitFor(() =>
             expect(onSaved).toHaveBeenCalledWith(
                 slot,
-                'OBSERVED_USER · OBSERVED_ROLE',
+                'OBSERVED_USER with role OBSERVED_ROLE',
                 observation,
             ),
         );
@@ -222,7 +222,7 @@ describe('Snowflake AI service account form', () => {
             fill();
             fireEvent.click(screen.getByRole('button', { name: 'Test' }));
             expect(await screen.findByRole('status')).toHaveTextContent(
-                'Signs in as OBSERVED_USER · OBSERVED_ROLE',
+                'Signs in as OBSERVED_USER with role OBSERVED_ROLE',
             );
             change(label, 'changed');
             expect(screen.queryByRole('status')).not.toBeInTheDocument();

@@ -34,7 +34,9 @@ describe('Databricks agent setup', () => {
         );
         expect(screen.getByText(/repeat SELECT/)).toBeVisible();
         expect(
-            screen.getByText(/organisation agent identity rule/),
+            screen.getByText(
+                "Use the service principal's application ID as the Client ID.",
+            ),
         ).toBeVisible();
         fireEvent.click(screen.getByRole('button', { name: 'Copy SQL' }));
         await waitFor(() => expect(writeText).toHaveBeenCalledOnce());
@@ -63,7 +65,7 @@ describe('Databricks agent setup', () => {
             />,
         );
         const button = screen.getByRole('button', {
-            name: 'Set up the AI service account',
+            name: 'How to set up the AI service account',
         });
         expect(button).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(button);

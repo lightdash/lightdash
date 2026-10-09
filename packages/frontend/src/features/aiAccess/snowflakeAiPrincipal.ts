@@ -6,5 +6,5 @@ export const getSnowflakeAiPrincipal = (
     verification?.ok &&
     verification.observed.currentUser &&
     verification.observed.currentRole
-        ? `${verification.observed.currentUser} · ${verification.observed.currentRole}`
+        ? `${verification.observed.currentUser} with role ${verification.observed.currentRole}`
         : null;

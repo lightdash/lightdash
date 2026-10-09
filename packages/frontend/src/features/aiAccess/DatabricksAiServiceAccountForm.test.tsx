@@ -96,6 +96,9 @@ describe('Databricks AI service account form', () => {
         expect(
             screen.getByLabelText('Client ID', { exact: false }),
         ).toBeRequired();
+        expect(
+            screen.getByLabelText('Client ID', { exact: false }),
+        ).toHaveAccessibleDescription("The service principal's application ID");
         fill();
         expect(
             screen.getByRole('button', { name: 'Test and save' }),

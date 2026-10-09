@@ -1,5 +1,6 @@
-import { Accordion, Code, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 const setupSql = `CREATE USER AI_AGENT
   TYPE = SERVICE_AGENT
@@ -8,34 +9,47 @@ const setupSql = `CREATE USER AI_AGENT
   DEFAULT_WAREHOUSE = AI_AGENT_WH;
 GRANT ROLE AI_AGENT_ROLE TO USER AI_AGENT;`;
 
+const grantSql = `GRANT USAGE ON WAREHOUSE AI_AGENT_WH TO ROLE AI_AGENT_ROLE;
+GRANT USAGE ON DATABASE <database> TO ROLE AI_AGENT_ROLE;
+GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE AI_AGENT_ROLE;
+GRANT SELECT ON TABLE <database>.<schema>.<table> TO ROLE AI_AGENT_ROLE;`;
+
 export const SnowflakeAiServiceAccountSetup = ({
     hasKey,
+    tested,
 }: {
     hasKey: boolean;
+    tested: boolean;
 }) => (
-    <Accordion defaultValue={hasKey ? null : 'setup'} variant="default">
-        <Accordion.Item value="setup">
-            <Accordion.Control>Set up the AI service account</Accordion.Control>
-            <Accordion.Panel>
-                <Stack gap="sm">
-                    <Text size="sm">
-                        Use a separate Snowflake user and role for AI agents. We
-                        recommend <Code>TYPE = SERVICE_AGENT</Code>, so
-                        Snowflake marks each session as agent-active. Grant the
-                        role only the data that agents may read.
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                        The role and warehouse must exist. Grant the role USAGE
-                        on the warehouse, database and schema, and access to the
-                        data that agents may read.
-                    </Text>
-                    <CodeBlock
-                        language="sql"
-                        code={setupSql}
-                        copyLabel="Copy SQL"
-                    />
-                </Stack>
-            </Accordion.Panel>
-        </Accordion.Item>
-    </Accordion>
+    <AiServiceAccountSetupGuide
+        warehouseName="Snowflake"
+        hasAccount={hasKey}
+        tested={tested}
+        createContent={
+            <Stack gap="xs">
+                <CodeBlock
+                    language="sql"
+                    code={setupSql}
+                    copyLabel="Copy SQL"
+                />
+                <Text size="sm" c="dimmed">
+                    Use TYPE = SERVICE_AGENT so Snowflake marks these sessions
+                    as agent sessions.
+                </Text>
+            </Stack>
+        }
+        grantContent={
+            <Stack gap="xs">
+                <CodeBlock
+                    language="sql"
+                    code={grantSql}
+                    copyLabel="Copy SQL"
+                />
+                <Text size="sm" c="dimmed">
+                    Repeat SELECT for each table agents may read.
+                </Text>
+            </Stack>
+        }
+        addHelp="Add the user's private key, role and warehouse, then select Test."
+    />
 );
