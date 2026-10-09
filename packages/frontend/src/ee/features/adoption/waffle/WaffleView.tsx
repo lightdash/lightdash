@@ -21,6 +21,7 @@ import {
 } from '../map/colourTransition';
 import { type ColourBy, type DotKind } from '../map/geometry';
 import { MapInspector } from '../map/MapInspector';
+import { RingSwatch } from '../map/MapLegend';
 import { DOT_LABELS, LEGEND_KINDS } from '../map/mapStyles';
 import {
     getFocusTrail,
@@ -133,40 +134,61 @@ const collectSquares = (
     return { marks, points, previousIndexes };
 };
 
+// The waffle's mark for a kind of person, keying its legend and the panel's bar beside it
+const WaffleSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
+    <Box
+        component="span"
+        className={`${styles.mark} ${styles.swatch}`}
+        data-kind={kind}
+        aria-hidden
+    />
+);
+
+// Why every department is drawn as a bar, where every one is
+type BarReason = 'overLimit' | 'tooSmall';
+
+const BAR_NOTES: Record<BarReason, string> = {
+    overLimit: `Departments are drawn as bars above ${formatCount(SQUARE_LIMIT)} people`,
+    tooSmall:
+        'Departments are drawn as bars, as one square per person would be too small to see',
+};
+
 const WaffleLegend: FC<{
     colourBy: ColourBy;
     counts: Map<DotKind, number>;
-    isOverLimit: boolean;
-}> = ({ colourBy, counts, isOverLimit }) => (
+    barReason: BarReason | null;
+    hasNoHeadcount: boolean;
+}> = ({ colourBy, counts, barReason, hasNoHeadcount }) => (
     <Stack gap={6} className={mapStyles.footer}>
         <ul className={mapStyles.legend} aria-label="Legend">
             {LEGEND_KINDS[colourBy].map((kind) => (
                 <li key={kind} className={mapStyles.legendItem}>
-                    <Box
-                        component="span"
-                        className={`${styles.mark} ${styles.swatch}`}
-                        data-kind={kind}
-                        aria-hidden
-                    />
+                    <WaffleSwatch kind={kind} />
                     <Text fz="xs">{DOT_LABELS[kind]}</Text>
                     <Text fz="xs" c="dimmed" className={mapStyles.count}>
                         {formatCount(counts.get(kind) ?? 0)}
                     </Text>
                 </li>
             ))}
+            {hasNoHeadcount && (
+                <li className={mapStyles.legendItem}>
+                    <RingSwatch variant="noHeadcount" />
+                    <Text fz="xs">No headcount set</Text>
+                </li>
+            )}
         </ul>
         <Text fz="xs" c="dimmed">
             Legend counts people placed in a department
         </Text>
-        {isOverLimit && (
+        {barReason !== null && (
             <Text fz="xs" c="dimmed">
-                {`Departments are drawn as bars above ${formatCount(SQUARE_LIMIT)} people`}
+                {BAR_NOTES[barReason]}
             </Text>
         )}
         <Text fz="xs" c="dimmed">
-            {isOverLimit
-                ? 'Select a department to see its numbers'
-                : 'One square per person. Select a department to see its numbers'}
+            {barReason === null
+                ? 'One square per person. Select a department to see its numbers'
+                : 'Select a department to see its numbers'}
         </Text>
     </Stack>
 );
@@ -324,10 +346,10 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
     }, []);
     const clearMember = useCallback(() => {}, []);
 
-    // A breadcrumb that becomes the current one is redrawn as text, so focus moves to the new current crumb
+    // A crumb or a row in the panel is gone once used, so focus moves to the new current crumb, as on the map
     const currentCrumbRef = useRef<HTMLParagraphElement | null>(null);
     const shouldFocusCrumbRef = useRef(false);
-    const selectFromCrumb = (departmentUuid: string | null) => {
+    const selectAndFocusCrumb = (departmentUuid: string | null) => {
         shouldFocusCrumbRef.current = true;
         select(departmentUuid);
     };
@@ -336,6 +358,21 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         shouldFocusCrumbRef.current = false;
         currentCrumbRef.current?.focus();
     }, [selectedDepartmentUuid]);
+
+    // Every department a bar: above 20,000 people, or wherever no part has room for its squares
+    const barReason: BarReason | null =
+        layout.squareCount > 0 ||
+        !layout.blocks.some((block) =>
+            block.parts.some((part) => part.grid.kind === 'bar'),
+        )
+            ? null
+            : layout.isOverLimit
+              ? 'overLimit'
+              : 'tooSmall';
+    // A block or a sub-department drawn dashed, as it has no headcount on it or below it
+    const hasNoHeadcount = parts.some(
+        (part) => part.kind !== 'direct' && part.people.headcount === null,
+    );
 
     const topUuid = trail[0]?.departmentUuid ?? null;
     // Within the selected department's block, the block itself or the part holding the selection
@@ -350,7 +387,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                 trail={trail}
                 currentUuid={selectedDepartmentUuid}
                 currentCrumbRef={currentCrumbRef}
-                onCrumbClick={selectFromCrumb}
+                onCrumbClick={selectAndFocusCrumb}
                 colourBy={colourBy}
                 onColourByChange={setColourBy}
             />
@@ -399,6 +436,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                                                     ? markedInBlock
                                                     : null
                                             }
+                                            canManage={canManage}
                                             onSelect={select}
                                         />
                                     );
@@ -411,7 +449,8 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                     <WaffleLegend
                         colourBy={colourBy}
                         counts={legendCounts}
-                        isOverLimit={layout.isOverLimit}
+                        barReason={barReason}
+                        hasNoHeadcount={hasNoHeadcount}
                     />
                 </Paper>
                 <MapInspector
@@ -421,7 +460,8 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                     rows={rows}
                     member={null}
                     canManage={canManage}
-                    onDepartmentClick={select}
+                    keySwatch={WaffleSwatch}
+                    onDepartmentClick={selectAndFocusCrumb}
                     onClearMember={clearMember}
                     onEdit={onEdit}
                 />

@@ -26,6 +26,8 @@ type Props = {
     squaresByPart: Map<string, WaffleSquare[]>;
     colourBy: ColourBy;
     transition: ColourTransition;
+    // Who may add a headcount, which decides how a department without one asks for it
+    canManage: boolean;
     // The selected department when it is in this block, else null
     selectedUuid: string | null;
     // What shows the selection in this block: the block itself, or the part holding the selected department
@@ -123,6 +125,7 @@ export const WaffleBlock = memo<Props>(
         squaresByPart,
         colourBy,
         transition,
+        canManage,
         selectedUuid,
         markedUuid,
         onSelect,
@@ -131,6 +134,7 @@ export const WaffleBlock = memo<Props>(
             block.memberCount,
             block.headcount,
             block.activeCount,
+            canManage,
         );
         const isSelected = selectedUuid === block.departmentUuid;
         const isMarked = markedUuid === block.departmentUuid;
@@ -161,6 +165,10 @@ export const WaffleBlock = memo<Props>(
                         )}
                         aria-current={isSelected ? 'true' : undefined}
                         data-selected={isMarked || undefined}
+                        // No headcount on the department or below it: dashed, as the map draws its circle
+                        data-no-headcount={
+                            block.headcount === null || undefined
+                        }
                         onClick={() => onSelect(block.departmentUuid)}
                     />
                 </Tooltip>
@@ -216,6 +224,7 @@ export const WaffleBlock = memo<Props>(
                                         metrics.memberCount,
                                         part.people.headcount,
                                         metrics.activeCount30d,
+                                        canManage,
                                     )}
                                 />
                             }
@@ -236,6 +245,9 @@ export const WaffleBlock = memo<Props>(
                                     isPartSelected ? 'true' : undefined
                                 }
                                 data-selected={isPartMarked || undefined}
+                                data-no-headcount={
+                                    part.people.headcount === null || undefined
+                                }
                                 onClick={() => onSelect(part.departmentUuid)}
                             >
                                 {content}

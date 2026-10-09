@@ -188,7 +188,7 @@ describe('WaffleView', () => {
             'Operations, 1 of 40 on Lightdash, 1 active',
             'Finance, 0 of 32 on Lightdash, 0 active',
             'Data, 1 of 9 on Lightdash, 1 active',
-            'Product, 1 on Lightdash, 1 active',
+            'Product, 1 on Lightdash, 1 active, no headcount set',
         ]);
         expect(drawnSquares(container)).toHaveLength(80 + 40 + 40 + 32 + 9 + 1);
         expect(drawnSquares(container, 'active')).toHaveLength(3);
@@ -403,6 +403,107 @@ describe('WaffleView', () => {
         ).toBeInTheDocument();
     });
 
+    describe('a department without a headcount', () => {
+        // In the small organization Product has none set, nor does North under Operations
+        const product = () => screen.getByRole('button', { name: /^Product,/ });
+
+        it('is dashed as on the map, asks editors to add a headcount, and is keyed in the legend', async () => {
+            const { container } = renderWaffle(seededOrganization());
+            expect(product()).toHaveAttribute('data-no-headcount');
+            expect(product()).toHaveAccessibleName(
+                'Product, 1 on Lightdash, 1 active, no headcount set',
+            );
+            expect(
+                screen.getByText('1 on Lightdash · Add headcount'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^North,/ }),
+            ).toHaveAttribute('data-no-headcount');
+            // Departments with a headcount keep the plain outline
+            expect(
+                screen.getByRole('button', { name: /^Marketing,/ }),
+            ).not.toHaveAttribute('data-no-headcount');
+            expect(
+                container.querySelectorAll('button[data-no-headcount]'),
+            ).toHaveLength(2);
+            expect(
+                within(screen.getByRole('list', { name: 'Legend' })).getByText(
+                    'No headcount set',
+                ),
+            ).toBeInTheDocument();
+            await userEvent.hover(product());
+            const tooltip = await screen.findByRole('tooltip');
+            expect(tooltip).toHaveTextContent('Product');
+            expect(tooltip).toHaveTextContent('1 on Lightdash · Add headcount');
+        });
+
+        it('says there is no headcount, without asking for one, to people who cannot edit departments', () => {
+            renderWaffle(seededOrganization(), { canManage: false });
+            expect(product()).toHaveAttribute('data-no-headcount');
+            expect(
+                screen.getByText('1 on Lightdash · No headcount'),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/Add headcount/)).toBeNull();
+            expect(
+                within(screen.getByRole('list', { name: 'Legend' })).getByText(
+                    'No headcount set',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('leaves the key out where every department has a headcount', () => {
+            renderWaffle(deepOrganization);
+            expect(screen.queryByText('No headcount set')).toBeNull();
+        });
+    });
+
+    it('moves focus to the breadcrumb when a department is selected from the panel, as the map does', async () => {
+        renderWaffle(deepOrganization);
+        await userEvent.click(
+            within(panel()).getByRole('button', {
+                name: /^Legal & Compliance/,
+            }),
+        );
+        expect(document.activeElement).toHaveAttribute(
+            'aria-current',
+            'location',
+        );
+        expect(document.activeElement).toHaveTextContent('Legal & Compliance');
+    });
+
+    it("keys the panel's bar with the waffle's own squares, a filled grey square for no account", () => {
+        renderWaffle(seededOrganization());
+        const keys = [
+            ...panel().querySelectorAll<HTMLElement>(`.${styles.mark}`),
+        ];
+        expect(keys.map((key) => key.dataset.kind)).toEqual([
+            'active',
+            'idle',
+            'noAccount',
+        ]);
+        expect(panel().querySelector('circle')).toBeNull();
+    });
+
+    it('says so when every department is drawn as a bar below 20,000 people, as its squares would be too small', () => {
+        // 15,000 people in 30 departments leave no part room for squares at 720 px
+        const { container } = renderWaffle(
+            Array.from({ length: 30 }, (_, index) =>
+                d(`Department ${index + 1}`, null, 500, 100, 50),
+            ),
+        );
+        expect(drawnSquares(container)).toHaveLength(0);
+        expect(container.querySelectorAll(`.${styles.bar}`)).toHaveLength(30);
+        expect(
+            screen.getByText(
+                'Departments are drawn as bars, as one square per person would be too small to see',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText('Select a department to see its numbers'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/One square per person\./)).toBeNull();
+    });
+
     it('selects a department from its row in the panel', async () => {
         renderWaffle(deepOrganization);
         await userEvent.click(
@@ -488,7 +589,7 @@ describe('WaffleView', () => {
                 'Departments are drawn as bars above 20,000 people',
             ),
         ).toBeInTheDocument();
-        expect(screen.queryByText(/Each square is a person/)).toBeNull();
+        expect(screen.queryByText(/One square per person/)).toBeNull();
         expect(
             screen.getByText('Select a department to see its numbers'),
         ).toBeInTheDocument();
