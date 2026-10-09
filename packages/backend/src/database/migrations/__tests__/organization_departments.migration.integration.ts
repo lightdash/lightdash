@@ -5,15 +5,13 @@ import {
     ParameterError,
     QueryExecutionContext,
     resolveDepartmentMembership,
+    type ActivityWindows,
     type CreateDepartment,
     type UpdateDepartment,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
-import {
-    DepartmentAnalyticsModel,
-    type ActivityWindows,
-} from '../../../models/DepartmentAnalyticsModel';
+import { DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
     DepartmentModel,
     type DepartmentTreeLimits,

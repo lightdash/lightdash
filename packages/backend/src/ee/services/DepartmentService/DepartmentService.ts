@@ -4,7 +4,7 @@ import {
     assertRegisteredAccount,
     FeatureFlags,
     ForbiddenError,
-    getActivityBucketStarts,
+    getActivityWindows,
     getAncestorUuids,
     getParentMap,
     hasControlCharacter,
@@ -14,7 +14,7 @@ import {
     resolveDepartmentMembership,
     truncateForMessage,
     type Account,
-    type ActivityBucketStarts,
+    type ActivityWindows,
     type CreateDepartment,
     type Department,
     type DepartmentDetail,
@@ -25,10 +25,7 @@ import {
     type UpdateDepartment,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
-import {
-    type ActivityWindows,
-    type DepartmentAnalyticsModel,
-} from '../../../models/DepartmentAnalyticsModel';
+import { type DepartmentAnalyticsModel } from '../../../models/DepartmentAnalyticsModel';
 import {
     type DepartmentModel,
     type DepartmentTreeLimits,
@@ -82,18 +79,6 @@ type CachedSnapshot = {
     loaded: Promise<LoadedSnapshot>;
     expiresAt: number;
 };
-
-// Rolling windows measured from one instant, shared by every read in a request: the activity buckets'
-// starts, so a person's last activity is read back to the at-risk bound and no further
-export const getActivityWindows = (now: Date = new Date()): ActivityWindows => {
-    const { healthySince, atRiskSince } = getActivityBucketStarts(now);
-    return { activeSince: healthySince, lastActiveSince: atRiskSince };
-};
-
-const toBucketStarts = (windows: ActivityWindows): ActivityBucketStarts => ({
-    healthySince: windows.activeSince,
-    atRiskSince: windows.lastActiveSince,
-});
 
 const isWholeNonNegative = (value: number): boolean =>
     Number.isInteger(value) && value >= 0 && value <= MAX_INT4;
@@ -319,7 +304,7 @@ export class DepartmentService extends BaseService {
             departments,
             membership,
             lastActiveAt: activity.lastActiveAt,
-            bucketStarts: toBucketStarts(windows),
+            windows,
             weeklyActivity: activity.weeklyActivity,
             weekStarts: lastNWeekStarts(TREND_WEEKS),
         });
@@ -391,7 +376,7 @@ export class DepartmentService extends BaseService {
             members,
             departments: snapshot.summary.departments,
             activity,
-            bucketStarts: toBucketStarts(windows),
+            windows,
         });
     }
 

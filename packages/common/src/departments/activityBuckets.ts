@@ -5,8 +5,9 @@ import { type ActivityBucket } from '../types/departments';
 export const HEALTHY_ACTIVITY_DAYS = 30;
 export const AT_RISK_ACTIVITY_DAYS = 90;
 
-// Where the healthy and at-risk buckets reach back to; each includes the instant it starts at
-export type ActivityBucketStarts = { healthySince: Date; atRiskSince: Date };
+// Where the healthy and at-risk buckets start, each including its first instant. A person's last activity is
+// read back to lastActiveSince and no further, so every read in a request shares these two
+export type ActivityWindows = { activeSince: Date; lastActiveSince: Date };
 
 const daysBefore = (now: Date, days: number): Date => {
     const since = new Date(now);
@@ -15,22 +16,24 @@ const daysBefore = (now: Date, days: number): Date => {
 };
 
 // Both measured back from one instant, so every count and every person in a response share the same bounds
-export const getActivityBucketStarts = (now: Date): ActivityBucketStarts => ({
-    healthySince: daysBefore(now, HEALTHY_ACTIVITY_DAYS),
-    atRiskSince: daysBefore(now, AT_RISK_ACTIVITY_DAYS),
+export const getActivityWindows = (
+    now: Date = new Date(),
+): ActivityWindows => ({
+    activeSince: daysBefore(now, HEALTHY_ACTIVITY_DAYS),
+    lastActiveSince: daysBefore(now, AT_RISK_ACTIVITY_DAYS),
 });
 
 export const getActivityBucket = (
     lastActiveAt: Date | null,
-    starts: ActivityBucketStarts,
+    windows: ActivityWindows,
 ): ActivityBucket => {
     if (
         lastActiveAt === null ||
-        lastActiveAt.getTime() < starts.atRiskSince.getTime()
+        lastActiveAt.getTime() < windows.lastActiveSince.getTime()
     ) {
         return 'lost';
     }
-    return lastActiveAt.getTime() >= starts.healthySince.getTime()
+    return lastActiveAt.getTime() >= windows.activeSince.getTime()
         ? 'healthy'
         : 'atRisk';
 };

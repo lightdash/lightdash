@@ -38,29 +38,24 @@ describe('DepartmentAnalyticsModel', () => {
         expect(tracker.history.all).toHaveLength(0);
     });
 
-    it("reads the weekly buckets and each person's latest activity in one query", async () => {
+    it("reads each person's latest activity and the weeks they viewed in one query, one row per person", async () => {
         tracker.on.any(/analytics_chart_views/).responseOnce({
             rows: [
                 {
                     user_uuid: 'u1',
-                    week_start: '2026-09-28',
                     last_active_at: new Date('2026-09-30T10:00:00Z'),
-                },
-                {
-                    user_uuid: 'u1',
-                    week_start: '2026-08-03',
-                    last_active_at: new Date('2026-08-04T10:00:00Z'),
+                    week_starts: ['2026-09-28', '2026-08-03'],
                 },
                 {
                     user_uuid: 'u2',
-                    week_start: '2026-08-03',
                     last_active_at: new Date('2026-08-05T10:00:00Z'),
+                    week_starts: ['2026-08-03'],
                 },
                 // A person who only ran queries: in no weekly bucket, but active all the same
                 {
                     user_uuid: 'u3',
-                    week_start: null,
                     last_active_at: new Date('2026-10-01T10:00:00Z'),
+                    week_starts: [],
                 },
             ],
         });
@@ -86,9 +81,11 @@ describe('DepartmentAnalyticsModel', () => {
         await model.getActivity('org', ['u1', 'u2'], windows);
         const [query] = reads();
         expect(query.sql).toMatch(/MAX\(a\.at\) AS last_active_at/);
+        // Weeks from views alone, gathered into the person's one row, so query rows are never split by week
         expect(query.sql).toMatch(
-            /CASE WHEN a\.is_view\s+THEN to_char\(date_trunc\('week', a\.at\), 'YYYY-MM-DD'\)\s+END AS week_start/,
+            /array_agg\(DISTINCT to_char\(date_trunc\('week', a\.at\), 'YYYY-MM-DD'\)\)\s+FILTER \(WHERE a\.is_view\)/,
         );
+        expect(query.sql).toMatch(/GROUP BY a\.user_uuid\s*$/);
         expect(query.sql).toMatch(/qh\.created_at AS at, false AS is_view/);
         expect(
             query.sql.match(/v\.timestamp AS at, true AS is_view/g),

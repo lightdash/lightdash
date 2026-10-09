@@ -6,8 +6,8 @@ import {
     getResidualHeadcount,
     OrganizationMemberRole,
     rollUpByDepartment,
-    type ActivityBucketStarts,
     type ActivitySplit,
+    type ActivityWindows,
     type AdoptionMetrics,
     type Department,
     type DepartmentMembership,
@@ -22,7 +22,7 @@ export type MetricsInput = {
     headcount: number | null;
     // Each person's latest activity back to the at-risk bound; anyone missing has none in that time
     lastActiveAt: Map<string, Date>;
-    bucketStarts: ActivityBucketStarts;
+    windows: ActivityWindows;
     weeksByUser: Map<string, Set<string>>;
     weekStarts: string[];
 };
@@ -31,7 +31,7 @@ export type SnapshotInput = {
     departments: Department[];
     membership: DepartmentMembership[];
     lastActiveAt: Map<string, Date>;
-    bucketStarts: ActivityBucketStarts;
+    windows: ActivityWindows;
     weeklyActivity: ActivityRow[];
     weekStarts: string[];
 };
@@ -118,7 +118,7 @@ export const computeAdoptionMetrics = (
         members,
         headcount,
         lastActiveAt,
-        bucketStarts,
+        windows,
         weeksByUser,
         weekStarts,
     } = input;
@@ -133,7 +133,7 @@ export const computeAdoptionMetrics = (
     members.forEach((m) => {
         const activity = getActivityBucket(
             lastActiveAt.get(m.userUuid) ?? null,
-            bucketStarts,
+            windows,
         );
         activitySplit[activity] += 1;
         if (
@@ -167,7 +167,7 @@ export const computeAdoptionMetrics = (
 export const buildAdoptionSnapshot = (
     input: SnapshotInput,
 ): AdoptionSnapshot => {
-    const { departments, membership, lastActiveAt, bucketStarts, weekStarts } =
+    const { departments, membership, lastActiveAt, windows, weekStarts } =
         input;
     const weeksByUser = indexWeeklyActivity(input.weeklyActivity);
     const directMembers = getDirectMembersByDepartment(membership);
@@ -187,7 +187,7 @@ export const buildAdoptionSnapshot = (
             members,
             headcount,
             lastActiveAt,
-            bucketStarts,
+            windows,
             weeksByUser,
             weekStarts,
         });

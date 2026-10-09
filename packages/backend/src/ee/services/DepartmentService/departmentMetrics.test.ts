@@ -1,5 +1,5 @@
 import {
-    getActivityBucketStarts,
+    getActivityWindows,
     OrganizationMemberRole,
     type Department,
     type DepartmentMembership,
@@ -53,7 +53,7 @@ const department = (
 
 const weekStarts = ['2026-09-28', '2026-10-05'];
 const NOW = new Date('2026-10-08T09:30:00Z');
-const STARTS = getActivityBucketStarts(NOW);
+const WINDOWS = getActivityWindows(NOW);
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (days: number) => new Date(NOW.getTime() - days * DAY);
 // Each person's latest activity as getActivity reads it, a day ago, so in the last 30 days
@@ -90,7 +90,7 @@ describe('computeAdoptionMetrics', () => {
                 ],
                 headcount: null,
                 lastActiveAt: new Map(),
-                bucketStarts: STARTS,
+                windows: WINDOWS,
                 weeksByUser: new Map(),
                 weekStarts,
             });
@@ -117,7 +117,7 @@ describe('computeAdoptionMetrics', () => {
                 ['day90', daysAgo(90)],
                 ['day91', daysAgo(91)],
             ]),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -132,7 +132,7 @@ describe('computeAdoptionMetrics', () => {
             ],
             headcount: 4,
             lastActiveAt: activeYesterday(['a']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'a', weekStart: '2026-10-05' },
             ]),
@@ -153,7 +153,7 @@ describe('computeAdoptionMetrics', () => {
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: null,
             lastActiveAt: new Map(),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -165,7 +165,7 @@ describe('computeAdoptionMetrics', () => {
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 0,
             lastActiveAt: activeYesterday(['a']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -184,7 +184,7 @@ describe('computeAdoptionMetrics', () => {
             ],
             headcount: null,
             lastActiveAt: new Map(),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -200,7 +200,7 @@ describe('computeAdoptionMetrics', () => {
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 1,
             lastActiveAt: activeYesterday(['a', 'zz']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: indexWeeklyActivity([
                 { userUuid: 'zz', weekStart: '2026-10-05' },
             ]),
@@ -214,7 +214,7 @@ describe('computeAdoptionMetrics', () => {
             members: [member('a', OrganizationMemberRole.VIEWER)],
             headcount: 1,
             lastActiveAt: activeYesterday(['a']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeksByUser: new Map(),
             weekStarts,
         });
@@ -246,7 +246,7 @@ describe('buildAdoptionSnapshot', () => {
         departments,
         membership,
         lastActiveAt: activeYesterday(['s1', 'o1']),
-        bucketStarts: STARTS,
+        windows: WINDOWS,
         weeklyActivity: [{ userUuid: 's1', weekStart: '2026-10-05' }],
         weekStarts,
     });
@@ -264,7 +264,7 @@ describe('buildAdoptionSnapshot', () => {
                 ['o1', daysAgo(45)],
                 ['clash', daysAgo(60)],
             ]),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         });
@@ -341,7 +341,7 @@ describe('buildAdoptionSnapshot', () => {
                 member('a1', OrganizationMemberRole.VIEWER, 'a'),
             ],
             lastActiveAt: activeYesterday(['p1']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         }).summary.departments.find((d) => d.departmentUuid === 'parent');
@@ -362,7 +362,7 @@ describe('buildAdoptionSnapshot', () => {
             ],
             membership: [member('a1', OrganizationMemberRole.VIEWER, 'a')],
             lastActiveAt: new Map(),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         }).summary.departments.find((d) => d.departmentUuid === 'parent');
@@ -380,7 +380,7 @@ describe('buildAdoptionSnapshot', () => {
                 member(uuid, OrganizationMemberRole.VIEWER, 'stale'),
             ),
             lastActiveAt: activeYesterday(['a', 'b', 'c']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         });
@@ -403,7 +403,7 @@ describe('buildAdoptionSnapshot', () => {
                 member('p2', OrganizationMemberRole.VIEWER, 'b'),
             ],
             lastActiveAt: new Map(),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         });
@@ -426,7 +426,7 @@ describe('buildAdoptionSnapshot', () => {
                 member('y1', OrganizationMemberRole.VIEWER, 'y'),
             ],
             lastActiveAt: activeYesterday(['x1']),
-            bucketStarts: STARTS,
+            windows: WINDOWS,
             weeklyActivity: [],
             weekStarts,
         });

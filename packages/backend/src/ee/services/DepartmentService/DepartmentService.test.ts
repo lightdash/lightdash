@@ -12,7 +12,6 @@ import {
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     DepartmentService,
-    getActivityWindows,
     validateDepartmentInput,
 } from './DepartmentService';
 
@@ -785,15 +784,6 @@ describe('DepartmentService analytics scoping', () => {
         expect(
             windows.activeSince.getTime() - windows.lastActiveSince.getTime(),
         ).toBe((90 - 30) * DAY);
-    });
-});
-
-describe('getActivityWindows', () => {
-    it('measures the activity buckets, 30 and 90 days back, from one instant', () => {
-        expect(getActivityWindows(new Date('2026-10-08T09:30:00Z'))).toEqual({
-            activeSince: new Date('2026-09-08T09:30:00Z'),
-            lastActiveSince: new Date('2026-07-10T09:30:00Z'),
-        });
     });
 });
 

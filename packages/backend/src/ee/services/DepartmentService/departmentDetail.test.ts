@@ -1,5 +1,5 @@
 import {
-    getActivityBucketStarts,
+    getActivityWindows,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMembership,
@@ -208,7 +208,7 @@ describe('buildDepartmentMembers', () => {
                 dashboardViews30d: 0,
             },
         ],
-        bucketStarts: getActivityBucketStarts(NOW),
+        windows: getActivityWindows(NOW),
     });
 
     it('sorts no recorded activity first, then longest inactive', () => {

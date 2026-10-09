@@ -1,6 +1,7 @@
 import {
     QueryExecutionContext,
     TimeoutError,
+    type ActivityWindows,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
 } from '@lightdash/common';
@@ -9,14 +10,6 @@ import { isStatementTimeout } from '../database/errors';
 import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
-
-// One clock per request, so every read in it shares the same rolling bounds: the starts of the healthy and
-// at-risk activity buckets
-export type ActivityWindows = {
-    activeSince: Date;
-    // How far back a person's last activity is read
-    lastActiveSince: Date;
-};
 
 export type ActivitySnapshot = {
     // Each person's latest activity since lastActiveSince; nobody missing from it had any
@@ -137,8 +130,8 @@ export class DepartmentAnalyticsModel {
         }
     }
 
-    // One scan answers both: weekly buckets from views only, and each person's latest activity from views and
-    // queries. Weeks older than the trend's are dropped where the trend is built
+    // One scan, one row per person: their latest activity from views and queries, and the UTC weeks they viewed a
+    // chart or dashboard in. Weeks older than the trend's are dropped where the trend is built
     async getActivity(
         organizationUuid: string,
         userUuids: string[],
@@ -152,36 +145,31 @@ export class DepartmentAnalyticsModel {
             trx.raw<{
                 rows: {
                     user_uuid: string;
-                    week_start: string | null; // null on rows that come from queries
                     last_active_at: Date;
+                    week_starts: string[]; // empty for a person who only ran queries
                 }[];
             }>(
                 `SELECT a.user_uuid,
-                    CASE WHEN a.is_view
-                         THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
-                    END AS week_start,
-                    MAX(a.at) AS last_active_at
+                    MAX(a.at) AS last_active_at,
+                    COALESCE(
+                        array_agg(DISTINCT to_char(date_trunc('week', a.at), 'YYYY-MM-DD'))
+                            FILTER (WHERE a.is_view),
+                        '{}'
+                    ) AS week_starts
              FROM (${union.sql}) a
-             GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
+             GROUP BY a.user_uuid`,
                 union.bindings,
             ),
         );
-        const lastActiveAt = new Map<string, Date>();
-        result.rows.forEach((r) => {
-            const latest = lastActiveAt.get(r.user_uuid);
-            if (
-                latest === undefined ||
-                r.last_active_at.getTime() > latest.getTime()
-            ) {
-                lastActiveAt.set(r.user_uuid, r.last_active_at);
-            }
-        });
         return {
-            lastActiveAt,
+            lastActiveAt: new Map(
+                result.rows.map((r) => [r.user_uuid, r.last_active_at]),
+            ),
             weeklyActivity: result.rows.flatMap((r) =>
-                r.week_start === null
-                    ? []
-                    : [{ userUuid: r.user_uuid, weekStart: r.week_start }],
+                r.week_starts.map((weekStart) => ({
+                    userUuid: r.user_uuid,
+                    weekStart,
+                })),
             ),
         };
     }
