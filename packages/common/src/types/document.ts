@@ -49,7 +49,15 @@ export type DocumentCharts = Record<string, DocumentChartContent>;
  * the charts those blocks reference. On writes, ids that are not `c<n>` are
  * temporary keys the server replaces with the next free id.
  */
-export type DocumentContent = { markdown: string; charts: DocumentCharts };
+export type DocumentContent = {
+    markdown: string;
+    charts: DocumentCharts;
+    /**
+     * Charts saved by a newer release, kept verbatim so saving the Document
+     * here doesn't lose them. Omitted when there are none.
+     */
+    unsupportedCharts?: Record<string, unknown>;
+};
 
 /** Assignable owner, independent of the immutable creator and version authors. */
 export type DocumentOwner = DashboardOwner;
