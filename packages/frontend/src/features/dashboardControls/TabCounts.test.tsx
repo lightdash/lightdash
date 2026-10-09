@@ -91,6 +91,18 @@ const isBadgeReached = (tabUuid: string) =>
         .querySelector('[data-reached]')
         ?.getAttribute('data-reached');
 
+const badge = (tabUuid: string) => {
+    const element =
+        mockContainers.current[tabUuid].querySelector<HTMLElement>(
+            '[data-reached]',
+        );
+    if (element === null) throw new Error(`expected a badge on ${tabUuid}`);
+    return element;
+};
+
+const isBadgeBlue = (tabUuid: string) =>
+    badge(tabUuid).style.getPropertyValue('--badge-color').includes('blue');
+
 describe('TabCounts', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
@@ -163,6 +175,37 @@ describe('TabCounts', () => {
         expect(badgeText('tab-1')).toBe('0 of 3');
         expect(isBadgeReached('tab-1')).toBe('false');
         expect(isBadgeReached('tab-2')).toBe('true');
+    });
+
+    it('stays grey on every tab while no field is active', () => {
+        renderWithProviders(<TabCounts />);
+
+        expect(badge('tab-1')).toHaveAttribute('data-field-active', 'false');
+        expect(badge('tab-2')).toHaveAttribute('data-field-active', 'false');
+        expect(isBadgeBlue('tab-1')).toBe(false);
+        expect(isBadgeBlue('tab-2')).toBe(false);
+    });
+
+    it('turns blue only on the tabs the active field is on', () => {
+        setSidebar({
+            editingRule: rule({
+                tileTargets: {
+                    'tile-region': {
+                        fieldId: 'orders_region',
+                        tableName: 'orders',
+                    },
+                },
+            }),
+            activeFieldId: 'orders_region',
+        });
+        renderWithProviders(<TabCounts />);
+
+        expect(badge('tab-1')).toHaveAttribute('data-field-active', 'true');
+        expect(badge('tab-2')).toHaveAttribute('data-field-active', 'true');
+        expect(isBadgeReached('tab-1')).toBe('false');
+        expect(isBadgeBlue('tab-1')).toBe(false);
+        expect(isBadgeReached('tab-2')).toBe('true');
+        expect(isBadgeBlue('tab-2')).toBe(true);
     });
 
     it('counts the active field alone while a row is hovered or clicked', async () => {

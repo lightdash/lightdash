@@ -600,10 +600,14 @@ describe('FieldsAndTiles', () => {
         rerender(<FieldsAndTiles />);
         const showAll = screen.getByRole('button', { name: 'Show all tiles' });
         const region = screen.getByRole('button', { name: 'Region' });
-        // It sits in the clicked row, which keeps the field on a mouse down
-        expect(showAll.closest('[data-keeps-field]')).toBe(
-            region.closest('[data-keeps-field]'),
-        );
+        // A labelled button right after the name, with no icon
+        expect(showAll).toHaveTextContent('Show all tiles');
+        expect(showAll.querySelector('svg')).toBeNull();
+        expect(showAll.previousElementSibling).toBe(region);
+        expect(showAll).not.toHaveAttribute('tabindex', '-1');
+        expect(
+            screen.getAllByRole('button', { name: 'Show all tiles' }),
+        ).toHaveLength(1);
 
         await userEvent.click(showAll);
         expect(clearHighlightedField).toHaveBeenCalledTimes(1);
@@ -1160,13 +1164,13 @@ describe('FieldsAndTiles', () => {
             expect(
                 screen
                     .getByRole('button', { name: 'Region' })
-                    .closest('[data-keeps-field]'),
-            ).toHaveAttribute('data-waiting', 'true');
+                    .closest('[data-waiting="true"]'),
+            ).not.toBeNull();
             expect(
                 screen
                     .getByRole('button', { name: 'Status' })
-                    .closest('[data-keeps-field]'),
-            ).not.toHaveAttribute('data-waiting');
+                    .closest('[data-waiting]'),
+            ).toBeNull();
 
             openRowMenu('Region');
             await userEvent.click(await screen.findByText('Remove field'));

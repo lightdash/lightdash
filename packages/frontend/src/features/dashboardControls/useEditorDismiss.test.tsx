@@ -80,11 +80,9 @@ const Page: FC = () => {
                         aria-label="Label"
                         onBlur={() => onLabelBlur(sidebar.current?.editing)}
                     />
-                    <div data-keeps-field>
-                        <button type="button" aria-pressed>
-                            Field row
-                        </button>
-                    </div>
+                    <button type="button" aria-pressed>
+                        Field row
+                    </button>
                     <input aria-label="Search fields" data-own-escape />
                     <button type="button" onClick={close}>
                         Done
@@ -93,10 +91,13 @@ const Page: FC = () => {
             )}
             <div data-tile-uuid="t1">
                 <div data-testid="veil">
-                    <div data-keeps-field>
-                        <button type="button">Tile card</button>
-                    </div>
+                    <button type="button">Tile card</button>
                 </div>
+            </div>
+            <div role="tablist">
+                <button type="button" role="tab" aria-selected={false}>
+                    Dashboard tab
+                </button>
             </div>
             <div data-portal="true">
                 <div>In a list</div>
@@ -270,37 +271,28 @@ describe('dismissing in the controls editor', () => {
             ['a field row', () => screen.getByText('Field row')],
             ['a tile card', () => screen.getByText('Tile card')],
             ['an open list or menu', () => screen.getByText('In a list')],
-        ])('on %s keeps the clicked field', (_, getTarget) => {
-            fireEvent.mouseDown(getTarget());
-            expect(value().highlightedFieldId).toBe('orders_a');
-        });
-
-        it.each([
             ['the empty sidebar', () => screen.getByTestId('editor')],
             ["a tile's veil", () => screen.getByTestId('veil')],
             ['the bar', () => screen.getByTestId('bar')],
             ['the label', () => label()],
-        ])('on %s clears it, and the editor stays open', (_, getTarget) => {
+            ['a dashboard tab', () => screen.getByRole('tab')],
+            ['the page', () => document.body],
+        ])('on %s keeps the clicked field', (_, getTarget) => {
             fireEvent.mouseDown(getTarget());
-            expect(value().highlightedFieldId).toBeNull();
+            fireEvent.click(getTarget());
+            expect(value().highlightedFieldId).toBe('orders_a');
             expect(value().isSidebarOpen).toBe(true);
         });
 
-        it('is listened for only while a field is clicked', () => {
+        it('is never listened for', () => {
             const add = vi.spyOn(document, 'addEventListener');
-            const remove = vi.spyOn(document, 'removeEventListener');
-            const count = (spy: typeof add | typeof remove) =>
-                spy.mock.calls.filter(([type]) => type === 'mousedown').length;
-
             act(() => value().clearHighlightedField());
-            expect(count(remove)).toBe(1);
-            expect(count(add)).toBe(0);
-
-            fireEvent.mouseDown(screen.getByTestId('veil'));
             clickField();
-            expect(count(add)).toBe(1);
+
+            expect(
+                add.mock.calls.filter(([type]) => type === 'mousedown'),
+            ).toHaveLength(0);
             add.mockRestore();
-            remove.mockRestore();
         });
     });
 

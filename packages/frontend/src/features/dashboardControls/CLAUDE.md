@@ -149,10 +149,10 @@ In `FilterConfiguration/`:
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
   editor closes as "Done" does. From the page, Escape never closes.
-- A mouse down unclicks the field unless it lands inside `data-keeps-field`
-  (the field rows, the tile cards) or inside a Mantine portal
-  (lists and menus). That listener exists only while a field is clicked. It
-  works on the tiles because their overlays stop no events.
+- A mouse down never unclicks the field, and neither does changing the
+  dashboard tab: the selection is kept while the editor walks the tabs. It
+  ends only by clicking the card again, "Show all tiles", Escape, selecting
+  another field, or closing or switching the editor.
 
 ## Editor
 
@@ -228,8 +228,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - "Remove field" is switched off on a filter's only field: without it the
   filter could not be kept. Its tooltip points to "Remove filter" in More
   actions, or to "Discard control" for a new one.
-- The clicked row shows an x, "Show all tiles" (`ShowAllTilesButton`), above
-  the row's stretched click area like the other row actions.
+- The clicked row shows a text button, "Show all tiles"
+  (`ShowAllTilesButton`: `compact-xs`, subtle, no icon, no tooltip), right of
+  the name and above the row's stretched click area like the other row
+  actions. It hands focus back to the name button. Never an X: that reads as
+  "Remove field".
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
   (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
   fields of the filter.
@@ -366,7 +369,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - `TileOverlays` portals a veil and a "Filtered by" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
-  `usePortalTargets`. `TabCounts` renders nothing for a placeholder.
+  `usePortalTargets`. `TabCounts` renders nothing for a placeholder. A badge
+  is grey: `light` on a tab the control reaches (`data-reached`), transparent
+  on the rest. While a field is active (hovered or clicked,
+  `data-field-active`), the tabs that field is on turn `color="blue"`, and
+  the tabs it is on no tile of stay grey and transparent.
 - A veiled tile is locked three ways, and none of them stops an event. Every
   overlay root (`TileOverlay`) carries the
   grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
@@ -378,7 +385,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   must portal an overlay into every target it gets. The stylesheet's
   `pointer-events: none` on the siblings stays. Never call `stopPropagation`
   on an overlay: Mantine closes lists on a `mousedown` that reaches
-  `document`, and the clicked field is cleared the same way.
+  `document`.
 
 ## Motion
 

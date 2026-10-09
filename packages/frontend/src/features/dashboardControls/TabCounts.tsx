@@ -81,6 +81,7 @@ export const TabCounts: FC = () => {
                 if (!element || !count || count.total === 0) return null;
                 // Tabs the control, or the active field, reaches stand out
                 const isReached = count.applied > 0;
+                const isFieldActive = activeFieldId !== null;
                 return createPortal(
                     <Tooltip
                         fz="xs"
@@ -88,10 +89,11 @@ export const TabCounts: FC = () => {
                     >
                         <Badge
                             size="xs"
-                            // Grey either way: a tab it reaches is filled, the rest recede
+                            // A tab it reaches is filled, blue for the active field
                             variant={isReached ? 'light' : 'transparent'}
-                            color="gray"
+                            color={isReached && isFieldActive ? 'blue' : 'gray'}
                             data-reached={isReached}
+                            data-field-active={isFieldActive}
                             className={classes.count}
                         >
                             {`${count.applied} of ${count.total}`}

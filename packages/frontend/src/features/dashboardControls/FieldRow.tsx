@@ -9,7 +9,7 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconDots, IconX } from '@tabler/icons-react';
+import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -18,8 +18,6 @@ import { type FieldScope } from './peers';
 
 const pluralizeTiles = (count: number): string =>
     count === 1 ? 'tile' : 'tiles';
-
-const SHOW_ALL_TILES = 'Show all tiles';
 
 // Which tiles a row counts and acts on; null on a dashboard without tabs
 export type TileScope = 'this-tab' | 'every-tab';
@@ -39,28 +37,24 @@ const joinLabels = (labels: string[]): string =>
         ? labels.join('')
         : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
 
-// The way out of a clicked row; render it right after the row's name button.
+// The way out of a selected row; render it right after the row's name button.
 // It leaves the page once clicked, so focus is handed back to that button
 const ShowAllTilesButton: FC<{ onClick: () => void }> = ({ onClick }) => (
-    <Tooltip label={SHOW_ALL_TILES}>
-        <ActionIcon
-            className={classes.rowUnpin}
-            size="sm"
-            variant="subtle"
-            color="gray"
-            mt="xs"
-            mr="xs"
-            flex="0 0 auto"
-            aria-label={SHOW_ALL_TILES}
-            onClick={(event) => {
-                const rowButton = event.currentTarget.previousElementSibling;
-                if (rowButton instanceof HTMLElement) rowButton.focus();
-                onClick();
-            }}
-        >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
-    </Tooltip>
+    <Button
+        className={classes.rowUnpin}
+        size="compact-xs"
+        variant="subtle"
+        mt="xs"
+        mr="xs"
+        flex="0 0 auto"
+        onClick={(event) => {
+            const rowButton = event.currentTarget.previousElementSibling;
+            if (rowButton instanceof HTMLElement) rowButton.focus();
+            onClick();
+        }}
+    >
+        Show all tiles
+    </Button>
 );
 
 type Props = {
@@ -124,7 +118,6 @@ export const FieldRow: FC<Props> = ({
             }
             gap={0}
             data-waiting={isWaiting || undefined}
-            data-keeps-field
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
