@@ -156,20 +156,33 @@ describe('Learn on the community edition schema', () => {
             Object.keys(version.chart_data as Record<string, unknown>),
         ).toHaveLength(2);
 
-        // Starting again replaces the learner's copy (the Resume path), once
-        // the cooldown between copies has passed.
-        await database('projects')
-            .where('project_uuid', first.projectUuid)
-            .update({ created_at: new Date(Date.now() - 60_000) } as never);
+        // Starting again hands the learner's copy back, with another day
+        // before it expires: what one walkthrough built is there for the
+        // next.
         const second = await projectService.createTrainingPreview(
             learner,
             trainingProjectUuid,
         );
-        expect(second.projectUuid).not.toBe(first.projectUuid);
+        expect(second.projectUuid).toBe(first.projectUuid);
+        expect(second.reused).toBe(true);
+        expect(second.expiresAt!.getTime()).toBeGreaterThan(
+            Date.now() + 23 * 60 * 60 * 1000,
+        );
+        // Starting fresh removes the copy; the next start makes a new one.
+        await projectService.deleteTrainingPreviews(
+            learner,
+            trainingProjectUuid,
+        );
         expect(
             await database('projects')
                 .where('project_uuid', first.projectUuid)
                 .first(),
         ).toBeUndefined();
+        const third = await projectService.createTrainingPreview(
+            learner,
+            trainingProjectUuid,
+        );
+        expect(third.projectUuid).not.toBe(first.projectUuid);
+        expect(third.reused).toBe(false);
     });
 });

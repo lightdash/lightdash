@@ -8,6 +8,7 @@ import {
     BigqueryTokenError,
     ConflictError,
     convertExplores,
+    CreateTrainingPreviewResults,
     createVirtualView,
     CustomDimensionType,
     CustomSqlQueryForbiddenError,
@@ -327,6 +328,7 @@ const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
     get: vi.fn(async () => projectWithSensitiveFields),
     getAllByOrganizationUuid: vi.fn<ProjectModel['getAllByOrganizationUuid']>(),
+    updateExpiresAt: vi.fn(async () => undefined),
     getSummary: vi.fn(async () => projectSummary),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: 'primary-source-uuid',
@@ -3062,6 +3064,186 @@ describe('ProjectService', () => {
                 sweepService().deleteExpiredPreviewProjects(),
             ).resolves.toBe(2);
             expect(projectModel.delete).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('training copy reuse', () => {
+        const trainingProject = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+            provisioningSource: 'training',
+        };
+        const learner: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.VIEWER,
+            organizationUuid: trainingProject.organizationUuid,
+            organizationName: 'Organization',
+            organizationCreatedAt: new Date(),
+            ability: defineUserAbility(
+                {
+                    userUuid: user.userUuid,
+                    organizationUuid: trainingProject.organizationUuid,
+                    role: OrganizationMemberRole.VIEWER,
+                },
+                [],
+            ),
+        };
+        const hour = 60 * 60 * 1000;
+        const copy = (overrides: {
+            createdAt: Date;
+            expiresAt: Date | null;
+        }) => ({
+            projectUuid: 'copy-project-uuid',
+            name: 'Training copy',
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: user.userUuid,
+            createdByUserName: null,
+            upstreamProjectUuid: trainingProject.projectUuid,
+            provisioningSource: 'training',
+            ...overrides,
+        });
+        const learnService = () =>
+            getMockedProjectService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async () => ({
+                        id: FeatureFlags.EnableLearn,
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
+            });
+
+        beforeEach(() => {
+            projectModel.updateExpiresAt.mockClear();
+            projectModel.createWithOptionalCredentials.mockClear();
+        });
+
+        test('hands back the live copy with another day before it expires', async () => {
+            const service_ = learnService();
+            const live = copy({
+                createdAt: new Date(Date.now() - 2 * hour),
+                expiresAt: new Date(Date.now() + 22 * hour),
+            });
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([live]);
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(
+                    undefined as unknown as CreateTrainingPreviewResults,
+                );
+            try {
+                const before = Date.now();
+                const result = await service_.createTrainingPreview(
+                    learner,
+                    trainingProject.projectUuid,
+                );
+                expect(result).toMatchObject({
+                    projectUuid: live.projectUuid,
+                    reused: true,
+                });
+                expect(result.expiresAt!.getTime()).toBeGreaterThanOrEqual(
+                    before + 24 * hour,
+                );
+                expect(projectModel.updateExpiresAt).toHaveBeenCalledWith(
+                    live.projectUuid,
+                    result.expiresAt,
+                );
+                expect(makeCopy).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
+        });
+
+        test('reuses a copy made moments ago instead of refusing it', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 1000),
+                    expiresAt: new Date(Date.now() + 24 * hour),
+                }),
+            ]);
+            await expect(
+                service_.createTrainingPreview(
+                    learner,
+                    trainingProject.projectUuid,
+                ),
+            ).resolves.toMatchObject({ reused: true });
+        });
+
+        test('makes a new copy when the only one has expired', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 30 * hour),
+                    expiresAt: new Date(Date.now() - hour),
+                }),
+            ]);
+            const made = {
+                projectUuid: 'new-copy-uuid',
+                expiresAt: new Date(Date.now() + 24 * hour),
+                reused: false,
+            };
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(made);
+            try {
+                await expect(
+                    service_.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).resolves.toEqual(made);
+                expect(makeCopy).toHaveBeenCalledTimes(1);
+                expect(projectModel.updateExpiresAt).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
+        });
+
+        test('still refuses a second creation moments after the last', async () => {
+            const service_ = learnService();
+            projectModel.get.mockResolvedValueOnce(trainingProject);
+            // Expired already, as a copy made with a zero-hour expiry would be.
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                copy({
+                    createdAt: new Date(Date.now() - 1000),
+                    expiresAt: new Date(Date.now() - 1000),
+                }),
+            ]);
+            const makeCopy = vi
+                .spyOn(
+                    service_ as unknown as {
+                        makeTrainingCopy: () => Promise<CreateTrainingPreviewResults>;
+                    },
+                    'makeTrainingCopy',
+                )
+                .mockResolvedValue(
+                    undefined as unknown as CreateTrainingPreviewResults,
+                );
+            try {
+                await expect(
+                    service_.createTrainingPreview(
+                        learner,
+                        trainingProject.projectUuid,
+                    ),
+                ).rejects.toThrow(
+                    'A training copy was made moments ago; try again shortly',
+                );
+                expect(makeCopy).not.toHaveBeenCalled();
+            } finally {
+                makeCopy.mockRestore();
+            }
         });
     });
 

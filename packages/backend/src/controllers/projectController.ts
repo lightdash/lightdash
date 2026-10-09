@@ -1325,9 +1325,9 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
-     * Make (or remake) the caller's own throwaway copy of the training
-     * project for a walkthrough. The copy starts from the seeded state and
-     * expires on its own.
+     * The caller's own copy of the training project for a walkthrough: the
+     * copy they already have, kept for another day, or a new one from the
+     * seeded state when they have none or it has expired.
      * @summary Create training preview
      * @param projectUuid the training project
      */
