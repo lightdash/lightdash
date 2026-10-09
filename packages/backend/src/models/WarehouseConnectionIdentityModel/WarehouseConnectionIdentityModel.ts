@@ -292,6 +292,13 @@ export class WarehouseConnectionIdentityModel {
                         'additional_databases',
                         'created_by_user_uuid',
                     );
+            const organization = await transaction('organizations')
+                .where('organization_id', organizationId)
+                .first('organization_uuid');
+            const sshKeyPairModel = new SshKeyPairModel({
+                database: transaction,
+                encryptionUtil,
+            });
             const previewUuids = new Map<string, string>();
             const upstreamNames = new Map<string, string>();
             await upstreamConnections.reduce<Promise<void>>(
@@ -315,14 +322,8 @@ export class WarehouseConnectionIdentityModel {
                                 'Failed to load warehouse connection credentials',
                             );
                         }
-                        const organization = await transaction('organizations')
-                            .where('organization_id', organizationId)
-                            .first('organization_uuid');
                         const stored = await stripOwnedSshTunnelPrivateKey(
-                            new SshKeyPairModel({
-                                database: transaction,
-                                encryptionUtil,
-                            }),
+                            sshKeyPairModel,
                             credentials,
                             organization?.organization_uuid ?? null,
                         );

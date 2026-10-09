@@ -134,6 +134,13 @@ private key when it belongs to the context's organisation. If
 that pair is absent or not owned by the organisation, it uses the copied private
 key. Without either key, resolution fails.
 
+Rows written without the copy need a reader that resolves the organisation's
+key pair. Ship the change that stops the copy at least one release after the
+resolver, and do not roll back past the resolver release once rows are written
+without the copy. Reverting the code does not restore removed copies. After such
+a rollback, save the connection again: the older save path copies the key from the
+organisation's key pair.
+
 The identity tuple contains `ssh-tunnel-v1`, the organisation UUID, the key source
 (`organizationKeyPair` or `copiedKey`), the SHA-256 public key digest, the SSH host,
 effective SSH port, SSH user, database host and database port. Absent fields use
