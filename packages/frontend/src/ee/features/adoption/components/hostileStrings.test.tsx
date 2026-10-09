@@ -62,8 +62,10 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
     useSetDepartmentOwners: mutation,
     useSetDepartmentGroups: mutation,
     useSetDepartmentMembers: mutation,
-    useDepartmentMembership: () => ({
-        data: hooks.membership,
+    useSetPrimaryDepartment: mutation,
+    // Like the real query: nothing until it is enabled
+    useDepartmentMembership: (enabled: boolean) => ({
+        data: enabled ? hooks.membership : undefined,
         isInitialLoading: false,
     }),
     useDepartmentDetail: (departmentUuid: string | undefined) => ({
@@ -202,17 +204,28 @@ describe('typed strings render as text', () => {
     });
 
     it('in the drawer and its delete confirmation', async () => {
+        const OTHER = hostile('Other');
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentDrawer
                     opened
                     onClose={vi.fn()}
-                    department={hostileDepartment}
-                    departments={[hostileDepartment, child]}
+                    department={{
+                        ...hostileDepartment,
+                        explicitMemberUuids: ['p1'],
+                    }}
+                    departments={[
+                        hostileDepartment,
+                        child,
+                        dept(OTHER, null, 50, { departmentUuid: 'other' }),
+                    ]}
                     members={[
                         memberFixture('p1', null, {
                             firstName: PERSON,
                             departmentUuid: 'hostile',
+                            sharedWith: [
+                                { departmentUuid: 'other', name: OTHER },
+                            ],
                         }),
                     ]}
                 />
@@ -222,6 +235,8 @@ describe('typed strings render as text', () => {
         expect(screen.getByLabelText(/^Name/)).toHaveValue(NAME);
         expect(screen.getByLabelText('Headcount note')).toHaveValue(NOTE);
         expectLiteral(PERSON);
+        // The assigned person's chip names the other department as text
+        expectLiteral(`also in ${OTHER}`);
         await userEvent.click(
             screen.getByRole('button', { name: 'Delete department' }),
         );
@@ -314,8 +329,9 @@ describe('typed strings render as text', () => {
                 <AdoptionMap
                     summary={{
                         organization: metricsFixture(7, null),
+                        placed: { memberCount: 7, activeCount30d: 0 },
                         departments: [hostileDepartment, child],
-                        attention: { conflictCount: 0, unassignedCount: 0 },
+                        attention: { unassignedCount: 0, sharedCount: 0 },
                     }}
                     canManage
                     onEdit={vi.fn()}
@@ -471,7 +487,7 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
     });
 
-    it('in the placement modal rows and its department pickers', async () => {
+    it('in the placement modal rows, chips and pickers', async () => {
         const OTHER = hostile('Other');
         const UNNAMED = hostile('Unnamed');
         hooks.membership = [
@@ -481,10 +497,21 @@ describe('typed strings render as text', () => {
                 firstName: PERSON,
                 lastName: SURNAME,
                 role: OrganizationMemberRole.VIEWER,
-                resolution: {
-                    kind: 'conflict',
-                    departmentUuids: ['hostile', 'other'],
-                },
+                kind: 'shared',
+                placements: [
+                    {
+                        departmentUuid: 'hostile',
+                        source: 'group',
+                        sourceGroupName: GROUP,
+                    },
+                    {
+                        departmentUuid: 'other',
+                        source: 'explicit',
+                        sourceGroupName: null,
+                    },
+                ],
+                primaryDepartmentUuid: null,
+                countedDepartmentUuids: ['hostile', 'other'],
             },
             {
                 userUuid: 'p2',
@@ -492,46 +519,34 @@ describe('typed strings render as text', () => {
                 firstName: '',
                 lastName: '',
                 role: OrganizationMemberRole.VIEWER,
-                resolution: { kind: 'unassigned' },
+                kind: 'unassigned',
+                placements: [],
+                primaryDepartmentUuid: null,
+                countedDepartmentUuids: [],
             },
         ];
-        renderWithProviders(
+        const modal = (tab: 'unassigned' | 'shared') => (
             <MembershipModal
                 opened
+                tab={tab}
+                onTabChange={vi.fn()}
                 onClose={vi.fn()}
                 departments={[
-                    {
-                        ...hostileDepartment,
-                        linkedGroups: [{ groupUuid: 'group', name: GROUP }],
-                    },
+                    hostileDepartment,
                     dept(OTHER, null, 50, { departmentUuid: 'other' }),
                 ]}
-            />,
+            />
         );
-
-        expectLiteral(`${PERSON} ${SURNAME}`);
-        expectLiteral(EMAIL);
-        // A person in two departments is shown each of them, with the groups linked to it
-        const candidates = screen.getByText(
-            `${NAME} through ${GROUP}`,
-        ).parentElement;
-        expect(
-            Array.from(candidates?.children ?? [], (line) => line.textContent),
-        ).toEqual([`${NAME} through ${GROUP}`, OTHER]);
-        // Each row's checkbox and select are named for the person; someone with no name, by their email
-        expect(
-            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
-        ).toBeInTheDocument();
-        expect(
-            screen.getByRole('combobox', { name: `Department for ${UNNAMED}` }),
-        ).toBeInTheDocument();
-        // Each picker opens its own list of the departments
-        const expectDepartmentOptions = async (picker: string) => {
+        // Each picker opens its own list of the departments, named by its visible label
+        const expectDepartmentOptions = async (
+            picker: string,
+            list: string = picker,
+        ) => {
             await userEvent.click(
                 screen.getByRole('combobox', { name: picker }),
             );
             const options = within(
-                await screen.findByRole('listbox', { name: picker }),
+                await screen.findByRole('listbox', { name: list }),
             );
             expect(
                 options.getByRole('option', { name: NAME }),
@@ -541,12 +556,35 @@ describe('typed strings render as text', () => {
             ).toBeInTheDocument();
             expectNothingInjected();
         };
-        await expectDepartmentOptions(`Department for ${PERSON} ${SURNAME}`);
+
+        const { rerender } = renderWithProviders(modal('shared'));
+        expectLiteral(`${PERSON} ${SURNAME}`);
+        expectLiteral(EMAIL);
+        // A person in two departments shows each of them as a chip, as text
+        expect(
+            within(
+                screen.getByRole('list', {
+                    name: `Departments ${PERSON} ${SURNAME} is in`,
+                }),
+            )
+                .getAllByRole('listitem')
+                .map((chip) => chip.textContent),
+        ).toEqual([NAME, OTHER]);
+        // Where they count is chosen from their departments, named as typed
+        await expectDepartmentOptions(
+            `Counts in for ${PERSON} ${SURNAME}`,
+            'Counts in',
+        );
+
+        rerender(modal('unassigned'));
+        // Each row's checkbox and select are named for the person; someone with no name, by their email
+        expect(
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
+        ).toBeInTheDocument();
+        await expectDepartmentOptions(`Department for ${UNNAMED}`);
         // The picker for everyone selected offers the same departments
         await userEvent.click(
-            screen.getByRole('checkbox', {
-                name: `Select ${PERSON} ${SURNAME}`,
-            }),
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
         );
         await expectDepartmentOptions('Place selected in');
     });

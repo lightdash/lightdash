@@ -2,11 +2,12 @@ import {
     OrganizationMemberRole,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { dept } from '../utils/adoptionFixtures';
+import { type MembershipTab } from '../utils/attention';
 import { MembershipModal } from './MembershipModal';
 
 // Succeeds at once, as the real hook does once the request returns
@@ -14,56 +15,61 @@ const mutate = vi.fn(
     (_variables: unknown, options?: { onSuccess?: () => void }) =>
         options?.onSuccess?.(),
 );
+const setPrimary = vi.fn();
 
-const person = (userUuid: string, firstName: string): DepartmentMembership => ({
+const person = (
+    userUuid: string,
+    firstName: string,
+    placedIn: string[] = [],
+    primaryDepartmentUuid: string | null = null,
+): DepartmentMembership => ({
     userUuid,
     email: `${userUuid}@example.com`,
     firstName,
     lastName: 'Test',
     role: OrganizationMemberRole.VIEWER,
-    resolution: { kind: 'unassigned' },
+    kind:
+        placedIn.length === 0
+            ? 'unassigned'
+            : placedIn.length === 1
+              ? 'assigned'
+              : 'shared',
+    placements: placedIn.map((departmentUuid) => ({
+        departmentUuid,
+        source: 'explicit',
+        sourceGroupName: null,
+    })),
+    primaryDepartmentUuid,
+    countedDepartmentUuids:
+        primaryDepartmentUuid === null ? placedIn : [primaryDepartmentUuid],
 });
 const membership: DepartmentMembership[] = [
     person('u1', 'Ann'),
     person('u2', 'Bob'),
-    {
-        ...person('u3', 'Cat'),
-        resolution: {
-            kind: 'conflict' as const,
-            departmentUuids: ['Ops', 'Finance'],
-        },
-    },
-    {
-        ...person('u4', 'Dan'),
-        resolution: {
-            kind: 'assigned' as const,
-            departmentUuid: 'Ops',
-            source: 'explicit' as const,
-            sourceGroupName: null,
-        },
-    },
+    person('u3', 'Cat', ['Finance', 'Ops']),
+    person('u4', 'Dan', ['Ops']),
+    person('u6', 'Eve', ['Finance', 'Ops'], 'Finance'),
 ];
 
 let isPlacing = false;
+let primarySaving: { userUuid: string; departmentUuid: string | null } | null =
+    null;
 vi.mock('../../../hooks/useOrgDepartments', () => ({
     useDepartmentMembership: () => ({
         data: membership,
         isInitialLoading: false,
     }),
     useSetDepartmentMembers: () => ({ mutate, isLoading: isPlacing }),
+    useSetPrimaryDepartment: () => ({
+        mutate: setPrimary,
+        isLoading: primarySaving !== null,
+        variables: primarySaving ?? undefined,
+    }),
 }));
 
 const departments = [
-    dept('Ops', null, 10, {
-        explicitMemberUuids: ['u9'],
-        linkedGroups: [{ groupUuid: 'g1', name: 'ops-team' }],
-    }),
-    dept('Finance', null, 20, {
-        linkedGroups: [
-            { groupUuid: 'g2', name: 'finance-leads' },
-            { groupUuid: 'g3', name: 'finance-all' },
-        ],
-    }),
+    dept('Ops', null, 10, { explicitMemberUuids: ['u9'] }),
+    dept('Finance', null, 20),
 ];
 
 const perPersonSelects = () =>
@@ -79,39 +85,49 @@ const place = async (label: string, option: string) => {
 describe('MembershipModal', () => {
     beforeEach(() => {
         mutate.mockReset();
+        setPrimary.mockReset();
         isPlacing = false;
+        primarySaving = null;
     });
 
-    const renderModal = () =>
+    const renderModal = (
+        tab: MembershipTab = 'unassigned',
+        onTabChange = vi.fn(),
+    ) =>
         renderWithProviders(
             <MembershipModal
                 opened
+                tab={tab}
+                onTabChange={onTabChange}
                 onClose={vi.fn()}
                 departments={departments}
             />,
         );
 
-    it('lists only people who need a department, each with a labelled select', () => {
+    it('lists only people in no department on the Unassigned tab, each with a labelled select', () => {
         renderModal();
+        expect(
+            screen.getByRole('tab', { name: 'Unassigned', selected: true }),
+        ).toBeInTheDocument();
+        expect(perPersonSelects()).toHaveLength(2);
         expect(
             screen.getByRole('combobox', { name: 'Department for Ann Test' }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('combobox', { name: 'Department for Cat Test' }),
+            screen.getByRole('combobox', { name: 'Department for Bob Test' }),
         ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('combobox', { name: /Dan/ }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByText('In more than one department')).toBeVisible();
-        expect(screen.getAllByText('No department')).toHaveLength(2);
+        ['Cat', 'Dan', 'Eve'].forEach((name) =>
+            expect(
+                screen.queryByRole('combobox', { name: new RegExp(name) }),
+            ).not.toBeInTheDocument(),
+        );
     });
 
-    it('names the groups that put a person in more than one department', () => {
-        renderModal();
-        expect(
-            screen.getByText('Finance through finance-all or finance-leads'),
-        ).toBeVisible();
-        expect(screen.getByText('Ops through ops-team')).toBeVisible();
+    it('asks to change tab when another tab is chosen', async () => {
+        const onTabChange = vi.fn();
+        renderModal('unassigned', onTabChange);
+        await userEvent.click(screen.getByRole('tab', { name: 'Shared' }));
+        expect(onTabChange).toHaveBeenCalledWith('shared');
     });
 
     it('places everyone selected in one request for the department chosen', async () => {
@@ -124,12 +140,12 @@ describe('MembershipModal', () => {
             screen.getByRole('checkbox', { name: 'Select Ann Test' }),
         );
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Select Cat Test' }),
+            screen.getByRole('checkbox', { name: 'Select Bob Test' }),
         );
         expect(screen.getByText('2 selected')).toBeVisible();
         await place('Place selected in', 'Ops');
         expect(placedSoFar()).toEqual([
-            { departmentUuid: 'Ops', userUuids: ['u9', 'u3', 'u1'] },
+            { departmentUuid: 'Ops', userUuids: ['u9', 'u1', 'u2'] },
         ]);
         // The selection clears once they are placed, so the next choice starts afresh
         expect(
@@ -140,7 +156,7 @@ describe('MembershipModal', () => {
         );
         await place('Place selected in', 'Finance');
         expect(placedSoFar()).toEqual([
-            { departmentUuid: 'Ops', userUuids: ['u9', 'u3', 'u1'] },
+            { departmentUuid: 'Ops', userUuids: ['u9', 'u1', 'u2'] },
             { departmentUuid: 'Finance', userUuids: ['u2'] },
         ]);
     });
@@ -156,7 +172,7 @@ describe('MembershipModal', () => {
         );
         expect(count).toHaveTextContent('1 selected');
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Select Cat Test' }),
+            screen.getByRole('checkbox', { name: 'Select Bob Test' }),
         );
         expect(count).toHaveTextContent('2 selected');
     });
@@ -181,6 +197,8 @@ describe('MembershipModal', () => {
         renderWithProviders(
             <MembershipModal
                 opened
+                tab="unassigned"
+                onTabChange={vi.fn()}
                 onClose={onClose}
                 departments={departments}
             />,
@@ -200,12 +218,12 @@ describe('MembershipModal', () => {
         renderModal();
         const all = screen.getByRole('checkbox', { name: 'Select all shown' });
         await userEvent.click(all);
-        ['Ann Test', 'Bob Test', 'Cat Test'].forEach((name) =>
+        ['Ann Test', 'Bob Test'].forEach((name) =>
             expect(
                 screen.getByRole('checkbox', { name: `Select ${name}` }),
             ).toBeChecked(),
         );
-        expect(screen.getByText('3 selected')).toBeVisible();
+        expect(screen.getByText('2 selected')).toBeVisible();
         await userEvent.click(all);
         expect(
             screen.getByRole('checkbox', { name: 'Select Ann Test' }),
@@ -229,6 +247,8 @@ describe('MembershipModal', () => {
         rerender(
             <MembershipModal
                 opened
+                tab="unassigned"
+                onTabChange={vi.fn()}
                 onClose={vi.fn()}
                 departments={[
                     { ...departments[0], explicitMemberUuids: ['u9', 'u1'] },
@@ -246,9 +266,9 @@ describe('MembershipModal', () => {
     it('disables every select while a placement is saving', () => {
         isPlacing = true;
         renderModal();
-        expect(perPersonSelects()).toHaveLength(3);
+        expect(perPersonSelects()).toHaveLength(2);
         const selects = screen.getAllByRole('combobox');
-        expect(selects).toHaveLength(4);
+        expect(selects).toHaveLength(3);
         selects.forEach((select) => expect(select).toBeDisabled());
     });
 
@@ -276,6 +296,129 @@ describe('MembershipModal', () => {
         ).toBeInTheDocument();
     });
 
+    describe('on the Shared tab', () => {
+        const countsIn = (who: string) =>
+            screen.getByRole('combobox', { name: `Counts in for ${who}` });
+        const rowOf = (who: string) => screen.getByRole('group', { name: who });
+
+        it('lists everyone in more than one department, by name, with their departments as chips', () => {
+            renderModal('shared');
+            expect(
+                screen.getByRole('tab', { name: 'Shared', selected: true }),
+            ).toBeInTheDocument();
+            expect(
+                screen
+                    .getAllByRole('combobox')
+                    .map((select) => select.getAttribute('aria-label')),
+            ).toEqual(['Counts in for Cat Test', 'Counts in for Eve Test']);
+            const cat = within(rowOf('Cat Test'));
+            expect(cat.getByText('u3@example.com')).toBeVisible();
+            expect(
+                within(
+                    cat.getByRole('list', {
+                        name: 'Departments Cat Test is in',
+                    }),
+                )
+                    .getAllByRole('listitem')
+                    .map((chip) => chip.textContent),
+            ).toEqual(['Finance', 'Ops']);
+            expect(
+                screen.queryByRole('checkbox', { name: /Select/ }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('shows where each person counts, everywhere unless one department is chosen', () => {
+            renderModal('shared');
+            expect(screen.getAllByText('Counts in')).toHaveLength(2);
+            expect(countsIn('Cat Test')).toHaveValue('Everywhere');
+            expect(countsIn('Eve Test')).toHaveValue('Finance');
+        });
+
+        it('offers everywhere and each of their departments', async () => {
+            renderModal('shared');
+            await userEvent.click(countsIn('Cat Test'));
+            const options = within(
+                await screen.findByRole('listbox', { name: 'Counts in' }),
+            );
+            expect(
+                options.getAllByRole('option').map((o) => o.textContent),
+            ).toEqual(['Everywhere', 'Finance', 'Ops']);
+        });
+
+        it('makes a person count in the department chosen', async () => {
+            renderModal('shared');
+            await place('Counts in for Cat Test', 'Ops');
+            expect(setPrimary).toHaveBeenCalledTimes(1);
+            expect(setPrimary).toHaveBeenCalledWith({
+                userUuid: 'u3',
+                departmentUuid: 'Ops',
+            });
+        });
+
+        it('makes a person count everywhere again', async () => {
+            renderModal('shared');
+            await place('Counts in for Eve Test', 'Everywhere');
+            expect(setPrimary).toHaveBeenCalledWith({
+                userUuid: 'u6',
+                departmentUuid: null,
+            });
+        });
+
+        it('sends nothing when the current choice is chosen again', async () => {
+            renderModal('shared');
+            await place('Counts in for Eve Test', 'Finance');
+            expect(setPrimary).not.toHaveBeenCalled();
+        });
+
+        it('shows the choice being saved and holds every choice until it is saved', () => {
+            primarySaving = { userUuid: 'u3', departmentUuid: 'Ops' };
+            renderModal('shared');
+            expect(countsIn('Cat Test')).toHaveValue('Ops');
+            expect(countsIn('Cat Test')).toBeDisabled();
+            expect(countsIn('Eve Test')).toHaveValue('Finance');
+            expect(countsIn('Eve Test')).toBeDisabled();
+        });
+
+        it('narrows by name or email when searching', () => {
+            renderModal('shared');
+            fireEvent.change(
+                screen.getByRole('textbox', { name: 'Search people' }),
+                { target: { value: 'U6@' } },
+            );
+            expect(screen.getAllByRole('combobox')).toHaveLength(1);
+            expect(countsIn('Eve Test')).toBeInTheDocument();
+        });
+
+        it('says when nobody is in more than one department', () => {
+            const everyone = membership.splice(0);
+            membership.push(person('u1', 'Ann'), person('u4', 'Dan', ['Ops']));
+            try {
+                renderModal('shared');
+                expect(
+                    screen.getByText('Nobody is in more than one department'),
+                ).toBeVisible();
+                expect(
+                    screen.queryByRole('textbox', { name: 'Search people' }),
+                ).not.toBeInTheDocument();
+            } finally {
+                membership.splice(0, membership.length, ...everyone);
+            }
+        });
+    });
+
+    it('says when everyone is in a department', () => {
+        const everyone = membership.splice(0);
+        membership.push(person('u4', 'Dan', ['Ops']));
+        try {
+            renderModal();
+            expect(
+                screen.getByText('Everyone is in a department'),
+            ).toBeVisible();
+        } finally {
+            membership.splice(0, membership.length, ...everyone);
+        }
+    });
+
     describe('with more people than fit', () => {
         const crowd = Array.from({ length: 300 }, (_, index) =>
             person(`crowd${index}`, `Person${index}`),
@@ -295,7 +438,7 @@ describe('MembershipModal', () => {
                 renderModal();
                 expect(perPersonSelects()).toHaveLength(50);
                 expect(
-                    screen.getByText('Showing 50 of 303, search to narrow'),
+                    screen.getByText('Showing 50 of 302, search to narrow'),
                 ).toBeInTheDocument();
             }),
         );

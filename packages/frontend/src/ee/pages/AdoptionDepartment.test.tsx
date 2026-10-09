@@ -91,8 +91,9 @@ const organizationSummary = (): OrganizationAdoptionSummary => ({
             activeUsers: [1000, 500, 250][i],
         })),
     }),
+    placed: { memberCount: 2000, activeCount30d: 0 },
     departments: [],
-    attention: { conflictCount: 0, unassignedCount: 0 },
+    attention: { unassignedCount: 0, sharedCount: 0 },
 });
 
 const loaded = (data: DepartmentDetail) => ({

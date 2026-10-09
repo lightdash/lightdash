@@ -125,6 +125,8 @@ export const memberFixture = (
         isActive30d: false,
         queries30d: 0,
         dashboardViews30d: 0,
+        sharedWith: [],
+        primaryDepartmentUuid: null,
         ...over,
     };
     return {

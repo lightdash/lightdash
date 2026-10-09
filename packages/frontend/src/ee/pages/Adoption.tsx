@@ -21,6 +21,7 @@ import {
     parseAdoptionView,
     type AdoptionView,
 } from '../features/adoption/utils/adoptionNav';
+import { type MembershipTab } from '../features/adoption/utils/attention';
 import {
     getViewStorageKey,
     readStoredView,
@@ -54,6 +55,12 @@ const Adoption: FC = () => {
     );
     const [drawer, setDrawer] = useState<DrawerState>({ opened: false });
     const [isPlacingPeople, setIsPlacingPeople] = useState(false);
+    // Kept apart from opened, so the dialog keeps its tab while it closes
+    const [placingTab, setPlacingTab] = useState<MembershipTab>('unassigned');
+    const openPlacing = (tab: MembershipTab) => {
+        setPlacingTab(tab);
+        setIsPlacingPeople(true);
+    };
 
     const setView = (next: AdoptionView) => {
         writeStoredView(viewStorageKey, next);
@@ -160,10 +167,11 @@ const Adoption: FC = () => {
             {summary.data && departments.length > 0 && (
                 <Stack gap="md">
                     <AttentionStrip
-                        conflictCount={summary.data.attention.conflictCount}
                         unassignedCount={summary.data.attention.unassignedCount}
+                        sharedCount={summary.data.attention.sharedCount}
                         canManage={canManage}
-                        onReview={() => setIsPlacingPeople(true)}
+                        onPlace={() => openPlacing('unassigned')}
+                        onReviewShared={() => openPlacing('shared')}
                     />
                     {view === 'map' && (
                         <AdoptionMap
@@ -192,6 +200,8 @@ const Adoption: FC = () => {
                     />
                     <MembershipModal
                         opened={isPlacingPeople}
+                        tab={placingTab}
+                        onTabChange={setPlacingTab}
                         onClose={() => setIsPlacingPeople(false)}
                         departments={departments}
                     />

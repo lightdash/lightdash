@@ -71,9 +71,13 @@ const summary = (
     organization = metricsFixture(12, null, { activeCount30d: 6 }),
 ): OrganizationAdoptionSummary => ({
     organization,
+    placed: {
+        memberCount: organization.memberCount,
+        activeCount30d: organization.activeCount30d,
+    },
     // Every tree the map is given is shaped as the server would send it
     departments: withServerHeadcounts(departments),
-    attention: { conflictCount: 1, unassignedCount: 2 },
+    attention: { unassignedCount: 2, sharedCount: 1 },
 });
 
 const renderMap = (

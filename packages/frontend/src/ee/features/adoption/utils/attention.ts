@@ -1,89 +1,68 @@
-import { type Department, type DepartmentMembership } from '@lightdash/common';
+import {
+    type Department,
+    type DepartmentMembership,
+    type DepartmentRef,
+} from '@lightdash/common';
 import { formatQuantity, PEOPLE } from './format';
 
-// A department a person in a conflict is reached in, with the groups linked to it
-export type ConflictCandidate = {
-    departmentUuid: string;
-    name: string;
-    groupNames: string[];
-};
+// The placement modal's tabs: people in no department, and people in more than one
+export type MembershipTab = 'unassigned' | 'shared';
 
-export type AttentionRow = {
+export type UnassignedRow = { member: DepartmentMembership };
+
+export type SharedRow = {
     member: DepartmentMembership;
-    kind: 'conflict' | 'unassigned';
-    candidates: ConflictCandidate[]; // by department name; empty for unassigned people
+    departments: DepartmentRef[]; // their departments, by name
 };
 
-type AttentionDepartment = Pick<
-    Department,
-    'departmentUuid' | 'name' | 'linkedGroups'
->;
+type PersonRow = {
+    member: Pick<DepartmentMembership, 'firstName' | 'lastName' | 'email'>;
+};
 
 const people = (count: number): string =>
     `${formatQuantity(count, PEOPLE)} ${count === 1 ? 'is' : 'are'}`;
 
-export const formatAttention = (
-    conflictCount: number,
-    unassignedCount: number,
-): string | null => {
-    const parts = [
-        conflictCount > 0
-            ? `${people(conflictCount)} in more than one department`
-            : null,
-        unassignedCount > 0
-            ? `${people(unassignedCount)} in no department`
-            : null,
-    ].filter((part): part is string => part !== null);
-    return parts.length > 0 ? parts.join(' · ') : null;
-};
+export const formatUnassigned = (count: number): string =>
+    `${people(count)} in no department`;
 
-export const getAttentionRows = (
+export const formatShared = (count: number): string =>
+    `${people(count)} in more than one department`;
+
+export const parseMembershipTab = (value: string | null): MembershipTab =>
+    value === 'shared' ? 'shared' : 'unassigned';
+
+export const getMemberName = (
+    member: Pick<DepartmentMembership, 'firstName' | 'lastName' | 'email'>,
+): string => `${member.firstName} ${member.lastName}`.trim() || member.email;
+
+export const getUnassignedRows = (
     membership: DepartmentMembership[],
-    departments: AttentionDepartment[],
-): AttentionRow[] => {
-    const byUuid = new Map(departments.map((d) => [d.departmentUuid, d]));
-    const conflicts = membership.flatMap((member): AttentionRow[] =>
-        member.resolution.kind === 'conflict'
-            ? [
-                  {
-                      member,
-                      kind: 'conflict',
-                      candidates: member.resolution.departmentUuids
-                          .flatMap((uuid) => byUuid.get(uuid) ?? [])
-                          .map((department) => ({
-                              departmentUuid: department.departmentUuid,
-                              name: department.name,
-                              groupNames: department.linkedGroups
-                                  .map((group) => group.name)
-                                  .sort((a, b) => a.localeCompare(b)),
-                          }))
-                          .sort((a, b) => a.name.localeCompare(b.name)),
-                  },
-              ]
-            : [],
-    );
-    const unassigned = membership.flatMap((member): AttentionRow[] =>
-        member.resolution.kind === 'unassigned'
-            ? [{ member, kind: 'unassigned', candidates: [] }]
-            : [],
-    );
-    return [...conflicts, ...unassigned];
+): UnassignedRow[] =>
+    membership
+        .filter((member) => member.kind === 'unassigned')
+        .map((member) => ({ member }));
+
+// By name, so a row stays where it is when where the person counts changes
+export const getSharedRows = (
+    membership: DepartmentMembership[],
+    departments: Pick<Department, 'departmentUuid' | 'name'>[],
+): SharedRow[] => {
+    const names = new Map(departments.map((d) => [d.departmentUuid, d.name]));
+    return membership
+        .filter((member) => member.kind === 'shared')
+        .map((member) => ({
+            member,
+            departments: member.placements
+                .flatMap(({ departmentUuid }): DepartmentRef[] => {
+                    const name = names.get(departmentUuid);
+                    return name === undefined ? [] : [{ departmentUuid, name }];
+                })
+                .sort((a, b) => a.name.localeCompare(b.name)),
+        }))
+        .sort((a, b) =>
+            getMemberName(a.member).localeCompare(getMemberName(b.member)),
+        );
 };
-
-// "a", "a or b", "a, b or c"
-const listAlternatives = (names: string[]): string =>
-    names.length < 2
-        ? names.join('')
-        : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
-
-// The membership response names no groups, so every group linked to the department is offered
-export const describeCandidate = ({
-    name,
-    groupNames,
-}: ConflictCandidate): string =>
-    groupNames.length === 0
-        ? name
-        : `${name} through ${listAlternatives(groupNames)}`;
 
 // The endpoint replaces a department's assigned people, so a request carries everyone already assigned
 export const getPlacement = (
@@ -103,13 +82,8 @@ export const getPlacement = (
     };
 };
 
-export const getMemberName = (member: DepartmentMembership): string =>
-    `${member.firstName} ${member.lastName}`.trim() || member.email;
-
 // How many rows carry each name, so two people with one name can be told apart
-export const countAttentionNames = (
-    rows: AttentionRow[],
-): Map<string, number> => {
+export const countAttentionNames = (rows: PersonRow[]): Map<string, number> => {
     const counts = new Map<string, number>();
     rows.forEach((row) => {
         const name = getMemberName(row.member);
@@ -118,10 +92,10 @@ export const countAttentionNames = (
     return counts;
 };
 
-export const searchAttentionRows = (
-    rows: AttentionRow[],
+export const searchAttentionRows = <Row extends PersonRow>(
+    rows: Row[],
     search: string,
-): AttentionRow[] => {
+): Row[] => {
     const term = search.trim().toLowerCase();
     if (term.length === 0) return rows;
     return rows.filter(
