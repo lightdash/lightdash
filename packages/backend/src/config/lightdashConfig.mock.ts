@@ -86,13 +86,9 @@ export const lightdashConfigMock: LightdashConfig = {
             clientSecret: undefined,
         },
         snowflakeAi: {
-            account: undefined,
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
-            authorizationEndpoint: undefined,
-            tokenEndpoint: undefined,
-            clientId: undefined,
-            clientSecret: undefined,
+            testAccountUrlOrigin: null,
         },
         databricks: {
             loginPath: '/login/databricks',

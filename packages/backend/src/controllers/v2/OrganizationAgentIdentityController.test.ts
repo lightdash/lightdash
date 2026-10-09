@@ -64,7 +64,15 @@ const setup = () => {
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
         organizationSnowflakeAgentClientModel: {
-            getWithSecret: vi.fn().mockResolvedValue(null),
+            getWithSecret: vi.fn().mockResolvedValue({
+                organizationUuid: 'org',
+                accountUrl: 'https://test-account.snowflakecomputing.com',
+                accountIdentifier: 'test-account',
+                clientId: 'test-client',
+                clientSecret: 'test-secret',
+                clientVersion: 'version-1',
+                updatedAt: new Date(),
+            }),
         } as unknown as OrganizationSnowflakeAgentClientModel,
         analytics: analyticsMock,
         aiServiceAccountCredentialsModel: slots,
@@ -74,18 +82,6 @@ const setup = () => {
             license: {
                 ...lightdashConfigMock.license,
                 licenseKey: 'test-license',
-            },
-            auth: {
-                ...lightdashConfigMock.auth,
-                snowflakeAi: {
-                    ...lightdashConfigMock.auth.snowflakeAi,
-                    clientId: 'test-client',
-                    clientSecret: 'test-secret',
-                    authorizationEndpoint:
-                        'https://snowflake.example/authorize',
-                    tokenEndpoint:
-                        'https://test-account.snowflakecomputing.com/token',
-                },
             },
         } as LightdashConfig,
         organizationAgentIdentityRulesModel:

@@ -2494,9 +2494,28 @@ type AuthSnowflakeConfig = {
     clientSecret: string | undefined;
     authorizationEndpoint: string | undefined;
     tokenEndpoint: string | undefined;
-    account?: string;
     callbackPath: string;
     loginPath: string;
+};
+
+const parseSnowflakeAiTestAccountUrlOrigin = (): string | null => {
+    const value = process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN;
+    if (!value) return null;
+    try {
+        if (new URL(value).origin !== value || value.includes('*'))
+            throw new Error('Invalid origin');
+        return value;
+    } catch {
+        throw new ParseError(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN must be an exact URL origin with no wildcard, trailing slash, path, credentials, query or fragment.',
+        );
+    }
+};
+
+type AuthSnowflakeAiConfig = {
+    loginPath: string;
+    callbackPath: string;
+    testAccountUrlOrigin: string | null;
 };
 
 type AuthDatabricksConfig = {
@@ -2526,7 +2545,7 @@ export type AuthConfig = {
     microsoftManagedSignIn: AuthMicrosoftManagedSignInConfig;
     oidc: AuthOidcConfig;
     snowflake: AuthSnowflakeConfig;
-    snowflakeAi: AuthSnowflakeConfig;
+    snowflakeAi: AuthSnowflakeAiConfig;
     databricks: AuthDatabricksConfig;
     pat: {
         enabled: boolean;
@@ -3238,6 +3257,14 @@ export const parseConfig = (): LightdashConfig => {
         );
     }
 
+    const snowflakeAiTestAccountUrlOrigin =
+        parseSnowflakeAiTestAccountUrlOrigin();
+    if (snowflakeAiTestAccountUrlOrigin !== null) {
+        console.warn(
+            'WARNING: SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN is set. This account URL allowance is for tests only.',
+        );
+    }
+
     return {
         mode,
         mobile: {
@@ -3503,14 +3530,9 @@ export const parseConfig = (): LightdashConfig => {
                 callbackPath: '/oauth/redirect/snowflake',
             },
             snowflakeAi: {
-                account: process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT,
-                clientId: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID,
-                clientSecret: process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET,
-                authorizationEndpoint:
-                    process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
-                tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
                 callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
+                testAccountUrlOrigin: snowflakeAiTestAccountUrlOrigin,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,

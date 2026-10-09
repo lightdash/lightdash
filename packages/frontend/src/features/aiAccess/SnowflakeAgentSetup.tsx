@@ -2,14 +2,25 @@ import {
     type OrganizationAgentIdentitySnowflakeSetup,
     type OrganizationAgentIdentitySnowflakeVerify,
 } from '@lightdash/common';
-import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
+import {
+    Anchor,
+    Badge,
+    Button,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
 import { IconCheck, IconMinus, IconX } from '@tabler/icons-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useSettingsContext } from '../../hooks/settings/useSettingsContext';
 import { AgentSetupStep } from './AgentSetupStep';
 import { useSnowflakeAgentSetup, useSnowflakeAgentVerify } from './api';
 import { SnowflakeAgentClient } from './SnowflakeAgentClient';
@@ -33,24 +44,23 @@ const SnowflakeSetupSteps = ({
     onVerify: () => void;
     onClientSave: () => void;
 }) => {
-    const [copied, setCopied] = useState(false);
+    const { showMyAgentConnections } = useSettingsContext();
     return (
         <Stack gap="lg">
             <AgentSetupStep
                 number={1}
                 title="Copy and run in Snowflake"
-                done={copied || setup.configured}
+                done={setup.configured}
             >
                 <CodeBlock
                     language="sql"
                     code={setup.integrationSql}
                     copyLabel="Copy integration SQL"
-                    onCopy={() => setCopied(true)}
                 />
             </AgentSetupStep>
             <AgentSetupStep
                 number={2}
-                title="Paste what Snowflake returned"
+                title="Add your Snowflake account and client details"
                 done={setup.configured}
             >
                 <Stack gap="xs">
@@ -105,6 +115,17 @@ const SnowflakeSetupSteps = ({
                                     <Text size="sm" c="dimmed">
                                         {check.detail}
                                     </Text>
+                                    {check.id === 'agent_session' &&
+                                        check.status === 'not_checked' &&
+                                        showMyAgentConnections && (
+                                            <Anchor
+                                                component={Link}
+                                                to="/generalSettings/myAgentConnections"
+                                                size="sm"
+                                            >
+                                                My agent connections
+                                            </Anchor>
+                                        )}
                                 </Stack>
                             </Group>
                         );

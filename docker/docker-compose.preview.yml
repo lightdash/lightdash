@@ -111,11 +111,7 @@ services:
             S3_REGION: ${S3_REGION}
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
-            SNOWFLAKE_AI_OAUTH_ACCOUNT: stub
-            SNOWFLAKE_AI_OAUTH_CLIENT_ID: stub-client
-            SNOWFLAKE_AI_OAUTH_CLIENT_SECRET: stub-secret
-            SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT: http://snowflake-ai-stub:3900/oauth/authorize
-            SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT: http://snowflake-ai-stub:3900/oauth/token-request
+            SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN: http://snowflake-ai-stub:3900
             CUSTOM_ROLES_ENABLED: true
             # Enable service accounts in preview envs so the semantic-layer
             # connection page can generate project-scoped tokens. Sets the

@@ -6,7 +6,6 @@ import {
     buildSnowflakeAgentIntegrationSql,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
-    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
 } from './agentIdentitySetup';
 
 describe('Snowflake agent setup', () => {
@@ -34,16 +33,6 @@ describe('Snowflake agent setup', () => {
   OAUTH_ISSUE_REFRESH_TOKENS = TRUE
   OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
 SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`);
-    });
-    it('lists the four required settings in order', () => {
-        expect(
-            SNOWFLAKE_AGENT_OAUTH_SETTINGS.map(({ envVar }) => envVar),
-        ).toEqual([
-            'SNOWFLAKE_AI_OAUTH_CLIENT_ID',
-            'SNOWFLAKE_AI_OAUTH_CLIENT_SECRET',
-            'SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT',
-            'SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT',
-        ]);
     });
 });
 

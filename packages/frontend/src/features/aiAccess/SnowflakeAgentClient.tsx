@@ -67,12 +67,6 @@ const SnowflakeAgentClientForm = ({
                             it to use agent sign-in.
                         </Callout>
                     )}
-                {client.source === 'environment' && (
-                    <Text size="sm" c="dimmed">
-                        This instance currently uses its SNOWFLAKE_AI_OAUTH_*
-                        settings.
-                    </Text>
-                )}
                 <TextInput
                     label="Snowflake account URL"
                     description="We work out the sign-in and token addresses from this."
@@ -83,11 +77,13 @@ const SnowflakeAgentClientForm = ({
                 <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
                     <TextInput
                         label="Client ID"
+                        placeholder="OAUTH_CLIENT_ID from the query above"
                         disabled={save.isLoading}
                         {...form.getInputProps('clientId')}
                     />
                     <PasswordInput
                         label="Client secret"
+                        placeholder="OAUTH_CLIENT_SECRET from the query above"
                         autoComplete="new-password"
                         aria-describedby={secretHintId}
                         disabled={save.isLoading}
@@ -171,10 +167,6 @@ export const SnowflakeAgentClient = ({
                     onCancel={saved ? () => setReplacing(false) : null}
                 />
             )}
-            <Text size="xs" c="dimmed">
-                Instances with SNOWFLAKE_AI_OAUTH_* variables keep working. A
-                client saved here overrides them for this organisation.
-            </Text>
         </Stack>
     );
 };

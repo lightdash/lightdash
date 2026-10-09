@@ -213,8 +213,8 @@ Cloud rollouts; standard user overrides also apply. Self-hosted instances can
 use the generic ENV lists and precedence described above.
 
 Snowflake agent sign-in also needs an Enterprise licence and a second Snowflake
-OAuth security integration with `IS_AGENTIC = TRUE`. Configure its endpoints and
-client credentials in `SNOWFLAKE_AI_OAUTH_*`. Warehouse administrators manage
+OAuth security integration with `IS_AGENTIC = TRUE`. An organisation admin saves
+the client on Organization settings → Agent identity. Warehouse administrators manage
 restricted session scopes and masking policies in Snowflake. The app does not
 configure data access.
 

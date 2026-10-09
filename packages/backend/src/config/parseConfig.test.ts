@@ -56,7 +56,8 @@ describe('agent result identity check configuration', () => {
 });
 
 describe('Snowflake AI OAuth configuration', () => {
-    it('reads the separate client and routes', () => {
+    it('ignores legacy OAuth environment settings', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT = 'legacy-account';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
         process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
@@ -64,14 +65,77 @@ describe('Snowflake AI OAuth configuration', () => {
         process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
             'https://snowflake.example/token';
         expect(parseConfig().auth.snowflakeAi).toEqual({
-            account: undefined,
-            clientId: 'ai-client',
-            clientSecret: 'ai-secret',
-            authorizationEndpoint: 'https://snowflake.example/authorize',
-            tokenEndpoint: 'https://snowflake.example/token',
             loginPath: '/login/snowflake-ai',
             callbackPath: '/oauth/redirect/snowflake-ai',
+            testAccountUrlOrigin: null,
         });
+    });
+    it.each([undefined, ''])(
+        'disables the test origin when it is %s',
+        (value) => {
+            if (value !== undefined)
+                process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBeNull();
+                expect(warning).not.toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                    ),
+                );
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each(['http://snowflake-ai-stub:3900', 'https://localhost:3900'])(
+        'accepts the exact origin %s and warns once',
+        (value) => {
+            process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBe(value);
+                expect(
+                    warning.mock.calls.filter(([message]) =>
+                        String(message).includes(
+                            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                        ),
+                    ),
+                ).toEqual([[expect.stringContaining('for tests only')]]);
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each([
+        'not-a-url',
+        'null',
+        ' ',
+        'http://snowflake-ai-stub:3900/',
+        'http://snowflake-ai-stub:3900/path',
+        'http://snowflake-ai-stub:3900?query=value',
+        'http://snowflake-ai-stub:3900#fragment',
+        'http://user:secret@snowflake-ai-stub:3900',
+        'http://*.example:3900',
+        'http://SNOWFLAKE-AI-STUB:3900',
+        'http://snowflake-ai-stub:80',
+        ' http://snowflake-ai-stub:3900',
+        'http://snowflake-ai-stub:3900 ',
+        'file://snowflake-ai-stub',
+    ])('rejects an invalid test origin %s', (value) => {
+        process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+        );
     });
 });
 

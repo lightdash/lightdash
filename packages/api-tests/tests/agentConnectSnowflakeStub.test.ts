@@ -7,6 +7,7 @@ import {
     WarehouseTypes,
     type AiAccessForUser,
     type OrganizationAgentIdentitySettings,
+    type OrganizationAgentIdentitySnowflakeSetup,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
 import { setTimeout } from 'node:timers/promises';
@@ -30,6 +31,7 @@ describe.skipIf(!stubUrl)(
         const people: ApiClient[] = [];
         let projectUuid: string | undefined;
         let previousSettings: OrganizationAgentIdentitySettings | undefined;
+        let previousClientExisted: boolean | undefined;
         let clearFlag = false;
 
         const completeSignIn = async (
@@ -64,7 +66,7 @@ describe.skipIf(!stubUrl)(
             >('/api/v1/health');
             expect(
                 health.body.results.auth.snowflakeAi.enabled,
-                'Snowflake AI OAuth is not enabled on the server. Configure the stub and an enterprise license to run this loop.',
+                'Snowflake agent sign-in requires an enterprise license on the server to run this loop.',
             ).toBe(true);
             admin = await login();
             const flag = await admin.get<Body<{ enabled: boolean }>>(flagUrl);
@@ -74,6 +76,21 @@ describe.skipIf(!stubUrl)(
                 ).toBe(200);
                 clearFlag = true;
             }
+            const setup = await admin.get<
+                Body<OrganizationAgentIdentitySnowflakeSetup>
+            >(`${settingsUrl}/snowflake/setup`);
+            previousClientExisted =
+                setup.body.results.client.source === 'organization';
+            expect(
+                (
+                    await admin.put(`${settingsUrl}/snowflake/client`, {
+                        accountUrl: stubUrl,
+                        clientId: 'stub-client',
+                        clientSecret: 'stub-secret',
+                    })
+                ).status,
+                `Could not ${previousClientExisted ? 'replace' : 'create'} the org client. Set SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN to the stub origin on the server.`,
+            ).toBe(200);
             const start = await admin.get('/api/v1/login/snowflake-ai', {
                 failOnStatusCode: false,
             });
@@ -81,9 +98,12 @@ describe.skipIf(!stubUrl)(
             const authorizeUrl = new URL(start.headers.get('location')!);
             expect(
                 authorizeUrl.origin,
-                `The server's Snowflake AI OAuth endpoints do not point at SNOWFLAKE_AI_STUB_URL (${stubUrl}).`,
+                `The saved Snowflake org client does not point at SNOWFLAKE_AI_STUB_URL (${stubUrl}). Save the stub client and set SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN to the same origin on the server.`,
             ).toBe(new URL(stubUrl!).origin);
             expect(authorizeUrl.pathname).toBe('/oauth/authorize');
+            expect(authorizeUrl.searchParams.get('client_id')).toBe(
+                'stub-client',
+            );
             const settings =
                 await admin.get<Body<OrganizationAgentIdentitySettings>>(
                     settingsUrl,
@@ -101,7 +121,7 @@ describe.skipIf(!stubUrl)(
                 `agent-connect-stub-${Date.now()}`,
                 {
                     type: WarehouseTypes.SNOWFLAKE,
-                    account: 'stub',
+                    account: new URL(stubUrl!).hostname,
                     accessUrl: stubUrl,
                     user: 'stub',
                     password: 'stub',

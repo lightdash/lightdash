@@ -414,9 +414,16 @@ export class AiAccessService extends BaseService {
     ): Promise<OrganizationAgentIdentitySnowflakeSetup> {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
         assertRegisteredAccount(account);
-        const { accountUrl, accountIdentifier } = parseSnowflakeAccountUrl(
-            body.accountUrl,
-        );
+        const { testAccountUrlOrigin } = this.lightdashConfig.auth.snowflakeAi;
+        const submittedAccountUrl = body.accountUrl.trim().replace(/\/$/, '');
+        const { accountUrl, accountIdentifier } =
+            testAccountUrlOrigin !== null &&
+            submittedAccountUrl === testAccountUrlOrigin
+                ? {
+                      accountUrl: testAccountUrlOrigin,
+                      accountIdentifier: new URL(testAccountUrlOrigin).hostname,
+                  }
+                : parseSnowflakeAccountUrl(body.accountUrl);
         const clientId = body.clientId.trim();
         if (!clientId || !body.clientSecret.trim()) {
             throw new ParameterError('Provide a client ID and client secret.');
@@ -451,29 +458,18 @@ export class AiAccessService extends BaseService {
         const organizationUuid = await this.authorizeSnowflakeSetup(account);
         const resolved =
             await this.snowflakeAgentClientResolver.resolve(organizationUuid);
-        const missingSettings =
-            await this.snowflakeAgentClientResolver.getMissingSettings(
-                organizationUuid,
-            );
-        const configured = missingSettings.length === 0;
-        const clientSourceDetail =
-            resolved?.source === 'organization'
-                ? 'Using the client saved for this organisation.'
-                : 'Using the instance SNOWFLAKE_AI_OAUTH_* settings.';
-        const missingSettingsDetail = configured
-            ? ''
-            : `Missing: ${missingSettings.join(', ')}.`;
+        const hasLicense = this.lightdashConfig.license.licenseKey != null;
+        const configured = resolved !== null && hasLicense;
+        const clientDetail = resolved
+            ? 'Using the client saved for this organisation.'
+            : 'Not saved. Paste the client ID and secret from Snowflake in the form above, then verify again.';
         const checks: OrganizationAgentIdentitySnowflakeVerify['checks'] = [
             {
                 id: 'oauth_client',
                 label: 'OAuth client settings',
                 required: true,
                 status: resolved ? 'passed' : 'failed',
-                detail: resolved
-                    ? [clientSourceDetail, missingSettingsDetail]
-                          .filter(Boolean)
-                          .join(' ')
-                    : missingSettingsDetail,
+                detail: `${clientDetail}${hasLicense ? '' : ' Missing: Enterprise licence.'}`,
             },
         ];
         const endpointCheck: OrganizationAgentIdentitySnowflakeVerify['checks'][number] =
@@ -482,7 +478,7 @@ export class AiAccessService extends BaseService {
                 label: 'Authorization endpoint',
                 required: true,
                 status: 'not_checked',
-                detail: 'Set the missing OAuth client settings before checking the endpoint.',
+                detail: 'Save the OAuth client first.',
             };
         if (resolved) {
             try {
@@ -501,16 +497,12 @@ export class AiAccessService extends BaseService {
                 ].includes(response.status)
                     ? 'passed'
                     : 'failed';
-                const endpointHint =
-                    resolved.source === 'organization'
-                        ? ' Check the Snowflake account URL.'
-                        : ' Check SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT.';
                 endpointCheck.detail =
                     endpointCheck.status === 'passed'
-                        ? `Snowflake answered (HTTP ${response.status}).`
+                        ? "Snowflake's sign-in page responded."
                         : `The authorization endpoint returned HTTP ${response.status}.${
                               [404, 405].includes(response.status)
-                                  ? endpointHint
+                                  ? ' Check the Snowflake account URL.'
                                   : ''
                           }`;
                 await response.body?.cancel();
@@ -538,7 +530,7 @@ export class AiAccessService extends BaseService {
             status: hasAgentSession ? 'passed' : 'not_checked',
             detail: hasAgentSession
                 ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
-                : 'No one has connected their agent yet. Connect your own agent in My warehouse connections to confirm Snowflake marks sessions as agent sessions.',
+                : 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
         });
         return {
             checkedAt: new Date(),
@@ -560,7 +552,7 @@ export class AiAccessService extends BaseService {
             ))
         ) {
             throw new ParameterError(
-                'The Snowflake agent integration is not configured on this instance',
+                'The Snowflake agent integration is not configured for this organisation',
             );
         }
     }
