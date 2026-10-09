@@ -161,6 +161,11 @@ export const FieldsAndTiles: FC = () => {
         waitingFieldIds,
         addWaitingField,
         removeWaitingField,
+        highlightedFieldId,
+        setHighlightedFieldId,
+        clearHighlightedField,
+        hoveredFieldId,
+        setHoveredFieldId,
     } = useControlsSidebar();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
@@ -299,6 +304,11 @@ export const FieldsAndTiles: FC = () => {
             ? null
             : toDashboardFilterableField(fieldsMap[fieldId]);
 
+    const clearHighlight = (fieldId: string) => {
+        if (highlightedFieldId === fieldId) setHighlightedFieldId(null);
+        if (hoveredFieldId === fieldId) setHoveredFieldId(null);
+    };
+
     const hasCandidates = candidates.length > 0;
 
     return (
@@ -344,7 +354,19 @@ export const FieldsAndTiles: FC = () => {
                                 filterableFieldsByTileUuid,
                                 sqlColumnsByTile,
                             )}
+                            isHighlighted={highlightedFieldId === fieldId}
                             isWaiting={isWaiting}
+                            onToggleHighlight={() => {
+                                if (highlightedFieldId === fieldId)
+                                    clearHighlightedField();
+                                else setHighlightedFieldId(fieldId);
+                            }}
+                            onClearHighlight={clearHighlightedField}
+                            onHoverChange={(isHovered) => {
+                                if (isHovered) setHoveredFieldId(fieldId);
+                                else if (hoveredFieldId === fieldId)
+                                    setHoveredFieldId(null);
+                            }}
                             onAll={() => {
                                 if (isSqlColumn) {
                                     updateFilter(
@@ -378,6 +400,7 @@ export const FieldsAndTiles: FC = () => {
                                 updateFilter(next);
                             }}
                             onRemove={() => {
+                                clearHighlight(fieldId);
                                 if (isWaiting) {
                                     removeWaitingField(fieldId);
                                     return;
@@ -446,9 +469,12 @@ export const FieldsAndTiles: FC = () => {
                                 sqlColumnsByTile,
                             );
                             updateFilter(next);
-                            // Every tile it fits already has a field: it waits
-                            if (!getFilterFields(next).includes(fieldId))
-                                addWaitingField(fieldId);
+                            // Every tile it fits already has a field: it
+                            // waits, and the tile cards offer the switch
+                            // and with no tile to show, it is not clicked
+                            if (getFilterFields(next).includes(fieldId))
+                                setHighlightedFieldId(fieldId);
+                            else addWaitingField(fieldId);
                             setIsAdding(false);
                             addButtonRef.current?.focus();
                         }}

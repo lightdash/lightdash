@@ -11,9 +11,22 @@
         var(--controls-ease-arrive);
 }
 
+/* The fill lifts off the surface in both schemes; a border alone makes the
+   card look sunken in dark mode */
+.row:hover {
+    border-color: var(--mantine-color-ldGray-3);
+    background-color: var(--mantine-color-default-hover);
+}
+
 /* A field on no tile yet reads as unfinished */
 .row[data-waiting] {
     border-style: dashed;
+}
+
+.rowHighlighted,
+.rowHighlighted:hover {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-light);
 }
 
 .rowMain {
@@ -24,10 +37,38 @@
     border-radius: var(--mantine-radius-sm);
 }
 
+.rowMain[data-highlighted] {
+    outline: none;
+}
+
+/* The name button covers the whole card, so a click anywhere toggles it */
+.rowMain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+/* The press scales the name, not the button: a transform on the button would
+   shrink the click area above to the button itself */
+.rowLabel {
+    transition: transform var(--controls-duration-hover) var(--controls-ease);
+}
+
+.rowMain:active > .rowLabel {
+    transform: scale(0.98);
+}
+
 /* Keyed by the count, so a changed number fades in */
 .rowCount {
     font-variant-numeric: tabular-nums;
     animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
+}
+
+.rowActions button,
+.rowUnpin {
+    position: relative;
+    z-index: 1;
 }
 
 .rowActions {
@@ -69,5 +110,9 @@
     .row,
     .rowCount {
         animation: none;
+    }
+
+    .rowLabel {
+        transition: none;
     }
 }

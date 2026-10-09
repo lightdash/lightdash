@@ -133,6 +133,8 @@ const addButton = () => screen.getByRole('button', { name: 'Add filter' });
 const label = () => screen.getByLabelText('Label');
 const escape = (target: Element = document.body) =>
     fireEvent.keyDown(target, { key: 'Escape' });
+const clickField = () => act(() => value().setHighlightedFieldId('orders_a'));
+
 describe('dismissing in the controls editor', () => {
     beforeEach(() => {
         onLabelBlur.mockClear();
@@ -158,8 +160,25 @@ describe('dismissing in the controls editor', () => {
             expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
         });
 
-        it('never closes from the page', () => {
+        it('clears a clicked field first and closes on the next press', () => {
+            clickField();
+            act(() => value().setHoveredFieldId('orders_a'));
+
+            escape(label());
+            expect(value().highlightedFieldId).toBeNull();
+            expect(value().hoveredFieldId).toBeNull();
+            expect(value().isSidebarOpen).toBe(true);
+
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
+        it('clears a clicked field from the page, and never closes from there', () => {
+            clickField();
             act(() => label().blur());
+
+            escape();
+            expect(value().highlightedFieldId).toBeNull();
 
             escape();
             escape(screen.getByRole('button', { name: 'Tile card' }));
@@ -171,6 +190,7 @@ describe('dismissing in the controls editor', () => {
             ['an open menu', { 'aria-haspopup': 'menu' }],
             ['an open search list', { role: 'combobox' }],
         ])('is left to %s', (_, attributes) => {
+            clickField();
             const target = document.createElement('button');
             Object.entries(attributes).forEach(([name, attribute]) =>
                 target.setAttribute(name, attribute),
@@ -179,12 +199,13 @@ describe('dismissing in the controls editor', () => {
             document.body.appendChild(target);
 
             escape(label());
+            expect(value().highlightedFieldId).toBe('orders_a');
             expect(value().isSidebarOpen).toBe(true);
 
             // Closed: the same press now reaches the editor
             target.setAttribute('aria-expanded', 'false');
             escape(label());
-            expect(value().isSidebarOpen).toBe(false);
+            expect(value().highlightedFieldId).toBeNull();
             target.remove();
         });
 
@@ -214,7 +235,9 @@ describe('dismissing in the controls editor', () => {
         });
 
         it('is left to an input that handles it itself', () => {
+            clickField();
             escape(screen.getByLabelText('Search fields'));
+            expect(value().highlightedFieldId).toBe('orders_a');
             expect(value().isSidebarOpen).toBe(true);
         });
 
@@ -234,6 +257,49 @@ describe('dismissing in the controls editor', () => {
             expect(
                 remove.mock.calls.filter(([type]) => type === 'keydown'),
             ).toHaveLength(1);
+            remove.mockRestore();
+        });
+    });
+
+    describe('a mouse down', () => {
+        beforeEach(() => {
+            clickField();
+        });
+
+        it.each([
+            ['a field row', () => screen.getByText('Field row')],
+            ['a tile card', () => screen.getByText('Tile card')],
+            ['an open list or menu', () => screen.getByText('In a list')],
+        ])('on %s keeps the clicked field', (_, getTarget) => {
+            fireEvent.mouseDown(getTarget());
+            expect(value().highlightedFieldId).toBe('orders_a');
+        });
+
+        it.each([
+            ['the empty sidebar', () => screen.getByTestId('editor')],
+            ["a tile's veil", () => screen.getByTestId('veil')],
+            ['the bar', () => screen.getByTestId('bar')],
+            ['the label', () => label()],
+        ])('on %s clears it, and the editor stays open', (_, getTarget) => {
+            fireEvent.mouseDown(getTarget());
+            expect(value().highlightedFieldId).toBeNull();
+            expect(value().isSidebarOpen).toBe(true);
+        });
+
+        it('is listened for only while a field is clicked', () => {
+            const add = vi.spyOn(document, 'addEventListener');
+            const remove = vi.spyOn(document, 'removeEventListener');
+            const count = (spy: typeof add | typeof remove) =>
+                spy.mock.calls.filter(([type]) => type === 'mousedown').length;
+
+            act(() => value().clearHighlightedField());
+            expect(count(remove)).toBe(1);
+            expect(count(add)).toBe(0);
+
+            fireEvent.mouseDown(screen.getByTestId('veil'));
+            clickField();
+            expect(count(add)).toBe(1);
+            add.mockRestore();
             remove.mockRestore();
         });
     });

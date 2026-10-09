@@ -1,15 +1,15 @@
 import { type DashboardFilterableField } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Button,
     Group,
     Menu,
     Stack,
     Text,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
-import { IconDots } from '@tabler/icons-react';
+import { IconDots, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -19,13 +19,43 @@ import { type FieldCount } from './peers';
 const pluralizeTiles = (count: number): string =>
     count === 1 ? 'tile' : 'tiles';
 
+const SHOW_ALL_TILES = 'Show all tiles';
+
+// The way out of a clicked row; render it right after the row's name button.
+// It leaves the page once clicked, so focus is handed back to that button
+const ShowAllTilesButton: FC<{ onClick: () => void }> = ({ onClick }) => (
+    <Tooltip label={SHOW_ALL_TILES}>
+        <ActionIcon
+            className={classes.rowUnpin}
+            size="sm"
+            variant="subtle"
+            color="gray"
+            mt="xs"
+            mr="xs"
+            flex="0 0 auto"
+            aria-label={SHOW_ALL_TILES}
+            onClick={(event) => {
+                const rowButton = event.currentTarget.previousElementSibling;
+                if (rowButton instanceof HTMLElement) rowButton.focus();
+                onClick();
+            }}
+        >
+            <MantineIcon icon={IconX} />
+        </ActionIcon>
+    </Tooltip>
+);
+
 type Props = {
     field: DashboardFilterableField | null;
     label: string;
     tableLabel: string;
     count: FieldCount;
+    isHighlighted: boolean;
     // On no tile yet
     isWaiting: boolean;
+    onToggleHighlight: () => void;
+    onClearHighlight: () => void;
+    onHoverChange: (isHovered: boolean) => void;
     onAll: () => void;
     onNone: () => void;
     onRemove: () => void;
@@ -38,7 +68,11 @@ export const FieldRow: FC<Props> = ({
     label,
     tableLabel,
     count,
+    isHighlighted,
     isWaiting,
+    onToggleHighlight,
+    onClearHighlight,
+    onHoverChange,
     onAll,
     onNone,
     onRemove,
@@ -50,13 +84,27 @@ export const FieldRow: FC<Props> = ({
 
     return (
         <Stack
-            className={classes.row}
+            className={
+                isHighlighted
+                    ? `${classes.row} ${classes.rowHighlighted}`
+                    : classes.row
+            }
             gap={0}
             data-waiting={isWaiting || undefined}
+            data-keeps-field
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
         >
             <Group gap={0} wrap="nowrap" align="flex-start">
-                <Box className={classes.rowMain}>
-                    <Group gap="xs" wrap="nowrap">
+                <UnstyledButton
+                    className={classes.rowMain}
+                    data-highlighted={isHighlighted || undefined}
+                    aria-pressed={isHighlighted}
+                    onClick={onToggleHighlight}
+                    onFocus={() => onHoverChange(true)}
+                    onBlur={() => onHoverChange(false)}
+                >
+                    <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
                         {field !== null && (
                             <FieldIcon item={field} size={14} aria-hidden />
                         )}
@@ -64,7 +112,10 @@ export const FieldRow: FC<Props> = ({
                             {label}
                         </Text>
                     </Group>
-                </Box>
+                </UnstyledButton>
+                {isHighlighted && (
+                    <ShowAllTilesButton onClick={onClearHighlight} />
+                )}
             </Group>
             <Group
                 className={classes.rowActions}

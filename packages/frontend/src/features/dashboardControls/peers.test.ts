@@ -14,6 +14,7 @@ import {
     getDefaultTileField,
     getFieldCount,
     getFilterFields,
+    getMissingTileFieldId,
     getTabCounts,
     getTileField,
     isTileChanged,
@@ -381,6 +382,54 @@ describe('a tile mapped to a field it no longer offers', () => {
         fieldId: 'orders_gone',
         tableName: 'orders',
     };
+
+    it('names the missing field of a mapped tile only', () => {
+        expect(getMissingTileFieldId(rule({ a: GONE }), a, fieldsByTile)).toBe(
+            'orders_gone',
+        );
+        expect(
+            getMissingTileFieldId(rule({ b: PAYMENTS }), b, fieldsByTile),
+        ).toBe(null);
+        // On the default rule or left out, nothing is mapped
+        expect(getMissingTileFieldId(rule(), c, fieldsByTile)).toBe(null);
+        expect(getMissingTileFieldId(rule({ a: false }), a, fieldsByTile)).toBe(
+            null,
+        );
+    });
+
+    it('says nothing while the fields of the tile are not known', () => {
+        expect(getMissingTileFieldId(rule({ a: GONE }), a, undefined)).toBe(
+            null,
+        );
+        expect(getMissingTileFieldId(rule({ a: GONE }), a, {})).toBe(null);
+    });
+
+    it('names a column a SQL chart tile no longer returns', () => {
+        const sqlTile = {
+            uuid: 's',
+            tabUuid: 't2',
+            type: DashboardTileTypes.SQL_CHART,
+        } as DashboardTile;
+        const sqlColumns: SqlColumnsByTile = {
+            s: [{ reference: 'status', type: DimensionType.STRING }],
+        };
+        expect(
+            getMissingTileFieldId(
+                rule({ s: toSqlColumnTarget('old_status') }),
+                sqlTile,
+                fieldsByTile,
+                sqlColumns,
+            ),
+        ).toBe('old_status');
+        expect(
+            getMissingTileFieldId(
+                rule({ s: toSqlColumnTarget('status') }),
+                sqlTile,
+                fieldsByTile,
+                sqlColumns,
+            ),
+        ).toBe(null);
+    });
 
     it('still counts as filtered, as the shipped popover counts it selected', () => {
         const r = rule({ a: GONE });
