@@ -3,6 +3,8 @@ import {
     AiAgentMarkerLevel,
     applyWarehouseLocation,
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -42,6 +44,8 @@ import {
     ConnectionSurface,
     WarehouseCredentialKind,
 } from './ConnectionContext';
+import { createCredentialResolverRegistry } from './credentialResolvers';
+import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
 import {
     WarehouseClientFactory,
     type WarehouseClientRef,
@@ -197,6 +201,10 @@ const buildFixture = (
     const logger = { debug: vi.fn(), warn: vi.fn() };
     const featureFlagModel = {} as FeatureFlagModel;
     const factory = new WarehouseClientFactory({
+        credentialResolvers: createCredentialResolverRegistry({
+            lightdashConfig: lightdashConfigMock,
+            userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {
@@ -2783,6 +2791,400 @@ describe('Snowflake revocation with a warm agent client', () => {
             expect(
                 projectModel.getWarehouseClientFromCredentials,
             ).toHaveBeenCalledOnce();
+        },
+    );
+});
+
+describe('BigQuery SSO runtime hydration', () => {
+    it('hydrates a secret-free selected personal credential with the configured secret', async () => {
+        connect.mockImplementation(async (value) => value);
+        const { factory, credentialSource, projectModel, base } =
+            buildFixture();
+        const personal = {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id: 'saved-id',
+                refresh_token: 'personal-refresh',
+            },
+            userWarehouseCredentialsUuid: 'personal-uuid',
+        } satisfies Awaited<ReturnType<WarehouseCredentialSource['finish']>>;
+        base.credentials = { ...personal, keyfileContents: {} };
+        credentialSource.finish.mockResolvedValue(personal);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+        ).toHaveProperty(
+            'keyfileContents.client_secret',
+            lightdashConfigMock.auth.google.oauth2ClientSecret,
+        );
+        expect(personal).not.toHaveProperty('keyfileContents.client_secret');
+    });
+});
+
+const ssoCredentials = (
+    refreshToken = 'personal-refresh',
+): CreateWarehouseCredentials => ({
+    type: WarehouseTypes.BIGQUERY,
+    authenticationType: BigqueryAuthenticationType.SSO,
+    project: 'analytics',
+    dataset: 'prod',
+    timeoutSeconds: undefined,
+    priority: undefined,
+    retries: undefined,
+    location: undefined,
+    maximumBytesBilled: undefined,
+    keyfileContents: {
+        type: 'authorized_user',
+        client_id: 'saved-client',
+        refresh_token: refreshToken,
+    },
+});
+
+describe('resolver cache identity and lifecycle', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('pins the cache key for an unregistered mode', async () => {
+        const { factory } = buildFixture();
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(Object.keys(factory.warehouseClients)).toEqual([
+            '[false,"project-uuid",null,null,null,null,null]',
+        ]);
+    });
+
+    it('reuses one identity and separates personal owners and reconnect tokens', async () => {
+        const { factory, credentialSource, projectModel } = buildFixture();
+        const first = {
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal-one',
+        };
+        credentialSource.finish.mockResolvedValue(first);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+        credentialSource.finish.mockResolvedValue({
+            ...first,
+            userWarehouseCredentialsUuid: 'personal-two',
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials('reconnected-token'),
+            userWarehouseCredentialsUuid: 'personal-two',
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(3);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(3);
+        expect(
+            JSON.stringify(Object.keys(factory.warehouseClients)),
+        ).not.toMatch(
+            /personal-refresh|reconnected-token|test-google-client-secret/,
+        );
+    });
+
+    it('replaces a cached client when the configured secret changes', async () => {
+        const { factory, credentialSource, projectModel } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: undefined,
+        });
+        const originalSecret =
+            lightdashConfigMock.auth.google.oauth2ClientSecret;
+        try {
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            lightdashConfigMock.auth.google.oauth2ClientSecret =
+                'rotated-config-secret';
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            expect(Object.keys(factory.warehouseClients)).toHaveLength(1);
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[1][0],
+            ).toHaveProperty(
+                'keyfileContents.client_secret',
+                'rotated-config-secret',
+            );
+        } finally {
+            lightdashConfigMock.auth.google.oauth2ClientSecret = originalSecret;
+        }
+    });
+
+    it.each(['success', 'callback failure', 'construction failure'] as const)(
+        'disposes once after %s',
+        async (outcome) => {
+            const dispose = vi.spyOn(
+                BigquerySsoCredentialResolver.prototype,
+                'dispose',
+            );
+            const { factory, projectModel } = buildFixture();
+            const error = new Error(outcome);
+            if (outcome === 'construction failure')
+                projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                    () => {
+                        throw error;
+                    },
+                );
+            const operation = factory.withWarehouseClient(
+                compileRef(ssoCredentials()),
+                contextFor(),
+                async () => {
+                    if (outcome === 'callback failure') throw error;
+                },
+            );
+            if (outcome === 'success') await operation;
+            else await expect(operation).rejects.toBe(error);
+            expect(dispose).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('releases a lease idempotently and does not resolve an already selected credential twice', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const dispose = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'dispose',
+        );
+        const { factory, credentialSource } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const selected = await factory.resolveWarehouseCredentials(
+            bindingRef,
+            contextFor(),
+        );
+        const lease = await factory.acquireWarehouseConnection(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: selected.warehouseCredentials,
+            },
+            contextFor(),
+        );
+        await Promise.all([lease.release(), lease.release()]);
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(dispose).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+    });
+
+    it('uses a resolved reference without selecting or resolving again', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const { factory, credentialSource } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const selected = await factory.resolveWarehouseCredentials(
+            bindingRef,
+            contextFor(),
+        );
+        await factory.withWarehouseClient(
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: selected.warehouseCredentials,
+                aiPlan: selected.aiPlan,
+                warehouseConnectionUuid: selected.warehouseConnectionUuid,
+                connectionRoute: selected.connectionRoute,
+            },
+            contextFor(),
+            async () => {},
+        );
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+    });
+
+    it.each(['final', 'ai'] as const)(
+        'hydrates the %s selection without finishing the project credential',
+        async (mode) => {
+            const {
+                factory,
+                credentialSource,
+                aiAccessService,
+                projectModel,
+                base,
+            } = buildFixture();
+            if (mode === 'final') {
+                credentialSource.loadBase.mockResolvedValue({
+                    ...base,
+                    kind: 'final',
+                    warehouseConnectionUuid: null,
+                    credentials: ssoCredentials(),
+                });
+            } else {
+                aiAccessService.resolvePlan.mockResolvedValue({
+                    ...plan,
+                    credentials: ssoCredentials(),
+                });
+            }
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(mode === 'ai' ? QueryExecutionContext.AI : null),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+            ).toHaveProperty(
+                'keyfileContents.client_secret',
+                lightdashConfigMock.auth.google.oauth2ClientSecret,
+            );
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+        },
+    );
+
+    it('honours resolver options and disables caching when requested', async () => {
+        const originalResolve = BigquerySsoCredentialResolver.prototype.resolve;
+        vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        ).mockImplementation(
+            async function resolve(this: BigquerySsoCredentialResolver, input) {
+                return {
+                    ...(await originalResolve.call(this, input)),
+                    cacheable: false,
+                    clientOptions: { maxOpenConnections: 7 },
+                };
+            },
+        );
+        const { factory, credentialSource, projectModel } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: undefined,
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
+        ).toMatchObject({ maxOpenConnections: 7 });
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(0);
+    });
+
+    it('preserves a revoked token error without selecting another identity', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const { factory, credentialSource, projectModel, aiAccessService } =
+            buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const revoked = new BigqueryTokenError('invalid_grant');
+        const runQuery = vi.fn().mockRejectedValue(revoked);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery,
+            }),
+        );
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async ({ warehouseClient }) => {
+                    await warehouseClient.runQuery('SELECT 1', {});
+                },
+            ),
+        ).rejects.toBe(revoked);
+        expect(runQuery).toHaveBeenCalledExactlyOnceWith('SELECT 1', {});
+        expect(credentialSource.loadBase).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+        expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        undefined,
+        BigqueryAuthenticationType.PRIVATE_KEY,
+        BigqueryAuthenticationType.ADC,
+    ])(
+        'leaves %s BigQuery credentials unchanged',
+        async (authenticationType) => {
+            const { factory, projectModel } = buildFixture();
+            const input = {
+                ...ssoCredentials(),
+                authenticationType,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'cli-id',
+                    client_secret: 'cli-secret',
+                    refresh_token: 'cli-refresh',
+                },
+            } as CreateWarehouseCredentials;
+            await factory.withWarehouseClient(
+                compileRef(input),
+                contextFor(),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+            ).toEqual(input);
         },
     );
 });

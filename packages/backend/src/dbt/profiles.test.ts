@@ -188,3 +188,27 @@ describe('Athena web identity profile', () => {
         expect(target).not.toHaveProperty('aws_assume_role_arn');
     });
 });
+
+it('rejects unresolved secret-free BigQuery SSO in dbt profiles', () => {
+    expect(() =>
+        profileFromCredentials(
+            {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                project: 'analytics',
+                dataset: 'prod',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'id',
+                    refresh_token: 'refresh',
+                },
+            },
+            '/tmp/profiles',
+        ),
+    ).toThrow('resolved');
+});

@@ -66,6 +66,15 @@ const credentialsTarget = (
                             'BigQuery private key/SSO authentication requires keyfileContents to be provided',
                         );
                     }
+                    if (
+                        credentials.authenticationType ===
+                            BigqueryAuthenticationType.SSO &&
+                        !credentials.keyfileContents.client_secret
+                    ) {
+                        throw new ParameterError(
+                            'BigQuery SSO credentials must be resolved before creating a dbt profile',
+                        );
+                    }
                     const keyfile = getBigqueryKeyfileCredentials(
                         credentials.keyfileContents,
                     );

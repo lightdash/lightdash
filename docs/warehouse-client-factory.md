@@ -87,3 +87,32 @@ The rule also tracks aliased named imports, namespace and default imports, Commo
 ## Out of scope
 
 The DuckDB engines for results files, local analytics and pre-aggregates are not warehouse connections and are built directly.
+
+## Credential resolvers
+
+The factory selects a resolver by warehouse type and authentication mode. Only
+explicit BigQuery SSO uses a resolver. Other modes keep their existing refresh
+and rotation path. A CLI `authorized_user` keyfile does not select SSO on its own.
+
+Selection runs first. The resolver receives the selected owner and credentials.
+It validates credentials on save and materialises credentials for client use.
+BigQuery SSO stores the client ID and refresh token. It can also store a quota
+project ID. It uses a non-blank configured secret when the client IDs match.
+If the configured secret is absent or blank, it keeps and uses the stored secret.
+For other client IDs, it uses the stored secret or falls back to the configured secret.
+It does not fetch grants, refresh tokens, or write to the database on resolution.
+
+The selected credentials carry resolution metadata under a symbol. Object copies
+retain this metadata. JSON writes exclude it. Resolved references and compile
+leases reuse it without another resolution. The lease gives dbt the runtime
+credentials. The rollback paths also hydrate SSO locally before client creation.
+
+Registered resolvers add an identity tuple to the client cache key. BigQuery SSO
+uses the owner, client ID, and a SHA-256 digest of the refresh token. The cache also
+compares runtime credentials, so a changed server secret replaces the client.
+Unregistered modes keep the same cache key. Scope cleanup calls the resolver's
+idempotent disposal hook, including when client construction fails.
+
+A materialisation created by `resolveWarehouseCredentials` and reused by several
+`resolved` refs shares one `dispose`; resolvers that own resources must handle
+this shared ownership before they land, including the SSH step.
