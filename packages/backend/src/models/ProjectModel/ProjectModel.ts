@@ -5201,6 +5201,15 @@ export class ProjectModel {
             return cachedCredentials;
         }
 
+        const credentials =
+            await this.getWarehouseCredentialsForProjectUncached(projectUuid);
+        warehouseCredentialsCache?.set(projectUuid, credentials);
+        return credentials;
+    }
+
+    async getWarehouseCredentialsForProjectUncached(
+        projectUuid: string,
+    ): Promise<CreateWarehouseCredentials> {
         const [row] = await this.database('warehouse_credentials')
             .innerJoin(
                 'projects',
@@ -5239,8 +5248,6 @@ export class ProjectModel {
                     row.organization_warehouse_credentials_uuid,
                     row.organization_uuid,
                 );
-            // Store in cache
-            warehouseCredentialsCache?.set(projectUuid, orgCredentials);
             return orgCredentials;
         }
 
@@ -5253,7 +5260,6 @@ export class ProjectModel {
                 ),
                 row.playground_bundle_version,
             );
-            warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;
         } catch (e) {
             throw new UnexpectedServerError(

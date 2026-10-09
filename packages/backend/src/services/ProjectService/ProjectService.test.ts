@@ -9849,11 +9849,27 @@ describe('ProjectService', () => {
     });
 
     describe('dbt Cloud webhook scoped client', () => {
-        it.each([false, true])(
-            'releases before saving or after validation failure: %s',
-            async (fails) => {
-                const configured = getMockedProjectService(lightdashConfigMock);
+        it.each([
+            { fails: false, enabled: true },
+            { fails: true, enabled: true },
+            { fails: false, enabled: false },
+            { fails: true, enabled: false },
+        ])(
+            'releases before saving or after validation failure: $fails, resolution: $enabled',
+            async ({ fails, enabled }) => {
+                const configured = getMockedProjectService({
+                    ...lightdashConfigMock,
+                    warehouseClient: {
+                        ...lightdashConfigMock.warehouseClient,
+                        resolveDbtCloudPreviewCredentials: enabled,
+                    },
+                });
                 const { credentials } = warehouseClientMock;
+                if (enabled) {
+                    projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                        credentials,
+                    );
+                }
                 projectModel.getWithSensitiveFields.mockResolvedValueOnce({
                     ...projectWithSensitiveFields,
                     warehouseConnection: credentials,
@@ -9882,13 +9898,21 @@ describe('ProjectService', () => {
                     });
                 const save = vi
                     .spyOn(configured, 'saveExploresToCacheAndIndexCatalog')
-                    .mockResolvedValueOnce('projectUuid');
-                projectModel.getAllByOrganizationUuid.mockImplementationOnce(
-                    async () => {
+                    .mockImplementationOnce(async () => {
                         expect(
                             vi.mocked(SshTunnel).mock.results.at(-1)?.value
                                 .disconnect,
                         ).toHaveBeenCalledOnce();
+                        return 'projectUuid';
+                    });
+                projectModel.getAllByOrganizationUuid.mockImplementationOnce(
+                    async () => {
+                        if (!enabled) {
+                            expect(
+                                vi.mocked(SshTunnel).mock.results.at(-1)?.value
+                                    .disconnect,
+                            ).toHaveBeenCalledOnce();
+                        }
                         return [
                             {
                                 ...projectWithSensitiveFields,
@@ -9923,8 +9947,12 @@ describe('ProjectService', () => {
                     }
                     expect(scope).toHaveBeenCalledWith(
                         {
-                            kind: 'bypass',
-                            mode: 'dbt_cloud_preview_webhook',
+                            ...(enabled
+                                ? { kind: 'compile' }
+                                : {
+                                      kind: 'bypass',
+                                      mode: 'dbt_cloud_preview_webhook',
+                                  }),
                             projectUuid: 'projectUuid',
                             credentials,
                         },
@@ -10098,6 +10126,13 @@ describe('ProjectService', () => {
         });
 
         it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+            });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
                 true,
             );
@@ -10169,6 +10204,13 @@ describe('ProjectService', () => {
         });
 
         it('releases the tunnel when the preview query fails', async () => {
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            projectModel.getProjectWarehouseConfig.mockResolvedValueOnce({
+                organizationWarehouseCredentialsUuid: null,
+                queryTimezone: null,
+            });
             vi.spyOn(service, 'isTimezoneSupportEnabled').mockResolvedValueOnce(
                 true,
             );
@@ -12403,6 +12445,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             .mockReset()
             .mockResolvedValue(compiledProject);
         projectModel.get.mockReset().mockResolvedValue(compiledProject);
+        projectModel.getWarehouseCredentialsForProject
+            .mockReset()
+            .mockResolvedValue(warehouseClientMock.credentials);
+        projectModel.getProjectWarehouseConfig.mockResolvedValue({
+            organizationWarehouseCredentialsUuid: null,
+            queryTimezone: null,
+        });
         projectModel.getSummary.mockReset().mockResolvedValue(projectSummary);
         projectModel.getWarehouseFromCache
             .mockReset()
@@ -12540,7 +12589,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         const projectService = getMockedProjectService(lightdashConfigMock);
         const internals = projectService as unknown as {
             testProjectAdapter: (
-                data: UpdateProject,
+                data: Omit<UpdateProject, 'warehouseConnection'> & {
+                    warehouseConnection: {
+                        kind: 'submitted_resolved';
+                        credentials: CreateWarehouseCredentials;
+                    };
+                },
                 caller: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
                 context: 'project_create' | 'project_update',
                 method: RequestMethod,
@@ -12551,7 +12605,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             internals.testProjectAdapter(
                 {
                     ...projectWithSensitiveFields,
-                    warehouseConnection: warehouseClientMock.credentials,
+                    warehouseConnection: {
+                        kind: 'submitted_resolved',
+                        credentials: warehouseClientMock.credentials,
+                    },
                     dbtConnection: { type: DbtProjectType.NONE },
                 },
                 compileUser,
@@ -13924,7 +13981,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         });
     });
 
-    describe("prepareCompileAdapter's inline Snowflake SSO refresh", () => {
+    describe('prepareCompileAdapter Snowflake SSO refresh', () => {
         test('persists token rotation before returning compile credentials', async () => {
             const projectSnowflakeCredentials: CreateSnowflakeCredentials = {
                 ...baseSnowflakeCredentials,
@@ -13940,6 +13997,9 @@ describe('Snowflake credential pins (SPK-2336)', () => {
             (
                 projectModel.getWithSensitiveFields as import('vitest').Mock
             ).mockResolvedValueOnce(snowflakeProject);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValueOnce(
+                projectSnowflakeCredentials,
+            );
             (
                 projectModel.getWarehouseFromCache as import('vitest').Mock
             ).mockResolvedValueOnce(undefined);
@@ -16659,7 +16719,12 @@ describe('compile adapter connection credentials', () => {
             adapters: ProjectAdapter[],
         ) => Promise<T>;
         testProjectAdapter: (
-            data: UpdateProject,
+            data: Omit<UpdateProject, 'warehouseConnection'> & {
+                warehouseConnection: {
+                    kind: 'submitted_resolved';
+                    credentials: CreateWarehouseCredentials;
+                };
+            },
             user: typeof caller,
             context: 'project_create',
             method: RequestMethod,
@@ -16759,7 +16824,10 @@ describe('compile adapter connection credentials', () => {
         const tested = await service.testProjectAdapter(
             {
                 ...projectWithSensitiveFields,
-                warehouseConnection: ducklakeCredentials,
+                warehouseConnection: {
+                    kind: 'submitted_resolved',
+                    credentials: ducklakeCredentials,
+                },
                 dbtConnection: { type: DbtProjectType.NONE },
             },
             caller,

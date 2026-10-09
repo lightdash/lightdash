@@ -2029,6 +2029,10 @@ export type LightdashConfig = {
     };
     warehouseClient: {
         releaseSshTunnelOnScopeExit: boolean;
+        resolveCompileCredentials: boolean;
+        resolveDbtCloudPreviewCredentials: boolean;
+        resolveTimezonePreviewCredentials: boolean;
+        resolveTestAndCompileCredentials: boolean;
     };
     motherduckInstanceCache: {
         enabled: boolean;
@@ -4108,6 +4112,17 @@ export const parseConfig = (): LightdashConfig => {
         warehouseClient: {
             releaseSshTunnelOnScopeExit:
                 process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED !== 'false',
+            resolveCompileCredentials:
+                process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED !== 'false',
+            resolveDbtCloudPreviewCredentials:
+                process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
+            resolveTestAndCompileCredentials:
+                process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
+            resolveTimezonePreviewCredentials:
+                process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED !==
+                'false',
         },
         motherduckInstanceCache,
         usageEvents: {

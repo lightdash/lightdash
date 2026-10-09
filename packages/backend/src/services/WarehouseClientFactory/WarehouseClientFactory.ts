@@ -94,7 +94,8 @@ export type WarehouseClientRef =
       }
     | {
           kind: 'resolved';
-          projectUuid: string;
+          projectUuid: string | null;
+          cachePolicy?: 'default' | 'disabled';
           credentials: CreateWarehouseCredentials & {
               userWarehouseCredentialsUuid?: string;
           };
@@ -105,7 +106,8 @@ export type WarehouseClientRef =
       }
     | {
           kind: 'compile';
-          projectUuid: string;
+          projectUuid: string | null;
+          tunnelOptions?: SshTunnelOptions;
           credentials: CreateWarehouseCredentials;
           compileGroup?: WarehouseCompileGroup;
       }
@@ -186,6 +188,12 @@ export class WarehouseClientFactory {
 
     private readonly releaseSshTunnelOnScopeExit: boolean;
 
+    private readonly resolveDbtCloudPreviewCredentials: boolean;
+
+    private readonly resolveTimezonePreviewCredentials: boolean;
+
+    private readonly resolveTestAndCompileCredentials: boolean;
+
     constructor(deps: WarehouseClientFactoryDependencies) {
         this.lightdashConfig = deps.lightdashConfig;
         this.projectModel = deps.projectModel;
@@ -196,6 +204,38 @@ export class WarehouseClientFactory {
         this.releaseSshTunnelOnScopeExit =
             deps.lightdashConfig?.warehouseClient
                 ?.releaseSshTunnelOnScopeExit ?? true;
+        this.resolveDbtCloudPreviewCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveDbtCloudPreviewCredentials ?? true;
+        this.resolveTimezonePreviewCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveTimezonePreviewCredentials ?? true;
+        this.resolveTestAndCompileCredentials =
+            deps.lightdashConfig?.warehouseClient
+                ?.resolveTestAndCompileCredentials ?? true;
+        if (
+            deps.lightdashConfig?.warehouseClient?.resolveCompileCredentials ===
+            false
+        ) {
+            this.logger.warn(
+                'Compile credential resolution is disabled; using legacy refresh and rotation behaviour',
+            );
+        }
+        if (!this.resolveTestAndCompileCredentials) {
+            this.logger.warn(
+                'Test-and-compile credential resolution is disabled; using stored credentials without refresh',
+            );
+        }
+        if (!this.resolveTimezonePreviewCredentials) {
+            this.logger.warn(
+                'Timezone preview credential resolution is disabled; using raw credentials without refresh',
+            );
+        }
+        if (!this.resolveDbtCloudPreviewCredentials) {
+            this.logger.warn(
+                'dbt Cloud preview credential resolution is disabled; using stored credentials without refresh',
+            );
+        }
         if (!this.releaseSshTunnelOnScopeExit) {
             this.logger.warn('Scoped SSH tunnel release is disabled');
         }
@@ -371,8 +411,33 @@ export class WarehouseClientFactory {
             }
             case 'compile':
                 warehouseCredentials = ref.credentials;
+                tunnelOptions = ref.tunnelOptions;
                 break;
             case 'bypass':
+                if (
+                    ref.mode === 'test_and_compile' &&
+                    this.resolveTestAndCompileCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'Test-and-compile credential bypass requires credential resolution to be disabled',
+                    );
+                }
+                if (
+                    ref.mode === 'dbt_cloud_preview_webhook' &&
+                    this.resolveDbtCloudPreviewCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'dbt Cloud preview credential bypass requires credential resolution to be disabled',
+                    );
+                }
+                if (
+                    ref.mode === 'timezone_preview' &&
+                    this.resolveTimezonePreviewCredentials
+                ) {
+                    throw new UnexpectedServerError(
+                        'Timezone preview credential bypass requires credential resolution to be disabled',
+                    );
+                }
                 this.logger.debug(
                     `Warehouse client credential bypass: ${ref.mode}`,
                 );
@@ -407,7 +472,12 @@ export class WarehouseClientFactory {
                     refusalScope,
                     warehouseConnectionUuid,
                     cacheEnabled:
-                        ref.kind !== 'bypass' && ref.kind !== 'compile',
+                        ref.kind !== 'bypass' &&
+                        ref.kind !== 'compile' &&
+                        !(
+                            ref.kind === 'resolved' &&
+                            ref.cachePolicy === 'disabled'
+                        ),
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,
                     clientOptions:
