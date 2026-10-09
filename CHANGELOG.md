@@ -1,3 +1,11 @@
+## [2.505.1](https://github.com/lightdash/lightdash/compare/2.505.0...2.505.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** make readContent Document-only fields nullish ([#30805](https://github.com/lightdash/lightdash/issues/30805)) ([c83d0c9](https://github.com/lightdash/lightdash/commit/c83d0c9aeb9dcb81aef2017bcc24db72650a1a27))
+* **ai-agent:** read Documents by slug only ([#30807](https://github.com/lightdash/lightdash/issues/30807)) ([547904b](https://github.com/lightdash/lightdash/commit/547904b240a7d7ed0b103ee43ff639a91b6457fd))
+
 # [2.505.0](https://github.com/lightdash/lightdash/compare/2.504.2...2.505.0) (2026-10-09)
 
 
