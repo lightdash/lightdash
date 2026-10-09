@@ -23,7 +23,6 @@ export const MyAgentConnectionsPanel = () => {
     const { showSnowflake, showBigQuery } = getAgentConnectionVisibility(
         settings.data?.rules ?? [],
         projects.data ?? [],
-        health.data?.auth.snowflakeAi.enabled === true,
     );
     const credential =
         credentials.data?.find(
@@ -46,7 +45,12 @@ export const MyAgentConnectionsPanel = () => {
             ) : (
                 <>
                     {showSnowflake && (
-                        <SnowflakeAgentConnectionCard credential={credential} />
+                        <SnowflakeAgentConnectionCard
+                            credential={credential}
+                            snowflakeConfigured={
+                                health.data?.auth.snowflakeAi.enabled === true
+                            }
+                        />
                     )}
                     {showBigQuery && <BigQueryAgentConnectionCard />}
                     {!showSnowflake && !showBigQuery && (

@@ -83,9 +83,15 @@ const AgentConnect = () => {
                         action={
                             <Anchor
                                 component={Link}
-                                to="/generalSettings/myAgentConnections"
+                                to={
+                                    enabled
+                                        ? '/generalSettings/myAgentConnections'
+                                        : '/generalSettings/myWarehouseConnections'
+                                }
                             >
-                                My agent connections
+                                {enabled
+                                    ? 'My agent connections'
+                                    : 'My warehouse connections'}
                             </Anchor>
                         }
                     />

@@ -12,12 +12,15 @@ import {
     getSnowflakeAgentStatus,
     type SnowflakeAgentStatus,
 } from './snowflakeAgentStatus';
+import { useExpiryTimer } from './useExpiryTimer';
 
 const getStatusBadge = (
     status: SnowflakeAgentStatus,
     expiresAt: Date | null,
 ) => {
     switch (status) {
+        case 'unavailable':
+            return { label: 'Not available', color: 'gray' };
         case 'not_connected':
             return { label: 'Not connected', color: 'gray' };
         case 'connected':
@@ -38,18 +41,24 @@ const getStatusBadge = (
 
 export const SnowflakeAgentConnectionCard = ({
     credential,
+    snowflakeConfigured,
 }: {
     credential: UserWarehouseCredentials | null;
+    snowflakeConfigured: boolean;
 }) => {
     const login = useSnowflakeAiLoginPopup({
         entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
         projectUuid: null,
     });
     const [isRemoving, setIsRemoving] = useState(false);
+    useExpiryTimer(
+        credential?.expiresAt ? new Date(credential.expiresAt).getTime() : null,
+    );
     const status = getSnowflakeAgentStatus(
         credential,
         !!login.error,
         Date.now(),
+        snowflakeConfigured,
     );
     const badge = getStatusBadge(status, credential?.expiresAt ?? null);
     return (
@@ -68,7 +77,7 @@ export const SnowflakeAgentConnectionCard = ({
                         >
                             Disconnect
                         </Button>
-                    ) : (
+                    ) : status !== 'unavailable' ? (
                         <Button
                             size="xs"
                             onClick={() => login.mutate()}
@@ -76,21 +85,22 @@ export const SnowflakeAgentConnectionCard = ({
                         >
                             Connect agent
                         </Button>
-                    )}
+                    ) : null}
                 </Group>
                 {status !== 'connected' && (
                     <Text c="dimmed" fz="sm">
-                        Your AI questions on Snowflake projects are refused
-                        until you connect. Takes about 30 seconds.
+                        {status === 'unavailable'
+                            ? 'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.'
+                            : 'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.'}
                     </Text>
                 )}
-                {login.error && (
+                {status === 'failing' && login.error && (
                     <Text c="red" fz="sm" role="alert">
                         {login.error.message}
                     </Text>
                 )}
             </Stack>
-            {credential && isRemoving && (
+            {status !== 'unavailable' && credential && isRemoving && (
                 <DeleteCredentialsModal
                     opened={isRemoving}
                     onClose={() => setIsRemoving(false)}

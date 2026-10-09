@@ -1,9 +1,14 @@
 import {
+    ProjectType,
     WarehouseTypes,
+    type OrganizationProject,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { shouldShowMyAgentConnections } from './visibility';
+import {
+    getAgentConnectionVisibility,
+    shouldShowMyAgentConnections,
+} from './visibility';
 
 const rules = (
     snowflake: OrganizationAgentIdentityRule['source'],
@@ -37,5 +42,46 @@ describe('shouldShowMyAgentConnections', () => {
     );
     it('hides the page until rules load', () => {
         expect(shouldShowMyAgentConnections(true, [])).toBe(false);
+    });
+});
+
+describe('getAgentConnectionVisibility', () => {
+    const project: OrganizationProject = {
+        projectUuid: 'project',
+        name: 'Project',
+        type: ProjectType.DEFAULT,
+        createdByUserUuid: null,
+        createdByUserName: null,
+        createdAt: new Date('2026-10-09'),
+        upstreamProjectUuid: null,
+        expiresAt: null,
+        warehouseType: WarehouseTypes.SNOWFLAKE,
+    };
+
+    it('shows required Snowflake sign-in without depending on server configuration', () => {
+        expect(
+            getAgentConnectionVisibility(
+                rules('agent_sign_in', 'marked_person'),
+                [project],
+            ),
+        ).toEqual({ showSnowflake: true, showBigQuery: false });
+    });
+
+    it('hides Snowflake when the rule does not require sign-in', () => {
+        expect(
+            getAgentConnectionVisibility(
+                rules('marked_person', 'marked_person'),
+                [project],
+            ).showSnowflake,
+        ).toBe(false);
+    });
+
+    it('hides Snowflake without an accessible Snowflake project', () => {
+        expect(
+            getAgentConnectionVisibility(
+                rules('agent_sign_in', 'marked_person'),
+                [],
+            ).showSnowflake,
+        ).toBe(false);
     });
 });

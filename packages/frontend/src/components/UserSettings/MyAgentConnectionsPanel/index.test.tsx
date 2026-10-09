@@ -94,7 +94,7 @@ describe('MyAgentConnectionsPanel', () => {
         ['agent_sign_in', true, [WarehouseTypes.SNOWFLAKE], true],
         ['marked_person', true, [WarehouseTypes.SNOWFLAKE], false],
         ['ai_service_account', true, [WarehouseTypes.SNOWFLAKE], false],
-        ['agent_sign_in', false, [WarehouseTypes.SNOWFLAKE], false],
+        ['agent_sign_in', false, [WarehouseTypes.SNOWFLAKE], true],
         ['agent_sign_in', true, [WarehouseTypes.BIGQUERY], false],
         ['agent_sign_in', true, [undefined], false],
         ['agent_sign_in', true, [], false],
@@ -133,6 +133,26 @@ describe('MyAgentConnectionsPanel', () => {
             ).toBe(visible);
         },
     );
+    it('shows unavailable setup instead of the empty state for a required Snowflake sign-in', () => {
+        configured = false;
+        warehouses = [WarehouseTypes.SNOWFLAKE];
+        renderWithProviders(<MyAgentConnectionsPanel />);
+        expect(
+            screen.getByRole('heading', { name: 'Snowflake' }),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Not available')).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Connect agent' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('No agent connections needed'),
+        ).not.toBeInTheDocument();
+    });
     it('shows the neutral empty state when no card applies', () => {
         snowflakeSource = 'marked_person';
         bigquerySource = 'marked_person';
