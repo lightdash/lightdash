@@ -169,10 +169,6 @@
     font-weight: 600;
 }
 
-.personName {
-    fill: var(--mantine-color-text);
-}
-
 /* Over the map and empty but for the band while the colouring changes; it never takes the pointer */
 .sweepLayer {
     position: absolute;

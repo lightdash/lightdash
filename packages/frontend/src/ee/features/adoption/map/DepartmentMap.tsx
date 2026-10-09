@@ -23,7 +23,7 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { COLOUR_TRANSITION, startColourTransition } from './colourTransition';
 import styles from './DepartmentMap.module.css';
-import { truncateLabel, type ColourBy, type PackedCircle } from './geometry';
+import { type ColourBy, type PackedCircle } from './geometry';
 import {
     getHoverLabel,
     getRestLabels,
@@ -43,11 +43,8 @@ const MAX_ZOOM = 12;
 const ZOOM_STEP = 1.6;
 // A press that travels further than this is a drag, not a selection
 const CLICK_SLOP_PX = 5;
-const PERSON_FONT_PX = 10;
 const HALO_PX = 3.5;
 const NO_ACCOUNT_SCALE = 0.78;
-// Fed to the shared truncation rule: about ten characters
-const FIRST_NAME_RADIUS = 36;
 
 const LINE_CLASSES: Record<TextRole, string> = {
     name: styles.labelName,
@@ -72,7 +69,6 @@ type Props = {
     dots: MapDot[];
     // What the dots are coloured by; a change of it sweeps the new colours across the map
     colourBy: ColourBy;
-    showNames: boolean;
     ariaLabel: string;
     measureText: TextMeasurer;
     // Changes when a different part of the organization is drawn, which resets the zoom
@@ -194,7 +190,7 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
 );
 DotsLayer.displayName = 'DotsLayer';
 
-// Text keeps its size on screen, so these layers follow the zoom level but not panning
+// Text keeps its size on screen, so this layer follows the zoom level but not panning
 
 const LabelsLayer = memo<{
     labels: CircleLabel[];
@@ -224,32 +220,6 @@ const LabelsLayer = memo<{
 ));
 LabelsLayer.displayName = 'LabelsLayer';
 
-const NamesLayer = memo<{ dots: MapDot[]; zoomLevel: number }>(
-    ({ dots, zoomLevel }) => (
-        <>
-            {dots.map((dot) =>
-                dot.member === null ? null : (
-                    <text
-                        key={dot.key}
-                        className={`${styles.label} ${styles.personName}`}
-                        textAnchor="middle"
-                        x={dot.x}
-                        y={dot.y + dot.r + (PERSON_FONT_PX + 1) / zoomLevel}
-                        fontSize={PERSON_FONT_PX / zoomLevel}
-                        strokeWidth={HALO_PX / zoomLevel}
-                    >
-                        {truncateLabel(
-                            dot.member.firstName || dot.member.email,
-                            FIRST_NAME_RADIUS,
-                        )}
-                    </text>
-                ),
-            )}
-        </>
-    ),
-);
-NamesLayer.displayName = 'NamesLayer';
-
 export const DepartmentMap: FC<Props> = ({
     width,
     height,
@@ -257,7 +227,6 @@ export const DepartmentMap: FC<Props> = ({
     info,
     dots,
     colourBy,
-    showNames,
     ariaLabel,
     measureText,
     layoutKey,
@@ -475,7 +444,6 @@ export const DepartmentMap: FC<Props> = ({
                             selectedUserUuid={selectedUserUuid}
                         />
                     </g>
-                    {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
                     <LabelsLayer
                         labels={shownRestLabels}
                         zoomLevel={k}

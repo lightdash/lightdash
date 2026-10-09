@@ -28,8 +28,8 @@ import {
 } from './geometry';
 import { COLOUR_BY_LABELS } from './mapStyles';
 
-// First names are only readable when few people share the map
-export const NAME_LABEL_LIMIT = 150;
+// People are loaded, to name them on hover and select them, only when few share the map
+export const PEOPLE_LOAD_LIMIT = 150;
 
 // The departments one level below the focus: what the map compares
 export const getVisibleDepartments = (
@@ -200,12 +200,13 @@ export const buildDots = (
 
 // People are only fetched where their names can be drawn; larger views are coloured from the summary counts
 export const shouldLoadPeople = (totalPeople: number): boolean =>
-    totalPeople <= NAME_LABEL_LIMIT;
+    totalPeople <= PEOPLE_LOAD_LIMIT;
 
-export const shouldShowNames = (
+// The people loaded are listed by name for the keyboard and screen readers; the map never draws their names
+export const shouldListPeople = (
     totalPeople: number,
     hasLoadedPeople: boolean,
-): boolean => hasLoadedPeople && totalPeople <= NAME_LABEL_LIMIT;
+): boolean => hasLoadedPeople && totalPeople <= PEOPLE_LOAD_LIMIT;
 
 export type CircleStats = {
     people: number;

@@ -31,10 +31,10 @@ import {
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
-    NAME_LABEL_LIMIT,
+    PEOPLE_LOAD_LIMIT,
     nameLoneBucket,
     shouldLoadPeople,
-    shouldShowNames,
+    shouldListPeople,
 } from './mapView';
 import { deepOrganization, flatOrganization } from './organizationFixtures';
 
@@ -314,11 +314,11 @@ describe('buildDots', () => {
 });
 
 describe('dot and name thresholds', () => {
-    it('shows first names only at 150 people or fewer, once people are loaded', () => {
-        expect(NAME_LABEL_LIMIT).toBe(150);
-        expect(shouldShowNames(150, true)).toBe(true);
-        expect(shouldShowNames(151, true)).toBe(false);
-        expect(shouldShowNames(20, false)).toBe(false);
+    it('lists people by name for the keyboard only at 150 people or fewer, once people are loaded', () => {
+        expect(PEOPLE_LOAD_LIMIT).toBe(150);
+        expect(shouldListPeople(150, true)).toBe(true);
+        expect(shouldListPeople(151, true)).toBe(false);
+        expect(shouldListPeople(20, false)).toBe(false);
     });
     it('loads people only where their names can be drawn', () => {
         expect(shouldLoadPeople(150)).toBe(true);

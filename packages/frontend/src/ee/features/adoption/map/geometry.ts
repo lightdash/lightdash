@@ -24,7 +24,6 @@ const ENLARGED_CLEARANCE = 2;
 const MIN_ENLARGEMENT = 0.5;
 const DOT_MARGIN = 2;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-const LABEL_PX_PER_CHAR = 3.6;
 const ROOMY_DOT_RADIUS = 11;
 const DENSE_DOT_RADIUS = 5;
 const ROOMY_COUNT = 20;
@@ -661,10 +660,3 @@ export const orderMembersForDots = (
             DOT_ORDER.indexOf(getMemberDotKind(a, colourBy)) -
             DOT_ORDER.indexOf(getMemberDotKind(b, colourBy)),
     );
-
-export const truncateLabel = (name: string, radius: number): string => {
-    const maxChars = Math.max(Math.floor(radius / LABEL_PX_PER_CHAR), 3);
-    return name.length <= maxChars
-        ? name
-        : `${name.slice(0, maxChars - 1).trimEnd()}…`;
-};

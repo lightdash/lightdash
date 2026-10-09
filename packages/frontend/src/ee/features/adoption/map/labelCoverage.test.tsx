@@ -100,7 +100,6 @@ describe.each([
                     info={info}
                     dots={[]}
                     colourBy="activity"
-                    showNames={false}
                     ariaLabel="Map"
                     measureText={estimateTextWidth}
                     layoutKey="top"
@@ -164,7 +163,6 @@ const drawMap = (departments: DepartmentWithMetrics[], area: Area) => {
             info={info}
             dots={[]}
             colourBy="activity"
-            showNames={false}
             ariaLabel="Map"
             measureText={estimateTextWidth}
             layoutKey="top"

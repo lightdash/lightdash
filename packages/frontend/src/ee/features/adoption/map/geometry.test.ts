@@ -25,7 +25,6 @@ import {
     shouldRenderDots,
     sunflowerPositions,
     SVG_DOT_LIMIT,
-    truncateLabel,
     type PackedCircle,
 } from './geometry';
 
@@ -369,15 +368,6 @@ describe('member dots', () => {
                 (m) => m.userUuid,
             ),
         ).toEqual(['recent', 'lapsed', 'never']);
-    });
-});
-
-describe('truncateLabel', () => {
-    it('keeps short names and shortens long ones to fit the circle', () => {
-        expect(truncateLabel('Ops', 60)).toBe('Ops');
-        expect(truncateLabel('Customer operations and support', 35)).toBe(
-            'Customer…',
-        );
     });
 });
 

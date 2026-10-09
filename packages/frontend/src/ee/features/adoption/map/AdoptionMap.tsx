@@ -56,7 +56,7 @@ import {
     getVisibleDepartments,
     groupMembersByDepartment,
     shouldLoadPeople,
-    shouldShowNames,
+    shouldListPeople,
 } from './mapView';
 import { createTextMeasurer } from './textMeasure';
 import { useContainerSize } from './useContainerSize';
@@ -180,7 +180,7 @@ export const AdoptionMap: FC<Props> = ({
                 : groupMembersByDepartment(loadedMembers),
         [loadedMembers],
     );
-    const showNames = shouldShowNames(peopleInView, loadedMembers !== null);
+    const listPeople = shouldListPeople(peopleInView, loadedMembers !== null);
     const selectedMember =
         loadedMembers?.find((m) => m.userUuid === selectedUserUuid) ?? null;
 
@@ -234,7 +234,7 @@ export const AdoptionMap: FC<Props> = ({
         (circle) => circle.kind === 'department',
     );
     const ringKeys = getRingKeys(circles);
-    const namedDots = showNames ? dots.filter((dot) => dot.member) : [];
+    const namedDots = listPeople ? dots.filter((dot) => dot.member) : [];
 
     return (
         <Stack
@@ -338,7 +338,6 @@ export const AdoptionMap: FC<Props> = ({
                                 info={info}
                                 dots={dots}
                                 colourBy={colourBy}
-                                showNames={showNames}
                                 ariaLabel={buildMapAriaLabel({
                                     scopeName: focusName,
                                     departmentCount: visibleDepartments.length,

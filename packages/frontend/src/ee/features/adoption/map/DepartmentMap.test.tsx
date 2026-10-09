@@ -61,7 +61,6 @@ const draw = (
             info={info}
             dots={[]}
             colourBy="activity"
-            showNames={false}
             ariaLabel="Map"
             measureText={estimateTextWidth}
             layoutKey="root"

@@ -368,7 +368,7 @@ describe('typed strings render as text', () => {
         expectNothingInjected();
 
         // Inside the department: the hovered labels are whole, the circles are titled with the whole name, and
-        // each dot is titled with the full name and labelled with the first name, cut short
+        // each dot is titled with the full name, which is never drawn on the map
         await userEvent.click(
             screen.getByRole('button', {
                 name: (accessibleName) => accessibleName.startsWith(`${NAME},`),
@@ -389,12 +389,10 @@ describe('typed strings render as text', () => {
         );
         // The person's dot is titled with their full name and the part of the colouring they are in
         expect(drawnText('title')).toContain(`${PERSON} ${SURNAME} · Lost`);
+        // No person's name is drawn on the map, whole or cut short
         expect(
-            drawnText('text').some(
-                (text) =>
-                    text.endsWith('…') && PERSON.startsWith(text.slice(0, -1)),
-            ),
-        ).toBe(true);
+            drawnText('text').some((text) => text.includes(PERSON.slice(0, 6))),
+        ).toBe(false);
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectSvgTextOnly();
         expectNothingInjected();

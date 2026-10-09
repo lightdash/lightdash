@@ -304,11 +304,35 @@ describe('AdoptionMap', () => {
         await userEvent.click(
             screen.getByRole('button', { name: /^Finance,/ }),
         );
+        // No person is named on the map at rest; each dot names its person, and their part of the colouring, on
+        // hover, and keyboard users have the people listed by name
+        const drawnTexts = [
+            ...container.querySelectorAll('svg[role="img"] text'),
+        ].map((node) => node.textContent ?? '');
+        ['Ada', 'Grace', 'Alan', 'Lovelace', 'Hopper', 'Turing'].forEach(
+            (name) =>
+                expect(
+                    drawnTexts.filter((text) => text.includes(name)),
+                ).toEqual([]),
+        );
         expect(
-            [...container.querySelectorAll('svg[role="img"] text')].map(
-                (node) => node.textContent,
-            ),
-        ).toEqual(expect.arrayContaining(['Ada', 'Grace', 'Alan']));
+            [
+                ...container.querySelectorAll(
+                    'svg[role="img"] [data-user] title',
+                ),
+            ].map((node) => node.textContent),
+        ).toEqual(
+            expect.arrayContaining([
+                'Ada Lovelace · Healthy',
+                'Grace Hopper · Lost',
+                'Alan Turing · Healthy',
+            ]),
+        );
+        expect(
+            within(
+                screen.getByRole('list', { name: 'People on the map' }),
+            ).getByRole('button', { name: 'Grace Hopper' }),
+        ).toBeInTheDocument();
         // The department's one circle carries its own name at rest, and the same on hover
         const texts = (selector: string) =>
             [...container.querySelectorAll(`svg[role="img"] ${selector}`)].map(
