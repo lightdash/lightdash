@@ -26,6 +26,7 @@ import {
 } from '@mantine/core';
 import {
     IconArrowUp,
+    IconAlertTriangle,
     IconBolt,
     IconCheck,
     IconFileText,
@@ -293,6 +294,7 @@ interface AgentChatInputProps {
     showFastMode?: boolean;
     // Thread model shown in the status row under the inline composer.
     threadModelName?: string | null;
+    threadModelWarning?: string | null;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -362,6 +364,7 @@ export const AgentChatInput = ({
     footerNotice,
     showFastMode = true,
     threadModelName,
+    threadModelWarning = null,
 }: AgentChatInputProps) => {
     const accessGate = useAiAccessGate(projectUuid);
     const accessRefused = accessGate.disabled;
@@ -1519,7 +1522,27 @@ export const AgentChatInput = ({
                                 </ActionIcon>
                             </Tooltip>
                         )}
-                        {threadModelName && (
+                        {threadModelName && threadModelWarning && (
+                            <Tooltip
+                                label={threadModelWarning}
+                                multiline
+                                w={240}
+                                position="top"
+                            >
+                                <Group gap={4} wrap="nowrap">
+                                    <MantineIcon
+                                        icon={IconAlertTriangle}
+                                        size={14}
+                                        color="yellow.7"
+                                        aria-label={threadModelWarning}
+                                    />
+                                    <Text size="xs" c="dimmed">
+                                        {threadModelName}
+                                    </Text>
+                                </Group>
+                            </Tooltip>
+                        )}
+                        {threadModelName && !threadModelWarning && (
                             <Text size="xs" c="dimmed">
                                 {threadModelName}
                             </Text>

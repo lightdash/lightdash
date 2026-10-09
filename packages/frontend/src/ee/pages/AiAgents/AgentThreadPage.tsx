@@ -26,7 +26,6 @@ import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
 } from '../../features/aiCopilot/hooks/useAiAgentAdmin';
-import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
@@ -43,6 +42,7 @@ import {
     useAiAgentThreadWorkstreams,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useThreadModel } from '../../features/aiCopilot/hooks/useThreadModel';
 import {
     selectThreadSqlMode,
     setThreadSqlMode,
@@ -202,14 +202,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
-    const { explicitModelConfig, selectedModel } = useAiAgentModelSelection({
+    const threadModel = useThreadModel({
         projectUuid,
         agentUuid,
-        defaultModelConfig: agent.modelConfig,
-        organizationSettingsEnabled: !isEmbed,
+        messages: thread?.messages,
     });
-    // Model can't change mid-thread; the status bar shows what the next message uses.
-    const threadModelName = selectedModel?.displayName ?? null;
 
     const disabledReasons: { when: boolean; message: string }[] = [
         {
@@ -290,7 +287,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     }) => {
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig: explicitModelConfig,
             context: mergeAiPromptContextInput(pageContextInput, context),
             optimisticContext: mergeAiPromptContextItems(
                 pagePreviewItems,
@@ -318,7 +314,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -341,7 +336,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -438,7 +432,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         threadUuid={threadUuid}
-                        threadModelName={threadModelName}
+                        threadModelName={threadModel?.name ?? null}
+                        threadModelWarning={
+                            threadModel?.deprecationWarning ?? null
+                        }
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

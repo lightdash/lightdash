@@ -23,6 +23,7 @@ import {
     AiAgentMessageAssistant,
     AiAgentMessageAssistantArtifact,
     AiAgentMessageUser,
+    AiAgentModelConfig,
     AiAgentNotFoundError,
     AiAgentReasoning,
     AiAgentReviewItemSummary,
@@ -5676,6 +5677,18 @@ export class AiAgentModel {
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
+    }
+
+    async findThreadModelConfig(
+        threadUuid: string,
+    ): Promise<AiAgentModelConfig | null> {
+        const row = await this.database(AiPromptTableName)
+            .select('model_config')
+            .where('ai_thread_uuid', threadUuid)
+            .whereNotNull('model_config')
+            .orderBy('created_at', 'asc')
+            .first();
+        return row?.model_config ?? null;
     }
 
     async existsSlackPromptByChannelIdAndPromptTs(
