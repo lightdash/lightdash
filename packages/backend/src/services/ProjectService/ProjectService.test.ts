@@ -609,6 +609,7 @@ const getMockedProjectService = (
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
             | 'jobModel'
+            | 'userOAuthGrantsModel'
             | 'projectModel'
             | 'spacePermissionService'
             | 'spaceModel'
@@ -677,7 +678,8 @@ const getMockedProjectService = (
             invalidateSessionUserCache: vi.fn(),
             findSessionUserByUUID: vi.fn(async () => user),
         } as unknown as UserModel,
-        userOAuthGrantsModel: {} as UserOAuthGrantsModel,
+        userOAuthGrantsModel:
+            overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
         } as unknown as AiAccessService,
@@ -5904,8 +5906,11 @@ describe('ProjectService', () => {
                             executionProject: 'billing-project',
                             location: 'EU',
                             authenticationType: BigqueryAuthenticationType.SSO,
-                            keyfileContents:
-                                personalCredentials.credentials.keyfileContents,
+                            keyfileContents: {
+                                ...personalCredentials.credentials
+                                    .keyfileContents,
+                                client_secret: 'oauth-secret',
+                            },
                             userWarehouseCredentialsUuid:
                                 personalCredentials.uuid,
                         }),
@@ -5925,8 +5930,10 @@ describe('ProjectService', () => {
 
                 expect(await getCredentials(true, 'org-credentials')).toEqual(
                     expect.objectContaining({
-                        keyfileContents:
-                            personalCredentials.credentials.keyfileContents,
+                        keyfileContents: {
+                            ...personalCredentials.credentials.keyfileContents,
+                            client_secret: 'oauth-secret',
+                        },
                         userWarehouseCredentialsUuid: personalCredentials.uuid,
                     }),
                 );
@@ -10583,17 +10590,35 @@ describe('ProjectService', () => {
             },
         );
 
-        it('still requires a refresh token for SSO authentication', () => {
+        it.each([{}, serviceAccountKeyfile])(
+            'still requires a refresh token for SSO authentication: %j',
+            (keyfile) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            keyfile,
+                            BigqueryAuthenticationType.SSO,
+                        ),
+                    ),
+                ).toThrowError(
+                    'Bigquery refresh token is required for SSO authentication',
+                );
+            },
+        );
+
+        it('allows a secret-free SSO keyfile on save', () => {
             expect(() =>
                 service.validateConfigSecrets(
                     projectWithBigqueryKeyfile(
-                        serviceAccountKeyfile,
+                        {
+                            type: 'authorized_user',
+                            client_id: 'oauth-client',
+                            refresh_token: 'refresh',
+                        },
                         BigqueryAuthenticationType.SSO,
                     ),
                 ),
-            ).toThrowError(
-                'Bigquery refresh token is required for SSO authentication',
-            );
+            ).not.toThrowError();
         });
 
         it('allows a user credentials keyfile for SSO authentication', () => {
@@ -14498,18 +14523,28 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
                 setupPersonalCredentials({
                     type: WarehouseTypes.BIGQUERY,
                     authenticationType: personalAuthType,
-                    keyfileContents: {
-                        client_email: 'personal-secret-email',
-                    },
+                    keyfileContents:
+                        personalAuthType === BigqueryAuthenticationType.SSO
+                            ? {
+                                  type: 'authorized_user',
+                                  client_id: 'personal-client',
+                                  refresh_token: 'personal-refresh',
+                              }
+                            : { client_email: 'personal-secret-email' },
                 });
 
                 const result = await callGetWarehouseCredentials();
 
                 expect(result).toMatchObject({
                     authenticationType: personalAuthType,
-                    keyfileContents: {
-                        client_email: 'personal-secret-email',
-                    },
+                    keyfileContents:
+                        personalAuthType === BigqueryAuthenticationType.SSO
+                            ? {
+                                  type: 'authorized_user',
+                                  client_id: 'personal-client',
+                                  refresh_token: 'personal-refresh',
+                              }
+                            : { client_email: 'personal-secret-email' },
                 });
                 expect(JSON.stringify(result)).not.toContain(
                     'project-secret-key',
@@ -15328,6 +15363,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
     };
     const service = getMockedProjectService(lightdashConfigMock, {
         featureFlagModel: flag as unknown as FeatureFlagModel,
+        userOAuthGrantsModel: grant as unknown as UserOAuthGrantsModel,
     });
 
     beforeEach(() => {

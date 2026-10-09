@@ -22,8 +22,8 @@ export const lightdashConfigMock: LightdashConfig = {
         enableOidcToEmailLinking: false,
         google: {
             loginPath: '',
-            oauth2ClientId: undefined,
-            oauth2ClientSecret: undefined,
+            oauth2ClientId: 'test-google-client-id',
+            oauth2ClientSecret: 'test-google-client-secret',
             callbackPath: '',
             googleDriveApiKey: undefined,
             enableGCloudADC: false,

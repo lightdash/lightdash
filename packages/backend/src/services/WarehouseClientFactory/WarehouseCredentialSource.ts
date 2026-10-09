@@ -5,9 +5,10 @@ import {
 import type { WarehouseConnectionProject } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type { ConnectionContext } from './ConnectionContext';
+import type { MaterializedCredentials } from './CredentialResolver';
 import type { WarehouseClientRef } from './WarehouseClientFactory';
 
-export type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+export type ResolvedWarehouseCredentials = MaterializedCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
     aiPlan?: AiExecutionPlan;
 };

@@ -650,7 +650,15 @@ describe('compile credential resolution', () => {
                         async ({ connection, warehouseCredentials }) => {
                             expect(
                                 connection.connectionCredentials,
-                            ).toMatchObject(expected);
+                            ).toMatchObject({
+                                ...expected,
+                                keyfileContents: {
+                                    ...expected.keyfileContents,
+                                    client_secret:
+                                        lightdashConfigMock.auth.google
+                                            .oauth2ClientSecret,
+                                },
+                            });
                             expect(warehouseCredentials).toMatchObject(
                                 expected,
                             );
@@ -696,7 +704,15 @@ describe('compile credential resolution', () => {
                     expect(
                         warehouseClientFromCredentials,
                     ).toHaveBeenCalledExactlyOnceWith(
-                        expect.objectContaining(expected),
+                        expect.objectContaining({
+                            ...expected,
+                            keyfileContents: {
+                                ...expected.keyfileContents,
+                                client_secret:
+                                    lightdashConfigMock.auth.google
+                                        .oauth2ClientSecret,
+                            },
+                        }),
                         expect.any(Object),
                     );
                 },

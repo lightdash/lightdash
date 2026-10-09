@@ -4,7 +4,9 @@ import {
     type CreateBigqueryCredentials,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import { UserRefreshClient } from 'google-auth-library';
 import { describe, expect, it, vi } from 'vitest';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
     checkGoogleRefreshTokenCached,
     getPreviewOwnsBigquerySsoCredentials,
@@ -314,20 +316,70 @@ describe('checkGoogleRefreshTokenCached and recheckGoogleRefreshToken', () => {
         const { keyfileContents } = bigquerySso('recheck-token');
 
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('valid');
         google.rejectedTokens.add('recheck-token');
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('valid');
         expect(google.getAccessToken).toHaveBeenCalledTimes(1);
 
-        await expect(recheckGoogleRefreshToken(keyfileContents)).resolves.toBe(
-            'rejected',
-        );
         await expect(
-            checkGoogleRefreshTokenCached(keyfileContents),
+            recheckGoogleRefreshToken(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
+        ).resolves.toBe('rejected');
+        await expect(
+            checkGoogleRefreshTokenCached(
+                keyfileContents,
+                lightdashConfigMock.auth.google,
+            ),
         ).resolves.toBe('rejected');
         expect(google.getAccessToken).toHaveBeenCalledTimes(3);
     });
 });
+
+it('checks secret-free preview credentials with the configured secret', async () => {
+    const keyfile = {
+        type: 'authorized_user',
+        client_id: 'saved-client',
+        refresh_token: 'secret-free-preview',
+    };
+    await expect(
+        recheckGoogleRefreshToken(keyfile, lightdashConfigMock.auth.google),
+    ).resolves.toBe('valid');
+    expect(UserRefreshClient).toHaveBeenLastCalledWith({
+        clientId: 'saved-client',
+        clientSecret: lightdashConfigMock.auth.google.oauth2ClientSecret,
+        refreshToken: 'secret-free-preview',
+    });
+    expect(keyfile).not.toHaveProperty('client_secret');
+});
+
+it.each([undefined, '', '   '])(
+    'checks preview credentials with the stored secret when the configured secret is %j',
+    async (oauth2ClientSecret) => {
+        const config = {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: LIGHTDASH_CLIENT,
+            oauth2ClientSecret,
+        };
+        const { keyfileContents } = bigquerySso('legacy-preview');
+        await expect(
+            recheckGoogleRefreshToken(keyfileContents, config),
+        ).resolves.toBe('valid');
+        expect(UserRefreshClient).toHaveBeenLastCalledWith({
+            clientId: LIGHTDASH_CLIENT,
+            clientSecret: 'secret',
+            refreshToken: 'legacy-preview',
+        });
+        expect(keyfileContents.client_secret).toBe('secret');
+    },
+);
