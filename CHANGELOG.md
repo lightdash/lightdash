@@ -1,3 +1,10 @@
+# [2.521.0](https://github.com/lightdash/lightdash/compare/2.520.0...2.521.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** resolve the AI service account through a credential resolver ([#30834](https://github.com/lightdash/lightdash/issues/30834)) ([50f8bae](https://github.com/lightdash/lightdash/commit/50f8bae0cbc4eb099f724c253606fda03304f5ce))
+
 # [2.520.0](https://github.com/lightdash/lightdash/compare/2.519.0...2.520.0) (2026-10-09)
 
 
