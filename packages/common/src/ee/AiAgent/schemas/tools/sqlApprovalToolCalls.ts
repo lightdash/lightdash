@@ -124,8 +124,13 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
 };
 
 // Surrounding whitespace and trailing semicolons never change the statement.
-const normalizeApprovalSql = (sql: string): string =>
-    sql.trim().replace(/[\s;]+$/, '');
+const normalizeApprovalSql = (sql: string): string => {
+    let normalized = sql.trim();
+    while (normalized.endsWith(';')) {
+        normalized = normalized.slice(0, -1).trimEnd();
+    }
+    return normalized;
+};
 
 /** Whether approving one SQL string also approves the other. */
 export const isSameApprovalSql = (a: string, b: string): boolean =>

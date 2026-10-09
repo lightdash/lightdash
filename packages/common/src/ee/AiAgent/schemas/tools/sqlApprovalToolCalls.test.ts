@@ -166,6 +166,7 @@ describe('isSameApprovalSql', () => {
         expect(isSameApprovalSql('  select 1\n', 'select 1')).toBe(true);
         expect(isSameApprovalSql('select 1;', 'select 1')).toBe(true);
         expect(isSameApprovalSql('select 1 ;\n', 'select 1')).toBe(true);
+        expect(isSameApprovalSql('select 1; ;; \n', 'select 1')).toBe(true);
     });
 
     it('does not match SQL that differs anywhere else', () => {
