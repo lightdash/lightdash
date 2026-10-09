@@ -243,7 +243,9 @@ describe.skipIf(!stubUrl)(
             });
             expect(refused.isError).toBe(true);
             expect(mcpText(refused)).toContain(
-                getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN),
+                getAiAccessRefusalMessage(AiAccessRefusalReason.NEEDS_SIGN_IN, {
+                    projectName: null,
+                }),
             );
 
             expect(mcpText(refused)).toContain(mcpConnectUrl.href);
@@ -413,6 +415,7 @@ describe.skipIf(!stubUrl)(
             expect(mcpText(result)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    { projectName: null },
                 ),
             );
             expect(mcpText(result)).toContain('/agent/connect');

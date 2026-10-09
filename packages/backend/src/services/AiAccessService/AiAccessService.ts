@@ -20,7 +20,9 @@ import {
     FeatureNotEnabledError,
     ForbiddenError,
     getAgentIdentityWarehouseTypes,
+    getAiAccessRefusalMessage,
     getAiExecutionCredentialUuid,
+    getProjectAgentIdentitySettingsPath,
     getSnowflakeAgentRedirectUri,
     isAiAccessQueryContext,
     isAllowedAgentIdentitySource,
@@ -1142,11 +1144,11 @@ export class AiAccessService extends BaseService {
         }
     }
 
-    private withRefusalUrls(
+    private async withRefusalUrls(
         error: AiAccessRefusedError,
         projectUuid: string,
         entryPoint: AgentIdentityConnectEntryPoint,
-    ): AiAccessRefusedError {
+    ): Promise<AiAccessRefusedError> {
         if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
             const connectUrl = new URL(
                 '/agent/connect',
@@ -1158,6 +1160,25 @@ export class AiAccessService extends BaseService {
             const refusal = new AiAccessRefusedError(error.refusal.reason, {
                 ...error.refusal,
                 connectUrl: connectUrl.href,
+                inheritedFromProjectUuid: error.inheritedFromProjectUuid,
+            });
+            return withCause(refusal, error.cause ?? error);
+        }
+        if (
+            error.refusal.reason ===
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
+            error.refusal.reason ===
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID
+        ) {
+            const projectName = await this.projectModel
+                .getSummary(projectUuid)
+                .then((project) => project.name)
+                .catch(() => null);
+            const refusal = new AiAccessRefusedError(error.refusal.reason, {
+                message: getAiAccessRefusalMessage(error.refusal.reason, {
+                    projectName,
+                }),
+                settingsUrl: getProjectAgentIdentitySettingsPath(projectUuid),
                 inheritedFromProjectUuid: error.inheritedFromProjectUuid,
             });
             return withCause(refusal, error.cause ?? error);
@@ -1475,7 +1496,7 @@ export class AiAccessService extends BaseService {
             };
         } catch (error) {
             if (error instanceof AiAccessRefusedError) {
-                const refusalError = this.withRefusalUrls(
+                const refusalError = await this.withRefusalUrls(
                     error,
                     args.projectUuid,
                     args.evaluation.kind === 'query'
@@ -2003,7 +2024,7 @@ export class AiAccessService extends BaseService {
             }
         } catch (error) {
             if (!(error instanceof AiAccessRefusedError)) throw error;
-            const refusalError = this.withRefusalUrls(
+            const refusalError = await this.withRefusalUrls(
                 error,
                 args.projectUuid,
                 AgentIdentityConnectEntryPoint.UNKNOWN,

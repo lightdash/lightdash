@@ -7,8 +7,10 @@ import {
     DuckdbConnectionType,
     FeatureFlags,
     ForbiddenError,
+    getAiAccessRefusalMessage,
     getAiExecutionCredentialUuid,
     getPersonSignIn,
+    getProjectAgentIdentitySettingsPath,
     isAiAccessQueryContext,
     UnexpectedServerError,
     UserWarehouseCredentialPurpose,
@@ -1045,6 +1047,18 @@ export class WarehouseClientFactory {
         return attributed;
     }
 
+    private async getRefusalProjectName(
+        projectUuid: string | null,
+    ): Promise<string | null> {
+        if (projectUuid === null) return null;
+        try {
+            const project = await this.projectModel.getSummary(projectUuid);
+            return project?.name ?? null;
+        } catch {
+            return null;
+        }
+    }
+
     private async attributeAiServiceAccountError(
         projectUuid: string | null,
         credentials: CreateWarehouseCredentials,
@@ -1098,8 +1112,13 @@ export class WarehouseClientFactory {
                 ...redactCredentialError(error),
             });
         }
+        const projectName = await this.getRefusalProjectName(projectUuid);
         const refusal = new AiAccessRefusedError(reason, {
-            settingsUrl: AGENT_IDENTITY_SETTINGS_PATH,
+            message: getAiAccessRefusalMessage(reason, { projectName }),
+            settingsUrl:
+                projectUuid === null
+                    ? AGENT_IDENTITY_SETTINGS_PATH
+                    : getProjectAgentIdentitySettingsPath(projectUuid),
         });
         withCause(refusal, error);
         throw refusal;

@@ -160,6 +160,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             { projectUuid: 'project', warehouseType: WarehouseTypes.SNOWFLAKE },
         ]),
         getSummary: vi.fn(async (_uuid: string) => ({
+            name: null as string | null,
             organizationUuid: 'org',
         })),
         getWarehouseCredentialsForBinding: vi.fn(
@@ -3014,6 +3015,84 @@ describe('per-type execution identity resolution', () => {
     );
 
     test.each(
+        [
+            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        ].flatMap((reason) =>
+            ['Finance', null].map((projectName) => ({ reason, projectName })),
+        ),
+    )(
+        'uses the refused project in $reason copy and settings with name $projectName',
+        async ({ reason, projectName }) => {
+            const { service, organizationRules, slots, projects } = setup();
+            projects.getSummary.mockResolvedValue({
+                organizationUuid: 'org',
+                name: projectName,
+            });
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            if (reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID)
+                slots.getSecrets.mockRejectedValue(
+                    new Error('invalid credentials'),
+                );
+            await expect(
+                service.resolvePlan({
+                    ...args,
+                    projectUuid: 'refused-project',
+                    connection: bigquery,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    settingsUrl:
+                        '/generalSettings/projectManagement/refused-project/agentIdentity',
+                    message:
+                        reason ===
+                        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            ? `Agents can't query ${projectName ?? 'this project'} yet. It needs an AI service account, and none is set up. A project admin can add one in Agent identity.`
+                            : `Agents can't query ${projectName ?? 'this project'} right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.`,
+                },
+            });
+            expect(projects.getSummary).toHaveBeenCalledWith('refused-project');
+        },
+    );
+
+    test('keeps the refusal when the project name lookup fails', async () => {
+        const { service, organizationRules, projects } = setup();
+        projects.getSummary.mockRejectedValue(new Error('database down'));
+        organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        await expect(
+            service.resolvePlan({
+                ...args,
+                projectUuid: 'refused-project',
+                connection: bigquery,
+            }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                settingsUrl:
+                    '/generalSettings/projectManagement/refused-project/agentIdentity',
+                message:
+                    "Agents can't query this project right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.",
+            },
+        });
+    });
+
+    test('keeps principal failures on organization agent settings', async () => {
+        const { service, provider } = setup();
+        provider.mint.mockRejectedValue(
+            new AiAccessRefusedError(AiAccessRefusalReason.PRINCIPAL_FAILED),
+        );
+        await expect(
+            service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({
+            refusal: { settingsUrl: '/generalSettings/agentIdentity' },
+        });
+    });
+
+    test.each(
         [QuerySurface.APP, QuerySurface.MCP].flatMap((surface) =>
             [
                 AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
@@ -3039,7 +3118,8 @@ describe('per-type execution identity resolution', () => {
                 refusal: {
                     reason,
                     action: 'ask_admin',
-                    settingsUrl: '/generalSettings/agentIdentity',
+                    settingsUrl:
+                        '/generalSettings/projectManagement/project/agentIdentity',
                     connectUrl: null,
                 },
             });
@@ -4544,6 +4624,7 @@ describe('preview AI service account inheritance', () => {
             source: 'ai_service_account',
         });
         f.projects.getSummary.mockImplementation(async (uuid: string) => ({
+            name: null,
             organizationUuid: 'org',
             type:
                 uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,

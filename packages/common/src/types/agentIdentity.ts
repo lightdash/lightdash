@@ -66,6 +66,10 @@ export const getAgentClientLabel = (clientId: string | null): string => {
 
 export const AGENT_IDENTITY_SETTINGS_PATH = '/generalSettings/agentIdentity';
 
+export const getProjectAgentIdentitySettingsPath = (
+    projectUuid: string,
+): string => `/generalSettings/projectManagement/${projectUuid}/agentIdentity`;
+
 export type AiActorKind = 'person' | 'service_account';
 export type AiIdentitySource =
     | 'marked_person'

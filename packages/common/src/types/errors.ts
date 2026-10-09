@@ -92,7 +92,9 @@ export class AiAccessRefusedError extends ForbiddenError {
         const refusal: AiAccessRefusal = {
             code: AI_ACCESS_REFUSED_CODE,
             reason,
-            message: options.message ?? getAiAccessRefusalMessage(reason),
+            message:
+                options.message ??
+                getAiAccessRefusalMessage(reason, { projectName: null }),
             action: getAiAccessRefusalAction(reason),
             settingsUrl: options.settingsUrl ?? null,
             connectUrl: options.connectUrl ?? null,

@@ -2049,7 +2049,10 @@ describe('Slack AI access refusals', () => {
             expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([
                 {
                     type: 'section',
-                    text: { type: 'plain_text', text: refusal.message },
+                    text: {
+                        type: 'plain_text',
+                        text: 'I need you to sign in to Snowflake before I can run this. It takes about 30 seconds. Then ask me again.',
+                    },
                 },
                 {
                     type: 'actions',
@@ -2065,6 +2068,37 @@ describe('Slack AI access refusals', () => {
             ]);
         },
     );
+
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('links %s to project agent settings', (reason) => {
+        const { refusal } = new AiAccessRefusedError(reason, {
+            message: 'Project-specific refusal',
+            settingsUrl:
+                '/generalSettings/projectManagement/refused-project/agentIdentity',
+        });
+        expect(getAiAccessRefusalBlocks(refusal, siteUrl)).toEqual([
+            {
+                type: 'section',
+                text: { type: 'plain_text', text: refusal.message },
+            },
+            {
+                type: 'actions',
+                elements: [
+                    {
+                        type: 'button',
+                        action_id: 'ai_access_settings',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open project agent settings',
+                        },
+                        url: 'https://lightdash.example.com/generalSettings/projectManagement/refused-project/agentIdentity',
+                    },
+                ],
+            },
+        ]);
+    });
 
     it.each([
         [

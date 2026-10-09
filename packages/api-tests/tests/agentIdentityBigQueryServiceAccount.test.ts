@@ -275,6 +275,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                    { projectName },
                 ),
             );
             const started = await admin.post<Body<{ queryUuid: string }>>(
@@ -381,6 +382,7 @@ describe.skipIf(!hasBigqueryCredentials())(
             expect(mcpText(refused)).toContain(
                 getAiAccessRefusalMessage(
                     AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    { projectName },
                 ),
             );
             const tested = await admin.post<ApiAiServiceAccountTestResponse>(
