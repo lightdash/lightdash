@@ -90,9 +90,10 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
     useLayoutEffect(() => {
         const region = regionRef.current;
         if (!wasPressedRef.current || region === null) return;
+        // Only the render that follows the press: a later one must not move focus
+        wasPressedRef.current = false;
         const focused = document.activeElement;
         if (region.contains(focused)) return;
-        wasPressedRef.current = false;
         if (focused === null || focused === document.body) region.focus();
     });
     const press = (action: () => void) => () => {

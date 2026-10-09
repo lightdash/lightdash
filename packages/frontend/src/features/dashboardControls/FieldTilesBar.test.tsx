@@ -985,6 +985,22 @@ describe('FieldTilesBar', () => {
     });
 
     describe('focus after an action', () => {
+        it('does not take focus later when the pressed button stayed', async () => {
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            const { rerender } = renderWithProviders(<Dashboard />);
+
+            // The mocked rule is not updated, so the button stays
+            const button = screen.getByRole('button', {
+                name: 'Filter the other 1 tile by Status',
+            });
+            await userEvent.click(button);
+            rerender(<Dashboard />);
+            button.blur();
+            rerender(<Dashboard />);
+
+            expect(document.body).toHaveFocus();
+        });
+
         it('goes to the bar when the pressed button is gone', async () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             const { rerender } = renderWithProviders(<Dashboard />);
