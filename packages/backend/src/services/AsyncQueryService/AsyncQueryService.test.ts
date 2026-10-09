@@ -21,6 +21,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getAiExecutionCredentialUuid,
     getFilterRulesFromGroup,
     isMergeMetricSource,
     MergeJoinType,
@@ -5164,6 +5165,100 @@ describe('AsyncQueryService', () => {
             ).toEqual(['query.refused', 'agent_identity.expired']);
         });
     });
+
+    test.each([false, true])(
+        'refuses retained agent results after switching to marked person with bypass flag=%s',
+        async (enabled) => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const rules = {
+                get: vi
+                    .fn()
+                    .mockResolvedValue({ source: 'ai_service_account' }),
+            };
+            const connection =
+                aiServiceAccountPlanMock.credentials as CreateBigqueryCredentials;
+            const aiAccessService = new AiAccessService({
+                lightdashConfig: lightdashConfigMock,
+                analytics: { track: vi.fn() },
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                },
+                organizationAgentIdentityRulesModel: rules,
+                aiServiceAccountCredentialsModel: {
+                    getSecrets: vi.fn(async () => ({
+                        slot: {
+                            uuid: aiServiceAccountPlanMock.credentialUuid,
+                            identityUuid: aiServiceAccountPlanMock.identityUuid,
+                        },
+                        secrets: {
+                            type: WarehouseTypes.BIGQUERY,
+                            keyfileContents: connection.keyfileContents,
+                            authenticationType:
+                                BigqueryAuthenticationType.PRIVATE_KEY,
+                        },
+                    })),
+                },
+                projectModel: {
+                    getSummary: vi.fn(async () => projectSummary),
+                    getWarehouseCredentialsForBinding: vi.fn(
+                        async () => connection,
+                    ),
+                },
+                userModel: {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'person@example.test',
+                    })),
+                },
+                queryHistoryModel: service.queryHistoryModel,
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+            Object.assign(service, { aiAccessService });
+            vi.mocked(service.featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AiAccessSkipResultsCache,
+                enabled,
+            });
+            const plan = await aiAccessService.resolvePlan({
+                evaluation: { kind: 'query', surface: QuerySurface.APP },
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                warehouseConnectionUuid: null,
+                connection,
+                context: QueryExecutionContext.AI,
+                userUuid: sessionAccount.user.id,
+                isRegisteredUser: true,
+                isServiceAccount: false,
+            });
+            vi.mocked(service.queryHistoryModel.get).mockResolvedValue({
+                queryUuid: 'retained-agent-query',
+                context: QueryExecutionContext.AI,
+                status: QueryHistoryStatus.READY,
+                requestParameters: {
+                    aiSignInCredentialUuid: getAiExecutionCredentialUuid(plan),
+                },
+                metricQuery: metricQueryMock,
+                fields: {},
+                resultsFileName: 'agent-results',
+            } as QueryHistory);
+            const read = () =>
+                service.getRawAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'retained-agent-query',
+                });
+            await expect(read()).resolves.toMatchObject({ rows: [{}] });
+            vi.mocked(
+                service.resultsStorageClient.getDownloadStream,
+            ).mockClear();
+            rules.get.mockResolvedValue({ source: 'marked_person' });
+            await expect(read()).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            expect(
+                service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        },
+    );
 
     test.each([false, true])(
         'AI raw reads check current access with bypass flag=%s',

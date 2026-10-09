@@ -40,6 +40,21 @@ beforeEach(() => {
     };
 });
 
+describe('agent result identity check configuration', () => {
+    it.each([
+        [undefined, true],
+        ['false', false],
+        ['true', true],
+        ['', true],
+        ['FALSE', true],
+        ['0', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED = value;
+        expect(parseConfig().ai.agentResultIdentityCheckEnabled).toBe(expected);
+    });
+});
+
 describe('Snowflake AI OAuth configuration', () => {
     it('reads the separate client and routes', () => {
         process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';

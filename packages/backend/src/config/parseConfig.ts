@@ -1825,6 +1825,7 @@ export type LightdashConfig = {
     };
     logging: LoggingConfig;
     ai: {
+        agentResultIdentityCheckEnabled: boolean;
         copilot: AiCopilotConfigSchemaType;
         decisions: AiDecisionProviderConfig;
         /** OpenAI's Decisions API, the alternative fast-decision provider for battles. */
@@ -3894,6 +3895,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING === 'true',
         },
         ai: {
+            agentResultIdentityCheckEnabled:
+                process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED !== 'false',
             copilot: copilotConfig,
             decisions: {
                 provider: 'jev',

@@ -311,6 +311,7 @@ export const lightdashConfigMock: LightdashConfig = {
         exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
+        agentResultIdentityCheckEnabled: true,
         decisions: {
             provider: 'jev',
             apiKey: null,

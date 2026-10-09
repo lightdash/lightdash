@@ -1199,8 +1199,10 @@ export class AiAccessService extends BaseService {
                 const generation = getAiExecutionCredentialUuid(plan);
                 if (
                     node.status === QueryHistoryStatus.READY &&
-                    generation !== null &&
-                    node.requestParameters?.aiSignInCredentialUuid !==
+                    (this.lightdashConfig?.ai
+                        ?.agentResultIdentityCheckEnabled !== false ||
+                        generation !== null) &&
+                    (node.requestParameters?.aiSignInCredentialUuid ?? null) !==
                         generation
                 ) {
                     this.trackQueryRefusal(
