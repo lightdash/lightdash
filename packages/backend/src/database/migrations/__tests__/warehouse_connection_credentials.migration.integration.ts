@@ -16,6 +16,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
+import * as warehouses from '@lightdash/warehouses';
 import { type Knex } from 'knex';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
@@ -39,6 +40,12 @@ import {
     createMigratedTestDatabase,
     type MigratedTestDatabase,
 } from './migratedTestDatabase';
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    refreshDatabricksOAuthToken: vi.fn(),
+    exchangeDatabricksOAuthCredentials: vi.fn(),
+}));
 
 const SECRET = 'warehouse-connection-credentials-test-secret';
 
@@ -71,10 +78,6 @@ type ProjectServiceCredentials = {
         }) => Promise<T>,
         manifestFetchAdapters: [],
     ) => Promise<T>;
-    refreshCredentials: (
-        args: CreateWarehouseCredentials,
-        userUuid: string,
-    ) => Promise<CreateWarehouseCredentials>;
 };
 
 type Outcome =
@@ -675,9 +678,23 @@ describe('Extra connection credentials on the real schema', () => {
 
     beforeEach(() => {
         vi.restoreAllMocks();
-        vi.spyOn(credentialsApi, 'refreshCredentials').mockImplementation(
-            async (args) => args,
-        );
+        vi.mocked(warehouses.refreshDatabricksOAuthToken)
+            .mockReset()
+            .mockImplementation(async (_host, _client, refreshToken) => ({
+                accessToken: 'test-access',
+                refreshToken,
+                expiresIn: 3600,
+            }));
+        vi.mocked(warehouses.exchangeDatabricksOAuthCredentials)
+            .mockReset()
+            .mockResolvedValue({ accessToken: 'test-access' });
+        vi.spyOn(
+            UserService,
+            'generateSnowflakeAccessToken',
+        ).mockImplementation(async (refreshToken) => ({
+            accessToken: 'test-access',
+            refreshToken,
+        }));
     });
 
     describe('parity with the original connection on the same stored blob', () => {
@@ -1406,9 +1423,35 @@ describe('Extra connection credentials on the real schema', () => {
     });
 
     describe('the warehouseConnection rotation sink', () => {
-        describe.each([false, true])(
-            'refresh lock enabled: %s',
-            (refreshLockEnabled) => {
+        describe.each(
+            [false, true].flatMap((refreshLockEnabled) =>
+                [
+                    {
+                        name: 'Snowflake SSO',
+                        credentials: {
+                            ...snowflake,
+                            authenticationType: SnowflakeAuthenticationType.SSO,
+                        } as CreateWarehouseCredentials,
+                    },
+                    ...[
+                        DatabricksAuthenticationType.OAUTH_U2M,
+                        DatabricksAuthenticationType.OAUTH_M2M,
+                    ].map((authenticationType) => ({
+                        name: `Databricks ${authenticationType}`,
+                        credentials: {
+                            type: WarehouseTypes.DATABRICKS,
+                            authenticationType,
+                            serverHostName: 'workspace.example.com',
+                            httpPath: '/sql/warehouse',
+                            database: 'schema',
+                            oauthClientId: 'cli-client',
+                        } as CreateWarehouseCredentials,
+                    })),
+                ].map((provider) => ({ ...provider, refreshLockEnabled })),
+            ),
+        )(
+            '$name refresh lock enabled: $refreshLockEnabled',
+            ({ refreshLockEnabled, credentials: providerCredentials }) => {
                 let previousService: ProjectService;
 
                 beforeAll(() => {
@@ -1429,8 +1472,7 @@ describe('Extra connection credentials on the real schema', () => {
                 test('a rotated refresh token is written to the extra connection, not to the original', async () => {
                     const organization = await createOrganization();
                     const original = {
-                        ...snowflake,
-                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        ...providerCredentials,
                         refreshToken: 'original-refresh-token',
                     } as CreateWarehouseCredentials;
                     const multiProject = await createProject(organization, {
@@ -1443,13 +1485,22 @@ describe('Extra connection credentials on the real schema', () => {
                             refreshToken: 'old-refresh-token',
                         } as CreateWarehouseCredentials,
                     });
-                    vi.spyOn(
-                        UserService,
-                        'generateSnowflakeAccessToken',
-                    ).mockResolvedValue({
-                        accessToken: 'new-access-token',
-                        refreshToken: 'new-refresh-token',
-                    });
+                    if (providerCredentials.type === WarehouseTypes.SNOWFLAKE) {
+                        vi.mocked(
+                            UserService.generateSnowflakeAccessToken,
+                        ).mockResolvedValue({
+                            accessToken: 'new-access-token',
+                            refreshToken: 'new-refresh-token',
+                        });
+                    } else {
+                        vi.mocked(
+                            warehouses.refreshDatabricksOAuthToken,
+                        ).mockResolvedValue({
+                            accessToken: 'new-access-token',
+                            refreshToken: 'new-refresh-token',
+                            expiresIn: 3600,
+                        });
+                    }
 
                     const result = await extraCredentials(
                         multiProject,
@@ -1485,8 +1536,7 @@ describe('Extra connection credentials on the real schema', () => {
                 test('a rotated organisation credential token is written to the organisation credential', async () => {
                     const organization = await createOrganization();
                     const credentials = {
-                        ...snowflake,
-                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        ...providerCredentials,
                         refreshToken: 'old-refresh-token',
                     } as CreateWarehouseCredentials;
                     const organizationCredential =
@@ -1503,13 +1553,22 @@ describe('Extra connection credentials on the real schema', () => {
                         organizationWarehouseCredentialsUuid:
                             organizationCredential,
                     });
-                    vi.spyOn(
-                        UserService,
-                        'generateSnowflakeAccessToken',
-                    ).mockResolvedValue({
-                        accessToken: 'new-access-token',
-                        refreshToken: 'new-refresh-token',
-                    });
+                    if (providerCredentials.type === WarehouseTypes.SNOWFLAKE) {
+                        vi.mocked(
+                            UserService.generateSnowflakeAccessToken,
+                        ).mockResolvedValue({
+                            accessToken: 'new-access-token',
+                            refreshToken: 'new-refresh-token',
+                        });
+                    } else {
+                        vi.mocked(
+                            warehouses.refreshDatabricksOAuthToken,
+                        ).mockResolvedValue({
+                            accessToken: 'new-access-token',
+                            refreshToken: 'new-refresh-token',
+                            expiresIn: 3600,
+                        });
+                    }
 
                     await extraCredentials(
                         multiProject,

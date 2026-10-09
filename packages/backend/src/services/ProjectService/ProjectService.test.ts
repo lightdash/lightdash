@@ -107,6 +107,7 @@ import {
 } from '@lightdash/common';
 import {
     checkSnowflakeAgentSessionWithToken,
+    refreshDatabricksOAuthToken as refreshDatabricksToken,
     SshTunnel,
     warehouseClientFromCredentials,
     type WarehouseClient,
@@ -150,6 +151,8 @@ import {
 } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -197,7 +200,7 @@ import {
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
-import { ProjectService } from './ProjectService';
+import { ProjectService, type ProjectServiceArguments } from './ProjectService';
 import {
     allExplores,
     buildAccount,
@@ -17100,4 +17103,206 @@ describe('compile adapter connection credentials', () => {
             },
         );
     });
+});
+
+describe.each([
+    DatabricksAuthenticationType.OAUTH_U2M,
+    DatabricksAuthenticationType.OAUTH_M2M,
+])('Databricks %s rotation sinks', (authenticationType) => {
+    test.each(
+        [false, true].flatMap((enabled) =>
+            (
+                [
+                    'project',
+                    'organization',
+                    'user',
+                    'warehouseConnection',
+                ] as const
+            ).map((kind) => ({ enabled, kind })),
+        ),
+    )(
+        'writes the exact $kind row with lock $enabled',
+        async ({ enabled, kind }) => {
+            const { database, raw } = createDatabase();
+            const rotation = new RefreshTokenRotation({
+                database,
+                inFlight: new Map(),
+            });
+            const run = vi.spyOn(rotation, 'run');
+            const connection: CreateDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType,
+                serverHostName: 'workspace.example.com',
+                httpPath: '/sql/warehouse',
+                database: 'schema',
+                oauthClientId: 'cli-client',
+                refreshToken: `${kind}-old`,
+            };
+            const stored = new Map([
+                ['project-row', 'project-old'],
+                ['organization-row', 'organization-old'],
+                ['user-row', 'user-old'],
+                ['warehouseConnection-row', 'warehouseConnection-old'],
+            ]);
+            const rotate = async (
+                uuid: string,
+                expected: string,
+                next: string,
+            ) => {
+                expect(stored.get(uuid)).toBe(expected);
+                stored.set(uuid, next);
+                return true;
+            };
+            const rotateProject = vi.fn(rotate);
+            const rotateOrganization = vi.fn(rotate);
+            const rotateUser = vi.fn(rotate);
+            const project = {
+                projectUuid: 'project-row',
+                organizationUuid: 'org',
+                connectionMode: 'multi' as const,
+            };
+            const readProject = vi.fn().mockResolvedValue(connection);
+            const readOrganization = vi.fn().mockResolvedValue({
+                organizationUuid: 'org',
+                credentials: connection,
+            });
+            const readUser = vi
+                .fn()
+                .mockResolvedValue({ credentials: connection });
+            const readConnection = vi.fn().mockResolvedValue(connection);
+            const rotateConnection = vi.fn(
+                async (_project, uuid: string, old: string, next: string) =>
+                    rotate(uuid, old, next),
+            );
+            const service = new ProjectService({
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+                refreshTokenRotation: rotation,
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled }),
+                },
+                projectModel: {
+                    getSummary: vi.fn().mockResolvedValue(project),
+                    getOwnWarehouseCredentialsForProject: readProject,
+                    rotateRefreshToken: rotateProject,
+                },
+                organizationWarehouseCredentialsModel: {
+                    getByUuidWithSensitiveData: readOrganization,
+                    rotateRefreshToken: rotateOrganization,
+                },
+                userWarehouseCredentialsModel: {
+                    getByUuidWithSecrets: readUser,
+                    rotateRefreshToken: rotateUser,
+                },
+                warehouseConnectionModel: {
+                    getProject: vi.fn().mockResolvedValue(project),
+                    getOwnCredentials: readConnection,
+                    rotateRefreshToken: rotateConnection,
+                },
+            } as unknown as ProjectServiceArguments);
+            const sources = {
+                project: { kind: 'project', projectUuid: 'project-row' },
+                organization: {
+                    kind: 'organization',
+                    organizationWarehouseCredentialsUuid: 'organization-row',
+                },
+                user: {
+                    kind: 'user',
+                    userWarehouseCredentialsUuid: 'user-row',
+                },
+                warehouseConnection: {
+                    kind: 'warehouseConnection',
+                    project,
+                    warehouseConnectionUuid: 'warehouseConnection-row',
+                },
+            } as const;
+            vi.mocked(refreshDatabricksToken)
+                .mockClear()
+                .mockResolvedValue({
+                    accessToken: 'fresh-access',
+                    refreshToken: `${kind}-rotated`,
+                    expiresIn: 3600,
+                });
+            const result = await (
+                service as unknown as {
+                    refreshCredentialsAndPersistRotation: (
+                        credentials: CreateDatabricksCredentials,
+                        userUuid: string,
+                        source: (typeof sources)[keyof typeof sources],
+                    ) => Promise<CreateDatabricksCredentials>;
+                }
+            ).refreshCredentialsAndPersistRotation(
+                connection,
+                'actor',
+                sources[kind],
+            );
+            expect(result).toMatchObject({
+                token: 'fresh-access',
+                refreshToken: `${kind}-rotated`,
+                authenticationType,
+            });
+            expect(run).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            expect(refreshDatabricksToken).toHaveBeenCalledExactlyOnceWith(
+                connection.serverHostName,
+                'cli-client',
+                `${kind}-old`,
+                undefined,
+                ...(enabled
+                    ? [expect.objectContaining({ agent: expect.anything() })]
+                    : []),
+            );
+            const sinks = {
+                project: rotateProject,
+                organization: rotateOrganization,
+                user: rotateUser,
+                warehouseConnection: rotateConnection,
+            };
+            for (const [sinkKind, sink] of Object.entries(sinks)) {
+                if (sinkKind !== kind) expect(sink).not.toHaveBeenCalled();
+            }
+            if (kind === 'warehouseConnection') {
+                expect(rotateConnection).toHaveBeenCalledExactlyOnceWith(
+                    project,
+                    `${kind}-row`,
+                    `${kind}-old`,
+                    `${kind}-rotated`,
+                    ...(enabled ? [{ raw }] : []),
+                );
+            } else {
+                expect(sinks[kind]).toHaveBeenCalledExactlyOnceWith(
+                    `${kind}-row`,
+                    `${kind}-old`,
+                    `${kind}-rotated`,
+                    ...(enabled
+                        ? [...(kind === 'user' ? [undefined] : []), { raw }]
+                        : []),
+                );
+            }
+            expect(Object.fromEntries(stored)).toEqual({
+                'project-row':
+                    kind === 'project' ? 'project-rotated' : 'project-old',
+                'organization-row':
+                    kind === 'organization'
+                        ? 'organization-rotated'
+                        : 'organization-old',
+                'user-row': kind === 'user' ? 'user-rotated' : 'user-old',
+                'warehouseConnection-row':
+                    kind === 'warehouseConnection'
+                        ? 'warehouseConnection-rotated'
+                        : 'warehouseConnection-old',
+            });
+            if (enabled) {
+                const reader = {
+                    project: readProject,
+                    organization: readOrganization,
+                    user: readUser,
+                    warehouseConnection: readConnection,
+                }[kind];
+                expect(reader).toHaveBeenCalledWith(
+                    ...(kind === 'warehouseConnection' ? [project] : []),
+                    `${kind}-row`,
+                    { raw },
+                );
+            }
+        },
+    );
 });

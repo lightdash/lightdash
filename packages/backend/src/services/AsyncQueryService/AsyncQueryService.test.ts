@@ -13,6 +13,7 @@ import {
     ChartType,
     CreateWarehouseCredentials,
     DashboardTileTypes,
+    DatabricksAuthenticationType,
     DimensionType,
     DownloadFileType,
     DuckdbExecutionSpec,
@@ -49,6 +50,7 @@ import {
     ResultColumns,
     ResultsExpiredError,
     SignInSubjectBasis,
+    SnowflakeAuthenticationType,
     upgradeSavedMergeQuery,
     VizAggregationOptions,
     VizIndexType,
@@ -73,6 +75,7 @@ import {
     type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
+import * as warehouses from '@lightdash/warehouses';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import ExecutionContext from 'node-execution-context';
@@ -117,6 +120,7 @@ import {
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { SpaceModel } from '../../models/SpaceModel';
@@ -178,6 +182,7 @@ import { SemanticLayerQuerySource } from '../QuerySourceService/sources/Semantic
 import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
 import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { UserService } from '../UserService';
 import {
     connectionContextFromAccount,
     WarehouseCredentialKind,
@@ -9391,6 +9396,78 @@ describe('AsyncQueryService', () => {
             rejectedByGoogle.add('token-a');
             rejectedByWarehouse.add('token-a');
         });
+
+        test.each([
+            {
+                type: WarehouseTypes.SNOWFLAKE,
+                authenticationType: SnowflakeAuthenticationType.SSO,
+                account: 'account',
+                database: 'db',
+                warehouse: 'warehouse',
+                refreshToken: 'stored-token',
+            },
+            ...[
+                DatabricksAuthenticationType.OAUTH_U2M,
+                DatabricksAuthenticationType.OAUTH_M2M,
+            ].map((authenticationType) => ({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType,
+                serverHostName: 'workspace.example.com',
+                httpPath: '/sql/warehouse',
+                database: 'schema',
+                refreshToken: 'stored-token',
+            })),
+        ] as CreateWarehouseCredentials[])(
+            'keeps a $type $authenticationType refresh lock timeout retryable without sign-in repair',
+            async (credentials) => {
+                stored.set(projectUuid, credentials);
+                const { service, model, run } = setup();
+                const error = new RefreshTokenLockTimeoutError();
+                const attributeExpiry = vi.spyOn(
+                    service.warehouseClientFactory,
+                    'attributeSharedSignInExpiry',
+                );
+                const exchange =
+                    credentials.type === WarehouseTypes.SNOWFLAKE
+                        ? vi
+                              .spyOn(
+                                  UserService,
+                                  'generateSnowflakeAccessToken',
+                              )
+                              .mockRejectedValue(error)
+                        : vi
+                              .spyOn(warehouses, 'refreshDatabricksOAuthToken')
+                              .mockRejectedValue(error);
+
+                await run();
+
+                expect(exchange).toHaveBeenCalledTimes(1);
+                expect(
+                    service.warehouseClientFactory.acquireUnscoped,
+                ).not.toHaveBeenCalled();
+                expect(recordedErrors(service)).toEqual([error.message]);
+                expect(attributeExpiry).toHaveBeenCalledExactlyOnceWith(
+                    projectUuid,
+                    credentials,
+                    error,
+                );
+                await expect(
+                    attributeExpiry.mock.results[0].value,
+                ).rejects.toBe(error);
+                expect(error.data).toEqual({
+                    code: 'warehouse_oauth_refresh_failed',
+                    retryable: true,
+                });
+                expect(
+                    model.updateWarehouseCredentialsIf,
+                ).not.toHaveBeenCalled();
+                expect(recheck).not.toHaveBeenCalled();
+                expect(readyUpdates(service)).toHaveLength(0);
+                expect(stored.get(projectUuid)).toEqual(credentials);
+                exchange.mockRestore();
+                attributeExpiry.mockRestore();
+            },
+        );
 
         test('repairs a rejected preview token once and retries the query', async () => {
             const { service, model, run } = setup();
