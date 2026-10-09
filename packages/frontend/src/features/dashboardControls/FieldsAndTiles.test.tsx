@@ -131,7 +131,10 @@ const rule = (
 const addFirstField = vi.fn();
 const addFirstSqlColumn = vi.fn();
 const close = vi.fn();
+const clearHighlightedField = vi.fn();
 const updateFilter = vi.fn();
+const setHighlightedFieldId = vi.fn();
+const setHoveredFieldId = vi.fn();
 const addWaitingField = vi.fn();
 const removeWaitingField = vi.fn();
 
@@ -147,6 +150,11 @@ const setSidebar = (
         isNew: false,
         close,
         updateFilter,
+        highlightedFieldId: null,
+        setHighlightedFieldId,
+        clearHighlightedField,
+        hoveredFieldId: null,
+        setHoveredFieldId,
         waitingFieldIds: [],
         addWaitingField,
         removeWaitingField,
@@ -158,6 +166,8 @@ const setSidebar = (
 const Editor = () => {
     useEditorDismiss({
         isOpen: true,
+        isFieldClicked: false,
+        clearField: clearHighlightedField,
         close,
     });
     return (
@@ -385,9 +395,9 @@ describe('FieldsAndTiles', () => {
         expect(
             screen.getByText('Choose which field each tile is filtered by.'),
         ).toBeVisible();
-        expect(screen.getByText('Status')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Status' })).toBeVisible();
         expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
-        expect(screen.getByText('Region')).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Region' })).toBeVisible();
         expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
         expect(screen.getByText('Apply to all 2')).toBeVisible();
         expect(screen.queryByText('Apply to all 1')).not.toBeInTheDocument();
@@ -409,7 +419,9 @@ describe('FieldsAndTiles', () => {
         setSidebar(rule('orders_created_month'));
         renderWithProviders(<FieldsAndTiles />);
 
-        expect(screen.getByText('Created month')).toBeVisible();
+        expect(
+            screen.getByRole('button', { name: 'Created month' }),
+        ).toBeVisible();
     });
 
     describe('a metric filter', () => {
@@ -432,7 +444,9 @@ describe('FieldsAndTiles', () => {
             setSidebar(rule('orders_revenue'));
             renderWithProviders(<FieldsAndTiles />);
 
-            expect(screen.getByText('Revenue')).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Revenue' }),
+            ).toBeVisible();
             expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
         });
 
@@ -493,7 +507,9 @@ describe('FieldsAndTiles', () => {
             setSidebar(sqlRule({ 'sql-1': COUNTRY }));
             renderWithProviders(<FieldsAndTiles />);
 
-            expect(screen.getByText('country')).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'country' }),
+            ).toBeVisible();
             expect(screen.getByText('SQL column · 1 of 2 tiles')).toBeVisible();
         });
 
@@ -544,6 +560,62 @@ describe('FieldsAndTiles', () => {
         ).toBeInTheDocument();
     });
 
+    it('highlights a field on click and on hover', async () => {
+        setSidebar(rule('orders_status'));
+        const { rerender } = renderWithProviders(<FieldsAndTiles />);
+        const label = screen.getByRole('button', { name: 'Status' });
+
+        await userEvent.hover(label);
+        expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
+        await userEvent.click(label);
+        expect(setHighlightedFieldId).toHaveBeenLastCalledWith('orders_status');
+
+        setSidebar(rule('orders_status'), {
+            highlightedFieldId: 'orders_status',
+            hoveredFieldId: 'orders_status',
+        });
+        rerender(<FieldsAndTiles />);
+        const pressed = screen.getByRole('button', { name: 'Status' });
+        expect(pressed).toHaveAttribute('aria-pressed', 'true');
+        await userEvent.click(pressed);
+        expect(clearHighlightedField).toHaveBeenCalledTimes(1);
+        await userEvent.unhover(pressed);
+        expect(setHoveredFieldId).toHaveBeenLastCalledWith(null);
+    });
+
+    it('offers "Show all tiles" on the clicked field only', async () => {
+        setSidebar(rule('orders_status', { 'tile-1': REGION }));
+        const { rerender } = renderWithProviders(<FieldsAndTiles />);
+        expect(
+            screen.queryByRole('button', { name: 'Show all tiles' }),
+        ).not.toBeInTheDocument();
+
+        setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            highlightedFieldId: 'orders_region',
+        });
+        rerender(<FieldsAndTiles />);
+        const showAll = screen.getByRole('button', { name: 'Show all tiles' });
+        const region = screen.getByRole('button', { name: 'Region' });
+        // It sits in the clicked row, which keeps the field on a mouse down
+        expect(showAll.closest('[data-keeps-field]')).toBe(
+            region.closest('[data-keeps-field]'),
+        );
+
+        await userEvent.click(showAll);
+        expect(clearHighlightedField).toHaveBeenCalledTimes(1);
+        expect(setHighlightedFieldId).not.toHaveBeenCalled();
+        // The button is about to leave: focus goes to the row
+        expect(region).toHaveFocus();
+    });
+
+    it('highlights a field when any part of its card is hovered', async () => {
+        setSidebar(rule('orders_status'));
+        renderWithProviders(<FieldsAndTiles />);
+
+        await userEvent.hover(screen.getByText(/^Orders · /));
+        expect(setHoveredFieldId).toHaveBeenLastCalledWith('orders_status');
+    });
+
     it('applies a field to every tile that offers it', () => {
         setSidebar(rule('orders_status', { 'tile-1': false }));
         renderWithProviders(<FieldsAndTiles />);
@@ -575,7 +647,9 @@ describe('FieldsAndTiles', () => {
     });
 
     it('removes one of several fields', async () => {
-        setSidebar(rule('orders_status', { 'tile-1': REGION }));
+        setSidebar(rule('orders_status', { 'tile-1': REGION }), {
+            highlightedFieldId: 'orders_region',
+        });
         renderWithProviders(<FieldsAndTiles />);
 
         openRowMenu('Region');
@@ -583,6 +657,7 @@ describe('FieldsAndTiles', () => {
         const next = getUpdatedRule();
         expect(next.target.fieldId).toBe('orders_status');
         expect(next.tileTargets).toBeUndefined();
+        expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
     });
 
     it('promotes another field when the first one is removed', async () => {
@@ -712,6 +787,9 @@ describe('FieldsAndTiles', () => {
                 'tile-3': { fieldId: 'customers_city', tableName: 'customers' },
             });
             expect(addWaitingField).not.toHaveBeenCalled();
+            expect(setHighlightedFieldId).toHaveBeenLastCalledWith(
+                'customers_city',
+            );
             expect(fieldSearch()).not.toBeInTheDocument();
             expect(button).toHaveFocus();
         });
@@ -764,6 +842,8 @@ describe('FieldsAndTiles', () => {
             // tile-1 keeps Status: nothing is taken away from it
             expect(getUpdatedRule().tileTargets).toBeUndefined();
             expect(addWaitingField).toHaveBeenCalledWith('orders_region');
+            // On no tile, so there is nothing to show for a click
+            expect(setHighlightedFieldId).not.toHaveBeenCalled();
         });
 
         it('lists a waiting field on no tile and removes it on its own', async () => {
@@ -775,10 +855,14 @@ describe('FieldsAndTiles', () => {
             expect(screen.getByText('Orders · 0 of 1 tile')).toBeVisible();
             expect(screen.getByText('Apply to all 1')).toBeVisible();
             expect(
-                screen.getByText('Region').closest('.mantine-Stack-root'),
+                screen
+                    .getByRole('button', { name: 'Region' })
+                    .closest('[data-keeps-field]'),
             ).toHaveAttribute('data-waiting', 'true');
             expect(
-                screen.getByText('Status').closest('.mantine-Stack-root'),
+                screen
+                    .getByRole('button', { name: 'Status' })
+                    .closest('[data-keeps-field]'),
             ).not.toHaveAttribute('data-waiting');
 
             openRowMenu('Region');
