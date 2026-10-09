@@ -10,6 +10,7 @@ export const agentAccess: AiAccessForUser = {
     projectUuid: agentProjectUuid,
     expiresAt: null,
     requirementSource: 'organization',
+    source: 'agent_sign_in',
     identity: null,
     marker: null,
     warehouseConnectionUuid: null,

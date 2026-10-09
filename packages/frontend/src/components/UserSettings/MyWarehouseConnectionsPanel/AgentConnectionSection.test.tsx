@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../../testing/testUtils';
 import { AgentConnectionSection } from './AgentConnectionSection';
 
 const { login, deleteCredentials, popup } = vi.hoisted(() => ({
@@ -199,5 +200,21 @@ describe('AgentConnectionSection', () => {
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
+    });
+    it('shows only the BigQuery information when Snowflake is unavailable', () => {
+        renderWithProviders(
+            <AgentConnectionSection
+                credentials={[]}
+                showSnowflake={false}
+                showBigQuery
+            />,
+        );
+        expect(
+            screen.getByText(
+                "BigQuery: Agents run as the project's AI service account. Nothing to connect.",
+            ),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Snowflake/)).not.toBeInTheDocument();
     });
 });

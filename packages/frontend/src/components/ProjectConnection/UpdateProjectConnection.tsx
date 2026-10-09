@@ -9,6 +9,7 @@ import {
 import { Alert, Anchor, Box, Button, Flex, Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { AiServiceAccountCard } from '../../features/aiAccess/AiServiceAccountCard';
 import {
     useProject,
     useTestWarehouseConnectionMutation,
@@ -242,6 +243,7 @@ const UpdateProjectConnection: FC<{
                     </Card>
                 </FormContainer>
             </form>
+            <AiServiceAccountCard project={project} />
         </FormProvider>
     );
 };

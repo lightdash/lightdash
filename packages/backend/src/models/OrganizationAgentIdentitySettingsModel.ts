@@ -1,6 +1,11 @@
-import { type OrganizationAgentIdentitySettings } from '@lightdash/common';
+import {
+    WarehouseTypes,
+    type AiIdentitySource,
+    type OrganizationAgentIdentitySettings,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { type OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 
 type DbOrganizationAgentIdentitySettings = {
     organization_uuid: string;
@@ -12,8 +17,17 @@ type DbOrganizationAgentIdentitySettings = {
 export class OrganizationAgentIdentitySettingsModel {
     private readonly database: Knex;
 
-    constructor({ database }: { database: Knex }) {
+    private readonly rulesModel: OrganizationAgentIdentityRulesModel;
+
+    constructor({
+        database,
+        rulesModel,
+    }: {
+        database: Knex;
+        rulesModel: OrganizationAgentIdentityRulesModel;
+    }) {
         this.database = database;
+        this.rulesModel = rulesModel;
     }
 
     async get(
@@ -35,7 +49,8 @@ export class OrganizationAgentIdentitySettingsModel {
         settings: OrganizationAgentIdentitySettings,
     ): Promise<{
         settings: OrganizationAgentIdentitySettings;
-        previousRequired: boolean;
+        previousSource: AiIdentitySource;
+        changed: boolean;
     }> {
         return this.database.transaction(async (transaction) => {
             await transaction(OrganizationTableName)
@@ -49,29 +64,27 @@ export class OrganizationAgentIdentitySettingsModel {
                 )
                     .where('organization_uuid', organizationUuid)
                     .first();
-            const [row] =
-                await transaction<DbOrganizationAgentIdentitySettings>(
-                    'organization_agent_identity_settings',
-                )
-                    .insert({
-                        organization_uuid: organizationUuid,
-                        require_verified_agent_sessions:
-                            settings.requireVerifiedAgentSessions,
-                    })
-                    .onConflict('organization_uuid')
-                    .merge({
-                        require_verified_agent_sessions:
-                            settings.requireVerifiedAgentSessions,
-                        updated_at: transaction.fn.now(),
-                    })
-                    .returning('require_verified_agent_sessions');
+            await this.rulesModel.set(
+                organizationUuid,
+                WarehouseTypes.SNOWFLAKE,
+                {
+                    source: settings.requireVerifiedAgentSessions
+                        ? 'agent_sign_in'
+                        : 'marked_person',
+                },
+                transaction,
+            );
             return {
                 settings: {
                     requireVerifiedAgentSessions:
-                        row.require_verified_agent_sessions,
+                        settings.requireVerifiedAgentSessions,
                 },
-                previousRequired:
-                    previous?.require_verified_agent_sessions ?? false,
+                changed:
+                    (previous?.require_verified_agent_sessions ?? false) !==
+                    settings.requireVerifiedAgentSessions,
+                previousSource: previous?.require_verified_agent_sessions
+                    ? 'agent_sign_in'
+                    : 'marked_person',
             };
         });
     }

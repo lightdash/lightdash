@@ -3,6 +3,10 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AiServiceAccountCredentialsTable,
+    AiServiceAccountCredentialsTableName,
+} from '../database/entities/aiServiceAccountCredentials';
+import {
     AiUsageLedgerTable,
     AiUsageLedgerTableName,
 } from '../database/entities/aiUsageLedger';
@@ -215,6 +219,10 @@ import {
     OpenIdIdentitiesTable,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
+import {
+    OrganizationAgentIdentityRulesTable,
+    OrganizationAgentIdentityRulesTableName,
+} from '../database/entities/organizationAgentIdentityRules';
 import {
     OrganizationColorPaletteTable,
     OrganizationColorPaletteTableName,
@@ -710,6 +718,8 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [OrganizationAgentIdentityRulesTableName]: OrganizationAgentIdentityRulesTable;
+        [AiServiceAccountCredentialsTableName]: AiServiceAccountCredentialsTable;
         [DocumentsTableName]: DocumentsTable;
         [DocumentVersionsTableName]: DocumentVersionsTable;
         [InviteLinkTableName]: InviteLinkTable;

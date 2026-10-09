@@ -11,6 +11,21 @@ import { MyWarehouseConnectionsPanel } from './index';
 
 let agentIdentity = false;
 let configured = true;
+let bigQueryRule = false;
+vi.mock('../../../features/aiAccess/api', () => ({
+    useOrganizationAgentIdentitySettings: () => ({
+        data: {
+            rules: [
+                {
+                    warehouseType: 'bigquery',
+                    source: bigQueryRule
+                        ? 'ai_service_account'
+                        : 'marked_person',
+                },
+            ],
+        },
+    }),
+}));
 let credentials: UserWarehouseCredentials[] = [];
 const login = vi.fn();
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -45,6 +60,7 @@ describe('My warehouse connections agent sign-in', () => {
         agentIdentity = false;
         configured = true;
         credentials = [];
+        bigQueryRule = false;
     });
     it.each([
         [false, true, false],
@@ -87,5 +103,29 @@ describe('My warehouse connections agent sign-in', () => {
         renderWithProviders(<MyWarehouseConnectionsPanel />);
         fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
         expect(screen.getByText('Confirm sign out')).toBeInTheDocument();
+    });
+    it.each([true, false])(
+        'shows BigQuery without a connect action when Snowflake configured is %s',
+        (snowflake) => {
+            agentIdentity = true;
+            configured = snowflake;
+            bigQueryRule = true;
+            renderWithProviders(<MyWarehouseConnectionsPanel />);
+            expect(
+                screen.getByText(
+                    "BigQuery: Agents run as the project's AI service account. Nothing to connect.",
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryAllByRole('button', { name: 'Connect agent' }),
+            ).toHaveLength(snowflake ? 1 : 0);
+        },
+    );
+    it('hides the BigQuery rule when the flag is off', () => {
+        bigQueryRule = true;
+        renderWithProviders(<MyWarehouseConnectionsPanel />);
+        expect(
+            screen.queryByText(/Nothing to connect/),
+        ).not.toBeInTheDocument();
     });
 });

@@ -1,10 +1,14 @@
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { OrganizationAgentIdentityRulesModel } from './OrganizationAgentIdentityRulesModel';
 import { OrganizationAgentIdentitySettingsModel } from './OrganizationAgentIdentitySettingsModel';
 
 const database = knex({ client: MockClient, dialect: 'pg' });
 const tracker = getTracker();
-const model = new OrganizationAgentIdentitySettingsModel({ database });
+const model = new OrganizationAgentIdentitySettingsModel({
+    database,
+    rulesModel: new OrganizationAgentIdentityRulesModel({ database }),
+});
 beforeEach(() => tracker.reset());
 afterAll(async () => database.destroy());
 
@@ -47,6 +51,7 @@ test.each([
                     ? []
                     : [{ require_verified_agent_sessions: previous }],
             );
+        tracker.on.insert('organization_agent_identity_rules').response([]);
         tracker.on
             .insert('organization_agent_identity_settings')
             .response([{ require_verified_agent_sessions: required }]);
@@ -56,16 +61,23 @@ test.each([
             }),
         ).toEqual({
             settings: { requireVerifiedAgentSessions: required },
-            previousRequired,
+            changed: previousRequired !== required,
+            previousSource: previousRequired
+                ? 'agent_sign_in'
+                : 'marked_person',
         });
         expect(tracker.history.select[0].sql).toContain('for update');
         expect(tracker.history.select[0].bindings).toContain('org');
         expect(tracker.history.select[1].bindings).toContain('org');
-        expect(tracker.history.insert[0].sql).toContain(
+        expect(tracker.history.insert[1].sql).toContain(
             'on conflict ("organization_uuid") do update',
         );
-        expect(tracker.history.insert[0].sql).toContain('"updated_at"');
-        expect(tracker.history.insert[0].bindings).toContain('org');
-        expect(tracker.history.insert[0].bindings).toContain(required);
+        expect(tracker.history.insert[1].sql).toContain('"updated_at"');
+        expect(tracker.history.insert[1].bindings).toContain('org');
+        expect(tracker.history.insert[1].bindings).toContain(required);
+        expect(tracker.history.insert[0].bindings).toContain(
+            required ? 'agent_sign_in' : 'marked_person',
+        );
+        expect(tracker.history.insert[0].sql).not.toContain('"required"');
     },
 );

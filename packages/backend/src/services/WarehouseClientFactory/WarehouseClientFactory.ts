@@ -1,9 +1,12 @@
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     assertUnreachable,
     deepEqual,
     DuckdbConnectionType,
     FeatureFlags,
     ForbiddenError,
+    getAiExecutionCredentialUuid,
     getPersonSignIn,
     isAiAccessQueryContext,
     UnexpectedServerError,
@@ -31,12 +34,16 @@ import type {
     ConnectionBinding,
     ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import { isBigqueryServiceAccountAuthError } from '../../utils/aiServiceAccountErrors';
 import {
     attributeClientErrors,
     isWarehouseTokenError,
     withSharedSignInExpiry,
 } from '../../utils/sharedSignInExpiry';
-import type { AiAccessService } from '../AiAccessService/AiAccessService';
+import type {
+    AiAccessEvaluation,
+    AiAccessService,
+} from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     querySurfaceFromConnectionSurface,
@@ -73,6 +80,7 @@ type WarehouseClientBypassRef = {
         projectUuid: string | null;
         credentials: CreateWarehouseCredentials;
         tunnelOptions?: SshTunnelOptions;
+        agentSession?: boolean;
     };
 }[WarehouseClientBypassMode];
 
@@ -193,6 +201,20 @@ export class WarehouseClientFactory {
         }
     }
 
+    private aiAccessEvaluation(
+        context: Pick<ConnectionContext, 'purpose' | 'aiAccess' | 'actor'>,
+    ): AiAccessEvaluation {
+        return context.purpose === 'compile' ||
+            context.aiAccess === 'diagnostic'
+            ? { kind: 'diagnostic' }
+            : {
+                  kind: 'query',
+                  surface: querySurfaceFromConnectionSurface(
+                      context.actor.surface,
+                  ),
+              };
+    }
+
     async resolveLoadedCredentials(
         base: WarehouseCredentialBase,
         context: WarehouseCredentialResolutionContext,
@@ -217,16 +239,7 @@ export class WarehouseClientFactory {
                 );
             }
             aiPlan = await this.aiAccessService.resolvePlan({
-                evaluation:
-                    context.purpose === 'compile' ||
-                    context.aiAccess === 'diagnostic'
-                        ? { kind: 'diagnostic' }
-                        : {
-                              kind: 'query',
-                              surface: querySurfaceFromConnectionSurface(
-                                  context.actor.surface,
-                              ),
-                          },
+                evaluation: this.aiAccessEvaluation(context),
                 projectUuid: base.projectUuid,
                 organizationUuid,
                 warehouseConnectionUuid: base.warehouseConnectionUuid,
@@ -237,7 +250,11 @@ export class WarehouseClientFactory {
                 isServiceAccount: person.isServiceAccount,
             });
         }
-        if (aiPlan?.identity === 'connected_person') {
+        if (
+            aiPlan &&
+            getAiExecutionCredentialUuid(aiPlan) !== null &&
+            aiPlan.identity !== 'marked_person'
+        ) {
             return {
                 ...aiPlan.credentials,
                 userWarehouseCredentialsUuid: undefined,
@@ -257,6 +274,8 @@ export class WarehouseClientFactory {
     ): WarehouseCredentialKind {
         if (purpose === 'compile') return WarehouseCredentialKind.COMPILE;
         if (aiPlan?.identity === 'connected_person')
+            return WarehouseCredentialKind.AI_AGENT_SIGN_IN;
+        if (aiPlan?.identity === 'ai_service_account')
             return WarehouseCredentialKind.AI_SERVICE_ACCOUNT;
         if (credentials.userWarehouseCredentialsUuid)
             return WarehouseCredentialKind.PERSONAL;
@@ -359,6 +378,7 @@ export class WarehouseClientFactory {
                 );
                 warehouseCredentials = ref.credentials;
                 tunnelOptions = ref.tunnelOptions;
+                overrides = { agentSession: ref.agentSession ?? false };
                 break;
             default:
                 return assertUnreachable(
@@ -366,6 +386,11 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
+        const refusalScope = {
+            context,
+            warehouseConnectionUuid,
+            refused: false,
+        };
         credentialKind ??= this.getCredentialKind(
             warehouseCredentials,
             aiPlan,
@@ -379,6 +404,8 @@ export class WarehouseClientFactory {
                 tunnelOptions,
                 context.organizationUuid,
                 {
+                    refusalScope,
+                    warehouseConnectionUuid,
                     cacheEnabled:
                         ref.kind !== 'bypass' && ref.kind !== 'compile',
                     compileGroup:
@@ -435,6 +462,7 @@ export class WarehouseClientFactory {
                         options?.compileGroup,
                     ),
                     aiPlan,
+                    refusalScope,
                 );
             },
             release: () => {
@@ -479,9 +507,17 @@ export class WarehouseClientFactory {
             wrapConstructionErrors,
             compileGroup,
             clientOptions: requestedClientOptions,
+            refusalScope,
+            warehouseConnectionUuid = null,
         }: {
             cacheEnabled: boolean;
             wrapConstructionErrors: boolean;
+            refusalScope?: {
+                context: ConnectionContext;
+                warehouseConnectionUuid: string | null;
+                refused: boolean;
+            };
+            warehouseConnectionUuid?: string | null;
             compileGroup?: WarehouseCompileGroup;
             clientOptions?: Pick<WarehouseClientOptions, 'maxOpenConnections'>;
         } = { cacheEnabled: true, wrapConstructionErrors: false },
@@ -531,9 +567,18 @@ export class WarehouseClientFactory {
 
             const agentSession = overrides?.agentSession ?? !!aiPlan;
 
-            const cacheKey = `${agentSession ? 'agent:' : ''}${projectUuid}${snowflakeVirtualWarehouse || ''}${
-                databricksCompute || ''
-            }${aiPlan ? JSON.stringify([aiPlan.identity === 'connected_person' ? aiPlan.identityUuid : aiPlan.audit.personUuid]) : ''}`;
+            const cacheKey = JSON.stringify([
+                agentSession,
+                projectUuid,
+                warehouseConnectionUuid,
+                snowflakeVirtualWarehouse ?? null,
+                databricksCompute ?? null,
+                aiPlan?.identity ?? null,
+                aiPlan
+                    ? (getAiExecutionCredentialUuid(aiPlan) ??
+                      aiPlan.audit.personUuid)
+                    : null,
+            ]);
 
             const existingClient = (
                 usedSshTunnel || !cacheEnabled
@@ -550,6 +595,7 @@ export class WarehouseClientFactory {
                         credentials,
                         existingClient,
                         aiPlan,
+                        refusalScope,
                     ),
                     sshTunnel,
                     tunnelConnectMs,
@@ -642,6 +688,9 @@ export class WarehouseClientFactory {
                 : {};
             const clientOptions: WarehouseClientOptions = {
                 agentSession,
+                ...(credentialsWithOverrides.type === WarehouseTypes.BIGQUERY
+                    ? { agentJobControls: !!aiPlan }
+                    : {}),
                 enableInstanceCache,
                 projectUuid: projectUuid ?? undefined,
                 logger: this.logger,
@@ -662,12 +711,24 @@ export class WarehouseClientFactory {
                     credentials,
                     client,
                     aiPlan,
+                    refusalScope,
                 ),
                 sshTunnel,
                 tunnelConnectMs,
             };
         } catch (error) {
             await sshTunnel.disconnect();
+            if (
+                constructingClient &&
+                overrides?.aiPlan?.identity === 'ai_service_account'
+            ) {
+                return this.attributeAiServiceAccountError(
+                    projectUuid,
+                    credentials,
+                    error,
+                    refusalScope,
+                );
+            }
             if (constructingClient && wrapConstructionErrors) {
                 throw new WarehouseClientConstructionError(error);
             }
@@ -680,8 +741,28 @@ export class WarehouseClientFactory {
         credentials: CreateWarehouseCredentials,
         client: T,
         aiPlan?: AiExecutionPlan | null,
+        refusalScope?: {
+            context: ConnectionContext;
+            warehouseConnectionUuid: string | null;
+            refused: boolean;
+        },
     ): T {
         if (aiPlan?.identity === 'connected_person') return client;
+        if (aiPlan?.identity === 'ai_service_account') {
+            const attributed = attributeClientErrors(client, (error) =>
+                this.attributeAiServiceAccountError(
+                    projectUuid,
+                    credentials,
+                    error,
+                    refusalScope,
+                ),
+            );
+            this.clientOptions.set(
+                attributed,
+                this.clientOptions.get(client) ?? {},
+            );
+            return attributed;
+        }
         if (projectUuid === null || !getPersonSignIn(credentials))
             return client;
         const attributed = attributeClientErrors(client, (error) =>
@@ -692,6 +773,46 @@ export class WarehouseClientFactory {
             this.clientOptions.get(client) ?? {},
         );
         return attributed;
+    }
+
+    private async attributeAiServiceAccountError(
+        projectUuid: string | null,
+        credentials: CreateWarehouseCredentials,
+        error: unknown,
+        refusalScope?: {
+            context: ConnectionContext;
+            warehouseConnectionUuid: string | null;
+            refused: boolean;
+        },
+    ): Promise<never> {
+        if (
+            credentials.type !== WarehouseTypes.BIGQUERY ||
+            !isBigqueryServiceAccountAuthError(error)
+        )
+            throw error;
+        const reason = AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;
+        const scope = refusalScope;
+        if (projectUuid !== null && scope && !scope.refused) {
+            scope.refused = true;
+            const { context } = scope;
+            const { person } = context.actor;
+            this.aiAccessService.trackQueryRefusal(
+                {
+                    projectUuid,
+                    organizationUuid: context.organizationUuid,
+                    warehouseConnectionUuid: scope.warehouseConnectionUuid,
+                    evaluation: this.aiAccessEvaluation(context),
+                    userUuid: person?.userUuid ?? '',
+                    isRegisteredUser: person?.isRegisteredUser ?? false,
+                    isServiceAccount: person?.isServiceAccount ?? false,
+                    warehouseType: credentials.type,
+                },
+                reason,
+            );
+        }
+        throw new AiAccessRefusedError(reason, {
+            settingsUrl: '/generalSettings/warehouseCredentials',
+        });
     }
 
     async attributeSharedSignInExpiry(

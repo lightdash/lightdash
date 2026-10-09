@@ -41,11 +41,17 @@ import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
 
+export type QueryHistoryWithLineage = QueryHistory & {
+    duckdbExecutionReferences?: Record<string, string> | null;
+};
+
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
-): QueryHistory {
+): QueryHistoryWithLineage {
     return {
         queryUuid: queryHistory.query_uuid,
+        duckdbExecutionReferences:
+            queryHistory.duckdb_execution?.references ?? null,
         createdAt: queryHistory.created_at,
         createdBy:
             queryHistory.created_by_user_uuid ??
@@ -365,10 +371,11 @@ export class QueryHistoryModel {
         );
     }
 
-    async get(queryUuid: string, projectUuid: string, account: Account) {
-        const query = this.database(QueryHistoryTableName)
-            .where('query_uuid', queryUuid)
-            .andWhere('project_uuid', projectUuid);
+    private getAccountScopedQuery(projectUuid: string, account: Account) {
+        const query = this.database(QueryHistoryTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
 
         const canReadEmbedAiQuery =
             isJwtUser(account) &&
@@ -396,29 +403,19 @@ export class QueryHistoryModel {
             void query.andWhere(createdByColumn, account.user.id);
         }
 
-        const result = await query.first();
+        return query;
+    }
 
+    async get(queryUuid: string, projectUuid: string, account: Account) {
+        const result = await this.getAccountScopedQuery(projectUuid, account)
+            .andWhere('query_uuid', queryUuid)
+            .first();
         if (!result) {
             throw new NotFoundError(
                 `Query ${queryUuid} not found for project ${projectUuid}`,
             );
         }
-
-        const queryHistory = convertDbQueryHistoryToQueryHistory(result);
-
-        const isOwnedByAccount = queryHistory.createdBy === account.user.id;
-        const isOwnedByEmbedAiWriteUser =
-            canReadEmbedAiQuery &&
-            queryHistory.context === QueryExecutionContext.AI &&
-            queryHistory.createdByUserUuid === account.embedWriteUser!.userUuid;
-
-        if (!isOwnedByAccount && !isOwnedByEmbedAiWriteUser) {
-            throw new ForbiddenError(
-                'User is not authorized to access this query',
-            );
-        }
-
-        return queryHistory;
+        return this.convertAccountScopedRow(result, account);
     }
 
     async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {
@@ -453,6 +450,56 @@ export class QueryHistoryModel {
             .first<DbQueryHistory>();
 
         return result ? convertDbQueryHistoryToQueryHistory(result) : undefined;
+    }
+
+    private convertAccountScopedRow(
+        row: DbQueryHistory,
+        account: Account,
+    ): QueryHistory {
+        const queryHistory = convertDbQueryHistoryToQueryHistory(row);
+        const isOwnedByAccount = queryHistory.createdBy === account.user.id;
+        const isOwnedByEmbedAiWriteUser =
+            isJwtUser(account) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            !!account.embedWriteUser &&
+            queryHistory.context === QueryExecutionContext.AI &&
+            queryHistory.createdByUserUuid === account.embedWriteUser?.userUuid;
+        if (!isOwnedByAccount && !isOwnedByEmbedAiWriteUser) {
+            throw new ForbiddenError(
+                'User is not authorized to access this query',
+            );
+        }
+        return queryHistory;
+    }
+
+    async getManyWithDuckdbExecutions(
+        queryUuids: string[],
+        projectUuid: string,
+        account: Account,
+    ): Promise<
+        {
+            queryHistory: QueryHistory;
+            execution: DuckdbExecutionSpec | null;
+        }[]
+    > {
+        if (queryUuids.length === 0) return [];
+        const rows = await this.getAccountScopedQuery(
+            projectUuid,
+            account,
+        ).whereIn('query_uuid', queryUuids);
+        const rowsByUuid = new Map(rows.map((row) => [row.query_uuid, row]));
+        return [...new Set(queryUuids)].map((queryUuid) => {
+            const row = rowsByUuid.get(queryUuid);
+            if (!row) {
+                throw new NotFoundError(
+                    `Query ${queryUuid} not found for project ${projectUuid}`,
+                );
+            }
+            return {
+                queryHistory: this.convertAccountScopedRow(row, account),
+                execution: row.duckdb_execution ?? null,
+            };
+        });
     }
 
     /** The execution spec of a DuckDB source query, written once at submit. */

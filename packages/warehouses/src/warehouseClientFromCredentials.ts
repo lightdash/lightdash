@@ -28,6 +28,7 @@ export type WarehouseClientOptions = DuckdbWarehouseClientOptions &
     ClickhouseWarehouseClientOptions &
     AthenaWarehouseClientOptions & {
         agentSession?: boolean;
+        agentJobControls?: boolean;
     };
 
 export const warehouseClientFromCredentials = (

@@ -23,6 +23,7 @@ import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { createAiCredentialProviderRegistry } from './AiAccessService/providers/registry';
+import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
 import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
@@ -154,6 +155,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
+    aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
@@ -960,11 +962,30 @@ export class ServiceRepository
         );
     }
 
+    public getAiServiceAccountService(): AiServiceAccountService {
+        return this.getService(
+            'aiServiceAccountService',
+            () =>
+                new AiServiceAccountService({
+                    analytics: this.context.lightdashAnalytics,
+                    aiServiceAccountCredentialsModel:
+                        this.models.getAiServiceAccountCredentialsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    warehouseConnectionModel:
+                        this.models.getWarehouseConnectionModel(),
+                    projectService: this.getProjectService(),
+                }),
+        );
+    }
+
     public getAiAccessService(): AiAccessService {
         return this.getService(
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    aiServiceAccountCredentialsModel:
+                        this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
@@ -974,6 +995,8 @@ export class ServiceRepository
                             this.models.getUserWarehouseCredentialsModel(),
                     }),
                     lightdashConfig: this.context.lightdashConfig,
+                    organizationAgentIdentityRulesModel:
+                        this.models.getOrganizationAgentIdentityRulesModel(),
                     organizationAgentIdentitySettingsModel:
                         this.models.getOrganizationAgentIdentitySettingsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),

@@ -178,7 +178,10 @@ import {
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { type AiAccessService } from '../AiAccessService/AiAccessService';
-import { aiExecutionPlanMock } from '../AiAccessService/AiAccessService.mock';
+import {
+    aiExecutionPlanMock,
+    aiServiceAccountPlanMock,
+} from '../AiAccessService/AiAccessService.mock';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -4727,7 +4730,10 @@ describe('ProjectService', () => {
                 { aiPlan: null, agentSession: false },
                 undefined,
                 projectSummary.organizationUuid,
-                { cacheEnabled: true, wrapConstructionErrors: false },
+                expect.objectContaining({
+                    cacheEnabled: true,
+                    wrapConstructionErrors: false,
+                }),
             );
             expect(client.getTablesForDatabase).toHaveBeenCalledExactlyOnceWith(
                 {
@@ -4785,7 +4791,10 @@ describe('ProjectService', () => {
                     { aiPlan: null, agentSession: false },
                     undefined,
                     projectSummary.organizationUuid,
-                    { cacheEnabled: true, wrapConstructionErrors: false },
+                    expect.objectContaining({
+                        cacheEnabled: true,
+                        wrapConstructionErrors: false,
+                    }),
                 );
                 expect(client.getFields).toHaveBeenCalledExactlyOnceWith(
                     'orders',
@@ -4867,6 +4876,7 @@ describe('ProjectService', () => {
                 credentials,
                 assurances: [],
                 audit: {
+                    actorKind: 'person',
                     personUuid: registeredAccount.user.userUuid,
                     principalRef: 'agent',
                     queryTags: {},
@@ -4890,7 +4900,10 @@ describe('ProjectService', () => {
                 { aiPlan: null, agentSession: true },
                 undefined,
                 projectSummary.organizationUuid,
-                { cacheEnabled: true, wrapConstructionErrors: false },
+                expect.objectContaining({
+                    cacheEnabled: true,
+                    wrapConstructionErrors: false,
+                }),
             );
             expect(disconnect).toHaveBeenCalledOnce();
         });
@@ -8182,6 +8195,7 @@ describe('ProjectService', () => {
             [QueryExecutionContext.AI, false, true, null],
             [QueryExecutionContext.FILTER_AUTOCOMPLETE, true, true, null],
             [QueryExecutionContext.AI, false, false, aiExecutionPlanMock],
+            [QueryExecutionContext.AI, false, false, aiServiceAccountPlanMock],
         ])(
             'autocomplete cache for %s with flag %s',
             async (context, enabled, usesCache, aiPlan) => {
@@ -15922,6 +15936,7 @@ describe('AI principal credential routing', () => {
         credentials,
         assurances: [],
         audit: {
+            actorKind: 'person',
             personUuid: 'user',
             principalRef: 'ai',
             queryTags: { ai_principal: 'ai' },
@@ -16278,6 +16293,80 @@ describe('AI principal credential routing', () => {
         expect(result.aiPlan).toBe(plan);
         expect(personal).not.toHaveBeenCalled();
     });
+    test.each([false, true])(
+        'slot resolution skips organization and personal refresh on extra=%s',
+        async (extra) => {
+            const configured = getMockedProjectService(lightdashConfigMock);
+            vi.spyOn(
+                configured.aiAccessService,
+                'resolvePlan',
+            ).mockResolvedValue(aiServiceAccountPlanMock);
+            const baseCredentials = {
+                ...aiServiceAccountPlanMock.credentials,
+                requireUserCredentials: false as const,
+            };
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce(baseCredentials);
+            if (!extra)
+                vi.spyOn(
+                    configured.projectModel,
+                    'getProjectWarehouseConfig',
+                ).mockResolvedValueOnce({
+                    organizationWarehouseCredentialsUuid: 'organization-creds',
+                } as Awaited<
+                    ReturnType<ProjectModel['getProjectWarehouseConfig']>
+                >);
+            const refresh = vi
+                .spyOn(
+                    configured as unknown as {
+                        refreshCredentialsAndPersistRotation: (
+                            ...args: unknown[]
+                        ) => Promise<CreateWarehouseCredentials>;
+                    },
+                    'refreshCredentialsAndPersistRotation',
+                )
+                .mockRejectedValue(new Error('ordinary sign-in expired'));
+            const personal = vi.spyOn(
+                configured.userWarehouseCredentialsModel,
+                'findForProjectWithSecrets',
+            );
+            if (extra) {
+                vi.spyOn(
+                    projectModel,
+                    'resolveWarehouseCredentialReadWithRoute',
+                ).mockResolvedValueOnce({
+                    route: 'multi',
+                    target: {
+                        kind: 'extra',
+                        warehouseConnectionUuid: 'extra-uuid',
+                    },
+                    originalWarehouseConnectionUuid: 'original-uuid',
+                });
+                Object.assign(configured.warehouseConnectionModel, {
+                    getProject: vi.fn(async () => ({
+                        projectUuid,
+                        organizationUuid: projectSummary.organizationUuid,
+                        connectionMode: 'multi',
+                        originalWarehouseType: WarehouseTypes.BIGQUERY,
+                    })),
+                    getExtraCredentialSource: vi.fn(async () => ({
+                        credentials: baseCredentials,
+                        organizationWarehouseCredentialsUuid:
+                            'organization-creds',
+                    })),
+                });
+            }
+            const result = await resolveCredentials(configured);
+            expect(result.aiPlan).toBe(aiServiceAccountPlanMock);
+            expect(result.warehouseCredentials).toEqual({
+                ...aiServiceAccountPlanMock.credentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            expect(refresh).not.toHaveBeenCalled();
+            expect(personal).not.toHaveBeenCalled();
+        },
+    );
     test('keeps personal credentials and the audit plan for marked person', async () => {
         const configured = getMockedProjectService(lightdashConfigMock);
         const marked: AiExecutionPlan = {
@@ -16289,6 +16378,7 @@ describe('AI principal credential routing', () => {
                 },
             ],
             audit: {
+                actorKind: 'person',
                 personUuid: user.userUuid,
                 userUuid: user.userUuid,
                 principalRef: 'person@example.test',

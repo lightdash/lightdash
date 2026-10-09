@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
+    AiAccessRefusalReason,
     AiAccessRefusedError,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
@@ -48,6 +49,7 @@ import {
     formatRows,
     friendlyName,
     getAccountUserTimezone,
+    getAiExecutionCredentialUuid,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
@@ -182,6 +184,7 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { Readable, Writable } from 'stream';
 import {
@@ -274,6 +277,7 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { getQuerySourceParameters } from '../AiAccessService/queryResultLineage';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import type { CacheHitCacheResult } from '../CacheService/types';
@@ -306,6 +310,7 @@ import {
     connectionContextFromAccount,
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
+    querySurfaceFromConnectionSurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
@@ -544,6 +549,26 @@ type PreparedAsyncQueryArgs = Omit<
 };
 
 export class AsyncQueryService extends ProjectService {
+    private readonly mergeSubmissionQueries = new AsyncLocalStorage<
+        Map<string, Promise<QueryHistory>>
+    >();
+
+    private getSubmissionQueryHistory(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+    ): Promise<QueryHistory> {
+        const queries = this.mergeSubmissionQueries.getStore();
+        if (!queries)
+            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        let query = queries.get(queryUuid);
+        if (!query) {
+            query = this.queryHistoryModel.get(queryUuid, projectUuid, account);
+            queries.set(queryUuid, query);
+        }
+        return query;
+    }
+
     private static sleep(ms: number, signal?: AbortSignal) {
         if (signal?.aborted) {
             throw new Error('Query polling request was aborted');
@@ -994,7 +1019,7 @@ export class AsyncQueryService extends ProjectService {
         aiPlan: AiExecutionPlan | null;
     }): Promise<PreAggregationRoutingDecision> {
         const bypassPreAggregates =
-            aiPlan?.identity === 'connected_person' ||
+            getAiExecutionCredentialUuid(aiPlan ?? null) !== null ||
             (await this.isAiAccessCacheBypassEnabled(account, context));
         if (forceWarehouse || bypassPreAggregates) {
             if (
@@ -1150,7 +1175,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    async getResultsPageFromS3(
+    private async getResultsPageFromS3(
         queryUuid: string,
         fileName: string | null,
         queryContext: QueryExecutionContext | null | undefined,
@@ -1392,37 +1417,22 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private static getQuerySourceParameters(
-        parameters: ExecuteAsyncQueryRequestParams | undefined,
-    ): { chartUuid?: string; references?: Record<string, string> } {
-        if (!parameters) {
-            return {};
-        }
-        if ('chartUuid' in parameters) {
-            return { chartUuid: parameters.chartUuid };
-        }
-        if ('underlyingDataSourceQueryUuid' in parameters) {
-            return {
-                references: {
-                    source: parameters.underlyingDataSourceQueryUuid,
-                },
-            };
-        }
-        if ('references' in parameters) {
-            return { references: parameters.references };
-        }
-        if ('mergeQuery' in parameters) {
-            return {
-                references: Object.fromEntries(
-                    parameters.mergeQuery.sources.flatMap((source) =>
-                        'queryUuid' in source
-                            ? [[source.id, source.queryUuid]]
-                            : [],
-                    ),
+    private async assertCanReadStoredResults(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+        aiAccessOnly = false,
+    ): Promise<void> {
+        await this.aiAccessService.assertCanReadResults(
+            account,
+            projectUuid,
+            queryHistory,
+            {
+                agentProducedOnly: !(
+                    aiAccessOnly || isAiAccessQueryContext(queryHistory.context)
                 ),
-            };
-        }
-        return {};
+            },
+        );
     }
 
     private async assertSavedChartQuerySourceAccess(
@@ -1443,10 +1453,9 @@ export class AsyncQueryService extends ProjectService {
                 queryHistory.requestParameters.documentSource.documentUuid,
             );
         }
-        const { chartUuid, references } =
-            AsyncQueryService.getQuerySourceParameters(
-                queryHistory.requestParameters,
-            );
+        const { chartUuid, references } = getQuerySourceParameters(
+            queryHistory.requestParameters,
+        );
         if (!chartUuid) {
             await Promise.all(
                 Object.values(references ?? {}).map(async (sourceQueryUuid) => {
@@ -1637,13 +1646,12 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        if (aiAccessOnly || isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+            aiAccessOnly,
+        );
 
         const {
             context,
@@ -1850,10 +1858,12 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         queryUuid,
+        aiAccessOnly = false,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
+        aiAccessOnly?: boolean;
     }): Promise<QueryHistory> {
         assertIsAccountWithOrg(account);
 
@@ -1900,13 +1910,12 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+            aiAccessOnly,
+        );
 
         return queryHistory;
     }
@@ -1930,13 +1939,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
-        if (isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
 
         await this.assertQueryHistoryReadAccess(
             account,
@@ -2072,6 +2079,12 @@ export class AsyncQueryService extends ProjectService {
             account,
             payload.projectUuid,
             project.organizationUuid,
+            queryHistory,
+        );
+
+        await this.assertCanReadStoredResults(
+            account,
+            payload.projectUuid,
             queryHistory,
         );
 
@@ -2273,13 +2286,11 @@ export class AsyncQueryService extends ProjectService {
             queryHistory,
         );
 
-        if (isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -3832,12 +3843,15 @@ export class AsyncQueryService extends ProjectService {
                 async (connection) => {
                     const { warehouseClient, warehouseCredentials, aiPlan } =
                         connection;
-                    if (aiPlan?.identity === 'connected_person') {
+                    const credentialUuid = getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    );
+                    if (credentialUuid !== null) {
                         await this.queryHistoryModel.recordAiSignInCredential(
                             queryUuid,
                             projectUuid,
                             userUuid,
-                            aiPlan.identityUuid,
+                            credentialUuid,
                         );
                     }
                     if (aiPlan) {
@@ -6027,7 +6041,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer.getUserAccessControls(),
             );
 
-        const sourceParameters = AsyncQueryService.getQuerySourceParameters(
+        const sourceParameters = getQuerySourceParameters(
             sourceQueryHistory?.requestParameters,
         );
         const references =
@@ -6069,7 +6083,7 @@ export class AsyncQueryService extends ProjectService {
 
         if (
             reuseQueryUuid &&
-            aiPlan?.identity !== 'connected_person' &&
+            getAiExecutionCredentialUuid(aiPlan ?? null) === null &&
             !invalidateCache &&
             !documentQueryContext &&
             !(await this.isAiAccessCacheBypassEnabled(account, context))
@@ -6125,10 +6139,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -6195,6 +6206,7 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertCanReadStoredResults(account, projectUuid, source);
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,
@@ -6276,6 +6288,7 @@ export class AsyncQueryService extends ProjectService {
             this.queryHistoryModel.get(queryUuid, projectUuid, account),
             this.projectModel.getSummary(projectUuid),
         ]);
+        await this.assertCanReadStoredResults(account, projectUuid, source);
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,
@@ -6785,10 +6798,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: 'warehouse',
@@ -7180,10 +7190,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -8007,10 +8014,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
                 routingTarget: routingDecision.target,
@@ -8098,6 +8102,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
+        await this.assertCanReadStoredResults(account, projectUuid, source);
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,
@@ -8333,10 +8338,9 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
-                    aiPrincipalUuid:
-                        aiPlan?.identity === 'connected_person'
-                            ? aiPlan.identityUuid
-                            : null,
+                    aiPrincipalUuid: getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    ),
                     warehouseConnectionUuid,
                     connectionRoute,
                 },
@@ -8481,10 +8485,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -8520,16 +8521,19 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         references,
+        context,
+        querySurface,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
+        context: QueryExecutionContext;
+        querySurface?: QuerySurface;
     }): Promise<void> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-        // Each reference costs a DB lookup and authorization check in parallel
         const MAX_REFERENCES = 20;
         if (Object.keys(references).length > MAX_REFERENCES) {
             throw new ParameterError(
@@ -8537,32 +8541,58 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await Promise.all(
-            Object.entries(references).map(async ([tableName, queryUuid]) => {
-                if (!validTableName.test(tableName)) {
-                    throw new ParameterError(
-                        `Invalid reference table name "${tableName}": use letters, digits and underscores, starting with a letter or underscore`,
-                    );
-                }
-                if (!validUuid.test(queryUuid)) {
-                    throw new ParameterError(
-                        `Invalid query uuid "${queryUuid}" for reference "${tableName}"`,
-                    );
-                }
-
-                const queryHistory = await this.queryHistoryModel.get(
-                    queryUuid,
-                    projectUuid,
-                    account,
+        for (const [tableName, queryUuid] of Object.entries(references)) {
+            if (!validTableName.test(tableName)) {
+                throw new ParameterError(
+                    `Invalid reference table name "${tableName}": use letters, digits and underscores, starting with a letter or underscore`,
                 );
-
+            }
+            if (!validUuid.test(queryUuid)) {
+                throw new ParameterError(
+                    `Invalid query uuid "${queryUuid}" for reference "${tableName}"`,
+                );
+            }
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        const roots = await Promise.all(
+            [...new Set(Object.values(references))].map(async (queryUuid) => {
+                const queryHistory = await this.getSubmissionQueryHistory(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                );
                 await this.throwIfCannotReadQueryHistory(
                     account,
                     projectUuid,
-                    await this.projectModel.getSummary(projectUuid),
+                    project,
                     queryHistory,
                 );
+                return {
+                    queryHistory,
+                    agentProducedOnly: !isAiAccessQueryContext(
+                        queryHistory.context,
+                    ),
+                };
             }),
+        );
+        const connectionContext = connectionContextFromAccount(account, {
+            organizationUuid: project.organizationUuid,
+            queryContext: context,
+            surface:
+                querySurface === undefined
+                    ? undefined
+                    : connectionSurfaceFromQuerySurface(querySurface, context),
+        });
+        await this.aiAccessService.assertCanReadResultsForQueries(
+            account,
+            projectUuid,
+            roots,
+            {
+                kind: 'query',
+                surface: querySurfaceFromConnectionSurface(
+                    connectionContext.actor.surface,
+                ),
+            },
         );
     }
 
@@ -8831,6 +8861,8 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 references: normalizedReferences,
+                context,
+                querySurface,
             });
         }
 
@@ -10360,7 +10392,15 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    private async submitAsyncMergeQuery({
+    private async submitAsyncMergeQuery(
+        args: ExecuteMergeQueryInternalArgs,
+    ): Promise<ApiExecuteAsyncMergeQueryResults> {
+        return this.mergeSubmissionQueries.run(new Map(), () =>
+            this.submitAsyncMergeQueryWithCachedSources(args),
+        );
+    }
+
+    private async submitAsyncMergeQueryWithCachedSources({
         account,
         projectUuid,
         mergeQuery,
@@ -10806,11 +10846,18 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string,
         queryUuid: string,
     ): Promise<{ metricQuery: MetricQuery; fields: ItemsMap }> {
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
+        const queryHistory = await this.getSubmissionQueryHistory(
             account,
+            projectUuid,
+            queryUuid,
         );
+        if (!this.mergeSubmissionQueries.getStore()) {
+            await this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+            );
+        }
         await this.assertSavedChartQuerySourceAccess(
             account,
             projectUuid,
@@ -11214,10 +11261,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11377,10 +11421,7 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                aiPrincipalUuid:
-                    aiPlan?.identity === 'connected_person'
-                        ? aiPlan.identityUuid
-                        : null,
+                aiPrincipalUuid: getAiExecutionCredentialUuid(aiPlan ?? null),
                 warehouseConnectionUuid,
                 connectionRoute,
             },
@@ -11672,13 +11713,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
-        if (isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
 
         const resultsStream = await this.getResultsStorageClientForContext(
             queryHistory.context,
@@ -11728,16 +11767,9 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+            aiAccessOnly,
         });
         assertIsAccountWithOrg(account);
-
-        if (aiAccessOnly || isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
 
         if (queryHistory.status !== QueryHistoryStatus.READY) {
             throw new UnexpectedServerError(
@@ -11885,10 +11917,9 @@ export class AsyncQueryService extends ProjectService {
                     queryComposer,
                     originalColumns: undefined,
                     warehouseCredentials,
-                    aiPrincipalUuid:
-                        aiPlan?.identity === 'connected_person'
-                            ? aiPlan.identityUuid
-                            : null,
+                    aiPrincipalUuid: getAiExecutionCredentialUuid(
+                        aiPlan ?? null,
+                    ),
                     warehouseConnectionUuid,
                     connectionRoute,
                     routingTarget: routingDecision.target,
@@ -12008,13 +12039,11 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             account,
         );
-        if (isAiAccessQueryContext(queryHistory.context)) {
-            await this.aiAccessService.assertCanReadResults(
-                account,
-                projectUuid,
-                queryHistory,
-            );
-        }
+        await this.assertCanReadStoredResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
 
         if (!queryHistory.resultsFileName) {
             throw new Error('Results file name not found for query');
