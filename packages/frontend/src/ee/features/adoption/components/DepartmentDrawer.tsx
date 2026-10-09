@@ -53,6 +53,7 @@ import {
     validateWholeNumber,
 } from '../utils/departmentForm';
 import { formatCount, formatQuantity, PEOPLE } from '../utils/format';
+import { getHeadcountFloor } from '../utils/headcount';
 
 type FormValues = {
     name: string;
@@ -81,17 +82,31 @@ type FormProps = {
 
 type SavedDepartment = { departmentUuid: string; core: CreateDepartment };
 
-// The headcount never counts fewer than the people already on Lightdash, so the field says how many that is
-const getHeadcountHint = (department: DepartmentWithMetrics | null): string =>
-    [
+// The headcount never counts fewer than its sub-departments and the people already on Lightdash, so the field
+// says how many that is
+const getHeadcountHint = (
+    department: DepartmentWithMetrics | null,
+    departments: DepartmentWithMetrics[],
+): string => {
+    const children =
+        department === null
+            ? []
+            : departments.filter(
+                  (each) =>
+                      each.parentDepartmentUuid === department.departmentUuid,
+              );
+    const floor =
+        department === null ? 0 : getHeadcountFloor(department, children);
+    const least =
+        children.length > 0
+            ? `At least ${formatCount(floor)}: its sub-departments and the people already on Lightdash`
+            : `At least ${formatCount(floor)}, the people already on Lightdash`;
+    return [
         'How many people work in this department',
         'Leave empty to add up its sub-departments',
-        ...(department !== null && department.metrics.memberCount > 0
-            ? [
-                  `At least ${formatCount(department.metrics.memberCount)}, the people already on Lightdash`,
-              ]
-            : []),
+        ...(floor > 0 ? [least] : []),
     ].join('. ');
+};
 
 const getFullName = (person: {
     firstName: string;
@@ -322,7 +337,7 @@ export const DepartmentForm: FC<FormProps> = ({
                     />
                     <NumberInput
                         label="Headcount"
-                        description={getHeadcountHint(department)}
+                        description={getHeadcountHint(department, departments)}
                         min={0}
                         max={MAX_WHOLE_NUMBER}
                         allowNegative={false}

@@ -21,7 +21,8 @@ type Props = {
     dotLimit: number;
 };
 
-const DotSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
+// A person's dot as the map draws it; the panel beside the map keys its bar with the same ones
+export const DotSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
     <svg className={mapStyles.swatch} width={10} height={10} aria-hidden>
         <g className={mapStyles.dots}>
             <circle

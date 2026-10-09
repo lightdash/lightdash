@@ -44,7 +44,7 @@ const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
 // Hover, keyboard focus and touch, as the headcount note used to be visible text
 const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
 const BELOW_CHILDREN_WARNING =
-    'The headcount entered is below the total of its sub-departments, so that total counts instead';
+    'The headcount entered is below its sub-departments and its own people, so that total counts instead';
 
 // Every cell keeps to one line: text that does not fit ends in an ellipsis and shows in full on hover
 const CellText: FC<

@@ -13,6 +13,7 @@ export type EffectiveHeadcount = {
     effectiveHeadcount: number;
     // A headcount is entered on the department or on one below it
     hasHeadcount: boolean;
+    // The headcount entered is below its sub-departments' plus its own people on Lightdash, so that total counts
     headcountBelowChildren: boolean;
 };
 
@@ -218,16 +219,18 @@ export const computeEffectiveHeadcounts = (
                           )
                         : null;
                 const own = byUuid.get(frame.uuid)?.headcount ?? null;
+                const floor =
+                    (memberCounts.get(frame.uuid) ?? 0) + frame.childGaps;
                 const value: EffectiveHeadcount = {
                     effectiveHeadcount: Math.max(
                         own ?? childrenSum ?? 0,
-                        (memberCounts.get(frame.uuid) ?? 0) + frame.childGaps,
+                        floor,
                     ),
                     hasHeadcount: own !== null || frame.hasChildHeadcount,
                     headcountBelowChildren:
                         own !== null &&
                         childrenSum !== null &&
-                        own < childrenSum,
+                        own < Math.max(childrenSum, floor),
                 };
                 result.set(frame.uuid, value);
                 const parent = stack[stack.length - 1];

@@ -136,17 +136,54 @@ describe('computeEffectiveHeadcounts', () => {
             withHeadcount({ ops: 30, stores: 20, depots: 10 }),
             people,
         );
-        // Its 30 is all taken by Stores and Depots, so its own 2 people add to it
+        // Its 30 is all taken by Stores and Depots, so its own 2 people add to it, and it says so
         expect(entered.get('ops')).toEqual({
             effectiveHeadcount: 32,
             hasHeadcount: true,
-            headcountBelowChildren: false,
+            headcountBelowChildren: true,
         });
         const summed = computeEffectiveHeadcounts(
             withHeadcount({ stores: 20, depots: 10 }),
             people,
         );
-        expect(summed.get('ops')?.effectiveHeadcount).toBe(32);
+        // Nothing was entered on Ops, so nothing is below anything
+        expect(summed.get('ops')).toEqual({
+            effectiveHeadcount: 32,
+            hasHeadcount: true,
+            headcountBelowChildren: false,
+        });
+    });
+    it('flags a headcount equal to its sub-departments when people sit directly in the department', () => {
+        // 440 entered, 440 in its sub-departments and 12 people directly in it, as Engineering in the 6,000 shape
+        const result = computeEffectiveHeadcounts(
+            [
+                {
+                    departmentUuid: 'eng',
+                    parentDepartmentUuid: null,
+                    headcount: 440,
+                },
+                {
+                    departmentUuid: 'apps',
+                    parentDepartmentUuid: 'eng',
+                    headcount: 300,
+                },
+                {
+                    departmentUuid: 'platform',
+                    parentDepartmentUuid: 'eng',
+                    headcount: 140,
+                },
+            ],
+            new Map([
+                ['eng', 313],
+                ['apps', 201],
+                ['platform', 100],
+            ]),
+        );
+        expect(result.get('eng')).toEqual({
+            effectiveHeadcount: 452,
+            hasHeadcount: true,
+            headcountBelowChildren: true,
+        });
     });
     it('never goes below the people on Lightdash, so a headcount only adds people without an account', () => {
         // Stores has 9 people on Lightdash for a headcount of 8; Ops rolls up 12 for a headcount of 10
@@ -378,7 +415,10 @@ const recursiveEffectiveHeadcounts = (
             ),
             hasHeadcount:
                 own !== null || visited.some((child) => child.hasHeadcount),
-            headcountBelowChildren: own !== null && sum !== null && own < sum,
+            headcountBelowChildren:
+                own !== null &&
+                sum !== null &&
+                own < Math.max(sum, (memberCounts.get(uuid) ?? 0) + gaps),
         };
         result.set(uuid, value);
         return value;

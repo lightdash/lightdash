@@ -13,6 +13,7 @@ import {
     memberFixture,
     metricsFixture,
     seededOrganization,
+    withServerHeadcounts,
 } from '../utils/adoptionFixtures';
 import { getSweepDelay } from '../utils/sweepDelay';
 import { AdoptionMap } from './AdoptionMap';
@@ -70,7 +71,8 @@ const summary = (
     organization = metricsFixture(12, null, { activeCount30d: 6 }),
 ): OrganizationAdoptionSummary => ({
     organization,
-    departments,
+    // Every tree the map is given is shaped as the server would send it
+    departments: withServerHeadcounts(departments),
     attention: { conflictCount: 1, unassignedCount: 2 },
 });
 
@@ -149,8 +151,10 @@ describe('AdoptionMap', () => {
     it('draws one circle per department and one dot per person', () => {
         const { container } = renderMap();
         expect(container.querySelectorAll('[data-department]')).toHaveLength(4);
-        // Stores 20 + Depots 10 + Finance 8
-        expect(container.querySelectorAll('[data-dot]')).toHaveLength(38 + 3);
+        // Stores 20 + Depots 10 + Finance 8, and the three swatches of each legend
+        expect(container.querySelectorAll('[data-dot]')).toHaveLength(
+            38 + 3 + 3,
+        );
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(38);
@@ -1058,13 +1062,61 @@ describe('AdoptionMap', () => {
             expect(barShares(row('Legal'))).toEqual([0, 0]);
         });
 
+        it('reads the people directly in a department without a headcount as the other rows without one do', async () => {
+            const hub = [
+                d('Hub', null, null, 13, 3, {
+                    directMetrics: metricsFixture(4, null, {
+                        activeCount30d: 1,
+                    }),
+                }),
+                d('Team', 'Hub', null, 6, 2),
+                d('Crew', 'Hub', null, 3, 0),
+            ];
+            const { container, unmount } = renderMap(hub);
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Hub,/ }),
+            );
+            expect(listed('Sub-departments')).toEqual([
+                'Team | Add headcount',
+                'Crew | Add headcount',
+                'Directly in Hub · 4 | Add headcount',
+            ]);
+            const direct = container.querySelector(
+                '[data-kind="direct"][data-circle="own:Hub"]',
+            );
+            if (direct) fireEvent.pointerOver(direct);
+            expect(
+                [
+                    ...container.querySelectorAll(
+                        'svg[role="img"] [data-label="own:Hub"]',
+                    ),
+                ].map((node) => node.textContent),
+            ).toEqual(['Directly in Hub', '4 on Lightdash · 1 active']);
+            unmount();
+
+            renderMap(hub, { canManage: false });
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Hub,/ }),
+            );
+            expect(listed('Sub-departments')).toContain(
+                'Directly in Hub · 4 | No headcount',
+            );
+        });
+
+        it('keys the bar with the same dots the map draws', () => {
+            renderMap();
+            expect(
+                [...details().querySelectorAll('li [data-dot]')].map((dot) =>
+                    dot.getAttribute('data-dot'),
+                ),
+            ).toEqual(['active', 'idle', 'noAccount']);
+        });
+
         it('counts a headcount below its sub-departments as their total, so the panel, the legend and the dots agree', async () => {
             // Stores has more accounts than headcount, so it counts 25; Ops' own 30 is below the 35 of Stores
-            // and Depots, so the server counts 35
+            // and Depots, so it counts 35
             const lopsided = [
                 d('Ops', null, 30, 25, 0, {
-                    effectiveHeadcount: 35,
-                    headcountBelowChildren: true,
                     directMetrics: metricsFixture(0, null),
                 }),
                 d('Stores', 'Ops', 20, 25, 0),
@@ -1124,7 +1176,6 @@ describe('AdoptionMap', () => {
         it('never shows coverage above 100%, in the rows or for the department opened', async () => {
             // A headcount of 8 entered for 9 people on Lightdash, all active, counts 9
             const over = d('Data', null, 8, 9, 9, {
-                effectiveHeadcount: 9,
                 metrics: metricsFixture(9, 100, {
                     activeCount30d: 9,
                     activePct: 100,
@@ -1150,6 +1201,7 @@ describe('AdoptionMap', () => {
         });
 
         it('shows no tiles, owners, groups, roles, targets or captions for a department', async () => {
+            // Finance's 8 is below its sub-department's 10, which the old panel had a caption for
             renderMap([
                 d('Finance', null, 8, 3, 2, {
                     owners: [
@@ -1160,8 +1212,9 @@ describe('AdoptionMap', () => {
                     ],
                     targetActiveUsers: 6,
                     targetDate: '2026-12-31',
-                    headcountBelowChildren: true,
+                    directMetrics: metricsFixture(0, null),
                 }),
+                d('Payroll', 'Finance', 10, 3, 2),
                 d('Legal', null, 60, 0, 0),
             ]);
             await userEvent.click(
@@ -1170,7 +1223,7 @@ describe('AdoptionMap', () => {
             expect(panelLegend()).toEqual([
                 'Active 2',
                 'On Lightdash, not active 1',
-                'No account 5',
+                'No account 7',
             ]);
             expect(
                 within(details()).queryByText(
@@ -1181,6 +1234,21 @@ describe('AdoptionMap', () => {
                 within(details()).getByRole('link', { name: 'Open Finance' }),
             ).toBeInTheDocument();
         });
+    });
+
+    it('keys a "Directly in" circle with nobody in it, which is drawn dashed once its department is open', async () => {
+        // Ops keeps 10 beyond Stores and Depots with nobody of its own on Lightdash
+        renderMap([
+            d('Ops', null, 40, 9, 4, {
+                directMetrics: metricsFixture(0, null),
+            }),
+            d('Stores', 'Ops', 20, 6, 4),
+            d('Depots', 'Ops', 10, 3, 0),
+        ]);
+        // Inside Ops at the top it is a plain ring, so there is nothing to key
+        expect(screen.queryByText('Nobody on Lightdash yet')).toBeNull();
+        await userEvent.click(screen.getByRole('button', { name: /^Ops,/ }));
+        expect(screen.getByText('Nobody on Lightdash yet')).toBeInTheDocument();
     });
 
     it('says the legend counts the people placed in a department across the organization', async () => {

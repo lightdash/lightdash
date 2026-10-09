@@ -1,4 +1,5 @@
 import {
+    computeEffectiveHeadcounts,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMember,
@@ -73,6 +74,26 @@ export const dept = (
     };
 };
 
+// Effective headcounts and their flags as the server works them out from the headcounts entered and the people
+// on Lightdash, so a test never describes data the server cannot send
+export const withServerHeadcounts = (
+    departments: DepartmentWithMetrics[],
+): DepartmentWithMetrics[] => {
+    const effective = computeEffectiveHeadcounts(
+        departments,
+        new Map(
+            departments.map((department) => [
+                department.departmentUuid,
+                department.metrics.memberCount,
+            ]),
+        ),
+    );
+    return departments.map((department) => {
+        const value = effective.get(department.departmentUuid);
+        return value === undefined ? department : { ...department, ...value };
+    });
+};
+
 export const memberFixture = (
     userUuid: string,
     lastActiveAt: string | null,
@@ -118,16 +139,17 @@ const seeded = (
     });
 
 // A small organization with nesting, a missing headcount and almost nobody on Lightdash yet
-export const seededOrganization = (): DepartmentWithMetrics[] => [
-    seeded('Operations', null, 40, 1, 0),
-    seeded('North', 'Operations', null, 1),
-    seeded('Stores', 'Operations', 22, 0),
-    seeded('Depots', 'Operations', 9, 0),
-    seeded('Supply chain', null, 80, 0),
-    seeded('Procurement', 'Supply chain', 30, 0),
-    seeded('Logistics', 'Supply chain', 50, 0),
-    seeded('Marketing', null, 40, 0),
-    seeded('Finance', null, 32, 0),
-    seeded('Data', null, 9, 1),
-    seeded('Product', null, null, 1),
-];
+export const seededOrganization = (): DepartmentWithMetrics[] =>
+    withServerHeadcounts([
+        seeded('Operations', null, 40, 1, 0),
+        seeded('North', 'Operations', null, 1),
+        seeded('Stores', 'Operations', 22, 0),
+        seeded('Depots', 'Operations', 9, 0),
+        seeded('Supply chain', null, 80, 0),
+        seeded('Procurement', 'Supply chain', 30, 0),
+        seeded('Logistics', 'Supply chain', 50, 0),
+        seeded('Marketing', null, 40, 0),
+        seeded('Finance', null, 32, 0),
+        seeded('Data', null, 9, 1),
+        seeded('Product', null, null, 1),
+    ]);

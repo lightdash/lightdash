@@ -50,6 +50,7 @@ import {
     describeCircles,
     getFocusTrail,
     getLegendCounts,
+    getRingKeys,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
@@ -245,11 +246,13 @@ export const AdoptionMap: FC<Props> = ({
     const departmentCircles = circles.filter(
         (circle) => circle.kind === 'department',
     );
+    const ringKeys = getRingKeys(circles);
     const namedDots = showNames ? dots.filter((dot) => dot.member) : [];
 
     return (
         <Stack
             gap="md"
+            className={styles.root}
             onKeyDown={handleKeyDown}
             onPointerDownCapture={() => {
                 lastInputRef.current = 'pointer';
@@ -413,13 +416,8 @@ export const AdoptionMap: FC<Props> = ({
                         colourBy={colourBy}
                         counts={legendCounts}
                         isOrganizationView={focus === null}
-                        hasEmptyDepartment={departmentCircles.some(
-                            (circle) => !circle.hasMembers,
-                        )}
-                        hasDepartmentWithoutHeadcount={departmentCircles.some(
-                            (circle) =>
-                                circle.hasMembers && !circle.hasHeadcount,
-                        )}
+                        hasEmptyDepartment={ringKeys.hasEmpty}
+                        hasDepartmentWithoutHeadcount={ringKeys.hasNoHeadcount}
                         hasEnlargedCircle={circles.some(
                             (circle) => !circle.isAreaHonest,
                         )}

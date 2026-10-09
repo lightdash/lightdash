@@ -168,11 +168,12 @@ describe('DepartmentForm', () => {
         );
     });
 
-    it('says the headcount counts at least the people already on Lightdash, and accepts any number', async () => {
-        const busy = dept('Ops', null, null, {
+    it('says a department without sub-departments counts at least its people on Lightdash, and accepts any number', async () => {
+        const busy = dept('Finance', null, null, {
             headcount: 4,
             effectiveHeadcount: 12,
             metrics: metricsFixture(12, 100),
+            directMetrics: metricsFixture(12, 100),
         });
         renderEdit(busy);
         expect(
@@ -186,9 +187,25 @@ describe('DepartmentForm', () => {
         await save();
         await waitFor(() => expect(update).toHaveBeenCalled());
         expect(update).toHaveBeenCalledWith({
-            departmentUuid: 'Ops',
+            departmentUuid: 'Finance',
             data: { headcount: 6 },
         });
+    });
+    it('says a department with sub-departments counts at least them and its own people on Lightdash', () => {
+        // Stores counts 10, and 2 people sit directly in Ops
+        renderEdit(
+            dept('Ops', null, null, {
+                headcount: 5,
+                effectiveHeadcount: 12,
+                metrics: metricsFixture(7, null),
+                directMetrics: metricsFixture(2, null),
+            }),
+        );
+        expect(
+            screen.getByText(
+                'How many people work in this department. Leave empty to add up its sub-departments. At least 12: its sub-departments and the people already on Lightdash',
+            ),
+        ).toBeInTheDocument();
     });
     it('gives no minimum for a new department', () => {
         renderWithProviders(

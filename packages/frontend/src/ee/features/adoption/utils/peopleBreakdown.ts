@@ -1,9 +1,9 @@
 import {
     getChildrenMap,
-    getResidualHeadcount,
     type AdoptionMetrics,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
+import { getDirectHeadcount } from './headcount';
 
 // Everyone counted, in three parts that add up to the effective headcount. The panel's bars and
 // legend and the legend under the map all read it, so they never disagree
@@ -132,28 +132,29 @@ export const getCoverageRows = (
 export type DirectRow = {
     memberCount: number;
     breakdown: PeopleBreakdown;
-    coveragePct: number;
+    reading: CoverageReading;
 };
 
 // The people directly in a department beside its sub-departments, over the headcount it keeps for them; none
-// without sub-departments, where its people are the department, or where it keeps no headcount for them
+// where it keeps none. Without a headcount anywhere in the department, it reads as other rows without one
 export const getDirectRow = (
     department: DepartmentWithMetrics,
     children: DepartmentWithMetrics[],
 ): DirectRow | null => {
     if (children.length === 0) return null;
     const { directMetrics } = department;
-    const residual = getResidualHeadcount(
-        department.effectiveHeadcount,
-        children.reduce((sum, child) => sum + child.effectiveHeadcount, 0),
-        directMetrics.memberCount,
-    );
-    if (residual <= 0) return null;
+    const headcount = getDirectHeadcount(department, children);
+    if (headcount <= 0) return null;
     return {
         memberCount: directMetrics.memberCount,
-        breakdown: getPeopleBreakdown(directMetrics, residual),
-        coveragePct: Math.round(
-            100 * getShare(directMetrics.memberCount, residual),
-        ),
+        breakdown: getPeopleBreakdown(directMetrics, headcount),
+        reading: department.hasHeadcount
+            ? {
+                  kind: 'coverage',
+                  pct: Math.round(
+                      100 * getShare(directMetrics.memberCount, headcount),
+                  ),
+              }
+            : { kind: 'noHeadcount' },
     };
 };

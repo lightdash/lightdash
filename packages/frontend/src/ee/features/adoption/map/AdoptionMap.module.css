@@ -1,3 +1,8 @@
+/* Colours the map's dots and legend share with the panel beside the map */
+.root {
+    --adoption-not-active: var(--mantine-color-violet-outline);
+}
+
 .body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
@@ -69,36 +74,18 @@
     max-width: 50%;
 }
 
-/* The panel's bars and swatches: the map's active violet, then that violet as light as the map's
-   lighter violet dots. What is left of a bar is its track, the people without an account */
-.segment[data-part='active'],
-.swatch[data-part='active'] {
+/* The bars' parts: the map's active violet, then the not-active ring's colour as light as the map's lighter
+   violet dots. What is left of a bar is its track, the people without an account */
+.segment[data-part='active'] {
     background-color: var(--mantine-color-violet-filled);
 }
 
-.segment[data-part='onLightdashNotActive'],
-.swatch[data-part='onLightdashNotActive'] {
+.segment[data-part='onLightdashNotActive'] {
     background-color: color-mix(
         in srgb,
-        var(--mantine-color-violet-filled) 45%,
+        var(--adoption-not-active) 45%,
         var(--mantine-color-body)
     );
-}
-
-/* The grey of the bars' own track, outlined in the grey of the map's rings for people without an account */
-.swatch[data-part='noAccount'] {
-    background-color: light-dark(
-        var(--mantine-color-gray-2),
-        var(--mantine-color-dark-4)
-    );
-    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-3);
-}
-
-.swatch {
-    flex: none;
-    width: 10px;
-    height: 10px;
-    border-radius: 3px;
 }
 
 /* Fixed columns, so the bars are the same width in every list whatever the last column says */

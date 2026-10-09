@@ -251,11 +251,7 @@ export const getCaptionVariants = (stats: CircleStats): string[] => {
     // The people directly in a department read in full, over the headcount kept for them
     if (stats.isDirect)
         return [
-            formatDirectPeople(
-                stats.members,
-                stats.headcount ?? stats.people,
-                stats.active,
-            ),
+            formatDirectPeople(stats.members, stats.headcount, stats.active),
         ];
     if (stats.headcount === null) {
         return [

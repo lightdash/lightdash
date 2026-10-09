@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     OrganizationMemberRoleLabels,
     type DepartmentMember,
     type DepartmentWithMetrics,
@@ -25,6 +26,8 @@ import {
     type PeopleBreakdown,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
+import { type DotKind } from './geometry';
+import { DotSwatch } from './MapLegend';
 import { formatMemberActivity, formatPct } from './mapView';
 
 type Props = {
@@ -45,10 +48,15 @@ type Props = {
 
 type Part = keyof PeopleBreakdown;
 
-const LEGEND: { part: Part; label: string }[] = [
-    { part: 'active', label: 'Active' },
-    { part: 'onLightdashNotActive', label: 'On Lightdash, not active' },
-    { part: 'noAccount', label: 'No account' },
+// Each part is keyed with the dot the map draws for those people
+const LEGEND: { part: Part; dot: DotKind; label: string }[] = [
+    { part: 'active', dot: 'active', label: 'Active' },
+    {
+        part: 'onLightdashNotActive',
+        dot: 'idle',
+        label: 'On Lightdash, not active',
+    },
+    { part: 'noAccount', dot: 'noAccount', label: 'No account' },
 ];
 
 // The share of the whole bar a part takes; the whole is everyone the breakdown counts
@@ -76,47 +84,55 @@ const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
     </Progress.Root>
 );
 
+const RowWord: FC<{ children: string }> = ({ children }) => (
+    <Text
+        component="span"
+        fz="xs"
+        c="dimmed"
+        ta="right"
+        className={styles.rowEnd}
+    >
+        {children}
+    </Text>
+);
+
 // A row's last column: its coverage, or a word where there is no share to give
 const RowEnd: FC<{
     reading: CoverageReading;
     memberCount: number;
     canManage: boolean;
 }> = ({ reading, memberCount, canManage }) => {
-    if (reading.kind === 'coverage') {
-        return (
-            <Text
-                component="span"
-                fz="sm"
-                fw={600}
-                ta="right"
-                className={`${styles.rowEnd} ${styles.count}`}
-            >
-                {formatPct(reading.pct, memberCount)}
-            </Text>
-        );
+    switch (reading.kind) {
+        case 'coverage':
+            return (
+                <Text
+                    component="span"
+                    fz="sm"
+                    fw={600}
+                    ta="right"
+                    className={`${styles.rowEnd} ${styles.count}`}
+                >
+                    {formatPct(reading.pct, memberCount)}
+                </Text>
+            );
+        case 'noHeadcount':
+            return (
+                <RowWord>
+                    {canManage ? 'Add headcount' : 'No headcount'}
+                </RowWord>
+            );
+        case 'nobody':
+            return <RowWord>Nobody yet</RowWord>;
+        default:
+            return assertUnreachable(reading, 'Unknown coverage reading');
     }
-    return (
-        <Text
-            component="span"
-            fz="xs"
-            c="dimmed"
-            ta="right"
-            className={styles.rowEnd}
-        >
-            {reading.kind === 'nobody'
-                ? 'Nobody yet'
-                : canManage
-                  ? 'Add headcount'
-                  : 'No headcount'}
-        </Text>
-    );
 };
 
 const BreakdownLegend: FC<{ breakdown: PeopleBreakdown }> = ({ breakdown }) => (
     <ul className={styles.legend}>
-        {LEGEND.map(({ part, label }) => (
+        {LEGEND.map(({ part, dot, label }) => (
             <li key={part} className={styles.legendItem}>
-                <span className={styles.swatch} data-part={part} aria-hidden />
+                <DotSwatch kind={dot} />
                 <Text fz="xs" className={styles.count}>
                     {`${label} ${formatCount(breakdown[part])}`}
                 </Text>
@@ -272,10 +288,7 @@ export const MapInspector: FC<Props> = ({
                                         size="md"
                                     />
                                     <RowEnd
-                                        reading={{
-                                            kind: 'coverage',
-                                            pct: direct.coveragePct,
-                                        }}
+                                        reading={direct.reading}
                                         memberCount={direct.memberCount}
                                         canManage={canManage}
                                     />

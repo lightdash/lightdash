@@ -1,8 +1,9 @@
+import { type DepartmentWithMetrics } from '@lightdash/common';
 import {
-    computeEffectiveHeadcounts,
-    type DepartmentWithMetrics,
-} from '@lightdash/common';
-import { dept, metricsFixture } from '../utils/adoptionFixtures';
+    dept,
+    metricsFixture,
+    withServerHeadcounts,
+} from '../utils/adoptionFixtures';
 
 // Two organizations the map is checked against at every panel width: department names and counts
 // only, shaped like a deep 6,000-headcount organization and a flat one of about 2,000
@@ -17,44 +18,31 @@ type Row = [
     directActive: number,
 ];
 
-// Effective headcounts are worked out as the server does, so each drawing holds exactly its headcount
-const toDepartments = (rows: Row[]): DepartmentWithMetrics[] => {
-    const effective = computeEffectiveHeadcounts(
-        rows.map(([name, parent, headcount]) => ({
-            departmentUuid: name,
-            parentDepartmentUuid: parent,
-            headcount,
-        })),
-        new Map(rows.map(([name, , , members]) => [name, members])),
-    );
-    return rows.map(
-        ([
-            name,
-            parent,
-            headcount,
-            members,
-            active,
-            directMembers,
-            directActive,
-        ]) =>
-            dept(name, parent, null, {
+const toDepartments = (rows: Row[]): DepartmentWithMetrics[] =>
+    withServerHeadcounts(
+        rows.map(
+            ([
+                name,
+                parent,
                 headcount,
-                effectiveHeadcount:
-                    effective.get(name)?.effectiveHeadcount ?? members,
-                hasHeadcount: effective.get(name)?.hasHeadcount ?? false,
-                headcountBelowChildren:
-                    effective.get(name)?.headcountBelowChildren ?? false,
-                metrics: metricsFixture(members, null, {
-                    activeCount30d: active,
-                    activeCount12w: active,
+                members,
+                active,
+                directMembers,
+                directActive,
+            ]) =>
+                dept(name, parent, null, {
+                    headcount,
+                    metrics: metricsFixture(members, null, {
+                        activeCount30d: active,
+                        activeCount12w: active,
+                    }),
+                    directMetrics: metricsFixture(directMembers, null, {
+                        activeCount30d: directActive,
+                        activeCount12w: directActive,
+                    }),
                 }),
-                directMetrics: metricsFixture(directMembers, null, {
-                    activeCount30d: directActive,
-                    activeCount12w: directActive,
-                }),
-            }),
+        ),
     );
-};
 
 // Four levels deep, 56 departments and 1,763 people placed; 5,582 headcount entered at the top level, 5,587
 // effective as People's 120 is below its sub-departments' 125

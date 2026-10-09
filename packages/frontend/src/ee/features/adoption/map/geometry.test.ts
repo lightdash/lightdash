@@ -3,7 +3,12 @@ import {
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    memberFixture,
+    metricsFixture,
+    withServerHeadcounts,
+} from '../utils/adoptionFixtures';
 import {
     buildPackInput,
     countPeople,
@@ -50,13 +55,13 @@ const d = (
 
 // Ops (100) ─┬─ Stores (40)
 //            └─ Depots (20)      Finance (no headcount, 5 people)      Legal (2, nobody)
-const tree = [
+const tree = withServerHeadcounts([
     d('Ops', null, 100, 9, 3),
     d('Stores', 'Ops', 40, 4, 4, 3),
     d('Depots', 'Ops', 20, 2),
     d('Finance', null, null, 5),
     d('Legal', null, 2, 0),
-];
+]);
 
 describe('getDotSegments', () => {
     const bucket = (
@@ -447,12 +452,13 @@ describe('edge cases', () => {
     });
 
     it('draws the people directly in a parent whose headcount is below its children', () => {
+        // Its 10 is below A and B, so it counts their 40 and its own 2 people
         const root = buildPackInput(
-            [
+            withServerHeadcounts([
                 d('Parent', null, 10, 14, 2),
                 d('A', 'Parent', 20, 6),
                 d('B', 'Parent', 20, 6),
-            ],
+            ]),
             null,
         );
         const parent = root.children[0];

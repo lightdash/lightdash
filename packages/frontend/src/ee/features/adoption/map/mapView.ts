@@ -161,6 +161,24 @@ export const getLegendCounts = (
     return counts;
 };
 
+// Circles drawn with the dashed rings the legend keys; a "Directly in" circle inside another is a plain ring
+const isDrawnWithRing = (circle: PackedCircle): boolean =>
+    !(circle.kind === 'direct' && circle.depth > 1);
+
+export const getRingKeys = (
+    circles: PackedCircle[],
+): { hasEmpty: boolean; hasNoHeadcount: boolean } => ({
+    hasEmpty: circles.some(
+        (circle) => isDrawnWithRing(circle) && !circle.hasMembers,
+    ),
+    hasNoHeadcount: circles.some(
+        (circle) =>
+            isDrawnWithRing(circle) &&
+            circle.hasMembers &&
+            !circle.hasHeadcount,
+    ),
+});
+
 export type MapDot = {
     key: string;
     // The circle the dot is drawn in
@@ -247,13 +265,13 @@ const getCircleStats = (
     };
 };
 
-// The people directly in a department, over the headcount it keeps for them
+// The people directly in a department, over the headcount it keeps for them when one is entered in it
 export const formatDirectPeople = (
     members: number,
-    headcount: number,
+    headcount: number | null,
     active: number,
 ): string =>
-    `${formatCount(members)} of ${formatCount(headcount)} on Lightdash · ${members > 0 && active === members ? 'all active' : `${formatCount(active)} active`}`;
+    `${formatCount(members)}${headcount === null ? '' : ` of ${formatCount(headcount)}`} on Lightdash · ${members > 0 && active === members ? 'all active' : `${formatCount(active)} active`}`;
 
 const describeStats = (stats: CircleStats): string[] => {
     const active = `${formatCount(stats.active)} active in the last 30 days`;

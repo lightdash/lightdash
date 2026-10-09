@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    memberFixture,
+    metricsFixture,
+    withServerHeadcounts,
+} from '../utils/adoptionFixtures';
 import {
     getDepartmentBreakdown,
     getOrganizationBreakdown,
@@ -22,6 +27,7 @@ import {
     formatPct,
     getFocusTrail,
     getLegendCounts,
+    getRingKeys,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
@@ -57,14 +63,14 @@ const d = (
         }),
     });
 
-const tree = [
+const tree = withServerHeadcounts([
     d('Ops', null, 30, 9, 4, 0),
     d('Stores', 'Ops', 20, 6, 4),
     d('Depots', 'Ops', 10, 3, 0),
     d('Finance', null, 8, 3, 2),
     d('Product', null, null, 5, 5),
     d('Supply', null, 40, 0, 0),
-];
+]);
 const byUuid = new Map(tree.map((each) => [each.departmentUuid, each]));
 const layout = (focus: string | null, departments = tree) =>
     layoutPack(buildPackInput(departments, focus));
@@ -146,11 +152,11 @@ describe('countDotKinds', () => {
 
 describe('getLegendCounts', () => {
     // Ops is 40: Stores 20, Depots 10, and 10 directly in Ops, of whom 2 are on Lightdash
-    const parent = [
+    const parent = withServerHeadcounts([
         d('Ops', null, 40, 9, 4, 2),
         d('Stores', 'Ops', 20, 5, 3),
         d('Depots', 'Ops', 10, 2, 1),
-    ];
+    ]);
 
     it("reads the panel's numbers when colouring by activity, and the dots drawn match them", () => {
         const circles = layout(null, parent);
@@ -261,6 +267,28 @@ describe('getLegendCounts', () => {
     });
 });
 
+describe('getRingKeys', () => {
+    // Ops keeps 10 beyond Stores and Depots with nobody of its own in it
+    const ops = withServerHeadcounts([
+        d('Ops', null, 40, 9, 4, 0),
+        d('Stores', 'Ops', 20, 6, 4),
+        d('Depots', 'Ops', 10, 3, 0),
+    ]);
+    it('keys an empty "Directly in" circle drawn at the top of the view, as it is drawn dashed', () => {
+        expect(getRingKeys(layout('Ops', ops)).hasEmpty).toBe(true);
+    });
+    it('leaves out a "Directly in" circle drawn inside another, which is a plain ring', () => {
+        expect(getRingKeys(layout(null, ops)).hasEmpty).toBe(false);
+    });
+    it('keys the circles without a headcount, a lone department opened on its own included', () => {
+        const product = withServerHeadcounts([d('Product', null, null, 5, 5)]);
+        expect(getRingKeys(layout('Product', product))).toEqual({
+            hasEmpty: false,
+            hasNoHeadcount: true,
+        });
+    });
+});
+
 describe('buildDots', () => {
     it('draws one dot per person, inside the circle', () => {
         const [circle] = layout('Finance');
@@ -361,14 +389,14 @@ describe('describeCircles', () => {
         expect(described.get('Huge')?.description).not.toMatch(/not to scale/);
     });
     describe("a circle drawn from a department's own people", () => {
-        const data = [
+        const data = withServerHeadcounts([
             d('Data', null, 110, 191, 85, 84),
             d('Analytics', 'Data', 64, 63, 29),
             d('Engineering', 'Data', 34, 33, 10),
             d('Science', 'Data', 12, 11, 3),
             d('Governance', null, 8, 9, 9),
             d('Product', null, null, 5, 5),
-        ];
+        ]);
         const describeView = (focus: string | null) =>
             describeCircles(
                 nameLoneBucket(layout(focus, data), focus),
@@ -384,7 +412,7 @@ describe('describeCircles', () => {
             );
         });
         it('counts the people directly in a department over the headcount it keeps for them', () => {
-            // Data's 191 less its sub-departments' 110 leaves 81, fewer than its 84 people, so it keeps 84
+            // Data counts 194, its 191 people and its sub-departments' 3 without an account: 84 over their 110
             [describeView('Data'), describeView(null)].forEach((info) => {
                 expect(info.get('own:Data')?.stats).toEqual({
                     people: 84,
@@ -399,11 +427,11 @@ describe('describeCircles', () => {
             });
         });
         it('describes headcount kept for the people directly in a department when nobody is in it yet', () => {
-            const ops = [
+            const ops = withServerHeadcounts([
                 d('Ops', null, 40, 6, 0, 0),
                 d('Stores', 'Ops', 20, 4, 0),
                 d('Depots', 'Ops', 10, 2, 0),
-            ];
+            ]);
             const info = describeCircles(
                 layout('Ops', ops),
                 new Map(ops.map((each) => [each.departmentUuid, each])),

@@ -3,7 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
-import { dept, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    metricsFixture,
+    withServerHeadcounts,
+} from '../utils/adoptionFixtures';
 import { DepartmentsTable } from './DepartmentsTable';
 import styles from './DepartmentsTable.module.css';
 
@@ -12,18 +16,22 @@ vi.mock('../../../../components/EChartsReactWrapper', () => ({
     default: () => null,
 }));
 
-const departments = [
+const departments = withServerHeadcounts([
     dept('Sales', null, 80),
-    dept('Ops', null, 10, { headcountBelowChildren: true }),
+    // The 10 entered is all Stores', and 2 people sit directly in Ops, so it counts 12 and warns
+    dept('Ops', null, null, {
+        headcount: 10,
+        metrics: metricsFixture(7, 58),
+        directMetrics: metricsFixture(2, null),
+    }),
     dept('Legal', null, null),
     dept('Stores', 'Ops', 50),
     dept('Small', null, 0, {
         headcount: 300,
-        effectiveHeadcount: 300,
         metrics: metricsFixture(1, 0),
         headcountNote: 'Full-time staff only',
     }),
-];
+]);
 
 // jsdom has no layout, so the table's width is reported by hand
 const setTableWidth = (width: number) =>
@@ -144,14 +152,20 @@ describe('DepartmentsTable', () => {
         const row = screen.getByRole('link', { name: 'Small' }).closest('tr')!;
         expect(within(row).getByText('<1% (1)')).toBeInTheDocument();
     });
-    it('prompts for a missing headcount and warns when a headcount is below its sub-departments', () => {
+    it('prompts for a missing headcount and warns when a headcount is below its sub-departments and its own people', () => {
         renderTable();
         expect(
             screen.getByRole('button', { name: 'Add headcount for Legal' }),
         ).toBeInTheDocument();
+        // Stores' 10 and the 2 people directly in Ops, above the 10 entered
+        expect(
+            within(
+                screen.getByRole('link', { name: 'Ops' }).closest('tr')!,
+            ).getByText('12'),
+        ).toBeInTheDocument();
         expect(
             screen.getByLabelText(
-                'The headcount entered is below the total of its sub-departments, so that total counts instead',
+                'The headcount entered is below its sub-departments and its own people, so that total counts instead',
             ),
         ).toBeInTheDocument();
     });
@@ -389,7 +403,7 @@ describe('DepartmentsTable', () => {
     it('announces the headcount warning and makes it focusable', async () => {
         renderTable();
         const warning = screen.getByRole('img', {
-            name: 'The headcount entered is below the total of its sub-departments, so that total counts instead',
+            name: 'The headcount entered is below its sub-departments and its own people, so that total counts instead',
         });
         expect(warning).toHaveAttribute('tabindex', '0');
         await userEvent.tab();

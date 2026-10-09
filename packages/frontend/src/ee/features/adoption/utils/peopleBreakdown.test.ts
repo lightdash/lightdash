@@ -1,7 +1,7 @@
 import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { deepOrganization } from '../map/organizationFixtures';
-import { dept, metricsFixture } from './adoptionFixtures';
+import { dept, metricsFixture, withServerHeadcounts } from './adoptionFixtures';
 import {
     getCoverageRows,
     getDepartmentBreakdown,
@@ -58,54 +58,80 @@ describe('getDepartmentBreakdown', () => {
 });
 
 describe('getDirectRow', () => {
-    const stores = d('Stores', 'Ops', 20, 6, 2);
-    const depots = d('Depots', 'Ops', 10, 3, 0);
+    // Ops and its sub-departments as the server sends them, with what is entered on Ops and who is directly in it
+    const ops = (
+        headcount: number | null,
+        directMembers: number,
+        directActive: number,
+        childHeadcounts: [number | null, number | null] = [20, 10],
+    ) => {
+        const [parent, ...children] = withServerHeadcounts([
+            d(
+                'Ops',
+                null,
+                headcount,
+                9 + directMembers,
+                2 + directActive,
+                directMembers,
+                directActive,
+            ),
+            d('Stores', 'Ops', childHeadcounts[0], 6, 2),
+            d('Depots', 'Ops', childHeadcounts[1], 3, 0),
+        ]);
+        return getDirectRow(parent, children);
+    };
 
     it('counts the people directly in a department over what it keeps for them beside its sub-departments', () => {
         // Ops's 40 leaves 10 over Stores and Depots, for its 4 people, 1 of them active
-        expect(
-            getDirectRow(d('Ops', null, 40, 13, 3, 4, 1), [stores, depots]),
-        ).toEqual({
+        expect(ops(40, 4, 1)).toEqual({
             memberCount: 4,
             breakdown: { active: 1, onLightdashNotActive: 3, noAccount: 6 },
-            coveragePct: 40,
+            reading: { kind: 'coverage', pct: 40 },
         });
     });
-    it('keeps at least the people directly in a department', () => {
-        expect(
-            getDirectRow(d('Ops', null, 30, 11, 2, 2, 0), [stores, depots]),
-        ).toEqual({
+    it('keeps the people directly in a department whose headcount its sub-departments take up', () => {
+        // The 30 entered is all Stores and Depots, so Ops counts 32 and keeps 2 for its own 2 people
+        expect(ops(30, 2, 0)).toEqual({
             memberCount: 2,
             breakdown: { active: 0, onLightdashNotActive: 2, noAccount: 0 },
-            coveragePct: 100,
+            reading: { kind: 'coverage', pct: 100 },
+        });
+    });
+    it('reads as the other rows without a headcount when none is entered anywhere in the department', () => {
+        expect(ops(null, 4, 1, [null, null])).toEqual({
+            memberCount: 4,
+            breakdown: { active: 1, onLightdashNotActive: 3, noAccount: 0 },
+            reading: { kind: 'noHeadcount' },
         });
     });
     it('gives no row without sub-departments, or where nothing is kept for the people directly in it', () => {
         expect(getDirectRow(d('Finance', null, 8, 3, 2), [])).toBeNull();
-        expect(
-            getDirectRow(d('Ops', null, 30, 9, 2, 0, 0), [stores, depots]),
-        ).toBeNull();
+        expect(ops(30, 0, 0)).toBeNull();
     });
 });
 
 describe('getOrganizationBreakdown', () => {
     it('adds up the top-level departments only, whose numbers already hold their sub-departments', () => {
         expect(
-            getOrganizationBreakdown([
-                d('Ops', null, 30, 9, 4, 0, 0),
-                d('Stores', 'Ops', 20, 6, 4),
-                d('Depots', 'Ops', 10, 3, 0),
-                d('Finance', null, 8, 3, 2),
-            ]),
+            getOrganizationBreakdown(
+                withServerHeadcounts([
+                    d('Ops', null, 30, 9, 4, 0, 0),
+                    d('Stores', 'Ops', 20, 6, 4),
+                    d('Depots', 'Ops', 10, 3, 0),
+                    d('Finance', null, 8, 3, 2),
+                ]),
+            ),
         ).toEqual({ active: 6, onLightdashNotActive: 6, noAccount: 26 });
     });
     it('counts headcount entered on a department beyond its sub-departments as without an account', () => {
         expect(
-            getOrganizationBreakdown([
-                d('Ops', null, 40, 9, 4, 2, 1),
-                d('Stores', 'Ops', 20, 5, 2),
-                d('Depots', 'Ops', 10, 2, 1),
-            ]).noAccount,
+            getOrganizationBreakdown(
+                withServerHeadcounts([
+                    d('Ops', null, 40, 9, 4, 2, 1),
+                    d('Stores', 'Ops', 20, 5, 2),
+                    d('Depots', 'Ops', 10, 2, 1),
+                ]),
+            ).noAccount,
         ).toBe(31);
     });
     it('counts a department whose parent is gone at the top level, as the map draws it', () => {
@@ -182,12 +208,12 @@ describe('getCoverageRows', () => {
         ).toEqual(['Smaller', 'Larger']);
     });
     it('asks for a headcount only for a department with neither a headcount nor sub-departments', () => {
-        const departments = [
-            d('Hub', null, null, 6, 2),
+        const departments = withServerHeadcounts([
+            d('Hub', null, null, 6, 2, 0, 0),
             d('Team', 'Hub', null, 6, 2),
             d('Product', null, null, 3, 3),
             d('Data', null, 9, 1, 1),
-        ];
+        ]);
         const rows = getCoverageRows(
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,
@@ -214,12 +240,12 @@ describe('getCoverageRows', () => {
         expect(row.reading).toEqual({ kind: 'coverage', pct: 45 });
     });
     it('says nobody is counted where the effective headcount is 0, and still asks a department without one for a headcount', () => {
-        const departments = [
+        const departments = withServerHeadcounts([
             d('Empty', null, 0, 0, 0),
             d('Hub', null, 0, 0, 0),
             d('Team', 'Hub', 0, 0, 0),
             d('Unsized', null, null, 0, 0),
-        ];
+        ]);
         const rows = getCoverageRows(
             departments.filter(
                 (department) => department.parentDepartmentUuid === null,

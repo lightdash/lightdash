@@ -1,13 +1,13 @@
 import {
     assertUnreachable,
     getChildrenMap,
-    getResidualHeadcount,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMember,
     type DepartmentWithMetrics,
 } from '@lightdash/common';
 import { packEnclose, packSiblings } from 'd3-hierarchy';
+import { getDirectHeadcount } from '../utils/headcount';
 
 export const MAP_SIZE = 720;
 export const MIN_CIRCLE_RADIUS = 14;
@@ -53,7 +53,7 @@ export type DotSegment = { kind: DotKind; count: number };
 
 export type PeopleBucket = {
     metrics: AdoptionMetrics;
-    // What the people are counted against: null without a headcount; for the people directly in a department,
+    // What the people are counted against, null without a headcount; for the people directly in a department,
     // the headcount it keeps for them beside its sub-departments
     headcount: number | null;
 };
@@ -278,13 +278,9 @@ export const buildPackInput = (
     // for them, so its circles together hold its whole effective headcount
     const directBucket = (
         department: DepartmentWithMetrics,
-        childData: PackDatum[],
+        childDepartments: DepartmentWithMetrics[],
     ): PackDatum | null => {
-        const residual = getResidualHeadcount(
-            department.effectiveHeadcount,
-            childData.reduce((sum, child) => sum + child.size, 0),
-            department.directMetrics.memberCount,
-        );
+        const residual = getDirectHeadcount(department, childDepartments);
         if (residual <= 0) return null;
         return {
             id: `own:${department.departmentUuid}`,
@@ -295,7 +291,11 @@ export const buildPackInput = (
             hasMembers: department.directMetrics.memberCount > 0,
             childDepartmentCount: 0,
             size: residual,
-            people: { metrics: department.directMetrics, headcount: residual },
+            // Without a headcount anywhere in the department the residual is only its people, so none is quoted
+            people: {
+                metrics: department.directMetrics,
+                headcount: department.hasHeadcount ? residual : null,
+            },
             children: [],
         };
     };
@@ -325,9 +325,10 @@ export const buildPackInput = (
 
     const finishDatum = (
         department: DepartmentWithMetrics,
-        childDepartmentCount: number,
+        childDepartments: DepartmentWithMetrics[],
         childData: PackDatum[],
     ): PackDatum => {
+        const childDepartmentCount = childDepartments.length;
         const base = {
             id: department.departmentUuid,
             kind: 'department' as const,
@@ -350,7 +351,7 @@ export const buildPackInput = (
                 children: [],
             };
         }
-        const direct = directBucket(department, childData);
+        const direct = directBucket(department, childDepartments);
         return {
             ...base,
             people: null,
@@ -395,7 +396,7 @@ export const buildPackInput = (
                 stack[stack.length - 1].childData.push(
                     finishDatum(
                         frame.department,
-                        frame.childDepartments.length,
+                        frame.childDepartments,
                         frame.childData,
                     ),
                 );
@@ -403,7 +404,7 @@ export const buildPackInput = (
         }
         return finishDatum(
             root.department,
-            root.childDepartments.length,
+            root.childDepartments,
             root.childData,
         );
     };
@@ -416,7 +417,7 @@ export const buildPackInput = (
             ? null
             : topLevel.length === 0
               ? loneBucket(focus)
-              : directBucket(focus, topLevelData);
+              : directBucket(focus, topLevel);
     const rootChildren = [...topLevelData, ...(focusOwn ? [focusOwn] : [])];
     return {
         id: 'root',

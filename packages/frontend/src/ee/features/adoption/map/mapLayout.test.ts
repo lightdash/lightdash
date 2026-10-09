@@ -4,6 +4,7 @@ import {
     dept,
     metricsFixture,
     seededOrganization,
+    withServerHeadcounts,
 } from '../utils/adoptionFixtures';
 import {
     buildPackInput,
@@ -205,12 +206,12 @@ describe('fitToArea', () => {
     });
     it('enlarges a small leaf without enlarging its parent', () => {
         // Group and Big hold the same number of people, so they are drawn the same size
-        const departments = [
+        const departments = withServerHeadcounts([
             d('Big', null, 1000, 10, 5),
             d('Group', null, 1000, 10, 5, 0),
             d('Core', 'Group', 997, 9, 5),
             d('Tiny', 'Group', 3, 1, 0),
-        ];
+        ]);
         const input = buildPackInput(departments, null);
         // The drawing is packed at the panel's shorter side before it is fitted
         const packed = new Map(
@@ -503,6 +504,17 @@ describe('getCaptionVariants', () => {
             }),
         ).toEqual(['0 of 8 on Lightdash · 0 active']);
     });
+    it('quotes no headcount for the people directly in a department without one', () => {
+        expect(
+            getCaptionVariants({
+                people: 4,
+                members: 4,
+                active: 1,
+                headcount: null,
+                isDirect: true,
+            }),
+        ).toEqual(['4 on Lightdash · 1 active']);
+    });
 });
 
 describe.skipIf(!LABELS_AT_REST)(
@@ -693,7 +705,7 @@ describe.skipIf(!LABELS_AT_REST)(
 );
 
 // One level down in a large organization: Supply chain's own sub-departments sit inside it
-const operations = [
+const operations = withServerHeadcounts([
     d('Operations', null, 2350, 221, 126, 2),
     d('Supply chain', 'Operations', 1750, 170, 96, 0),
     d('Warehousing', 'Supply chain', 900, 12, 3),
@@ -703,7 +715,7 @@ const operations = [
     d('Facilities', 'Operations', 120, 12, 7),
     d('Health and safety', 'Operations', 45, 8, 5),
     d('Quality', 'Operations', 90, 29, 17),
-];
+]);
 
 const placedCircle = (
     id: string,
@@ -1080,13 +1092,13 @@ describe('getHoverLabel', () => {
         ).toBeNull();
     });
     it("quotes a department's headcount for its one circle, and the headcount kept for the people directly in it", () => {
-        const data = [
+        const data = withServerHeadcounts([
             d('Data', null, 110, 191, 85, 84),
             d('Analytics', 'Data', 64, 63, 29),
             d('Engineering', 'Data', 34, 33, 10),
             d('Science', 'Data', 12, 11, 3),
             d('Governance', null, 8, 9, 9),
-        ];
+        ]);
         const byUuid = new Map(data.map((each) => [each.departmentUuid, each]));
         const hoverIn = (focus: string, id: string) => {
             const { circles } = build(data, PANEL, focus);

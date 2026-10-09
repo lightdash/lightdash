@@ -126,7 +126,8 @@
 .dots circle[data-dot='inactive'],
 .dots circle[data-dot='viewer'] {
     fill: var(--mantine-color-body);
-    stroke: var(--mantine-color-violet-outline);
+    /* Set on the map's root in AdoptionMap.module.css, which the panel's bars read too */
+    stroke: var(--adoption-not-active);
 }
 
 .dots circle[data-selected] {
