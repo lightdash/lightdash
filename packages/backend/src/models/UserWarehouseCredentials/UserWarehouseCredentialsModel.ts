@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
     bigquerySsoUserCredentialsSchema,
     BigqueryTokenError,
     CreateWarehouseCredentials,
@@ -38,6 +39,7 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import Logger from '../../logging/logger';
+import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
 type RefreshTokenExpiry =
@@ -725,12 +727,25 @@ export class UserWarehouseCredentialsModel {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
                 data.credentials,
             );
+            let invalidKeyfile = false;
             if (
-                !result.success ||
-                getBigqueryKeyfileError(data.credentials.keyfileContents, {
-                    requireType: 'authorized_user',
-                }) !== undefined
+                data.credentials.authenticationType ===
+                BigqueryAuthenticationType.SSO
             ) {
+                try {
+                    assertValidPersistedBigquerySsoKeyfile(
+                        data.credentials.keyfileContents,
+                    );
+                } catch {
+                    invalidKeyfile = true;
+                }
+            } else {
+                invalidKeyfile =
+                    getBigqueryKeyfileError(data.credentials.keyfileContents, {
+                        requireType: 'authorized_user',
+                    }) !== undefined;
+            }
+            if (!result.success || invalidKeyfile) {
                 throw new ParameterError(
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
                 );

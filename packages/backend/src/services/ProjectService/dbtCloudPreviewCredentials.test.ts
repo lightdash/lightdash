@@ -1,11 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
+    BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     DbtProjectType,
     ForbiddenError,
     ProjectType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
@@ -19,7 +21,7 @@ import {
 } from '@lightdash/warehouses';
 import { createHmac } from 'crypto';
 import fetch, { Response } from 'node-fetch';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -100,6 +102,7 @@ const setup = (
     const projectModel = {
         ...singleRouteProjectModelMethods,
         getWithSensitiveFields: vi.fn(async () => project),
+        getSummary: vi.fn(async () => project),
         get: vi.fn(async (projectUuid: string) => ({
             ...project,
             projectUuid,
@@ -156,9 +159,9 @@ const setup = (
     const userModel = { findSessionUserByUUID: vi.fn(async () => creator) };
     const service = new ProjectService({
         lightdashConfig: {
-            ...lightdashConfigMock,
+            ...lightdashConfigWithGoogleOAuthMock,
             warehouseClient: {
-                ...lightdashConfigMock.warehouseClient,
+                ...lightdashConfigWithGoogleOAuthMock.warehouseClient,
                 resolveDbtCloudPreviewCredentials: enabled,
                 resolveCompileCredentials: compileEnabled,
             },
@@ -804,3 +807,49 @@ describe('dbt Cloud preview credential resolution', () => {
         },
     );
 });
+
+it.each([true, false])(
+    'hydrates secret-free BigQuery SSO with resolution enabled %s',
+    async (enabled) => {
+        const credentials: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id:
+                    lightdashConfigWithGoogleOAuthMock.auth.google
+                        .oauth2ClientId!,
+                refresh_token: 'saved-refresh',
+            },
+        };
+        const f = setup(credentials, { enabled });
+        f.projectModel.getAllByOrganizationUuid.mockResolvedValue([]);
+        await f.preview();
+        expect(
+            f.projectModel.createWithOptionalCredentials,
+        ).toHaveBeenCalledOnce();
+        expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
+            expect.objectContaining({
+                keyfileContents: {
+                    ...credentials.keyfileContents,
+                    client_secret:
+                        lightdashConfigWithGoogleOAuthMock.auth.google
+                            .oauth2ClientSecret,
+                },
+            }),
+            expect.any(Object),
+        );
+        expect(credentials.keyfileContents).not.toHaveProperty('client_secret');
+        expect(
+            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
+        ).not.toHaveBeenCalled();
+        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    },
+);

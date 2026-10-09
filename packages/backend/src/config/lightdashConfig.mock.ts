@@ -586,3 +586,15 @@ export const lightdashConfigMock: LightdashConfig = {
     disabledFeatureFlags: new Set<string>(),
     previewFeatureFlags: { enabled: false },
 };
+
+export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    auth: {
+        ...lightdashConfigMock.auth,
+        google: {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: 'test-google-client-id',
+            oauth2ClientSecret: 'test-google-client-secret',
+        },
+    },
+};

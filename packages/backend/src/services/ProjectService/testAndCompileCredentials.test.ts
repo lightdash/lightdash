@@ -748,12 +748,28 @@ describe('test-and-compile credential resolution', () => {
                     };
                     await f.worker();
                     expect(adapterTest).toHaveBeenCalledExactlyOnceWith(
-                        expect.objectContaining(expected),
+                        expect.objectContaining({
+                            ...expected,
+                            keyfileContents: {
+                                ...expected.keyfileContents,
+                                client_secret:
+                                    lightdashConfigMock.auth.google
+                                        .oauth2ClientSecret,
+                            },
+                        }),
                     );
                     expect(projectAdapterFromConfig).toHaveBeenCalledOnce();
                     expect(
                         vi.mocked(projectAdapterFromConfig).mock.calls[0][2],
-                    ).toMatchObject(expected);
+                    ).toMatchObject({
+                        ...expected,
+                        keyfileContents: {
+                            ...expected.keyfileContents,
+                            client_secret:
+                                lightdashConfigMock.auth.google
+                                    .oauth2ClientSecret,
+                        },
+                    });
                     expect(disconnect).toHaveBeenCalledOnce();
                     expect(repair).toHaveBeenCalledExactlyOnceWith(
                         f.project.projectUuid,
@@ -794,7 +810,15 @@ describe('test-and-compile credential resolution', () => {
                     expect(
                         warehouseClientFromCredentials,
                     ).toHaveBeenCalledExactlyOnceWith(
-                        expect.objectContaining(expected),
+                        expect.objectContaining({
+                            ...expected,
+                            keyfileContents: {
+                                ...expected.keyfileContents,
+                                client_secret:
+                                    lightdashConfigMock.auth.google
+                                        .oauth2ClientSecret,
+                            },
+                        }),
                         expect.any(Object),
                     );
                 },

@@ -1,11 +1,16 @@
 import { Ability } from '@casl/ability';
 import {
+    BigqueryAuthenticationType,
     ChartKind,
     ConflictError,
+    DbtProjectType,
+    DefaultSupportedDbtVersion,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    WarehouseTypes,
     type AllVizChartConfig,
+    type CreateBigqueryCredentials,
     type ExecuteAsyncQueryRequestParams,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -13,7 +18,7 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
@@ -61,14 +66,14 @@ describe('Multi runtime identity on the real schema', () => {
         identity = new WarehouseConnectionIdentityModel({ database });
         savedSqlModel = new SavedSqlModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         projectModel = new ProjectModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             encryptionUtil: new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             }),
         });
     }, 600000);
@@ -598,6 +603,62 @@ describe('Multi runtime identity on the real schema', () => {
                     } as never)
                     .returning('project_uuid')
             )[0].project_uuid as string;
+
+        test('writes and copies unusual legacy SSO keyfiles without save validation', async () => {
+            const upstream = await createMultiProject();
+            const previewUuid = await createPreviewProject(upstream);
+            const encryption = new EncryptionUtil({
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
+            });
+            const credentials = {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                project: 'analytics',
+                dataset: 'prod',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents: { custom_field: 'legacy' },
+            } satisfies CreateBigqueryCredentials;
+            await database('warehouse_connections')
+                .where('warehouse_connection_uuid', upstream.extraUuid)
+                .update({
+                    warehouse_type: WarehouseTypes.BIGQUERY,
+                    encrypted_credentials: encryption.encrypt(
+                        JSON.stringify(credentials),
+                    ),
+                });
+            await projectModel.update(
+                upstream.projectUuid,
+                {
+                    name: 'Identity project',
+                    dbtConnection: { type: DbtProjectType.NONE },
+                    dbtVersion: DefaultSupportedDbtVersion,
+                    warehouseConnection: credentials,
+                },
+                upstream.userUuid,
+            );
+            await identity.copyConnectionsToPreview(
+                upstream.projectUuid,
+                previewUuid,
+            );
+            const rows = await Promise.all([
+                database('warehouse_credentials')
+                    .where('project_id', upstream.projectId)
+                    .first('encrypted_credentials'),
+                database('warehouse_connections')
+                    .where('project_uuid', previewUuid)
+                    .where('is_original', false)
+                    .first('encrypted_credentials'),
+            ]);
+            for (const row of rows) {
+                expect(
+                    encryption.decrypt(row!.encrypted_credentials!),
+                ).toContain('"custom_field":"legacy"');
+            }
+        });
 
         test('copies the original row and every extra with new uuids, and makes the preview multi', async () => {
             const upstream = await createMultiProject();

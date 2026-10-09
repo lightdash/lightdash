@@ -32,6 +32,7 @@ import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
     MultiConnectionCompiler,
@@ -222,6 +223,10 @@ describe('extra connection scope cleanup', () => {
                 })),
             };
             const factory = new WarehouseClientFactory({
+                credentialResolvers: createCredentialResolverRegistry({
+                    lightdashConfig: lightdashConfigMock,
+                    userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                }),
                 lightdashConfig: lightdashConfigMock,
                 projectModel: projectModel as unknown as ProjectModel,
                 featureFlagModel: {},
@@ -392,6 +397,10 @@ describe('DuckLake extra compile credentials', () => {
             ),
         };
         const factory = new WarehouseClientFactory({
+            credentialResolvers: createCredentialResolverRegistry({
+                lightdashConfig: lightdashConfigMock,
+                userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+            }),
             lightdashConfig: lightdashConfigMock,
             projectModel,
             featureFlagModel: {},
