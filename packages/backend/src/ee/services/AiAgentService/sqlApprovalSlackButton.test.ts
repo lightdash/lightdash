@@ -633,4 +633,29 @@ describe('SQL approval approver permissions', () => {
             approverUser.userUuid,
         );
     });
+
+    it('refuses a SQL chart edit approval from an approver who cannot save SQL charts', async () => {
+        const { service, aiAgentModel } = buildService({
+            sessionUser: sqlRunnerOnlyUser,
+            approvalContext: {
+                ...sqlChartApprovalContext,
+                toolName: 'editContent',
+                toolArgs: {
+                    type: 'sql_chart',
+                    slug: 'orders',
+                    patch: [{ op: 'replace', path: '/sql', value: 'select 2' }],
+                },
+            },
+        });
+
+        await expect(
+            service.decideSqlApproval(sqlRunnerOnlyUser, {
+                agentUuid: AGENT_UUID,
+                threadUuid: THREAD_UUID,
+                toolCallId: TOOL_CALL_ID,
+                decision: 'approved',
+            }),
+        ).rejects.toThrow('permission to save SQL charts');
+        expect(aiAgentModel.recordSqlApproval).not.toHaveBeenCalled();
+    });
 });

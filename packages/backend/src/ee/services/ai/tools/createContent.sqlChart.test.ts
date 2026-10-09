@@ -73,7 +73,11 @@ const makeCreateContent = () => {
             if (args.type !== 'sql_chart') {
                 throw new Error('Unexpected content type');
             }
-            await args.approveSql();
+            await args.approveSql({
+                sql: args.content.sql,
+                chartName: args.content.name,
+                sqlChanged: true,
+            });
             save(args.content);
             return {
                 type: 'sql_chart' as const,

@@ -26,3 +26,10 @@ export type ExecuteToolErrorResult<TMetadata = { status: 'error' }> = {
         refusal: AiAccessRefusal | null;
     };
 };
+
+/** A failure the model should read as plain text, with no access refusal. */
+export const toolFailure = (result: string): ExecuteToolErrorResult => ({
+    result,
+    metadata: { status: 'error' },
+    structuredContent: { error: result, refusal: null },
+});

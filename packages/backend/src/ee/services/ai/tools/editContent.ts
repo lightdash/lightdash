@@ -1,5 +1,6 @@
 import {
     editContentToolDefinition,
+    isSqlApprovalToolCall,
     mcpEditContentArgsSchema,
     mcpEditContentToolDefinition,
     ParameterError,
@@ -12,11 +13,19 @@ import type { EditContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
+import { toolFailure } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import {
+    approveClientSql,
+    SqlNotApprovedError,
+    type ApproveSqlFn,
+} from './sqlApprovals';
+import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     editContent: EditContentFn;
+    sqlChartSaving?: SqlChartSaving;
     documentsEnabled?: boolean;
     artifacts?: ArtifactChartExportAccess;
 };
@@ -33,7 +42,7 @@ const contentResult = ({
 }: {
     content: unknown;
     href: string;
-    type: 'dashboard' | 'chart' | 'document';
+    type: EditedContent['type'];
     warnings: string[];
 }) => {
     const warningText =
@@ -65,10 +74,17 @@ const toStructuredContent = (
               warnings,
           };
 
-/** Runs an edit exactly as the agent's editContent tool does, for callers that apply an edit without the model. */
+// Runs an edit as the agent's tool does, for callers without the model.
+// `approveSql` gates SQL chart edits; null means only client-approved saving.
 export const executeEditContent = async (
-    { editContent, documentsEnabled = false, artifacts }: Dependencies,
+    {
+        editContent,
+        sqlChartSaving = { mode: 'disabled' },
+        documentsEnabled = false,
+        artifacts,
+    }: Dependencies,
     args: z.infer<typeof mcpEditContentArgsSchema>,
+    approveSql: ApproveSqlFn | null = null,
 ) => {
     const { slug, type, patch, documentEdit } = args;
     try {
@@ -102,6 +118,18 @@ export const executeEditContent = async (
                 throw new ParameterError(
                     'Charts and dashboards require patch instead of documentEdit.',
                 );
+            }
+            if (type === 'sql_chart') {
+                const sqlApproval =
+                    sqlChartSaving.mode === 'client_approved'
+                        ? approveClientSql
+                        : approveSql;
+                if (!sqlApproval) {
+                    throw new ParameterError(
+                        'SQL chart edits need a SQL approval step.',
+                    );
+                }
+                return { slug, type, patch, approveSql: sqlApproval };
             }
             return { slug, type, patch };
         };
@@ -137,6 +165,9 @@ export const executeEditContent = async (
             structuredContent: toStructuredContent(result, warnings),
         };
     } catch (error) {
+        if (error instanceof SqlNotApprovedError) {
+            return toolFailure(error.message);
+        }
         return toolErrorOutput(
             error,
             `Error editing ${type} "${slug}". Changes were not applied.`,
@@ -146,6 +177,7 @@ export const executeEditContent = async (
 
 export const getEditContent = ({
     editContent,
+    sqlChartSaving = { mode: 'disabled' },
     documentsEnabled = false,
     artifacts,
 }: Dependencies) => {
@@ -155,13 +187,33 @@ export const getEditContent = ({
     const inputSchema: FlexibleSchema<
         z.infer<typeof mcpEditContentArgsSchema>
     > = definition.inputSchema;
+    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'editContent');
+
     return tool({
         ...definition,
         inputSchema,
-        execute: (args) =>
-            executeEditContent(
-                { editContent, documentsEnabled, artifacts },
-                args,
+        needsApproval: (input) =>
+            sqlChartGate.needsApproval(
+                isSqlApprovalToolCall('editContent', input),
+            ),
+        execute: (args, { toolCallId }) =>
+            sqlChartGate.run(
+                {
+                    toolCallId,
+                    isSqlChart: args.type === 'sql_chart',
+                    gated: isSqlApprovalToolCall('editContent', args),
+                },
+                (approveSql) =>
+                    executeEditContent(
+                        {
+                            editContent,
+                            sqlChartSaving,
+                            documentsEnabled,
+                            artifacts,
+                        },
+                        args,
+                        approveSql,
+                    ),
             ),
         toModelOutput: ({ output }) => toModelOutput(output),
     });

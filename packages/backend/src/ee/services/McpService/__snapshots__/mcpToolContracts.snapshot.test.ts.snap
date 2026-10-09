@@ -1886,6 +1886,7 @@ Usage tips:
             "enum": [
               "dashboard",
               "chart",
+              "sql_chart",
             ],
             "type": "string",
           },

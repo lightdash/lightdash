@@ -420,7 +420,7 @@
                     },
                     "type": {
                         "description": "Type of Lightdash content to edit",
-                        "enum": ["dashboard", "chart"],
+                        "enum": ["dashboard", "chart", "sql_chart"],
                         "type": "string"
                     }
                 },

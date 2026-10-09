@@ -14,24 +14,19 @@ import type { CreateContentFn } from '../types/aiAgentDependencies';
 import type { ArtifactChartExportAccess } from '../utils/artifactChartAsCode';
 import { getContentWarnings } from '../utils/contentWarnings';
 import { resolveDocumentConversationTags } from '../utils/documentConversationTags';
-import type {
-    ExecuteStructuredToolResult,
-    ExecuteToolErrorResult,
+import {
+    toolFailure,
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
-import { createSqlApprovalGate } from './sqlApprovalGate';
 import {
     approveClientSql,
     SqlNotApprovedError,
     type ApproveSqlFn,
 } from './sqlApprovals';
-import {
-    getSqlChartApprovalHeading,
-    SQL_CHART_APPROVAL_COPY,
-    SQL_CHART_DISABLED_RESULT,
-    type SqlChartSaving,
-} from './sqlChartApproval';
+import { createSqlChartGate, type SqlChartSaving } from './sqlChartApproval';
 
 type Dependencies = {
     createContent: CreateContentFn;
@@ -50,12 +45,6 @@ type ExecuteCreateContentResult =
     | ExecuteToolErrorResult;
 
 const toolDefinition = createContentToolDefinition.for('agent');
-
-const failure = (result: string): ExecuteToolErrorResult => ({
-    result,
-    metadata: { status: 'error' },
-    structuredContent: { error: result, refusal: null },
-});
 
 const resolveDocumentContent = async (
     content: unknown,
@@ -111,18 +100,11 @@ export const getCreateContent = ({
     documentsEnabled = false,
     artifacts,
 }: Dependencies) => {
-    const approvalGate =
-        sqlChartSaving.mode === 'thread_approval'
-            ? createSqlApprovalGate(
-                  sqlChartSaving.approval,
-                  'createContent',
-                  SQL_CHART_APPROVAL_COPY,
-              )
-            : null;
+    const sqlChartGate = createSqlChartGate(sqlChartSaving, 'createContent');
 
     const getCreateArgs = async (
         args: { type: string; content: unknown },
-        approveSqlFor: (chart: SqlChartAsCode) => ApproveSqlFn,
+        approveSql: ApproveSqlFn,
     ): Promise<Parameters<CreateContentFn>[0]> => {
         switch (args.type) {
             case 'document':
@@ -133,16 +115,14 @@ export const getCreateContent = ({
                         artifacts,
                     ),
                 };
-            case 'sql_chart': {
-                const sqlChart = toolSqlChartAsCodeSchema.parse(
-                    args.content,
-                ) as SqlChartAsCode;
+            case 'sql_chart':
                 return {
                     type: 'sql_chart',
-                    content: sqlChart,
-                    approveSql: approveSqlFor(sqlChart),
+                    content: toolSqlChartAsCodeSchema.parse(
+                        args.content,
+                    ) as SqlChartAsCode,
+                    approveSql,
                 };
-            }
             default:
                 return args as Parameters<CreateContentFn>[0];
         }
@@ -152,44 +132,28 @@ export const getCreateContent = ({
         ...(documentsEnabled
             ? mcpCreateContentToolDefinition.for('agent')
             : toolDefinition),
-        needsApproval: async (input) =>
-            input.type === 'sql_chart' &&
-            approvalGate !== null &&
-            approvalGate.usesNativeApproval(),
-        execute: async (
+        needsApproval: (input) =>
+            sqlChartGate.needsApproval(input.type === 'sql_chart'),
+        execute: (
             args,
             { toolCallId },
         ): Promise<ExecuteCreateContentResult> => {
             const { type, content } = args;
-            const sqlChartApproval =
-                type === 'sql_chart' && approvalGate
-                    ? await approvalGate.forToolCall(toolCallId, {
-                          needsApproval: true,
-                      })
-                    : null;
-            const approveSqlFor = (chart: SqlChartAsCode): ApproveSqlFn =>
-                sqlChartApproval
-                    ? () =>
-                          sqlChartApproval.approveSql({
-                              sql: chart.sql,
-                              heading: getSqlChartApprovalHeading(chart.name),
-                          })
-                    : approveClientSql;
+            const isSqlChart = type === 'sql_chart';
 
-            const run = async (): Promise<ExecuteCreateContentResult> => {
+            const run = async (
+                approveSql: ApproveSqlFn | null,
+            ): Promise<ExecuteCreateContentResult> => {
                 try {
                     (documentsEnabled
                         ? mcpCreateContentArgsSchema
                         : toolCreateContentArgsSchema
                     ).parse(args);
-                    if (
-                        type === 'sql_chart' &&
-                        sqlChartSaving.mode === 'disabled'
-                    ) {
-                        return failure(SQL_CHART_DISABLED_RESULT);
-                    }
                     const result = await createContent(
-                        await getCreateArgs(args, approveSqlFor),
+                        await getCreateArgs(
+                            args,
+                            approveSql ?? approveClientSql,
+                        ),
                     );
                     const created = toCreatedContent(
                         result,
@@ -222,7 +186,7 @@ export const getCreateContent = ({
                     };
                 } catch (error) {
                     if (error instanceof SqlNotApprovedError) {
-                        return failure(error.message);
+                        return toolFailure(error.message);
                     }
                     return toolErrorOutput(
                         error,
@@ -231,10 +195,10 @@ export const getCreateContent = ({
                 }
             };
 
-            const output = await run();
-            return sqlChartApproval
-                ? sqlChartApproval.persistIfResumed(output)
-                : output;
+            return sqlChartGate.run(
+                { toolCallId, isSqlChart, gated: isSqlChart },
+                run,
+            );
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
