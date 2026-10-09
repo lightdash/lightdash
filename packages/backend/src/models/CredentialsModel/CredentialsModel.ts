@@ -115,6 +115,26 @@ export class CredentialsModel {
     async create(input: CreateCredential): Promise<CredentialMetadata> {
         const encoded = this.codec.encodeCredential(input);
         return this.database.transaction(async (trx) => {
+            if (input.ownerProjectUuid !== null) {
+                const project = await trx('projects')
+                    .join(
+                        'organizations',
+                        'projects.organization_id',
+                        'organizations.organization_id',
+                    )
+                    .select('organizations.organization_uuid')
+                    .where('projects.project_uuid', input.ownerProjectUuid)
+                    .forShare('projects')
+                    .first();
+                if (
+                    !project ||
+                    project.organization_uuid !== input.organizationUuid
+                ) {
+                    throw new ParameterError(
+                        'Credential and owner project must belong to the same organization.',
+                    );
+                }
+            }
             if (input.oauthGrantUuid !== null) {
                 const grant = await trx('user_oauth_grants')
                     .select('user_uuid', 'provider')

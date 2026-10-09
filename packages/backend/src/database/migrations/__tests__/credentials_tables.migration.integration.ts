@@ -463,6 +463,39 @@ test('deleting a credential cascades bindings and token state', async () => {
     expect(await f.model.findTokenState(credential.uuid)).toBeNull();
 });
 
+test('refuses a connection credential owned by a project in another organization', async () => {
+    const f = await fixture();
+    const other = await fixture();
+    await expect(
+        f.model.create({
+            ...f.base,
+            purpose: 'ai_service_account',
+            ownerKind: 'connection',
+            ownerProjectUuid: other.projectUuid,
+        }),
+    ).rejects.toThrow(ParameterError);
+    expect(
+        await migrated
+            .database('credentials')
+            .where('organization_uuid', f.base.organizationUuid),
+    ).toHaveLength(0);
+});
+
+test('accepts a connection credential owned by a project in the same organization', async () => {
+    const f = await fixture();
+    const credential = await f.model.create({
+        ...f.base,
+        purpose: 'ai_service_account',
+        ownerKind: 'connection',
+        ownerProjectUuid: f.projectUuid,
+    });
+    expect(await f.model.getMetadata(credential.uuid)).toMatchObject({
+        organizationUuid: f.base.organizationUuid,
+        ownerKind: 'connection',
+        ownerProjectUuid: f.projectUuid,
+    });
+});
+
 test('project deletion removes connection credentials and bindings but preserves organization and person credentials', async () => {
     const f = await fixture();
     const shared = await f.model.create(f.base);
