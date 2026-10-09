@@ -212,35 +212,29 @@ export const fitToArea = (input: PackDatum, area: Area): PackedCircle[] => {
     return enlargeSmallCircles(circles, MIN_CIRCLE_RADIUS, area);
 };
 
-// The line of numbers under a circle's name, longest first; a name at rest shows the last, the shortest
-export const getCaptionVariants = (stats: CircleStats): string[] => {
+// The line of numbers under a circle's name: in full, as a hover label gives it, then the shortest, as a name at
+// rest gives it. The people on Lightdash read as formatDirectPeople puts them
+export const getCaptionVariants = (stats: CircleStats): [string, string] => {
+    const people = formatDirectPeople(
+        stats.members,
+        stats.headcount,
+        stats.active,
+    );
     // The people directly in a department read in full, over the headcount kept for them
-    if (stats.isDirect)
-        return [
-            formatDirectPeople(stats.members, stats.headcount, stats.active),
-        ];
+    if (stats.isDirect) return [people, people];
     if (stats.headcount === null) {
         return [
             stats.members === 0
                 ? 'Nobody on Lightdash · no headcount'
-                : `${formatCount(stats.members)} on Lightdash · no headcount`,
+                : `${people} · no headcount`,
             'No headcount',
         ];
     }
     const headcount = formatCount(stats.headcount);
     if (stats.members === 0) {
-        return [
-            `${headcount} people · nobody on Lightdash`,
-            `${headcount} · nobody yet`,
-            headcount,
-        ];
+        return [`${headcount} people · nobody on Lightdash`, headcount];
     }
-    const share = `${formatCount(stats.members)} of ${headcount}`;
-    const active =
-        stats.active === stats.members
-            ? 'all active'
-            : `${formatCount(stats.active)} active`;
-    return [`${share} on Lightdash · ${active}`, `${share} · ${active}`, share];
+    return [people, `${formatCount(stats.members)} of ${headcount}`];
 };
 
 export type Box = { x: number; y: number; width: number; height: number };
@@ -304,33 +298,15 @@ const measureLabel = (
     height: LINE_PX[role] + (text.detail === null ? 0 : LINE_PX.detail),
 });
 
-// The fuller line a hover label gives under the name of a circle of the level in view: the people on Lightdash,
-// how many are active, a missing headcount and the sub-departments, each only where it applies
-const getFullCaption = (stats: CircleStats, subDepartments: number): string => {
-    if (stats.isDirect) {
-        return formatDirectPeople(stats.members, stats.headcount, stats.active);
-    }
-    const people =
-        stats.members === 0
-            ? [
-                  stats.headcount === null
-                      ? 'Nobody on Lightdash'
-                      : `${formatCount(stats.headcount)} people · nobody on Lightdash`,
-              ]
-            : [
-                  `${formatCount(stats.members)}${stats.headcount === null ? '' : ` of ${formatCount(stats.headcount)}`} on Lightdash`,
-                  stats.active === stats.members
-                      ? 'all active'
-                      : `${formatCount(stats.active)} active`,
-              ];
-    return [
-        ...people,
-        ...(stats.headcount === null ? ['no headcount'] : []),
+// The fuller line a hover label gives under the name of a circle of the level in view: the full caption, then
+// its sub-departments where it has any
+const getFullCaption = (stats: CircleStats, subDepartments: number): string =>
+    [
+        getCaptionVariants(stats)[0],
         ...(subDepartments > 0
             ? [formatQuantity(subDepartments, SUB_DEPARTMENTS)]
             : []),
     ].join(' · ');
-};
 
 // What a circle's name at rest says: the name with its shortest line of numbers, then the name alone. A
 // circle inside another gives its count beside its name
@@ -347,9 +323,8 @@ const getRestTexts = (
             { name: circle.name, detail: null },
         ];
     }
-    const variants = getCaptionVariants(stats);
     return [
-        { name: circle.name, detail: variants[variants.length - 1] },
+        { name: circle.name, detail: getCaptionVariants(stats)[1] },
         { name: circle.name, detail: null },
     ];
 };

@@ -28,6 +28,7 @@ import {
     getCoverageRows,
     getDepartmentBreakdown,
     getOrganizationBreakdown,
+    hasHeadcountInView,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
 import { DepartmentMap } from './DepartmentMap';
@@ -345,6 +346,10 @@ export const AdoptionMap: FC<Props> = ({
                                     areDotsHidden: !showDots,
                                     colourBy,
                                     breakdown,
+                                    hasHeadcount: hasHeadcountInView(
+                                        focus,
+                                        visibleDepartments,
+                                    ),
                                 })}
                                 measureText={measure}
                                 layoutKey={focusedUuid ?? 'root'}

@@ -1216,6 +1216,12 @@ describe('AdoptionMap', () => {
                 within(details()).getByText('Add headcounts to see coverage'),
             ).toBeInTheDocument();
             expect(panelLegend()).toEqual(['Healthy 7', 'At risk 0', 'Lost 4']);
+            // The description says so too, rather than nobody without an account
+            expect(
+                screen.getByRole('img', {
+                    name: /coloured by activity: 7 healthy, 0 at risk, 4 lost, no headcount set\./,
+                }),
+            ).toBeInTheDocument();
             expect(listed('Departments')).toEqual([
                 'Hub | Add headcount',
                 'Product | Add headcount',
@@ -1567,10 +1573,39 @@ describe('AdoptionMap', () => {
         expect(
             small.filter((circle) => restLabelOf(circle) !== null),
         ).toHaveLength(0);
-        // Where two names would overlap the smaller circle's is left for hover, so not every large one is named
+        // Where two names would overlap the smaller circle's is left for hover: in this crowd some are, and no
+        // two names drawn overlap, measured from where their lines are drawn
         const named = large.filter((circle) => restLabelOf(circle) !== null);
-        expect(named.length).toBeGreaterThan(0);
-        expect(named.length).toBeLessThanOrEqual(large.length);
+        expect(named.length).toBeLessThan(large.length);
+        const drawn = named.map((circle) => {
+            const [name, numbers] = container.querySelectorAll(
+                `[data-rest-label="${circle.dataset.department}"]`,
+            );
+            const width = Math.max(
+                estimateTextWidth(name.textContent ?? '', 'name'),
+                estimateTextWidth(numbers.textContent ?? '', 'detail'),
+            );
+            const x = Number(name.getAttribute('x'));
+            return {
+                left: x - width / 2,
+                right: x + width / 2,
+                // From the top of the name's line to the foot of the numbers' line
+                top: Number(name.getAttribute('y')) - 12.5,
+                bottom: Number(numbers.getAttribute('y')) + 3,
+            };
+        });
+        drawn.forEach((a, index) =>
+            drawn
+                .slice(index + 1)
+                .forEach((b) =>
+                    expect(
+                        a.left < b.right &&
+                            b.left < a.right &&
+                            a.top < b.bottom &&
+                            b.top < a.bottom,
+                    ).toBe(false),
+                ),
+        );
 
         const shownFor = (circle: SVGCircleElement) =>
             [

@@ -1,8 +1,7 @@
-/* Colours the map's dots and legend share with the panel beside the map */
+/* The colours of the map's dots, defined once here and read by the dots, both legends and the panel's bars */
 .root {
-    --adoption-viewer: var(--mantine-color-violet-outline);
-    /* Activity: in both schemes the amber is about 1.5:1 lighter than the green and at least 1.7:1 lighter
-       than the red, so neighbouring buckets differ in lightness as well as hue */
+    /* Activity: in both schemes the amber is about 1.5:1 lighter than the green and 2:1 lighter than the red,
+       and the green 1.4:1 to 1.6:1 lighter than the red, so neighbouring buckets differ in lightness, not only hue */
     --adoption-healthy: light-dark(
         var(--mantine-color-green-7),
         var(--mantine-color-green-6)
@@ -11,10 +10,31 @@
         var(--mantine-color-yellow-6),
         var(--mantine-color-yellow-5)
     );
-    --adoption-lost: light-dark(
-        var(--mantine-color-red-7),
-        var(--mantine-color-red-5)
+    --adoption-lost: var(--mantine-color-red-7);
+    /* On the light circle fill the green and the amber take a darker edge of their own hue, 4.9:1 and 3.6:1
+       against it; on the dark fill they stand out without one */
+    --adoption-healthy-edge: light-dark(
+        color-mix(in srgb, var(--adoption-healthy) 70%, black),
+        var(--adoption-healthy)
     );
+    --adoption-at-risk-edge: light-dark(
+        color-mix(in srgb, var(--adoption-at-risk) 70%, black),
+        var(--adoption-at-risk)
+    );
+    /* Role, from the strongest violet for admins to a ring for viewers, so the four parts of a bar stay apart */
+    --adoption-admin: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-2)
+    );
+    --adoption-editor: var(--mantine-color-violet-filled);
+    --adoption-interactive-viewer: color-mix(
+        in srgb,
+        var(--mantine-color-violet-filled) 45%,
+        var(--mantine-color-body)
+    );
+    --adoption-viewer: var(--mantine-color-violet-outline);
+    /* People without an account: the grey of their ring and of the bars' track */
+    --adoption-no-account: var(--mantine-color-ldGray-3);
 }
 
 .body {
@@ -88,14 +108,20 @@
     max-width: 50%;
 }
 
-/* The bars' parts in the dots' colours; a viewer's ring becomes its violet as light as the lighter violet
-   dots. What is left of a bar is its track, the people without an account */
+/* What is left of a bar is its track, the people without an account, in their ring's grey */
+.root .track {
+    background-color: var(--adoption-no-account);
+}
+
+/* The bars' parts drawn as the dots are: filled, with the same edges, and a viewer's part as a ring */
 .segment[data-part='healthy'] {
     background-color: var(--adoption-healthy);
+    box-shadow: inset 0 0 0 1px var(--adoption-healthy-edge);
 }
 
 .segment[data-part='atRisk'] {
     background-color: var(--adoption-at-risk);
+    box-shadow: inset 0 0 0 1px var(--adoption-at-risk-edge);
 }
 
 .segment[data-part='lost'] {
@@ -103,30 +129,20 @@
 }
 
 .segment[data-part='admin'] {
-    background-color: light-dark(
-        var(--mantine-color-violet-9),
-        var(--mantine-color-violet-2)
-    );
+    background-color: var(--adoption-admin);
 }
 
 .segment[data-part='editor'] {
-    background-color: var(--mantine-color-violet-filled);
+    background-color: var(--adoption-editor);
 }
 
 .segment[data-part='interactiveViewer'] {
-    background-color: color-mix(
-        in srgb,
-        var(--mantine-color-violet-filled) 45%,
-        var(--mantine-color-body)
-    );
+    background-color: var(--adoption-interactive-viewer);
 }
 
 .segment[data-part='viewer'] {
-    background-color: color-mix(
-        in srgb,
-        var(--adoption-viewer) 45%,
-        var(--mantine-color-body)
-    );
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--adoption-viewer);
 }
 
 /* Fixed columns, so the bars are the same width in every list whatever the last column says */

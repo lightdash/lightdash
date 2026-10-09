@@ -35,7 +35,7 @@ import {
     type TextMeasurer,
     type TextRole,
 } from './mapLayout';
-import { DOT_LABELS, OUTLINED_DOT_KINDS } from './mapStyles';
+import { DOT_LABELS, EDGED_DOT_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
 import { type CircleInfo, type MapDot } from './mapView';
 import { isZoomGesture } from './zoomGesture';
 
@@ -155,12 +155,14 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
     ({ dots, selectedUserUuid }) => (
         <>
             {dots.map((dot) => {
-                const isOutlined = OUTLINED_DOT_KINDS.has(dot.kind);
                 const outerRadius =
                     dot.kind === 'noAccount' ? dot.r * NO_ACCOUNT_SCALE : dot.r;
-                const strokeWidth = isOutlined
+                // A ring's stroke, or a filled dot's thinner edge, drawn inside the dot's footprint
+                const strokeWidth = OUTLINED_DOT_KINDS.has(dot.kind)
                     ? Math.min(1.6, outerRadius * 0.45)
-                    : 0;
+                    : EDGED_DOT_KINDS.has(dot.kind)
+                      ? Math.min(1, outerRadius * 0.3)
+                      : 0;
                 const radius = outerRadius - strokeWidth / 2;
                 return (
                     <circle
@@ -178,7 +180,7 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
                         cx={dot.x}
                         cy={dot.y}
                         r={radius}
-                        strokeWidth={isOutlined ? strokeWidth : undefined}
+                        strokeWidth={strokeWidth > 0 ? strokeWidth : undefined}
                     >
                         {/* Names the person and the part of the colouring they are in */}
                         {dot.member && (

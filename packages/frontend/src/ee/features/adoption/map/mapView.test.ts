@@ -443,6 +443,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: false,
                 colourBy,
                 breakdown: getOrganizationBreakdown(tree, colourBy),
+                hasHeadcount: true,
             });
         expect(describe('activity')).toBe(
             'Map of the organization: 4 departments, 83 people, 17 on Lightdash placed in a department, 11 active in the last 30 days. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 11 healthy, 0 at risk, 6 lost, 66 with no account. The List view has the same numbers as a table',
@@ -460,6 +461,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
+                hasHeadcount: true,
             }),
         ).toMatch(
             /^Map of Ops: 2 sub-departments, 30 people, 9 on Lightdash, 4 active in the last 30 days\./,
@@ -474,6 +476,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
+                hasHeadcount: true,
             }),
         ).toMatch(/^Map of the organization: 1 department, 1 person, /);
         expect(
@@ -484,8 +487,25 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: false,
                 colourBy: 'activity',
                 breakdown: [],
+                hasHeadcount: true,
             }),
         ).toMatch(/^Map of Finance: 8 people, 3 on Lightdash, /);
+    });
+    it('says no headcount is set, rather than nobody without an account, where none is entered in view', () => {
+        const product = withServerHeadcounts([d('Product', null, null, 5, 5)]);
+        const label = buildMapAriaLabel({
+            scopeName: null,
+            departmentCount: 1,
+            totals: getViewTotals(layout(null, product)),
+            areDotsHidden: false,
+            colourBy: 'activity',
+            breakdown: getOrganizationBreakdown(product, 'activity'),
+            hasHeadcount: false,
+        });
+        expect(label).toContain(
+            'coloured by activity: 5 healthy, 0 at risk, 0 lost, no headcount set.',
+        );
+        expect(label).not.toContain('with no account');
     });
     it('says when dots are hidden', () => {
         expect(
@@ -496,6 +516,7 @@ describe('buildMapAriaLabel', () => {
                 areDotsHidden: true,
                 colourBy: 'activity',
                 breakdown: [],
+                hasHeadcount: true,
             }),
         ).toBe(
             'Map of the organization: 1 department, 6,000 people, 10 on Lightdash placed in a department, 5 active in the last 30 days. Each circle is a department sized by headcount. The List view has the same numbers as a table',

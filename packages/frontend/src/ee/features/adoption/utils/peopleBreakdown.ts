@@ -54,6 +54,15 @@ export const getOrganizationBreakdown = (
     }));
 };
 
+// Coverage needs a headcount on the open department or below it, or across the organization in any department
+export const hasHeadcountInView = (
+    department: DepartmentWithMetrics | null,
+    visibleDepartments: DepartmentWithMetrics[],
+): boolean =>
+    department === null
+        ? visibleDepartments.some((each) => each.hasHeadcount)
+        : department.hasHeadcount;
+
 const getShare = (part: number, whole: number): number =>
     whole > 0 ? part / whole : 0;
 

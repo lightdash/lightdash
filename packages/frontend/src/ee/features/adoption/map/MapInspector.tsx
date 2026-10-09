@@ -22,6 +22,7 @@ import { getMissingHeadcountWord } from '../utils/departmentRows';
 import { formatCount } from '../utils/format';
 import {
     getDirectRow,
+    hasHeadcountInView,
     type CoverageReading,
     type CoverageRow,
     type PeopleBreakdown,
@@ -60,6 +61,7 @@ const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
         <Progress.Root
             size={size}
             radius={size === 'lg' ? 'sm' : 'xs'}
+            className={styles.track}
             aria-hidden
         >
             {breakdown
@@ -157,11 +159,10 @@ export const MapInspector: FC<Props> = ({
 }) => {
     const subtitle =
         department === null ? 'All departments' : (parentName ?? 'Department');
-    // Coverage needs a headcount on the open department or below it, or across the organization in any department
-    const hasHeadcount =
-        department === null
-            ? rows.some((row) => row.department.hasHeadcount)
-            : department.hasHeadcount;
+    const hasHeadcount = hasHeadcountInView(
+        department,
+        rows.map((row) => row.department),
+    );
     // The people directly in a department beside its sub-departments, as the map draws them
     const direct =
         department === null

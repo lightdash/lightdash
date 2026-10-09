@@ -4,7 +4,12 @@ import { formatCount } from '../utils/format';
 import styles from './AdoptionMap.module.css';
 import mapStyles from './DepartmentMap.module.css';
 import { type ColourBy, type DotKind } from './geometry';
-import { DOT_LABELS, LEGEND_KINDS, OUTLINED_DOT_KINDS } from './mapStyles';
+import {
+    DOT_LABELS,
+    EDGED_DOT_KINDS,
+    LEGEND_KINDS,
+    OUTLINED_DOT_KINDS,
+} from './mapStyles';
 
 type Props = {
     colourBy: ColourBy;
@@ -30,7 +35,13 @@ export const DotSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
                 cx={5}
                 cy={5}
                 r={kind === 'noAccount' ? 3.5 : 4.2}
-                strokeWidth={OUTLINED_DOT_KINDS.has(kind) ? 1.6 : undefined}
+                strokeWidth={
+                    OUTLINED_DOT_KINDS.has(kind)
+                        ? 1.6
+                        : EDGED_DOT_KINDS.has(kind)
+                          ? 1
+                          : undefined
+                }
             />
         </g>
     </svg>

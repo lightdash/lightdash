@@ -343,6 +343,7 @@ export const buildMapAriaLabel = ({
     areDotsHidden,
     colourBy,
     breakdown,
+    hasHeadcount,
 }: {
     scopeName: string | null; // null at the top of the organization
     departmentCount: number;
@@ -351,6 +352,8 @@ export const buildMapAriaLabel = ({
     colourBy: ColourBy;
     // The people in view, in the parts their dots are coloured by
     breakdown: PeopleBreakdown;
+    // Without a headcount in view nobody is counted without an account, which the panel says too
+    hasHeadcount: boolean;
 }): string => {
     const departments =
         scopeName === null
@@ -366,7 +369,11 @@ export const buildMapAriaLabel = ({
         `${formatCount(totals.active)} active in the last 30 days`,
     ].join(', ');
     const colouring = `${COLOUR_BY_LABELS[colourBy].toLowerCase()}: ${breakdown
-        .map(({ kind, count }) => SPOKEN_KINDS[kind](count))
+        .map(({ kind, count }) =>
+            kind === 'noAccount' && !hasHeadcount
+                ? 'no headcount set'
+                : SPOKEN_KINDS[kind](count),
+        )
         .join(', ')}`;
     const encoding = areDotsHidden
         ? 'Each circle is a department sized by headcount'

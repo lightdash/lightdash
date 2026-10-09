@@ -322,7 +322,7 @@ describe('getTopLevelGroups', () => {
 });
 
 describe('getCaptionVariants', () => {
-    it('goes from the full sentence to the bare numbers', () => {
+    it('gives the full sentence for hover and the bare numbers for a name at rest', () => {
         expect(
             getCaptionVariants({
                 people: 60,
@@ -331,11 +331,7 @@ describe('getCaptionVariants', () => {
                 headcount: 60,
                 isDirect: false,
             }),
-        ).toEqual([
-            '41 of 60 on Lightdash · 33 active',
-            '41 of 60 · 33 active',
-            '41 of 60',
-        ]);
+        ).toEqual(['41 of 60 on Lightdash · 33 active', '41 of 60']);
     });
     it('says all active instead of repeating the number', () => {
         expect(
@@ -345,8 +341,8 @@ describe('getCaptionVariants', () => {
                 active: 9,
                 headcount: 9,
                 isDirect: false,
-            })[1],
-        ).toBe('9 of 9 · all active');
+            })[0],
+        ).toBe('9 of 9 on Lightdash · all active');
     });
     it('says when nobody is on Lightdash', () => {
         expect(
@@ -357,7 +353,7 @@ describe('getCaptionVariants', () => {
                 headcount: 80,
                 isDirect: false,
             }),
-        ).toEqual(['80 people · nobody on Lightdash', '80 · nobody yet', '80']);
+        ).toEqual(['80 people · nobody on Lightdash', '80']);
     });
     it('says when there is no headcount', () => {
         expect(
@@ -368,7 +364,10 @@ describe('getCaptionVariants', () => {
                 headcount: null,
                 isDirect: false,
             }),
-        ).toEqual(['14 on Lightdash · no headcount', 'No headcount']);
+        ).toEqual([
+            '14 on Lightdash · 11 active · no headcount',
+            'No headcount',
+        ]);
     });
     it('groups thousands', () => {
         expect(
@@ -390,7 +389,10 @@ describe('getCaptionVariants', () => {
                 headcount: 80,
                 isDirect: true,
             }),
-        ).toEqual(['50 of 80 on Lightdash · 12 active']);
+        ).toEqual([
+            '50 of 80 on Lightdash · 12 active',
+            '50 of 80 on Lightdash · 12 active',
+        ]);
         expect(
             getCaptionVariants({
                 people: 3,
@@ -399,7 +401,10 @@ describe('getCaptionVariants', () => {
                 headcount: 3,
                 isDirect: true,
             }),
-        ).toEqual(['3 of 3 on Lightdash · all active']);
+        ).toEqual([
+            '3 of 3 on Lightdash · all active',
+            '3 of 3 on Lightdash · all active',
+        ]);
         expect(
             getCaptionVariants({
                 people: 8,
@@ -408,7 +413,10 @@ describe('getCaptionVariants', () => {
                 headcount: 8,
                 isDirect: true,
             }),
-        ).toEqual(['0 of 8 on Lightdash · 0 active']);
+        ).toEqual([
+            '0 of 8 on Lightdash · 0 active',
+            '0 of 8 on Lightdash · 0 active',
+        ]);
     });
     it('quotes no headcount for the people directly in a department without one', () => {
         expect(
@@ -419,7 +427,7 @@ describe('getCaptionVariants', () => {
                 headcount: null,
                 isDirect: true,
             }),
-        ).toEqual(['4 on Lightdash · 1 active']);
+        ).toEqual(['4 on Lightdash · 1 active', '4 on Lightdash · 1 active']);
     });
 });
 

@@ -18,6 +18,12 @@ export const OUTLINED_DOT_KINDS: ReadonlySet<DotKind> = new Set<DotKind>([
     'noAccount',
 ]);
 
+// Filled, with a darker edge of their own hue that keeps them apart from the light circle fill
+export const EDGED_DOT_KINDS: ReadonlySet<DotKind> = new Set<DotKind>([
+    'healthy',
+    'atRisk',
+]);
+
 export const COLOUR_BY_OPTIONS: ColourBy[] = ['activity', 'role'];
 
 export const COLOUR_BY_LABELS: Record<ColourBy, string> = {

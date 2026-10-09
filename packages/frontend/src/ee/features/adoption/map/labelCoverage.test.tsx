@@ -1,4 +1,5 @@
 import { type DepartmentWithMetrics } from '@lightdash/common';
+import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { DepartmentMap } from './DepartmentMap';
@@ -130,6 +131,10 @@ describe.each([
             ).toEqual(named.map((label) => [label.name, label.detail]));
             named.forEach((label, index) => {
                 expect(label.box.x).toBeGreaterThanOrEqual(0);
+                expect(label.box.y).toBeGreaterThanOrEqual(0);
+                expect(label.box.x + label.box.width).toBeLessThanOrEqual(
+                    width,
+                );
                 expect(label.box.y + label.box.height).toBeLessThanOrEqual(
                     HEIGHT,
                 );
@@ -145,6 +150,94 @@ describe.each([
             );
             expect(container.querySelector('[data-label]')).toBeNull();
             unmount();
+        },
+    );
+});
+
+const drawMap = (departments: DepartmentWithMetrics[], area: Area) => {
+    const { circles, info } = drawView(departments, null, area);
+    const { container } = renderWithProviders(
+        <DepartmentMap
+            width={area.width}
+            height={area.height}
+            circles={circles}
+            info={info}
+            dots={[]}
+            colourBy="activity"
+            showNames={false}
+            ariaLabel="Map"
+            measureText={estimateTextWidth}
+            layoutKey="top"
+            highlightedUuid={null}
+            selectedUserUuid={null}
+            onDepartmentClick={vi.fn()}
+            onPersonClick={vi.fn()}
+        />,
+    );
+    return { circles, container };
+};
+
+describe('names at rest that would overlap', () => {
+    it.each([
+        [
+            'the deep organization at 480 px',
+            deepOrganization,
+            480,
+            [
+                'Commercial',
+                'Executive Office',
+                'Finance',
+                'Legal & Compliance',
+                'Operations',
+                'People',
+            ],
+            ['Data & Analytics', 'Product & Engineering'],
+        ],
+        [
+            'the flat organization at 400 px',
+            flatOrganization,
+            400,
+            [
+                'Customer Service',
+                'Data & Analytics',
+                'Engineering',
+                'Marketing',
+                'Operations',
+                'Partners',
+                'Product',
+            ],
+            ['Finance', 'Sales'],
+        ],
+    ])(
+        "leave the smaller circle's name for hover on %s",
+        (_, departments, width, named, left) => {
+            const { circles, container } = drawMap(departments, {
+                width,
+                height: HEIGHT,
+            });
+            const drawn = new Set(
+                [...container.querySelectorAll('[data-rest-label]')].map(
+                    (node) => node.getAttribute('data-rest-label') ?? '',
+                ),
+            );
+            expect([...drawn].sort()).toEqual([...named].sort());
+            const radiusOf = (id: string) =>
+                circles.find((circle) => circle.id === id)?.r ?? 0;
+            left.forEach((id) => {
+                // Smaller than a circle that keeps its name, and still named on hover
+                expect(
+                    named.some((other) => radiusOf(other) > radiusOf(id)),
+                ).toBe(true);
+                const circle = container.querySelector(`[data-circle="${id}"]`);
+                expect(circle).not.toBeNull();
+                if (!circle) return;
+                fireEvent.pointerOver(circle);
+                expect(
+                    container.querySelector(`[data-label="${id}"]`)
+                        ?.textContent,
+                ).toBe(id);
+                fireEvent.pointerOut(circle, { relatedTarget: null });
+            });
         },
     );
 });
