@@ -1,3 +1,10 @@
+## [2.527.1](https://github.com/lightdash/lightdash/compare/2.527.0...2.527.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **warehouse:** attribute Snowflake sign-in expiry to the sent refresh token ([#30847](https://github.com/lightdash/lightdash/issues/30847)) ([0c2b1a7](https://github.com/lightdash/lightdash/commit/0c2b1a78b4cbe0778e0e01c4012746b3c45550e4))
+
 # [2.527.0](https://github.com/lightdash/lightdash/compare/2.526.0...2.527.0) (2026-10-09)
 
 
