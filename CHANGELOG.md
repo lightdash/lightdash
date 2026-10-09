@@ -1,3 +1,15 @@
+# [2.502.0](https://github.com/lightdash/lightdash/compare/2.501.1...2.502.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **warehouse:** resolve credentials on the paths that skipped resolution ([#30743](https://github.com/lightdash/lightdash/issues/30743)) ([d94acb1](https://github.com/lightdash/lightdash/commit/d94acb1752d93fdfd7a5c27c1890388bffdec5d4))
+
+
+### Features
+
+* **ai-agent:** notify in the browser when SQL approval is needed ([#30780](https://github.com/lightdash/lightdash/issues/30780)) ([9d9489c](https://github.com/lightdash/lightdash/commit/9d9489cd101f2048066539fb82d3cf9a59105b71))
+
 ## [2.501.1](https://github.com/lightdash/lightdash/compare/2.501.0...2.501.1) (2026-10-09)
 
 
