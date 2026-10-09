@@ -134,4 +134,11 @@ describe('usePinnedSidebarTop', () => {
         renderHook(() => usePinnedSidebarTop(), { wrapper: wrapper(false) });
         expect(pinnedTop()).toBe(`${NAVBAR_HEIGHT}px`);
     });
+
+    it('counts a page mounted outside the fullscreen provider as not fullscreen', () => {
+        const { unmount } = renderHook(() => usePinnedSidebarTop());
+
+        expect(pinnedTop()).toBe(`${NAVBAR_HEIGHT}px`);
+        unmount();
+    });
 });

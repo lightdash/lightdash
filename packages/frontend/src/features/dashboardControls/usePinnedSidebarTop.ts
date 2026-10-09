@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import {
     BANNER_HEIGHT,
     NAVBAR_HEIGHT,
 } from '../../components/common/Page/constants';
-import useFullscreen from '../../providers/Fullscreen/useFullscreen';
+import FullscreenContext from '../../providers/Fullscreen/context';
 
 const VAR = '--pinned-sidebar-top';
 // The navbar says on its root whether it shows a banner (`components/NavBar`)
@@ -27,7 +27,8 @@ export const getPinnedSidebarTop = ({
 // The page scrolls as a whole and the navbar scrolls away with it, so the
 // pinned sidebar follows the navbar's bottom edge until that reaches the top.
 export const usePinnedSidebarTop = () => {
-    const { isFullscreen } = useFullscreen();
+    // Read without the hook: a page mounted outside the provider is not fullscreen
+    const isFullscreen = useContext(FullscreenContext)?.isFullscreen ?? false;
     useEffect(() => {
         const root = document.documentElement;
         const navbar = document.getElementById(NAVBAR_ID);
