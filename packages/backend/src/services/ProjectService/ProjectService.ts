@@ -5845,6 +5845,56 @@ export class ProjectService
             data,
         );
 
+        let updateData = data;
+        if (
+            savedProject.type === ProjectType.PREVIEW &&
+            savedProject.upstreamProjectUuid &&
+            (method === RequestMethod.CLI || method === RequestMethod.CLI_CI) &&
+            data.warehouseConnection
+        ) {
+            const upstreamCredentials = await this.projectModel
+                .getWarehouseCredentialsForBinding(
+                    savedProject.upstreamProjectUuid,
+                    { kind: 'original' },
+                )
+                .catch((error) => {
+                    if (error instanceof NotFoundError) return undefined;
+                    throw error;
+                });
+            const savedCredentials = savedProject.warehouseConnection;
+            const inheritedCredentials =
+                upstreamCredentials && savedCredentials
+                    ? mergeWarehouseCredentials(
+                          upstreamCredentials,
+                          savedCredentials,
+                      )
+                    : (savedCredentials ?? upstreamCredentials);
+            updateData = {
+                ...data,
+                warehouseConnection: inheritedCredentials
+                    ? mergeWarehouseCredentials(
+                          inheritedCredentials,
+                          data.warehouseConnection,
+                      )
+                    : data.warehouseConnection,
+            };
+            ProjectService.assertEmbeddedCredentialsAreInternal(
+                updateData.warehouseConnection,
+            );
+            ProjectService.assertSupportedBigqueryKeyfile(
+                updateData.warehouseConnection,
+            );
+            await this.assertAwsWebIdentityAudienceBelongsTo(
+                updateData.warehouseConnection,
+                savedProject.organizationUuid,
+            );
+            this.assertCanUseOrganizationWarehouseCredentials(
+                account,
+                savedProject.organizationUuid,
+                updateData,
+            );
+        }
+
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.COMPILE_PROJECT,
@@ -5859,7 +5909,7 @@ export class ProjectService
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            this.mergeSavedSecretsForResolution(data, savedProject),
+            this.mergeSavedSecretsForResolution(updateData, savedProject),
             account.user.id,
             savedProject.organizationUuid,
         );

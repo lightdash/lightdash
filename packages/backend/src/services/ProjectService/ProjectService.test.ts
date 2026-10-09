@@ -623,6 +623,7 @@ const getMockedProjectService = (
             | 'featureFlagModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
+            | 'sshKeyPairModel'
         >
     > = {},
 ) =>
@@ -646,7 +647,7 @@ const getMockedProjectService = (
         spaceModel:
             overrides.spaceModel ?? (spaceModel as unknown as SpaceModel),
         documentModel: documentModel as unknown as DocumentModel,
-        sshKeyPairModel: {} as SshKeyPairModel,
+        sshKeyPairModel: overrides.sshKeyPairModel ?? ({} as SshKeyPairModel),
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,
         s3CacheClient: {} as S3CacheClient,
@@ -2171,6 +2172,481 @@ describe('ProjectService', () => {
             expect(projectModel.update).not.toHaveBeenCalled();
             expect(jobModel.create).not.toHaveBeenCalled();
         });
+    });
+
+    describe('preview warehouse credentials on CLI refresh', () => {
+        const upstreamProjectUuid = 'upstream-project-uuid';
+        const incomingCredentials: CreateRedshiftCredentials = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'cluster.redshift.amazonaws.com',
+            port: 5439,
+            dbname: 'analytics',
+            schema: 'preview',
+            user: 'preview-user',
+            authenticationType: RedshiftAuthenticationType.IAM,
+            region: 'eu-west-1',
+            clusterIdentifier: 'cluster',
+            accessKeyId: 'NEW_ACCESS_KEY',
+            secretAccessKey: 'NEW_SECRET_KEY',
+            sessionToken: 'NEW_SESSION_TOKEN',
+        };
+        const upstreamCredentials: CreateRedshiftCredentials = {
+            ...incomingCredentials,
+            schema: 'public',
+            user: 'upstream-user',
+            authenticationType: RedshiftAuthenticationType.PASSWORD,
+            password: 'upstream-password',
+            accessKeyId: 'UPSTREAM_ACCESS_KEY',
+            secretAccessKey: 'UPSTREAM_SECRET_KEY',
+            sessionToken: 'UPSTREAM_SESSION_TOKEN',
+            useSshTunnel: true,
+            sshTunnelHost: 'bastion.example.com',
+            sshTunnelPort: 22,
+            sshTunnelUser: 'tunnel-user',
+            sshTunnelPublicKey: 'upstream-public-key',
+            sshTunnelPrivateKey: 'excluded-upstream-private-key',
+        };
+        const savedCredentials: CreateRedshiftCredentials = {
+            ...incomingCredentials,
+            schema: 'old-preview',
+            user: 'saved-user',
+            accessKeyId: 'SAVED_ACCESS_KEY',
+            secretAccessKey: 'SAVED_SECRET_KEY',
+            sessionToken: 'SAVED_SESSION_TOKEN',
+        };
+        const savedPreview: Project = {
+            ...projectWithSensitiveFields,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid,
+            warehouseConnection: savedCredentials,
+        };
+        const updateData: UpdateProject = {
+            name: savedPreview.name,
+            dbtConnection: savedPreview.dbtConnection,
+            dbtVersion: savedPreview.dbtVersion,
+            warehouseConnection: incomingCredentials,
+        };
+        const setup = (
+            savedProject: Project = savedPreview,
+            upstream:
+                | CreateWarehouseCredentials
+                | undefined = upstreamCredentials,
+        ) => {
+            const model = {
+                ...projectModel,
+                getWithSensitiveFields: vi.fn(async () => savedProject),
+                getWarehouseCredentialsForBinding: vi.fn(
+                    async (): Promise<CreateWarehouseCredentials | undefined> =>
+                        upstream,
+                ),
+                update: vi.fn<ProjectModel['update']>(async () => undefined),
+                createWithOptionalCredentials: vi.fn(
+                    async () => 'created-preview-project-uuid',
+                ),
+                get: vi.fn(async () => projectWithSensitiveFields),
+                awsWebIdentity: {
+                    assertAudienceBelongsTo: vi.fn(async () => undefined),
+                },
+            };
+            const findKeyPair = vi.fn(async (publicKey: string) => ({
+                organizationUuid: savedProject.organizationUuid,
+                privateKey: `resolved-private-key-for-${publicKey}`,
+            }));
+            const previewService = getMockedProjectService(
+                lightdashConfigMock,
+                {
+                    projectModel: model as unknown as ProjectModel,
+                    sshKeyPairModel: {
+                        find: findKeyPair,
+                    } as unknown as SshKeyPairModel,
+                },
+            );
+            return { model, findKeyPair, previewService };
+        };
+
+        test.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+            '%s repairs a missing tunnel and saves fresh AWS session credentials',
+            async (method) => {
+                const { model, findKeyPair, previewService } = setup();
+
+                await previewService.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    updateData,
+                    method,
+                );
+
+                expect(
+                    model.getWarehouseCredentialsForBinding,
+                ).toHaveBeenCalledWith(upstreamProjectUuid, {
+                    kind: 'original',
+                });
+                expect(findKeyPair).toHaveBeenCalledExactlyOnceWith(
+                    upstreamCredentials.sshTunnelPublicKey,
+                );
+                expect(model.update).toHaveBeenCalledExactlyOnceWith(
+                    projectUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expect.objectContaining({
+                            ...incomingCredentials,
+                            useSshTunnel: true,
+                            sshTunnelHost: upstreamCredentials.sshTunnelHost,
+                            sshTunnelPort: upstreamCredentials.sshTunnelPort,
+                            sshTunnelUser: upstreamCredentials.sshTunnelUser,
+                            sshTunnelPublicKey:
+                                upstreamCredentials.sshTunnelPublicKey,
+                            sshTunnelPrivateKey:
+                                'resolved-private-key-for-upstream-public-key',
+                        }),
+                    }),
+                    developerAccount.user.id,
+                );
+            },
+        );
+
+        test('keeps an explicit saved tunnel opt-out', async () => {
+            const { model, findKeyPair, previewService } = setup({
+                ...savedPreview,
+                warehouseConnection: {
+                    ...incomingCredentials,
+                    useSshTunnel: false,
+                },
+            });
+
+            await previewService.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.CLI,
+            );
+
+            expect(model.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        ...incomingCredentials,
+                        useSshTunnel: false,
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+            expect(findKeyPair).not.toHaveBeenCalled();
+        });
+
+        test('keeps the saved custom tunnel and resolves its key', async () => {
+            const customTunnel = {
+                useSshTunnel: true,
+                sshTunnelHost: 'preview-bastion.example.com',
+                sshTunnelPort: 2222,
+                sshTunnelUser: 'preview-tunnel-user',
+                sshTunnelPublicKey: 'preview-public-key',
+            };
+            const { model, findKeyPair, previewService } = setup({
+                ...savedPreview,
+                warehouseConnection: {
+                    ...incomingCredentials,
+                    ...customTunnel,
+                },
+            });
+
+            await previewService.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.CLI,
+            );
+
+            expect(model.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        ...incomingCredentials,
+                        ...customTunnel,
+                        sshTunnelPrivateKey:
+                            'resolved-private-key-for-preview-public-key',
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+            expect(findKeyPair).toHaveBeenCalledExactlyOnceWith(
+                customTunnel.sshTunnelPublicKey,
+            );
+        });
+
+        test.each([
+            {
+                name: 'a WEB_APP tunnel opt-out',
+                method: RequestMethod.WEB_APP,
+                savedProject: {
+                    ...savedPreview,
+                    warehouseConnection: upstreamCredentials,
+                },
+                warehouseConnection: {
+                    ...incomingCredentials,
+                    useSshTunnel: false,
+                },
+                upstreamReads: 1,
+            },
+            {
+                name: 'a non-preview project',
+                method: RequestMethod.CLI,
+                savedProject: { ...savedPreview, type: ProjectType.DEFAULT },
+                warehouseConnection: incomingCredentials,
+                upstreamReads: 0,
+            },
+            {
+                name: 'a preview without an upstream',
+                method: RequestMethod.CLI,
+                savedProject: {
+                    ...savedPreview,
+                    upstreamProjectUuid: undefined,
+                },
+                warehouseConnection: incomingCredentials,
+                upstreamReads: 0,
+            },
+            {
+                name: 'a backend update',
+                method: RequestMethod.BACKEND,
+                savedProject: savedPreview,
+                warehouseConnection: incomingCredentials,
+                upstreamReads: 1,
+            },
+        ])(
+            'does not inherit settings for $name',
+            async ({
+                method,
+                savedProject,
+                warehouseConnection,
+                upstreamReads,
+            }) => {
+                const { model, findKeyPair, previewService } =
+                    setup(savedProject);
+
+                await previewService.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    { ...updateData, warehouseConnection },
+                    method,
+                );
+
+                expect(model.update).toHaveBeenCalledWith(
+                    projectUuid,
+                    expect.objectContaining({
+                        warehouseConnection:
+                            expect.objectContaining(warehouseConnection),
+                    }),
+                    developerAccount.user.id,
+                );
+                expect(findKeyPair).not.toHaveBeenCalled();
+                expect(
+                    model.getWarehouseCredentialsForBinding,
+                ).toHaveBeenCalledTimes(upstreamReads);
+                expect(
+                    model.update.mock.calls[0][1].warehouseConnection,
+                ).not.toHaveProperty('sshTunnelHost');
+            },
+        );
+
+        test('inherits the upstream tunnel when saved credentials are absent', async () => {
+            const { model, findKeyPair, previewService } = setup({
+                ...savedPreview,
+                warehouseConnection: undefined,
+            });
+
+            await previewService.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.CLI,
+            );
+
+            expect(model.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        ...incomingCredentials,
+                        useSshTunnel: true,
+                        sshTunnelHost: upstreamCredentials.sshTunnelHost,
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+            expect(findKeyPair).toHaveBeenCalledExactlyOnceWith(
+                upstreamCredentials.sshTunnelPublicKey,
+            );
+        });
+
+        test('keeps saved tunnel settings when upstream credentials are absent', async () => {
+            const { model, previewService } = setup({
+                ...savedPreview,
+                warehouseConnection: {
+                    ...incomingCredentials,
+                    useSshTunnel: false,
+                },
+            });
+            model.getWarehouseCredentialsForBinding.mockRejectedValueOnce(
+                new NotFoundError(
+                    'Cannot find any warehouse credentials for project.',
+                ),
+            );
+
+            await previewService.updateAndScheduleAsyncWork(
+                projectUuid,
+                developerAccount,
+                updateData,
+                RequestMethod.CLI,
+            );
+
+            expect(model.update).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        ...incomingCredentials,
+                        useSshTunnel: false,
+                    }),
+                }),
+                developerAccount.user.id,
+            );
+        });
+
+        test('rejects an unauthorized update before reading upstream credentials', async () => {
+            const { model, previewService } = setup();
+
+            await expect(
+                previewService.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    viewerAccount,
+                    updateData,
+                    RequestMethod.CLI,
+                ),
+            ).rejects.toThrowError(ForbiddenError);
+
+            expect(
+                model.getWarehouseCredentialsForBinding,
+            ).not.toHaveBeenCalled();
+            expect(model.update).not.toHaveBeenCalled();
+        });
+
+        test('checks an inherited web identity audience before persistence', async () => {
+            const upstream: CreateAthenaCredentials = {
+                type: WarehouseTypes.ATHENA,
+                region: 'eu-west-1',
+                database: 'awsdatacatalog',
+                schema: 'public',
+                s3StagingDir: 's3://staging/',
+                authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+                assumeRoleArn: 'arn:aws:iam::111111111111:role/query-role',
+                webIdentityAudience: 'another-organization-audience',
+            };
+            const { webIdentityAudience: _webIdentityAudience, ...incoming } =
+                upstream;
+            const { model, previewService } = setup(
+                { ...savedPreview, warehouseConnection: incoming },
+                upstream,
+            );
+            model.awsWebIdentity.assertAudienceBelongsTo
+                .mockResolvedValueOnce(undefined)
+                .mockRejectedValueOnce(
+                    new ForbiddenError(
+                        'Audience belongs to another organization',
+                    ),
+                );
+
+            await expect(
+                previewService.updateAndScheduleAsyncWork(
+                    projectUuid,
+                    developerAccount,
+                    { ...updateData, warehouseConnection: incoming },
+                    RequestMethod.CLI,
+                ),
+            ).rejects.toThrow('Audience belongs to another organization');
+
+            expect(
+                model.awsWebIdentity.assertAudienceBelongsTo,
+            ).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    webIdentityAudience: upstream.webIdentityAudience,
+                }),
+                savedPreview.organizationUuid,
+            );
+            expect(model.update).not.toHaveBeenCalled();
+        });
+
+        test.each([RequestMethod.CLI, RequestMethod.CLI_CI])(
+            '%s creates a preview with inherited tunnel settings and fresh AWS credentials',
+            async (method) => {
+                const { model, findKeyPair, previewService } = setup();
+                const previewUser: SessionUser = {
+                    ...user,
+                    organizationUuid: savedPreview.organizationUuid,
+                    organizationName: 'Test organization',
+                    organizationCreatedAt: new Date(),
+                    ability: new Ability<PossibleAbilities>([
+                        { subject: 'Project', action: 'create' },
+                    ]),
+                };
+                const validateSpy = vi
+                    .spyOn(
+                        previewService as unknown as {
+                            validateProjectCreationPermissions: () => Promise<true>;
+                        },
+                        'validateProjectCreationPermissions',
+                    )
+                    .mockResolvedValue(true);
+                const expirationSpy = vi
+                    .spyOn(previewService, 'getPreviewExpiresAt')
+                    .mockResolvedValue(null);
+                const copyAccessSpy = vi
+                    .spyOn(previewService, 'copyUserAccessOnPreview')
+                    .mockResolvedValue();
+
+                try {
+                    await previewService.createWithoutCompile(
+                        previewUser,
+                        {
+                            ...updateData,
+                            type: ProjectType.PREVIEW,
+                            upstreamProjectUuid,
+                            copyContent: false,
+                        },
+                        method,
+                    );
+
+                    expect(
+                        model.createWithOptionalCredentials,
+                    ).toHaveBeenCalledExactlyOnceWith(
+                        previewUser.userUuid,
+                        savedPreview.organizationUuid,
+                        expect.objectContaining({
+                            warehouseConnection: expect.objectContaining({
+                                ...incomingCredentials,
+                                useSshTunnel: true,
+                                sshTunnelHost:
+                                    upstreamCredentials.sshTunnelHost,
+                                sshTunnelPort:
+                                    upstreamCredentials.sshTunnelPort,
+                                sshTunnelUser:
+                                    upstreamCredentials.sshTunnelUser,
+                                sshTunnelPublicKey:
+                                    upstreamCredentials.sshTunnelPublicKey,
+                                sshTunnelPrivateKey:
+                                    'resolved-private-key-for-upstream-public-key',
+                            }),
+                        }),
+                        null,
+                        undefined,
+                    );
+                    expect(findKeyPair).toHaveBeenCalledExactlyOnceWith(
+                        upstreamCredentials.sshTunnelPublicKey,
+                    );
+                } finally {
+                    validateSpy.mockRestore();
+                    expirationSpy.mockRestore();
+                    copyAccessSpy.mockRestore();
+                }
+            },
+        );
     });
 
     describe('organization warehouse credential authorization', () => {
