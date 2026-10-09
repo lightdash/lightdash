@@ -1,3 +1,10 @@
+## [2.512.1](https://github.com/lightdash/lightdash/compare/2.512.0...2.512.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** collapse SQL tool row once approval is decided ([#30820](https://github.com/lightdash/lightdash/issues/30820)) ([3cad02a](https://github.com/lightdash/lightdash/commit/3cad02aa3f0c30196918e4c654c7df987cd1d3b8))
+
 # [2.512.0](https://github.com/lightdash/lightdash/compare/2.511.0...2.512.0) (2026-10-09)
 
 
