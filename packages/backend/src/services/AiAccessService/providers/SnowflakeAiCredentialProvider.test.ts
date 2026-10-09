@@ -88,6 +88,52 @@ const setup = () => {
 };
 
 describe('SnowflakeAiCredentialProvider', () => {
+    test('disconnect blocks mint immediately after a successful mint without waiting eight minutes', async () => {
+        const { provider, model } = setup();
+        await provider.mint(mintArgs);
+        model.findAiCredentialWithSecrets.mockResolvedValue(undefined);
+        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
+        });
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
+        expect(UserService.generateSnowflakeAccessToken).toHaveBeenCalledOnce();
+    });
+
+    test('a refresh failure after warm mint is seen on the next mint', async () => {
+        const { provider, model } = setup();
+        await provider.mint(mintArgs);
+        vi.mocked(UserService.generateSnowflakeAccessToken).mockRejectedValue({
+            data: 'invalid_grant',
+        });
+        await expect(provider.mint(mintArgs)).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
+        });
+        expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(2);
+        expect(UserService.generateSnowflakeAccessToken).toHaveBeenCalledTimes(
+            2,
+        );
+    });
+
+    test('access token rejection is probed again and never reuses the prior successful probe', async () => {
+        const { provider } = setup();
+        const first = await provider.mint(mintArgs);
+        expect(
+            (await provider.probe(first.credentials, first.assurances)).ok,
+        ).toBe(true);
+        vi.mocked(checkSnowflakeAgentSessionWithToken).mockRejectedValue(
+            new Error('invalid access token'),
+        );
+        const second = await provider.mint(mintArgs);
+        await expect(
+            provider.probe(second.credentials, second.assurances),
+        ).resolves.toMatchObject({
+            ok: false,
+            reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
+            transient: false,
+        });
+        expect(checkSnowflakeAgentSessionWithToken).toHaveBeenCalledTimes(2);
+    });
+
     test.each([
         [
             'connection refused at private.example.test',
