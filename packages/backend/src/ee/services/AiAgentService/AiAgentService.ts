@@ -131,6 +131,7 @@ import {
     isMetric,
     isSlackMessageTooLongError,
     isSlackPrompt,
+    isSqlApprovalToolCall,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -192,6 +193,7 @@ import {
     type MetricQuery,
     type PivotConfiguration,
     type SessionUser,
+    type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
@@ -462,12 +464,14 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
-import { RUN_SQL_REJECTED_OUTPUT } from '../ai/tools/runSql';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
 import {
     buildSqlApprovalDecidedEvent,
-    isSqlApprovalToolName,
+    getRejectedOutput,
+    getSqlApprovalHeading,
+    isNativeSqlApprovalToolCall,
     toStoredSqlApprovalDecision,
+    type NativeSqlApprovalToolName,
     type StorableSqlApprovalDecisionRecord,
 } from '../ai/tools/sqlApprovals';
 import {
@@ -4292,7 +4296,7 @@ export class AiAgentService extends BaseService {
             );
         }
         const { toolName } = context;
-        if (!isSqlApprovalToolName(toolName)) {
+        if (!isSqlApprovalToolCall(toolName, context.toolArgs)) {
             throw new ParameterError(
                 `Tool call ${toolCallId} is not a SQL approval`,
             );
@@ -4331,29 +4335,12 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // The SQL ultimately runs under the prompt issuer's identity, but
-        // approving raw SQL is itself a privileged action — require the
-        // approver to hold the same SqlRunner scope so a thread reader
-        // without that ability can't trigger execution.
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('SqlRunner', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid,
-                        threadUuid,
-                        toolCallId,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You need the SqlRunner permission to approve SQL execution',
-            );
-        }
+        this.assertCanApproveSql(user, {
+            toolName,
+            organizationUuid,
+            projectUuid: agent.projectUuid,
+            metadata: { agentUuid, threadUuid, toolCallId },
+        });
 
         const recorded = await this.recordSqlApprovalDecision({
             organizationUuid,
@@ -4375,11 +4362,71 @@ export class AiAgentService extends BaseService {
                 `SQL approval for ${toolCallId} was already recorded; retrying Slack resume if applicable.`,
             );
         }
-        if (toolName === 'runSql') {
+        if (isNativeSqlApprovalToolCall(toolName, context.toolArgs)) {
             await this.resumeSlackSqlApproval(context.promptUuid);
         }
 
         return { decision };
+    }
+
+    // Approving is privileged even though the SQL runs as the prompt issuer:
+    // raw SQL needs SqlRunner, saving a SQL chart needs CustomSql.
+    private assertCanApproveSql(
+        user: SessionUser,
+        {
+            toolName,
+            organizationUuid,
+            projectUuid,
+            metadata,
+        }: {
+            toolName: SqlApprovalToolName;
+            organizationUuid: string;
+            projectUuid: string;
+            metadata: {
+                agentUuid: string;
+                threadUuid: string;
+                toolCallId: string;
+            };
+        },
+    ): void {
+        const ability = this.createAuditedAbility(user);
+        switch (toolName) {
+            case 'runSql':
+            case 'runComposerQueries':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('SqlRunner', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the SqlRunner permission to approve SQL execution',
+                    );
+                }
+                return;
+            case 'createContent':
+                if (
+                    ability.cannot(
+                        'manage',
+                        subject('CustomSql', {
+                            organizationUuid,
+                            projectUuid,
+                            metadata,
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'You need the CustomSql permission to save SQL charts to approve this SQL',
+                    );
+                }
+                return;
+            default:
+                assertUnreachable(toolName, 'Unknown SQL approval tool');
+        }
     }
 
     private async recordSqlApprovalDecision(
@@ -11453,22 +11500,33 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (isCurrentPrompt) {
                     options.pendingRejectedSqlApprovalResults?.push(
                         ...toolCallsAndResults.flatMap(
-                            ({ toolCall, toolResult, approvalDecision }) =>
-                                toolCall.toolName === 'runSql' &&
-                                approvalDecision === 'rejected' &&
-                                toolResult === null
-                                    ? [
-                                          {
-                                              promptUuid:
-                                                  message.ai_prompt_uuid,
-                                              toolCallId: toolCall.toolCallId,
-                                              toolName: toolCall.toolName,
-                                              result: RUN_SQL_REJECTED_OUTPUT.result,
-                                              metadata:
-                                                  RUN_SQL_REJECTED_OUTPUT.metadata,
-                                          },
-                                      ]
-                                    : [],
+                            ({ toolCall, toolResult, approvalDecision }) => {
+                                if (
+                                    approvalDecision !== 'rejected' ||
+                                    toolResult !== null
+                                ) {
+                                    return [];
+                                }
+                                const base = {
+                                    promptUuid: message.ai_prompt_uuid,
+                                    toolCallId: toolCall.toolCallId,
+                                    toolName: toolCall.toolName,
+                                };
+                                if (
+                                    !isNativeSqlApprovalToolCall(
+                                        toolCall.toolName,
+                                        toolCall.toolArgs,
+                                    )
+                                ) {
+                                    return [];
+                                }
+                                return [
+                                    {
+                                        ...base,
+                                        ...getRejectedOutput(toolCall.toolName),
+                                    },
+                                ];
+                            },
                         ),
                     );
                 }
@@ -16942,21 +17000,24 @@ Use your existing tools to inspect them when relevant to the user's question (re
         slackPrompt: SlackPrompt;
         threadTs: string;
         toolCallId: string;
+        toolName: NativeSqlApprovalToolName;
         sql: string;
         agentName?: string;
     }): Promise<void> {
+        const heading = getSqlApprovalHeading(input.toolName);
         await this.slackClient.postMessage({
             organizationUuid: input.slackPrompt.organizationUuid,
             channel: input.slackPrompt.slackChannelId,
             thread_ts: input.threadTs,
             username: input.agentName,
-            text: 'Awaiting approval to run SQL',
+            text: heading,
             blocks: renderSqlApprovalBlocks(
                 {
                     kind: 'pending',
                     sql: input.sql,
                     toolCallId: input.toolCallId,
                     threadUuid: input.slackPrompt.threadUuid,
+                    heading,
                     native: true,
                 },
                 this.lightdashConfig.siteUrl,
@@ -17517,6 +17578,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     slackPrompt,
                     threadTs,
                     toolCallId: pendingApproval.toolCallId,
+                    toolName: pendingApproval.toolName,
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
@@ -18227,7 +18289,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     await this.aiAgentModel.findSqlApprovalContext(toolCallId);
                 if (
                     !approvalContext?.agentUuid ||
-                    !isSqlApprovalToolName(approvalContext.toolName)
+                    !isSqlApprovalToolCall(
+                        approvalContext.toolName,
+                        approvalContext.toolArgs,
+                    )
                 ) {
                     await respond({
                         text: 'This SQL approval request is no longer available.',
@@ -18272,24 +18337,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             `Agent not found: ${approvalContext.agentUuid}`,
                         );
                     }
-                    if (
-                        this.createAuditedAbility(decidedBy).cannot(
-                            'manage',
-                            subject('SqlRunner', {
-                                organizationUuid,
-                                projectUuid: agent.projectUuid,
-                                metadata: {
-                                    agentUuid: approvalContext.agentUuid,
-                                    threadUuid,
-                                    toolCallId,
-                                },
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            'You need the SqlRunner permission to approve SQL execution',
-                        );
-                    }
+                    this.assertCanApproveSql(decidedBy, {
+                        toolName,
+                        organizationUuid,
+                        projectUuid: agent.projectUuid,
+                        metadata: {
+                            agentUuid: approvalContext.agentUuid,
+                            threadUuid,
+                            toolCallId,
+                        },
+                    });
                     decisionRecord = {
                         organizationUuid,
                         projectUuid: agent.projectUuid,

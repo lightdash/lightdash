@@ -1,5 +1,8 @@
 import { LightdashAnalytics } from '../../../../analytics/LightdashAnalytics';
-import { buildSqlApprovalDecidedEvent } from './sqlApprovals';
+import {
+    buildSqlApprovalDecidedEvent,
+    isNativeSqlApprovalToolCall,
+} from './sqlApprovals';
 
 const baseDecision = {
     organizationUuid: 'org-uuid',
@@ -87,5 +90,22 @@ describe('buildSqlApprovalDecidedEvent', () => {
             isAutoApproved: false,
             isThreadAutoApproval: false,
         });
+    });
+});
+
+describe('isNativeSqlApprovalToolCall', () => {
+    it('covers the tools whose Slack runs suspend on approval', () => {
+        expect(isNativeSqlApprovalToolCall('runSql', { sql: 'select 1' })).toBe(
+            true,
+        );
+        expect(
+            isNativeSqlApprovalToolCall('createContent', { type: 'sql_chart' }),
+        ).toBe(true);
+        expect(
+            isNativeSqlApprovalToolCall('createContent', { type: 'chart' }),
+        ).toBe(false);
+        expect(isNativeSqlApprovalToolCall('runComposerQueries', {})).toBe(
+            false,
+        );
     });
 });

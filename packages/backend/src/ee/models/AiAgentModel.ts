@@ -78,6 +78,7 @@ import {
     getExpiredGenerateDataAppBuildOutcome,
     getExternalSourceDisplayName,
     getGenerateDataAppBuildOutcome,
+    getSqlApprovalSql,
     isAiAgentMcpToolName,
     isAiAgentToolName,
     isAiAppThreadCreatedFrom,
@@ -259,7 +260,12 @@ import {
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
 import { ServiceAccountsTableName } from '../database/entities/serviceAccounts';
-import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
+import {
+    isNativeSqlApprovalToolCall,
+    NATIVE_SQL_APPROVAL_TOOL_NAMES,
+    type NativeSqlApprovalToolName,
+    type SqlApprovalDecision,
+} from '../services/ai/tools/sqlApprovals';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
 import { AI_AGENT_THREAD_PENDING_TIMEOUT_MS } from './aiAgentConstants';
@@ -8678,13 +8684,14 @@ export class AiAgentModel {
         }));
     }
 
-    // A runSql call the agent suspended on awaiting approval: it has no result
-    // (never executed) and no recorded decision yet. Used to detect a suspended
-    // run and to post the approval card.
-    async getPendingSqlApprovalForPrompt(
-        promptUuid: string,
-    ): Promise<{ toolCallId: string; sql: string } | null> {
-        const row = await this.database(AiAgentToolCallTableName)
+    // A suspended SQL-approval call: no result and no recorded decision yet.
+    // Used to detect a suspended run and to post the approval card.
+    async getPendingSqlApprovalForPrompt(promptUuid: string): Promise<{
+        toolCallId: string;
+        toolName: NativeSqlApprovalToolName;
+        sql: string;
+    } | null> {
+        const rows = await this.database(AiAgentToolCallTableName)
             .leftJoin(
                 AiAgentToolResultTableName,
                 `${AiAgentToolCallTableName}.tool_call_id`,
@@ -8696,25 +8703,40 @@ export class AiAgentModel {
                 `${AiSqlApprovalTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
-            .where(`${AiAgentToolCallTableName}.tool_name`, 'runSql')
+            .whereIn(
+                `${AiAgentToolCallTableName}.tool_name`,
+                NATIVE_SQL_APPROVAL_TOOL_NAMES,
+            )
             .whereNull(
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid`,
             )
             .whereNull(`${AiSqlApprovalTableName}.tool_call_id`)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'desc')
-            .first<Pick<DbAiAgentToolCall, 'tool_call_id' | 'tool_args'>>(
+            .select<
+                Pick<
+                    DbAiAgentToolCall,
+                    'tool_call_id' | 'tool_name' | 'tool_args'
+                >[]
+            >(
                 `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
                 `${AiAgentToolCallTableName}.tool_args`,
             );
 
-        if (!row) {
-            return null;
+        for (const row of rows) {
+            if (isNativeSqlApprovalToolCall(row.tool_name, row.tool_args)) {
+                // A call without SQL has nothing to approve, so no card.
+                const sql = getSqlApprovalSql(row.tool_args);
+                if (sql !== null) {
+                    return {
+                        toolCallId: row.tool_call_id,
+                        toolName: row.tool_name,
+                        sql,
+                    };
+                }
+            }
         }
-        const sql =
-            typeof (row.tool_args as { sql?: unknown })?.sql === 'string'
-                ? (row.tool_args as { sql: string }).sql
-                : '';
-        return { toolCallId: row.tool_call_id, sql };
+        return null;
     }
 
     async getToolCallsForPrompt(
@@ -8742,6 +8764,7 @@ export class AiAgentModel {
               threadUuid: string;
               agentUuid: string | null;
               toolName: string;
+              toolArgs: unknown;
               hasResult: boolean;
           }
         | undefined
@@ -8775,11 +8798,13 @@ export class AiAgentModel {
                     threadUuid: string;
                     agentUuid: string | null;
                     toolName: string;
+                    toolArgs: unknown;
                     resultUuid: string | null;
                 }>
             >(
                 `${AiAgentToolCallTableName}.ai_prompt_uuid as promptUuid`,
                 `${AiAgentToolCallTableName}.tool_name as toolName`,
+                `${AiAgentToolCallTableName}.tool_args as toolArgs`,
                 `${AiThreadTableName}.ai_thread_uuid as threadUuid`,
                 `${AiThreadTableName}.agent_uuid as agentUuid`,
                 `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid as resultUuid`,
@@ -8794,6 +8819,7 @@ export class AiAgentModel {
             threadUuid: row.threadUuid,
             agentUuid: row.agentUuid,
             toolName: row.toolName,
+            toolArgs: row.toolArgs,
             hasResult: row.resultUuid !== null,
         };
     }

@@ -61,6 +61,7 @@ import {
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
     type SchedulerAiAugmentation,
+    type SqlChartAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import { type DbApp } from '../../../database/entities/apps';
@@ -91,6 +92,7 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -108,6 +110,7 @@ import { type AiAgentModel } from '../../models/AiAgentModel';
 import { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
+import type { ApproveSqlFn } from '../ai/tools/sqlApprovals';
 import {
     AnalyzeFieldImpactFn,
     ComposerNodeStatusUpdate,
@@ -198,7 +201,11 @@ const isDataAppSearchResult = (
 const CONTENT_AS_CODE_TYPE_LABELS = {
     dashboard: 'Dashboard',
     chart: 'Chart',
+    sql_chart: 'SQL chart',
 } as const satisfies Record<ContentAsCodeType, string>;
+
+export const SQL_CHART_SAVE_PERMISSION_MESSAGE =
+    'You do not have the SQL chart save permission (manage custom SQL) in this project, so SQL charts cannot be saved. Do not retry; ask the user to get this permission or save a chart built from an explore instead.';
 
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
@@ -356,6 +363,7 @@ type AiAgentToolsServiceDependencies = {
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
+    savedSqlService: SavedSqlService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
@@ -422,6 +430,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly dashboardModel: DashboardModel;
 
     private readonly savedChartService: SavedChartService;
+
+    private readonly savedSqlService: SavedSqlService;
 
     private readonly savedChartModel: SavedChartModel;
 
@@ -531,6 +541,7 @@ export class AiAgentToolsService extends BaseService {
         dashboardService,
         dashboardModel,
         savedChartService,
+        savedSqlService,
         savedChartModel,
         coderService,
         contentService,
@@ -567,6 +578,7 @@ export class AiAgentToolsService extends BaseService {
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
+        this.savedSqlService = savedSqlService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
@@ -1636,6 +1648,13 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    private static getSqlChartUrl(
+        context: AiAgentToolsRuntimeContext,
+        slug: string,
+    ) {
+        return `/projects/${context.projectUuid}/sql-runner/${slug}#chart-link`;
+    }
+
     private static getSpaceUrl(
         context: AiAgentToolsRuntimeContext,
         uuid: string,
@@ -1678,9 +1697,14 @@ export class AiAgentToolsService extends BaseService {
     ): asserts content is ChartAsCode;
 
     private validateContentAsCode(
+        type: 'sql_chart',
+        content: unknown,
+    ): asserts content is SqlChartAsCode;
+
+    private validateContentAsCode(
         type: ContentAsCodeType,
         content: unknown,
-    ): asserts content is DashboardAsCode | ChartAsCode {
+    ): asserts content is DashboardAsCode | ChartAsCode | SqlChartAsCode {
         this.aiAgentContentValidation.validateContent(type, content);
     }
 
@@ -2111,6 +2135,7 @@ export class AiAgentToolsService extends BaseService {
                 switch (type) {
                     case 'dashboard':
                     case 'chart':
+                    case 'sql_chart':
                         return this.readContentAsCode(context, { slug, type });
                     case 'data_app': {
                         const source =
@@ -2208,6 +2233,37 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         'chart',
                         savedChart.uuid,
+                    ),
+                };
+            }
+            case 'sql_chart': {
+                const notFound = `SQL chart "${slug}" was not found`;
+                const { sqlCharts } =
+                    await this.coderService.getSqlChartsForRead(
+                        context.user,
+                        context.projectUuid,
+                        [slug],
+                    );
+                const sqlChart = sqlCharts[0];
+                if (!sqlChart) {
+                    throw new NotFoundError(notFound);
+                }
+                await this.assertContentSpaceInScope(
+                    context,
+                    sqlChart.spaceSlug,
+                    notFound,
+                );
+                await this.savedSqlService.assertCanViewSqlChartBySlug(
+                    context.user,
+                    context.projectUuid,
+                    sqlChart.slug,
+                );
+                return {
+                    type: 'sql_chart',
+                    content: sqlChart,
+                    href: AiAgentToolsService.getSqlChartUrl(
+                        context,
+                        sqlChart.slug,
                     ),
                 };
             }
@@ -2603,16 +2659,17 @@ export class AiAgentToolsService extends BaseService {
 
     private createContent(
         context: AiAgentToolsRuntimeContext,
-        { type, content }: Parameters<CreateContentFn>[0],
+        args: Parameters<CreateContentFn>[0],
     ): ReturnType<CreateContentFn> {
-        if (type === 'document') {
-            return this.createDocumentContent(context, content);
+        if (args.type === 'document') {
+            return this.createDocumentContent(context, args.content);
         }
+        const { type, content } = args;
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.createContent`,
             { slug: content.slug, type },
             async () => {
-                this.aiAgentContentValidation.validateContent(type, content);
+                this.aiAgentContentValidation.validateNewContent(type, content);
                 await this.assertContentSpaceInScope(
                     context,
                     content.spaceSlug,
@@ -2690,11 +2747,59 @@ export class AiAgentToolsService extends BaseService {
                             ),
                         };
                     }
+                    case 'sql_chart':
+                        return this.createSqlChart(
+                            context,
+                            content,
+                            args.approveSql,
+                        );
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
             },
         );
+    }
+
+    private assertCanSaveSqlCharts(context: AiAgentToolsRuntimeContext) {
+        if (
+            this.createAuditedAbility(context.user).cannot(
+                'manage',
+                subject('CustomSql', {
+                    organizationUuid: context.organizationUuid,
+                    projectUuid: context.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(SQL_CHART_SAVE_PERMISSION_MESSAGE);
+        }
+    }
+
+    private async createSqlChart(
+        context: AiAgentToolsRuntimeContext,
+        content: SqlChartAsCode,
+        approveSql: ApproveSqlFn,
+    ) {
+        this.assertCanSaveSqlCharts(context);
+        await approveSql();
+
+        const promotionChanges = await this.coderService.upsertSqlChart(
+            context.user,
+            context.projectUuid,
+            content.slug,
+            content,
+            { mode: 'create' },
+        );
+        const created = promotionChanges.charts[0]?.data;
+        if (!created?.uuid) {
+            throw new NotFoundError(
+                `Created SQL chart "${content.slug}" was not found`,
+            );
+        }
+        const createdContent = await this.readContentAsCode(context, {
+            slug: created.slug,
+            type: 'sql_chart',
+        });
+        return { ...createdContent, uuid: created.uuid };
     }
 
     private validateContent({

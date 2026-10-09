@@ -10,7 +10,7 @@ export const toolReadContentArgsSchema = z.object({
         .min(1)
         .describe('Slug of the dashboard, chart, or data app to read.'),
     type: z
-        .enum(['dashboard', 'chart', 'data_app'])
+        .enum(['dashboard', 'chart', 'sql_chart', 'data_app'])
         .describe('Type of Lightdash content to read.'),
 });
 
@@ -45,6 +45,12 @@ export const toolReadContentStructuredContentSchema = z.discriminatedUnion(
             type: z.literal('chart'),
             content: contentJsonSchema.describe(
                 'Chart as code JSON, exactly as shown in `result`.',
+            ),
+        }),
+        readContentBaseSchema.extend({
+            type: z.literal('sql_chart'),
+            content: contentJsonSchema.describe(
+                'SQL chart as code JSON, exactly as shown in `result`.',
             ),
         }),
         readContentBaseSchema.extend({
@@ -85,6 +91,7 @@ export type ReadContentType = ToolReadContentArgs['type'];
 export const READ_CONTENT_TYPE_LABELS: Record<ReadContentType, string> = {
     dashboard: 'dashboard',
     chart: 'chart',
+    sql_chart: 'SQL chart',
     data_app: 'data app',
 };
 export type ToolReadContentStructuredContent = z.infer<

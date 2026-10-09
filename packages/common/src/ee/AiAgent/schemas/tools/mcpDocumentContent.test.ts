@@ -309,19 +309,15 @@ describe('MCP Document content', () => {
     });
 
     test('does not add Document support to native agent contracts', () => {
-        expect(toolCreateContentArgsSchema.shape.type.options).toEqual([
-            'dashboard',
-            'chart',
-        ]);
-        expect(toolEditContentArgsSchema.shape.type.options).toEqual([
-            'dashboard',
-            'chart',
-        ]);
-        expect(toolReadContentArgsSchema.shape.type.options).toEqual([
-            'dashboard',
-            'chart',
-            'data_app',
-        ]);
+        expect(toolCreateContentArgsSchema.shape.type.options).not.toContain(
+            'document',
+        );
+        expect(toolEditContentArgsSchema.shape.type.options).not.toContain(
+            'document',
+        );
+        expect(toolReadContentArgsSchema.shape.type.options).not.toContain(
+            'document',
+        );
         expect(
             toolCreateContentArgsSchema.safeParse({
                 type: 'document',

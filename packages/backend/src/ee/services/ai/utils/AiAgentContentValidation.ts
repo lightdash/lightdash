@@ -9,12 +9,25 @@ import Ajv, { type ErrorObject, type ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import { compact, get, set, uniq } from 'lodash';
 
-type ContentType = 'dashboard' | 'chart';
+export type AiAgentValidatedContentType = 'dashboard' | 'chart' | 'sql_chart';
+
+type ContentType = AiAgentValidatedContentType;
 
 type PatchOperation = {
     path?: unknown;
     from?: unknown;
 };
+
+const CHART_BANNED_PATHS = [
+    { path: '/slug', reason: 'slug is read-only' },
+    { path: '/updatedAt', reason: 'updatedAt is read-only' },
+    { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
+    {
+        path: '/verified',
+        reason: 'verified cannot be edited with editContent',
+    },
+    { path: '/verification', reason: 'verification is read-only' },
+];
 
 const BANNED_PATHS: Record<
     ContentType,
@@ -23,15 +36,13 @@ const BANNED_PATHS: Record<
         reason: string;
     }>
 > = {
-    chart: [
-        { path: '/slug', reason: 'slug is read-only' },
-        { path: '/updatedAt', reason: 'updatedAt is read-only' },
-        { path: '/downloadedAt', reason: 'downloadedAt is read-only' },
+    chart: CHART_BANNED_PATHS,
+    sql_chart: [
+        ...CHART_BANNED_PATHS,
         {
-            path: '/verified',
-            reason: 'verified cannot be edited with editContent',
+            path: '/connection',
+            reason: 'connection cannot be edited with editContent',
         },
-        { path: '/verification', reason: 'verification is read-only' },
     ],
     dashboard: [
         { path: '/slug', reason: 'slug is read-only' },
@@ -47,7 +58,35 @@ const BANNED_PATHS: Record<
 
 const TIMESTAMP_FIELDS: Record<ContentType, string[]> = {
     chart: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
+    sql_chart: ['/updatedAt', '/downloadedAt'],
     dashboard: ['/updatedAt', '/downloadedAt', '/verification/verifiedAt'],
+};
+
+const CREATE_REJECTED_PROPERTIES: Record<
+    ContentType,
+    Array<{ property: string; reason: string }>
+> = {
+    chart: [],
+    dashboard: [],
+    sql_chart: [
+        {
+            property: 'connection',
+            reason: 'SQL charts always run on the primary connection',
+        },
+    ],
+};
+
+type ContentOperation = 'create' | 'edit';
+
+const OPERATION_LABELS: Record<ContentOperation, string> = {
+    create: 'New',
+    edit: 'Edited',
+};
+
+const CONTENT_LABELS: Record<ContentType, string> = {
+    chart: 'chart',
+    dashboard: 'dashboard',
+    sql_chart: 'SQL chart',
 };
 
 const CHART_CONFIG_SUPPORTED_TYPES = [
@@ -70,12 +109,7 @@ export class AiAgentContentValidation {
 
     private readonly timestampFields = TIMESTAMP_FIELDS;
 
-    private validators:
-        | {
-              chart: ValidateFunction;
-              dashboard: ValidateFunction;
-          }
-        | undefined;
+    private validators: Record<ContentType, ValidateFunction> | undefined;
 
     constructor() {
         this.ajv = new Ajv({
@@ -119,20 +153,50 @@ export class AiAgentContentValidation {
     }
 
     validateContent(type: ContentType, content: unknown): void {
+        AiAgentContentValidation.throwIfInvalid(
+            'edit',
+            type,
+            this.getSchemaErrors(type, content),
+        );
+    }
+
+    /** Also rejects fields that only content-as-code uploads may set. */
+    validateNewContent(type: ContentType, content: unknown): void {
+        const rejected = CREATE_REJECTED_PROPERTIES[type]
+            .filter(
+                ({ property }) =>
+                    typeof content === 'object' &&
+                    content !== null &&
+                    property in content,
+            )
+            .map(
+                ({ property, reason }) =>
+                    `/${property} is not allowed: ${reason}`,
+            );
+        AiAgentContentValidation.throwIfInvalid('create', type, [
+            ...rejected,
+            ...this.getSchemaErrors(type, content),
+        ]);
+    }
+
+    private getSchemaErrors(type: ContentType, content: unknown): string[] {
         const validator = this.getValidator(type);
         const normalizedContent = this.normalizeTimestampFields(type, content);
-        const valid = validator(normalizedContent);
+        return validator(normalizedContent)
+            ? []
+            : AiAgentContentValidation.formatErrors(validator.errors ?? []);
+    }
 
-        if (valid) {
-            return;
-        }
-
-        const validationErrors = AiAgentContentValidation.formatErrors(
-            validator.errors ?? [],
-        );
-
+    private static throwIfInvalid(
+        operation: ContentOperation,
+        type: ContentType,
+        validationErrors: string[],
+    ): void {
+        if (validationErrors.length === 0) return;
         throw new ParameterError(
-            `Edited ${type} is invalid:\n${validationErrors
+            `${OPERATION_LABELS[operation]} ${
+                CONTENT_LABELS[type]
+            } is invalid:\n${validationErrors
                 .map((error) => `- ${error}`)
                 .join('\n')}`,
             { validationErrors },
@@ -144,6 +208,8 @@ export class AiAgentContentValidation {
         switch (type) {
             case 'chart':
                 return validators.chart;
+            case 'sql_chart':
+                return validators.sql_chart;
             case 'dashboard':
                 return validators.dashboard;
             default:
@@ -151,10 +217,7 @@ export class AiAgentContentValidation {
         }
     }
 
-    private getValidators(): {
-        chart: ValidateFunction;
-        dashboard: ValidateFunction;
-    } {
+    private getValidators(): Record<ContentType, ValidateFunction> {
         if (this.validators) {
             return this.validators;
         }
@@ -164,6 +227,9 @@ export class AiAgentContentValidation {
                 getChartAsCodeBranchSchema(ContentAsCodeType.CHART),
             ),
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
+            sql_chart: this.ajv.compile(
+                getChartAsCodeBranchSchema(ContentAsCodeType.SQL_CHART),
+            ),
         };
 
         return this.validators;

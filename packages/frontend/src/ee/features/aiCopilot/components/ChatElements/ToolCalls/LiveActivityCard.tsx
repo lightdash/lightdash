@@ -24,14 +24,12 @@ import { AiMarkdown } from '../../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import { AgentStepGroups } from './AgentStepGroups';
-import {
-    type ComposerApprovalTarget,
-    type ComposerQueryNodeStatus,
-} from './descriptions/ComposerQueriesToolCallDescription';
+import { type ComposerQueryNodeStatus } from './descriptions/ComposerQueriesToolCallDescription';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { parseAgentStep } from './parseAgentStep';
+import { type SqlApprovalThread } from './SqlApprovalActions';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
@@ -80,8 +78,8 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
-    /** runSql / composer calls awaiting a decision; approval renders inline under the SQL. */
-    approval?: ComposerApprovalTarget & {
+    /** runSql / composer / SQL chart calls awaiting a decision; approval renders inline under the SQL. */
+    approval?: SqlApprovalThread & {
         pendingToolCallIds: string[];
     };
 };
@@ -682,6 +680,7 @@ export const LiveActivityCard: FC<Props> = ({
     // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
         latestGroup?.toolName === 'runSql' ||
+        hasPendingApproval ||
         (isActive && latestGroup?.toolName === 'runComposerQueries');
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''

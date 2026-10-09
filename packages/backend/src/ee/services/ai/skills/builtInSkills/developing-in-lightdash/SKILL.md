@@ -23,6 +23,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 | Task                          | Tools/Action                                                    | References                            |
 | ----------------------------- | --------------------------------------------------------------- | ------------------------------------- |
 | Read dashboards and charts    | `readContent`                                                   | `dashboard-reference`, chart refs     |
+| Create and read SQL charts    | `createContent` / `readContent` with `type: sql_chart`          | `sql-chart-reference`                 |
 | Read data apps (read-only)    | `readContent` with `type: data_app`                             | manifest-shaped JSON, no source code  |
 | Edit dashboards               | `editContent` with RFC6902 JSON Patch                           | `dashboard-reference`                 |
 | Edit charts and tiles         | `editContent`, then update referencing dashboards if needed     | Chart refs, `dashboard-reference`     |
@@ -103,6 +104,10 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 3. Use `grepFields`, then `getMetadata`, to explore available fields and plan which charts to include.
 4. Create an empty dashboard shell first.
 5. Start building charts and adding them to the dashboard one by one, using the workflow above for creating charts.
+
+### Create SQL Charts
+
+Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first: saving a SQL chart needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved. For a dashboard of SQL charts, create every SQL chart first, then reference their persisted slugs in `sql_chart` tiles.
 
 ## Editing Charts
 
@@ -217,6 +222,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `sankey-chart-reference` - Flow diagrams
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
+- `sql-chart-reference` - Charts saved from raw warehouse SQL, their approval step, and dashboards built from them
 - `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards

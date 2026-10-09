@@ -15,6 +15,9 @@ export type SqlApprovalTarget = {
     toolCallId: string;
 };
 
+/** The thread whose pending SQL approvals a card renders; the call is picked per row. */
+export type SqlApprovalThread = Omit<SqlApprovalTarget, 'toolCallId'>;
+
 type SubmitState = 'idle' | 'approved' | 'rejected' | 'autoApproved';
 
 const getAutoApproveKey = (threadUuid: string) =>

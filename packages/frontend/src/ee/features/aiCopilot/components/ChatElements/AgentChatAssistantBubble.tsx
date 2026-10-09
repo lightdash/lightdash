@@ -7,6 +7,7 @@ import {
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
+    isSqlChartContentArgs,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
@@ -125,11 +126,13 @@ type ToolGroup = ToolCallActivityGroup & {
 type TextSegment = { kind: 'text'; text: string; idx: number };
 type StreamSegment = TextSegment | ToolGroup;
 
-// runSql always gates on approval; composer only when it has warehouse SQL nodes.
+// runSql always gates on approval; composer only when it has warehouse SQL
+// nodes; createContent only when it saves a SQL chart.
 const requiresSqlApproval = (toolName: string, toolArgs: unknown): boolean =>
     toolName === 'runSql' ||
     (toolName === 'runComposerQueries' &&
-        getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode));
+        getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode)) ||
+    (toolName === 'createContent' && isSqlChartContentArgs(toolArgs));
 
 // Complete args, no result, no decision: the tool is waiting on the user.
 const getPendingApprovalIds = (

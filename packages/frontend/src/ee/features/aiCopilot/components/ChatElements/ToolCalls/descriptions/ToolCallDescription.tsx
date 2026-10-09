@@ -64,6 +64,10 @@ import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
 import { ScheduledDeliveryToolCallDescription } from './ScheduledDeliveryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
+import {
+    SqlChartToolCallDescription,
+    type SqlChartToolArgs,
+} from './SqlChartToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
@@ -78,8 +82,8 @@ type ToolEditContentArgs = {
 };
 
 type ToolCreateContentArgs = {
-    content?: { slug?: string };
-    type?: 'dashboard' | 'chart' | 'document';
+    content?: { slug?: string } & SqlChartToolArgs;
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
 };
 
 export const ToolCallDescription: FC<{
@@ -272,6 +276,19 @@ export const ToolCallDescription: FC<{
         case 'createContent':
             const createContentToolArgs =
                 toolCall.toolArgs as ToolCreateContentArgs;
+            if (
+                createContentToolArgs.type === 'sql_chart' &&
+                createContentToolArgs.content?.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="create"
+                        slug={createContentToolArgs.content.slug}
+                        chart={createContentToolArgs.content}
+                        approval={approval ?? null}
+                    />
+                );
+            }
             return createContentToolArgs.content?.slug &&
                 createContentToolArgs.type ? (
                 <ContentEditorToolCallDescription

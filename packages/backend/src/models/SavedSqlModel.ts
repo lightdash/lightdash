@@ -410,6 +410,8 @@ export class SavedSqlModel {
         projectUuid: string,
         data: CreateSqlChart,
         binding?: SqlChartConnectionBinding,
+        // 'unique' treats data.slug as a base and appends -1, -2… on conflict.
+        { slugMode }: { slugMode: 'exact' | 'unique' } = { slugMode: 'exact' },
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
@@ -424,7 +426,7 @@ export class SavedSqlModel {
                     projectUuid,
                     `saved-sql:${baseSlug}`,
                 );
-                if (finalSlug === undefined) {
+                if (finalSlug === undefined || slugMode === 'unique') {
                     finalSlug = await generateUniqueSlugScopedToProject(
                         trx,
                         projectUuid,

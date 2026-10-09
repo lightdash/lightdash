@@ -53,6 +53,7 @@ const toStructuredContent = (
     switch (read.type) {
         case 'dashboard':
         case 'chart':
+        case 'sql_chart':
         case 'data_app':
             return { ...base, type: read.type, content: read.content };
         case 'document':
