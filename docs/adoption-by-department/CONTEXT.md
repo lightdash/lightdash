@@ -75,7 +75,7 @@ The headcount used in calculations: the department's own when set, otherwise the
 _Avoid_: total headcount, rolled-up headcount, computed headcount
 
 **Headcount below children**:
-A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The department counts its sub-departments' total, plus the people directly in it, instead.
+A flag raised when a department's own headcount is lower than its sub-departments' effective headcounts plus the people on Lightdash directly in it. The department counts that total instead.
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
