@@ -137,7 +137,7 @@ describe('SnowflakeForm agent identity requirement', () => {
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('link', { name: 'Organisation settings' }),
-            ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+            ).toHaveAttribute('href', '/generalSettings/agentIdentity');
             expect(mocks.readAccess).toHaveBeenCalledWith(
                 'project',
                 connection,

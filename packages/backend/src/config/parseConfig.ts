@@ -26,6 +26,7 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    SNOWFLAKE_AI_CALLBACK_PATH,
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
@@ -3509,7 +3510,7 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
                 tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
-                callbackPath: '/oauth/redirect/snowflake-ai',
+                callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,

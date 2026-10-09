@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
@@ -92,6 +92,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
@@ -192,6 +193,8 @@ const Settings: FC = () => {
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
+        isAgentIdentityFlagLoading,
         allowPasswordAuthentication,
         showMyAgentConnections,
         hasSocialLogin,
@@ -703,6 +706,19 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            isAgentIdentityEnabled &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push({
+                path: AGENT_IDENTITY_SETTINGS_PATH.replace(
+                    '/generalSettings',
+                    '',
+                ),
+                element: <AgentIdentitySettingsPage />,
+            });
+        }
+
         allowedRoutes.push(
             {
                 path: '/mcp',
@@ -856,6 +872,7 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled?.enabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
         isCustomRolesEnabled,
         hasSocialLogin,
         showImpersonationPanel,
@@ -1011,6 +1028,9 @@ const Settings: FC = () => {
             matchPath('/generalSettings/mcp/general', location.pathname) ||
             matchPath('/generalSettings/mcp/analytics', location.pathname),
         );
+    const isAwaitingAgentIdentityRoute =
+        isAgentIdentityFlagLoading &&
+        Boolean(matchPath(AGENT_IDENTITY_SETTINGS_PATH, location.pathname));
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
@@ -1052,6 +1072,7 @@ const Settings: FC = () => {
         isProjectLoading ||
         isAwaitingProjectSettingsRoute ||
         isAwaitingAiSettingsRoute ||
+        isAwaitingAgentIdentityRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
         isAwaitingAiCreditsRoute

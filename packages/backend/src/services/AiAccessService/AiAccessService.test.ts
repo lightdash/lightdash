@@ -254,6 +254,22 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             ...lightdashConfigMock,
             ai: { ...lightdashConfigMock.ai, agentResultIdentityCheckEnabled },
             siteUrl: 'https://lightdash.example',
+            license: {
+                ...lightdashConfigMock.license,
+                licenseKey: 'test-license',
+            },
+            auth: {
+                ...lightdashConfigMock.auth,
+                snowflakeAi: {
+                    ...lightdashConfigMock.auth.snowflakeAi,
+                    clientId: 'test-client',
+                    clientSecret: 'test-secret',
+                    authorizationEndpoint:
+                        'https://snowflake.example/authorize',
+                    tokenEndpoint:
+                        'https://test-account.snowflakecomputing.com/token',
+                },
+            },
         } as LightdashConfig,
         featureFlagModel: flags as unknown as FeatureFlagModel,
         projectModel: projects as unknown as ProjectModel,
@@ -2022,7 +2038,7 @@ describe('AiAccessService', () => {
             ).toMatchObject({
                 refusal: {
                     action: 'ask_admin',
-                    settingsUrl: '/generalSettings/warehouseCredentials',
+                    settingsUrl: '/generalSettings/agentIdentity',
                     connectUrl: null,
                 },
             });
@@ -2166,7 +2182,7 @@ describe('AiAccessService', () => {
             refusal: {
                 reason: 'principal_failed',
                 action: 'ask_admin',
-                settingsUrl: '/generalSettings/warehouseCredentials',
+                settingsUrl: '/generalSettings/agentIdentity',
                 connectUrl: null,
             },
         });
@@ -2881,7 +2897,7 @@ describe('per-type execution identity resolution', () => {
                 refusal: {
                     reason,
                     action: 'ask_admin',
-                    settingsUrl: '/generalSettings/warehouseCredentials',
+                    settingsUrl: '/generalSettings/agentIdentity',
                     connectUrl: null,
                 },
             });
@@ -3736,6 +3752,7 @@ describe('silent refresh routing', () => {
                                     'https://warehouse.example/authorize',
                                 tokenEndpoint:
                                     'https://warehouse.example/token',
+                                account: 'test-account',
                             },
                         },
                     },

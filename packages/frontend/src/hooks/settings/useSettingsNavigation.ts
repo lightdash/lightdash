@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -54,7 +54,6 @@ import {
 import { useMemo } from 'react';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
 import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import {
@@ -73,10 +72,6 @@ export const useSettingsNavigation = (
     context: SettingsContext,
 ): SettingsNavigationSection[] => {
     const { track } = useTracking();
-    const { data: agentIdentityFlag } = useServerFeatureFlag(
-        FeatureFlags.AgentIdentity,
-    );
-    const isAgentIdentityEnabled = agentIdentityFlag?.enabled === true;
     const {
         user,
         organization,
@@ -94,6 +89,7 @@ export const useSettingsNavigation = (
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -656,6 +652,23 @@ export const useSettingsNavigation = (
                 aiAgentIcon: true,
                 keywords: ['copilot', 'agents', 'ai'],
                 children: aiChildren,
+            });
+        }
+
+        if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
+            organizationItems.push({
+                label: 'Agent identity',
+                to: AGENT_IDENTITY_SETTINGS_PATH,
+                icon: IconIdBadge2,
+                keywords: [
+                    'agents',
+                    'identity',
+                    'warehouse',
+                    'snowflake',
+                    'bigquery',
+                ],
+                children: [],
+                exact: true,
             });
         }
 
@@ -1299,6 +1312,7 @@ export const useSettingsNavigation = (
         isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -1315,6 +1329,5 @@ export const useSettingsNavigation = (
         isContentReviewAvailable,
         projectSettingsAccess,
         track,
-        isAgentIdentityEnabled,
     ]);
 };

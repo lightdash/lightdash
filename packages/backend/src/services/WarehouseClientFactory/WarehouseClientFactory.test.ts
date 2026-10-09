@@ -2270,8 +2270,7 @@ describe('AI service account factory scopes', () => {
                         refusal: {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
-                            settingsUrl:
-                                '/generalSettings/warehouseCredentials',
+                            settingsUrl: '/generalSettings/agentIdentity',
                             connectUrl: null,
                         },
                     });
@@ -2692,6 +2691,7 @@ describe('Snowflake revocation with a warm agent client', () => {
                         authorizationEndpoint:
                             'https://snowflake.example.test/authorize',
                         tokenEndpoint: 'https://snowflake.example.test/token',
+                        account: 'test-account',
                     },
                 },
             };

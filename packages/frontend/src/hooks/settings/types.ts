@@ -98,6 +98,8 @@ export type SettingsContext = {
     hasSocialLogin: boolean | undefined;
     isGroupManagementEnabled: boolean;
     isWarehouseCredentialsEnabled: boolean;
+    isAgentIdentityEnabled: boolean;
+    isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;
     /** Which project settings the user can open; see `getProjectSettingsAccess`. */
     projectSettingsAccess: ProjectSettingsAccess;

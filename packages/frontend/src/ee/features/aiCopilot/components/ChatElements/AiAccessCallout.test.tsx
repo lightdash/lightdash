@@ -200,7 +200,7 @@ describe('AI access callout', () => {
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
             screen.getByRole('link', { name: 'Review agent identity' }),
-        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        ).toHaveAttribute('href', '/generalSettings/agentIdentity');
         expect(mocks.can).toHaveBeenCalledWith('manage', 'Organization');
     });
     it('does not link other users to settings', () => {

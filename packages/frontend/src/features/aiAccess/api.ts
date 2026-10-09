@@ -3,6 +3,8 @@ import {
     type AiAccessForUser,
     type AiWarehouseCapabilities,
     type ApiError,
+    type OrganizationAgentIdentitySnowflakeSetup,
+    type OrganizationAgentIdentitySnowflakeVerify,
     type ApiResponse,
     type OrganizationAgentIdentityOverview,
     type OrganizationAgentIdentityRule,
@@ -12,10 +14,12 @@ import {
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useId } from 'react';
 import { lightdashApi } from '../../api';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../providers/App/useApp';
 
 const aiAccessUrl = (
     projectUuid: string,
@@ -219,5 +223,55 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
                 title: 'Could not test the AI service account.',
                 apiError: error,
             }),
+    });
+};
+
+export const useSnowflakeAgentSetup = () => {
+    const { user } = useApp();
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    return useQuery<OrganizationAgentIdentitySnowflakeSetup, ApiError>({
+        queryKey: [
+            'ai-access',
+            'org',
+            user.data?.organizationUuid,
+            'snowflake-setup',
+        ],
+        queryFn: () =>
+            lightdashApi<OrganizationAgentIdentitySnowflakeSetup>({
+                version: 'v2',
+                url: '/org/agent-identity/snowflake/setup',
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: flag?.enabled === true,
+        refetchOnWindowFocus: false,
+        refetchOnMount: 'always',
+    });
+};
+
+export const useSnowflakeAgentVerify = (enabled: boolean) => {
+    const { user } = useApp();
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const sessionId = useId();
+    return useQuery<OrganizationAgentIdentitySnowflakeVerify, ApiError>({
+        queryKey: [
+            'ai-access',
+            'org',
+            user.data?.organizationUuid,
+            'snowflake-verify',
+            sessionId,
+        ],
+        queryFn: () =>
+            lightdashApi<OrganizationAgentIdentitySnowflakeVerify>({
+                version: 'v2',
+                url: '/org/agent-identity/snowflake/verify',
+                method: 'POST',
+                body: undefined,
+            }),
+        enabled: enabled && flag?.enabled === true,
+        cacheTime: 0,
+        staleTime: Infinity,
+        retry: false,
+        refetchOnWindowFocus: false,
     });
 };

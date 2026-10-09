@@ -2,6 +2,8 @@ import {
     ApiErrorPayload,
     ApiOrganizationAgentIdentityOverviewResponse,
     ApiOrganizationAgentIdentityRuleResponse,
+    ApiOrganizationAgentIdentitySnowflakeSetupResponse,
+    ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
     OrganizationAgentIdentitySettings,
     UpdateOrganizationAgentIdentityRule,
     WarehouseTypes,
@@ -12,6 +14,7 @@ import {
     Middlewares,
     OperationId,
     Path,
+    Post,
     Put,
     Request,
     Response,
@@ -43,6 +46,34 @@ export class OrganizationAgentIdentityController extends BaseController {
             results: await this.services
                 .getAiAccessService()
                 .getOrganizationSettings(req.account!),
+        };
+    }
+
+    @Get('/snowflake/setup')
+    @OperationId('getOrganizationAgentIdentitySnowflakeSetup')
+    @SuccessResponse('200', 'Success')
+    async getSnowflakeSetup(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationAgentIdentitySnowflakeSetupResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .getSnowflakeSetup(req.account!),
+        };
+    }
+
+    @Post('/snowflake/verify')
+    @OperationId('verifyOrganizationAgentIdentitySnowflakeSetup')
+    @SuccessResponse('200', 'Success')
+    async verifySnowflakeSetup(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationAgentIdentitySnowflakeVerifyResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAiAccessService()
+                .verifySnowflakeSetup(req.account!),
         };
     }
 

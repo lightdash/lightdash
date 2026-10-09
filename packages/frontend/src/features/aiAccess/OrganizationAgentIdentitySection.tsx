@@ -4,18 +4,9 @@ import {
     WarehouseTypes,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import {
-    Accordion,
-    Anchor,
-    Group,
-    Select,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
-import { Fragment } from 'react';
+import { Anchor, Group, Select, Stack, Text } from '@mantine/core';
+import { Fragment, useState } from 'react';
 import { Link } from 'react-router';
-import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
@@ -31,6 +22,7 @@ import {
     identityLabels,
     identityWarehouseNames,
 } from './identityLabels';
+import { SnowflakeAgentSetup } from './SnowflakeAgentSetup';
 
 const AgentIdentityRule = ({
     rule,
@@ -40,7 +32,8 @@ const AgentIdentityRule = ({
     const { health } = useApp();
     const save = useUpdateOrganizationAgentIdentityRule();
     const configured = health.data?.auth.snowflakeAi.enabled === true;
-    const siteUrl = health.data?.siteUrl ?? '';
+    const [pending, setPending] = useState(false);
+    const source = pending ? 'agent_sign_in' : rule.source;
 
     return (
         <Stack gap="xs">
@@ -55,21 +48,20 @@ const AgentIdentityRule = ({
                 </Text>
                 <Select
                     aria-label={`${identityWarehouseNames[rule.warehouseType as keyof typeof identityWarehouseNames]} agent identity`}
-                    value={rule.source}
+                    value={source}
                     data={AGENT_IDENTITY_SOURCES[rule.warehouseType].person.map(
                         (source) => ({
                             value: source,
                             label: identityLabels[source].label,
-                            disabled: source === 'agent_sign_in' && !configured,
                         }),
                     )}
                     renderOption={({ option }) => (
                         <Stack gap={0}>
                             <Text size="sm">{option.label}</Text>
-                            {option.disabled &&
-                                option.value === 'agent_sign_in' && (
+                            {option.value === 'agent_sign_in' &&
+                                !configured && (
                                     <Text size="xs" c="dimmed">
-                                        Needs the Snowflake agent integration
+                                        Needs a one-time Snowflake setup
                                     </Text>
                                 )}
                         </Stack>
@@ -81,7 +73,16 @@ const AgentIdentityRule = ({
                         const source = AGENT_IDENTITY_SOURCES[
                             rule.warehouseType
                         ].person.find((allowed) => allowed === value);
-                        if (source)
+                        if (
+                            source === 'agent_sign_in' &&
+                            rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
+                            rule.source !== 'agent_sign_in'
+                        ) {
+                            setPending(true);
+                            return;
+                        }
+                        setPending(false);
+                        if (source && source !== rule.source)
                             save.mutate({
                                 warehouseType: rule.warehouseType,
                                 source,
@@ -90,7 +91,7 @@ const AgentIdentityRule = ({
                 />
             </Group>
             <Text size="sm" c="dimmed">
-                {identityLabels[rule.source].helper}
+                {identityLabels[source].helper}
             </Text>
             {rule.projectsMissingAiServiceAccount &&
                 rule.projectsMissingAiServiceAccount.length > 0 && (
@@ -123,49 +124,25 @@ const AgentIdentityRule = ({
                     </Text>
                 )}
             {rule.warehouseType === WarehouseTypes.SNOWFLAKE &&
-                (rule.source === 'agent_sign_in' || !configured) && (
-                    <Stack gap="xs">
-                        <Text size="xs" c="dimmed">
-                            {configured
-                                ? 'The Snowflake agent integration is set up on this instance.'
-                                : 'Agent sign-in needs the Snowflake agent integration.'}
-                        </Text>
-                        <Accordion variant="default">
-                            <Accordion.Item value="setup">
-                                <Accordion.Control>
-                                    Set up the Snowflake agent integration
-                                </Accordion.Control>
-                                <Accordion.Panel>
-                                    <Stack gap="xs">
-                                        <CodeBlock
-                                            language="sql"
-                                            copyLabel="Copy integration SQL"
-                                            code={`CREATE SECURITY INTEGRATION LIGHTDASH_AGENT
-  TYPE = OAUTH
-  OAUTH_CLIENT = CUSTOM
-  OAUTH_CLIENT_TYPE = 'CONFIDENTIAL'
-  OAUTH_REDIRECT_URI = '${siteUrl.replace(/\/$/, '').replaceAll("'", "''")}/api/v1/oauth/redirect/snowflake-ai'
-  ENABLED = TRUE
-  IS_AGENTIC = TRUE
-  OAUTH_ISSUE_REFRESH_TOKENS = TRUE
-  OAUTH_REFRESH_TOKEN_VALIDITY = 7776000;
-SELECT SYSTEM$SHOW_OAUTH_CLIENT_SECRETS('LIGHTDASH_AGENT');`}
-                                        />
-                                        <Text size="xs" c="dimmed">
-                                            Set SNOWFLAKE_AI_OAUTH_CLIENT_ID and
-                                            SNOWFLAKE_AI_OAUTH_CLIENT_SECRET
-                                            from the secret output, and set
-                                            SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT
-                                            and
-                                            SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT
-                                            for the account.
-                                        </Text>
-                                    </Stack>
-                                </Accordion.Panel>
-                            </Accordion.Item>
-                        </Accordion>
-                    </Stack>
-                )}
+                (pending ? (
+                    <SnowflakeAgentSetup
+                        key="pending"
+                        mode="pending"
+                        saving={save.isLoading}
+                        onCancel={() => setPending(false)}
+                        onTurnOn={() =>
+                            save.mutate(
+                                {
+                                    warehouseType: rule.warehouseType,
+                                    source: 'agent_sign_in',
+                                },
+                                { onSuccess: () => setPending(false) },
+                            )
+                        }
+                    />
+                ) : rule.source === 'agent_sign_in' ? (
+                    <SnowflakeAgentSetup key="active" mode="active" />
+                ) : null)}
         </Stack>
     );
 };
@@ -189,7 +166,10 @@ const AgentIdentitySettings = () => {
             {settings.data?.rules
                 .filter((rule) => rule.warehouseType in identityWarehouseNames)
                 .map((rule) => (
-                    <AgentIdentityRule key={rule.warehouseType} rule={rule} />
+                    <AgentIdentityRule
+                        key={`${rule.warehouseType}-${rule.source}`}
+                        rule={rule}
+                    />
                 ))}
         </Stack>
     );
@@ -203,13 +183,10 @@ const OrganizationAgentIdentitySection = () => {
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Stack gap="xs">
-                    <Title order={5}>Agent identity</Title>
-                    <Text size="sm" c="dimmed">
-                        Choose who AI agents run as for each warehouse in your
-                        organisation.
-                    </Text>
-                </Stack>
+                <Text size="sm" c="dimmed">
+                    Choose who AI agents run as for each warehouse in your
+                    organisation.
+                </Text>
                 <AgentIdentitySettings />
             </Stack>
         </SettingsCard>

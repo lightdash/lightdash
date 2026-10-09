@@ -113,16 +113,56 @@ const createModel = ({
 };
 
 describe('UserWarehouseCredentialsModel', () => {
-    describe('deleteAiCredential', () => {
-        const database = knex({ client: MockClient, dialect: 'pg' });
-        const tracker = getTracker();
-        const model = new UserWarehouseCredentialsModel({
-            database,
-            encryptionUtil: passthroughEncryption,
-        });
-        beforeEach(() => tracker.reset());
-        afterAll(async () => database.destroy());
+    const sqlDatabase = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    const credentialModel = new UserWarehouseCredentialsModel({
+        database: sqlDatabase,
+        encryptionUtil: passthroughEncryption,
+    });
+    beforeEach(() => tracker.reset());
+    afterAll(async () => sqlDatabase.destroy());
 
+    describe('hasOrganizationAiSnowflakeCredential', () => {
+        test.each([true, false])(
+            'returns %s for matching activation evidence without reading secrets',
+            async (exists) => {
+                tracker.on.select('user_warehouse_credentials').response(
+                    exists
+                        ? [
+                              {
+                                  user_warehouse_credentials_uuid: 'credential',
+                              },
+                          ]
+                        : [],
+                );
+                await expect(
+                    credentialModel.hasOrganizationAiSnowflakeCredential('org'),
+                ).resolves.toBe(exists);
+                const query = tracker.history.select[0];
+                expect(query.sql).toContain(
+                    'inner join "users" on "users"."user_uuid" = "user_warehouse_credentials"."user_uuid"',
+                );
+                expect(query.sql).toContain(
+                    'inner join "organization_memberships" on "organization_memberships"."user_id" = "users"."user_id"',
+                );
+                expect(query.sql).toContain(
+                    'inner join "organizations" on "organizations"."organization_id" = "organization_memberships"."organization_id"',
+                );
+                expect(query.sql).toContain(
+                    'where "organizations"."organization_uuid" = $1 and "user_warehouse_credentials"."warehouse_type" = $2 and "user_warehouse_credentials"."purpose" = $3',
+                );
+                expect(query.sql).not.toContain('encrypted_credentials');
+                expect(query.bindings).toEqual([
+                    'org',
+                    WarehouseTypes.SNOWFLAKE,
+                    UserWarehouseCredentialPurpose.AI,
+                    1,
+                ]);
+            },
+        );
+    });
+
+    describe('deleteAiCredential', () => {
         test.each(['project-uuid', null])(
             'returns only deleted metadata with project %s',
             async (projectUuid) => {
@@ -133,7 +173,10 @@ describe('UserWarehouseCredentialsModel', () => {
                     },
                 ]);
                 expect(
-                    await model.deleteAiCredential('owner', 'credential'),
+                    await credentialModel.deleteAiCredential(
+                        'owner',
+                        'credential',
+                    ),
                 ).toEqual({
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     projectUuid,
@@ -153,7 +196,7 @@ describe('UserWarehouseCredentialsModel', () => {
         test('returns null when no owned AI credential is deleted', async () => {
             tracker.on.delete('user_warehouse_credentials').response([]);
             await expect(
-                model.deleteAiCredential('other-owner', 'credential'),
+                credentialModel.deleteAiCredential('other-owner', 'credential'),
             ).resolves.toBeNull();
             expect(tracker.history.delete[0].bindings).toEqual([
                 'other-owner',

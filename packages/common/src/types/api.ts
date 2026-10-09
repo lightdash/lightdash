@@ -133,6 +133,8 @@ import type {
     ApiAiServiceAccountTestResponse,
     ApiOrganizationAgentIdentityOverviewResponse,
     ApiOrganizationAgentIdentityRuleResponse,
+    ApiOrganizationAgentIdentitySnowflakeSetupResponse,
+    ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
 } from './agentIdentity';
 import type {
     ApiAiAccessForUserResponse,
@@ -1570,6 +1572,8 @@ type ApiResults =
     | ApiAiAccessForUserResponse['results']
     | ApiOrganizationAgentIdentityOverviewResponse['results']
     | ApiOrganizationAgentIdentityRuleResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeSetupResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeVerifyResponse['results']
     | ApiAiServiceAccountSlotResponse['results']
     | ApiAiServiceAccountTestResponse['results']
     | ApiAgentAccessReportResponse['results']

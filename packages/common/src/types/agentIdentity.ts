@@ -59,6 +59,8 @@ export const getAgentClientLabel = (clientId: string | null): string => {
     return `h-${uuidv5(clientId, uuidv5.URL).replace(/-/g, '')}`;
 };
 
+export const AGENT_IDENTITY_SETTINGS_PATH = '/generalSettings/agentIdentity';
+
 export type AiActorKind = 'person' | 'service_account';
 export type AiIdentitySource =
     | 'marked_person'
@@ -209,4 +211,33 @@ export type ApiAiServiceAccountSlotResponse = {
 export type ApiAiServiceAccountTestResponse = {
     status: 'ok';
     results: AiServiceAccountTestResult;
+};
+
+export type OrganizationAgentIdentitySnowflakeSetup = {
+    redirectUri: string;
+    integrationSql: string;
+    missingSettings: string[];
+    configured: boolean;
+};
+
+export type OrganizationAgentIdentitySnowflakeVerify = {
+    checkedAt: Date;
+    passed: boolean;
+    checks: {
+        id: 'oauth_client' | 'authorize_endpoint' | 'agent_session';
+        label: string;
+        status: 'passed' | 'failed' | 'not_checked';
+        required: boolean;
+        detail: string;
+    }[];
+};
+
+export type ApiOrganizationAgentIdentitySnowflakeSetupResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentitySnowflakeSetup;
+};
+
+export type ApiOrganizationAgentIdentitySnowflakeVerifyResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentitySnowflakeVerify;
 };

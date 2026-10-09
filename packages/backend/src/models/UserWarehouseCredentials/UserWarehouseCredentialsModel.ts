@@ -236,6 +236,38 @@ export class UserWarehouseCredentialsModel {
             : undefined;
     }
 
+    async hasOrganizationAiSnowflakeCredential(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .join(
+                'users',
+                'users.user_uuid',
+                'user_warehouse_credentials.user_uuid',
+            )
+            .join(
+                'organization_memberships',
+                'organization_memberships.user_id',
+                'users.user_id',
+            )
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'organization_memberships.organization_id',
+            )
+            .where({
+                'organizations.organization_uuid': organizationUuid,
+                'user_warehouse_credentials.warehouse_type':
+                    WarehouseTypes.SNOWFLAKE,
+                'user_warehouse_credentials.purpose':
+                    UserWarehouseCredentialPurpose.AI,
+            })
+            .first(
+                'user_warehouse_credentials.user_warehouse_credentials_uuid',
+            );
+        return row !== undefined;
+    }
+
     async upsertAiSnowflakeCredential(
         userUuid: string,
         refreshToken: string,
