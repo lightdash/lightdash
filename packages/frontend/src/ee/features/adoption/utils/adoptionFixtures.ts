@@ -85,8 +85,8 @@ export const dept = (
     };
 };
 
-// Effective headcounts and their flags as the server works them out from the headcounts entered and the people
-// on Lightdash, so a test never describes data the server cannot send
+// Effective headcounts and their flags as the server works them out, from the headcounts entered and the people on
+// Lightdash rolled up with each person once, so a test never describes data the server cannot send
 export const withServerHeadcounts = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] => {

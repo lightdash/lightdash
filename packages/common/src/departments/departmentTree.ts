@@ -8,12 +8,12 @@ export type DepartmentHeadcountNode = DepartmentTreeNode & {
 };
 
 export type EffectiveHeadcount = {
-    // Never below its sub-departments' effective headcounts plus its own people on Lightdash, so a headcount
-    // only ever adds people without an account
+    // Never below its sub-departments' total (getChildrenHeadcount) plus its own people on Lightdash, so a headcount
+    // only ever adds people without an account and a person in several sub-departments counts once
     effectiveHeadcount: number;
     // A headcount is entered on the department or on one below it
     hasHeadcount: boolean;
-    // The headcount entered is below its sub-departments' plus its own people on Lightdash, so that total counts
+    // The headcount entered is below its sub-departments' total plus its own people on Lightdash, so that counts
     headcountBelowChildren: boolean;
 };
 
@@ -160,14 +160,14 @@ type HeadcountFrame = {
     uuid: string;
     children: string[];
     next: number;
-    childValues: number[];
+    hasChildren: boolean;
     // The children's people without an account: effective headcount less people on Lightdash
     childGaps: number;
     hasChildHeadcount: boolean;
 };
 
-// The headcount entered, else the sum of the children's, and never below the people on Lightdash (memberCounts,
-// rolled up) plus the children's people without an account, so it never hides a sub-department's headcount
+// The headcount entered, never below the people on Lightdash (memberCounts: rolled up, each person once) plus the
+// children's people without an account: the children's total (getChildrenHeadcount) plus its own people
 export const computeEffectiveHeadcounts = (
     nodes: DepartmentHeadcountNode[],
     memberCounts: Map<string, number>,
@@ -183,7 +183,7 @@ export const computeEffectiveHeadcounts = (
             uuid,
             children: children.get(uuid) ?? [],
             next: 0,
-            childValues: [],
+            hasChildren: false,
             childGaps: 0,
             hasChildHeadcount: false,
         };
@@ -204,38 +204,26 @@ export const computeEffectiveHeadcounts = (
                 if (known === undefined) {
                     stack.push(open(child));
                 } else if (known !== null) {
-                    frame.childValues.push(known.effectiveHeadcount);
+                    frame.hasChildren = true;
                     frame.childGaps += getGap(child, known);
                     frame.hasChildHeadcount ||= known.hasHeadcount;
                 }
             } else {
                 stack.pop();
                 onPath.delete(frame.uuid);
-                const childrenSum =
-                    frame.childValues.length > 0
-                        ? frame.childValues.reduce(
-                              (sum, value) => sum + value,
-                              0,
-                          )
-                        : null;
                 const own = byUuid.get(frame.uuid)?.headcount ?? null;
                 const floor =
                     (memberCounts.get(frame.uuid) ?? 0) + frame.childGaps;
                 const value: EffectiveHeadcount = {
-                    effectiveHeadcount: Math.max(
-                        own ?? childrenSum ?? 0,
-                        floor,
-                    ),
+                    effectiveHeadcount: Math.max(own ?? 0, floor),
                     hasHeadcount: own !== null || frame.hasChildHeadcount,
                     headcountBelowChildren:
-                        own !== null &&
-                        childrenSum !== null &&
-                        own < Math.max(childrenSum, floor),
+                        own !== null && frame.hasChildren && own < floor,
                 };
                 result.set(frame.uuid, value);
                 const parent = stack[stack.length - 1];
                 if (parent !== undefined) {
-                    parent.childValues.push(value.effectiveHeadcount);
+                    parent.hasChildren = true;
                     parent.childGaps += getGap(frame.uuid, value);
                     parent.hasChildHeadcount ||= value.hasHeadcount;
                 }
@@ -245,17 +233,30 @@ export const computeEffectiveHeadcounts = (
     return result;
 };
 
-// The headcount a department keeps for the people directly in it, beside its sub-departments: what its effective
-// headcount leaves over theirs, and never fewer than those people. Without sub-departments, its effective headcount
+// What a department's sub-departments count together: their people on Lightdash, each once, plus each one's people
+// without an account. Its own people are in none of them, so their people are its roll-up less its own
+export const getChildrenHeadcount = (
+    department: { memberCount: number; directMemberCount: number },
+    children: { effectiveHeadcount: number; memberCount: number }[],
+): number =>
+    children.length === 0
+        ? 0
+        : department.memberCount -
+          department.directMemberCount +
+          children.reduce(
+              (sum, child) =>
+                  sum + child.effectiveHeadcount - child.memberCount,
+              0,
+          );
+
+// The headcount a department keeps for the people directly in it: what its effective headcount leaves over its
+// sub-departments' total (getChildrenHeadcount), never fewer than those people. Without sub-departments, all of it
 export const getResidualHeadcount = (
     effectiveHeadcount: number,
-    childrenEffectiveHeadcount: number,
+    childrenHeadcount: number,
     directMemberCount: number,
 ): number =>
-    Math.max(
-        effectiveHeadcount - childrenEffectiveHeadcount,
-        directMemberCount,
-    );
+    Math.max(effectiveHeadcount - childrenHeadcount, directMemberCount);
 
 export const rollUpByDepartment = <T extends { userUuid: string }>(
     nodes: DepartmentTreeNode[],

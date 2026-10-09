@@ -921,6 +921,39 @@ describe('DepartmentService.getSummary', () => {
             metrics: { coveragePct: 100, activePct: 100 },
         });
     });
+    it('counts a person in two sub-departments once in their parent, which has no headcount anywhere', async () => {
+        const { service } = buildService({
+            flag: true,
+            departments: [
+                departmentFixture('parent', null, null),
+                departmentFixture('a', 'parent', null),
+                departmentFixture('b', 'parent', null),
+            ],
+            rows: [
+                {
+                    userUuid: 'shared',
+                    email: 'shared@example.com',
+                    firstName: 'shared',
+                    lastName: 'L',
+                    role: OrganizationMemberRole.MEMBER,
+                    explicitDepartmentUuids: ['a', 'b'],
+                    groupLinks: [],
+                    primaryDepartmentUuid: null,
+                },
+            ],
+        });
+        const summary = await service.getSummary(
+            buildAccount(abilityWith(['view', ORG])),
+        );
+        expect(
+            summary.departments.find((d) => d.departmentUuid === 'parent'),
+        ).toMatchObject({
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 1, coveragePct: 100 },
+        });
+    });
 });
 
 describe('DepartmentService analytics scoping', () => {
@@ -1449,6 +1482,41 @@ describe('DepartmentService.getDetail', () => {
             isDirect: true,
             source: 'explicit',
             sharedWith: [{ departmentUuid: STORES, name: STORES }],
+        });
+    });
+    it('does not flag a headcount that matches the people of a department whose sub-departments share one', async () => {
+        const DEPOTS = '99999999-9999-4999-8999-999999999999';
+        const { service } = buildService({
+            flag: true,
+            departments: [
+                departmentFixture(OPS, null, 2),
+                departmentFixture(STORES, OPS, null),
+                departmentFixture(DEPOTS, OPS, null),
+            ],
+            rows: [
+                user('b', STORES),
+                {
+                    ...user('shared', STORES),
+                    groupLinks: [link(STORES), link(DEPOTS)],
+                },
+            ],
+        });
+        const detail = await service.getDetail(viewer(), OPS);
+        // Stores counts 2 and Depots 1, but Ops has 2 people, so its 2 entered covers them
+        expect(
+            detail.children.map((d) => [
+                d.departmentUuid,
+                d.effectiveHeadcount,
+            ]),
+        ).toEqual([
+            [STORES, 2],
+            [DEPOTS, 1],
+        ]);
+        expect(detail.department).toMatchObject({
+            effectiveHeadcount: 2,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 2, coveragePct: 100 },
+            directMetrics: { memberCount: 0, coveragePct: null },
         });
     });
     it('lists ancestors from the top down', async () => {

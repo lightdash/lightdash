@@ -1,6 +1,7 @@
 import {
     computeEffectiveHeadcounts,
     getActivityBucket,
+    getChildrenHeadcount,
     getChildrenMap,
     getDirectMembersByDepartment,
     getResidualHeadcount,
@@ -222,12 +223,17 @@ export const buildAdoptionSnapshot = (
                 const effectiveHeadcount =
                     effective?.effectiveHeadcount ??
                     Math.max(d.headcount ?? 0, members.length);
-                const childrenEffectiveHeadcount = (
-                    children.get(d.departmentUuid) ?? []
-                ).reduce(
-                    (sum, uuid) =>
-                        sum + (headcounts.get(uuid)?.effectiveHeadcount ?? 0),
-                    0,
+                // A person in several of its sub-departments counts once in their total
+                const childrenHeadcount = getChildrenHeadcount(
+                    {
+                        memberCount: members.length,
+                        directMemberCount: direct.length,
+                    },
+                    (children.get(d.departmentUuid) ?? []).map((uuid) => ({
+                        effectiveHeadcount:
+                            headcounts.get(uuid)?.effectiveHeadcount ?? 0,
+                        memberCount: rolledMembers.get(uuid)?.length ?? 0,
+                    })),
                 );
                 return {
                     ...d,
@@ -242,7 +248,7 @@ export const buildAdoptionSnapshot = (
                         direct,
                         getResidualHeadcount(
                             effectiveHeadcount,
-                            childrenEffectiveHeadcount,
+                            childrenHeadcount,
                             direct.length,
                         ),
                     ),

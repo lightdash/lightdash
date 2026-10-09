@@ -451,6 +451,81 @@ describe('buildAdoptionSnapshot', () => {
         expect(y.effectiveHeadcount).toBe(1);
         expect(y.hasHeadcount).toBe(false);
     });
+    it('counts a person in two sub-departments once in the headcount of a parent with none anywhere', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, null),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('p1', OrganizationMemberRole.VIEWER, ['a', 'b']),
+            ],
+            lastActiveAt: activeYesterday(['p1']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent).toMatchObject({
+            effectiveHeadcount: 1,
+            hasHeadcount: false,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 1, coveragePct: 100, activePct: 100 },
+            directMetrics: { memberCount: 0, coveragePct: null },
+        });
+    });
+    it('does not flag a parent headcount that matches its people when its sub-departments share one', () => {
+        // Five people, three in each sub-department and one of them in both
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 5),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
+                member('a2', OrganizationMemberRole.VIEWER, ['a']),
+                member('shared', OrganizationMemberRole.VIEWER, ['a', 'b']),
+                member('b1', OrganizationMemberRole.VIEWER, ['b']),
+                member('b2', OrganizationMemberRole.VIEWER, ['b']),
+            ],
+            lastActiveAt: new Map(),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent).toMatchObject({
+            effectiveHeadcount: 5,
+            headcountBelowChildren: false,
+            metrics: { memberCount: 5, coveragePct: 100 },
+        });
+    });
+    it('keeps for the people directly in a parent what its headcount leaves over its sub-departments, a person they share once', () => {
+        const parent = buildAdoptionSnapshot({
+            departments: [
+                department('parent', null, 10),
+                department('a', 'parent', null),
+                department('b', 'parent', null),
+            ],
+            membership: [
+                member('d1', OrganizationMemberRole.VIEWER, ['parent']),
+                member('shared', OrganizationMemberRole.VIEWER, ['a', 'b']),
+                member('a1', OrganizationMemberRole.VIEWER, ['a']),
+                member('b1', OrganizationMemberRole.VIEWER, ['b']),
+            ],
+            lastActiveAt: activeYesterday(['d1']),
+            windows: WINDOWS,
+            weeklyActivity: [],
+            weekStarts,
+        }).summary.departments.find((d) => d.departmentUuid === 'parent');
+        expect(parent?.effectiveHeadcount).toBe(10);
+        // The sub-departments hold 3 people, so 7 of the 10 are kept for its 1 person
+        expect(parent?.directMetrics).toMatchObject({
+            memberCount: 1,
+            coveragePct: 14,
+            activePct: 14,
+        });
+    });
     it('keeps a department with no users at zero, not missing', () => {
         const legal = byUuid.get('legal');
         expect(legal?.metrics.memberCount).toBe(0);
