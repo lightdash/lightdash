@@ -117,12 +117,20 @@ In `FilterConfiguration/`:
   control with no field yet it does nothing, whether or not a label was typed.
 - `open(id)` works while a new control is being edited: the new control is
   closed first, as "Done" would (kept when it has a field, dropped
-  otherwise), then the other one opens.
+  otherwise), then the other one opens. A control left with no field is
+  closed the same way.
+- `removeLastField()` takes the edited control out of the dashboard filters
+  and opens a placeholder in its place: same id, label, `required`,
+  `requiredGroupId` and `lockedTabUuids`; operator, values, default and
+  `singleValue` go with the field. The next `addFirst*` puts the control back
+  where it was in its list (appended when the new field is of the other
+  kind) and tracks nothing. A locked control comes back not `required` when
+  the new field brings no value (`isLockedRequiredMissingValue`).
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
-- `close()` keeps the edits: they already live in the dashboard draft. It
-  discards instead when the control cannot be kept (`canKeepFilterRule`: no
-  field), and it turns off a default value that was switched on but left
-  empty.
+- `close()` keeps the edits: they already live in the dashboard draft. A
+  control that cannot be kept (`canKeepFilterRule`: no field) is dropped
+  instead: a new one by `discard()`, an existing one as `removeFilter()`
+  does. It turns off a default value that was switched on but left empty.
 - A label is optional. A filter with none shows its field's name, as the
   shipped bar does.
 - `discard()` restores the snapshot taken when the control was opened. Saving
@@ -284,13 +292,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   are gone when the sidebar closes. "Add a field" offers any field of the
   filter's kind that some tile offers, and clicks the new field only when it
   landed on a tile.
-- "Remove field" is switched off on a filter's only field: without it the
-  filter could not be kept. Its tooltip points to "Remove filter" in More
-  actions, or to "Discard control" for a new one.
+- "Remove field" is never refused. On a filter's only field it calls
+  `removeLastField()`: the control stays open on "pick a field" with its
+  label, the fields that were waiting go too, and it leaves the bar until a
+  field is picked. Closing it there drops it; "Discard changes" brings it
+  back as it was opened. The editor keeps its title, not "New control".
 - Every row has an eye toggle (`ActionIcon`, `aria-pressed`) right of the name
-  and above the row's stretched click area, like the menu button. It does what
-  a click on the card does, and both carry the same pressed state: pressed
-  means only this field's tiles are shown. Its tooltip is "Show only these
+  and above the row's stretched click area, like the menu button. It is
+  centred on the name and ends where "Apply to" does: `.rowHeader` and
+  `.rowActions` share the side inset. It does what a click on the card does,
+  and both carry the same pressed state (`light` blue, else `subtle` gray):
+  pressed means only this field's tiles are shown. Its tooltip is "Show only these
   tiles", or "Showing only these tiles" while pressed. Never an X: that reads
   as "Remove field".
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
@@ -324,16 +336,17 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `replacedFieldIds`). A SQL column row gets the same shape from
   `getSqlColumnScope`. The count line is "<table> · x of N tiles" over every
   tab.
-  - The "Apply to" menu, with tabs: a label "This tab · x of N" ("This tab ·
-    no tiles" when nothing on the tab offers the field), "Unfiltered tiles"
-    (`applyFieldToUnfilteredTiles`) and "All tiles" (`applyFieldToAll`), each
-    with its tile count on the right; the same under "Every tab · x of N"; a
-    divider, "Clear from this tab" and "Clear from every tab"; a divider,
-    "Remove field". Without tabs: "Unfiltered tiles", "All tiles", "Clear
-    from tiles", "Remove field", and no label.
-  - Items are disabled, never hidden: "Unfiltered tiles" with none, "All
-    tiles" when it would change nothing (`unfiltered + replaced` is 0), a
-    clear when the field is on no tile of its scope.
+  - The "Apply to" menu, with tabs: a label "This tab · x of N",
+    "Unfiltered tiles" (`applyFieldToUnfilteredTiles`) and "All tiles"
+    (`applyFieldToAll`), each with its tile count on the right; the same
+    under "Every tab · x of N"; a divider, "Clear from this tab" and "Clear
+    from every tab"; a divider, "Remove field". Without tabs: "Unfiltered
+    tiles", "All tiles", "Clear from tiles", "Remove field", and no label.
+  - An item that would change nothing is not rendered, never disabled:
+    "Unfiltered tiles" with none, "All tiles" when `unfiltered + replaced`
+    is 0, a clear when the field is on no tile of its scope. A label shows
+    only above an item of its group, and a divider only between two
+    sections that both have one. "Remove field" is always there.
   - "All tiles" says what it replaces before the click, as a second line
     inside the item: "Replaces <fields> on N tiles", repeated in its
     `aria-label`. The `aria-label` of an apply item names the field, the

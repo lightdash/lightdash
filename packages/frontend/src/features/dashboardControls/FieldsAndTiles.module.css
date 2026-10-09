@@ -29,11 +29,15 @@
     background-color: var(--mantine-color-blue-light);
 }
 
+/* Same inset as the actions below, so the eye ends where "Apply to" does */
+.rowHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+}
+
 .rowMain {
     display: block;
     flex: 1;
     min-width: 0;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
     border-radius: var(--mantine-radius-sm);
 }
 

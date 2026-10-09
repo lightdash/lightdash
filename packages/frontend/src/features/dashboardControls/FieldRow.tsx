@@ -37,7 +37,10 @@ type ApplyItemsProps = {
     onAll: () => void;
 };
 
-// The two apply items of one scope
+const hasApplyItems = ({ unfiltered, replaced }: FieldScope): boolean =>
+    unfiltered + replaced > 0;
+
+// The apply items of one scope; one that would change nothing is left out
 const ApplyItems: FC<ApplyItemsProps> = ({
     label,
     scope,
@@ -51,45 +54,45 @@ const ApplyItems: FC<ApplyItemsProps> = ({
     const allLabel = `Apply ${label} to all ${possible} ${pluralizeTiles(possible)}${scopeSuffix}`;
     return (
         <>
-            <Menu.Item
-                disabled={unfiltered === 0}
-                aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
-                rightSection={
-                    <Text fz="xs" c="dimmed" className={classes.itemCount}>
-                        {unfiltered}
-                    </Text>
-                }
-                onClick={onAddToUnfiltered}
-            >
-                Unfiltered tiles
-            </Menu.Item>
-            <Menu.Item
-                disabled={unfiltered + replaced === 0}
-                aria-label={
-                    replaced > 0 ? `${allLabel}. ${replaces}` : allLabel
-                }
-                rightSection={
-                    <Text fz="xs" c="dimmed" className={classes.itemCount}>
-                        {possible}
-                    </Text>
-                }
-                onClick={onAll}
-            >
-                All tiles
-                {replaced > 0 && (
-                    <Text fz="xs" c="dimmed">
-                        {replaces}
-                    </Text>
-                )}
-            </Menu.Item>
+            {unfiltered > 0 && (
+                <Menu.Item
+                    aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
+                    rightSection={
+                        <Text fz="xs" c="dimmed" className={classes.itemCount}>
+                            {unfiltered}
+                        </Text>
+                    }
+                    onClick={onAddToUnfiltered}
+                >
+                    Unfiltered tiles
+                </Menu.Item>
+            )}
+            {hasApplyItems(scope) && (
+                <Menu.Item
+                    aria-label={
+                        replaced > 0 ? `${allLabel}. ${replaces}` : allLabel
+                    }
+                    rightSection={
+                        <Text fz="xs" c="dimmed" className={classes.itemCount}>
+                            {possible}
+                        </Text>
+                    }
+                    onClick={onAll}
+                >
+                    All tiles
+                    {replaced > 0 && (
+                        <Text fz="xs" c="dimmed">
+                            {replaces}
+                        </Text>
+                    )}
+                </Menu.Item>
+            )}
         </>
     );
 };
 
 const getScopeHeading = (name: string, scope: FieldScope): string =>
-    scope.possible === 0 && scope.applied === 0
-        ? `${name} · no tiles`
-        : `${name} · ${scope.applied} of ${scope.possible}`;
+    `${name} · ${scope.applied} of ${scope.possible}`;
 
 type Props = {
     field: DashboardFilterableField | null;
@@ -111,8 +114,6 @@ type Props = {
     onAll: (tileScope: TileScope) => void;
     onClear: (tileScope: TileScope) => void;
     onRemove: () => void;
-    // Why the row cannot be removed, or null when it can
-    removeDisabledReason: string | null;
 };
 
 export const FieldRow: FC<Props> = ({
@@ -131,10 +132,16 @@ export const FieldRow: FC<Props> = ({
     onAll,
     onClear,
     onRemove,
-    removeDisabledReason,
 }) => {
     const { applied, possible } = everyTabScope;
-    const canRemove = removeDisabledReason === null;
+    const hasTabs = thisTabScope !== null;
+    const showThisTabApply =
+        thisTabScope !== null && hasApplyItems(thisTabScope);
+    const showEveryTabApply = hasApplyItems(everyTabScope);
+    const showThisTabClear = thisTabScope !== null && thisTabScope.applied > 0;
+    const showEveryTabClear = applied > 0;
+    const hasApplySection = showThisTabApply || showEveryTabApply;
+    const hasClearSection = showThisTabClear || showEveryTabClear;
 
     return (
         <Stack
@@ -148,7 +155,7 @@ export const FieldRow: FC<Props> = ({
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
-            <Group gap={0} wrap="nowrap" align="flex-start">
+            <Group className={classes.rowHeader} gap="xs" wrap="nowrap">
                 <UnstyledButton
                     className={classes.rowMain}
                     data-highlighted={isHighlighted || undefined}
@@ -176,10 +183,8 @@ export const FieldRow: FC<Props> = ({
                     <ActionIcon
                         className={classes.rowEye}
                         size="sm"
-                        variant={isHighlighted ? 'filled' : 'subtle'}
+                        variant={isHighlighted ? 'light' : 'subtle'}
                         color={isHighlighted ? 'blue' : 'gray'}
-                        mt="xs"
-                        mr="xs"
                         flex="0 0 auto"
                         aria-pressed={isHighlighted}
                         aria-label={`Show only tiles filtered by ${label}`}
@@ -219,7 +224,7 @@ export const FieldRow: FC<Props> = ({
                         </Button>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        {thisTabScope !== null && (
+                        {thisTabScope !== null && showThisTabApply && (
                             <>
                                 <Menu.Label>
                                     {getScopeHeading('This tab', thisTabScope)}
@@ -234,62 +239,47 @@ export const FieldRow: FC<Props> = ({
                                     }
                                     onAll={() => onAll('this-tab')}
                                 />
-                                <Menu.Label>
-                                    {getScopeHeading(
-                                        'Every tab',
-                                        everyTabScope,
-                                    )}
-                                </Menu.Label>
                             </>
                         )}
-                        <ApplyItems
-                            label={label}
-                            scope={everyTabScope}
-                            replacedLabels={everyTabReplacedLabels}
-                            scopeSuffix={
-                                thisTabScope === null ? '' : ' on every tab'
-                            }
-                            onAddToUnfiltered={() =>
-                                onAddToUnfiltered('every-tab')
-                            }
-                            onAll={() => onAll('every-tab')}
-                        />
-                        <Menu.Divider />
-                        {thisTabScope !== null && (
-                            <Menu.Item
-                                disabled={thisTabScope.applied === 0}
-                                onClick={() => onClear('this-tab')}
-                            >
+                        {showEveryTabApply && (
+                            <>
+                                {hasTabs && (
+                                    <Menu.Label>
+                                        {getScopeHeading(
+                                            'Every tab',
+                                            everyTabScope,
+                                        )}
+                                    </Menu.Label>
+                                )}
+                                <ApplyItems
+                                    label={label}
+                                    scope={everyTabScope}
+                                    replacedLabels={everyTabReplacedLabels}
+                                    scopeSuffix={hasTabs ? ' on every tab' : ''}
+                                    onAddToUnfiltered={() =>
+                                        onAddToUnfiltered('every-tab')
+                                    }
+                                    onAll={() => onAll('every-tab')}
+                                />
+                            </>
+                        )}
+                        {hasApplySection && hasClearSection && <Menu.Divider />}
+                        {showThisTabClear && (
+                            <Menu.Item onClick={() => onClear('this-tab')}>
                                 Clear from this tab
                             </Menu.Item>
                         )}
-                        <Menu.Item
-                            disabled={applied === 0}
-                            onClick={() => onClear('every-tab')}
-                        >
-                            {thisTabScope === null
-                                ? 'Clear from tiles'
-                                : 'Clear from every tab'}
-                        </Menu.Item>
-                        <Menu.Divider />
-                        {/* Not `disabled`: the arrow keys still reach it, so
-                            the reason can be read */}
-                        <Tooltip
-                            label={removeDisabledReason}
-                            disabled={canRemove}
-                            events={{ hover: true, focus: true, touch: true }}
-                        >
-                            <Menu.Item
-                                closeMenuOnClick={canRemove}
-                                aria-disabled={!canRemove || undefined}
-                                c={canRemove ? undefined : 'dimmed'}
-                                onClick={() => {
-                                    if (canRemove) onRemove();
-                                }}
-                            >
-                                Remove field
+                        {showEveryTabClear && (
+                            <Menu.Item onClick={() => onClear('every-tab')}>
+                                {hasTabs
+                                    ? 'Clear from every tab'
+                                    : 'Clear from tiles'}
                             </Menu.Item>
-                        </Tooltip>
+                        )}
+                        {(hasApplySection || hasClearSection) && (
+                            <Menu.Divider />
+                        )}
+                        <Menu.Item onClick={onRemove}>Remove field</Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
             </Group>

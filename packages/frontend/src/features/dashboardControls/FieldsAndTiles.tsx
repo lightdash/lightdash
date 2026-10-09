@@ -175,7 +175,7 @@ export const FieldsAndTiles: FC = () => {
         isPlaceholder,
         addFirstField,
         addFirstSqlColumn,
-        isNew,
+        removeLastField,
         updateFilter,
         waitingFieldIds,
         addWaitingField,
@@ -483,6 +483,12 @@ export const FieldsAndTiles: FC = () => {
                             }}
                             onRemove={() => {
                                 clearHighlight(fieldId);
+                                // Its last field: the control goes back to
+                                // "pick a field", waiting fields included
+                                if (!isWaiting && fieldIds.length === 1) {
+                                    removeLastField();
+                                    return;
+                                }
                                 if (isWaiting) {
                                     removeWaitingField(fieldId);
                                     return;
@@ -497,15 +503,6 @@ export const FieldsAndTiles: FC = () => {
                                 );
                                 removeWaitingField(fieldId);
                             }}
-                            // Without its last field the filter could not be
-                            // kept, and closing would bring it back
-                            removeDisabledReason={
-                                isWaiting || fieldIds.length > 1
-                                    ? null
-                                    : isNew
-                                      ? 'Discard the control instead'
-                                      : 'Remove the filter from More actions instead'
-                            }
                         />
                     );
                 })}

@@ -112,11 +112,13 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fallbackName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const title = isPlaceholder
-        ? 'New control'
-        : hasLabel
-          ? label.draft
-          : (fallbackName ?? 'Filter');
+    // An existing control with its last field removed keeps its name
+    const title =
+        isPlaceholder && isNew
+            ? 'New control'
+            : hasLabel
+              ? label.draft
+              : (fallbackName ?? 'Filter');
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
         ? 'Add a field to keep this control'

@@ -576,6 +576,204 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    describe('removing the last field', () => {
+        const setting: DashboardFilterRule = {
+            ...rule('a', ['1']),
+            label: 'A',
+            required: true,
+            singleValue: true,
+            tileTargets: { t1: false },
+        };
+        const openEmptied = (edited: DashboardFilterRule = setting) => {
+            const hook = setup();
+            act(() => hook.result.current.open('a'));
+            act(() => hook.result.current.updateFilter(edited));
+            act(() => hook.result.current.setHighlightedFieldId('orders_a'));
+            act(() => hook.result.current.addWaitingField('orders_region'));
+            act(() => hook.result.current.removeLastField());
+            return hook;
+        };
+
+        it('leaves the control open and empty, with its id and label', () => {
+            const { result } = openEmptied();
+
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(result.current.isPlaceholder).toBe(true);
+            expect(result.current.isNew).toBe(false);
+            expect(result.current.isDirty).toBe(true);
+            expect(result.current.editingRule).toEqual({
+                id: 'a',
+                label: 'A',
+                target: { fieldId: '', tableName: '' },
+                operator: FilterOperator.EQUALS,
+                values: [],
+                tileTargets: {},
+                disabled: true,
+                required: true,
+                requiredGroupId: undefined,
+                lockedTabUuids: undefined,
+            });
+            // Off the dashboard until it has a field again
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+            expect(latest.changed).toBe(true);
+            expect(result.current.highlightedFieldId).toBeNull();
+            expect(result.current.waitingFieldIds).toEqual([]);
+        });
+
+        it('takes a label typed while it is empty', () => {
+            const { result } = openEmptied();
+            const empty = result.current.editingRule;
+            if (!empty) throw new Error('expected an empty control');
+            act(() => result.current.updateFilter({ ...empty, label: 'B' }));
+            expect(result.current.editingRule?.label).toBe('B');
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+        });
+
+        it('picking a field keeps the id, the label and the place on the bar', () => {
+            const { result } = openEmptied();
+            act(() => result.current.addFirstField(statusField));
+
+            expect(result.current.isPlaceholder).toBe(false);
+            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
+                'a',
+                'b',
+            ]);
+            const picked = latest.filters.dimensions[0];
+            expect(picked.label).toBe('A');
+            expect(picked.target.fieldId).toBe('orders_status');
+            expect(picked.required).toBe(true);
+            // What came with the old field's type is gone
+            expect(picked.values ?? []).toEqual([]);
+            expect(picked.disabled).toBe(true);
+            expect(picked.singleValue).toBeUndefined();
+            // The control existed already, so nothing was created
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('picking a field on a tile keeps the id and label too', () => {
+            mockFieldsByTile.current = { t1: [statusField] };
+            const { result } = openEmptied();
+            act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
+
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
+                'a',
+                'b',
+            ]);
+            expect(latest.filters.dimensions[0].label).toBe('A');
+        });
+
+        it('a metric picked for a dimension control goes to the metrics', () => {
+            const { result } = openEmptied();
+            act(() =>
+                result.current.addFirstField({
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.SUM,
+                    name: 'revenue',
+                    label: 'Revenue',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: 'x',
+                    hidden: false,
+                }),
+            );
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+            expect(latest.filters.metrics.map((r) => r.id)).toEqual(['a']);
+        });
+
+        it('carries the locks, and not "required" where no viewer could meet it', () => {
+            const { result } = openEmptied({
+                ...setting,
+                lockedTabUuids: ['tab-1'],
+            });
+            expect(result.current.editingRule?.lockedTabUuids).toEqual([
+                'tab-1',
+            ]);
+            act(() => result.current.addFirstField(statusField));
+            const picked = latest.filters.dimensions[0];
+            expect(picked.lockedTabUuids).toEqual(['tab-1']);
+            expect(picked.required).toBe(false);
+        });
+
+        it('carries the shared rule it was in', () => {
+            const { result } = openEmptied({
+                ...rule('a', []),
+                requiredGroupId: 'group',
+            });
+            act(() => result.current.addFirstField(statusField));
+            expect(latest.filters.dimensions[0].requiredGroupId).toBe('group');
+        });
+
+        it('Done with no field drops the control', () => {
+            const { result } = openEmptied();
+            act(() => result.current.close());
+
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
+            expect(latest.changed).toBe(true);
+        });
+
+        it('Discard restores the control as it was opened, field included', () => {
+            const { result } = openEmptied();
+            act(() => result.current.discard());
+
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+        });
+
+        it('Discard restores it after another field was picked', () => {
+            const { result } = openEmptied();
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.discard());
+            expect(latest.filters).toEqual(initialFilters);
+        });
+
+        it('opening another control, or Add, drops it as Done does', () => {
+            const first = openEmptied();
+            act(() => first.result.current.open('b'));
+            expect(first.result.current.editing).toEqual({ filterId: 'b' });
+            expect(first.result.current.isPlaceholder).toBe(false);
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+            first.unmount();
+
+            const second = openEmptied();
+            act(() => second.result.current.openNew());
+            expect(second.result.current.isNew).toBe(true);
+            expect(second.result.current.editing?.filterId).not.toBe('a');
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+        });
+
+        it('a new control goes back to "pick a field" and is dropped on Done', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            const id = result.current.editing?.filterId;
+            act(() => result.current.addFirstField(statusField));
+            mockTrack.mockClear();
+            act(() => result.current.removeLastField());
+            expect(result.current.isPlaceholder).toBe(true);
+            expect(latest.filters).toEqual(initialFilters);
+
+            act(() => result.current.addFirstField(statusField));
+            expect(latest.filters.dimensions[2].id).toBe(id);
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            act(() => result.current.removeLastField());
+            act(() => result.current.close());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+        });
+
+        it('does nothing on a control with no field yet', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            const before = result.current.editingRule;
+            act(() => result.current.removeLastField());
+            expect(result.current.editingRule).toBe(before);
+        });
+    });
+
     it('closing a new filter keeps it once it has a field, label or not', () => {
         const { result } = setup();
         act(() => result.current.openNew());
@@ -723,7 +921,8 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(17);
+        expect(Object.keys(initial)).toHaveLength(18);
+        expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
         expect(initial).not.toHaveProperty('clearFields');

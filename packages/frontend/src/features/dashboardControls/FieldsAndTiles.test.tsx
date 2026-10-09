@@ -137,6 +137,7 @@ const setHighlightedFieldId = vi.fn();
 const setHoveredFieldId = vi.fn();
 const addWaitingField = vi.fn();
 const removeWaitingField = vi.fn();
+const removeLastField = vi.fn();
 
 const setSidebar = (
     editingRule: DashboardFilterRule,
@@ -158,6 +159,7 @@ const setSidebar = (
         waitingFieldIds: [],
         addWaitingField,
         removeWaitingField,
+        removeLastField,
         ...overrides,
     };
 };
@@ -179,8 +181,10 @@ const Editor = () => {
 
 const openRowMenu = (label: string) =>
     fireEvent.click(screen.getByLabelText(`Apply to tiles: ${label}`));
-// The menu item with this visible text
-const menuItem = (text: string) => screen.getByText(text).closest('button');
+const menuItemNames = () =>
+    screen.getAllByRole('menuitem').map((item) => item.textContent ?? '');
+const dividerCount = () =>
+    document.querySelectorAll('.mantine-Menu-divider').length;
 const eyeOf = (label: string) =>
     screen.getByRole('button', {
         name: `Show only tiles filtered by ${label}`,
@@ -600,6 +604,7 @@ describe('FieldsAndTiles', () => {
         const { rerender } = renderWithProviders(<FieldsAndTiles />);
         expect(eyeOf('Status')).toHaveAttribute('aria-pressed', 'false');
         expect(eyeOf('Region')).toHaveAttribute('aria-pressed', 'false');
+        expect(eyeOf('Region')).toHaveAttribute('data-variant', 'subtle');
 
         await userEvent.hover(eyeOf('Region'));
         expect(
@@ -615,6 +620,9 @@ describe('FieldsAndTiles', () => {
         rerender(<FieldsAndTiles />);
         // The eye and the card show the same state
         expect(eyeOf('Region')).toHaveAttribute('aria-pressed', 'true');
+        // Pressed is the light blue, never the solid fill
+        expect(eyeOf('Region')).toHaveAttribute('data-variant', 'light');
+        expect(eyeOf('Status')).toHaveAttribute('data-variant', 'subtle');
         expect(screen.getByRole('button', { name: 'Region' })).toHaveAttribute(
             'aria-pressed',
             'true',
@@ -652,11 +660,6 @@ describe('FieldsAndTiles', () => {
     });
 
     describe('the "Apply to" menu', () => {
-        const itemNames = () =>
-            screen
-                .getAllByRole('menuitem')
-                .map((item) => item.textContent ?? '');
-
         it('lists its items without scope labels on a dashboard without tabs', async () => {
             setSidebar(rule('orders_status', { 'tile-1': false }));
             renderWithProviders(<FieldsAndTiles />);
@@ -664,7 +667,7 @@ describe('FieldsAndTiles', () => {
             expect(screen.getByText('Orders · 1 of 2 tiles')).toBeVisible();
             openRowMenu('Status');
             await screen.findByText('Remove field');
-            expect(itemNames()).toEqual([
+            expect(menuItemNames()).toEqual([
                 'Unfiltered tiles1',
                 'All tiles2',
                 'Clear from tiles',
@@ -672,23 +675,34 @@ describe('FieldsAndTiles', () => {
             ]);
             expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
             expect(screen.queryByText(/^Every tab/)).not.toBeInTheDocument();
+            // Between apply and clear, and before "Remove field"
+            expect(dividerCount()).toBe(2);
         });
 
-        it('disables both apply items when every tile that offers the field is on it', async () => {
+        it('hides both apply items when every tile that offers the field is on it', async () => {
             setSidebar(rule('orders_status'));
             renderWithProviders(<FieldsAndTiles />);
 
             expect(screen.getByText('Orders · 2 of 2 tiles')).toBeVisible();
             openRowMenu('Status');
-            expect(
-                await screen.findByLabelText(
-                    'Add Status to the 0 unfiltered tiles',
-                ),
-            ).toBeDisabled();
-            expect(
-                screen.getByLabelText('Apply Status to all 2 tiles'),
-            ).toBeDisabled();
-            expect(menuItem('Clear from tiles')).toBeEnabled();
+            await screen.findByText('Remove field');
+            expect(menuItemNames()).toEqual([
+                'Clear from tiles',
+                'Remove field',
+            ]);
+            expect(dividerCount()).toBe(1);
+        });
+
+        it('shows only "Remove field" for a field no tile offers', async () => {
+            setSidebar(rule('orders_status'), {
+                waitingFieldIds: ['customers_city'],
+            });
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('customers_city');
+            await screen.findByText('Remove field');
+            expect(menuItemNames()).toEqual(['Remove field']);
+            expect(dividerCount()).toBe(0);
         });
 
         it('applies a field that is on no tile to every tile that offers it', async () => {
@@ -755,8 +769,8 @@ describe('FieldsAndTiles', () => {
             expect(all).toHaveTextContent('Replaces Region on 1 tile');
             // Nothing is unfiltered: tile-1 is on Region, tile-2 on Status
             expect(
-                screen.getByLabelText('Add Status to the 0 unfiltered tiles'),
-            ).toBeDisabled();
+                screen.queryByText('Unfiltered tiles'),
+            ).not.toBeInTheDocument();
 
             fireEvent.click(all);
             expect(getUpdatedRule().tileTargets).toBeUndefined();
@@ -874,30 +888,78 @@ describe('FieldsAndTiles', () => {
             setTabs(TAB_2);
             rerender(<FieldsAndTiles />);
             expect(screen.getByText('Orders · 2 of 3 tiles')).toBeVisible();
-            expect(screen.getByText('This tab · 1 of 1')).toBeInTheDocument();
+            // The field covers that tab, so only its clear is left there
+            expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
+            expect(screen.getByText('Clear from this tab')).toBeInTheDocument();
         });
 
-        it('says so when no tile on this tab offers the field', async () => {
+        it('leaves out a scope with nothing to apply, label included', async () => {
             setTabs(TAB_2);
             setSidebar(rule('orders_status', { 'tile-1': REGION }));
             renderWithProviders(<FieldsAndTiles />);
 
             expect(screen.getByText('Orders · 1 of 1 tile')).toBeVisible();
             openRowMenu('Region');
+            await screen.findByText('Remove field');
+            // No tile on this tab offers it, and it covers every other tile
+            expect(menuItemNames()).toEqual([
+                'Clear from every tab',
+                'Remove field',
+            ]);
+            expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
+            expect(screen.queryByText(/^Every tab/)).not.toBeInTheDocument();
+            expect(dividerCount()).toBe(1);
+        });
+
+        it('has no "This tab" group on a tab with no tiles', async () => {
+            const emptyTab = { uuid: 'tab-3', name: 'Three', order: 2 };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTabs: [TAB_1, TAB_2, emptyTab],
+                activeTab: emptyTab,
+            };
+            setSidebar(rule('orders_status', { 'tile-1': false }));
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('Status');
             expect(
-                await screen.findByText('This tab · no tiles'),
+                await screen.findByText('Every tab · 2 of 3'),
             ).toBeInTheDocument();
-            expect(screen.getByText('Every tab · 1 of 1')).toBeInTheDocument();
+            expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
+            expect(menuItemNames()).toEqual([
+                'Unfiltered tiles1',
+                'All tiles3',
+                'Clear from every tab',
+                'Remove field',
+            ]);
+        });
+
+        it('offers only "All tiles" where every tile is on another field', async () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                filterableFieldsByTileUuid: {
+                    'tile-1': [status, region],
+                    'tile-2': [status, region],
+                    'tile-3': [status, region],
+                },
+            };
+            setSidebar(rule('orders_status'), {
+                waitingFieldIds: ['orders_region'],
+            });
+            renderWithProviders(<FieldsAndTiles />);
+
+            openRowMenu('Region');
             expect(
-                screen.getByLabelText(
-                    `Add Region to the 0 unfiltered tiles${THIS_TAB}`,
-                ),
-            ).toBeDisabled();
-            expect(
-                screen.getByLabelText(`Apply Region to all 0 tiles${THIS_TAB}`),
-            ).toBeDisabled();
-            expect(menuItem('Clear from this tab')).toBeDisabled();
-            expect(menuItem('Clear from every tab')).toBeEnabled();
+                await screen.findByText('This tab · 0 of 2'),
+            ).toBeInTheDocument();
+            expect(screen.getByText('Every tab · 0 of 3')).toBeInTheDocument();
+            expect(menuItemNames()).toEqual([
+                'All tilesReplaces Status on 2 tiles2',
+                'All tilesReplaces Status on 3 tiles3',
+                'Remove field',
+            ]);
+            // Nothing to clear, so one divider, before "Remove field"
+            expect(dividerCount()).toBe(1);
         });
 
         it('adds a field on this tab only, or on every tab', async () => {
@@ -957,31 +1019,22 @@ describe('FieldsAndTiles', () => {
             expect(getUpdatedRule().tileTargets).toBeUndefined();
         });
 
-        it('disables "All tiles" on a tab the field already covers', async () => {
+        it('leaves out "This tab" on a tab the field already covers', async () => {
             setSidebar(rule('orders_status', { 'tile-3': false }));
             renderWithProviders(<FieldsAndTiles />);
 
             openRowMenu('Status');
             expect(
-                await screen.findByLabelText(
-                    `Apply Status to all 2 tiles${THIS_TAB}`,
-                ),
-            ).toBeDisabled();
-            expect(
-                screen.getByLabelText(
-                    `Add Status to the 0 unfiltered tiles${THIS_TAB}`,
-                ),
-            ).toBeDisabled();
-            expect(
-                screen.getByLabelText(
-                    `Apply Status to all 3 tiles${EVERY_TAB}`,
-                ),
-            ).toBeEnabled();
-            expect(
-                screen.getByLabelText(
-                    `Add Status to the 1 unfiltered tile${EVERY_TAB}`,
-                ),
-            ).toBeEnabled();
+                await screen.findByText('Every tab · 2 of 3'),
+            ).toBeInTheDocument();
+            expect(screen.queryByText(/^This tab/)).not.toBeInTheDocument();
+            expect(menuItemNames()).toEqual([
+                'Unfiltered tiles1',
+                'All tiles3',
+                'Clear from this tab',
+                'Clear from every tab',
+                'Remove field',
+            ]);
         });
 
         it('clears a field from this tab, or from every tab', async () => {
@@ -1008,16 +1061,17 @@ describe('FieldsAndTiles', () => {
             });
         });
 
-        it('disables each clear action when the field is on no tile of its scope', async () => {
+        it('hides each clear action when the field is on no tile of its scope', async () => {
             setSidebar(
                 rule('orders_status', { 'tile-1': false, 'tile-2': false }),
             );
             const { rerender } = renderWithProviders(<FieldsAndTiles />);
 
             openRowMenu('Status');
-            await screen.findByText('Clear from this tab');
-            expect(menuItem('Clear from this tab')).toBeDisabled();
-            expect(menuItem('Clear from every tab')).toBeEnabled();
+            await screen.findByText('Clear from every tab');
+            expect(
+                screen.queryByText('Clear from this tab'),
+            ).not.toBeInTheDocument();
 
             setSidebar(
                 rule('orders_status', {
@@ -1028,7 +1082,10 @@ describe('FieldsAndTiles', () => {
                 { waitingFieldIds: [] },
             );
             rerender(<FieldsAndTiles />);
-            expect(menuItem('Clear from every tab')).toBeDisabled();
+            expect(
+                screen.queryByText('Clear from every tab'),
+            ).not.toBeInTheDocument();
+            expect(screen.getByText('Remove field')).toBeInTheDocument();
         });
     });
 
@@ -1044,15 +1101,17 @@ describe('FieldsAndTiles', () => {
         });
     });
 
-    it('disables the clear action for a field on no tile', async () => {
+    it('hides the clear action for a field on no tile', async () => {
         setSidebar(rule('orders_status', { 'tile-1': false, 'tile-2': false }));
         renderWithProviders(<FieldsAndTiles />);
 
         openRowMenu('Status');
-        await screen.findByText('Clear from tiles');
-        expect(menuItem('Clear from tiles')).toBeDisabled();
-        fireEvent.click(screen.getByText('Clear from tiles'));
-        expect(updateFilter).not.toHaveBeenCalled();
+        await screen.findByText('Remove field');
+        expect(menuItemNames()).toEqual([
+            'Unfiltered tiles2',
+            'All tiles2',
+            'Remove field',
+        ]);
     });
 
     it('removes one of several fields', async () => {
@@ -1080,37 +1139,38 @@ describe('FieldsAndTiles', () => {
         expect(next.tileTargets).toBeUndefined();
     });
 
-    it('does not remove the only field of a filter, and says where to go', async () => {
-        setSidebar(rule('orders_status'));
-        renderWithProviders(<FieldsAndTiles />);
+    it.each([false, true])(
+        'removes the only field of a filter, leaving the control empty (new: %s)',
+        async (isNew) => {
+            setSidebar(rule('orders_status'), {
+                isNew,
+                highlightedFieldId: 'orders_status',
+            });
+            renderWithProviders(<FieldsAndTiles />);
 
-        openRowMenu('Status');
-        const item = await screen.findByRole('menuitem', {
-            name: 'Remove field',
+            openRowMenu('Status');
+            const item = await screen.findByRole('menuitem', {
+                name: 'Remove field',
+            });
+            expect(item).not.toHaveAttribute('aria-disabled');
+            await userEvent.click(item);
+            expect(removeLastField).toHaveBeenCalledTimes(1);
+            expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeWaitingField).not.toHaveBeenCalled();
+            expect(setHighlightedFieldId).toHaveBeenCalledWith(null);
+        },
+    );
+
+    it('empties the control when its last field goes while another waits', async () => {
+        setSidebar(rule('orders_status'), {
+            waitingFieldIds: ['orders_region'],
         });
-        expect(item).toHaveAttribute('aria-disabled', 'true');
-        await userEvent.hover(item);
-        expect(
-            await screen.findByText(
-                'Remove the filter from More actions instead',
-            ),
-        ).toBeInTheDocument();
-        await userEvent.click(item);
-        expect(updateFilter).not.toHaveBeenCalled();
-        expect(removeWaitingField).not.toHaveBeenCalled();
-    });
-
-    it('points a new filter with one field to Discard', async () => {
-        setSidebar(rule('orders_status'), { isNew: true });
         renderWithProviders(<FieldsAndTiles />);
 
         openRowMenu('Status');
-        await userEvent.hover(
-            await screen.findByRole('menuitem', { name: 'Remove field' }),
-        );
-        expect(
-            await screen.findByText('Discard the control instead'),
-        ).toBeInTheDocument();
+        await userEvent.click(await screen.findByText('Remove field'));
+        expect(removeLastField).toHaveBeenCalledTimes(1);
+        expect(updateFilter).not.toHaveBeenCalled();
     });
 
     it('puts "Add a field" away on Escape and when focus leaves it', async () => {
@@ -1277,6 +1337,7 @@ describe('FieldsAndTiles', () => {
             await userEvent.click(await screen.findByText('Remove field'));
             expect(removeWaitingField).toHaveBeenCalledWith('orders_region');
             expect(updateFilter).not.toHaveBeenCalled();
+            expect(removeLastField).not.toHaveBeenCalled();
         });
 
         it('offers a field again once one of its tiles is left out', async () => {
