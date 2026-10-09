@@ -307,6 +307,10 @@ export class PostgresClient<
         };
     }
 
+    protected prepareSession(_client: pg.PoolClient): Promise<void> {
+        return Promise.resolve();
+    }
+
     protected getAgentSessionStatement(): string {
         return `SET ${AI_AGENT_SESSION_SETTING} = 'true'`;
     }
@@ -551,6 +555,7 @@ export class PostgresClient<
                 const sessionStart = performance.now();
                 client
                     .query(`SET statement_timeout = ${statementTimeoutMs}`)
+                    .then(() => this.prepareSession(client))
                     .then(() =>
                         this.agentSession
                             ? client.query(this.getAgentSessionStatement())

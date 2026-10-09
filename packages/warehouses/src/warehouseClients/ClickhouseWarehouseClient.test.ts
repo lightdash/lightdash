@@ -1,10 +1,67 @@
-import { DimensionType } from '@lightdash/common';
+import { createClient } from '@clickhouse/client';
+import {
+    DimensionType,
+    WarehouseTypes,
+    type CreateClickhouseCredentials,
+} from '@lightdash/common';
+import { Readable } from 'stream';
 import {
     ClickhouseSqlBuilder,
     ClickhouseTypes,
+    ClickhouseWarehouseClient,
     convertDataTypeToDimensionType,
     getMaxOpenConnections,
 } from './ClickhouseWarehouseClient';
+
+vi.mock('@clickhouse/client', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@clickhouse/client')>()),
+    createClient: vi.fn(() => ({
+        query: vi.fn(async () => ({
+            stream: () => Readable.from([], { objectMode: true }),
+        })),
+    })),
+}));
+
+describe('ClickhouseWarehouseClient result cache', () => {
+    const credentials: CreateClickhouseCredentials = {
+        type: WarehouseTypes.CLICKHOUSE,
+        host: 'localhost',
+        port: 8123,
+        user: 'default',
+        password: 'password',
+        schema: 'default',
+        secure: false,
+    };
+
+    it.each([true, false, undefined])(
+        'sets client-wide result caching for agent job controls %s',
+        async (agentJobControls) => {
+            const warehouse = new ClickhouseWarehouseClient(credentials, {
+                agentJobControls,
+            });
+            const clientOptions = vi.mocked(createClient).mock.lastCall?.[0];
+            if (agentJobControls) {
+                expect(clientOptions?.clickhouse_settings).toEqual({
+                    use_query_cache: 0,
+                });
+            } else {
+                expect(clientOptions).not.toHaveProperty('clickhouse_settings');
+            }
+            await warehouse.streamQuery('SELECT 1', () => {}, {
+                timezone: 'Europe/London',
+                tags: { agent: 'true' },
+            });
+            expect(warehouse.client.query).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    clickhouse_settings: {
+                        session_timezone: 'Europe/London',
+                        log_comment: JSON.stringify({ agent: 'true' }),
+                    },
+                }),
+            );
+        },
+    );
+});
 
 describe('getMaxOpenConnections', () => {
     it('defaults to 10 when concurrency is unknown', () => {

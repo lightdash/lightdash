@@ -9,6 +9,7 @@ import {
 import * as pg from 'pg';
 import { PassThrough } from 'stream';
 import type { Mock } from 'vitest';
+import { warehouseClientFromCredentials } from '../warehouseClientFromCredentials';
 import {
     PostgresSqlBuilder,
     PostgresWarehouseClient,
@@ -608,6 +609,20 @@ describe('PostgresWarehouseClient statement timeout', () => {
             ).toBe(agentSession ? 'lightdash-ai' : undefined);
         },
     );
+
+    it('does not apply Redshift cache settings to Postgres agent jobs', async () => {
+        const queryMock = respondingQueryMock();
+        mockPoolWithQuery(queryMock);
+        const warehouse = warehouseClientFromCredentials(credentials, {
+            agentJobControls: true,
+        });
+        await warehouse.runQuery('select 1', {});
+        expect(
+            queryMock.mock.calls
+                .filter(([arg]) => typeof arg === 'string')
+                .map(([arg]) => arg),
+        ).toEqual(['SET statement_timeout = 540000']);
+    });
 
     it('sets a server-side statement_timeout using the 9-minute default ceiling', async () => {
         const queryMock = respondingQueryMock();

@@ -60,6 +60,34 @@ const selection = (): CredentialSelection<
     aiPlan: null,
 });
 
+it('uses the slot key and disables connection user credentials', () => {
+    const connection = {
+        ...selection().connection,
+        allowUserCredentials: true,
+        requireUserCredentials: true,
+        keyfileContents: {
+            type: 'service_account',
+            client_email: 'connection@example.com',
+            private_key: 'connection-key',
+        },
+    };
+    const credentials =
+        new BigqueryAiServiceAccountCredentialResolver().buildCredentials(
+            connection,
+            secrets,
+        );
+
+    expect(credentials).toMatchObject({
+        authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+        keyfileContents: secrets.keyfileContents,
+        allowUserCredentials: false,
+        requireUserCredentials: false,
+    });
+    expect(credentials.keyfileContents).toStrictEqual(secrets.keyfileContents);
+    expect(credentials.keyfileContents).not.toEqual(connection.keyfileContents);
+    expect(credentials.keyfileContents.private_key).toBe('slot-key');
+});
+
 it('selects the explicit AI mode before connection SSO and materializes only once', async () => {
     const registry = new CredentialResolverRegistry();
     const ai = new BigqueryAiServiceAccountCredentialResolver();
