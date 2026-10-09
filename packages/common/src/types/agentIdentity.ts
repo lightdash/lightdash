@@ -211,10 +211,9 @@ export type AiServiceAccountParent = {
     principal: string | null;
 };
 
-export type ApiAiServiceAccountStatusResponse =
-    ApiAiServiceAccountSlotResponse & {
-        parent: AiServiceAccountParent | null;
-    };
+export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
+    parent: AiServiceAccountParent | null;
+}
 
 export type ApiAiServiceAccountSlotResponse = {
     status: 'ok';
