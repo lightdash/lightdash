@@ -300,6 +300,8 @@ describe('Snowflake agent redirect URI', () => {
             }
         },
     );
+});
+
 it('logs session activation with user and organization IDs and no credentials', async () => {
     const info = vi.spyOn(Logger, 'info').mockImplementation(() => Logger);
     try {
