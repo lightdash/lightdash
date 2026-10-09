@@ -218,6 +218,7 @@ test.each(['get', 'put'])(
 
 test.each([
     [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
+    [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
     [WarehouseTypes.BIGQUERY, 'ai_service_account'],
     [WarehouseTypes.DATABRICKS, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {

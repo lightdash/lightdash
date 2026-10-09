@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ParameterError,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -9,15 +10,23 @@ import type { CredentialSelection } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
 import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
+import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/SnowflakeAiServiceAccountCredentialResolver';
+
+const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
+const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 
 const entries = [
+    {
+        warehouseType: WarehouseTypes.SNOWFLAKE,
+        resolver: snowflakeResolver,
+    },
     {
         warehouseType: WarehouseTypes.DATABRICKS,
         resolver: new DatabricksAiServiceAccountCredentialResolver(),
     },
     {
         warehouseType: WarehouseTypes.BIGQUERY,
-        resolver: new BigqueryAiServiceAccountCredentialResolver(),
+        resolver: bigqueryResolver,
     },
 ] as const;
 
@@ -37,14 +46,24 @@ export const buildAiServiceAccountCredentials = (
     connection: CreateWarehouseCredentials,
     secrets: AiServiceAccountSecrets,
 ): CreateWarehouseCredentials => {
-    const entry = entries.find(
-        ({ warehouseType }) => warehouseType === connection.type,
-    );
-    if (!entry)
-        throw new ParameterError(
-            'This warehouse does not support an AI service account.',
-        );
-    return entry.resolver.buildCredentials(connection, secrets);
+    switch (connection.type) {
+        case WarehouseTypes.SNOWFLAKE:
+            return snowflakeResolver.buildCredentials(connection, secrets);
+        case WarehouseTypes.BIGQUERY:
+            return bigqueryResolver.buildCredentials(connection, secrets);
+        case WarehouseTypes.ATHENA:
+        case WarehouseTypes.CLICKHOUSE:
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.DUCKDB:
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+        case WarehouseTypes.TRINO:
+            throw new ParameterError(
+                'This warehouse does not support an AI service account.',
+            );
+        default:
+            return assertUnreachable(connection, 'Unknown warehouse type');
+    }
 };
 
 export const aiServiceAccountCredentialResolvers =

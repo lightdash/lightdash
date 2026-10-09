@@ -3,6 +3,7 @@ import {
     WarehouseTypes,
     type BigqueryAuthenticationType,
     type DatabricksAuthenticationType,
+    type SnowflakeAuthenticationType,
 } from './projects';
 
 export enum AgentActorSurface {
@@ -81,8 +82,12 @@ export const AGENT_IDENTITY_SOURCES: Record<
     Record<AiActorKind, readonly AiIdentitySource[]>
 > = {
     [WarehouseTypes.SNOWFLAKE]: {
-        person: ['marked_person', 'agent_sign_in'],
-        service_account: ['marked_person', 'agent_sign_in'],
+        person: ['marked_person', 'agent_sign_in', 'ai_service_account'],
+        service_account: [
+            'marked_person',
+            'agent_sign_in',
+            'ai_service_account',
+        ],
     },
     [WarehouseTypes.BIGQUERY]: {
         person: ['marked_person', 'ai_service_account'],
@@ -190,9 +195,20 @@ export interface DatabricksAiServiceAccountCredentialInput {
     oauthClientSecret: string;
 }
 
+export interface SnowflakeAiServiceAccountCredentialInput {
+    type: WarehouseTypes.SNOWFLAKE;
+    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY;
+    user: string;
+    role: string;
+    warehouse: string;
+    privateKey?: string;
+    privateKeyPass?: string | null;
+}
+
 export type AiServiceAccountCredentialInput =
     | BigqueryAiServiceAccountCredentialInput
-    | DatabricksAiServiceAccountCredentialInput;
+    | DatabricksAiServiceAccountCredentialInput
+    | SnowflakeAiServiceAccountCredentialInput;
 
 export type AiServiceAccountSlot = {
     uuid: string;

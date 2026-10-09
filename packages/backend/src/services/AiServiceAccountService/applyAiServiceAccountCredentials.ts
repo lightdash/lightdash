@@ -19,12 +19,15 @@ export const mergeAiServiceAccountCredentials = (
         saved.authenticationType === input.authenticationType
             ? saved
             : null;
-    return parseAiServiceAccountSecrets({
+    const merged = {
         ...previous,
         ...Object.fromEntries(
             Object.entries(input).filter(([, value]) => value !== undefined),
         ),
-    });
+    };
+    if ('privateKeyPass' in merged && merged.privateKeyPass === null)
+        delete merged.privateKeyPass;
+    return parseAiServiceAccountSecrets(merged);
 };
 
 export const applyAiServiceAccountCredentials =

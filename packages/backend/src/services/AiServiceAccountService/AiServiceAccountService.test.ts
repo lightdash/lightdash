@@ -16,6 +16,10 @@ import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
+import {
+    snowflakeSecrets,
+    snowflakeVerification,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     credentialResolution,
@@ -180,7 +184,8 @@ describe.each(operations)('%s boundaries', (operation) => {
         Object.values(WarehouseTypes).filter(
             (type) =>
                 type !== WarehouseTypes.BIGQUERY &&
-                type !== WarehouseTypes.DATABRICKS,
+                type !== WarehouseTypes.DATABRICKS &&
+                type !== WarehouseTypes.SNOWFLAKE,
         ),
     )('rejects %s slot access', async (type) => {
         const f = setup();
@@ -1220,5 +1225,225 @@ describe('Databricks identity verification', () => {
         });
         expect(f.withWarehouseClient).not.toHaveBeenCalled();
         expect(f.model.getVerification).not.toHaveBeenCalled();
+    });
+});
+
+describe('Snowflake slots', () => {
+    const prepare = (inherited = false) => {
+        const f = inherited ? previewFixture() : setup();
+        f.load.mockResolvedValue({
+            ...snowflakeSecrets,
+            account: 'account',
+            database: 'preview_db',
+            schema: 'public',
+            user: 'PERSON',
+            role: 'PERSON_ROLE',
+            warehouse: 'PERSON_WH',
+        });
+        f.model.getReplaceableSecrets.mockResolvedValue(snowflakeSecrets);
+        f.model.getSecrets.mockImplementation(async (uuid: string) =>
+            inherited && uuid !== 'parent'
+                ? null
+                : {
+                      slot: { uuid: 'slot', identityUuid: 'tested-generation' },
+                      secrets: snowflakeSecrets,
+                  },
+        );
+        f.runQuery.mockResolvedValue({
+            rows: [
+                {
+                    USER: 'OBSERVED_USER',
+                    ROLE: 'OBSERVED_ROLE',
+                },
+            ],
+        });
+        return f;
+    };
+    it.each([
+        { USER: 'OBSERVED_USER', ROLE: 'OBSERVED_ROLE' },
+        { User: 'OBSERVED_USER', Role: 'OBSERVED_ROLE' },
+    ])('probes before saving and returns observations from %j', async (row) => {
+        const f = prepare();
+        f.runQuery.mockImplementation(async () => {
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            return { rows: [row] };
+        });
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            snowflakeSecrets,
+        );
+        expect(result).toMatchObject({
+            results: { uuid: 'slot' },
+            verification: {
+                principal: 'OBSERVED_USER',
+                observed: snowflakeVerification.observed,
+            },
+        });
+        expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            null,
+            snowflakeSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            clientOptions: { disableCachedResults: true },
+            credentials: { database: 'preview_db', ...snowflakeSecrets },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"',
+            {},
+        );
+        expect(
+            f.analytics.track.mock.calls.map(([event]) => event.event),
+        ).toEqual([
+            'agent_identity.service_account_tested',
+            'agent_identity.service_account_saved',
+        ]);
+        expect(
+            JSON.stringify([result, f.analytics.track.mock.calls]),
+        ).not.toContain(snowflakeSecrets.privateKey);
+    });
+    it.each([
+        {},
+        { USER: 'USER' },
+        { ROLE: 'ROLE' },
+        { USER: 'USER', ROLE: ' ' },
+    ])('does not save missing observations %j', async (row) => {
+        const f = prepare();
+        f.runQuery.mockResolvedValue({ rows: [row] });
+        await expect(
+            f.service.upsert(f.account, 'project', null, snowflakeSecrets),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledTimes(1);
+    });
+    it.each(['connection', 'query'])(
+        'keeps the prior slot after %s failure and redacts the error',
+        async (phase) => {
+            const f = prepare();
+            const error = new Error(snowflakeSecrets.privateKey);
+            if (phase === 'connection')
+                f.withWarehouseClient.mockRejectedValue(error);
+            else f.runQuery.mockRejectedValue(error);
+            await expect(
+                f.service.upsert(f.account, 'project', null, snowflakeSecrets),
+            ).rejects.toThrow('Could not verify');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            expect(f.analytics.track).toHaveBeenCalledTimes(1);
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it.each([false, true])(
+        'updates only the effective saved generation, inherited=%s',
+        async (inherited) => {
+            const f = prepare(inherited);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                inherited ? 'parent' : 'project',
+                null,
+                'tested-generation',
+                result,
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it('writes inherited extra-connection verification to the matching parent slot', async () => {
+        const f = prepare(true);
+        f.getExtra.mockResolvedValue({
+            ...snowflakeSecrets,
+            account: 'account',
+            database: 'preview_db',
+            schema: 'public',
+        });
+        f.getConnection.mockResolvedValue({
+            isOriginal: false,
+            name: 'Extra warehouse',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+        });
+        f.listConnections.mockResolvedValue([
+            {
+                isOriginal: false,
+                name: 'Extra warehouse',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+                warehouseConnectionUuid: 'parent-extra',
+            },
+        ]);
+        const result = await f.service.test(
+            f.account,
+            'project',
+            'extra',
+            null,
+        );
+        expect(result.ok).toBe(true);
+        expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+            'parent',
+            'parent-extra',
+            'tested-generation',
+            result,
+        );
+    });
+    it('does not persist a submitted test', async () => {
+        const f = prepare();
+        await expect(
+            f.service.test(f.account, 'project', null, snowflakeSecrets),
+        ).resolves.toMatchObject({ ok: true });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+        expect(f.model.upsert).not.toHaveBeenCalled();
+    });
+    it('keeps the last good observation after a failed saved test', async () => {
+        const f = prepare();
+        f.runQuery.mockRejectedValue(new Error('failed'));
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).resolves.toMatchObject({ ok: false });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'projects verification without secrets or network calls, inherited=%s',
+        async (inherited) => {
+            const f = prepare(inherited);
+            f.model.getVerification.mockResolvedValue(snowflakeVerification);
+            const result = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(result.verification).toEqual(snowflakeVerification);
+            if (inherited)
+                expect(result.parent).toMatchObject({
+                    principal: null,
+                    verification: snowflakeVerification,
+                });
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            expect(JSON.stringify(result)).not.toContain(
+                snowflakeSecrets.privateKey,
+            );
+        },
+    );
+    it('rejects the BigQuery inventory endpoint before credentials or probing', async () => {
+        const f = prepare();
+        await expect(
+            f.service.testAccess(f.account, 'project', null, {
+                credentials: null,
+                entryPoint: 'project_agent_identity_page',
+            }),
+        ).rejects.toThrow('does not support agent access tests');
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
     });
 });

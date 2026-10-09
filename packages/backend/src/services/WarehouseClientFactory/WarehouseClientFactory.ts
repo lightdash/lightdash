@@ -41,6 +41,7 @@ import type {
 import {
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
+    isSnowflakeServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
 import {
     attributeClientErrors,
@@ -98,7 +99,9 @@ type WarehouseClientBypassRef = {
         credentials: CreateWarehouseCredentials;
         tunnelOptions?: SshTunnelOptions;
         agentSession?: boolean;
-        clientOptions?: Pick<WarehouseClientOptions, 'agentJobControls'>;
+        clientOptions?: Mode extends 'connection_test'
+            ? Pick<WarehouseClientOptions, 'agentJobControls' | 'disableCachedResults'>
+            : Pick<WarehouseClientOptions, 'agentJobControls'>;
     };
 }[WarehouseClientBypassMode];
 
@@ -644,7 +647,10 @@ export class WarehouseClientFactory {
                             ref.kind === 'resolved' &&
                             ref.cachePolicy === 'disabled'
                         ),
-                    resolverOptions: materialization?.clientOptions,
+                    resolverOptions:
+                        ref.kind === 'bypass' && ref.mode === 'connection_test'
+                            ? ref.clientOptions
+                            : materialization?.clientOptions,
                     cacheKeyIdentity: materialization?.cacheKeyIdentity,
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,
@@ -1060,7 +1066,9 @@ export class WarehouseClientFactory {
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.DATABRICKS &&
-                    isDatabricksServiceAccountAuthError(error))
+                    isDatabricksServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.SNOWFLAKE &&
+                    isSnowflakeServiceAccountAuthError(error))
             )
         )
             throw error;

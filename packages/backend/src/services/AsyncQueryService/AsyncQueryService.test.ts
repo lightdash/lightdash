@@ -95,6 +95,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { CommercialCacheService } from '../../ee/services/CommercialCacheService';
+import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentDraftModel } from '../../models/ContentDraftModel';
@@ -631,6 +632,20 @@ type JwtDashboardQueryContextTestService = {
         projectUuid: string,
         requestDashboardUuid: string | undefined,
     ) => Promise<{ dashboardUuid: string | undefined }>;
+};
+
+const snowflakeSlotPlanMock: typeof aiServiceAccountPlanMock = {
+    ...aiServiceAccountPlanMock,
+    credentials: {
+        ...snowflakeSecrets,
+        account: 'account',
+        database: 'database',
+        schema: 'public',
+    },
+    audit: {
+        ...aiServiceAccountPlanMock.audit,
+        queryTags: { agent: 'true', ai_principal: 'subject' },
+    },
 };
 
 describe('underlying data dimension selection', () => {
@@ -4407,7 +4422,11 @@ describe('AsyncQueryService', () => {
         });
     });
 
-    test.each([aiExecutionPlanMock, aiServiceAccountPlanMock])(
+    test.each([
+        aiExecutionPlanMock,
+        aiServiceAccountPlanMock,
+        snowflakeSlotPlanMock,
+    ])(
         'a $identity plan bypasses pre-aggregates and refuses pre-aggregate explores',
         async (executionPlan) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -4475,6 +4494,7 @@ describe('AsyncQueryService', () => {
     test.each([
         aiExecutionPlanMock,
         aiServiceAccountPlanMock,
+        snowflakeSlotPlanMock,
         {
             ...aiServiceAccountPlanMock,
             sourceProjectUuid: 'parent',
@@ -7867,18 +7887,21 @@ describe('AsyncQueryService', () => {
                     oauthClientId,
                     serviceAccount,
                 ]) =>
-                    [true, false].map((enabled) => ({
-                        context: context as QueryExecutionContext,
-                        surface: surface as QuerySurface,
-                        actorSurface: actorSurface as AgentActorSurface,
-                        clientId: clientId as string | null,
-                        oauthClientId: oauthClientId as string | null,
-                        serviceAccount: serviceAccount as boolean,
-                        enabled,
-                    })),
+                    [true, false].flatMap((enabled) =>
+                        [false, true].map((useSnowflakeSlot) => ({
+                            context: context as QueryExecutionContext,
+                            surface: surface as QuerySurface,
+                            actorSurface: actorSurface as AgentActorSurface,
+                            clientId: clientId as string | null,
+                            oauthClientId: oauthClientId as string | null,
+                            serviceAccount: serviceAccount as boolean,
+                            enabled,
+                            useSnowflakeSlot,
+                        })),
+                    ),
             ),
         )(
-            'stores both identities for $actorSurface client=$clientId serviceAccount=$serviceAccount enabled=$enabled',
+            'stores both identities for $actorSurface client=$clientId serviceAccount=$serviceAccount enabled=$enabled slot=$useSnowflakeSlot',
             async ({
                 enabled,
                 context,
@@ -7887,10 +7910,15 @@ describe('AsyncQueryService', () => {
                 clientId,
                 oauthClientId,
                 serviceAccount,
+                useSnowflakeSlot,
             }) => {
                 const flags = { get: vi.fn(async () => ({ enabled })) };
                 const rules = {
-                    get: vi.fn(async () => ({ source: 'marked_person' })),
+                    get: vi.fn(async () => ({
+                        source: useSnowflakeSlot
+                            ? 'ai_service_account'
+                            : 'marked_person',
+                    })),
                 };
                 const users = {
                     getUserDetailsByUuid: vi.fn(async () => ({
@@ -7901,6 +7929,15 @@ describe('AsyncQueryService', () => {
                     featureFlagModel: flags,
                     organizationAgentIdentityRulesModel: rules,
                     userModel: users,
+                    aiServiceAccountCredentialsModel: {
+                        getSecrets: vi.fn(async () => ({
+                            slot: {
+                                uuid: 'slot',
+                                identityUuid: 'slot-generation',
+                            },
+                            secrets: snowflakeSecrets,
+                        })),
+                    },
                 } as unknown as ConstructorParameters<
                     typeof AiAccessService
                 >[0]);
@@ -7916,7 +7953,9 @@ describe('AsyncQueryService', () => {
                     projectUuid,
                     organizationUuid: 'org',
                     warehouseConnectionUuid: null,
-                    connection: warehouseCredentialsMock,
+                    connection: useSnowflakeSlot
+                        ? snowflakeSlotPlanMock.credentials
+                        : warehouseCredentialsMock,
                     context,
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: true,
@@ -7928,7 +7967,10 @@ describe('AsyncQueryService', () => {
                 await serviceWithCache['executeAsyncQuery'](
                     {
                         inheritedFromProjectUuid: null,
-                        aiPrincipalUuid: null,
+                        aiPrincipalUuid:
+                            plan?.identity === 'ai_service_account'
+                                ? plan.identityUuid
+                                : null,
                         agentIdentity: plan?.agentIdentity ?? null,
                         account: sessionAccount,
                         projectUuid,
@@ -7936,7 +7978,12 @@ describe('AsyncQueryService', () => {
                         queryTags: { query_context: context },
                         invalidateCache: false,
                         queryComposer: createQueryComposerMock(),
-                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseCredentials: useSnowflakeSlot
+                            ? {
+                                  ...snowflakeSlotPlanMock.credentials,
+                                  userWarehouseCredentialsUuid: undefined,
+                              }
+                            : warehouseCredentialsMock,
                         warehouseConnectionUuid: null,
                     },
                     { query: metricQueryMock },
@@ -7970,8 +8017,26 @@ describe('AsyncQueryService', () => {
                 expect(flags.get).toHaveBeenCalledOnce();
                 expect(rules.get).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(users.getUserDetailsByUuid).toHaveBeenCalledTimes(
-                    enabled && !serviceAccount ? 1 : 0,
+                    enabled && !serviceAccount && !useSnowflakeSlot ? 1 : 0,
                 );
+                if (enabled && useSnowflakeSlot) {
+                    vi.mocked(
+                        serviceWithCache.queryHistoryModel.getByQueryUuid,
+                    ).mockResolvedValue({
+                        ...createMockQueryHistory(QueryHistoryStatus.QUEUED),
+                        agentIdentity: inserted.agentIdentity ?? null,
+                    });
+                    run.mockClear();
+                    await serviceWithCache.runAsyncWarehouseQueryFromHistory(
+                        'test-query-uuid',
+                        'worker',
+                    );
+                    expect(run).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            agentIdentity: inserted.agentIdentity,
+                        }),
+                    );
+                }
                 run.mockRestore();
             },
         );
@@ -8486,6 +8551,7 @@ describe('AsyncQueryService', () => {
         [
             aiExecutionPlanMock,
             aiServiceAccountPlanMock,
+            snowflakeSlotPlanMock,
             {
                 ...aiServiceAccountPlanMock,
                 credentials: {

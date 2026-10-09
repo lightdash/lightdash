@@ -37,6 +37,7 @@ import { expectTypeOf } from 'vitest';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
+import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -51,7 +52,11 @@ import {
     ConnectionSurface,
     WarehouseCredentialKind,
 } from './ConnectionContext';
-import { preparedCredentials } from './CredentialResolver';
+import {
+    credentialResolution,
+    preparedCredentials,
+    type MaterializedCredentials,
+} from './CredentialResolver';
 import { createCredentialResolverRegistry } from './credentialResolvers';
 import { prepareWarehouseOAuthCredentials } from './preparedOAuthCredentials';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
@@ -75,6 +80,18 @@ const { connect, disconnect } = vi.hoisted(() => ({
             ) => Promise<CreateWarehouseCredentials>
         >(),
     disconnect: vi.fn<() => Promise<void>>(),
+}));
+
+const { createSnowflakeConnection } = vi.hoisted(() => ({
+    createSnowflakeConnection: vi.fn(),
+}));
+vi.mock('../../../../warehouses/node_modules/snowflake-sdk', async () => ({
+    ...(
+        await vi.importActual<{ default: Record<string, unknown> }>(
+            '../../../../warehouses/node_modules/snowflake-sdk',
+        )
+    ).default,
+    createConnection: createSnowflakeConnection,
 }));
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
@@ -3866,6 +3883,188 @@ describe('prepared OAuth credentials', () => {
                 ),
             ).toEqual([]);
             expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+});
+
+describe('Snowflake AI service account factory integration', () => {
+    const makePlan = async (
+        override = false,
+    ): Promise<
+        Extract<AiExecutionPlan, { identity: 'ai_service_account' }>
+    > => {
+        const slotCredentials = await resolveAiServiceAccountCredentials({
+            connection: {
+                ...snowflakeSecrets,
+                account: 'routing-account',
+                database: 'preview-database',
+                schema: 'public',
+                warehouse: 'PERSON_WH',
+                override,
+            },
+            stored: snowflakeSecrets,
+            owner: {
+                kind: 'aiServiceAccount',
+                uuid: 'slot',
+                identityUuid: 'generation',
+                sourceProjectUuid: 'parent',
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project-uuid',
+            warehouseConnectionUuid: null,
+        });
+        return {
+            identity: 'ai_service_account',
+            identityUuid: 'generation',
+            credentialUuid: 'slot',
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: slotCredentials,
+            assurances: [{ kind: 'result_cache_off' }],
+            audit: {
+                actorKind: 'person',
+                personUuid: 'user-uuid',
+                userUuid: 'user-uuid',
+                principalRef: 'slot',
+                queryTags: { agent: 'true', ai_principal: 'user-uuid' },
+            },
+        };
+    };
+    test.each([true, false])(
+        'preserves resolver controls and slot warehouse override=%s through derived clients',
+        async (override) => {
+            const f = buildFixture();
+            const slotPlan = await makePlan(override);
+            f.aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            await f.factory.withWarehouseClient(
+                {
+                    ...bindingRef,
+                    overrides: { snowflakeVirtualWarehouse: 'EXPLORE_WH' },
+                },
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient, deriveClient }) => {
+                    expect(warehouseClient.credentials).toMatchObject({
+                        warehouse: override ? 'SlotWarehouse' : 'EXPLORE_WH',
+                        user: 'SlotUser',
+                        database: 'preview-database',
+                    });
+                    deriveClient({ ...slotPlan.credentials });
+                },
+            );
+            expect(
+                f.projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            for (const [, options] of f.projectModel
+                .getWarehouseClientFromCredentials.mock.calls)
+                expect(options).toMatchObject({
+                    disableCachedResults: true,
+                    agentSession: true,
+                });
+            expect(f.credentialSource.finish).not.toHaveBeenCalled();
+        },
+    );
+    test('slot probes never cache and preserve their controls on derived clients', async () => {
+        const f = buildFixture();
+        const slotPlan = await makePlan();
+        await Promise.all(
+            [0, 1].map(() =>
+                f.factory.withWarehouseClient(
+                    {
+                        kind: 'bypass',
+                        mode: 'connection_test',
+                        projectUuid: 'project-uuid',
+                        credentials: slotPlan.credentials,
+                        agentSession: true,
+                        clientOptions: { disableCachedResults: true },
+                    },
+                    contextFor(),
+                    async ({ deriveClient }) => {
+                        deriveClient({ ...slotPlan.credentials });
+                    },
+                ),
+            ),
+        );
+        expect(f.factory.warehouseClients).toEqual({});
+        expect(
+            f.projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(4);
+        for (const [, options] of f.projectModel
+            .getWarehouseClientFromCredentials.mock.calls)
+            expect(options).toMatchObject({ disableCachedResults: true });
+    });
+    test('normal clients do not acquire the slot cache control', async () => {
+        const f = buildFixture();
+        const slotPlan = await makePlan();
+        const ordinaryCredentials: MaterializedCredentials = {
+            ...slotPlan.credentials,
+        };
+        delete ordinaryCredentials[credentialResolution];
+        await f.factory.withWarehouseClient(
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: ordinaryCredentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+            },
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        expect(
+            f.projectModel.getWarehouseClientFromCredentials.mock.calls[0][1]
+                ?.disableCachedResults,
+        ).toBeUndefined();
+    });
+    test.each([
+        { code: '390144', refuses: true },
+        { code: '001003', refuses: false },
+        { code: '002003', refuses: false },
+        { code: 'ETIMEDOUT', refuses: false },
+    ])(
+        'attributes actual Snowflake wrapper code $code, refuses=$refuses',
+        async ({ code, refuses }) => {
+            const f = buildFixture();
+            const slotPlan = await makePlan();
+            const sdkError = Object.assign(new Error('SDK failure'), { code });
+            createSnowflakeConnection.mockReturnValue({
+                connect: vi.fn((callback: (error: Error) => void) =>
+                    callback(sdkError),
+                ),
+                destroy: vi.fn(),
+            });
+            f.projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                warehouseClientFromCredentials,
+            );
+            f.aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+            await f.factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient, deriveClient }) => {
+                    await Promise.all(
+                        [
+                            warehouseClient,
+                            deriveClient(slotPlan.credentials),
+                        ].map(async (client) => {
+                            const query = client.runQuery('SELECT 1', {});
+                            if (refuses)
+                                await expect(query).rejects.toMatchObject({
+                                    refusal: {
+                                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                                    },
+                                });
+                            else
+                                await expect(query).rejects.toMatchObject({
+                                    name: 'WarehouseConnectionError',
+                                    cause: sdkError,
+                                });
+                        }),
+                    );
+                },
+            );
+            expect(f.aiAccessService.trackQueryRefusal).toHaveBeenCalledTimes(
+                refuses ? 1 : 0,
+            );
         },
     );
 });

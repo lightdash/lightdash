@@ -206,7 +206,8 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
-            connection.type === WarehouseTypes.DATABRICKS
+            (connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE)
                 ? {
                       verification:
                           await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -252,7 +253,8 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...(connection.type === WarehouseTypes.DATABRICKS
+                ...((connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE)
                     ? {
                           verification:
                               await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -317,7 +319,8 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
-            connection.type === WarehouseTypes.DATABRICKS
+            (connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE)
                 ? await this.testConnection(
                       account,
                       projectUuid,
@@ -369,7 +372,8 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...(connection.type === WarehouseTypes.DATABRICKS
+            ...((connection.type === WarehouseTypes.DATABRICKS ||
+                connection.type === WarehouseTypes.SNOWFLAKE)
                 ? { verification }
                 : {}),
         };
@@ -461,6 +465,7 @@ export class AiServiceAccountService extends BaseService {
         onQuery: () => void,
     ): Promise<AiServiceAccountTestResult> {
         const databricks = connection.type === WarehouseTypes.DATABRICKS;
+        const snowflake = connection.type === WarehouseTypes.SNOWFLAKE;
         const context = connectionContextFromAccount(account, {
             organizationUuid,
             queryContext: QueryExecutionContext.API,
@@ -485,7 +490,9 @@ export class AiServiceAccountService extends BaseService {
                     credentials,
                     ...(databricks
                         ? { clientOptions: { agentJobControls: true } }
-                        : {}),
+                        : snowflake
+                          ? { clientOptions: { disableCachedResults: true } }
+                          : {}),
                 },
                 context,
                 ({ warehouseClient }) => {
@@ -493,7 +500,9 @@ export class AiServiceAccountService extends BaseService {
                     return warehouseClient.runQuery(
                         databricks
                             ? 'SELECT current_user() AS principal'
-                            : 'SELECT SESSION_USER() AS principal',
+                            : snowflake
+                              ? 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"'
+                              : 'SELECT SESSION_USER() AS principal',
                         {},
                     );
                 },
@@ -504,9 +513,14 @@ export class AiServiceAccountService extends BaseService {
                 value,
             ]),
         );
-        const principalValue: unknown = row.principal;
+        const principalValue: unknown = snowflake ? row.user : row.principal;
         const principal =
             typeof principalValue === 'string' ? principalValue : null;
+        const role = typeof row.role === 'string' ? row.role : null;
+        if (snowflake && (!principal?.trim() || !role?.trim()))
+            throw new ParameterError(
+                'The session did not return its current user and role.',
+            );
         if (databricks && !principal?.trim())
             throw new ParameterError(
                 'The session did not return its current user.',
@@ -514,7 +528,11 @@ export class AiServiceAccountService extends BaseService {
         return {
             ok: true,
             principal,
-            observed: databricks ? { currentUser: principal } : { principal },
+            observed: snowflake
+                ? { currentUser: principal, currentRole: role }
+                : databricks
+                  ? { currentUser: principal }
+                  : { principal },
             message:
                 principal === null
                     ? 'Connection checked; principal not observed.'
@@ -580,7 +598,8 @@ export class AiServiceAccountService extends BaseService {
             );
             if (
                 input === null &&
-                connection.type === WarehouseTypes.DATABRICKS &&
+                (connection.type === WarehouseTypes.DATABRICKS ||
+                    connection.type === WarehouseTypes.SNOWFLAKE) &&
                 testedGeneration !== null
             ) {
                 await this.deps.aiServiceAccountCredentialsModel.updateVerification(

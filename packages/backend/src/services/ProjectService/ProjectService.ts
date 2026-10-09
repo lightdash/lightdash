@@ -10241,6 +10241,7 @@ export class ProjectService
         resolvedTimezone,
         queryTags,
         invalidateCache,
+        bypassResultsCache = false,
     }: {
         projectUuid: string;
         userUuid: string | null;
@@ -10255,6 +10256,7 @@ export class ProjectService
         metricQuery: MetricQuery;
         queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
+        bypassResultsCache?: boolean;
     }): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -10283,7 +10285,11 @@ export class ProjectService
                         featureFlagId: FeatureFlags.ResultsCacheEnabled,
                     });
 
-                if (resultsCacheEnabled && !invalidateCache) {
+                if (
+                    resultsCacheEnabled &&
+                    !bypassResultsCache &&
+                    !invalidateCache
+                ) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
@@ -10374,7 +10380,7 @@ export class ProjectService
                     },
                 );
 
-                if (resultsCacheEnabled) {
+                if (resultsCacheEnabled && !bypassResultsCache) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
@@ -10699,6 +10705,9 @@ export class ProjectService
                                     query,
                                     queryTags,
                                     invalidateCache,
+                                    bypassResultsCache:
+                                        aiPlan?.identity ===
+                                        'ai_service_account',
                                 });
                             return {
                                 rows,

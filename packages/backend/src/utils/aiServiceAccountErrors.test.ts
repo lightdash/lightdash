@@ -5,6 +5,7 @@ import {
 import {
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
+    isSnowflakeServiceAccountAuthError,
 } from './aiServiceAccountErrors';
 
 describe('BigQuery AI service account authentication errors', () => {
@@ -105,5 +106,36 @@ describe('Databricks AI service account authentication errors', () => {
         const error = { cause: {} };
         error.cause = error;
         expect(isDatabricksServiceAccountAuthError(error)).toBe(false);
+    });
+});
+
+describe('Snowflake key authentication errors', () => {
+    it.each(['390100', '390144', '394304', '394306', 404026, 404028])(
+        'recognizes code %s through the warehouse wrapper',
+        (code) => {
+            const wrapper = new WarehouseConnectionError('Snowflake error');
+            wrapper.cause = Object.assign(new Error('sign-in failed'), {
+                code,
+            });
+            expect(isSnowflakeServiceAccountAuthError(wrapper)).toBe(true);
+        },
+    );
+    it.each([
+        { code: '001003' },
+        { code: '002003' },
+        { code: 'ECONNRESET' },
+        { code: 'ETIMEDOUT' },
+        new WarehouseConnectionError('Snowflake error'),
+        { code: '390999' },
+    ])(
+        'does not misclassify SQL, ACL, transport, or unrecognized errors %j',
+        (cause) => {
+            expect(isSnowflakeServiceAccountAuthError({ cause })).toBe(false);
+        },
+    );
+    it('handles cyclic causes', () => {
+        const error = new Error('cycle');
+        error.cause = error;
+        expect(isSnowflakeServiceAccountAuthError(error)).toBe(false);
     });
 });

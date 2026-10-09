@@ -784,6 +784,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 agent_surface: tags.agent_surface,
                 agent_client: tags.agent_client,
             };
+            for (const key of ['ai_principal', 'user_uuid']) {
+                if (tags[key] !== undefined) prioritized[key] = tags[key];
+            }
             for (const [key, value] of Object.entries(tags).filter(
                 ([tagKey]) => !Object.hasOwn(prioritized, tagKey),
             )) {
@@ -806,6 +809,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private interactiveConnectionPromise?: Promise<Connection>;
 
     private readonly agentJobControls: boolean;
+    private readonly disableCachedResults: boolean;
 
     private readonly privateKey: string | undefined;
 
@@ -818,6 +822,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         options?: {
             agentSession?: boolean;
             agentJobControls?: boolean;
+            disableCachedResults?: boolean;
             logger?: {
                 info: (
                     message: string,
@@ -833,6 +838,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
         this.logger = options?.logger;
         this.agentJobControls = options?.agentJobControls ?? false;
+        this.disableCachedResults = options?.disableCachedResults ?? false;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -975,6 +981,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 );
             }
         }
+        if (
+            this.disableCachedResults &&
+            !this.credentials.requireAgentSession
+        ) {
+            try {
+                await disableSnowflakeCachedResult(connection);
+            } catch {
+                await this.destroyRejectedAgentConnection(connection);
+                throw new WarehouseConnectionError(
+                    'Could not disable cached results for the AI service account session.',
+                );
+            }
+        }
         return connection;
     }
 
@@ -1080,9 +1099,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
+            const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
+            if (this.disableCachedResults) error.cause = e;
+            throw error;
         }
         return connection;
     }

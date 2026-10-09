@@ -24,9 +24,6 @@ export class OrganizationAgentIdentityRulesModel {
         warehouseType: WarehouseTypes,
         actorKind: AiActorKind,
     ): Promise<UpdateOrganizationAgentIdentityRule> {
-        if (warehouseType === WarehouseTypes.SNOWFLAKE) {
-            return this.getSnowflakeRule(organizationUuid);
-        }
         const row = await this.database(OrganizationAgentIdentityRulesTableName)
             .where({
                 organization_uuid: organizationUuid,
@@ -34,9 +31,9 @@ export class OrganizationAgentIdentityRulesModel {
                 actor_kind: actorKind,
             })
             .first();
-        return {
-            source: row?.source ?? 'marked_person',
-        };
+        if (!row && warehouseType === WarehouseTypes.SNOWFLAKE)
+            return this.getSnowflakeRule(organizationUuid);
+        return { source: row?.source ?? 'marked_person' };
     }
 
     private async getSnowflakeRule(
@@ -65,12 +62,7 @@ export class OrganizationAgentIdentityRulesModel {
                     organization_uuid: organizationUuid,
                     actor_kind: 'person',
                 })
-                .whereIn(
-                    'warehouse_type',
-                    warehouseTypes.filter(
-                        (type) => type !== WarehouseTypes.SNOWFLAKE,
-                    ),
-                ),
+                .whereIn('warehouse_type', warehouseTypes),
         ]);
         return warehouseTypes.map((warehouseType) => {
             const row = rows.find(
@@ -79,9 +71,10 @@ export class OrganizationAgentIdentityRulesModel {
             return {
                 warehouseType,
                 source:
-                    warehouseType === WarehouseTypes.SNOWFLAKE
+                    row?.source ??
+                    (warehouseType === WarehouseTypes.SNOWFLAKE
                         ? snowflakeRule.source
-                        : (row?.source ?? 'marked_person'),
+                        : 'marked_person'),
                 projectsMissingAiServiceAccount: null,
             };
         });
@@ -104,24 +97,26 @@ export class OrganizationAgentIdentityRulesModel {
                 .select('organization_uuid')
                 .forUpdate()
                 .first();
-            const previous =
-                warehouseType === WarehouseTypes.SNOWFLAKE
-                    ? await transaction('organization_agent_identity_settings')
-                          .where('organization_uuid', organizationUuid)
-                          .first('require_verified_agent_sessions')
-                    : await transaction(OrganizationAgentIdentityRulesTableName)
-                          .where({
-                              organization_uuid: organizationUuid,
-                              warehouse_type: warehouseType,
-                              actor_kind: 'person',
-                          })
-                          .first('source');
-            let previousSource: AiIdentitySource = 'marked_person';
-            if (warehouseType === WarehouseTypes.SNOWFLAKE) {
-                if (previous?.require_verified_agent_sessions)
-                    previousSource = 'agent_sign_in';
-            } else {
-                previousSource = previous?.source ?? 'marked_person';
+            const previous = await transaction(
+                OrganizationAgentIdentityRulesTableName,
+            )
+                .where({
+                    organization_uuid: organizationUuid,
+                    warehouse_type: warehouseType,
+                    actor_kind: 'person',
+                })
+                .first('source');
+            let previousSource: AiIdentitySource =
+                previous?.source ?? 'marked_person';
+            if (!previous && warehouseType === WarehouseTypes.SNOWFLAKE) {
+                const legacy = await transaction(
+                    'organization_agent_identity_settings',
+                )
+                    .where('organization_uuid', organizationUuid)
+                    .first('require_verified_agent_sessions');
+                previousSource = legacy?.require_verified_agent_sessions
+                    ? 'agent_sign_in'
+                    : 'marked_person';
             }
             const actorKinds: AiActorKind[] = ['person', 'service_account'];
             await transaction(OrganizationAgentIdentityRulesTableName)

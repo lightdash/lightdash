@@ -1383,7 +1383,13 @@ export class AiAccessService extends BaseService {
                         personUuid: args.userUuid,
                         userUuid: args.userUuid,
                         principalRef: saved.slot.slot.uuid,
-                        queryTags: { [AI_AGENT_TAG]: 'true' },
+                        queryTags: {
+                            [AI_AGENT_TAG]: 'true',
+                            ...(args.connection.type ===
+                            WarehouseTypes.SNOWFLAKE
+                                ? { ai_principal: args.userUuid }
+                                : {}),
+                        },
                     },
                 };
             }
@@ -1914,7 +1920,7 @@ export class AiAccessService extends BaseService {
                         );
                     }
                     if (
-                        slot.warehouseType !== WarehouseTypes.BIGQUERY ||
+                        slot.warehouseType !== args.connection.type ||
                         slot.method !== 'private_key'
                     ) {
                         throw new AiAccessRefusedError(

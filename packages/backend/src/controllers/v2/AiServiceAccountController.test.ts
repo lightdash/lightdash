@@ -9,6 +9,10 @@ import {
 import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type Request } from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
+import {
+    snowflakeSecrets,
+    snowflakeVerification,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { AiServiceAccountService } from '../../services/AiServiceAccountService/AiServiceAccountService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { AiServiceAccountController } from './AiServiceAccountController';
@@ -105,9 +109,9 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
                 expect(mock).not.toHaveBeenCalled(),
             );
         });
-        it('rejects Snowflake connections', async () => {
+        it('rejects unsupported connections', async () => {
             const f = setup(true);
-            f.load.mockResolvedValue({ type: WarehouseTypes.SNOWFLAKE });
+            f.load.mockResolvedValue({ type: WarehouseTypes.POSTGRES });
             await expect(call(f)).rejects.toMatchObject({
                 name: 'ParameterError',
             });
@@ -225,4 +229,69 @@ test('returns Databricks save verification beside metadata without credentials',
     expect(JSON.stringify(response)).not.toMatch(
         /oauthClient|secret|minted-token/,
     );
+});
+
+it.each([undefined, 'extra-connection'])(
+    'returns Snowflake save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: snowflakeVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: snowflakeVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert(
+                'project',
+                req,
+                snowflakeSecrets,
+                connection,
+            ),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: snowflakeVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            snowflakeSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: snowflakeVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+
+it('rejects Snowflake inventory tests before BigQuery credential reads', async () => {
+    const f = setup(true);
+    f.load.mockResolvedValue({
+        ...snowflakeSecrets,
+        account: 'account',
+        database: 'database',
+        schema: 'public',
+    });
+    await expect(
+        f.controller.testAccess('project', f.req, {
+            credentials: null,
+            entryPoint: 'project_agent_identity_page',
+        }),
+    ).rejects.toThrow('does not support agent access tests');
+    expect(f.model.getSecrets).not.toHaveBeenCalled();
 });
