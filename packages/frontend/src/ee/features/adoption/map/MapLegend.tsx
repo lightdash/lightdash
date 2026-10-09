@@ -92,7 +92,7 @@ export const MapLegend: FC<Props> = ({
         )}
         {areDotsHidden && (
             <Text fz="xs" c="dimmed">
-                {`Dots are hidden above ${formatCount(dotLimit)} people`}
+                {`Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`}
             </Text>
         )}
         {hasSubDepartments && (

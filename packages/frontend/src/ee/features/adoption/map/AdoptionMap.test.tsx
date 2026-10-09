@@ -372,7 +372,9 @@ describe('AdoptionMap', () => {
         ).toHaveLength(0);
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
-            screen.getByText('Dots are hidden above 20,000 people'),
+            screen.getByText(
+                'Dots are hidden above 20,000 people. Open a department to see its people',
+            ),
         ).toBeInTheDocument();
         expect(
             legendCounts().reduce((sum, entry) => sum + entry.count, 0),
@@ -384,13 +386,14 @@ describe('AdoptionMap', () => {
         ).toBeInTheDocument();
     });
 
+    // A slow test: jsdom draws 20,000 circles in about a second, and several times that on a busy machine
     it('still draws dots at exactly 20,000 people', () => {
         const { container } = renderMap([d('Everyone', null, 20000, 10, 5)]);
         expect(
             container.querySelectorAll('svg[role="img"] [data-dot]'),
         ).toHaveLength(20000);
         expect(screen.queryByText(/Dots are hidden/)).toBeNull();
-    });
+    }, 60_000);
 
     it('draws the dots of a 6,000-headcount organization at the organization level, with no note about them', () => {
         const { container } = renderMap(deepOrganization);

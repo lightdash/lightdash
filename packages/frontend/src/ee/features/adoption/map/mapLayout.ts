@@ -1,25 +1,17 @@
 import { formatCount } from '../utils/format';
 import {
-    countBucketPeople,
-    countPeople,
     enlargeSmallCircles,
     layoutPack,
     MIN_CIRCLE_RADIUS,
-    shouldRenderDots,
     type PackDatum,
     type PackedCircle,
 } from './geometry';
 import {
     formatDirectPeople,
-    NAME_LABEL_LIMIT,
     nameLoneBucket,
     type CircleInfo,
     type CircleStats,
 } from './mapView';
-
-// Department names show on hover and keyboard focus only. True draws them at rest again, and
-// brings back the spreading that makes room for them
-export const LABELS_AT_REST: boolean = false;
 
 export type Area = { width: number; height: number };
 export type TextRole = 'name' | 'detail' | 'nested';
@@ -42,43 +34,22 @@ const ESTIMATE_PX_PER_CHAR: Record<TextRole, number> = {
 export const estimateTextWidth: TextMeasurer = (text, role) =>
     text.length * ESTIMATE_PX_PER_CHAR[role];
 
-// Room kept free around the drawing; the bottom holds the lowest circle's two lines of text
-const MARGIN = { top: 12, right: 12, bottom: 42, left: 12 };
-const MIN_PACK_SIZE = 240;
-// How far apart top-level circles are pushed, as a multiple of their packed spacing
-const BASE_SPREAD = 1.08;
-const SPREAD_STEP = 1.12;
-const MAX_SPREAD_ATTEMPTS = 9;
-const MIN_SPREAD_SIZE_SHARE = 0.7;
-// Past that, spreading goes on only for an arrangement that leaves no top-level label out
-const MIN_SPREAD_SIZE_SHARE_TO_LABEL = 0.5;
-// A wide panel gets a wide arrangement, up to this ratio between the two directions
-const MAX_STRETCH_RATIO = 4;
-
 const LINE_PX: Record<TextRole, number> = { name: 16, detail: 14, nested: 14 };
 const LABEL_GAP_PX = 4;
 const CLEARANCE_PX = 2;
 // Labels keep this far from the panel's edge
 const PANEL_INSET_PX = 6;
-// A label inside a circle keeps this far from its edge
-const INSIDE_INSET_PX = 3;
-// A label under a circle may be this much wider than the circle before it is shortened
-const OUTSIDE_EXTRA_WIDTH_PX = 80;
-// A sub-department is named on the map once it is drawn this large; smaller ones are named on hover
-const NESTED_LABEL_MIN_RADIUS_PX = 16;
-// A label outside a circle moves away from it, down from below or up from above, in these steps;
-// with the gap it always keeps, it never ends up more than 48 px from its circle
-const NUDGE_STEP_PX = 8;
-const MAX_LABEL_DISTANCE_PX = 48;
-const NUDGE_OFFSETS = Array.from(
-    {
-        length:
-            Math.floor((MAX_LABEL_DISTANCE_PX - LABEL_GAP_PX) / NUDGE_STEP_PX) +
-            1,
-    },
-    (_, index) => index * NUDGE_STEP_PX,
-);
+const EDGE_TOLERANCE_PX = 1e-6;
 const ELLIPSIS = '…';
+
+// Room kept free around the drawing. The bottom holds one hover label under the lowest circle, so a circle
+// as tall as the drawing still shows its label inside the map, which clips anything outside it
+const HOVER_LABEL_BAND_PX =
+    LABEL_GAP_PX + LINE_PX.name + LINE_PX.detail + PANEL_INSET_PX;
+const MARGIN = { top: 12, right: 12, bottom: HOVER_LABEL_BAND_PX, left: 12 };
+const MIN_PACK_SIZE = 240;
+// A wide panel gets a wide arrangement, up to this ratio between the two directions
+const MAX_STRETCH_RATIO = 4;
 
 // The circles a circle is drawn inside, nearest first
 const getAncestors = (
@@ -181,11 +152,10 @@ const spreadCircles = (
     });
 };
 
-// Spreads the pack to the panel's shape, then scales it to fill the panel inside the margins
+// Stretches the pack to the panel's shape, then scales it to fill the panel inside the margins
 const fitCircles = (
     packed: PackedCircle[],
     area: Area,
-    spread: number,
 ): { circles: PackedCircle[]; scale: number } => {
     const availableWidth = Math.max(area.width - MARGIN.left - MARGIN.right, 1);
     const availableHeight = Math.max(
@@ -197,8 +167,8 @@ const fitCircles = (
         spreadCircles(
             packed,
             anchors,
-            spread * Math.max(ratio, 1),
-            spread * Math.max(1 / ratio, 1),
+            Math.max(ratio, 1),
+            Math.max(1 / ratio, 1),
         );
     const shapeOf = (circles: PackedCircle[]) => {
         const extent = getExtent(circles.filter((c) => c.depth === 1));
@@ -235,18 +205,14 @@ const fitCircles = (
 };
 
 // Packs at true size and fits the pack to the panel; only then are the smallest circles enlarged
-export const fitToArea = (
-    input: PackDatum,
-    area: Area,
-    spread: number = BASE_SPREAD,
-): PackedCircle[] => {
+export const fitToArea = (input: PackDatum, area: Area): PackedCircle[] => {
     if (input.children.length === 0) return [];
     const size = Math.max(Math.min(area.width, area.height), MIN_PACK_SIZE);
-    const { circles } = fitCircles(layoutPack(input, size), area, spread);
+    const { circles } = fitCircles(layoutPack(input, size), area);
     return enlargeSmallCircles(circles, MIN_CIRCLE_RADIUS, area);
 };
 
-// The line of numbers under a circle, longest first so the widest that fits wins
+// The line of numbers under a circle's name, longest first; the hover label shows the last, the shortest
 export const getCaptionVariants = (stats: CircleStats): string[] => {
     // The people directly in a department read in full, over the headcount kept for them
     if (stats.isDirect)
@@ -279,42 +245,24 @@ export const getCaptionVariants = (stats: CircleStats): string[] => {
 
 export type Box = { x: number; y: number; width: number; height: number };
 
-type LabelPlacement = 'inside' | 'below' | 'above';
-
 export type CircleLabel = {
     id: string;
-    placement: LabelPlacement;
+    placement: 'below' | 'above';
     isNested: boolean;
     name: string;
     detail: string | null;
     // Footprint on screen at the zoom it was placed for
     box: Box;
-    // Drawn on a light backing, as it sits over its circle's people
-    hasBacking: boolean;
 };
 
 type LabelText = { name: string; detail: string | null };
-type Candidate = Omit<CircleLabel, 'id'> & { offset: number };
-type PlacedLabel = CircleLabel & { offset: number };
+type Candidate = Omit<CircleLabel, 'id'>;
 
 const boxesOverlap = (a: Box, b: Box): boolean =>
     a.x < b.x + b.width + CLEARANCE_PX &&
     b.x < a.x + a.width + CLEARANCE_PX &&
     a.y < b.y + b.height + CLEARANCE_PX &&
     b.y < a.y + a.height + CLEARANCE_PX;
-
-export const boxTouchesCircle = (
-    box: Box,
-    circle: Pick<PackedCircle, 'x' | 'y' | 'r'>,
-    zoom: number = 1,
-    clearance: number = CLEARANCE_PX,
-): boolean => {
-    const x = circle.x * zoom;
-    const y = circle.y * zoom;
-    const nearestX = Math.max(box.x, Math.min(x, box.x + box.width));
-    const nearestY = Math.max(box.y, Math.min(y, box.y + box.height));
-    return Math.hypot(x - nearestX, y - nearestY) < circle.r * zoom + clearance;
-};
 
 // The longest start of the text that fits the width, ending in an ellipsis
 const truncateToWidth = (
@@ -356,7 +304,7 @@ const measureLabel = (
     height: LINE_PX[role] + (text.detail === null ? 0 : LINE_PX.detail),
 });
 
-// What a label says before any longer wording: the name with the fewest numbers, then the name alone
+// What a hover label says: the name with its shortest line of numbers, then the name alone
 const getFirstTexts = (
     circle: PackedCircle,
     stats: CircleStats,
@@ -376,32 +324,6 @@ const getFirstTexts = (
         { name: circle.name, detail: null },
     ];
 };
-
-// Inside an empty circle the label sits in the middle. Over dots, its last resort, it sits as high as
-// it fits, so as many of the active people at the core stay in view as can
-const getInsideBox = (
-    circle: PackedCircle,
-    zoom: number,
-    size: { width: number; height: number },
-    isOverDots: boolean,
-): Box | null => {
-    const radius = circle.r * zoom - INSIDE_INSET_PX;
-    const halfWidth = size.width / 2;
-    if (radius <= halfWidth) return null;
-    const x = circle.x * zoom;
-    const y = circle.y * zoom;
-    const top = isOverDots
-        ? y - Math.sqrt(radius ** 2 - halfWidth ** 2)
-        : y - size.height / 2;
-    const bottom = top + size.height;
-    const fits = [top, bottom].every(
-        (cornerY) => Math.hypot(halfWidth, cornerY - y) <= radius + 1e-6,
-    );
-    return fits ? { x: x - halfWidth, y: top, ...size } : null;
-};
-
-const getOutsideWidth = (circle: PackedCircle, zoom: number): number =>
-    circle.r * zoom * 2 + OUTSIDE_EXTRA_WIDTH_PX;
 
 // Shortened to fit the width; null when even the numbers are too wide
 const getOutsideText = (
@@ -426,29 +348,11 @@ const getOutsideText = (
     };
 };
 
-const makeCandidate = (
-    circle: PackedCircle,
-    text: LabelText,
-    placement: LabelPlacement,
-    box: Box,
-    offset: number,
-    hasBacking: boolean = false,
-): Candidate => ({
-    placement,
-    isNested: circle.depth > 1,
-    name: text.name,
-    detail: text.detail,
-    box,
-    offset,
-    hasBacking,
-});
-
 // Centred under or over the circle, slid sideways only as far as it takes to stay inside the drawing
 const getOutsideCandidate = (
     circle: PackedCircle,
     text: LabelText,
     side: 'below' | 'above',
-    offset: number,
     zoom: number,
     area: Area,
     measure: TextMeasurer,
@@ -461,301 +365,21 @@ const getOutsideCandidate = (
     );
     const y =
         side === 'below'
-            ? (circle.y + circle.r) * zoom + LABEL_GAP_PX + offset
-            : (circle.y - circle.r) * zoom -
-              LABEL_GAP_PX -
-              size.height -
-              offset;
-    return makeCandidate(circle, text, side, { x, y, ...size }, offset);
+            ? (circle.y + circle.r) * zoom + LABEL_GAP_PX
+            : (circle.y - circle.r) * zoom - LABEL_GAP_PX - size.height;
+    return {
+        placement: side,
+        isNested: circle.depth > 1,
+        name: text.name,
+        detail: text.detail,
+        box: { x, y, ...size },
+    };
 };
 
 // Every circle at the focused level has a name, and so does every sub-department below it;
 // the circles of people directly in a sub-department stay unnamed
 const isNamed = (circle: PackedCircle): boolean =>
     circle.kind === 'department' || circle.depth === 1;
-
-const isLabelledAt = (circle: PackedCircle, zoom: number): boolean =>
-    isNamed(circle) &&
-    (circle.depth === 1 || circle.r * zoom >= NESTED_LABEL_MIN_RADIUS_PX);
-
-type Placement = {
-    zoom: number;
-    area: Area;
-    measure: TextMeasurer;
-    canGoInside: (circle: PackedCircle) => boolean;
-    isOverDots: (circle: PackedCircle) => boolean;
-    // A sub-department's label stays inside its top-level circle, so it never reads as another's
-    staysInGroup: (circle: PackedCircle, box: Box) => boolean;
-    isFree: (box: Box, ownId: string | null) => boolean;
-    isClear: (circle: PackedCircle, candidate: Candidate) => boolean;
-};
-
-const getCandidates = (
-    circle: PackedCircle,
-    texts: LabelText[],
-    placement: Placement,
-): Candidate[] => {
-    const { zoom, area, measure } = placement;
-    const isOverDots = placement.isOverDots(circle);
-    const byText = texts.map((text) => {
-        const insideBox = placement.canGoInside(circle)
-            ? getInsideBox(
-                  circle,
-                  zoom,
-                  measureLabel(text, nameRoleOf(circle), measure),
-                  isOverDots,
-              )
-            : null;
-        const outside = getOutsideText(
-            circle,
-            text,
-            getOutsideWidth(circle, zoom),
-            measure,
-        );
-        const outsideOn = (side: 'below' | 'above') =>
-            outside === null
-                ? []
-                : NUDGE_OFFSETS.map((offset) =>
-                      getOutsideCandidate(
-                          circle,
-                          outside,
-                          side,
-                          offset,
-                          zoom,
-                          area,
-                          measure,
-                      ),
-                  );
-        return {
-            inside:
-                insideBox === null
-                    ? []
-                    : [
-                          makeCandidate(
-                              circle,
-                              text,
-                              'inside',
-                              insideBox,
-                              0,
-                              isOverDots,
-                          ),
-                      ],
-            below: outsideOn('below'),
-            above: outsideOn('above'),
-        };
-    });
-    const above = byText.flatMap((candidates) => candidates.above);
-    // Every wording under the circle comes before any wording over it. Over its people a label goes
-    // inside only when nothing else is free, and then on a backing; an empty circle takes it first
-    const ordered = isOverDots
-        ? [
-              ...byText.flatMap((candidates) => candidates.below),
-              ...above,
-              ...byText.flatMap((candidates) => candidates.inside),
-          ]
-        : [
-              ...byText.flatMap((candidates) => [
-                  ...candidates.inside,
-                  ...candidates.below,
-              ]),
-              ...above,
-          ];
-    return ordered.filter((candidate) =>
-        placement.staysInGroup(circle, candidate.box),
-    );
-};
-
-// A label goes under its circle or, failing that, over it, moved away to clear other labels, and never
-// sits on another department's circle; an empty circle takes it inside first, a circle of people last
-const placeAllLabels = (
-    circles: PackedCircle[],
-    info: Map<string, CircleInfo>,
-    zoom: number,
-    area: Area,
-    measure: TextMeasurer,
-): PlacedLabel[] => {
-    const byId = new Map(circles.map((circle) => [circle.id, circle]));
-    const hasChildren = new Set(
-        circles.flatMap((circle) =>
-            circle.parentId === null ? [] : [circle.parentId],
-        ),
-    );
-    const anchors = getTopLevelAnchors(circles);
-    // Each circle with the circles drawn around it and inside it, which its label may sit on
-    const related = new Map<string, Set<string>>(
-        circles.map((circle) => [circle.id, new Set([circle.id])]),
-    );
-    circles.forEach((circle) =>
-        getAncestors(circle, byId).forEach((ancestor) => {
-            related.get(circle.id)?.add(ancestor.id);
-            related.get(ancestor.id)?.add(circle.id);
-        }),
-    );
-    const totalPeople = countPeople(circles);
-    const showsDots = shouldRenderDots(totalPeople);
-    // First names are drawn under the dots of a small view, so labels keep out of those circles
-    const showsNames = showsDots && totalPeople <= NAME_LABEL_LIMIT;
-    const isOverDots = (circle: PackedCircle): boolean =>
-        showsDots &&
-        circle.people !== null &&
-        countBucketPeople(circle.people) > 0;
-    const placed: PlacedLabel[] = [];
-    // The buttons stay put while a zoomed map moves under them, so they only count at the reset view
-    const reserved = zoom === 1 ? [getControlsBox(area)] : [];
-    const placement: Placement = {
-        zoom,
-        area,
-        measure,
-        canGoInside: (circle) =>
-            !hasChildren.has(circle.id) && !(showsNames && isOverDots(circle)),
-        isOverDots,
-        staysInGroup: (circle, box) => {
-            const group = anchors.get(circle.id);
-            if (!group || group.id === circle.id) return true;
-            const x = group.x * zoom;
-            const y = group.y * zoom;
-            const radius = group.r * zoom;
-            return [box.x, box.x + box.width].every((cornerX) =>
-                [box.y, box.y + box.height].every(
-                    (cornerY) => Math.hypot(cornerX - x, cornerY - y) <= radius,
-                ),
-            );
-        },
-        isFree: (box, ownId) =>
-            box.x >= PANEL_INSET_PX &&
-            box.y >= PANEL_INSET_PX &&
-            box.x + box.width <= area.width * zoom - PANEL_INSET_PX &&
-            box.y + box.height <= area.height * zoom - PANEL_INSET_PX &&
-            !reserved.some((taken) => boxesOverlap(taken, box)) &&
-            !placed.some(
-                (label) => label.id !== ownId && boxesOverlap(label.box, box),
-            ),
-        // Nothing unrelated under the label, and no circle or other label between a moved label
-        // and its own circle
-        isClear: (circle, candidate) => {
-            const own = related.get(circle.id);
-            const { box } = candidate;
-            const halfWidth = Math.min(circle.r * zoom, box.width / 2);
-            const gap: Box = {
-                x: circle.x * zoom - halfWidth,
-                y:
-                    candidate.placement === 'above'
-                        ? box.y + box.height
-                        : (circle.y + circle.r) * zoom + LABEL_GAP_PX,
-                width: halfWidth * 2,
-                height: candidate.offset,
-            };
-            const isGapTaken =
-                candidate.offset > 0 &&
-                placed.some(
-                    (label) =>
-                        label.id !== circle.id && boxesOverlap(label.box, gap),
-                );
-            return (
-                !isGapTaken &&
-                !circles.some(
-                    (other) =>
-                        !own?.has(other.id) &&
-                        (boxTouchesCircle(box, other, zoom) ||
-                            (candidate.offset > 0 &&
-                                boxTouchesCircle(gap, other, zoom))),
-                )
-            );
-        },
-    };
-    // Level by level, the most people first, so the larger circles claim their spots first
-    const ordered = circles
-        .filter((circle) => isLabelledAt(circle, zoom))
-        .sort(
-            (a, b) =>
-                a.depth - b.depth ||
-                b.size - a.size ||
-                a.name.localeCompare(b.name) ||
-                a.id.localeCompare(b.id),
-        );
-    // A circle that finds no free spot leaves its smaller siblings to take theirs, and shows on hover
-    ordered.forEach((circle) => {
-        const stats = info.get(circle.id)?.stats;
-        if (!stats) return;
-        const candidates = getCandidates(
-            circle,
-            getFirstTexts(circle, stats),
-            placement,
-        );
-        const chosen = candidates.find(
-            (candidate) =>
-                placement.isFree(candidate.box, null) &&
-                placement.isClear(circle, candidate),
-        );
-        if (chosen) placed.push({ id: circle.id, ...chosen });
-    });
-    // Longer wording for a top-level label where it still fits in the same spot, displacing nothing
-    ordered.forEach((circle) => {
-        const stats = info.get(circle.id)?.stats;
-        const index = placed.findIndex((label) => label.id === circle.id);
-        if (!stats || index < 0 || circle.depth !== 1) return;
-        const current = placed[index];
-        if (current.detail === null || current.name !== circle.name) return;
-        const longer = getCaptionVariants(stats)
-            .map((detail): Candidate | null => {
-                const text = { name: circle.name, detail };
-                if (current.placement === 'inside') {
-                    const box = getInsideBox(
-                        circle,
-                        zoom,
-                        measureLabel(text, 'name', measure),
-                        isOverDots(circle),
-                    );
-                    return box === null
-                        ? null
-                        : makeCandidate(
-                              circle,
-                              text,
-                              'inside',
-                              box,
-                              0,
-                              current.hasBacking,
-                          );
-                }
-                const outside = getOutsideText(
-                    circle,
-                    text,
-                    getOutsideWidth(circle, zoom),
-                    measure,
-                );
-                return outside === null || outside.name !== circle.name
-                    ? null
-                    : getOutsideCandidate(
-                          circle,
-                          outside,
-                          current.placement,
-                          current.offset,
-                          zoom,
-                          area,
-                          measure,
-                      );
-            })
-            .find(
-                (candidate): candidate is Candidate =>
-                    candidate !== null &&
-                    placement.isFree(candidate.box, circle.id) &&
-                    placement.isClear(circle, candidate),
-            );
-        if (longer) placed[index] = { id: circle.id, ...longer };
-    });
-    return placed;
-};
-
-export const placeLabels = (
-    circles: PackedCircle[],
-    info: Map<string, CircleInfo>,
-    zoom: number,
-    area: Area,
-    measure: TextMeasurer,
-): CircleLabel[] =>
-    placeAllLabels(circles, info, zoom, area, measure).map(
-        ({ offset, ...label }) => label,
-    );
 
 // A circle's label shows while it is hovered or its control has focus, in full unless it is wider than
 // the drawing: under the circle, or over it when under is off the drawing or on the zoom buttons
@@ -774,13 +398,16 @@ export const getHoverLabel = (
         .find((each): each is LabelText => each !== null);
     if (!text) return null;
     const reserved = zoom === 1 ? [getControlsBox(area)] : [];
+    // The band under the lowest circle is exactly one label tall, so the edges allow for rounding
     const fits = ({ box }: Candidate): boolean =>
-        box.y >= PANEL_INSET_PX &&
-        box.y + box.height <= area.height * zoom - PANEL_INSET_PX &&
-        box.x + box.width <= area.width * zoom - PANEL_INSET_PX &&
+        box.y >= PANEL_INSET_PX - EDGE_TOLERANCE_PX &&
+        box.y + box.height <=
+            area.height * zoom - PANEL_INSET_PX + EDGE_TOLERANCE_PX &&
+        box.x + box.width <=
+            area.width * zoom - PANEL_INSET_PX + EDGE_TOLERANCE_PX &&
         !reserved.some((taken) => boxesOverlap(taken, box));
     const [below, above] = (['below', 'above'] as const).map((side) =>
-        getOutsideCandidate(circle, text, side, 0, zoom, area, measure),
+        getOutsideCandidate(circle, text, side, zoom, area, measure),
     );
     // A circle with no room over it keeps its label under it, moved right of the zoom buttons
     const pastControls = reserved.map((taken) => ({
@@ -790,86 +417,22 @@ export const getHoverLabel = (
             x: Math.max(below.box.x, taken.x + taken.width + CLEARANCE_PX),
         },
     }));
-    const { offset, ...candidate } =
-        [below, above, ...pastControls].find(fits) ?? below;
-    return { id: circle.id, ...candidate };
-};
-
-type Shortfall = { missing: number; withoutNumbers: number };
-
-// The top-level labels left out, and those placed without their line of numbers
-const countShortfall = (
-    circles: PackedCircle[],
-    labels: PlacedLabel[],
-): Shortfall => {
-    const byId = new Map(labels.map((label) => [label.id, label]));
-    const tops = circles.filter((circle) => circle.depth === 1);
     return {
-        missing: tops.filter((circle) => !byId.has(circle.id)).length,
-        withoutNumbers: tops.filter(
-            (circle) => byId.get(circle.id)?.detail === null,
-        ).length,
+        id: circle.id,
+        ...([below, above, ...pastControls].find(fits) ?? below),
     };
 };
 
-// Fills the panel. With labels at rest it spreads the circles apart until every top-level label has
-// room; spreading shrinks the circles, so it stops before they lose too much of their size
+// Fills the panel with the pack, less the band at the bottom for the lowest circle's hover label
 export const layoutMap = ({
     input,
     area,
     focusName,
-    describe,
-    measure,
 }: {
     input: PackDatum;
     area: Area;
     focusName: string | null;
-    describe: (circles: PackedCircle[]) => Map<string, CircleInfo>;
-    measure: TextMeasurer;
-}): PackedCircle[] => {
-    // Names show on hover only, so the circles keep the size the pack gives them
-    if (!LABELS_AT_REST)
-        return nameLoneBucket(fitToArea(input, area), focusName);
-    const largest = (circles: PackedCircle[]): number =>
-        circles.reduce((max, circle) => Math.max(max, circle.r), 0);
-    let best: (Shortfall & { circles: PackedCircle[] }) | null = null;
-    let firstSize = 0;
-    for (let attempt = 0; attempt < MAX_SPREAD_ATTEMPTS; attempt += 1) {
-        const circles = nameLoneBucket(
-            fitToArea(input, area, BASE_SPREAD * SPREAD_STEP ** attempt),
-            focusName,
-        );
-        if (attempt === 0) firstSize = largest(circles);
-        const share = largest(circles) / firstSize;
-        const isPastFloor = share < MIN_SPREAD_SIZE_SHARE;
-        if (
-            share < MIN_SPREAD_SIZE_SHARE_TO_LABEL ||
-            (isPastFloor && best !== null && best.missing === 0)
-        ) {
-            break;
-        }
-        const shortfall = countShortfall(
-            circles,
-            placeAllLabels(circles, describe(circles), 1, area, measure),
-        );
-        // Fewer labels left out wins, then fewer without numbers. Smaller than the usual floor, an
-        // arrangement is taken only when it leaves no top-level label out
-        const isBetter = isPastFloor
-            ? shortfall.missing === 0
-            : best === null ||
-              shortfall.missing < best.missing ||
-              (shortfall.missing === best.missing &&
-                  shortfall.withoutNumbers < best.withoutNumbers);
-        if (isBetter) best = { circles, ...shortfall };
-        if (
-            shortfall.missing === 0 &&
-            (isPastFloor || shortfall.withoutNumbers === 0)
-        ) {
-            break;
-        }
-    }
-    return best?.circles ?? [];
-};
+}): PackedCircle[] => nameLoneBucket(fitToArea(input, area), focusName);
 
 export type LabelLine = {
     role: TextRole;

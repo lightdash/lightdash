@@ -3,14 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { dept, metricsFixture } from '../utils/adoptionFixtures';
 import { DepartmentMap } from './DepartmentMap';
-import styles from './DepartmentMap.module.css';
 import { type PackedCircle } from './geometry';
-import { estimateTextWidth, LABELS_AT_REST, placeLabels } from './mapLayout';
+import { estimateTextWidth } from './mapLayout';
 import { describeCircles } from './mapView';
 
 const AREA = { width: 760, height: 560 };
 
-// More than 150 people, so first names are not drawn and a label may go over the dots
+// More than 150 people, so first names are not drawn
 const circleOfPeople = (r: number): PackedCircle => ({
     id: 'Service',
     kind: 'department',
@@ -82,7 +81,6 @@ describe('DepartmentMap labels', () => {
     it('draws no label at rest, and a name with its numbers while its circle is hovered', () => {
         const { container, textOf } = draw([circleOfPeople(120)]);
         expect(container.querySelector('[data-label]')).toBeNull();
-        expect(container.querySelector('[data-label-backing]')).toBeNull();
         expect(container.querySelectorAll('svg text')).toHaveLength(0);
         const circle = container.querySelector('[data-circle="Service"]');
         if (circle) fireEvent.pointerOver(circle);
@@ -120,65 +118,5 @@ describe('DepartmentMap labels', () => {
         if (people) fireEvent.pointerOver(people);
         expect(textOf('Ops')).toEqual(['Ops', '12 of 40']);
         expect(container.querySelector('[data-label="own:Ops"]')).toBeNull();
-    });
-});
-
-// Labels at rest are off; these keep their drawing covered for when they are turned back on
-describe.skipIf(!LABELS_AT_REST)('DepartmentMap labels at rest', () => {
-    const drawAtRest = (r: number) => {
-        const circle = circleOfPeople(r);
-        const { container, info } = draw([circle]);
-        const [label] = placeLabels([circle], info, 1, AREA, estimateTextWidth);
-        return { container, label };
-    };
-
-    it('draws a label that has to sit over people on a light backing 2 px larger all round', () => {
-        // The circle fills the panel from top to bottom, so the label can only go inside it
-        const { container, label } = drawAtRest(278);
-        expect(label.hasBacking).toBe(true);
-        const backing = container.querySelector(
-            '[data-label-backing="Service"]',
-        );
-        expect(backing).not.toBeNull();
-        expect(backing).toHaveClass(styles.labelBacking);
-        expect(Number(backing?.getAttribute('x'))).toBeCloseTo(
-            label.box.x - 2,
-            6,
-        );
-        expect(Number(backing?.getAttribute('y'))).toBeCloseTo(
-            label.box.y - 2,
-            6,
-        );
-        expect(Number(backing?.getAttribute('width'))).toBeCloseTo(
-            label.box.width + 4,
-            6,
-        );
-        expect(Number(backing?.getAttribute('height'))).toBeCloseTo(
-            label.box.height + 4,
-            6,
-        );
-        // The same fill as its circle, and drawn under the text
-        const circle = container.querySelector('[data-circle="Service"]');
-        ['data-nested', 'data-empty', 'data-no-headcount'].forEach((name) =>
-            expect(backing?.getAttribute(name)).toBe(
-                circle?.getAttribute(name),
-            ),
-        );
-        const text = container.querySelector('text[data-label="Service"]');
-        expect(text).not.toBeNull();
-        if (backing && text) {
-            expect(
-                backing.compareDocumentPosition(text) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
-        }
-    });
-    it('draws a label under its circle with no backing', () => {
-        const { container, label } = drawAtRest(120);
-        expect(label).toMatchObject({ placement: 'below', hasBacking: false });
-        expect(
-            container.querySelector('[data-label="Service"]'),
-        ).not.toBeNull();
-        expect(container.querySelector('[data-label-backing]')).toBeNull();
     });
 });

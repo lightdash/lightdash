@@ -2,7 +2,7 @@ import { type DepartmentWithMetrics } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { DepartmentMap } from './DepartmentMap';
-import { buildPackInput, type PackedCircle } from './geometry';
+import { buildPackInput } from './geometry';
 import {
     estimateTextWidth,
     getControlsBox,
@@ -23,17 +23,11 @@ const overlaps = (a: Box, b: Box): boolean =>
     a.y < b.y + b.height &&
     b.y < a.y + a.height;
 
-// The organization, then every department the map can open onto sub-departments
+// The organization, then every department the map can open: onto its sub-departments, or on its own as
+// one circle as tall as the drawing, whose label has only the band under it
 const getViews = (departments: DepartmentWithMetrics[]): (string | null)[] => [
     null,
-    ...departments
-        .filter((department) =>
-            departments.some(
-                (child) =>
-                    child.parentDepartmentUuid === department.departmentUuid,
-            ),
-        )
-        .map((department) => department.departmentUuid),
+    ...departments.map((department) => department.departmentUuid),
 ];
 
 const drawView = (
@@ -47,16 +41,12 @@ const drawView = (
             department,
         ]),
     );
-    const describe = (circles: PackedCircle[]) =>
-        describeCircles(circles, byUuid);
     const circles = layoutMap({
         input: buildPackInput(departments, focus),
         area,
         focusName: focus === null ? null : (byUuid.get(focus)?.name ?? null),
-        describe,
-        measure: estimateTextWidth,
     });
-    return { circles, info: describe(circles) };
+    return { circles, info: describeCircles(circles, byUuid) };
 };
 
 describe.each([
@@ -121,9 +111,7 @@ describe.each([
                 circles.length,
             );
             expect(
-                container.querySelectorAll(
-                    '[data-label], [data-label-backing], svg text',
-                ),
+                container.querySelectorAll('[data-label], svg text'),
             ).toHaveLength(0);
             unmount();
         },

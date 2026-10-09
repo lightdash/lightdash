@@ -9,7 +9,6 @@ import {
     type ZoomTransform,
 } from 'd3-zoom';
 import {
-    Fragment,
     memo,
     useCallback,
     useEffect,
@@ -29,8 +28,6 @@ import {
     getHoverLabel,
     getTopLevelGroups,
     getLabelLines,
-    LABELS_AT_REST,
-    placeLabels,
     TEXT_FONTS,
     type CircleLabel,
     type TextMeasurer,
@@ -49,8 +46,6 @@ const HALO_PX = 3.5;
 const NO_ACCOUNT_SCALE = 0.78;
 // Fed to the shared truncation rule: about ten characters
 const FIRST_NAME_RADIUS = 36;
-// Room around a label drawn on a backing over a circle's people
-const BACKING_PADDING_PX = 2;
 
 const LINE_CLASSES: Record<TextRole, string> = {
     name: styles.labelName,
@@ -89,7 +84,7 @@ type Props = {
 const getMemberName = (member: NonNullable<MapDot['member']>): string =>
     `${member.firstName} ${member.lastName}`.trim() || member.email;
 
-// What decides a circle's fill, so a label's backing takes the fill of the circle it sits in
+// What decides a circle's fill and outline
 const getFillAttributes = (circle: PackedCircle) => ({
     'data-nested': circle.depth > 1 || undefined,
     'data-empty': !circle.hasMembers || undefined,
@@ -198,48 +193,25 @@ DotsLayer.displayName = 'DotsLayer';
 
 const LabelsLayer = memo<{
     labels: CircleLabel[];
-    circlesById: Map<string, PackedCircle>;
     zoomLevel: number;
-}>(({ labels, circlesById, zoomLevel }) => (
+}>(({ labels, zoomLevel }) => (
     <>
-        {labels.map((label) => {
-            const circle = circlesById.get(label.id);
-            return (
-                <Fragment key={label.id}>
-                    {label.hasBacking && circle && (
-                        <rect
-                            className={styles.labelBacking}
-                            data-label-backing={label.id}
-                            {...getFillAttributes(circle)}
-                            x={(label.box.x - BACKING_PADDING_PX) / zoomLevel}
-                            y={(label.box.y - BACKING_PADDING_PX) / zoomLevel}
-                            width={
-                                (label.box.width + BACKING_PADDING_PX * 2) /
-                                zoomLevel
-                            }
-                            height={
-                                (label.box.height + BACKING_PADDING_PX * 2) /
-                                zoomLevel
-                            }
-                        />
-                    )}
-                    {getLabelLines(label, zoomLevel).map((line) => (
-                        <text
-                            key={line.role}
-                            className={`${styles.label} ${LINE_CLASSES[line.role]}`}
-                            data-label={label.id}
-                            x={line.x}
-                            y={line.y}
-                            textAnchor={line.anchor}
-                            fontSize={TEXT_FONTS[line.role].size / zoomLevel}
-                            strokeWidth={HALO_PX / zoomLevel}
-                        >
-                            {line.text}
-                        </text>
-                    ))}
-                </Fragment>
-            );
-        })}
+        {labels.flatMap((label) =>
+            getLabelLines(label, zoomLevel).map((line) => (
+                <text
+                    key={`${label.id}:${line.role}`}
+                    className={`${styles.label} ${LINE_CLASSES[line.role]}`}
+                    data-label={label.id}
+                    x={line.x}
+                    y={line.y}
+                    textAnchor={line.anchor}
+                    fontSize={TEXT_FONTS[line.role].size / zoomLevel}
+                    strokeWidth={HALO_PX / zoomLevel}
+                >
+                    {line.text}
+                </text>
+            )),
+        )}
     </>
 ));
 LabelsLayer.displayName = 'LabelsLayer';
@@ -383,14 +355,6 @@ export const DepartmentMap: FC<Props> = ({
         () => new Map(circles.map((circle) => [circle.id, circle])),
         [circles],
     );
-    // Nothing is placed at rest unless labels at rest are turned back on
-    const labels = useMemo(
-        () =>
-            LABELS_AT_REST
-                ? placeLabels(circles, info, k, { width, height }, measureText)
-                : [],
-        [circles, info, k, width, height, measureText],
-    );
     // A circle's label shows while it is hovered or its control has focus
     const shownId =
         hoveredId ??
@@ -407,9 +371,7 @@ export const DepartmentMap: FC<Props> = ({
             shown?.kind === 'direct' && shown.parentId !== null
                 ? circlesById.get(shown.parentId)
                 : shown;
-        if (!circle || labels.some((label) => label.id === circle.id)) {
-            return [];
-        }
+        if (!circle) return [];
         const label = getHoverLabel(
             circle,
             info,
@@ -418,7 +380,7 @@ export const DepartmentMap: FC<Props> = ({
             measureText,
         );
         return label === null ? [] : [label];
-    }, [shownId, circlesById, labels, info, k, width, height, measureText]);
+    }, [shownId, circlesById, info, k, width, height, measureText]);
 
     const handlePointerDown = (event: PointerEvent<SVGSVGElement>) => {
         pressRef.current = { x: event.clientX, y: event.clientY };
@@ -496,17 +458,8 @@ export const DepartmentMap: FC<Props> = ({
                             selectedUserUuid={selectedUserUuid}
                         />
                     </g>
-                    <LabelsLayer
-                        labels={labels}
-                        circlesById={circlesById}
-                        zoomLevel={k}
-                    />
                     {showNames && <NamesLayer dots={dots} zoomLevel={k} />}
-                    <LabelsLayer
-                        labels={hoverLabels}
-                        circlesById={circlesById}
-                        zoomLevel={k}
-                    />
+                    <LabelsLayer labels={hoverLabels} zoomLevel={k} />
                 </g>
             </svg>
             {/* Empty but for the band that crosses the map while its colouring changes */}

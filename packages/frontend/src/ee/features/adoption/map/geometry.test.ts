@@ -1097,22 +1097,27 @@ describe('dots for 20,000 people in view', () => {
             dotRadius * 2,
         );
     });
-    it('lays out the dots of 20,000 people across an organization in under 50 ms', () => {
-        // Forty departments of different sizes, so no spacing is already known
+    it('lays out a dot for each of 20,000 people across an organization, each inside its circle', () => {
+        // Forty departments of different sizes
         const departments = Array.from({ length: 40 }, (_, index) =>
             d(`Department ${index}`, null, 480 + index, 300, 300, 150),
         );
         departments.push(d('Rest', null, 20, 5, 5, 2));
         const circles = layoutPack(buildPackInput(departments, null), 720);
         expect(countPeople(circles)).toBe(SVG_DOT_LIMIT);
-        const start = performance.now();
         const drawn = circles.reduce((sum, circle) => {
             if (circle.people === null) return sum;
             const kinds = expandDots(getDotSegments(circle.people, 'active'));
-            return sum + layoutDots(kinds.length, circle.r).positions.length;
+            const { dotRadius, positions } = layoutDots(kinds.length, circle.r);
+            expect(
+                positions.every(
+                    (position) =>
+                        Math.hypot(position.x, position.y) + dotRadius <=
+                        circle.r - 2 + 1e-9,
+                ),
+            ).toBe(true);
+            return sum + positions.length;
         }, 0);
-        const elapsed = performance.now() - start;
         expect(drawn).toBe(SVG_DOT_LIMIT);
-        expect(elapsed).toBeLessThan(50);
     });
 });

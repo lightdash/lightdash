@@ -140,10 +140,8 @@ export const AdoptionMap: FC<Props> = ({
                 input: buildPackInput(departments, focusedUuid),
                 area: { width, height },
                 focusName,
-                describe,
-                measure,
             }),
-        [departments, focusedUuid, focusName, width, height, describe, measure],
+        [departments, focusedUuid, focusName, width, height],
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
     const totals = useMemo(() => getViewTotals(circles), [circles]);
