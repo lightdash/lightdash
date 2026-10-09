@@ -27,6 +27,7 @@ import {
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import refresh from 'passport-oauth2-refresh';
 import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
@@ -36,7 +37,6 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
-import { UserService } from '../UserService';
 import {
     connectionContextFromUser,
     ConnectionSurface,
@@ -2711,11 +2711,10 @@ describe('Snowflake revocation with a warm agent client', () => {
                 ...base,
                 credentials: connection,
             });
-            const refresh = vi
-                .spyOn(UserService, 'generateSnowflakeAccessToken')
-                .mockResolvedValue({
-                    accessToken: 'access-token',
-                    refreshToken: 'refresh-token',
+            const refreshToken = vi
+                .spyOn(refresh, 'requestNewAccessToken')
+                .mockImplementation((_strategy, _token, callback) => {
+                    callback(null, 'access-token', 'refresh-token', {});
                 });
             vi.mocked(checkSnowflakeAgentSessionWithToken).mockResolvedValue({
                 agentActivated: true,
@@ -2739,7 +2738,19 @@ describe('Snowflake revocation with a warm agent client', () => {
             if (failure === 'disconnect')
                 model.findAiCredentialWithSecrets.mockResolvedValue(undefined);
             else if (failure === 'refresh')
-                refresh.mockRejectedValue({ data: 'invalid_grant' });
+                refreshToken.mockImplementation(
+                    (_strategy, _token, callback) => {
+                        callback(
+                            {
+                                statusCode: 400,
+                                data: '{"error":"invalid_grant"}',
+                            },
+                            '',
+                            '',
+                            {},
+                        );
+                    },
+                );
             else
                 vi.mocked(
                     checkSnowflakeAgentSessionWithToken,
@@ -2753,7 +2764,9 @@ describe('Snowflake revocation with a warm agent client', () => {
                 ),
             ).rejects.toMatchObject({ refusal: { reason } });
             expect(query).not.toHaveBeenCalled();
-            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(3);
+            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(
+                failure === 'refresh' ? 6 : 3,
+            );
             expect(
                 projectModel.getWarehouseClientFromCredentials,
             ).toHaveBeenCalledOnce();
