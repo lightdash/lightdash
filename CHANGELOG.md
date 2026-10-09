@@ -1,3 +1,10 @@
+# [2.509.0](https://github.com/lightdash/lightdash/compare/2.508.0...2.509.0) (2026-10-09)
+
+
+### Features
+
+* **documents:** add SQL charts to Documents ([#30744](https://github.com/lightdash/lightdash/issues/30744)) ([ff6e629](https://github.com/lightdash/lightdash/commit/ff6e629c21865c9e13e344a22bb2e1536e13baef)), closes [#30741](https://github.com/lightdash/lightdash/issues/30741) [#30751](https://github.com/lightdash/lightdash/issues/30751) [#30741](https://github.com/lightdash/lightdash/issues/30741)
+
 # [2.508.0](https://github.com/lightdash/lightdash/compare/2.507.1...2.508.0) (2026-10-09)
 
 
