@@ -372,19 +372,21 @@ export const getTabCountsForField = (
     Object.fromEntries(
         tabs.map((tab) => {
             const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            const isOnField = (tile: DashboardTile) =>
+                getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+                fieldId;
+            // Only the tiles that could be on the field, as its card counts
+            const canBeOnField = (tile: DashboardTile) =>
+                isOnField(tile) ||
+                doesTileOfferField(tile, fieldId, fieldsByTile) ||
+                (sqlColumnsByTile[tile.uuid] ?? []).some(
+                    (column) => column.reference === fieldId,
+                );
             return [
                 tab.uuid,
                 {
-                    total: tabTiles.length,
-                    applied: tabTiles.filter(
-                        (tile) =>
-                            getFieldIdOnTile(
-                                rule,
-                                tile,
-                                fieldsByTile,
-                                sqlColumnsByTile,
-                            ) === fieldId,
-                    ).length,
+                    total: tabTiles.filter(canBeOnField).length,
+                    applied: tabTiles.filter(isOnField).length,
                 },
             ];
         }),

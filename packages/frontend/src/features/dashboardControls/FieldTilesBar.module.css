@@ -1,9 +1,9 @@
-/* Lined up with the tiles: the grid has the same side inset */
+/* Lined up with the tiles: the grid's container padding is 10px */
 .bar {
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
 
-    margin: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+    margin: 0 10px var(--mantine-spacing-xs);
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     border-color: var(--mantine-color-blue-5);
     animation: barEnter var(--controls-duration-arrive)
