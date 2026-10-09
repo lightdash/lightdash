@@ -616,13 +616,9 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByRole('button', { name: 'Test as agent' }),
             ).not.toBeInTheDocument();
-            const link = screen.queryByRole('link', { name: 'Agent identity' });
-            if (enabled)
-                expect(link).toHaveAttribute(
-                    'href',
-                    '/generalSettings/projectManagement/project/agentIdentity',
-                );
-            else expect(link).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('link', { name: 'Agent identity' }),
+            ).not.toBeInTheDocument();
             expect(lightdashApi).not.toHaveBeenCalled();
         },
     );
