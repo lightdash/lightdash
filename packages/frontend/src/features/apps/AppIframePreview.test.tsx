@@ -140,4 +140,15 @@ describe('AppIframePreview', () => {
             screen.getByTitle('App preview').getAttribute('sandbox') ?? '';
         expect(sandbox).not.toContain('allow-same-origin');
     });
+
+    // Without allow-forms the browser blocks form submission before the
+    // submit event is dispatched, so app onSubmit handlers never run. The
+    // preview CSP's `form-action 'none'` keeps native submissions from
+    // navigating anywhere, so granting this opens no exfiltration path.
+    it('sandboxes the iframe with allow-forms so submit handlers fire', () => {
+        render(<Harness hostColorScheme="light" />);
+        const sandbox =
+            screen.getByTitle('App preview').getAttribute('sandbox') ?? '';
+        expect(sandbox).toContain('allow-forms');
+    });
 });
