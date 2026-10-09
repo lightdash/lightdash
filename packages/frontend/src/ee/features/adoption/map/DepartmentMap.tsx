@@ -357,13 +357,19 @@ export const DepartmentMap: FC<Props> = ({
         // the other dots still change on the sweep's timing
         return startColourTransition(
             {
-                dotsLayer,
+                layer: dotsLayer,
+                // Read through d3, by index: iterating the live child list is slow in jsdom with thousands of dots
+                marks: select(dotsLayer)
+                    .selectChildren<SVGCircleElement, unknown>('circle')
+                    .nodes(),
                 points: dots.map((dot) => ({
                     x: view.transform.applyX(dot.x),
                     y: view.transform.applyY(dot.y),
                 })),
                 area: { width, height },
                 bandLayer,
+                // Dots on the map never move
+                previousIndexes: null,
             },
             COLOUR_TRANSITION,
         );

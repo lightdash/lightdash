@@ -57,6 +57,7 @@ describe('resolveAdoptionView', () => {
     });
     it('uses the remembered view', () => {
         expect(resolveAdoptionView(null, 'list')).toBe('list');
+        expect(resolveAdoptionView(null, 'waffle')).toBe('waffle');
     });
     it('lets the link override the remembered view', () => {
         expect(resolveAdoptionView('map', 'list')).toBe('map');
