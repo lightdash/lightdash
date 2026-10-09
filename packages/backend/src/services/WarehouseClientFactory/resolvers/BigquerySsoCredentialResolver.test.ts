@@ -6,7 +6,7 @@ import {
     type CreateBigqueryCredentials,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { profileFromCredentials } from '../../../dbt/profiles';
 import {
     connectionContextFromUser,
@@ -27,7 +27,8 @@ const stored: CreateBigqueryCredentials = {
     maximumBytesBilled: undefined,
     keyfileContents: {
         type: 'authorized_user',
-        client_id: lightdashConfigMock.auth.google.oauth2ClientId!,
+        client_id:
+            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId!,
         refresh_token: 'stored-refresh',
         quota_project_id: 'billing',
     },
@@ -53,7 +54,7 @@ const fixture = () => {
     const getRefreshToken = vi.fn(async () => 'grant-refresh');
     const validateRefreshToken = vi.fn(async () => 'discarded-access');
     const resolver = new BigquerySsoCredentialResolver(
-        lightdashConfigMock.auth.google,
+        () => lightdashConfigWithGoogleOAuthMock.auth.google,
         { getRefreshToken, validateRefreshToken },
     );
     return { resolver, getRefreshToken, validateRefreshToken };
@@ -95,7 +96,8 @@ it('links the current person and validates the BigQuery scope once', async () =>
     );
     expect(result.stored.keyfileContents).toEqual({
         type: 'authorized_user',
-        client_id: lightdashConfigMock.auth.google.oauth2ClientId,
+        client_id:
+            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId,
         refresh_token: 'grant-refresh',
     });
 });
@@ -155,7 +157,8 @@ it('resolves old and new rows identically without grant lookup, validation or mu
             keyfileContents: {
                 ...stored.keyfileContents,
                 client_secret:
-                    lightdashConfigMock.auth.google.oauth2ClientSecret,
+                    lightdashConfigWithGoogleOAuthMock.auth.google
+                        .oauth2ClientSecret,
             },
         },
         clientOptions: {},
@@ -176,7 +179,7 @@ it('uses the runtime secret for dbt while the stored row stays secret-free', asy
         '/tmp/profiles',
     );
     expect(profile.environment.LIGHTDASH_DBT_PROFILE_VAR_CLIENT_SECRET).toBe(
-        lightdashConfigMock.auth.google.oauth2ClientSecret,
+        lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientSecret,
     );
     expect(stored.keyfileContents).not.toHaveProperty('client_secret');
 });
@@ -188,7 +191,7 @@ it('hashes token identity and separates owners and reconnects', () => {
         'bigquery-sso-v1',
         'user',
         'credential-uuid',
-        lightdashConfigMock.auth.google.oauth2ClientId,
+        lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId,
         createHash('sha256').update('stored-refresh').digest('hex'),
     ]);
     expect(JSON.stringify(identity)).not.toContain('stored-refresh');
@@ -214,7 +217,10 @@ it('hashes token identity and separates owners and reconnects', () => {
 
 it.each([
     ['foreign-secret', 'foreign-secret'],
-    [undefined, lightdashConfigMock.auth.google.oauth2ClientSecret],
+    [
+        undefined,
+        lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientSecret,
+    ],
 ])(
     'uses the foreign app secret or config fallback: %s',
     async (clientSecret, expected) => {
@@ -254,7 +260,8 @@ it('hydrates unusual legacy keyfiles without applying save validation', async ()
     });
     expect(result.clientCredentials.keyfileContents).toEqual({
         custom_field: 'legacy',
-        client_secret: lightdashConfigMock.auth.google.oauth2ClientSecret,
+        client_secret:
+            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientSecret,
     });
 });
 
@@ -262,7 +269,10 @@ it.each([undefined, '', '   '])(
     'resolves with the stored secret when the configured secret is %j',
     async (oauth2ClientSecret) => {
         const resolver = new BigquerySsoCredentialResolver(
-            { ...lightdashConfigMock.auth.google, oauth2ClientSecret },
+            () => ({
+                ...lightdashConfigWithGoogleOAuthMock.auth.google,
+                oauth2ClientSecret,
+            }),
             null,
         );
         const connection = {
@@ -288,7 +298,10 @@ it.each([undefined, '', '   ', 'configured-secret'])(
     'preserves the only usable secret on save when the configured secret is %j',
     async (oauth2ClientSecret) => {
         const resolver = new BigquerySsoCredentialResolver(
-            { ...lightdashConfigMock.auth.google, oauth2ClientSecret },
+            () => ({
+                ...lightdashConfigWithGoogleOAuthMock.auth.google,
+                oauth2ClientSecret,
+            }),
             null,
         );
         const connection = {

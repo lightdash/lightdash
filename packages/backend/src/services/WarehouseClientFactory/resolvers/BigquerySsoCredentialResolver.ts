@@ -25,9 +25,13 @@ type SavePorts = {
 
 export class BigquerySsoCredentialResolver implements CredentialResolver<CreateBigqueryCredentials> {
     constructor(
-        private readonly google: LightdashConfig['auth']['google'],
+        private readonly getGoogleConfig: () => LightdashConfig['auth']['google'],
         private readonly savePorts: SavePorts | null,
     ) {}
+
+    private get google(): LightdashConfig['auth']['google'] {
+        return this.getGoogleConfig();
+    }
 
     async validateOnSave(
         input: CredentialSaveInput<CreateBigqueryCredentials>,

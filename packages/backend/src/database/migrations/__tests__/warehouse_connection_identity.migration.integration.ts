@@ -19,7 +19,7 @@ import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
-import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
@@ -71,22 +71,22 @@ describe('Multi runtime identity on the real schema', () => {
         migrated = await createMigratedTestDatabase('connection_identity');
         database = migrated.database;
         identity = new WarehouseConnectionIdentityModel({
-            google: lightdashConfigMock.auth.google,
+            google: lightdashConfigWithGoogleOAuthMock.auth.google,
             database,
             encryptionUtil: new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             }),
         });
         savedSqlModel = new SavedSqlModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         projectModel = new ProjectModel({
             database,
-            lightdashConfig: lightdashConfigMock,
+            lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             encryptionUtil: new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             }),
         });
     }, 600000);
@@ -630,11 +630,11 @@ describe('Multi runtime identity on the real schema', () => {
             'persists BigQuery SSO in main, personal and copied preview rows for matching client $matchingClient with configured secret $oauth2ClientSecret',
             async ({ matchingClient, oauth2ClientSecret }) => {
                 const config = {
-                    ...lightdashConfigMock,
+                    ...lightdashConfigWithGoogleOAuthMock,
                     auth: {
-                        ...lightdashConfigMock.auth,
+                        ...lightdashConfigWithGoogleOAuthMock.auth,
                         google: {
-                            ...lightdashConfigMock.auth.google,
+                            ...lightdashConfigWithGoogleOAuthMock.auth.google,
                             oauth2ClientSecret,
                         },
                     },
@@ -657,7 +657,8 @@ describe('Multi runtime identity on the real schema', () => {
                     keyfileContents: {
                         type: 'authorized_user',
                         client_id: matchingClient
-                            ? lightdashConfigMock.auth.google.oauth2ClientId!
+                            ? lightdashConfigWithGoogleOAuthMock.auth.google
+                                  .oauth2ClientId!
                             : 'foreign-client',
                         refresh_token: 'stored-refresh',
                         client_secret: 'legacy-secret',
@@ -742,7 +743,7 @@ describe('Multi runtime identity on the real schema', () => {
                     throw new Error('Expected BigQuery credentials');
                 }
                 const resolver = new BigquerySsoCredentialResolver(
-                    config.auth.google,
+                    () => config.auth.google,
                     null,
                 );
                 const connection = { ...credentials, ...reloaded.credentials };
@@ -786,7 +787,7 @@ describe('Multi runtime identity on the real schema', () => {
             const upstream = await createMultiProject();
             const previewUuid = await createPreviewProject(upstream);
             const encryption = new EncryptionUtil({
-                lightdashConfig: lightdashConfigMock,
+                lightdashConfig: lightdashConfigWithGoogleOAuthMock,
             });
             const credentials = {
                 type: WarehouseTypes.BIGQUERY,
