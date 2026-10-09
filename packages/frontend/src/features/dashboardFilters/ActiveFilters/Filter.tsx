@@ -1,24 +1,10 @@
 import {
     applyDefaultTileTargets,
-    DimensionType,
-    getFilterTypeFromItemType,
-    isEmptyDashboardFilterRule,
     isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Box,
-    Button,
-    Group,
-    HoverCard,
-    Popover,
-    ScrollArea,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Button, Group, Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import {
     IconAsterisk,
@@ -28,21 +14,17 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
-import {
-    getConditionalRuleLabel,
-    getConditionalRuleLabelFromItem,
-    getFilterRuleTables,
-} from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
 import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
 import classes from './Filter.module.css';
+import { showsComposedFilterValue } from './filterLabels';
+import { getFilterLockLabel, getFilterLockToggle } from './filterLock';
+import { FilterRuleLabel } from './FilterRuleLabel';
 import { getTruncatedValuesDisplay } from './utils';
 
 type Props = {
@@ -92,30 +74,15 @@ const Filter: FC<Props> = ({
     const handleLockToggle = useCallback(
         (e: MouseEvent) => {
             e.stopPropagation();
-            // On tab-less dashboards we store the dashboard uuid as a sentinel
-            // in lockedTabUuids so the same shape can express "locked
-            // everywhere on this dashboard" without a schema change.
-            const lockKey = hasTabs ? activeTabUuid : dashboard?.uuid;
-            if (!lockKey) return;
-            const existing = filterRule.lockedTabUuids ?? [];
-            const nextTabUuids = isLocked
-                ? existing.filter((uuid) => uuid !== lockKey)
-                : [...existing, lockKey];
-            track({
-                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
-                properties: {
-                    action: isLocked ? 'unlock' : 'lock',
-                    dashboardUuid: dashboard?.uuid,
-                    tabUuid: hasTabs ? activeTabUuid : undefined,
-                    fieldId: filterRule.target.fieldId,
-                    tableName: filterRule.target.tableName,
-                },
+            const toggle = getFilterLockToggle(filterRule, {
+                isLocked,
+                hasTabs,
+                activeTabUuid,
+                dashboardUuid: dashboard?.uuid,
             });
-            onUpdate({
-                ...filterRule,
-                lockedTabUuids:
-                    nextTabUuids.length > 0 ? nextTabUuids : undefined,
-            });
+            if (!toggle) return;
+            track(toggle.event);
+            onUpdate(toggle.filterRule);
         },
         [
             activeTabUuid,
@@ -126,9 +93,6 @@ const Filter: FC<Props> = ({
             onUpdate,
             track,
         ],
-    );
-    const sqlChartTilesMetadata = useDashboardTileStatusContext(
-        (c) => c.sqlChartTilesMetadata,
     );
     const disabled = useMemo(() => {
         // Wait for fields to be loaded unless is SQL column
@@ -168,62 +132,14 @@ const Filter: FC<Props> = ({
 
     const getUiString = useUiStrings();
 
-    const filterRuleLabels = useMemo(() => {
-        if (field) {
-            return getConditionalRuleLabelFromItem(
-                filterRule,
-                field,
-                getUiString,
-            );
-        } else {
-            const column = Object.values(sqlChartTilesMetadata)
-                .flatMap((tileMetadata) => tileMetadata.columns)
-                .find(
-                    ({ reference }) => reference === filterRule.target.fieldId,
-                );
-            if (column) {
-                return getConditionalRuleLabel(
-                    filterRule,
-                    getFilterTypeFromItemType(column.type),
-                    column.reference,
-                    getUiString,
-                );
-            }
-            return getConditionalRuleLabel(
-                filterRule,
-                getFilterTypeFromItemType(
-                    filterRule.target.fallbackType ?? DimensionType.STRING,
-                ),
-                filterRule.target.fieldId,
-                getUiString,
-            );
-        }
-    }, [filterRule, field, sqlChartTilesMetadata, getUiString]);
-
-    const filterRuleTables = useMemo(() => {
-        if (!field || !allFilterableFields) return;
-
-        return getFilterRuleTables(
-            filterRule,
-            field,
-            allFilterableFields,
-            filterableFieldsByTileUuid,
-        );
-    }, [filterRule, field, allFilterableFields, filterableFieldsByTileUuid]);
-
-    // Date values carry units ("2 months") and boolean values have localized
-    // labels, so both render the composed rule label instead of raw values
-    const showsComposedValue = useMemo(() => {
-        const type =
-            field?.type ??
-            filterRule.target.fallbackType ??
-            DimensionType.STRING;
-        return (
-            type === DimensionType.DATE ||
-            type === DimensionType.TIMESTAMP ||
-            type === DimensionType.BOOLEAN
-        );
-    }, [field?.type, filterRule.target.fallbackType]);
+    const showsComposedValue = useMemo(
+        () =>
+            showsComposedFilterValue(
+                field?.type,
+                filterRule.target.fallbackType,
+            ),
+        [field?.type, filterRule.target.fallbackType],
+    );
 
     // Truncated values display - show max 2 values with "+N" badge
     const truncatedValuesDisplay = useMemo(
@@ -353,15 +269,10 @@ const Filter: FC<Props> = ({
                                             >
                                                 <Tooltip
                                                     fz="xs"
-                                                    label={
-                                                        isLocked
-                                                            ? hasTabs
-                                                                ? 'Unlock filter on this tab'
-                                                                : 'Unlock filter'
-                                                            : hasTabs
-                                                              ? 'Lock filter on this tab'
-                                                              : 'Lock filter'
-                                                    }
+                                                    label={getFilterLockLabel(
+                                                        isLocked,
+                                                        hasTabs,
+                                                    )}
                                                 >
                                                     <ActionIcon
                                                         onClick={
@@ -369,15 +280,10 @@ const Filter: FC<Props> = ({
                                                         }
                                                         size="xs"
                                                         radius="xl"
-                                                        aria-label={
-                                                            isLocked
-                                                                ? hasTabs
-                                                                    ? 'Unlock filter on this tab'
-                                                                    : 'Unlock filter'
-                                                                : hasTabs
-                                                                  ? 'Lock filter on this tab'
-                                                                  : 'Lock filter'
-                                                        }
+                                                        aria-label={getFilterLockLabel(
+                                                            isLocked,
+                                                            hasTabs,
+                                                        )}
                                                     >
                                                         <MantineIcon
                                                             size="sm"
@@ -430,123 +336,12 @@ const Filter: FC<Props> = ({
                                 }
                             }}
                         >
-                            <Box
-                                style={{
-                                    maxWidth: '100%',
-                                    overflow: 'hidden',
-                                }}
-                            >
-                                <Text fz="xs" truncate>
-                                    <Tooltip
-                                        position="top-start"
-                                        disabled={
-                                            isPopoverOpen ||
-                                            !filterRuleTables?.length
-                                        }
-                                        openDelay={1000}
-                                        offset={8}
-                                        label={
-                                            <Text>
-                                                {getUiString(
-                                                    filterRuleTables?.length ===
-                                                        1
-                                                        ? 'filters.tableLabel'
-                                                        : 'filters.tablesLabel',
-                                                )}
-                                                <Text span fw={600}>
-                                                    {filterRuleTables?.join(
-                                                        ', ',
-                                                    )}
-                                                </Text>
-                                            </Text>
-                                        }
-                                    >
-                                        <Text fw={600} span truncate>
-                                            {filterRule?.label ||
-                                                filterRuleLabels?.field}{' '}
-                                        </Text>
-                                    </Tooltip>
-                                    {filterRule?.disabled ||
-                                    (!filterRule?.required &&
-                                        isEmptyDashboardFilterRule(
-                                            filterRule,
-                                        )) ? (
-                                        <Text span c="dimmed" truncate>
-                                            {getUiString('filters.isAnyValue')}
-                                        </Text>
-                                    ) : (
-                                        <>
-                                            <Text span c="dimmed" truncate>
-                                                {
-                                                    filterRuleLabels?.operator
-                                                }{' '}
-                                            </Text>
-                                            <Text fw={500} span truncate>
-                                                {truncatedValuesDisplay
-                                                    .displayedValues.length > 0
-                                                    ? truncatedValuesDisplay.displayedValues.join(
-                                                          ', ',
-                                                      )
-                                                    : filterRuleLabels?.value}
-                                            </Text>
-                                            {truncatedValuesDisplay.hasMore && (
-                                                <HoverCard
-                                                    position="bottom"
-                                                    classNames={{
-                                                        dropdown:
-                                                            classes.additionalValuesList,
-                                                    }}
-                                                >
-                                                    <HoverCard.Target>
-                                                        <Badge size="sm" ml={4}>
-                                                            +
-                                                            {
-                                                                truncatedValuesDisplay
-                                                                    .additionalValues
-                                                                    .length
-                                                            }
-                                                        </Badge>
-                                                    </HoverCard.Target>
-                                                    <HoverCard.Dropdown>
-                                                        <Text
-                                                            fz="xs"
-                                                            fw={500}
-                                                            c="ldGray.5"
-                                                        >
-                                                            Additional values (
-                                                            {
-                                                                truncatedValuesDisplay
-                                                                    .additionalValues
-                                                                    .length
-                                                            }
-                                                            )
-                                                        </Text>
-                                                        <ScrollArea.Autosize
-                                                            mah={200}
-                                                            type="always"
-                                                            scrollbars="y"
-                                                        >
-                                                            {truncatedValuesDisplay.additionalValues.map(
-                                                                (val, idx) => (
-                                                                    <Text
-                                                                        key={
-                                                                            idx
-                                                                        }
-                                                                        fz="xs"
-                                                                        c="white"
-                                                                    >
-                                                                        • {val}
-                                                                    </Text>
-                                                                ),
-                                                            )}
-                                                        </ScrollArea.Autosize>
-                                                    </HoverCard.Dropdown>
-                                                </HoverCard>
-                                            )}
-                                        </>
-                                    )}
-                                </Text>
-                            </Box>
+                            <FilterRuleLabel
+                                filterRule={filterRule}
+                                field={field}
+                                truncatedValuesDisplay={truncatedValuesDisplay}
+                                isTablesTooltipDisabled={isPopoverOpen}
+                            />
                         </Button>
                     </Tooltip>
                 </Popover.Target>
