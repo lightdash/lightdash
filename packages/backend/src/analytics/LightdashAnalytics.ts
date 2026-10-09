@@ -3267,7 +3267,13 @@ export type AiAgentSqlApprovalDecidedEvent = BaseTrack & {
         toolCallId: string;
         toolName: SqlApprovalToolName;
         decision: 'approved' | 'rejected' | 'approved_always' | 'timed_out';
-        source: 'web' | 'slack' | 'auto_approve' | 'thread_auto_approve';
+        // same_turn_approval: the same SQL was approved earlier in the turn.
+        source:
+            | 'web'
+            | 'slack'
+            | 'auto_approve'
+            | 'thread_auto_approve'
+            | 'same_turn_approval';
         isAutoApproved: boolean;
         isThreadAutoApproval: boolean;
     };

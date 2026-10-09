@@ -77,6 +77,7 @@ import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGener
 import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
+    SqlApprovalDecisionOnCall,
     SqlAutoApprovalSource,
 } from '../tools/sqlApprovals';
 
@@ -799,6 +800,11 @@ export type RecordSqlApprovalFn = (args: {
 export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,
 ) => Promise<boolean>;
+
+/** The SQL approval decisions recorded for a prompt's tool calls. */
+export type ListSqlApprovalDecisionsFn = (
+    promptUuid: string,
+) => Promise<SqlApprovalDecisionOnCall[]>;
 
 export type LoadAgentSkillFn = (
     name: string,

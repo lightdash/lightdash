@@ -1,7 +1,9 @@
 import {
     getPatchedSql,
+    getSameTurnSqlApprovalProgressId,
     getSqlApprovalSql,
     getSqlChartPatchSqlErrors,
+    isSameApprovalSql,
     isSqlApprovalToolCall,
 } from './sqlApprovalToolCalls';
 
@@ -155,5 +157,29 @@ describe('getSqlChartPatchSqlErrors', () => {
             'patch[5].path: "replace" at "" needs an object value with a string "sql"',
             'patch[6].path: "add" cannot change "/sql/0"; use "replace" with the full SQL string at "/sql"',
         ]);
+    });
+});
+
+describe('isSameApprovalSql', () => {
+    it('matches the same SQL up to surrounding whitespace and trailing semicolons', () => {
+        expect(isSameApprovalSql('select 1', 'select 1')).toBe(true);
+        expect(isSameApprovalSql('  select 1\n', 'select 1')).toBe(true);
+        expect(isSameApprovalSql('select 1;', 'select 1')).toBe(true);
+        expect(isSameApprovalSql('select 1 ;\n', 'select 1')).toBe(true);
+    });
+
+    it('does not match SQL that differs anywhere else', () => {
+        expect(isSameApprovalSql('select 1', 'SELECT 1')).toBe(false);
+        expect(isSameApprovalSql('select  1', 'select 1')).toBe(false);
+        expect(isSameApprovalSql('select 1; select 2', 'select 1')).toBe(false);
+        expect(isSameApprovalSql("select ';'", "select '")).toBe(false);
+    });
+});
+
+describe('getSameTurnSqlApprovalProgressId', () => {
+    it('keys the progress event to its own tool call', () => {
+        expect(getSameTurnSqlApprovalProgressId('call-1')).not.toBe(
+            getSameTurnSqlApprovalProgressId('call-2'),
+        );
     });
 });

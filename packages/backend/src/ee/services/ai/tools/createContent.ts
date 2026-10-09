@@ -132,14 +132,12 @@ export const getCreateContent = ({
         ...(documentsEnabled
             ? mcpCreateContentToolDefinition.for('agent')
             : toolDefinition),
-        needsApproval: (input) =>
-            sqlChartGate.needsApproval(input.type === 'sql_chart'),
+        needsApproval: sqlChartGate.needsApproval,
         execute: (
             args,
             { toolCallId },
         ): Promise<ExecuteCreateContentResult> => {
             const { type, content } = args;
-            const isSqlChart = type === 'sql_chart';
 
             const run = async (
                 approveSql: ApproveSqlFn | null,
@@ -195,10 +193,7 @@ export const getCreateContent = ({
                 }
             };
 
-            return sqlChartGate.run(
-                { toolCallId, isSqlChart, gated: isSqlChart },
-                run,
-            );
+            return sqlChartGate.run({ toolCallId, args }, run);
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });

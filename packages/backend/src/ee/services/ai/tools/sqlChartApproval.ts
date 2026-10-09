@@ -1,4 +1,9 @@
 import {
+    getSqlApprovalSql,
+    isSqlApprovalToolCall,
+    isSqlChartContentArgs,
+} from '@lightdash/common';
+import {
     toolFailure,
     type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
@@ -67,26 +72,34 @@ export const createSqlChartGate = (
               )
             : null;
 
+    /** The SQL a call asks to save; null when the call does not gate on it. */
+    const getGatedSql = (args: unknown): string | null =>
+        isSqlApprovalToolCall(toolName, args) ? getSqlApprovalSql(args) : null;
+
     /** For the AI SDK: a gated call on Slack suspends until the user decides. */
-    const needsApproval = async (gated: boolean): Promise<boolean> =>
-        gated && approvalGate !== null && approvalGate.usesNativeApproval();
+    const needsApproval = async (
+        args: unknown,
+        { toolCallId }: { toolCallId: string },
+    ): Promise<boolean> =>
+        approvalGate !== null &&
+        approvalGate.needsNativeApproval({
+            toolCallId,
+            sql: getGatedSql(args),
+        });
 
     // `approveSql` is null when the thread does not gate the call.
     const run = async <T extends ToolOutput>(
-        {
-            toolCallId,
-            isSqlChart,
-            gated,
-        }: { toolCallId: string; isSqlChart: boolean; gated: boolean },
+        { toolCallId, args }: { toolCallId: string; args: unknown },
         execute: (approveSql: ApproveSqlFn | null) => Promise<T>,
     ): Promise<T | ExecuteToolErrorResult> => {
+        const isSqlChart = isSqlChartContentArgs(args);
         if (isSqlChart && sqlChartSaving.mode === 'disabled') {
             return toolFailure(SQL_CHART_DISABLED_RESULT);
         }
         const call =
             isSqlChart && approvalGate
                 ? await approvalGate.forToolCall(toolCallId, {
-                      needsApproval: gated,
+                      sql: getGatedSql(args),
                   })
                 : null;
         const output = await execute(call ? getSqlChartApproveSql(call) : null);

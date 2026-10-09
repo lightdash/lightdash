@@ -122,3 +122,15 @@ export const getSqlApprovalSql = (toolArgs: unknown): string | null => {
     }
     return getPatchedSql(toolArgs.patch);
 };
+
+// Surrounding whitespace and trailing semicolons never change the statement.
+const normalizeApprovalSql = (sql: string): string =>
+    sql.trim().replace(/[\s;]+$/, '');
+
+/** Whether approving one SQL string also approves the other. */
+export const isSameApprovalSql = (a: string, b: string): boolean =>
+    normalizeApprovalSql(a) === normalizeApprovalSql(b);
+
+/** Step-progress id the server emits when it skips a call's prompt for SQL approved earlier in the turn. */
+export const getSameTurnSqlApprovalProgressId = (toolCallId: string): string =>
+    `${toolCallId}:same-turn-sql-approval`;

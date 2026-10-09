@@ -1949,6 +1949,8 @@ export const getAgentTools = (
                   waitForSqlApproval: dependencies.waitForSqlApproval,
                   recordSqlApproval: dependencies.recordSqlApproval,
                   isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  listSqlApprovalDecisions:
+                      dependencies.listSqlApprovalDecisions,
                   trackSqlApprovalTimeout,
                   storeToolResults: dependencies.storeToolResults,
                   createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -2025,6 +2027,8 @@ export const getAgentTools = (
                   waitForSqlApproval: dependencies.waitForSqlApproval,
                   recordSqlApproval: dependencies.recordSqlApproval,
                   isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+                  listSqlApprovalDecisions:
+                      dependencies.listSqlApprovalDecisions,
                   trackSqlApprovalTimeout,
                   storeToolResults: dependencies.storeToolResults,
                   autoApproveSql: args.autoApproveSql ?? false,

@@ -1,7 +1,11 @@
-import { isSlackPrompt } from '@lightdash/common';
+import {
+    getSameTurnSqlApprovalProgressId,
+    isSlackPrompt,
+} from '@lightdash/common';
 import type {
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
+    ListSqlApprovalDecisionsFn,
     RecordSqlApprovalFn,
     StoreToolResultsFn,
     UpdateProgressFn,
@@ -10,8 +14,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
 import {
+    findSameTurnSqlApproval,
     SqlNotApprovedError,
     type NativeSqlApprovalToolName,
+    type SameTurnSqlApproval,
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
@@ -23,6 +29,7 @@ export type SqlApprovalDependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     // Persists results of resumed calls, which onStepFinish never sees.
     storeToolResults: StoreToolResultsFn;
@@ -41,6 +48,8 @@ export type SqlApprovalCopy = {
     timeoutResult: string;
     previousTimeoutResult: string;
 };
+
+const SAME_TURN_APPROVED_PROGRESS = 'SQL already approved earlier in this turn';
 
 type ToolOutput = { result: string; metadata?: Record<string, unknown> };
 
@@ -66,13 +75,40 @@ export const createSqlApprovalGate = (
         );
     };
 
-    // `needsApproval` mirrors the tool's: a natively gated call resumes an
+    /** An approval of the same SQL by another call in this turn. */
+    const fetchSameTurnApproval = async (
+        toolCallId: string,
+        sql: string,
+    ): Promise<SameTurnSqlApproval | null> => {
+        const prompt = await dependencies.getPrompt();
+        return findSameTurnSqlApproval(
+            await dependencies.listSqlApprovalDecisions(prompt.promptUuid),
+            { toolCallId, sql },
+        );
+    };
+
+    /**
+     * For the AI SDK: whether a call suspends until the user approves it on
+     * Slack. `sql` is null when the tool does not gate the call.
+     */
+    const needsNativeApproval = async ({
+        toolCallId,
+        sql,
+    }: {
+        toolCallId: string;
+        sql: string | null;
+    }): Promise<boolean> =>
+        sql !== null &&
+        (await usesNativeApproval()) &&
+        (await fetchSameTurnApproval(toolCallId, sql)) === null;
+
+    // `sql` mirrors `needsNativeApproval`: a natively gated call resumes an
     // earlier run, so its result must be persisted here.
     const forToolCall = async (
         toolCallId: string,
-        { needsApproval }: { needsApproval: boolean },
+        { sql: gatedSql }: { sql: string | null },
     ) => {
-        let resume = needsApproval && (await usesNativeApproval());
+        let resume = await needsNativeApproval({ toolCallId, sql: gatedSql });
 
         const renderState = async (state: SectionState) => {
             const prompt = await dependencies.getPrompt();
@@ -135,6 +171,28 @@ export const createSqlApprovalGate = (
             const isSlack = isSlackPrompt(prompt);
 
             if (await recordAutoApproval(prompt.threadUuid)) return;
+
+            const sameTurnApproval = await fetchSameTurnApproval(
+                toolCallId,
+                sql,
+            );
+            if (sameTurnApproval) {
+                await dependencies.recordSqlApproval({
+                    toolCallId,
+                    toolName,
+                    decidedByUserUuid: sameTurnApproval.decidedByUserUuid,
+                    source: 'same_turn_approval',
+                });
+                if (!isSlack) {
+                    await dependencies.updateProgress(
+                        SAME_TURN_APPROVED_PROGRESS,
+                        toolName,
+                        getSameTurnSqlApprovalProgressId(toolCallId),
+                        'complete',
+                    );
+                }
+                return;
+            }
 
             if (await usesNativeApproval()) {
                 // The SDK only executes this call once the user approved it.
@@ -211,7 +269,7 @@ export const createSqlApprovalGate = (
         };
     };
 
-    return { usesNativeApproval, forToolCall };
+    return { needsNativeApproval, forToolCall };
 };
 
 export type SqlApprovalCall = Awaited<
