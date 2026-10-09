@@ -149,10 +149,10 @@ In `FilterConfiguration/`:
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
   editor closes as "Done" does. From the page, Escape never closes.
-- A mouse down unclicks the field unless it lands inside `data-keeps-field`
-  (the field rows, the tile cards) or inside a Mantine portal
-  (lists and menus). That listener exists only while a field is clicked. It
-  works on the tiles because their overlays stop no events.
+- A mouse down never unclicks the field, and neither does changing the
+  dashboard tab: the selection is kept while the editor walks the tabs. It
+  ends only by clicking the card again, "Show all tiles", Escape, selecting
+  another field, or closing or switching the editor.
 
 ## Editor
 
@@ -228,8 +228,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - "Remove field" is switched off on a filter's only field: without it the
   filter could not be kept. Its tooltip points to "Remove filter" in More
   actions, or to "Discard control" for a new one.
-- The clicked row shows an x, "Show all tiles" (`ShowAllTilesButton`), above
-  the row's stretched click area like the other row actions.
+- The clicked row shows a text button, "Show all tiles"
+  (`ShowAllTilesButton`: `compact-xs`, subtle, no icon, no tooltip), right of
+  the name and above the row's stretched click area like the other row
+  actions. It hands focus back to the name button. Never an X: that reads as
+  "Remove field".
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
   (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
   fields of the filter.
@@ -246,7 +249,34 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   tile is `available`, and it always gets a card so the mapping can be
   cleared. It still counts as filtered, as the shipped popover counts it
   selected. Nothing is called missing while the tile's fields are unknown.
-- Counts (`getTabCounts`) use every tile on the tab or
+- Scope: on a dashboard with two tabs or more, a `SegmentedControl` under the
+  "Fields in this filter" heading ("This tab", the default, and "Every tab")
+  chooses the tiles the field cards count and act on. "This tab" is the
+  dashboard's active tab and follows it. The choice is `useState` in
+  `FieldsAndTiles`: never saved, back to "This tab" when the editor closes.
+  With fewer than two tabs there is no switch and every tile is in scope.
+  Scope is only which tiles are passed to the helpers (`dashboardTiles`
+  filtered by `tabUuid`), so an action never writes a tile out of scope.
+- A card (`FieldRow`) reads `getFieldScope` over the tiles in scope: of the
+  tiles that offer the field (`possible`), the ones on it (`applied`), the
+  ones the filter is not on (`unfiltered`) and the ones on another field
+  (`replaced`, with `replacedFieldIds`). A SQL column row gets the same shape
+  from `getSqlColumnScope`. The count line is "<table> · x of N tiles", or
+  "<table> · no tiles on this tab" when nothing on the tab offers the field.
+  - Buttons: none when `unfiltered + replaced` is 0. "Apply to all N" when
+    nothing would be replaced and the field is on no tile, or when there is
+    something to replace and nothing unfiltered. "Add to N unfiltered"
+    (`applyFieldToUnfilteredTiles`) when nothing would be replaced and the
+    field is on a tile. Both, "Add to N unfiltered" then a gray "All N", when
+    there are tiles of both kinds. The all button is `applyFieldToAll`.
+  - A button that replaces says so before the click: a tooltip "Replaces
+    <fields> on N tiles", repeated in its `aria-label`. Every `aria-label`
+    names the field, the count and the scope ("on this tab", "on every tab",
+    nothing without tabs).
+  - More menu: "Clear from this tab" / "Clear from every tab" ("Clear from
+    tiles" without tabs), shown while the field is on a tile in scope.
+    "Remove field" and `isWaiting` are always whole-dashboard.
+- Counts (`getTabCounts`, `getTabCountsForField`) use every tile on the tab or
   dashboard, not only the filterable ones.
 - A tile's look answers two questions only: is it filtered by this control, and, if a field is active, is it on that field. Whether the tile
   could take the active field never changes the look. `data-highlighted` is:
@@ -277,6 +307,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `[data-highlighted='mapped']` tile into view when none of them is visible.
   A clicked field that is on no tile scrolls nothing.
 - A waiting field's row carries `data-waiting` and a dashed border.
+- A tab with a count badge keeps its natural width (`TabCounts.module.css`),
+  so the tab strip scrolls instead of cutting the names.
 - The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
   and read no context. The list component derives each
   tile's props, the highlight string included, and passes primitives, stable
@@ -335,8 +367,13 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   The clear button works on the stand-in button without mounting the `Select`,
   and it is a named tab stop, since it is the only way to clear.
 - `TileOverlays` portals a veil and a "Filtered by" card into each
-  `[data-tile-uuid]` grid item on the active tab. It resolves targets with
-  `usePortalTargets`.
+  `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
+  "x of N" badge into each tab node. Both resolve targets with
+  `usePortalTargets`. `TabCounts` renders nothing for a placeholder. A badge
+  is grey: `light` on a tab the control reaches (`data-reached`), transparent
+  on the rest. While a field is active (hovered or clicked,
+  `data-field-active`), the tabs that field is on turn `color="blue"`, and
+  the tabs it is on no tile of stay grey and transparent.
 - A veiled tile is locked three ways, and none of them stops an event. Every
   overlay root (`TileOverlay`) carries the
   grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
@@ -348,7 +385,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   must portal an overlay into every target it gets. The stylesheet's
   `pointer-events: none` on the siblings stays. Never call `stopPropagation`
   on an overlay: Mantine closes lists on a `mousedown` that reaches
-  `document`, and the clicked field is cleared the same way.
+  `document`.
 
 ## Motion
 
@@ -372,7 +409,7 @@ Rules:
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
   count in a sidebar row, the footer status, the `.confirm` line on a tile
-  card). The editor's
+  card). Tab badges do not replay: they change on every hover. The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo

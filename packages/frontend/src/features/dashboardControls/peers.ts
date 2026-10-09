@@ -158,6 +158,39 @@ export const getFieldCount = (
     ).length,
 });
 
+// What a field's actions would do over the given tiles: the ones that offer
+// it are on it, unfiltered, or on another field that "all" would replace
+export type FieldScope = FieldCount & {
+    unfiltered: number;
+    replaced: number;
+    replacedFieldIds: string[];
+};
+
+export const getFieldScope = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): FieldScope => {
+    const fieldIdsOnTiles = tiles
+        .filter((tile) => doesTileOfferField(tile, fieldId, fieldsByTile))
+        .map(
+            (tile) =>
+                getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)
+                    ?.fieldId ?? null,
+        );
+    const replacedFieldIds = fieldIdsOnTiles.filter(
+        (onTile): onTile is string => onTile !== null && onTile !== fieldId,
+    );
+    return {
+        ...getFieldCount(rule, fieldId, tiles, fieldsByTile, sqlColumnsByTile),
+        unfiltered: fieldIdsOnTiles.filter((onTile) => onTile === null).length,
+        replaced: replacedFieldIds.length,
+        replacedFieldIds: [...new Set(replacedFieldIds)],
+    };
+};
+
 const withTileTargets = (
     rule: DashboardFilterRule,
     tileTargets: NonNullable<DashboardFilterRule['tileTargets']>,
@@ -308,6 +341,36 @@ export const getTabCounts = (
                                 fieldsByTile,
                                 sqlColumnsByTile,
                             ) !== null,
+                    ).length,
+                },
+            ];
+        }),
+    );
+
+// Per tab: how many tiles the given field is on, out of every tile on the tab.
+export const getTabCountsForField = (
+    rule: DashboardFilterRule,
+    fieldId: string,
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): Record<string, TabCount> =>
+    Object.fromEntries(
+        tabs.map((tab) => {
+            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            return [
+                tab.uuid,
+                {
+                    total: tabTiles.length,
+                    applied: tabTiles.filter(
+                        (tile) =>
+                            getFieldIdOnTile(
+                                rule,
+                                tile,
+                                fieldsByTile,
+                                sqlColumnsByTile,
+                            ) === fieldId,
                     ).length,
                 },
             ];

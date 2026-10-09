@@ -13,9 +13,11 @@ import {
     applyFieldToAll,
     getDefaultTileField,
     getFieldCount,
+    getFieldScope,
     getFilterFields,
     getMissingTileFieldId,
     getTabCounts,
+    getTabCountsForField,
     getTileField,
     isTileChanged,
     canTileTakeFilter,
@@ -220,6 +222,43 @@ describe('peers', () => {
             t2: { applied: 1, total: 3 },
         });
     });
+
+    it('counts tiles per tab that use one field of the filter', () => {
+        const r = rule({ c: PAYMENTS });
+        expect(
+            getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
+        ).toEqual({
+            t1: { applied: 2, total: 2 },
+            t2: { applied: 0, total: 3 },
+        });
+        expect(
+            getTabCountsForField(
+                r,
+                'payments_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 0, total: 2 },
+            t2: { applied: 1, total: 3 },
+        });
+    });
+
+    it('does not count a tile whose filter is disabled', () => {
+        expect(
+            getTabCountsForField(
+                rule({ a: false }),
+                'orders_status',
+                tiles,
+                tabs,
+                fieldsByTile,
+            ),
+        ).toEqual({
+            t1: { applied: 1, total: 2 },
+            t2: { applied: 0, total: 3 },
+        });
+    });
 });
 
 describe('peers with SQL chart tiles', () => {
@@ -302,6 +341,16 @@ describe('peers with SQL chart tiles', () => {
                 sqlColumns,
             ).t2,
         ).toEqual({ total: 4, applied: 1 });
+        expect(
+            getTabCountsForField(
+                rule({ s: SQL_STATUS }),
+                'status',
+                allTiles,
+                tabs,
+                fieldsByTile,
+                sqlColumns,
+            ).t2,
+        ).toEqual({ total: 4, applied: 1 });
     });
 
     it('counts every tile on the tab, even a SQL tile without a column of the kind', () => {
@@ -350,6 +399,15 @@ describe('peers with data app tiles', () => {
         expect(
             getFieldCount(rule(), 'orders_status', allTiles, fieldsByTile),
         ).toEqual({ applied: 2, possible: 2 });
+        expect(
+            getTabCountsForField(
+                rule(),
+                'orders_status',
+                allTiles,
+                tabs,
+                fieldsByTile,
+            ).t2,
+        ).toEqual({ applied: 0, total: 4 });
     });
 
     it('stays as it is when a field is cleared from its tiles or removed', () => {
@@ -374,6 +432,18 @@ describe('peers with data app tiles', () => {
             fieldsByTile,
         );
         expect(getTileField(off, appTile, fieldsByTile)).toBe(null);
+    });
+
+    it('is never a tile a field could be added to or replaced on', () => {
+        expect(
+            getFieldScope(rule(), 'orders_status', [appTile], fieldsByTile),
+        ).toEqual({
+            applied: 0,
+            possible: 0,
+            unfiltered: 0,
+            replaced: 0,
+            replacedFieldIds: [],
+        });
     });
 });
 
@@ -436,6 +506,105 @@ describe('a tile mapped to a field it no longer offers', () => {
         expect(getTabCounts(r, tiles, tabs, fieldsByTile).t1).toEqual({
             applied: 2,
             total: 2,
+        });
+    });
+});
+
+describe('what a field would do over the tiles in scope', () => {
+    const onTab = (tabUuid: string) =>
+        tiles.filter((tile) => tile.tabUuid === tabUuid);
+
+    it('splits the tiles that offer the field into applied, unfiltered and replaced', () => {
+        // a: left out, b: on payments, c: on payments
+        const r = rule({ a: false, b: PAYMENTS, c: PAYMENTS });
+        expect(getFieldScope(r, 'orders_status', tiles, fieldsByTile)).toEqual({
+            applied: 0,
+            possible: 2,
+            unfiltered: 1,
+            replaced: 1,
+            replacedFieldIds: ['payments_status'],
+        });
+        expect(
+            getFieldScope(r, 'payments_status', tiles, fieldsByTile),
+        ).toEqual({
+            applied: 2,
+            possible: 2,
+            unfiltered: 0,
+            replaced: 0,
+            replacedFieldIds: [],
+        });
+    });
+
+    it('keeps the counts of getFieldCount', () => {
+        const r = rule({ b: PAYMENTS, c: PAYMENTS });
+        const { applied, possible } = getFieldScope(
+            r,
+            'orders_status',
+            tiles,
+            fieldsByTile,
+        );
+        expect({ applied, possible }).toEqual(
+            getFieldCount(r, 'orders_status', tiles, fieldsByTile),
+        );
+    });
+
+    it('only looks at the tiles it is given', () => {
+        const r = rule({ c: false });
+        expect(
+            getFieldScope(r, 'payments_status', onTab('t1'), fieldsByTile),
+        ).toEqual({
+            applied: 0,
+            possible: 1,
+            unfiltered: 0,
+            replaced: 1,
+            replacedFieldIds: ['orders_status'],
+        });
+        expect(
+            getFieldScope(r, 'payments_status', onTab('t2'), fieldsByTile),
+        ).toEqual({
+            applied: 0,
+            possible: 1,
+            unfiltered: 1,
+            replaced: 0,
+            replacedFieldIds: [],
+        });
+    });
+
+    it('offers nothing where no tile has the field', () => {
+        expect(
+            getFieldScope(rule(), 'orders_status', onTab('t2'), fieldsByTile),
+        ).toEqual({
+            applied: 0,
+            possible: 0,
+            unfiltered: 0,
+            replaced: 0,
+            replacedFieldIds: [],
+        });
+    });
+
+    it('lists each replaced field once', () => {
+        const r = rule({ b: PAYMENTS, c: PAYMENTS });
+        const both = { ...fieldsByTile, c: fieldsByTile.b };
+        expect(getFieldScope(r, 'orders_status', tiles, both)).toMatchObject({
+            replaced: 2,
+            replacedFieldIds: ['payments_status'],
+        });
+    });
+
+    it('replaces a field the tile no longer offers', () => {
+        const GONE = { fieldId: 'orders_gone', tableName: 'orders' };
+        expect(
+            getFieldScope(
+                rule({ a: GONE }),
+                'orders_status',
+                onTab('t1'),
+                fieldsByTile,
+            ),
+        ).toMatchObject({
+            applied: 1,
+            unfiltered: 0,
+            replaced: 1,
+            replacedFieldIds: ['orders_gone'],
         });
     });
 });

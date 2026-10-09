@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { KEEPS_FIELD_ATTRIBUTE } from './tileSelector';
 
 // Marks the editor root: Escape closes the editor only from inside it
 export const EDITOR_ATTRIBUTE = 'data-controls-editor';
@@ -14,8 +13,6 @@ const OPEN_LAYER_SELECTOR = [
     '[aria-expanded="true"][role="combobox"]',
     '[aria-modal="true"]',
 ].join(',');
-// Field rows, tile cards, and anything Mantine portals (lists, menus)
-const KEEPS_FIELD_SELECTOR = `[${KEEPS_FIELD_ATTRIBUTE}], [data-portal]`;
 
 type Args = {
     isOpen: boolean;
@@ -26,7 +23,7 @@ type Args = {
 
 // One Escape listener while the editor is open, so one press does one thing:
 // an open list closes itself, else the clicked field is cleared, else the
-// editor closes. A mousedown outside the rows and cards clears the field too.
+// editor closes. A mouse down never clears the field.
 export const useEditorDismiss = ({
     isOpen,
     isFieldClicked,
@@ -61,15 +58,4 @@ export const useEditorDismiss = ({
         return () =>
             document.removeEventListener('keydown', handleKeyDown, true);
     }, [isOpen, isFieldClicked, clearField, close]);
-
-    useEffect(() => {
-        if (!isFieldClicked) return;
-        const handleMouseDown = (event: MouseEvent) => {
-            if (!(event.target instanceof Element)) return;
-            if (event.target.closest(KEEPS_FIELD_SELECTOR)) return;
-            clearField();
-        };
-        document.addEventListener('mousedown', handleMouseDown);
-        return () => document.removeEventListener('mousedown', handleMouseDown);
-    }, [isFieldClicked, clearField]);
 };

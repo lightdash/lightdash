@@ -1033,13 +1033,6 @@ describe('TileOverlays', () => {
         document.elementFromPoint = original;
     });
 
-    it('keeps a clicked field when the card is pressed', () => {
-        renderWithProviders(<TileOverlays />);
-
-        expect(select(both.uuid).closest('[data-keeps-field]')).not.toBeNull();
-        expect(overlay(both.uuid)).not.toHaveAttribute('data-keeps-field');
-    });
-
     describe('a new control with no field yet', () => {
         const placeholder = (label?: string) =>
             rule({ label, target: { fieldId: '', tableName: '' } });

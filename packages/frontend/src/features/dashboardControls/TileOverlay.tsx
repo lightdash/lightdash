@@ -220,7 +220,6 @@ const TileOverlay = memo<TileOverlayProps>(
                     radius="md"
                     className={classes.card}
                     title=""
-                    data-keeps-field
                 >
                     <Box
                         key={tileFieldId ?? 'none'}

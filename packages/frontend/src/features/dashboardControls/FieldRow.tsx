@@ -9,55 +9,72 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconDots, IconX } from '@tabler/icons-react';
+import { IconDots } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './FieldsAndTiles.module.css';
-import { type FieldCount } from './peers';
+import { type FieldScope } from './peers';
 
 const pluralizeTiles = (count: number): string =>
     count === 1 ? 'tile' : 'tiles';
 
-const SHOW_ALL_TILES = 'Show all tiles';
+// Which tiles a row counts and acts on; null on a dashboard without tabs
+export type TileScope = 'this-tab' | 'every-tab';
 
-// The way out of a clicked row; render it right after the row's name button.
+const SCOPE_SUFFIX: Record<TileScope, string> = {
+    'this-tab': ' on this tab',
+    'every-tab': ' on every tab',
+};
+
+const CLEAR_LABEL: Record<TileScope, string> = {
+    'this-tab': 'Clear from this tab',
+    'every-tab': 'Clear from every tab',
+};
+
+const joinLabels = (labels: string[]): string =>
+    labels.length < 2
+        ? labels.join('')
+        : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+
+// The way out of a selected row; render it right after the row's name button.
 // It leaves the page once clicked, so focus is handed back to that button
 const ShowAllTilesButton: FC<{ onClick: () => void }> = ({ onClick }) => (
-    <Tooltip label={SHOW_ALL_TILES}>
-        <ActionIcon
-            className={classes.rowUnpin}
-            size="sm"
-            variant="subtle"
-            color="gray"
-            mt="xs"
-            mr="xs"
-            flex="0 0 auto"
-            aria-label={SHOW_ALL_TILES}
-            onClick={(event) => {
-                const rowButton = event.currentTarget.previousElementSibling;
-                if (rowButton instanceof HTMLElement) rowButton.focus();
-                onClick();
-            }}
-        >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
-    </Tooltip>
+    <Button
+        className={classes.rowUnpin}
+        size="compact-xs"
+        variant="subtle"
+        mt="xs"
+        mr="xs"
+        flex="0 0 auto"
+        onClick={(event) => {
+            const rowButton = event.currentTarget.previousElementSibling;
+            if (rowButton instanceof HTMLElement) rowButton.focus();
+            onClick();
+        }}
+    >
+        Show all tiles
+    </Button>
 );
 
 type Props = {
     field: DashboardFilterableField | null;
     label: string;
     tableLabel: string;
-    count: FieldCount;
+    // Counted over the tiles in scope
+    scope: FieldScope;
+    tileScope: TileScope | null;
+    // Names of the fields "all" would take off their tiles
+    replacedLabels: string[];
     isHighlighted: boolean;
     // On no tile yet
     isWaiting: boolean;
     onToggleHighlight: () => void;
     onClearHighlight: () => void;
     onHoverChange: (isHovered: boolean) => void;
+    onAddToUnfiltered: () => void;
     onAll: () => void;
-    onNone: () => void;
+    onClear: () => void;
     onRemove: () => void;
     // Why the row cannot be removed, or null when it can
     removeDisabledReason: string | null;
@@ -67,19 +84,29 @@ export const FieldRow: FC<Props> = ({
     field,
     label,
     tableLabel,
-    count,
+    scope,
+    tileScope,
+    replacedLabels,
     isHighlighted,
     isWaiting,
     onToggleHighlight,
     onClearHighlight,
     onHoverChange,
+    onAddToUnfiltered,
     onAll,
-    onNone,
+    onClear,
     onRemove,
     removeDisabledReason,
 }) => {
-    const showAll = count.applied < count.possible;
-    const showNone = count.applied > 0;
+    const { applied, possible, unfiltered, replaced } = scope;
+    const showAdd = unfiltered > 0 && (applied > 0 || replaced > 0);
+    const showAll = replaced > 0 || (unfiltered > 0 && applied === 0);
+    const showClear = applied > 0;
+    const scopeSuffix = tileScope === null ? '' : SCOPE_SUFFIX[tileScope];
+    const replaces = `Replaces ${joinLabels(replacedLabels)} on ${replaced} ${pluralizeTiles(replaced)}`;
+    const allLabel = `Apply ${label} to all ${possible} ${pluralizeTiles(possible)}${scopeSuffix}`;
+    const isEmptyTab =
+        tileScope === 'this-tab' && possible === 0 && applied === 0;
     const canRemove = removeDisabledReason === null;
 
     return (
@@ -91,7 +118,6 @@ export const FieldRow: FC<Props> = ({
             }
             gap={0}
             data-waiting={isWaiting || undefined}
-            data-keeps-field
             onMouseEnter={() => onHoverChange(true)}
             onMouseLeave={() => onHoverChange(false)}
         >
@@ -124,26 +150,50 @@ export const FieldRow: FC<Props> = ({
                 wrap="nowrap"
             >
                 <Text
-                    key={`${count.applied}/${count.possible}`}
+                    key={`${applied}/${possible}`}
                     fz="xs"
                     c="dimmed"
                     truncate
                     className={classes.rowCount}
                 >
-                    {`${tableLabel} · ${count.applied} of ${
-                        count.possible
-                    } ${pluralizeTiles(count.possible)}`}
+                    {isEmptyTab
+                        ? `${tableLabel} · no tiles on this tab`
+                        : `${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
                 </Text>
                 <Group gap={4} wrap="nowrap" flex="0 0 auto">
-                    {showAll && (
+                    {showAdd && (
                         <Button
                             size="compact-xs"
                             variant="subtle"
-                            aria-label={`Apply ${label} to all ${count.possible} ${tableLabel} ${pluralizeTiles(count.possible)}`}
-                            onClick={onAll}
+                            aria-label={`Add ${label} to the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)}${scopeSuffix}`}
+                            onClick={onAddToUnfiltered}
                         >
-                            Apply to all {count.possible}
+                            Add to {unfiltered} unfiltered
                         </Button>
+                    )}
+                    {showAll && (
+                        <Tooltip
+                            label={replaces}
+                            disabled={replaced === 0}
+                            events={{ hover: true, focus: true, touch: true }}
+                        >
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                // The safe action leads when there are two
+                                color={showAdd ? 'gray' : undefined}
+                                aria-label={
+                                    replaced > 0
+                                        ? `${allLabel}. ${replaces}`
+                                        : allLabel
+                                }
+                                onClick={onAll}
+                            >
+                                {showAdd
+                                    ? `All ${possible}`
+                                    : `Apply to all ${possible}`}
+                            </Button>
+                        </Tooltip>
                     )}
                     <Menu position="bottom-end">
                         <Menu.Target>
@@ -159,9 +209,11 @@ export const FieldRow: FC<Props> = ({
                             </Tooltip>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            {showNone && (
-                                <Menu.Item onClick={onNone}>
-                                    Clear from tiles
+                            {showClear && (
+                                <Menu.Item onClick={onClear}>
+                                    {tileScope === null
+                                        ? 'Clear from tiles'
+                                        : CLEAR_LABEL[tileScope]}
                                 </Menu.Item>
                             )}
                             {/* Not `disabled`: the arrow keys still reach
