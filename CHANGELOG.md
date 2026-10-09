@@ -1,3 +1,15 @@
+# [2.503.0](https://github.com/lightdash/lightdash/compare/2.502.1...2.503.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** scroll SQL approval buttons into view when approval is needed ([#30800](https://github.com/lightdash/lightdash/issues/30800)) ([bf59db6](https://github.com/lightdash/lightdash/commit/bf59db633abcff0b29efb11c246b8a11d9be1990))
+
+
+### Features
+
+* **sql runner:** flatten the toolbar, compact the results grid and restyle the sidebar ([#30686](https://github.com/lightdash/lightdash/issues/30686)) ([0f6bda9](https://github.com/lightdash/lightdash/commit/0f6bda9daf9be252cdbe02a2f724191618008708))
+
 ## [2.502.1](https://github.com/lightdash/lightdash/compare/2.502.0...2.502.1) (2026-10-09)
 
 
