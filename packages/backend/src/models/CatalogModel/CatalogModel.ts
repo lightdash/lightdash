@@ -518,7 +518,15 @@ export class CatalogModel {
             context === CatalogSearchContext.AI_AGENT ||
             context === CatalogSearchContext.MCP;
 
+        // Bind the attribute map once. Page and count clones share this CTE,
+        // and the predicate below reads catalog_user_attributes.attrs.
         let catalogItemsQuery = this.database(CatalogTableName)
+            .with(
+                'catalog_user_attributes',
+                this.database.raw('SELECT ?::jsonb AS attrs', [
+                    JSON.stringify(userAttributes),
+                ]),
+            )
             .column(
                 `${CatalogTableName}.catalog_search_uuid`,
                 `${CatalogTableName}.name`,
@@ -577,6 +585,7 @@ export class CatalogModel {
                     ).andOnVal('owner_email.is_primary', '=', true);
                 },
             )
+            .joinRaw('CROSS JOIN ??', ['catalog_user_attributes'])
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
             .andWhere(function tablesConfigurationFiltering() {
@@ -641,7 +650,7 @@ export class CatalogModel {
                                                 FROM jsonb_array_elements_text(value) AS req_value
                                                 -- Check if this required value exists in user's attributes array
                                                 WHERE req_value = ANY(
-                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                    SELECT jsonb_array_elements_text(catalog_user_attributes.attrs -> key)
                                                 )
                                             )
                                         -- Case 2: Required attribute is a single value (e.g., "is_admin": "true")
@@ -649,7 +658,7 @@ export class CatalogModel {
                                             -- Extract single value and check if it exists in user's attributes array
                                             -- value #>> '{}' converts JSONB value to text
                                             (value #>> '{}') = ANY(
-                                                SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                SELECT jsonb_array_elements_text(catalog_user_attributes.attrs -> key)
                                             )
                                     END
                                 )
@@ -678,26 +687,20 @@ export class CatalogModel {
                                                 FROM jsonb_array_elements_text(value) AS any_value
                                                 -- Check if this candidate value exists in user's attributes array
                                                 WHERE any_value = ANY(
-                                                    SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                    SELECT jsonb_array_elements_text(catalog_user_attributes.attrs -> key)
                                                 )
                                             )
                                         -- Case 2: Any attribute is a single value
                                         ELSE
                                             -- Extract single value and check if it exists in user's attributes array
                                             (value #>> '{}') = ANY(
-                                                SELECT jsonb_array_elements_text(?::jsonb -> key)
+                                                SELECT jsonb_array_elements_text(catalog_user_attributes.attrs -> key)
                                             )
                                     END
                                 )
                             )
                         )
                     `,
-                    [
-                        JSON.stringify(userAttributes),
-                        JSON.stringify(userAttributes),
-                        JSON.stringify(userAttributes),
-                        JSON.stringify(userAttributes),
-                    ],
                 );
             });
 

@@ -643,6 +643,60 @@ describe('CatalogModel', () => {
         );
     });
 
+    describe('user attribute binding', () => {
+        test('binds the user attribute map once in each page and count query', async () => {
+            tracker.on
+                .any(({ sql }) => sql.includes('WITH count_cte AS'))
+                .response({ rows: [{ count: '0' }] });
+            tracker.on
+                .select(({ sql }) => sql.includes('jsonb_object_agg'))
+                .response([]);
+            tracker.on
+                .select(({ sql }) => sql.includes('catalog_search_tags'))
+                .response([]);
+
+            const userAttributes = { department: ['sales'] };
+            const serializedUserAttributes = JSON.stringify(userAttributes);
+
+            await model.search({
+                projectUuid: MOCK_PROJECT_UUID,
+                catalogSearch: {},
+                tablesConfiguration: {
+                    tableSelection: {
+                        type: TableSelectionType.ALL,
+                        value: null,
+                    },
+                },
+                userAttributes,
+                paginateArgs: { page: 1, pageSize: 10 },
+                context: CatalogSearchContext.METRICS_EXPLORER,
+            });
+
+            const statements = [
+                tracker.history.select.find(({ sql }) =>
+                    sql.includes('jsonb_object_agg'),
+                ),
+                tracker.history.all.find(({ sql }) =>
+                    sql.includes('WITH count_cte AS'),
+                ),
+            ];
+            for (const statement of statements) {
+                expect(statement?.sql).toEqual(expect.any(String));
+                expect(
+                    statement!.bindings.filter(
+                        (binding) => binding === serializedUserAttributes,
+                    ),
+                ).toHaveLength(1);
+                expect(
+                    statement!.sql.match(
+                        /catalog_user_attributes\.attrs -> key/g,
+                    ),
+                ).toHaveLength(4);
+                expect(statement!.sql).not.toContain(serializedUserAttributes);
+            }
+        });
+    });
+
     describe('createMetricsTree', () => {
         test('should create tree with nodes and edges in clean state', async () => {
             // Mock the tree insert (returning created row)
