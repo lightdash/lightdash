@@ -1,40 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.500.0",
-  "previousVersion": "2.499.0",
-  "releaseDate": "2026-10-09T09:55:45.715Z",
+  "version": "2.501.0",
+  "previousVersion": "2.500.0",
+  "releaseDate": "2026-10-09T10:36:08.926Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261008120000_add_ai_service_account_credentials.ts",
-        "edition": "core",
-        "tables": [
-          "ai_service_account_credentials"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261008120100_add_organization_agent_identity_rules.ts",
-        "edition": "core",
-        "tables": [
-          "organization_agent_identity_rules",
-          "organization_agent_identity_settings"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -46,13 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `ai_service_account` enum value to the `results/identity` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `ai_service_account_invalid` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `ai_service_account_missing` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
-        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `service_account` enum value to the `results/principalKind` response property for the response status `200`"
-      ],
-      "advisoryCount": 4
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

@@ -1,3 +1,16 @@
+# [2.501.0](https://github.com/lightdash/lightdash/compare/2.500.0...2.501.0) (2026-10-09)
+
+
+### Features
+
+* **dashboards:** add filter settings to the controls sidebar ([#30755](https://github.com/lightdash/lightdash/issues/30755)) ([60f861a](https://github.com/lightdash/lightdash/commit/60f861a68529bf1805dc7450308bdac0059700cf))
+* **dashboards:** add the dashboard controls bar and filter editor ([#30749](https://github.com/lightdash/lightdash/issues/30749)) ([d7f1d39](https://github.com/lightdash/lightdash/commit/d7f1d3938c58cf118140094e09a0191f4db35fc9))
+* **dashboards:** create a filter from the controls sidebar ([#30750](https://github.com/lightdash/lightdash/issues/30750)) ([542e148](https://github.com/lightdash/lightdash/commit/542e148da89d747ef5f12ff5a4da6c850ea7f478))
+* **dashboards:** give a filter control several fields ([#30752](https://github.com/lightdash/lightdash/issues/30752)) ([54f2cff](https://github.com/lightdash/lightdash/commit/54f2cff60241e182afebe863b57806f8dc37e947))
+* **dashboards:** map a filter's fields on the tiles ([#30753](https://github.com/lightdash/lightdash/issues/30753)) ([1947e3e](https://github.com/lightdash/lightdash/commit/1947e3e28e8c55e4ad2eed6ba3e145435059dcee))
+* **dashboards:** prompt to link a filter to a newly added tile ([#30756](https://github.com/lightdash/lightdash/issues/30756)) ([104bf00](https://github.com/lightdash/lightdash/commit/104bf00d624ce0b49f05ed60acc57307ca4d7a4b))
+* **dashboards:** show and switch a filter per dashboard tab ([#30754](https://github.com/lightdash/lightdash/issues/30754)) ([f639054](https://github.com/lightdash/lightdash/commit/f6390541a6d2fc869e4933cbc13b1d72cdec2e06))
+
 # [2.500.0](https://github.com/lightdash/lightdash/compare/2.499.0...2.500.0) (2026-10-09)
 
 
