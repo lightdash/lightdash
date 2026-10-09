@@ -68,6 +68,8 @@ type ScopeGroupProps = {
     // Ends each `aria-label`: " on this tab", or nothing without tabs
     scopeSuffix: string;
     clearName: string;
+    // The scope in view: its main action is the filled one
+    isPrimary: boolean;
     onAddToUnfiltered: () => void;
     onSwitch: () => void;
     onClear: () => void;
@@ -81,6 +83,7 @@ const ScopeGroup: FC<ScopeGroupProps> = ({
     replacedLabels,
     scopeSuffix,
     clearName,
+    isPrimary,
     onAddToUnfiltered,
     onSwitch,
     onClear,
@@ -88,25 +91,25 @@ const ScopeGroup: FC<ScopeGroupProps> = ({
     const { applied, possible, unfiltered, replaced } = scope;
     const replacedNames = joinLabels(replacedLabels);
     return (
-        <Group gap="xs" wrap="nowrap">
+        <Group gap="sm" wrap="nowrap">
             <Group gap={6} wrap="nowrap" aria-live="polite">
-                <Text fz="xs" c="dimmed">
+                <Text fz="sm" c="dimmed">
                     {name}
                 </Text>
                 {possible === 0 ? (
-                    <Text fz="xs" c="dimmed">
+                    <Text fz="sm" c="dimmed">
                         no tile has it
                     </Text>
                 ) : (
-                    <Text fz="xs" fw={600} className={classes.count}>
+                    <Text fz="sm" fw={600} className={classes.count}>
                         {`${applied} of ${possible}`}
                     </Text>
                 )}
             </Group>
             {unfiltered > 0 && (
                 <Button
-                    size="compact-xs"
-                    variant="default"
+                    size="xs"
+                    variant={isPrimary ? 'filled' : 'default'}
                     aria-label={`Filter the ${unfiltered} unfiltered ${pluralizeTiles(unfiltered)} by ${label}${scopeSuffix}`}
                     onClick={onAddToUnfiltered}
                 >
@@ -115,7 +118,7 @@ const ScopeGroup: FC<ScopeGroupProps> = ({
             )}
             {replaced > 0 && (
                 <Button
-                    size="compact-xs"
+                    size="xs"
                     variant="default"
                     aria-label={`Switch ${replaced} ${pluralizeTiles(replaced)} from ${replacedNames} to ${label}${scopeSuffix}`}
                     onClick={onSwitch}
@@ -125,7 +128,7 @@ const ScopeGroup: FC<ScopeGroupProps> = ({
             )}
             {applied > 0 && (
                 <Button
-                    size="compact-xs"
+                    size="xs"
                     variant="subtle"
                     color="gray"
                     aria-label={clearName}
@@ -155,15 +158,15 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
         <Paper
             role="region"
             aria-label={`Tiles filtered by ${label}`}
-            shadow="md"
+            shadow="xl"
             withBorder
             radius="md"
             className={classes.bar}
         >
-            <Group gap="sm" justify="center">
+            <Group gap="md" justify="center">
                 <Group gap={6} wrap="nowrap">
                     {field !== null && (
-                        <FieldIcon item={field} size={14} aria-hidden />
+                        <FieldIcon item={field} size={16} aria-hidden />
                     )}
                     <Text fz="sm" fw={600} truncate maw={240}>
                         {label}
@@ -173,6 +176,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                 {thisTabScope === null ? (
                     <ScopeGroup
                         name="Tiles"
+                        isPrimary
                         label={label}
                         scope={everyTabScope}
                         replacedLabels={everyTabReplacedLabels}
@@ -186,6 +190,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                     <>
                         <ScopeGroup
                             name="This tab"
+                            isPrimary
                             label={label}
                             scope={thisTabScope}
                             replacedLabels={thisTabReplacedLabels}
@@ -200,6 +205,7 @@ const Bar: FC<{ fieldTiles: FieldTiles }> = ({ fieldTiles }) => {
                         <Divider orientation="vertical" />
                         <ScopeGroup
                             name="Every tab"
+                            isPrimary={false}
                             label={label}
                             scope={everyTabScope}
                             replacedLabels={everyTabReplacedLabels}

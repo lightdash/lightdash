@@ -14,7 +14,7 @@
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
 
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
     border-color: var(--mantine-color-blue-5);
     animation: barEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
