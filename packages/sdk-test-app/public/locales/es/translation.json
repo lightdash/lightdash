@@ -100,6 +100,7 @@
         }
     },
     "uiOverrides": {
+        "aiAccess.projectSettings": "Abrir la configuración del agente del proyecto",
         "parameters.is": "es",
         "parameters.clear": "Borrar parámetro",
         "parameters.source.chart": "del gráfico",

@@ -1,6 +1,7 @@
 import {
     AiAccessRefusal,
     AiAccessRefusalAction,
+    AiAccessRefusalReason,
     AiAgent,
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
@@ -55,12 +56,25 @@ export const selectSlackAiAccessRefusal = (
     return current;
 };
 
+export const getSlackAiAccessRefusalMessage = (
+    refusal: AiAccessRefusal,
+): string =>
+    refusal.action === AiAccessRefusalAction.SIGN_IN
+        ? 'I need you to sign in to Snowflake before I can run this. It takes about 30 seconds. Then ask me again.'
+        : refusal.message;
+
 export const getAiAccessRefusalBlocks = (
     refusal: AiAccessRefusal | null,
     siteUrl: string,
 ): KnownBlock[] => {
     if (refusal === null || !isEligibleSlackAiAccessRefusal(refusal)) return [];
     const isSignIn = refusal.action === AiAccessRefusalAction.SIGN_IN;
+    const isProjectServiceAccountRefusal =
+        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
+        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;
+    const settingsLabel = isProjectServiceAccountRefusal
+        ? 'Open project agent settings'
+        : 'Open agent settings';
     const refusalUrl = isSignIn ? refusal.connectUrl : refusal.settingsUrl;
     if (refusalUrl === null) return [];
     const url =
@@ -70,7 +84,10 @@ export const getAiAccessRefusalBlocks = (
     return [
         {
             type: 'section',
-            text: { type: 'plain_text', text: refusal.message },
+            text: {
+                type: 'plain_text',
+                text: getSlackAiAccessRefusalMessage(refusal),
+            },
         },
         {
             type: 'actions',
@@ -82,9 +99,7 @@ export const getAiAccessRefusalBlocks = (
                         : 'ai_access_settings',
                     text: {
                         type: 'plain_text',
-                        text: isSignIn
-                            ? 'Connect agent'
-                            : 'Open agent settings',
+                        text: isSignIn ? 'Connect agent' : settingsLabel,
                     },
                     url,
                 },

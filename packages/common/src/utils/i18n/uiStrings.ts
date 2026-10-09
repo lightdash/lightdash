@@ -13,6 +13,7 @@
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
     'aiAccess.settings': 'Review agent identity',
+    'aiAccess.projectSettings': 'Open project agent settings',
     'aiAccess.loadError': 'Could not load AI access',
     'aiAccess.signInError': 'AI sign-in failed',
 

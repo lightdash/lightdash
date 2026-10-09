@@ -11,6 +11,7 @@ import {
     AI_THREAD_FILE_MOUNT_PATH,
     AI_USER_THREAD_CREATED_FROM,
     AiAccessRefusal,
+    AiAccessRefusalAction,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -545,6 +546,7 @@ import {
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
     getReferencedArtifactsBlocks,
+    getSlackAiAccessRefusalMessage,
     getSqlArtifactCardBlocks,
     getTextBlocks,
     getThinkingBlocks,
@@ -16791,11 +16793,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
-            splitMarkdownIntoMessages(
-                slackResponse,
-                undefined,
-                trailingBlocks.length + 1,
-            );
+            accessRefusalState.selected !== null
+                ? { messages: [], truncated: false }
+                : splitMarkdownIntoMessages(
+                      slackResponse,
+                      undefined,
+                      trailingBlocks.length + 1,
+                  );
         // Always ≥1 message so the stream closes and trailing cards attach.
         const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
@@ -16813,10 +16817,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 : []),
         ];
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
-            AiAgentService.slackLinkSection(
-                ':scroll: This answer was too long to show in Slack.',
-                threadUrl,
-            ),
+            ...(accessRefusalState.selected === null
+                ? [
+                      AiAgentService.slackLinkSection(
+                          ':scroll: This answer was too long to show in Slack.',
+                          threadUrl,
+                      ),
+                  ]
+                : []),
             ...getAiAccessRefusalBlocks(
                 accessRefusalState.delivered
                     ? null
@@ -16893,7 +16901,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         organizationUuid: slackPrompt.organizationUuid,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
-                        text: 'The rest of your answer is in Lightdash.',
+                        text:
+                            accessRefusalState.selected === null
+                                ? 'The rest of your answer is in Lightdash.'
+                                : getSlackAiAccessRefusalMessage(
+                                      accessRefusalState.selected,
+                                  ),
                         blocks: linkFallbackBlocks,
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
@@ -16930,11 +16943,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
         accessRefusalState: SlackAiAccessRefusalState;
     }): Promise<void> {
         const { messages: answerMessages, truncated } =
-            splitMarkdownIntoMessages(
-                slackResponse,
-                undefined,
-                trailingBlocks.length + 1,
-            );
+            accessRefusalState.selected !== null
+                ? { messages: [], truncated: false }
+                : splitMarkdownIntoMessages(
+                      slackResponse,
+                      undefined,
+                      trailingBlocks.length + 1,
+                  );
         // Always ≥1 message so trailing cards attach even to an empty answer.
         const messages = answerMessages.length > 0 ? answerMessages : [[]];
         const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
@@ -16952,10 +16967,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 : []),
         ];
         const linkFallbackBlocks: (Block | KnownBlock)[] = [
-            AiAgentService.slackLinkSection(
-                ':scroll: This answer was too long to show in Slack.',
-                threadUrl,
-            ),
+            ...(accessRefusalState.selected === null
+                ? [
+                      AiAgentService.slackLinkSection(
+                          ':scroll: This answer was too long to show in Slack.',
+                          threadUrl,
+                      ),
+                  ]
+                : []),
             ...getAiAccessRefusalBlocks(
                 accessRefusalState.delivered
                     ? null
@@ -16995,7 +17014,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         organizationUuid: slackPrompt.organizationUuid,
                         channel: slackPrompt.slackChannelId,
                         thread_ts: threadTs,
-                        text: 'The rest of your answer is in Lightdash.',
+                        text:
+                            accessRefusalState.selected === null
+                                ? 'The rest of your answer is in Lightdash.'
+                                : getSlackAiAccessRefusalMessage(
+                                      accessRefusalState.selected,
+                                  ),
                         blocks: linkFallbackBlocks,
                         unfurl_links: false,
                         ...(agentName ? { username: agentName } : {}),
@@ -17162,6 +17186,13 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     : accessRefusalState.selected,
                 this.lightdashConfig.siteUrl,
             );
+        const completionTitle = () => {
+            if (accessRefusalState.selected === null) return 'Answered';
+            return accessRefusalState.selected.action ===
+                AiAccessRefusalAction.SIGN_IN
+                ? 'Needs your sign-in'
+                : 'Needs an admin';
+        };
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
 
@@ -17637,6 +17668,41 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return false;
             }
 
+            if (accessRefusalState.selected !== null) {
+                await flushTaskUpdates();
+                const refusalMessage = getSlackAiAccessRefusalMessage(
+                    accessRefusalState.selected,
+                );
+                const delivery = {
+                    slackPrompt,
+                    threadTs,
+                    agentUuid: agent?.uuid,
+                    agentName: agent?.name,
+                    slackResponse: '',
+                    slackifiedMarkdown: refusalMessage,
+                    trailingBlocks: getAccessRefusalBlocks(),
+                    accessRefusalState,
+                };
+                if (streamTs) {
+                    finalizeToolTasksForSuccess();
+                    queueReasoningTaskUpdate({ status: 'complete' });
+                    await flushTaskUpdates();
+                    await updatePlanTitle(completionTitle());
+                    await this.deliverSlackAnswerWithCard({
+                        ...delivery,
+                        streamTs,
+                    });
+                    await persistCardResponseTs();
+                } else {
+                    await this.deliverSlackAnswerMessages(delivery);
+                }
+                await this.aiAgentModel.updateModelResponse({
+                    promptUuid: slackPrompt.promptUuid,
+                    response: refusalMessage,
+                });
+                return false;
+            }
+
             if (!response) {
                 await flushTaskUpdates();
                 if (streamTs) {
@@ -17707,7 +17773,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 finalizeToolTasksForSuccess();
                 queueReasoningTaskUpdate({ status: 'complete' });
                 await flushTaskUpdates();
-                await updatePlanTitle('Answered');
+                await updatePlanTitle(completionTitle());
                 await this.deliverSlackAnswerWithCard({
                     slackPrompt,
                     threadTs,
@@ -17797,7 +17863,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             // Delivery failure on an already-persisted answer: link, don't fail.
             if (isSlackMessageTooLongError(error)) {
-                await updatePlanTitle('Answered');
+                await updatePlanTitle(completionTitle());
                 await this.slackClient
                     .stopAgentStream({
                         organizationUuid: slackPrompt.organizationUuid,
@@ -17808,13 +17874,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             {
                                 type: 'blocks',
                                 blocks: [
-                                    AiAgentService.slackLinkSection(
-                                        ':scroll: This answer was too long to show in Slack.',
-                                        this.getAgentThreadUrl(
-                                            slackPrompt,
-                                            agent?.uuid,
-                                        ),
-                                    ),
+                                    ...(accessRefusalState.selected === null
+                                        ? [
+                                              AiAgentService.slackLinkSection(
+                                                  ':scroll: This answer was too long to show in Slack.',
+                                                  this.getAgentThreadUrl(
+                                                      slackPrompt,
+                                                      agent?.uuid,
+                                                  ),
+                                              ),
+                                          ]
+                                        : []),
                                     ...getAccessRefusalBlocks(),
                                 ],
                             },

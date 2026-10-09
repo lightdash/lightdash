@@ -51,6 +51,9 @@ const setup = ({
     const stopAgentStream = vi
         .fn<SlackClient['stopAgentStream']>()
         .mockResolvedValue({ ok: true });
+    const appendAgentStream = vi
+        .fn<SlackClient['appendAgentStream']>()
+        .mockResolvedValue({ ok: true });
     const updateSlackResponseTs = vi.fn().mockResolvedValue(undefined);
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
     const getPendingSqlApprovalForPrompt = vi.fn().mockResolvedValue(null);
@@ -61,7 +64,7 @@ const setup = ({
             stopAgentStream,
             setAssistantStatus: vi.fn().mockResolvedValue(undefined),
             startAgentStream: vi.fn().mockResolvedValue({ ts: 'card-ts' }),
-            appendAgentStream: vi.fn().mockResolvedValue({ ok: true }),
+            appendAgentStream,
         },
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
@@ -144,6 +147,15 @@ const setup = ({
         generate,
         getDeliveredBlocks,
         getPendingSqlApprovalForPrompt,
+        appendAgentStream,
+        finalBlocks: vi.spyOn(
+            service as unknown as {
+                getSlackAgentFinalBlocks: (
+                    ...args: unknown[]
+                ) => Promise<unknown[]>;
+            },
+            'getSlackAgentFinalBlocks',
+        ),
     };
 };
 
@@ -174,7 +186,8 @@ describe.each([false, true])(
             async (...refusals) => {
                 const harness = setup({ card, refusals });
                 await harness.service.replyToSlackPrompt('prompt-1');
-                expectOneGroup(harness.getDeliveredBlocks());
+                expect(harness.getDeliveredBlocks()).toEqual(expectedGroup);
+                expect(harness.finalBlocks).not.toHaveBeenCalled();
                 expect(harness.generate).toHaveBeenCalledOnce();
             },
         );
@@ -188,13 +201,10 @@ describe.each([false, true])(
             );
         });
 
-        it('appends the group to an empty response', async () => {
+        it('posts only the refusal for an empty response', async () => {
             const harness = setup({ card, refusals: [signIn], response: '' });
             await harness.service.replyToSlackPrompt('prompt-1');
-            expect(harness.getDeliveredBlocks()).toEqual([
-                { type: 'markdown', text: 'No response generated.' },
-                ...expectedGroup,
-            ]);
+            expect(harness.getDeliveredBlocks()).toEqual([...expectedGroup]);
         });
 
         it('appends the group after the error and before any reference', async () => {
@@ -239,6 +249,11 @@ describe.each([false, true])(
             const harness = setup({ card, refusals: [] });
             await harness.service.replyToSlackPrompt('prompt-1');
             if (card) {
+                expect(harness.appendAgentStream).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        chunks: [{ type: 'plan_update', title: 'Answered' }],
+                    }),
+                );
                 expect(harness.stopAgentStream).toHaveBeenCalledExactlyOnceWith(
                     {
                         organizationUuid: 'org-1',
@@ -278,22 +293,48 @@ describe.each([false, true])(
             ]);
         });
 
-        it('puts one group on the last message of a split answer', async () => {
-            const harness = setup({
-                card,
-                refusals: [signIn, signIn],
-                response: 'Answer '.repeat(3000),
-            });
-            await harness.service.replyToSlackPrompt('prompt-1');
-            expect(
-                harness.postMessage.mock.calls.length +
-                    harness.stopAgentStream.mock.calls.length,
-            ).toBeGreaterThan(1);
-            expectOneGroup(harness.getDeliveredBlocks());
-            expect(
-                harness.postMessage.mock.calls.at(-1)?.[0].blocks?.slice(-2),
-            ).toEqual(expectedGroup);
-        });
+        it.each([signIn, askAdmin])(
+            'posts only the refusal instead of a long answer, with the right title: %j',
+            async (selected) => {
+                const harness = setup({
+                    card,
+                    refusals: [selected],
+                    response:
+                        'Model answer <slack-chart versionUuid="chart-1" /> '.repeat(
+                            3000,
+                        ),
+                });
+                await harness.service.replyToSlackPrompt('prompt-1');
+                expect(harness.getDeliveredBlocks()).toEqual(
+                    getAiAccessRefusalBlocks(selected, siteUrl),
+                );
+                expect(
+                    harness.postMessage.mock.calls.length +
+                        harness.stopAgentStream.mock.calls.length,
+                ).toBe(1);
+                expect(harness.finalBlocks).not.toHaveBeenCalled();
+                expect(
+                    JSON.stringify(harness.postMessage.mock.calls),
+                ).not.toContain('Model answer');
+                expect(
+                    JSON.stringify(harness.stopAgentStream.mock.calls),
+                ).not.toContain('Model answer');
+                if (card)
+                    expect(harness.appendAgentStream).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            chunks: [
+                                {
+                                    type: 'plan_update',
+                                    title:
+                                        selected === signIn
+                                            ? 'Needs your sign-in'
+                                            : 'Needs an admin',
+                                },
+                            ],
+                        }),
+                    );
+            },
+        );
 
         it('keeps the group when Slack rejects an oversized answer', async () => {
             const harness = setup({ card, refusals: [signIn] });
@@ -322,26 +363,6 @@ describe.each([false, true])(
                     harness.service.replyToSlackPrompt('prompt-1'),
                 ).rejects.toThrow('Failed to generate response');
             expectOneGroup(harness.getDeliveredBlocks());
-        });
-
-        it('keeps the group in the fallback for a later answer message', async () => {
-            const harness = setup({
-                card,
-                refusals: [signIn],
-                response: 'Answer '.repeat(3000),
-            });
-            if (!card)
-                harness.postMessage.mockResolvedValueOnce({
-                    ok: true,
-                    ts: 'first-ts',
-                });
-            harness.postMessage.mockRejectedValueOnce({
-                data: { error: 'msg_blocks_too_long' },
-            });
-            await harness.service.replyToSlackPrompt('prompt-1');
-            expectOneGroup(
-                harness.postMessage.mock.calls.at(-1)?.[0].blocks ?? [],
-            );
         });
 
         it('retains the refusal when the answer was not accepted by Slack', async () => {
@@ -383,3 +404,35 @@ describe.each([false, true])(
         });
     },
 );
+
+describe('Slack task-card size fallback', () => {
+    it.each([signIn, askAdmin])(
+        'keeps the refusal title and blocks in the task-card size fallback: %j',
+        async (selected) => {
+            const harness = setup({
+                card: true,
+                refusals: [selected],
+                error: Object.assign(new Error('too long'), {
+                    data: { error: 'msg_too_long' },
+                }),
+            });
+            await harness.service.replyToSlackPrompt('prompt-1');
+            expect(harness.getDeliveredBlocks()).toEqual(
+                getAiAccessRefusalBlocks(selected, siteUrl),
+            );
+            expect(harness.appendAgentStream).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    chunks: [
+                        {
+                            type: 'plan_update',
+                            title:
+                                selected === signIn
+                                    ? 'Needs your sign-in'
+                                    : 'Needs an admin',
+                        },
+                    ],
+                }),
+            );
+        },
+    );
+});

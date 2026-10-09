@@ -20,7 +20,9 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../../../providers/App/useApp', () => ({
     default: () => ({
         health: {},
-        user: { data: { ability: { can: mocks.can } } },
+        user: {
+            data: { organizationUuid: 'org', ability: { can: mocks.can } },
+        },
     }),
 }));
 vi.mock('../../../../../hooks/useProject', () => ({
@@ -195,6 +197,73 @@ describe('AI access callout', () => {
         ).toBeEnabled();
         expect(screen.queryByRole('link')).not.toBeInTheDocument();
     });
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        AiAccessRefusalReason.PRINCIPAL_FAILED,
+    ])('gates settings for %s at the appropriate scope', (reason) => {
+        const settingsUrl =
+            '/generalSettings/projectManagement/project/agentIdentity';
+        const projectRefusal = {
+            ...refusal,
+            reason,
+            settingsUrl,
+            action: AiAccessRefusalAction.ASK_ADMIN,
+        };
+        mocks.can.mockImplementation(
+            (action, resource) =>
+                action === 'manage' &&
+                resource !== 'Organization' &&
+                resource.organizationUuid === 'org' &&
+                resource.projectUuid === 'project',
+        );
+        const { rerender } = renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={projectRefusal}
+                />
+            </MemoryRouter>,
+        );
+        if (reason === AiAccessRefusalReason.PRINCIPAL_FAILED) {
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        } else {
+            expect(
+                screen.getByRole('link', {
+                    name: 'Open project agent settings',
+                }),
+            ).toHaveAttribute('href', settingsUrl);
+        }
+        mocks.can.mockReturnValue(false);
+        rerender(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={projectRefusal}
+                />
+            </MemoryRouter>,
+        );
+        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        mocks.can.mockImplementation(
+            (_action, resource) => resource === 'Organization',
+        );
+        rerender(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...projectRefusal,
+                        reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                        settingsUrl: '/custom-org-settings',
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(
+            screen.getByRole('link', { name: 'Review agent identity' }),
+        ).toHaveAttribute('href', '/custom-org-settings');
+    });
+
     it('links organization managers to warehouse credential settings', () => {
         mocks.can.mockReturnValue(true);
         render(AiAccessRefusalAction.ASK_ADMIN);

@@ -144,12 +144,13 @@ export type AiAccessRefusal = {
 
 export const getAiAccessRefusalMessage = (
     reason: AiAccessRefusalReason,
+    { projectName }: { projectName: string | null },
 ): string => {
     switch (reason) {
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
-            return 'AI agents on this connection run as the AI service account, and none is set up. Ask an admin to add it on the project connection.';
+            return `Agents can't query ${projectName ?? 'this project'} yet. It needs an AI service account, and none is set up. A project admin can add one in Agent identity.`;
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
-            return 'The AI service account on this connection could not sign in. Ask an admin to check it on the project connection.';
+            return `Agents can't query ${projectName ?? 'this project'} right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.`;
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
             return 'AI cannot use these results because your current agent connection did not produce them. Run the query again through your agent.';
         case AiAccessRefusalReason.PRINCIPAL_FAILED:

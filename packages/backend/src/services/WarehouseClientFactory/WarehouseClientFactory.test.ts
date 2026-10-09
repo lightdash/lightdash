@@ -2658,6 +2658,9 @@ describe('AI service account factory scopes', () => {
                     streamQuery: vi.fn().mockRejectedValue(error),
                 }),
             );
+            projectModel.getSummary.mockResolvedValue({
+                name: 'Jaffle shop',
+            } as Awaited<ReturnType<ProjectModel['getSummary']>>);
             const context = contextFor(QueryExecutionContext.AI);
             await factory.withWarehouseClient(
                 bindingRef,
@@ -2670,7 +2673,10 @@ describe('AI service account factory scopes', () => {
                         refusal: {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
-                            settingsUrl: '/generalSettings/agentIdentity',
+                            message:
+                                "Agents can't query Jaffle shop right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.",
+                            settingsUrl:
+                                '/generalSettings/projectManagement/project-uuid/agentIdentity',
                             connectUrl: null,
                         },
                     });
