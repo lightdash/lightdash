@@ -1,3 +1,10 @@
+# [2.528.0](https://github.com/lightdash/lightdash/compare/2.527.1...2.528.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** confirm org rule changes before they save ([#30849](https://github.com/lightdash/lightdash/issues/30849)) ([b421e00](https://github.com/lightdash/lightdash/commit/b421e004eb37e0caa67b9a8165ed479a97fe2af2))
+
 ## [2.527.1](https://github.com/lightdash/lightdash/compare/2.527.0...2.527.1) (2026-10-09)
 
 

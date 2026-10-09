@@ -69745,6 +69745,31 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentIdentityProjectWithoutAiServiceAccount: {
+        dataType: 'refObject',
+        properties: {
+            projectUuid: { dataType: 'string', required: true },
+            name: { dataType: 'string', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse: {
+        dataType: 'refObject',
+        properties: {
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            results: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refObject',
+                    ref: 'AgentIdentityProjectWithoutAiServiceAccount',
+                },
+                required: true,
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SnowflakeAgentClientSource: {
         dataType: 'refAlias',
         type: {
@@ -136064,6 +136089,70 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getSettings',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationAgentIdentityController_getProjectsWithoutAiServiceAccount: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        warehouseType: {
+            in: 'path',
+            name: 'warehouseType',
+            required: true,
+            ref: 'WarehouseTypes',
+        },
+    };
+    app.get(
+        '/api/v2/org/agent-identity/:warehouseType/projects-without-ai-service-account',
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationAgentIdentityController,
+        ),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationAgentIdentityController.prototype
+                .getProjectsWithoutAiServiceAccount,
+        ),
+
+        async function OrganizationAgentIdentityController_getProjectsWithoutAiServiceAccount(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationAgentIdentityController_getProjectsWithoutAiServiceAccount,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationAgentIdentityController>(
+                        OrganizationAgentIdentityController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getProjectsWithoutAiServiceAccount',
                     controller,
                     response,
                     next,

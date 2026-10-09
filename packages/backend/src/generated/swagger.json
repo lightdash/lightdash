@@ -68235,6 +68235,37 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AgentIdentityProjectWithoutAiServiceAccount": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["projectUuid", "name"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentIdentityProjectWithoutAiServiceAccount"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SnowflakeAgentClientSource": {
                 "type": "string",
                 "enum": ["organization", "environment"]
@@ -70870,7 +70901,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.527.1",
+        "version": "2.528.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -112080,6 +112111,45 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v2/org/agent-identity/{warehouseType}/projects-without-ai-service-account": {
+            "get": {
+                "operationId": "getOrganizationAgentIdentityProjectsWithoutAiServiceAccount",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "warehouseType",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/WarehouseTypes"
+                        }
+                    }
+                ]
             }
         },
         "/api/v2/org/agent-identity/snowflake/setup": {
