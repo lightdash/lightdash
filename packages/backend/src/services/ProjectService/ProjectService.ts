@@ -420,6 +420,7 @@ import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
 import {
     assertValidPersistedBigquerySsoKeyfile,
+    bigqueryRuntimeKeyfile,
     stripBigquerySsoClientSecretForPersistence,
 } from '../../utils/bigquerySsoCredentials';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
@@ -3664,7 +3665,10 @@ export class ProjectService
             provider === PersonSignInProvider.GOOGLE &&
             credentials?.type === WarehouseTypes.BIGQUERY
                 ? await this.isGoogleSharedSignInExpired(
-                      credentials.keyfileContents,
+                      bigqueryRuntimeKeyfile(
+                          credentials,
+                          this.lightdashConfig.auth.google,
+                      ),
                   )
                 : false;
         return {

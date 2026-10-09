@@ -96,3 +96,14 @@ export const hydrateBigquerySsoKeyfile = (
             : (keyfile?.client_secret ?? configuredSecret))!,
     };
 };
+
+export const bigqueryRuntimeKeyfile = (
+    credentials: CreateBigqueryCredentials,
+    google: Pick<
+        LightdashConfig['auth']['google'],
+        'oauth2ClientId' | 'oauth2ClientSecret'
+    >,
+): CreateBigqueryCredentials['keyfileContents'] =>
+    credentials.authenticationType === BigqueryAuthenticationType.SSO
+        ? hydrateBigquerySsoKeyfile(credentials.keyfileContents, google)
+        : credentials.keyfileContents;
