@@ -22,6 +22,9 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 vi.mock('react-router', () => ({
     useParams: () => ({ mode: 'edit' }),
 }));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: vi.fn() }),
+}));
 
 const rule = (id: string): DashboardFilterRule => ({
     id,
@@ -46,12 +49,20 @@ const onLabelBlur = vi.fn();
 const Page: FC = () => {
     const value = useControlsSidebar();
     sidebar.current = value;
-    const { editing, isSidebarOpen, open, close } = value;
+    const { editing, isSidebarOpen, openNew, open, close } = value;
     const filters = mockDashboardContext.current
         .dashboardFilters as DashboardFilters;
     return (
         <>
             <div data-testid="bar">
+                <div data-filter-actions>
+                    <button
+                        type="button"
+                        data-dashboard-filter-control
+                        aria-label="Add filter"
+                        onClick={openNew}
+                    />
+                </div>
                 {filters.dimensions.map((filter) => (
                     <button
                         key={filter.id}
@@ -118,6 +129,7 @@ const value = () => {
     return sidebar.current;
 };
 const pill = (id: string) => screen.getByRole('button', { name: `Pill ${id}` });
+const addButton = () => screen.getByRole('button', { name: 'Add filter' });
 const label = () => screen.getByLabelText('Label');
 const escape = (target: Element = document.body) =>
     fireEvent.keyDown(target, { key: 'Escape' });
@@ -137,6 +149,7 @@ describe('dismissing in the controls editor', () => {
         it('closes the editor from inside it, as Done does', () => {
             escape(label());
             expect(value().isSidebarOpen).toBe(false);
+            expect(pill('a')).toHaveFocus();
         });
 
         it('lets the label commit before it closes', () => {
@@ -222,6 +235,38 @@ describe('dismissing in the controls editor', () => {
                 remove.mock.calls.filter(([type]) => type === 'keydown'),
             ).toHaveLength(1);
             remove.mockRestore();
+        });
+    });
+
+    describe('focus after the editor is gone', () => {
+        it('returns to the pill after Done and after discarding changes', () => {
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+            expect(pill('a')).toHaveFocus();
+
+            fireEvent.click(pill('b'));
+            act(() => label().focus());
+            act(() => value().discard());
+            expect(pill('b')).toHaveFocus();
+        });
+
+        it('goes to "Add" when the pill is gone', () => {
+            act(() => value().removeFilter());
+            expect(screen.queryByText('Pill a')).not.toBeInTheDocument();
+            expect(addButton()).toHaveFocus();
+        });
+
+        it('goes to "Add" after a new control is closed with no field', () => {
+            fireEvent.click(addButton());
+            act(() => label().focus());
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+            expect(addButton()).toHaveFocus();
+        });
+
+        it('is not moved when another control opens', () => {
+            fireEvent.click(pill('b'));
+            expect(value().editing).toEqual({ filterId: 'b' });
+            expect(label()).toHaveFocus();
         });
     });
 });
