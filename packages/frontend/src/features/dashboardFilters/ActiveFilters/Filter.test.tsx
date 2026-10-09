@@ -78,28 +78,67 @@ describe('Filter pill active state', () => {
         };
     });
 
-    it('marks the pill active and colours the field icon when a value is set', () => {
+    it('marks the pill active when a value is set', () => {
         renderFilter(buildRule({ values: ['completed'] }));
 
         expect(getPill()).toHaveAttribute('data-filter-active');
-        const icon = screen.getByTestId('filter-field-icon');
-        expect(icon).not.toHaveStyle({
-            color: 'var(--mantine-color-ldGray-4)',
-        });
     });
 
-    it('leaves the pill inactive with a dimmed field icon when no value is set', () => {
+    it('leaves the pill inactive when no value is set', () => {
         renderFilter(buildRule({ values: [] }));
 
         expect(getPill()).not.toHaveAttribute('data-filter-active');
-        expect(screen.getByTestId('filter-field-icon')).toHaveStyle({
-            color: 'var(--mantine-color-ldGray-4)',
-        });
     });
 
     it('treats a disabled rule as inactive even when it holds values', () => {
         renderFilter(buildRule({ values: ['completed'], disabled: true }));
 
         expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+});
+
+describe('Filter pill requirement state', () => {
+    const setUnmet = (rule: DashboardFilterRule) => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            unmetFilterRequirements: [{ type: 'single', filter: rule }],
+        };
+    };
+
+    beforeEach(() => {
+        mockDashboardContext.current = {
+            dashboard: { uuid: 'dashboard-1', filters: { dimensions: [] } },
+            dashboardTiles: [],
+            dashboardTabs: [],
+            activeTab: undefined,
+            allFilterableFields: [statusField],
+            filterableFieldsByTileUuid: {},
+            unmetFilterRequirements: [],
+        };
+    });
+
+    it('shows an unmet required filter as unmet and never active', () => {
+        const rule = buildRule({ required: true, disabled: true, values: [] });
+        setUnmet(rule);
+        renderFilter(rule);
+
+        expect(getPill()).toHaveAttribute('data-requirement-unmet');
+        expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+
+    it('keeps an enabled required filter with no values out of the active state', () => {
+        const rule = buildRule({ required: true, values: [] });
+        setUnmet(rule);
+        renderFilter(rule);
+
+        expect(getPill()).toHaveAttribute('data-requirement-unmet');
+        expect(getPill()).not.toHaveAttribute('data-filter-active');
+    });
+
+    it('shows a required filter with a value as active and met', () => {
+        renderFilter(buildRule({ required: true, values: ['completed'] }));
+
+        expect(getPill()).toHaveAttribute('data-filter-active');
+        expect(getPill()).not.toHaveAttribute('data-requirement-unmet');
     });
 });

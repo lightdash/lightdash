@@ -16,9 +16,8 @@ import {
     Progress,
     Stack,
     Text,
-    ThemeIcon,
 } from '@mantine/core';
-import { IconCheck, IconCircleDashed } from '@tabler/icons-react';
+import { IconCircleCheck } from '@tabler/icons-react';
 import {
     Fragment,
     useCallback,
@@ -34,7 +33,9 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { LD_FIELD_COLORS } from '../../../theme';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
+import IconCircleDashedCheck from '../IconCircleDashedCheck';
 import LockedFilter from '../LockedFilter';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import classes from './GuidedFilterSetup.module.css';
@@ -63,11 +64,13 @@ const getMemberFilterType = (
 
 const RuleStatusIcon: FC<{ satisfied: boolean }> = ({ satisfied }) =>
     satisfied ? (
-        <ThemeIcon size={16} radius="xl" color="green" variant="filled">
-            <MantineIcon icon={IconCheck} size={10} />
-        </ThemeIcon>
+        <MantineIcon
+            icon={IconCircleCheck}
+            size={16}
+            color={LD_FIELD_COLORS.dimension.color}
+        />
     ) : (
-        <MantineIcon icon={IconCircleDashed} size={16} color="ldGray.5" />
+        <MantineIcon icon={IconCircleDashedCheck} size={16} color="yellow.7" />
     );
 
 type MemberInputProps = {

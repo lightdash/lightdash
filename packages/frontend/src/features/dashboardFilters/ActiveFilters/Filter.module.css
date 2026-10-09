@@ -2,28 +2,45 @@
     border-radius: 100px !important;
 }
 
-/* Active pill: soft blue border + ring */
+/* Active pill: blue border, plus a ring only when it applies to a tile */
 .button[data-filter-active]:not([data-disabled], :disabled),
 .button[data-filter-active]:hover:not([data-disabled], :disabled) {
     border-color: alpha(var(--mantine-color-indigo-8), 0.8);
+
+    @mixin dark {
+        border-color: var(--mantine-color-indigo-4);
+    }
+}
+
+.button[data-filter-active]:not([data-disabled], :disabled, .inactiveFilter),
+.button[data-filter-active]:hover:not(
+        [data-disabled],
+        :disabled,
+        .inactiveFilter
+    ) {
     box-shadow:
         var(--mantine-shadow-xs),
         0 0 0 2px alpha(var(--mantine-color-indigo-8), 0.22),
         0 0 6px alpha(var(--mantine-color-indigo-8), 0.18);
 
     @mixin dark {
-        border-color: var(--mantine-color-indigo-4);
         box-shadow:
             0 0 0 2px alpha(var(--mantine-color-indigo-5), 0.4),
             0 0 10px alpha(var(--mantine-color-indigo-5), 0.35);
     }
 }
 
-.fieldIcon {
+/* Translucent so tinted pills (requirement unmet) keep their colour under the hover */
+.button .pillAction:hover:not([data-disabled], :disabled) {
+    background-color: alpha(var(--mantine-color-text), 0.1);
+}
+
+.statusIcon {
+    flex-shrink: 0;
     transition: color 120ms ease;
 }
 
-.requirementUnmet {
+.button[data-requirement-unmet] {
     border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
 
     @mixin light {
@@ -34,7 +51,7 @@
     }
 }
 
-.requirementUnmet .label {
+.button[data-requirement-unmet] .label {
     color: light-dark(
         var(--mantine-color-ldGray-9),
         var(--mantine-color-gray-0)
