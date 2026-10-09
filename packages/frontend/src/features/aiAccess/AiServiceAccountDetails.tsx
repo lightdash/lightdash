@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    formatDate,
     WarehouseTypes,
     type AiServiceAccountParent,
     type AiServiceAccountSlot,
@@ -8,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Stack, Text } from '@mantine/core';
 import { Link } from 'react-router';
+import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
 
 type ServiceAccountWarehouse =
     | WarehouseTypes.BIGQUERY
@@ -47,8 +47,10 @@ export const AiServiceAccountDetails = ({
                 : null
             : testedPrincipal;
     const dates = [
-        observation?.ok ? `Tested ${formatDate(observation.checkedAt)}.` : null,
-        slot ? `Added ${formatDate(slot.updatedAt)}.` : null,
+        observation?.ok
+            ? `Tested ${formatAiServiceAccountDate(observation.checkedAt)}.`
+            : null,
+        slot ? `Added ${formatAiServiceAccountDate(slot.updatedAt)}.` : null,
     ]
         .filter(Boolean)
         .join(' ');

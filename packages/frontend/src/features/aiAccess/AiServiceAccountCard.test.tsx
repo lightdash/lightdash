@@ -1,7 +1,6 @@
 import {
     AGENT_IDENTITY_SETTINGS_PATH,
     BigqueryAuthenticationType,
-    formatDate,
     DbtProjectType,
     ProjectType,
     WarehouseTypes,
@@ -26,6 +25,7 @@ import { lightdashApi } from '../../api';
 import UpdateProjectConnection from '../../components/ProjectConnection/UpdateProjectConnection';
 import { renderWithProviders } from '../../testing/testUtils';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
+import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
 import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
 import { ProjectAgentIdentityPage } from './ProjectAgentIdentityPage';
 
@@ -348,7 +348,21 @@ describe('AI service account card', () => {
                     ? screen.getByRole('button', {
                           name: 'Add AI service account',
                       })
-                    : screen.getByText(method);
+                    : (screen.queryByText(
+                          /^Uses the AI service account from/,
+                      ) ?? screen.getByText(/^(Signs in as|Not tested yet)/));
+                expect(status.compareDocumentPosition(summary)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                expect(summary.compareDocumentPosition(guide)).toBe(
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+                );
+                if (!empty)
+                    expect(
+                        summary.compareDocumentPosition(
+                            screen.getByText(method),
+                        ),
+                    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
                 expect(status.compareDocumentPosition(summary)).toBe(
                     Node.DOCUMENT_POSITION_FOLLOWING,
                 );
@@ -458,7 +472,7 @@ describe('AI service account card', () => {
                     await screen.findByLabelText('Step 3 done'),
                 ).toBeInTheDocument();
                 expect(screen.getByText(/^Tested /)).toHaveTextContent(
-                    `Tested ${formatDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatDate(savedSlot.updatedAt)}.`,
+                    `Tested ${formatAiServiceAccountDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatAiServiceAccountDate(savedSlot.updatedAt)}.`,
                 );
                 expect(lightdashApi).toHaveBeenCalledWith(
                     expect.objectContaining({
@@ -551,7 +565,7 @@ describe('AI service account card', () => {
                 ).toBeInTheDocument();
                 expect(
                     screen.getByText(
-                        `Tested ${formatDate(snowflakeVerification.checkedAt)}.`,
+                        `Tested ${formatAiServiceAccountDate(snowflakeVerification.checkedAt)}.`,
                     ),
                 ).toBeVisible();
             }
@@ -1189,8 +1203,8 @@ describe('AI service account card', () => {
             screen.queryByText(/When AI agents query/),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('link', { name: 'Organisation settings' }),
-        ).not.toBeInTheDocument();
+            screen.getAllByRole('link', { name: 'Organization settings' }),
+        ).toHaveLength(1);
         expect(
             screen.queryByText(/Agents use the same credentials as the user/),
         ).not.toBeInTheDocument();
