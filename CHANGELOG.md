@@ -1,3 +1,10 @@
+# [2.515.0](https://github.com/lightdash/lightdash/compare/2.514.0...2.515.0) (2026-10-09)
+
+
+### Features
+
+* **documents:** pick, retitle and open linked saved charts in Documents ([#30783](https://github.com/lightdash/lightdash/issues/30783)) ([1ad4db3](https://github.com/lightdash/lightdash/commit/1ad4db3bbf4aa113383255145fde0786b53834fd)), closes [#30758](https://github.com/lightdash/lightdash/issues/30758)
+
 # [2.514.0](https://github.com/lightdash/lightdash/compare/2.513.0...2.514.0) (2026-10-09)
 
 
