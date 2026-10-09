@@ -260,28 +260,28 @@ describe('buildAgentIdentityClaim', () => {
 });
 
 describe('getAgentClientLabel', () => {
-    test.each(['lightdash-chat', 'client_123', 'a'.repeat(60)])(
-        'keeps safe id %s',
-        (id) => {
-            expect(getAgentClientLabel(id)).toBe(id);
-        },
-    );
+    test.each([
+        ['lightdash-chat', 'lightdash-chat'],
+        ['client_123', 'client_123'],
+        ['a'.repeat(60), 'a'.repeat(60)],
+        ['mcp-AbCdEf0123456789', 'mcp-abcdef0123456789'],
+        ['A04EJP8LZPD', 'a04ejp8lzpd'],
+    ])('keeps the lowercased id %s', (id, label) => {
+        expect(getAgentClientLabel(id)).toBe(label);
+    });
     test('uses unknown only for a null client', () => {
         expect(getAgentClientLabel(null)).toBe('unknown');
     });
-    test.each(['Client', 'client.id', 'client/id', 'a'.repeat(61), ''])(
+    test.each(['client.id', 'client/id', 'a'.repeat(61), ''])(
         'hashes unsafe id %s deterministically',
         (id) => {
             const label = getAgentClientLabel(id);
             expect(label).toMatch(/^h-[a-f0-9]{32}$/);
             expect(getAgentClientLabel(id)).toBe(label);
-            expect(label.length).toBeLessThanOrEqual(60);
         },
     );
-    test('keeps ids distinct across case, punctuation and truncation', () => {
+    test('keeps unsafe ids distinct after hashing', () => {
         const ids = [
-            'Client',
-            'client',
             'client.id',
             'client/id',
             'a'.repeat(61),

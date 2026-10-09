@@ -54,7 +54,8 @@ export const buildAgentIdentityClaim = ({
 
 export const getAgentClientLabel = (clientId: string | null): string => {
     if (clientId === null) return 'unknown';
-    if (/^[a-z0-9_-]{1,60}$/.test(clientId)) return clientId;
+    const lowered = clientId.toLowerCase();
+    if (/^[a-z0-9_-]{1,60}$/.test(lowered)) return lowered;
     return `h-${uuidv5(clientId, uuidv5.URL).replace(/-/g, '')}`;
 };
 

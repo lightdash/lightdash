@@ -422,6 +422,8 @@ describe('test-and-compile credential resolution', () => {
                                     userUuid: workerUser.userUuid,
                                     isRegisteredUser: true,
                                     isServiceAccount: false,
+                                    serviceAccountUuid: null,
+                                    oauthClientId: null,
                                 },
                             }),
                         }),
