@@ -425,7 +425,6 @@ const SaveChartButton: FC<{
                                 Save
                             </Button>
                             <Button
-                                color="green.7"
                                 data-tour-scope="manage:VerifiedContent"
                                 data-tour-step="2"
                                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"

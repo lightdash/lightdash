@@ -741,7 +741,6 @@ const DashboardHeader = memo(
                                     disabled={!hasDashboardChanged}
                                     loading={isSaving}
                                     onClick={onSaveDashboard}
-                                    color="green.7"
                                     // Walkthrough marker for manage:Dashboard:
                                     // a new dashboard with a saved chart on
                                     // it, then saved. The name is typed (the

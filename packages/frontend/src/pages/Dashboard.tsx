@@ -1443,7 +1443,6 @@ const Dashboard: FC = () => {
                                 Save
                             </Button>
                             <Button
-                                color="green.7"
                                 leftSection={
                                     <IconCircleCheckFilled size={16} />
                                 }
