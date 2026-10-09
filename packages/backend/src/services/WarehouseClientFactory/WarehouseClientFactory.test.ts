@@ -2045,6 +2045,23 @@ describe('AI service account factory scopes', () => {
         },
     );
 
+    test('passes the slot row and source project as the credential owner', async () => {
+        const { factory, aiAccessService } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(slotPlan);
+        const materialize = vi.spyOn(factory, 'materializeCredentials');
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => undefined,
+        );
+        expect(materialize.mock.calls[0][4]).toEqual({
+            kind: 'aiServiceAccount',
+            uuid: slotPlan.credentialUuid,
+            identityUuid: slotPlan.identityUuid,
+            sourceProjectUuid: slotPlan.sourceProjectUuid,
+        });
+    });
+
     test('uses slot credentials before finishing and identifies their kind', async () => {
         const { factory, credentialSource, aiAccessService } = buildFixture();
         aiAccessService.resolvePlan.mockResolvedValue(slotPlan);

@@ -55,6 +55,10 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { sessionUser } from '../UserService.mock';
+import {
+    credentialResolution,
+    type MaterializedCredentials,
+} from '../WarehouseClientFactory/CredentialResolver';
 import { agentExecutionContext } from './agentExecutionContext';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import {
@@ -4489,4 +4493,22 @@ describe('preview AI service account inheritance', () => {
             },
         });
     });
+});
+
+it('materializes the plan with the slot row, generation and source project', async () => {
+    const f = setup();
+    f.organizationRules.get.mockResolvedValue({ source: 'ai_service_account' });
+    f.slots.getSecrets.mockResolvedValue({ slot, secrets });
+    const plan = await f.service.resolvePlan({ ...args, connection: bigquery });
+    if (plan?.identity !== 'ai_service_account') {
+        throw new Error('Expected an AI service account plan');
+    }
+    const credentials = plan.credentials as MaterializedCredentials;
+    expect(credentials[credentialResolution]?.cacheKeyIdentity).toEqual([
+        'ai-service-account-v1',
+        WarehouseTypes.BIGQUERY,
+        slot.uuid,
+        slot.identityUuid,
+        args.projectUuid,
+    ]);
 });

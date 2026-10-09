@@ -75,12 +75,12 @@ import {
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { applyAiServiceAccountCredentials } from '../AiServiceAccountService/applyAiServiceAccountCredentials';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
 } from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
+import { resolveAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
@@ -1341,10 +1341,22 @@ export class AiAccessService extends BaseService {
                 }
                 let credentials;
                 try {
-                    credentials = applyAiServiceAccountCredentials(
-                        args.connection,
-                        saved.slot.secrets,
-                    );
+                    credentials = await resolveAiServiceAccountCredentials({
+                        connection: args.connection,
+                        stored: saved.slot.secrets,
+                        owner: {
+                            kind: 'aiServiceAccount',
+                            uuid: saved.slot.slot.uuid,
+                            identityUuid: saved.slot.slot.identityUuid,
+                            sourceProjectUuid: saved.sourceProjectUuid,
+                        },
+                        context: connectionContextFromUser(args, {
+                            organizationUuid: args.organizationUuid,
+                            queryContext: args.context,
+                        }),
+                        projectUuid: args.projectUuid,
+                        warehouseConnectionUuid: args.warehouseConnectionUuid,
+                    });
                 } catch {
                     throw new AiAccessRefusedError(
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,

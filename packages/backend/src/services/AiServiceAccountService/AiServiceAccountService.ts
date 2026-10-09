@@ -29,11 +29,15 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
-import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
-    applyAiServiceAccountCredentials,
-    mergeAiServiceAccountCredentials,
-} from './applyAiServiceAccountCredentials';
+    aiServiceAccountCredentialResolvers,
+    buildAiServiceAccountCredentials,
+} from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
+import {
+    connectionContextFromAccount,
+    WarehouseCredentialKind,
+} from '../WarehouseClientFactory/ConnectionContext';
+import { mergeAiServiceAccountCredentials } from './applyAiServiceAccountCredentials';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -263,7 +267,25 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
-        const credentials = mergeAiServiceAccountCredentials(input, saved);
+        const merged = mergeAiServiceAccountCredentials(input, saved);
+        const { stored: credentials } =
+            await aiServiceAccountCredentialResolvers.validateOnSave(
+                {
+                    connection,
+                    stored: merged,
+                    owner: null,
+                    context: connectionContextFromAccount(account, {
+                        organizationUuid,
+                        queryContext: QueryExecutionContext.API,
+                    }),
+                    projectUuid,
+                    warehouseConnectionUuid,
+                    credentialKind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+                    aiPlan: null,
+                    intent: { kind: 'preserve' },
+                },
+                'ai_service_account',
+            );
         const previous =
             await this.deps.aiServiceAccountCredentialsModel.getSlot(
                 projectUuid,
@@ -434,7 +456,7 @@ export class AiServiceAccountService extends BaseService {
                     'The connection has no AI service account.',
                 );
             }
-            const credentials = applyAiServiceAccountCredentials(
+            const credentials = buildAiServiceAccountCredentials(
                 connection,
                 secrets,
             );
