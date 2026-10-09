@@ -5746,6 +5746,27 @@ describe('UserService', () => {
         create: vi.fn(),
     });
 
+    it('writes no client secret for a verified BigQuery callback', async () => {
+        const credentialsModel = { deleteAllByUserAndWarehouseType: vi.fn() };
+        const service = createUserService(lightdashConfigMock, {
+            userWarehouseCredentialsModel:
+                credentialsModel as unknown as UserWarehouseCredentialsModel,
+        });
+        const save = vi
+            .spyOn(service, 'createWarehouseCredentials')
+            .mockResolvedValue({} as never);
+        await service.createBigqueryWarehouseCredentials(
+            sessionUser,
+            'verified-refresh',
+        );
+        expect(save.mock.calls[0][1].credentials).toMatchObject({
+            keyfileContents: { refresh_token: 'verified-refresh' },
+        });
+        expect(save.mock.calls[0][1].credentials).not.toHaveProperty(
+            'keyfileContents.client_secret',
+        );
+    });
+
     describe('createSnowflakeWarehouseCredentials', () => {
         it('updates only an existing Snowflake SSO credential', async () => {
             const credentialsModel = createSnowflakeCredentialsModel();

@@ -108,6 +108,7 @@ const createModel = ({
         return builder;
     }) as unknown as Knex;
     return new UserWarehouseCredentialsModel({
+        lightdashConfig: lightdashConfigMock,
         database,
         encryptionUtil: passthroughEncryption,
     });
@@ -118,6 +119,7 @@ describe('UserWarehouseCredentialsModel', () => {
         const database = knex({ client: MockClient, dialect: 'pg' });
         const tracker = getTracker();
         const model = new UserWarehouseCredentialsModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil: passthroughEncryption,
         });
@@ -183,6 +185,7 @@ describe('UserWarehouseCredentialsModel', () => {
             Promise.resolve([]).then(resolve);
         const database = vi.fn(() => builder) as unknown as Knex;
         const model = new UserWarehouseCredentialsModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil: passthroughEncryption,
         });
@@ -223,10 +226,13 @@ describe('UserWarehouseCredentialsModel', () => {
 
     describe('normalizeCredentialsForPersistence', () => {
         const normalize = (credentials: object) =>
-            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence({
-                name: 'Default',
-                credentials: credentials as never,
-            });
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                {
+                    name: 'Default',
+                    credentials: credentials as never,
+                },
+                lightdashConfigMock.auth.google,
+            );
 
         test('keeps only the access keys of Athena credentials', () => {
             expect(
@@ -297,9 +303,14 @@ describe('UserWarehouseCredentialsModel', () => {
         });
 
         test('accepts BigQuery user credentials', () => {
-            expect(normalize(validBigqueryCredentials).credentials).toEqual(
-                validBigqueryCredentials,
-            );
+            expect(normalize(validBigqueryCredentials).credentials).toEqual({
+                ...validBigqueryCredentials,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: lightdashConfigMock.auth.google.oauth2ClientId!,
+                    refresh_token: 'refresh-token',
+                },
+            });
         });
 
         test('accepts a secret-free BigQuery SSO keyfile', () => {
@@ -446,6 +457,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 { raw: vi.fn() },
             ) as unknown as Knex;
             const model = new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil: passthroughEncryption,
             });
@@ -488,6 +500,7 @@ describe('UserWarehouseCredentialsModel', () => {
             where.mockReturnValue(builder);
             const database = vi.fn(() => builder) as unknown as Knex;
             const model = new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil: passthroughEncryption,
             });

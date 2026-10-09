@@ -203,6 +203,7 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 encryptionUtil,
             });
         warehouseConnectionModel = new WarehouseConnectionModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
             organizationWarehouseCredentialsModel,
@@ -210,13 +211,20 @@ describe('Multi runtime identity wiring on the real schema', () => {
         warehouseConnectionCompileModel = new WarehouseConnectionCompileModel({
             database,
         });
-        identityModel = new WarehouseConnectionIdentityModel({ database });
+        identityModel = new WarehouseConnectionIdentityModel({
+            google: lightdashConfigMock.auth.google,
+            database,
+            encryptionUtil: new EncryptionUtil({
+                lightdashConfig: lightdashConfigMock,
+            }),
+        });
         savedSqlModel = new SavedSqlModel({
             database,
             lightdashConfig: lightdashConfigMock,
         });
         queryHistoryModel = new QueryHistoryModel({ database });
         userWarehouseCredentialsModel = new UserWarehouseCredentialsModel({
+            lightdashConfig: lightdashConfigMock,
             database,
             encryptionUtil,
         });
@@ -833,7 +841,13 @@ describe('Multi runtime identity wiring on the real schema', () => {
                 projectModel,
                 savedSqlModel,
                 warehouseConnectionIdentityModel:
-                    new WarehouseConnectionIdentityModel({ database }),
+                    new WarehouseConnectionIdentityModel({
+                        google: lightdashConfigMock.auth.google,
+                        database,
+                        encryptionUtil: new EncryptionUtil({
+                            lightdashConfig: lightdashConfigMock,
+                        }),
+                    }),
             } as never);
             vi.spyOn(
                 service as unknown as { hasAccess: () => Promise<void> },

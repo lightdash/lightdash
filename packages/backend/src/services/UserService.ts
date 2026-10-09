@@ -3581,8 +3581,6 @@ export class UserService extends BaseService {
                 keyfileContents: {
                     type: 'authorized_user',
                     client_id: this.lightdashConfig.auth.google.oauth2ClientId!,
-                    client_secret:
-                        this.lightdashConfig.auth.google.oauth2ClientSecret!,
                     refresh_token: refreshToken,
                 },
             },

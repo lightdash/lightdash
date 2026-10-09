@@ -833,6 +833,11 @@ it.each([true, false])(
         expect(
             f.projectModel.createWithOptionalCredentials,
         ).toHaveBeenCalledOnce();
+        const preview =
+            f.projectModel.createWithOptionalCredentials.mock.calls[0][2];
+        expect(preview.warehouseConnection).not.toHaveProperty(
+            'keyfileContents.client_secret',
+        );
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
             expect.objectContaining({
                 keyfileContents: {

@@ -15397,8 +15397,6 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             {
                 type: 'authorized_user',
                 client_id: lightdashConfigMock.auth.google.oauth2ClientId,
-                client_secret:
-                    lightdashConfigMock.auth.google.oauth2ClientSecret,
                 refresh_token: 'new-token',
             },
             developerAccount.user.id,

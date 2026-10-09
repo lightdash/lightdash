@@ -331,11 +331,13 @@ describe('SQL runner catalog by connection on the real schema', () => {
                 encryptionUtil,
             }),
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
             }),
             organizationWarehouseCredentialsModel,
             warehouseConnectionModel: new WarehouseConnectionModel({
+                lightdashConfig: lightdashConfigMock,
                 database,
                 encryptionUtil,
                 organizationWarehouseCredentialsModel,

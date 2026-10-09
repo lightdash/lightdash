@@ -9,10 +9,12 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import type { LightdashConfig } from '../../config/parseConfig';
 import {
     ProjectUserWarehouseCredentialPreferenceTableName,
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
+import { stripBigquerySsoClientSecretForPersistence } from '../../utils/bigquerySsoCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 
@@ -91,12 +93,15 @@ export type WarehouseConnectionEvent = {
 };
 
 type WarehouseConnectionModelArguments = {
+    lightdashConfig: LightdashConfig;
     database: Knex;
     encryptionUtil: EncryptionUtil;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 };
 
 export class WarehouseConnectionModel {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly database: Knex;
 
     private readonly encryptionUtil: EncryptionUtil;
@@ -105,6 +110,7 @@ export class WarehouseConnectionModel {
 
     constructor(args: WarehouseConnectionModelArguments) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
         this.encryptionUtil = args.encryptionUtil;
         this.organizationWarehouseCredentialsModel =
             args.organizationWarehouseCredentialsModel;
@@ -117,6 +123,7 @@ export class WarehouseConnectionModel {
             run(
                 new WarehouseConnectionModel({
                     database: transaction,
+                    lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.encryptionUtil,
                     organizationWarehouseCredentialsModel:
                         this.organizationWarehouseCredentialsModel,
@@ -325,7 +332,10 @@ export class WarehouseConnectionModel {
             ? {
                   encrypted_credentials: this.encryptionUtil.encrypt(
                       JSON.stringify(
-                          normalizeWarehouseCredentials(source.credentials),
+                          stripBigquerySsoClientSecretForPersistence(
+                              normalizeWarehouseCredentials(source.credentials),
+                              this.lightdashConfig.auth.google,
+                          ),
                       ),
                   ),
                   organization_warehouse_credentials_uuid: null,

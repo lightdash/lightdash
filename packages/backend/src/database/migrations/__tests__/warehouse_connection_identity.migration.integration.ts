@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AllVizChartConfig,
     type CreateBigqueryCredentials,
@@ -22,10 +23,16 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
+import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
     WarehouseConnectionIdentityModel,
     WarehouseConnectionMap,
 } from '../../../models/WarehouseConnectionIdentityModel/WarehouseConnectionIdentityModel';
+import {
+    connectionContextFromUser,
+    WarehouseCredentialKind,
+} from '../../../services/WarehouseClientFactory/ConnectionContext';
+import { BigquerySsoCredentialResolver } from '../../../services/WarehouseClientFactory/resolvers/BigquerySsoCredentialResolver';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     createMigratedTestDatabase,
@@ -63,7 +70,13 @@ describe('Multi runtime identity on the real schema', () => {
     beforeAll(async () => {
         migrated = await createMigratedTestDatabase('connection_identity');
         database = migrated.database;
-        identity = new WarehouseConnectionIdentityModel({ database });
+        identity = new WarehouseConnectionIdentityModel({
+            google: lightdashConfigMock.auth.google,
+            database,
+            encryptionUtil: new EncryptionUtil({
+                lightdashConfig: lightdashConfigMock,
+            }),
+        });
         savedSqlModel = new SavedSqlModel({
             database,
             lightdashConfig: lightdashConfigMock,
@@ -603,6 +616,171 @@ describe('Multi runtime identity on the real schema', () => {
                     } as never)
                     .returning('project_uuid')
             )[0].project_uuid as string;
+
+        test.each(
+            [true, false].flatMap((matchingClient) =>
+                [undefined, '', '   ', 'configured-secret'].map(
+                    (oauth2ClientSecret) => ({
+                        matchingClient,
+                        oauth2ClientSecret,
+                    }),
+                ),
+            ),
+        )(
+            'persists BigQuery SSO in main, personal and copied preview rows for matching client $matchingClient with configured secret $oauth2ClientSecret',
+            async ({ matchingClient, oauth2ClientSecret }) => {
+                const config = {
+                    ...lightdashConfigMock,
+                    auth: {
+                        ...lightdashConfigMock.auth,
+                        google: {
+                            ...lightdashConfigMock.auth.google,
+                            oauth2ClientSecret,
+                        },
+                    },
+                };
+                const upstream = await createMultiProject();
+                const previewUuid = await createPreviewProject(upstream);
+                const encryption = new EncryptionUtil({
+                    lightdashConfig: config,
+                });
+                const credentials: CreateBigqueryCredentials = {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    project: 'analytics',
+                    dataset: 'prod',
+                    timeoutSeconds: undefined,
+                    priority: undefined,
+                    retries: undefined,
+                    location: undefined,
+                    maximumBytesBilled: undefined,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id: matchingClient
+                            ? lightdashConfigMock.auth.google.oauth2ClientId!
+                            : 'foreign-client',
+                        refresh_token: 'stored-refresh',
+                        client_secret: 'legacy-secret',
+                        access_token: 'transient',
+                    },
+                };
+                await database('warehouse_connections')
+                    .where('warehouse_connection_uuid', upstream.extraUuid)
+                    .update({
+                        warehouse_type: WarehouseTypes.BIGQUERY,
+                        encrypted_credentials: encryption.encrypt(
+                            JSON.stringify(credentials),
+                        ),
+                    });
+                const projectWriter = new ProjectModel({
+                    database,
+                    lightdashConfig: config,
+                    encryptionUtil: encryption,
+                });
+                const identityWriter = new WarehouseConnectionIdentityModel({
+                    database,
+                    encryptionUtil: encryption,
+                    google: config.auth.google,
+                });
+                await projectWriter.update(
+                    upstream.projectUuid,
+                    {
+                        name: 'Identity project',
+                        dbtConnection: { type: DbtProjectType.NONE },
+                        dbtVersion: DefaultSupportedDbtVersion,
+                        warehouseConnection: credentials,
+                    },
+                    upstream.userUuid,
+                );
+                const personalModel = new UserWarehouseCredentialsModel({
+                    lightdashConfig: config,
+                    database,
+                    encryptionUtil: encryption,
+                });
+                const personalUuid = await personalModel.create(
+                    upstream.userUuid,
+                    {
+                        name: 'Personal',
+                        credentials,
+                    },
+                );
+                await identityWriter.copyConnectionsToPreview(
+                    upstream.projectUuid,
+                    previewUuid,
+                );
+                const rows = await Promise.all([
+                    database('warehouse_credentials')
+                        .where('project_id', upstream.projectId)
+                        .first('encrypted_credentials'),
+                    database('user_warehouse_credentials')
+                        .where('user_warehouse_credentials_uuid', personalUuid)
+                        .first('encrypted_credentials'),
+                    database('warehouse_connections')
+                        .where('project_uuid', previewUuid)
+                        .where('is_original', false)
+                        .first('encrypted_credentials'),
+                ]);
+                for (const row of rows) {
+                    const cleartext = encryption.decrypt(
+                        row!.encrypted_credentials!,
+                    );
+                    if (matchingClient && oauth2ClientSecret?.trim()) {
+                        expect(cleartext).not.toContain('client_secret');
+                    } else {
+                        expect(cleartext).toContain('legacy-secret');
+                    }
+                    expect(cleartext).not.toContain('access_token');
+                    expect(cleartext).toContain('stored-refresh');
+                    expect(cleartext).toContain(
+                        credentials.keyfileContents.client_id,
+                    );
+                }
+                const reloaded =
+                    await personalModel.getByUuidWithSecrets(personalUuid);
+                expect(reloaded.credentials.type).toBe(WarehouseTypes.BIGQUERY);
+                if (reloaded.credentials.type !== WarehouseTypes.BIGQUERY) {
+                    throw new Error('Expected BigQuery credentials');
+                }
+                const resolver = new BigquerySsoCredentialResolver(
+                    config.auth.google,
+                    null,
+                );
+                const connection = { ...credentials, ...reloaded.credentials };
+                const resolved = await resolver.resolve({
+                    connection,
+                    stored: connection,
+                    owner: {
+                        kind: 'user',
+                        uuid: personalUuid,
+                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    },
+                    context: connectionContextFromUser(
+                        { userUuid: upstream.userUuid },
+                        {
+                            organizationUuid: upstream.organizationUuid,
+                            queryContext: null,
+                        },
+                    ),
+                    projectUuid: upstream.projectUuid,
+                    warehouseConnectionUuid: null,
+                    credentialKind: WarehouseCredentialKind.PERSONAL,
+                    aiPlan: null,
+                });
+                expect(
+                    resolved.clientCredentials.keyfileContents.client_secret,
+                ).toBe(
+                    matchingClient && oauth2ClientSecret?.trim()
+                        ? oauth2ClientSecret
+                        : 'legacy-secret',
+                );
+                const original = await database('warehouse_connections')
+                    .where('warehouse_connection_uuid', upstream.extraUuid)
+                    .first('encrypted_credentials');
+                expect(
+                    encryption.decrypt(original!.encrypted_credentials!),
+                ).toContain('legacy-secret');
+            },
+        );
 
         test('writes and copies unusual legacy SSO keyfiles without save validation', async () => {
             const upstream = await createMultiProject();
