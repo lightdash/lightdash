@@ -2,17 +2,7 @@ import {
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Breadcrumbs,
-    Group,
-    Paper,
-    SegmentedControl,
-    Stack,
-    Text,
-    VisuallyHidden,
-} from '@mantine/core';
+import { Box, Paper, Stack, Text, VisuallyHidden } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -31,6 +21,7 @@ import {
     hasHeadcountInView,
 } from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
+import { AdoptionViewHeader } from './AdoptionViewHeader';
 import { DepartmentMap } from './DepartmentMap';
 import {
     buildPackInput,
@@ -44,7 +35,6 @@ import {
 import { MapInspector } from './MapInspector';
 import { estimateTextWidth, layoutMap, type TextMeasurer } from './mapLayout';
 import { MapLegend } from './MapLegend';
-import { COLOUR_BY_LABELS, COLOUR_BY_OPTIONS, isColourBy } from './mapStyles';
 import {
     buildDots,
     buildMapAriaLabel,
@@ -62,7 +52,6 @@ import {
 import { createTextMeasurer } from './textMeasure';
 import { useContainerSize } from './useContainerSize';
 
-const ROOT_NAME = 'All departments';
 // Used only where the container cannot be measured
 const FALLBACK_SIZE = { width: MAP_SIZE, height: 560 };
 
@@ -261,80 +250,15 @@ export const AdoptionMap: FC<Props> = ({
                 lastInputRef.current = 'pointer';
             }}
         >
-            <Group justify="space-between" align="center" gap="sm">
-                <Breadcrumbs
-                    aria-label="Position on the map"
-                    data-map-navigation
-                >
-                    {focus === null ? (
-                        <Text
-                            ref={currentCrumbRef}
-                            className={styles.crumb}
-                            tabIndex={-1}
-                            fz="sm"
-                            fw={600}
-                            aria-current="location"
-                        >
-                            {ROOT_NAME}
-                        </Text>
-                    ) : (
-                        <Anchor
-                            component="button"
-                            type="button"
-                            fz="sm"
-                            c="dimmed"
-                            onClick={() => focusOn(null)}
-                        >
-                            {ROOT_NAME}
-                        </Anchor>
-                    )}
-                    {trail.map((department) =>
-                        department.departmentUuid === focusedUuid ? (
-                            <Text
-                                key={department.departmentUuid}
-                                ref={currentCrumbRef}
-                                className={styles.crumb}
-                                tabIndex={-1}
-                                fz="sm"
-                                fw={600}
-                                aria-current="location"
-                            >
-                                {department.name}
-                            </Text>
-                        ) : (
-                            <Anchor
-                                key={department.departmentUuid}
-                                component="button"
-                                type="button"
-                                fz="sm"
-                                c="dimmed"
-                                onClick={() =>
-                                    focusOn(department.departmentUuid)
-                                }
-                            >
-                                {department.name}
-                            </Anchor>
-                        ),
-                    )}
-                </Breadcrumbs>
-                <Group gap="xs" wrap="nowrap">
-                    <Text fz="xs" c="dimmed" id="adoption-map-colour-by">
-                        Color by
-                    </Text>
-                    <SegmentedControl
-                        size="xs"
-                        aria-labelledby="adoption-map-colour-by"
-                        value={colourBy}
-                        onChange={(value) => {
-                            if (isColourBy(value)) setColourBy(value);
-                        }}
-                        data={COLOUR_BY_OPTIONS.map((value) => ({
-                            value,
-                            label: COLOUR_BY_LABELS[value],
-                        }))}
-                    />
-                </Group>
-            </Group>
+            <AdoptionViewHeader
+                label="Position on the map"
+                trail={trail}
+                currentUuid={focusedUuid}
+                currentCrumbRef={currentCrumbRef}
+                onCrumbClick={focusOn}
+                colourBy={colourBy}
+                onColourByChange={setColourBy}
+            />
 
             <Box className={styles.body}>
                 <Paper className={styles.frame}>

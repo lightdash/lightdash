@@ -3,8 +3,10 @@ import { type ColourBy, type DotKind } from '../map/geometry';
 import { LEGEND_KINDS } from '../map/mapStyles';
 import { metricsFixture } from '../utils/adoptionFixtures';
 import {
+    chooseTransition,
     getPartPeople,
     groupSquares,
+    REFLOW_SQUARE_LIMIT,
     type WafflePerson,
     type WaffleSquare,
 } from './groupSquares';
@@ -169,5 +171,19 @@ describe('groupSquares', () => {
                     square.position !== byActivity[index].position,
             ),
         ).toBe(true);
+    });
+});
+
+describe('chooseTransition', () => {
+    it('reflows with up to 2,000 squares in view and sweeps above that', () => {
+        expect(REFLOW_SQUARE_LIMIT).toBe(2000);
+        expect(chooseTransition('reflow', 12)).toBe('reflow');
+        expect(chooseTransition('reflow', 2000)).toBe('reflow');
+        expect(chooseTransition('reflow', 2001)).toBe('sweep');
+    });
+
+    it('always sweeps when the constant says sweep', () => {
+        expect(chooseTransition('sweep', 12)).toBe('sweep');
+        expect(chooseTransition('sweep', 20000)).toBe('sweep');
     });
 });

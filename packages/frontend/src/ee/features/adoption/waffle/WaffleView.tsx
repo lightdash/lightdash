@@ -2,16 +2,7 @@ import {
     type DepartmentWithMetrics,
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Box,
-    Breadcrumbs,
-    Group,
-    Paper,
-    SegmentedControl,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, Paper, Stack, Text } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -22,19 +13,15 @@ import {
     type FC,
 } from 'react';
 import mapStyles from '../map/AdoptionMap.module.css';
+import { AdoptionViewHeader } from '../map/AdoptionViewHeader';
 import {
     COLOUR_TRANSITION,
     startColourTransition,
+    type ColourTransition,
 } from '../map/colourTransition';
 import { type ColourBy, type DotKind } from '../map/geometry';
 import { MapInspector } from '../map/MapInspector';
-import {
-    COLOUR_BY_LABELS,
-    COLOUR_BY_OPTIONS,
-    DOT_LABELS,
-    isColourBy,
-    LEGEND_KINDS,
-} from '../map/mapStyles';
+import { DOT_LABELS, LEGEND_KINDS } from '../map/mapStyles';
 import {
     getFocusTrail,
     getLegendCounts,
@@ -49,6 +36,7 @@ import {
 } from '../utils/peopleBreakdown';
 import { type SweepPoint } from '../utils/sweepDelay';
 import {
+    chooseTransition,
     getDrawnSquares,
     getPartPeople,
     groupSquares,
@@ -58,6 +46,7 @@ import {
 import {
     getSquareOffset,
     layoutWaffle,
+    MIN_HEIGHT,
     SQUARE_LIMIT,
     type WaffleLayout,
 } from './layout';
@@ -65,9 +54,10 @@ import styles from './Waffle.module.css';
 import { WaffleBlock } from './WaffleBlock';
 import { buildWaffleBlocks, type WafflePart } from './waffleBlocks';
 
-const ROOT_NAME = 'All departments';
-// Used only where the container cannot be measured
-const FALLBACK_SIZE = { width: 720, height: 560 };
+// Used only where the container cannot be measured; the height follows the content
+const FALLBACK_SIZE = { width: 720, height: MIN_HEIGHT };
+
+const px = (value: number): string => `${value}px`;
 
 type Props = {
     summary: OrganizationAdoptionSummary;
@@ -82,16 +72,18 @@ type DrawnPeople = {
     squaresByPart: Map<string, WaffleSquare[]>;
 };
 
-// Every square on the board in the order of its part's elements, with its centre in the drawing and its place in its
-// part under the previous colouring
+// Every square on the board in the order of its part's elements, with its centre in the drawing and, for a reflow,
+// its place in its part under the previous colouring
 const collectSquares = (
     board: HTMLElement,
     { layout, partsById, peopleByPart, squaresByPart }: DrawnPeople,
     previous: ColourBy,
+    transition: ColourTransition,
 ) => {
     const marks: Element[] = [];
     const points: SweepPoint[] = [];
-    const previousIndexes: number[] = [];
+    const previousIndexes: number[] | null =
+        transition === 'reflow' ? [] : null;
     const containers = new Map(
         Array.from(
             board.querySelectorAll<HTMLElement>('[data-squares]'),
@@ -113,13 +105,15 @@ const collectSquares = (
             ) {
                 return;
             }
-            const before = new Map(
-                groupSquares(people, previous, part.size).map((square) => [
-                    square.key,
-                    square.position,
-                ]),
-            );
-            getDrawnSquares(squares, COLOUR_TRANSITION).forEach(
+            const before =
+                previousIndexes === null
+                    ? null
+                    : new Map(
+                          groupSquares(people, previous, part.size).map(
+                              (square) => [square.key, square.position],
+                          ),
+                      );
+            getDrawnSquares(squares, transition).forEach(
                 ({ square }, index) => {
                     const element = container.children.item(index);
                     if (element === null) return;
@@ -129,8 +123,8 @@ const collectSquares = (
                         x: block.x + x + content.x + offset.x + grid.cell / 2,
                         y: block.y + y + content.y + offset.y + grid.cell / 2,
                     });
-                    previousIndexes.push(
-                        before.get(square.key) ?? square.position,
+                    previousIndexes?.push(
+                        before?.get(square.key) ?? square.position,
                     );
                 },
             );
@@ -172,7 +166,7 @@ const WaffleLegend: FC<{
         <Text fz="xs" c="dimmed">
             {isOverLimit
                 ? 'Select a department to see its numbers'
-                : 'Each square is a person. Select a department to see its numbers'}
+                : 'One square per person. Select a department to see its numbers'}
         </Text>
     </Stack>
 );
@@ -183,7 +177,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
     const { departments } = summary;
     const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
     const [colourBy, setColourBy] = useState<ColourBy>('active');
-    const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
+    const { ref, width } = useContainerSize(FALLBACK_SIZE);
 
     const byUuid = useMemo(
         () => new Map(departments.map((d) => [d.departmentUuid, d])),
@@ -216,10 +210,11 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                     })),
                 })),
                 width,
-                height,
             }),
-        [blocks, width, height],
+        [blocks, width],
     );
+    // Reflow only where few enough squares move; otherwise the sweep, for the keys and the change alike
+    const transition = chooseTransition(COLOUR_TRANSITION, layout.squareCount);
     const parts = useMemo(
         () => blocks.flatMap((block) => block.parts),
         [blocks],
@@ -272,23 +267,23 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         const board = boardRef.current;
         const bandLayer = bandLayerRef.current;
         if (!board || !bandLayer) return undefined;
+        // Only a reflow moves people and needs their places before the change; otherwise every place keeps its square
         const { marks, points, previousIndexes } = collectSquares(
             board,
             { layout, partsById, peopleByPart, squaresByPart },
             previous,
+            transition,
         );
         return startColourTransition(
             {
                 layer: board,
                 marks,
                 points,
-                area: { width, height },
+                area: { width, height: layout.height },
                 bandLayer,
-                // Only a reflow moves people; otherwise every place keeps its square
-                previousIndexes:
-                    COLOUR_TRANSITION === 'reflow' ? previousIndexes : null,
+                previousIndexes,
             },
-            COLOUR_TRANSITION,
+            transition,
         );
     }, [
         colourBy,
@@ -297,7 +292,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         peopleByPart,
         squaresByPart,
         width,
-        height,
+        transition,
     ]);
 
     // The legend counts the people drawn, from the same numbers as the panel; the panel shows the selection
@@ -348,63 +343,25 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
     const markedInBlock =
         topUuid === null ? null : (trail[1]?.departmentUuid ?? topUuid);
 
-    const crumb = (department: DepartmentWithMetrics | null) => {
-        const name = department?.name ?? ROOT_NAME;
-        const uuid = department?.departmentUuid ?? null;
-        return uuid === selectedDepartmentUuid ? (
-            <Text
-                key={uuid ?? 'root'}
-                ref={currentCrumbRef}
-                className={mapStyles.crumb}
-                tabIndex={-1}
-                fz="sm"
-                fw={600}
-                aria-current="location"
-            >
-                {name}
-            </Text>
-        ) : (
-            <Anchor
-                key={uuid ?? 'root'}
-                component="button"
-                type="button"
-                fz="sm"
-                c="dimmed"
-                onClick={() => selectFromCrumb(uuid)}
-            >
-                {name}
-            </Anchor>
-        );
-    };
-
     return (
         <Stack gap="md">
-            <Group justify="space-between" align="center" gap="sm">
-                <Breadcrumbs aria-label="Selected department">
-                    {[null, ...trail].map(crumb)}
-                </Breadcrumbs>
-                <Group gap="xs" wrap="nowrap">
-                    <Text fz="xs" c="dimmed" id="adoption-waffle-colour-by">
-                        Color by
-                    </Text>
-                    <SegmentedControl
-                        size="xs"
-                        aria-labelledby="adoption-waffle-colour-by"
-                        value={colourBy}
-                        onChange={(value) => {
-                            if (isColourBy(value)) setColourBy(value);
-                        }}
-                        data={COLOUR_BY_OPTIONS.map((value) => ({
-                            value,
-                            label: COLOUR_BY_LABELS[value],
-                        }))}
-                    />
-                </Group>
-            </Group>
+            <AdoptionViewHeader
+                label="Selected department"
+                trail={trail}
+                currentUuid={selectedDepartmentUuid}
+                currentCrumbRef={currentCrumbRef}
+                onCrumbClick={selectFromCrumb}
+                colourBy={colourBy}
+                onColourByChange={setColourBy}
+            />
 
             <Box className={mapStyles.body}>
                 <Paper className={mapStyles.frame}>
-                    <Box ref={ref} className={mapStyles.canvas}>
+                    <Box
+                        ref={ref}
+                        className={styles.canvas}
+                        __vars={{ '--waffle-height': px(layout.height) }}
+                    >
                         {layout.blocks.length === 0 ? (
                             <Box className={mapStyles.message}>
                                 <Text fz="sm" c="dimmed">
@@ -431,6 +388,7 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
                                             layout={blockLayout}
                                             squaresByPart={squaresByPart}
                                             colourBy={colourBy}
+                                            transition={transition}
                                             selectedUuid={
                                                 block.departmentUuid === topUuid
                                                     ? selectedDepartmentUuid

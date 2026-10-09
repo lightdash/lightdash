@@ -1,5 +1,6 @@
 import { Box, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { type ColourTransition } from '../map/colourTransition';
 import { getDotSegments, type ColourBy } from '../map/geometry';
 import { type WaffleSquare } from './groupSquares';
 import { type BlockLayout, type PartLayout } from './layout';
@@ -24,6 +25,7 @@ type Props = {
     layout: BlockLayout;
     squaresByPart: Map<string, WaffleSquare[]>;
     colourBy: ColourBy;
+    transition: ColourTransition;
     // The selected department when it is in this block, else null
     selectedUuid: string | null;
     // What shows the selection in this block: the block itself, or the part holding the selected department
@@ -47,11 +49,12 @@ const PartBar: FC<{ part: WafflePart; colourBy: ColourBy }> = ({
     part,
     colourBy,
 }) => (
-    <Box className={styles.bar}>
+    <Box component="span" className={styles.bar}>
         {getDotSegments(part.people, colourBy)
             .filter((segment) => segment.count > 0)
             .map((segment) => (
                 <Box
+                    component="span"
                     key={segment.kind}
                     className={styles.mark}
                     data-kind={segment.kind}
@@ -66,7 +69,8 @@ const PartContent: FC<{
     layout: PartLayout;
     squares: WaffleSquare[];
     colourBy: ColourBy;
-}> = ({ part, layout, squares, colourBy }) => {
+    transition: ColourTransition;
+}> = ({ part, layout, squares, colourBy, transition }) => {
     const { content, grid } = layout;
     return (
         <>
@@ -82,6 +86,7 @@ const PartContent: FC<{
                 </Text>
             )}
             <Box
+                component="span"
                 className={styles.content}
                 data-squares={part.id}
                 aria-hidden
@@ -95,7 +100,11 @@ const PartContent: FC<{
                 }}
             >
                 {grid.kind === 'squares' && (
-                    <WaffleSquares squares={squares} grid={grid} />
+                    <WaffleSquares
+                        squares={squares}
+                        grid={grid}
+                        transition={transition}
+                    />
                 )}
                 {grid.kind === 'bar' && (
                     <PartBar part={part} colourBy={colourBy} />
@@ -113,6 +122,7 @@ export const WaffleBlock = memo<Props>(
         layout,
         squaresByPart,
         colourBy,
+        transition,
         selectedUuid,
         markedUuid,
         onSelect,
@@ -177,6 +187,7 @@ export const WaffleBlock = memo<Props>(
                             layout={partLayout}
                             squares={squaresByPart.get(part.id) ?? NO_SQUARES}
                             colourBy={colourBy}
+                            transition={transition}
                         />
                     );
                     if (part.kind !== 'department') {

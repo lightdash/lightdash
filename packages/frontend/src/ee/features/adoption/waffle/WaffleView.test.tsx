@@ -8,10 +8,12 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import mapStyles from '../map/DepartmentMap.module.css';
-import { LEGEND_KINDS } from '../map/mapStyles';
+import { type ColourBy } from '../map/geometry';
+import { COLOUR_BY_LABELS, LEGEND_KINDS } from '../map/mapStyles';
 import {
     deepOrganization,
     flatOrganization,
+    smallCompany,
 } from '../map/organizationFixtures';
 import {
     dept,
@@ -74,6 +76,36 @@ const d = (
             activeCount12w: active,
         }),
     });
+
+// Roles and 12-week activity spread over the people on Lightdash, so every colouring draws every kind
+const withEveryKind = (
+    departments: DepartmentWithMetrics[],
+): DepartmentWithMetrics[] => {
+    const spread = (metrics: DepartmentWithMetrics['metrics']) => {
+        const members = metrics.memberCount;
+        const admins = Math.round(members * 0.05);
+        const editors = Math.round(members * 0.2);
+        const interactiveViewers = Math.round(members * 0.25);
+        return {
+            ...metrics,
+            activeCount12w: Math.min(
+                members,
+                Math.round(metrics.activeCount30d * 1.4),
+            ),
+            roleSplit: {
+                admins,
+                editors,
+                interactiveViewers,
+                viewers: members - admins - editors - interactiveViewers,
+            },
+        };
+    };
+    return departments.map((department) => ({
+        ...department,
+        metrics: spread(department.metrics),
+        directMetrics: spread(department.directMetrics),
+    }));
+};
 
 const blockNames = (container: HTMLElement) =>
     [...container.querySelectorAll(`.${styles.blockButton}`)].map((button) =>
@@ -162,15 +194,28 @@ describe('WaffleView', () => {
         expect(drawnSquares(container, 'noAccount')).toHaveLength(199);
     });
 
-    it('counts in the legend exactly the squares drawn of each kind, as the panel does', () => {
-        const { container } = renderWaffle(flatOrganization);
-        const drawn = (kind: string) => drawnSquares(container, kind).length;
-        expect(drawnSquares(container)).toHaveLength(2339);
-        expect(legendCounts()).toEqual([
-            { label: 'Active in 30 days', count: drawn('active') },
-            { label: 'Not active in 30 days', count: drawn('idle') },
-            { label: 'No account', count: drawn('noAccount') },
-        ]);
+    it.each(['active', 'role', 'lastActive'] as ColourBy[])(
+        'counts in the legend exactly the squares drawn of each kind when colouring by %s',
+        async (colourBy) => {
+            const { container } = renderWaffle(withEveryKind(flatOrganization));
+            await userEvent.click(
+                screen.getByRole('radio', { name: COLOUR_BY_LABELS[colourBy] }),
+            );
+            expect(drawnSquares(container)).toHaveLength(2339);
+            expect(legendCounts().map((entry) => entry.count)).toEqual(
+                LEGEND_KINDS[colourBy].map(
+                    (kind) => drawnSquares(container, kind).length,
+                ),
+            );
+            // Every kind is drawn, so none of the counts agree by being 0
+            LEGEND_KINDS[colourBy].forEach((kind) =>
+                expect(drawnSquares(container, kind).length).toBeGreaterThan(0),
+            );
+        },
+    );
+
+    it('gives the panel the same three numbers as the legend', () => {
+        renderWaffle(flatOrganization);
         const [active, idle, noAccount] = legendCounts().map((entry) =>
             entry.count.toLocaleString('en-US'),
         );
@@ -188,6 +233,43 @@ describe('WaffleView', () => {
         expect(
             screen.getByText('Legend counts people placed in a department'),
         ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'One square per person. Select a department to see its numbers',
+            ),
+        ).toBeInTheDocument();
+    });
+
+    it('draws a 33-person company as a band of 16 px squares in a waffle 160 px tall', () => {
+        // Measured 870 px wide, where every department's people fit on one row of 16 px squares
+        const measured = vi
+            .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+            .mockReturnValue(new DOMRect(0, 0, 870, 160));
+        const { container } = renderWaffle(smallCompany);
+        measured.mockRestore();
+        const canvas = screen.getByRole('group', {
+            name: 'Departments in the waffle',
+        }).parentElement;
+        expect(canvas?.style.getPropertyValue('--waffle-height')).toBe('160px');
+        const parts = [
+            ...container.querySelectorAll<HTMLElement>('[data-squares]'),
+        ];
+        expect(parts).toHaveLength(4);
+        parts.forEach((part) =>
+            expect(part.style.getPropertyValue('--cell')).toBe('16px'),
+        );
+        expect(drawnSquares(container)).toHaveLength(33);
+    });
+
+    it('is as tall as its content rather than a fixed drawing', () => {
+        renderWaffle(deepOrganization);
+        const height = Number.parseFloat(
+            screen
+                .getByRole('group', { name: 'Departments in the waffle' })
+                .parentElement?.style.getPropertyValue('--waffle-height') ?? '',
+        );
+        expect(height).toBeGreaterThan(160);
+        expect(height).toBeLessThan(560);
     });
 
     it("groups each part's squares in legend order, so the part reads as a stacked bar", async () => {
@@ -381,7 +463,21 @@ describe('WaffleView', () => {
             d('One more', null, 1, 1, 1),
         ]);
         expect(drawnSquares(container)).toHaveLength(0);
-        expect(container.querySelectorAll(`.${styles.bar}`)).toHaveLength(2);
+        const bars = [...container.querySelectorAll(`.${styles.bar}`)];
+        expect(bars).toHaveLength(2);
+        // One segment per kind in legend order, as wide as its people, the people without an account last
+        const segments = (bar: Element) =>
+            [...bar.children].map((segment) => [
+                (segment as HTMLElement).dataset.kind,
+                (segment as HTMLElement).style.flexGrow,
+            ]);
+        expect(segments(bars[0])).toEqual([
+            ['active', '5'],
+            ['idle', '5'],
+            ['noAccount', '19990'],
+        ]);
+        // Kinds nobody holds are left out
+        expect(segments(bars[1])).toEqual([['active', '1']]);
         expect(
             screen.getByText(
                 'Departments are drawn as bars above 20,000 people',
@@ -416,7 +512,16 @@ describe('WaffleView', () => {
     });
 
     describe('changing the colouring', () => {
-        const AREA = { width: 720, height: 560 };
+        // The drawing the sweep crosses: the measured width and the height of the content
+        const areaOf = () => ({
+            width: 720,
+            height: Number.parseFloat(
+                screen
+                    .getByRole('group', { name: 'Departments in the waffle' })
+                    .parentElement?.style.getPropertyValue('--waffle-height') ??
+                    '',
+            ),
+        });
         const varOf = (element: Element | null, name: string): number =>
             element instanceof HTMLElement
                 ? Number.parseFloat(element.style.getPropertyValue(name))
@@ -497,9 +602,11 @@ describe('WaffleView', () => {
                 ),
             ).toBe(true);
             // Each square waits for the sweep to reach its centre
+            const area = areaOf();
+            expect(area.height).toBeGreaterThan(160);
             expect(during.delays).toEqual(
                 during.squares.map(
-                    (square) => `${getSweepDelay(centreOf(square), AREA)}ms`,
+                    (square) => `${getSweepDelay(centreOf(square), area)}ms`,
                 ),
             );
             expect(new Set(during.delays).size).toBeGreaterThan(100);
