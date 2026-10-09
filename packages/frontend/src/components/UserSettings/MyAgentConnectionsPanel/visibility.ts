@@ -13,23 +13,38 @@ export const shouldShowMyAgentConnections = (
 export const getAgentConnectionVisibility = (
     rules: OrganizationAgentIdentityRule[],
     projects: OrganizationProject[],
-) => {
+): {
+    showSnowflakeSignIn: boolean;
+    serviceAccountWarehouses: WarehouseTypes[];
+} => {
     const hasWarehouse = (warehouseType: WarehouseTypes) =>
         projects.some((project) => project.warehouseType === warehouseType);
+    const preferredOrder = [
+        WarehouseTypes.SNOWFLAKE,
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.DATABRICKS,
+    ];
+    const serviceAccountWarehouses = rules
+        .filter(
+            ({ warehouseType, source }) =>
+                source === 'ai_service_account' && hasWarehouse(warehouseType),
+        )
+        .map(({ warehouseType }) => warehouseType);
     return {
-        showSnowflake:
+        showSnowflakeSignIn:
             hasWarehouse(WarehouseTypes.SNOWFLAKE) &&
             rules.some(
                 ({ warehouseType, source }) =>
                     warehouseType === WarehouseTypes.SNOWFLAKE &&
                     source === 'agent_sign_in',
             ),
-        showBigQuery:
-            hasWarehouse(WarehouseTypes.BIGQUERY) &&
-            rules.some(
-                ({ warehouseType, source }) =>
-                    warehouseType === WarehouseTypes.BIGQUERY &&
-                    source === 'ai_service_account',
+        serviceAccountWarehouses: [
+            ...preferredOrder.filter((warehouseType) =>
+                serviceAccountWarehouses.includes(warehouseType),
             ),
+            ...serviceAccountWarehouses.filter(
+                (warehouseType) => !preferredOrder.includes(warehouseType),
+            ),
+        ],
     };
 };

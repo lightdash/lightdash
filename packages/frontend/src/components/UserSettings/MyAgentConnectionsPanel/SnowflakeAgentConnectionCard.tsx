@@ -2,14 +2,17 @@ import {
     AgentIdentityConnectEntryPoint,
     assertUnreachable,
     FeatureFlags,
-    formatDate,
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import { useSnowflakeAiLoginPopup } from '../../../hooks/useSnowflake';
+import {
+    SnowflakeSignInPopupBlockedError,
+    useSnowflakeAiLoginPopup,
+} from '../../../hooks/useSnowflake';
 import { DeleteCredentialsModal } from '../MyWarehouseConnectionsPanel/DeleteCredentialsModal';
+import { formatAgentConnectionDate } from './formatAgentConnectionDate';
 import {
     getSnowflakeAgentStatus,
     type SnowflakeAgentStatus,
@@ -52,17 +55,23 @@ const SnowflakeAgentConnectionDetails = ({
         expiresAt &&
         new Date(expiresAt).getTime() > now ? (
             <Text c="dimmed" fz="sm">
-                Your agent connection ends on {formatDate(expiresAt)}
+                Your agent sign-in lasts until{' '}
+                {formatAgentConnectionDate(expiresAt)}.
             </Text>
         ) : null}
-        {status !== 'connected' && (
+        {status === 'expired' && (
+            <Text c="dimmed" fz="sm">
+                {`Your Snowflake agent sign-in ended${expiresAt && new Date(expiresAt).getTime() <= now ? ` on ${formatAgentConnectionDate(expiresAt)}` : ''}. Sign in again to keep using agents on Snowflake projects.`}
+            </Text>
+        )}
+        {status !== 'connected' && status !== 'expired' && (
             <Text c="dimmed" fz="sm">
                 {status === 'unavailable'
                     ? 'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.'
                     : 'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.'}
             </Text>
         )}
-        {status === 'failing' && errorMessage && (
+        {status !== 'unavailable' && errorMessage && (
             <Text c="red" fz="sm" role="alert">
                 {errorMessage}
             </Text>
@@ -81,10 +90,16 @@ export const SnowflakeAgentConnectionCard = ({
         FeatureFlags.AgentIdentitySilentRefresh,
     );
     const silentRefreshEnabled = silentRefreshFlag?.enabled ?? false;
-    const login = useSnowflakeAiLoginPopup({
-        entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
-        projectUuid: null,
-    });
+    const login = useSnowflakeAiLoginPopup(
+        {
+            entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
+            projectUuid: null,
+        },
+        { showErrorToast: false },
+    );
+    const isPopupBlocked =
+        !!login.error &&
+        login.error instanceof SnowflakeSignInPopupBlockedError;
     const [isRemoving, setIsRemoving] = useState(false);
     useExpiryTimer(
         !silentRefreshEnabled && credential?.expiresAt
@@ -94,7 +109,7 @@ export const SnowflakeAgentConnectionCard = ({
     const now = Date.now();
     const status = getSnowflakeAgentStatus(
         credential,
-        !!login.error,
+        !!login.error && !isPopupBlocked,
         now,
         snowflakeConfigured,
         silentRefreshEnabled,
@@ -119,10 +134,15 @@ export const SnowflakeAgentConnectionCard = ({
                     ) : status !== 'unavailable' ? (
                         <Button
                             size="xs"
-                            onClick={() => login.mutate()}
+                            onClick={() => {
+                                login.reset();
+                                login.mutate();
+                            }}
                             loading={login.isLoading}
                         >
-                            Connect agent
+                            {status === 'expired'
+                                ? 'Sign in again'
+                                : 'Connect agent'}
                         </Button>
                     ) : null}
                 </Group>
@@ -130,7 +150,11 @@ export const SnowflakeAgentConnectionCard = ({
                     status={status}
                     expiresAt={credential?.expiresAt ?? null}
                     now={now}
-                    errorMessage={login.error?.message ?? null}
+                    errorMessage={
+                        isPopupBlocked
+                            ? 'Your browser blocked the Snowflake sign-in window. Allow pop-ups for this site, then try again.'
+                            : (login.error?.message ?? null)
+                    }
                 />
             </Stack>
             {status !== 'unavailable' && credential && isRemoving && (

@@ -16,6 +16,7 @@ let warehouses: (WarehouseTypes | undefined)[] = [
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.BIGQUERY,
 ];
+let databricksSource: AiIdentitySource = 'marked_person';
 let configured = true;
 let credentials: UserWarehouseCredentialsWithAgentStatus[] = [];
 let isInitialLoading = false;
@@ -26,6 +27,10 @@ vi.mock('../../../features/aiAccess/api', () => ({
         data: {
             snowflakeConfigured: configured,
             rules: [
+                {
+                    warehouseType: WarehouseTypes.DATABRICKS,
+                    source: databricksSource,
+                },
                 {
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     source: snowflakeSource,
@@ -68,6 +73,7 @@ describe('MyAgentConnectionsPanel', () => {
     beforeEach(() => {
         snowflakeSource = 'agent_sign_in';
         bigquerySource = 'ai_service_account';
+        databricksSource = 'marked_person';
         warehouses = [WarehouseTypes.SNOWFLAKE, WarehouseTypes.BIGQUERY];
         configured = true;
         credentials = [];
@@ -94,7 +100,7 @@ describe('MyAgentConnectionsPanel', () => {
     it.each([
         ['agent_sign_in', true, [WarehouseTypes.SNOWFLAKE], true],
         ['marked_person', true, [WarehouseTypes.SNOWFLAKE], false],
-        ['ai_service_account', true, [WarehouseTypes.SNOWFLAKE], false],
+        ['ai_service_account', true, [WarehouseTypes.SNOWFLAKE], true],
         ['agent_sign_in', false, [WarehouseTypes.SNOWFLAKE], true],
         ['agent_sign_in', true, [WarehouseTypes.BIGQUERY], false],
         ['agent_sign_in', true, [undefined], false],
@@ -168,7 +174,9 @@ describe('MyAgentConnectionsPanel', () => {
             screen.getByText('No agent connections needed'),
         ).toBeInTheDocument();
         expect(
-            screen.getByText('Your agents use your usual warehouse access.'),
+            screen.getByText(
+                "Agents use your own warehouse access. There's nothing to connect.",
+            ),
         ).toBeInTheDocument();
     });
     it('uses only the AI-purpose credential', () => {
@@ -192,7 +200,7 @@ describe('MyAgentConnectionsPanel', () => {
         renderWithProviders(<MyAgentConnectionsPanel />);
         expect(screen.getByText('Expired')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Connect agent' }),
+            screen.getByRole('button', { name: 'Sign in again' }),
         ).toBeEnabled();
         expect(
             screen.queryByRole('button', { name: 'Disconnect' }),
@@ -219,4 +227,40 @@ describe('MyAgentConnectionsPanel', () => {
             screen.queryByText('No agent connections needed'),
         ).not.toBeInTheDocument();
     });
+    it('shows Databricks service access instead of the empty state', () => {
+        snowflakeSource = 'marked_person';
+        bigquerySource = 'marked_person';
+        databricksSource = 'ai_service_account';
+        warehouses = [WarehouseTypes.DATABRICKS];
+        renderWithProviders(<MyAgentConnectionsPanel />);
+        expect(
+            screen.getByRole('heading', { name: 'Databricks' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText('No agent connections needed'),
+        ).not.toBeInTheDocument();
+    });
+
+    it.each(['agent_sign_in', 'ai_service_account'] as const)(
+        'orders cards with Snowflake source %s',
+        (source) => {
+            snowflakeSource = source;
+            databricksSource = 'ai_service_account';
+            warehouses = [
+                WarehouseTypes.DATABRICKS,
+                WarehouseTypes.BIGQUERY,
+                WarehouseTypes.SNOWFLAKE,
+            ];
+            renderWithProviders(<MyAgentConnectionsPanel />);
+            expect(
+                screen
+                    .getAllByRole('heading', { level: 5 })
+                    .map((heading) => heading.textContent),
+            ).toEqual(['Snowflake', 'BigQuery', 'Databricks']);
+            expect(
+                screen.queryByRole('button', { name: 'Connect agent' }) !==
+                    null,
+            ).toBe(source === 'agent_sign_in');
+        },
+    );
 });

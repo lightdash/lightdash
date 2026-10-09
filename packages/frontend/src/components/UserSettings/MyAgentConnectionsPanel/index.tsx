@@ -10,7 +10,7 @@ import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredent
 import InlineErrorState from '../../common/InlineErrorState';
 import { SettingsEmptyState } from '../../common/Settings/SettingsEmptyState';
 import { SettingsPage } from '../../common/Settings/SettingsPage';
-import { BigQueryAgentConnectionCard } from './BigQueryAgentConnectionCard';
+import { AiServiceAccountConnectionCard } from './AiServiceAccountConnectionCard';
 import { SnowflakeAgentConnectionCard } from './SnowflakeAgentConnectionCard';
 import { getAgentConnectionVisibility } from './visibility';
 
@@ -18,10 +18,11 @@ export const MyAgentConnectionsPanel = () => {
     const settings = useOrganizationAgentIdentitySettings();
     const projects = useProjects();
     const credentials = useUserWarehouseCredentials();
-    const { showSnowflake, showBigQuery } = getAgentConnectionVisibility(
-        settings.data?.rules ?? [],
-        projects.data ?? [],
-    );
+    const { showSnowflakeSignIn, serviceAccountWarehouses } =
+        getAgentConnectionVisibility(
+            settings.data?.rules ?? [],
+            projects.data ?? [],
+        );
     const credential =
         credentials.data?.find(
             ({ purpose, credentials: warehouseCredentials }) =>
@@ -42,7 +43,7 @@ export const MyAgentConnectionsPanel = () => {
                 <Loader size="sm" />
             ) : (
                 <>
-                    {showSnowflake && (
+                    {showSnowflakeSignIn && (
                         <SnowflakeAgentConnectionCard
                             credential={credential}
                             snowflakeConfigured={
@@ -50,14 +51,20 @@ export const MyAgentConnectionsPanel = () => {
                             }
                         />
                     )}
-                    {showBigQuery && <BigQueryAgentConnectionCard />}
-                    {!showSnowflake && !showBigQuery && (
-                        <SettingsEmptyState
-                            icon={IconPlugConnected}
-                            title="No agent connections needed"
-                            description="Your agents use your usual warehouse access."
+                    {serviceAccountWarehouses.map((warehouseType) => (
+                        <AiServiceAccountConnectionCard
+                            key={warehouseType}
+                            warehouseType={warehouseType}
                         />
-                    )}
+                    ))}
+                    {!showSnowflakeSignIn &&
+                        serviceAccountWarehouses.length === 0 && (
+                            <SettingsEmptyState
+                                icon={IconPlugConnected}
+                                title="No agent connections needed"
+                                description="Agents use your own warehouse access. There's nothing to connect."
+                            />
+                        )}
                 </>
             )}
         </SettingsPage>
