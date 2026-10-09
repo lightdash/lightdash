@@ -7,11 +7,13 @@ import { describe, expect, it } from 'vitest';
 import {
     canKeepFilterRule,
     findFilterRule,
+    isDefaultValueIncomplete,
     isFilterRuleDirty,
     isPlaceholderRule,
     PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
+    toggleFilterLockOnTab,
 } from './sidebarState';
 
 const rule = (id: string, values: string[]): DashboardFilterRule => ({
@@ -59,6 +61,30 @@ describe('sidebarState', () => {
         expect(
             isPlaceholderRule({ ...rule('a', []), target: PLACEHOLDER_TARGET }),
         ).toBe(true);
+    });
+
+    it('toggles the lock on one tab and drops the list when empty', () => {
+        const locked = toggleFilterLockOnTab(rule('a', []), 't1', true);
+        expect(locked.lockedTabUuids).toEqual(['t1']);
+        const both = toggleFilterLockOnTab(locked, 't2', true);
+        expect(both.lockedTabUuids).toEqual(['t1', 't2']);
+        expect(
+            toggleFilterLockOnTab(locked, 't1', true).lockedTabUuids,
+        ).toBeUndefined();
+    });
+
+    it('a default value is incomplete only when enabled and empty', () => {
+        expect(isDefaultValueIncomplete(rule('a', []))).toBe(true);
+        expect(isDefaultValueIncomplete(rule('a', ['1']))).toBe(false);
+        expect(
+            isDefaultValueIncomplete({ ...rule('a', []), disabled: true }),
+        ).toBe(false);
+        expect(
+            isDefaultValueIncomplete({
+                ...rule('a', []),
+                operator: FilterOperator.NULL,
+            }),
+        ).toBe(false);
     });
 
     it('a filter is kept once it has a field, with or without a label', () => {
