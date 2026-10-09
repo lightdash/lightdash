@@ -1,5 +1,6 @@
+import { ErrorBoundary } from '@sentry/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import {
@@ -158,6 +159,46 @@ describe('AiAgentSqlApprovalWatcher', () => {
         });
 
         expect(NotificationStub.shown).toHaveLength(0);
+    });
+
+    it('keeps its siblings mounted when the browser refuses to construct a notification', () => {
+        class ThrowingNotification extends NotificationStub {
+            constructor(title: string, options: NotificationOptions) {
+                super(title, options);
+                throw new TypeError('Illegal constructor');
+            }
+        }
+        vi.stubGlobal('Notification', ThrowingNotification);
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            const router = createMemoryRouter(
+                [
+                    {
+                        path: '*',
+                        element: (
+                            <ErrorBoundary fallback={<></>}>
+                                <span>launcher</span>
+                                <AiAgentSqlApprovalWatcher />
+                            </ErrorBoundary>
+                        ),
+                    },
+                ],
+                { initialEntries: ['/projects/project-1/dashboards/d'] },
+            );
+            render(
+                <QueryClientProvider client={new QueryClient()}>
+                    <Provider store={store}>
+                        <RouterProvider router={router} />
+                    </Provider>
+                </QueryClientProvider>,
+            );
+            streamParts([runSql('call-1')]);
+
+            expect(NotificationStub.shown).toHaveLength(1);
+            expect(screen.getByText('launcher')).toBeInTheDocument();
+        } finally {
+            vi.stubGlobal('Notification', NotificationStub);
+        }
     });
 
     it('does not notify without permission', () => {

@@ -101,16 +101,20 @@ export const AiAgentSqlApprovalWatcher: FC = () => {
             const content = getSqlApprovalNotificationContent(
                 agent?.name ?? null,
             );
-            const notification = new Notification(content.title, {
-                body: content.body,
-                icon: '/favicon.ico',
-                tag: approval.toolCallId,
-            });
-            notification.onclick = () => {
-                window.focus();
-                notification.close();
-                openThreadRef.current(approval);
-            };
+            try {
+                const notification = new Notification(content.title, {
+                    body: content.body,
+                    icon: '/favicon.ico',
+                    tag: approval.toolCallId,
+                });
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                    openThreadRef.current(approval);
+                };
+            } catch {
+                // Best-effort: some browsers (e.g. Android Chrome) throw even with permission
+            }
         });
     }, [streams, isEmbed, queryClient]);
 
