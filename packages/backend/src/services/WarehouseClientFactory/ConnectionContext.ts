@@ -2,6 +2,7 @@ import {
     AGENT_CLIENT_IDS,
     AgentActorSurface,
     assertUnreachable,
+    isAiAccessQueryContext,
     QueryExecutionContext,
     QuerySurface,
     type Account,
@@ -13,6 +14,7 @@ export enum ConnectionSurface {
     SLACK_AGENT = 'slack_agent',
     MCP = 'mcp',
     API = 'api',
+    CLI = 'cli',
     SCHEDULE = 'schedule',
     EMBED = 'embed',
     DATA_APP = 'data_app',
@@ -31,6 +33,7 @@ export type ConnectionPerson = {
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
     serviceAccountUuid?: string | null;
+    oauthClientId?: string | null;
 };
 
 export type ConnectionAiClient = {
@@ -42,6 +45,7 @@ export type ConnectionAiClient = {
 const agentSurfaces: Partial<Record<ConnectionSurface, AgentActorSurface>> = {
     [ConnectionSurface.IN_APP_AGENT]: AgentActorSurface.IN_APP_AGENT,
     [ConnectionSurface.MCP]: AgentActorSurface.MCP,
+    [ConnectionSurface.CLI]: AgentActorSurface.CLI,
     [ConnectionSurface.SLACK_AGENT]: AgentActorSurface.SLACK_AGENT,
     [ConnectionSurface.DATA_APP]: AgentActorSurface.DATA_APP,
 };
@@ -91,6 +95,8 @@ export const querySurfaceFromConnectionSurface = (
             return QuerySurface.MCP;
         case ConnectionSurface.API:
             return QuerySurface.API;
+        case ConnectionSurface.CLI:
+            return QuerySurface.CLI;
         default:
             return assertUnreachable(surface, 'Unknown connection surface');
     }
@@ -162,8 +168,11 @@ export const connectionSurfaceFromQuerySurface = (
         case QuerySurface.MCP:
             return ConnectionSurface.MCP;
         case QuerySurface.API:
-        case QuerySurface.CLI:
             return ConnectionSurface.API;
+        case QuerySurface.CLI:
+            return queryContext !== null && isAiAccessQueryContext(queryContext)
+                ? ConnectionSurface.CLI
+                : ConnectionSurface.API;
         default:
             return assertUnreachable(surface, 'Unknown query surface');
     }
@@ -182,6 +191,7 @@ export const aiClientFromQueryContext = (
             return { kind: 'data_app' };
         case ConnectionSurface.APP:
         case ConnectionSurface.SLACK_AGENT:
+        case ConnectionSurface.CLI:
         case ConnectionSurface.API:
         case ConnectionSurface.SCHEDULE:
         case ConnectionSurface.EMBED:
@@ -205,12 +215,14 @@ export const connectionContextFromUser = (
         userUuid,
         isRegisteredUser = true,
         isServiceAccount = false,
-        serviceAccountUuid,
+        serviceAccountUuid = null,
+        oauthClientId = null,
     }: {
         userUuid: string;
         isRegisteredUser?: boolean;
         isServiceAccount?: boolean;
         serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
     },
     {
         organizationUuid,
@@ -228,7 +240,8 @@ export const connectionContextFromUser = (
             userUuid,
             isRegisteredUser,
             isServiceAccount,
-            ...(serviceAccountUuid !== undefined ? { serviceAccountUuid } : {}),
+            serviceAccountUuid,
+            oauthClientId,
         },
         aiClient: agentActor
             ? {
@@ -242,6 +255,19 @@ export const connectionContextFromUser = (
     aiAccess,
 });
 
+export const getAccountAgentIdentityFacts = (
+    account: Account,
+): { serviceAccountUuid: string | null; oauthClientId: string | null } => ({
+    serviceAccountUuid:
+        account.authentication.type === 'service-account'
+            ? account.authentication.serviceAccountUuid
+            : null,
+    oauthClientId:
+        account.authentication.type === 'oauth'
+            ? account.authentication.clientId
+            : null,
+});
+
 export const connectionContextFromAccount = (
     account: Account,
     options: ConnectionContextOptions,
@@ -251,12 +277,7 @@ export const connectionContextFromAccount = (
             userUuid: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            ...(account.authentication.type === 'service-account'
-                ? {
-                      serviceAccountUuid:
-                          account.authentication.serviceAccountUuid,
-                  }
-                : {}),
+            ...getAccountAgentIdentityFacts(account),
         },
         options,
     );

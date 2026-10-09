@@ -66,11 +66,15 @@ import {
     connectionSurfaceFromQuerySurface,
     getAgentActor,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { type AiCredentialProvider } from './providers/AiCredentialProvider';
 import { type AiCredentialProviderRegistry } from './providers/registry';
-import { getQuerySourceParameters } from './queryResultLineage';
+import {
+    getQueryIdentityLineage,
+    getQuerySourceParameters,
+} from './queryResultLineage';
 
 export type AgentConnectAttempt = Omit<
     AgentIdentityConnectProperties,
@@ -93,6 +97,7 @@ export type ResolvePlanArgs = {
     isRegisteredUser: boolean;
     isServiceAccount: boolean;
     serviceAccountUuid?: string | null;
+    oauthClientId?: string | null;
     agentActor?: { surface: AgentActorSurface; clientId: string | null } | null;
 };
 
@@ -881,23 +886,15 @@ export class AiAccessService extends BaseService {
             !(await this.isEnabled(args))
         )
             return null;
-        const actor =
-            args.agentActor !== undefined
-                ? args.agentActor
-                : getAgentActor(
-                      connectionContextFromUser(args, {
-                          organizationUuid: args.organizationUuid,
-                          queryContext: args.context,
-                          ...(args.evaluation.kind === 'query'
-                              ? {
-                                    surface: connectionSurfaceFromQuerySurface(
-                                        args.evaluation.surface,
-                                        args.context,
-                                    ),
-                                }
-                              : {}),
-                      }).actor,
-                  );
+        const actor = resolveQueryAgentActor({
+            context: args.context,
+            querySurface:
+                args.evaluation.kind === 'query'
+                    ? args.evaluation.surface
+                    : null,
+            oauthClientId: args.oauthClientId ?? null,
+            explicitActor: args.agentActor,
+        });
         const plan = await this.resolveEnabledPlan({
             ...args,
             agentActor: actor,
@@ -1076,6 +1073,7 @@ export class AiAccessService extends BaseService {
             agentProducedOnly: boolean;
         }[],
         evaluation: AiAccessEvaluation = { kind: 'result_read' },
+        onIdentityEnabled?: () => void,
     ): Promise<Map<string, AiExecutionPlan | null>> {
         const uniqueRoots = [
             ...new Map(
@@ -1111,6 +1109,7 @@ export class AiAccessService extends BaseService {
             return new Map();
         }
 
+        onIdentityEnabled?.();
         const maxNodes = 500;
         const maxDepth = 50;
         const refuse = () =>
@@ -1342,7 +1341,26 @@ export class AiAccessService extends BaseService {
                 );
                 throw refuse();
             }
-            plans.set(uuid, credentialPlan ?? plan);
+            const resolvedPlan = credentialPlan ?? plan;
+            const sourceIdentities = getQueryIdentityLineage(
+                sources.map((source) => nodes.get(source)!.queryHistory),
+            );
+            plans.set(
+                uuid,
+                resolvedPlan === null
+                    ? null
+                    : {
+                          ...resolvedPlan,
+                          agentIdentity: node.agentIdentity ?? null,
+                          sourceIdentities,
+                      },
+            );
+            this.logger.info('Agent result lineage', {
+                queryUuid: uuid,
+                projectUuid,
+                agentIdentity: node.agentIdentity ?? null,
+                sourceIdentities,
+            });
         }
         return plans;
     }

@@ -41,7 +41,13 @@ type AiExecutionAudit = {
     queryTags: Record<string, string>;
 };
 
-export type AiExecutionPlan = { agentIdentity?: AgentIdentityClaim | null } & (
+export type AiExecutionPlan = {
+    agentIdentity?: AgentIdentityClaim | null;
+    sourceIdentities?: {
+        queryUuid: string;
+        agentIdentity: AgentIdentityClaim | null;
+    }[];
+} & (
     | {
           identity: 'ai_service_account';
           identityUuid: string;

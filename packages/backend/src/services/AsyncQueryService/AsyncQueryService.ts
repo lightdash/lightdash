@@ -278,6 +278,7 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { buildQueryAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { getQuerySourceParameters } from '../AiAccessService/queryResultLineage';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -311,6 +312,7 @@ import {
     connectionContextFromAccount,
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
+    getAccountAgentIdentityFacts,
     querySurfaceFromConnectionSurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type ComposeEngineClient } from './ComposeEngineClient';
@@ -4017,11 +4019,14 @@ export class AsyncQueryService extends ProjectService {
                         AsyncQueryService.runQueryAndTransformRows({
                             warehouseClient: client,
                             query,
-                            queryTags: withAgentMarkerTag({
-                                ...queryTags,
-                                ...aiQueryTags,
-                                query_uuid: queryUuid,
-                            }),
+                            queryTags: withAgentMarkerTag(
+                                {
+                                    ...queryTags,
+                                    ...aiQueryTags,
+                                    query_uuid: queryUuid,
+                                },
+                                agentIdentity ?? null,
+                            ),
                             write: resultsStream
                                 ? (rows) => {
                                       hasWrittenRows = true;
@@ -5965,12 +5970,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                ...(account.authentication.type === 'service-account'
-                    ? {
-                          serviceAccountUuid:
-                              account.authentication.serviceAccountUuid,
-                      }
-                    : {}),
+                ...getAccountAgentIdentityFacts(account),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -6778,12 +6778,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            ...(account.authentication.type === 'service-account'
-                ? {
-                      serviceAccountUuid:
-                          account.authentication.serviceAccountUuid,
-                  }
-                : {}),
+            ...getAccountAgentIdentityFacts(account),
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7126,12 +7121,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            ...(account.authentication.type === 'service-account'
-                ? {
-                      serviceAccountUuid:
-                          account.authentication.serviceAccountUuid,
-                  }
-                : {}),
+            ...getAccountAgentIdentityFacts(account),
         });
 
         const warehouseSqlBuilder = getSqlBuilderForExplore(
@@ -7924,12 +7914,7 @@ export class AsyncQueryService extends ProjectService {
                 userId: account.user.id,
                 isRegisteredUser: account.isRegisteredUser(),
                 isServiceAccount: account.isServiceAccount(),
-                ...(account.authentication.type === 'service-account'
-                    ? {
-                          serviceAccountUuid:
-                              account.authentication.serviceAccountUuid,
-                      }
-                    : {}),
+                ...getAccountAgentIdentityFacts(account),
                 preloadedOrgWarehouseCredentialsUuid:
                     organizationWarehouseCredentialsUuid,
             }),
@@ -8149,12 +8134,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            ...(account.authentication.type === 'service-account'
-                ? {
-                      serviceAccountUuid:
-                          account.authentication.serviceAccountUuid,
-                  }
-                : {}),
+            ...getAccountAgentIdentityFacts(account),
             context,
         });
 
@@ -8592,7 +8572,7 @@ export class AsyncQueryService extends ProjectService {
         references: Record<string, string>;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
-    }): Promise<void> {
+    }): Promise<AgentIdentityClaim | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
             /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -8646,6 +8626,7 @@ export class AsyncQueryService extends ProjectService {
                     ? undefined
                     : connectionSurfaceFromQuerySurface(querySurface, context),
         });
+        let agentIdentity: AgentIdentityClaim | null = null;
         await this.aiAccessService.assertCanReadResultsForQueries(
             account,
             projectUuid,
@@ -8656,7 +8637,15 @@ export class AsyncQueryService extends ProjectService {
                     connectionContext.actor.surface,
                 ),
             },
+            () => {
+                agentIdentity = buildQueryAgentIdentity(
+                    account,
+                    context,
+                    querySurface ?? null,
+                );
+            },
         );
+        return agentIdentity;
     }
 
     /**
@@ -8919,15 +8908,15 @@ export class AsyncQueryService extends ProjectService {
             references && Object.keys(references).length > 0
                 ? references
                 : undefined;
-        if (normalizedReferences) {
-            await this.authorizeQueryReferences({
-                account,
-                projectUuid,
-                references: normalizedReferences,
-                context,
-                querySurface,
-            });
-        }
+        const agentIdentity = normalizedReferences
+            ? await this.authorizeQueryReferences({
+                  account,
+                  projectUuid,
+                  references: normalizedReferences,
+                  context,
+                  querySurface,
+              })
+            : null;
 
         // Throws MissingConfigError when results storage is not configured:
         // a query without an engine is refused here, never in the background.
@@ -8998,6 +8987,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 context,
+                ...(agentIdentity ? { agentIdentity } : {}),
                 fields: resolved.fields,
                 compiledSql: resolved.sql,
                 requestParameters: resolved.requestParameters,
@@ -11041,17 +11031,20 @@ export class AsyncQueryService extends ProjectService {
                         warehouseCredentials.type,
                         warehouseCredentials.startOfWeek,
                     );
-                    const baseQueryTags: RunQueryTags = withAgentMarkerTag({
-                        ...this.getUserQueryTags(account),
-                        ...AsyncQueryService.getSchedulerQueryTags(),
-                        organization_uuid: organizationUuid,
-                        project_uuid: projectUuid,
-                        query_context: context,
-                        ...(chartUuid ? { chart_uuid: chartUuid } : {}),
-                        ...(dashboardUuid
-                            ? { dashboard_uuid: dashboardUuid }
-                            : {}),
-                    });
+                    const baseQueryTags: RunQueryTags = withAgentMarkerTag(
+                        {
+                            ...this.getUserQueryTags(account),
+                            ...AsyncQueryService.getSchedulerQueryTags(),
+                            organization_uuid: organizationUuid,
+                            project_uuid: projectUuid,
+                            query_context: context,
+                            ...(chartUuid ? { chart_uuid: chartUuid } : {}),
+                            ...(dashboardUuid
+                                ? { dashboard_uuid: dashboardUuid }
+                                : {}),
+                        },
+                        aiPlan?.agentIdentity ?? null,
+                    );
                     const queryTags =
                         AsyncQueryService.addUserAttributeQueryTags(
                             baseQueryTags,
@@ -11925,12 +11918,7 @@ export class AsyncQueryService extends ProjectService {
             userId: account.user.id,
             isRegisteredUser: account.isRegisteredUser(),
             isServiceAccount: account.isServiceAccount(),
-            ...(account.authentication.type === 'service-account'
-                ? {
-                      serviceAccountUuid:
-                          account.authentication.serviceAccountUuid,
-                  }
-                : {}),
+            ...getAccountAgentIdentityFacts(account),
             context,
         });
 

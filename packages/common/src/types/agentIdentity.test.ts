@@ -4,6 +4,7 @@ import {
     AGENT_IDENTITY_SOURCES,
     AgentActorSurface,
     buildAgentIdentityClaim,
+    getAgentClientLabel,
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
@@ -255,5 +256,37 @@ describe('buildAgentIdentityClaim', () => {
                 clientId: null,
             }).act,
         ).toEqual({ sub: 'mcp:unknown', surface: 'mcp', client_id: null });
+    });
+});
+
+describe('getAgentClientLabel', () => {
+    test.each(['lightdash-chat', 'client_123', 'a'.repeat(60)])(
+        'keeps safe id %s',
+        (id) => {
+            expect(getAgentClientLabel(id)).toBe(id);
+        },
+    );
+    test('uses unknown only for a null client', () => {
+        expect(getAgentClientLabel(null)).toBe('unknown');
+    });
+    test.each(['Client', 'client.id', 'client/id', 'a'.repeat(61), ''])(
+        'hashes unsafe id %s deterministically',
+        (id) => {
+            const label = getAgentClientLabel(id);
+            expect(label).toMatch(/^h-[a-f0-9]{32}$/);
+            expect(getAgentClientLabel(id)).toBe(label);
+            expect(label.length).toBeLessThanOrEqual(60);
+        },
+    );
+    test('keeps ids distinct across case, punctuation and truncation', () => {
+        const ids = [
+            'Client',
+            'client',
+            'client.id',
+            'client/id',
+            'a'.repeat(61),
+            `${'a'.repeat(60)}b`,
+        ];
+        expect(new Set(ids.map(getAgentClientLabel)).size).toBe(ids.length);
     });
 });

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AgentSuggestion,
     AgentSummaryContext,
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
@@ -290,6 +291,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -17832,12 +17834,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     // TODO: user permissions
-    async replyToSlackPrompt(promptUuid: string): Promise<void> {
+    async replyToSlackPrompt(
+        promptUuid: string,
+        slackAppId: string | null = null,
+    ): Promise<void> {
         const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        await this.generateSlackPromptReply(promptUuid, slackPrompt);
+        await agentExecutionContext.run(
+            { surface: AgentActorSurface.SLACK_AGENT, clientId: slackAppId },
+            () => this.generateSlackPromptReply(promptUuid, slackPrompt),
+        );
     }
 
     private async generateSlackPromptReply(
@@ -19592,12 +19600,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         userUuid,
         channelId,
         threadTs,
+        slackAppId,
     }: {
         agentConfig: AiAgent;
         slackPromptUuid: string;
         userUuid: string;
         channelId: string;
         threadTs: string;
+        slackAppId: string | null;
     }): Promise<void> {
         // Best-effort: a failed status call shouldn't block scheduling.
         void this.slackClient
@@ -19614,6 +19624,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         await this.schedulerClient.slackAiPrompt({
             slackPromptUuid,
+            slackAppId,
             userUuid,
             projectUuid: agentConfig.projectUuid,
             organizationUuid: agentConfig.organizationUuid,
@@ -19782,6 +19793,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,
@@ -19908,6 +19920,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     private async createSlackPromptFromAction(args: {
+        slackAppId: string | null;
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -19935,6 +19948,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: args.slackAppId,
             agentConfig: args.agentConfig,
             slackPromptUuid,
             userUuid: args.userUuid,
@@ -20130,6 +20144,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // A meta-query is not forwarded to the agent, but the choice
                 // still binds the thread so the next turn keeps this agent.
                 await this.createSlackPromptFromAction({
+                    slackAppId: slackSettings.appId ?? null,
                     channelId,
                     threadTs,
                     agentConfig,
@@ -20408,6 +20423,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
 
                     await this.schedulerClient.slackAiPrompt({
+                        slackAppId: slackSettings.appId ?? null,
                         slackPromptUuid,
                         userUuid,
                         projectUuid,
@@ -20702,6 +20718,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }
 
                     await this.createSlackPromptFromAction({
+                        slackAppId: slackSettings.appId ?? null,
                         channelId,
                         threadTs,
                         agentConfig,
@@ -21092,6 +21109,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig,
             slackPromptUuid,
             userUuid,
@@ -21382,6 +21400,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,

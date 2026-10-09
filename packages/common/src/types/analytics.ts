@@ -1,3 +1,4 @@
+import { getAgentClientLabel, type AgentIdentityClaim } from './agentIdentity';
 import { AI_AGENT_TAG } from './aiPrincipal';
 
 export type UserWithCount = {
@@ -193,7 +194,16 @@ export const withAgentMarkerTag = <
     T extends { query_context: QueryExecutionContext },
 >(
     tags: T,
-): T & { agent?: 'true' } =>
-    isAiAccessQueryContext(tags.query_context)
-        ? { ...tags, [AI_AGENT_TAG]: 'true' }
+    agentIdentity: AgentIdentityClaim | null = null,
+): T & { agent?: 'true'; agent_surface?: string; agent_client?: string } => {
+    const marked = isAiAccessQueryContext(tags.query_context)
+        ? { ...tags, [AI_AGENT_TAG]: 'true' as const }
         : tags;
+    return agentIdentity
+        ? {
+              ...marked,
+              agent_surface: agentIdentity.act.surface,
+              agent_client: getAgentClientLabel(agentIdentity.act.client_id),
+          }
+        : marked;
+};

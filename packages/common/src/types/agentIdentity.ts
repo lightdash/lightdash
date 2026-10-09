@@ -1,3 +1,4 @@
+import { v5 as uuidv5 } from 'uuid';
 import { WarehouseTypes, type BigqueryAuthenticationType } from './projects';
 
 export enum AgentActorSurface {
@@ -50,6 +51,12 @@ export const buildAgentIdentityClaim = ({
         client_id: clientId,
     },
 });
+
+export const getAgentClientLabel = (clientId: string | null): string => {
+    if (clientId === null) return 'unknown';
+    if (/^[a-z0-9_-]{1,60}$/.test(clientId)) return clientId;
+    return `h-${uuidv5(clientId, uuidv5.URL).replace(/-/g, '')}`;
+};
 
 export type AiActorKind = 'person' | 'service_account';
 export type AiIdentitySource =

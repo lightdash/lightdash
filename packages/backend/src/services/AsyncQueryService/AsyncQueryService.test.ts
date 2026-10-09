@@ -23,6 +23,7 @@ import {
     FieldType,
     FilterOperator,
     ForbiddenError,
+    getAgentClientLabel,
     getAiExecutionCredentialUuid,
     getFilterRulesFromGroup,
     isMergeMetricSource,
@@ -1260,6 +1261,39 @@ describe('AsyncQueryService', () => {
                 };
             };
 
+            test('a composed agent row stores its current actor rather than its source actor', async () => {
+                const { service, source, history } = buildLineageService(
+                    true,
+                    'generation-1',
+                );
+                source.agentIdentity = buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: 'source-user' },
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                });
+                await service.executeAsyncComposeSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.AI,
+                    querySurface: QuerySurface.MCP,
+                    sql: 'SELECT one FROM orders',
+                    references: { orders: source.queryUuid },
+                });
+                expect(history.create).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({
+                        agentIdentity: buildAgentIdentityClaim({
+                            subject: {
+                                type: 'user',
+                                uuid: sessionAccount.user.id,
+                            },
+                            surface: AgentActorSurface.MCP,
+                            clientId: null,
+                        }),
+                    }),
+                );
+            });
+
             test.each([
                 'replaced key',
                 'missing slot',
@@ -1634,6 +1668,7 @@ describe('AsyncQueryService', () => {
                             },
                         ],
                         { kind: 'query', surface: QuerySurface.APP },
+                        expect.any(Function),
                     );
                 },
             );
@@ -7597,9 +7632,94 @@ describe('AsyncQueryService', () => {
                 }));
         });
 
-        test.each([true, false])(
-            'stores the flag-gated claim at submission (enabled=%s)',
-            async (enabled) => {
+        test.each(
+            [
+                [
+                    QueryExecutionContext.AI,
+                    QuerySurface.APP,
+                    AgentActorSurface.IN_APP_AGENT,
+                    'lightdash-chat',
+                    null,
+                    false,
+                ],
+                [
+                    QueryExecutionContext.MCP_RUN_SQL,
+                    QuerySurface.MCP,
+                    AgentActorSurface.MCP,
+                    'OAuth.Client',
+                    'OAuth.Client',
+                    false,
+                ],
+                [
+                    QueryExecutionContext.MCP_RUN_SQL,
+                    QuerySurface.MCP,
+                    AgentActorSurface.MCP,
+                    null,
+                    null,
+                    false,
+                ],
+                [
+                    QueryExecutionContext.AI,
+                    QuerySurface.SLACK,
+                    AgentActorSurface.SLACK_AGENT,
+                    'A123',
+                    null,
+                    false,
+                ],
+                [
+                    QueryExecutionContext.AI,
+                    QuerySurface.CLI,
+                    AgentActorSurface.CLI,
+                    'lightdash-cli',
+                    null,
+                    false,
+                ],
+                [
+                    QueryExecutionContext.DATA_APP_SAMPLE,
+                    QuerySurface.APP,
+                    AgentActorSurface.DATA_APP,
+                    'lightdash-data-app',
+                    null,
+                    false,
+                ],
+                [
+                    QueryExecutionContext.MCP_RUN_SQL,
+                    QuerySurface.MCP,
+                    AgentActorSurface.MCP,
+                    null,
+                    null,
+                    true,
+                ],
+            ].flatMap(
+                ([
+                    context,
+                    surface,
+                    actorSurface,
+                    clientId,
+                    oauthClientId,
+                    serviceAccount,
+                ]) =>
+                    [true, false].map((enabled) => ({
+                        context: context as QueryExecutionContext,
+                        surface: surface as QuerySurface,
+                        actorSurface: actorSurface as AgentActorSurface,
+                        clientId: clientId as string | null,
+                        oauthClientId: oauthClientId as string | null,
+                        serviceAccount: serviceAccount as boolean,
+                        enabled,
+                    })),
+            ),
+        )(
+            'stores both identities for $actorSurface client=$clientId serviceAccount=$serviceAccount enabled=$enabled',
+            async ({
+                enabled,
+                context,
+                surface,
+                actorSurface,
+                clientId,
+                oauthClientId,
+                serviceAccount,
+            }) => {
                 const flags = { get: vi.fn(async () => ({ enabled })) };
                 const rules = {
                     get: vi.fn(async () => ({ source: 'marked_person' })),
@@ -7617,15 +7737,22 @@ describe('AsyncQueryService', () => {
                     typeof AiAccessService
                 >[0]);
                 const plan = await access.resolvePlan({
-                    evaluation: { kind: 'query', surface: QuerySurface.APP },
+                    evaluation: { kind: 'query', surface },
+                    oauthClientId,
+                    ...(surface === QuerySurface.SLACK
+                        ? { agentActor: { surface: actorSurface, clientId } }
+                        : {}),
+                    serviceAccountUuid: serviceAccount
+                        ? 'service-account'
+                        : null,
                     projectUuid,
                     organizationUuid: 'org',
                     warehouseConnectionUuid: null,
                     connection: warehouseCredentialsMock,
-                    context: QueryExecutionContext.AI,
+                    context,
                     userUuid: sessionAccount.user.id,
                     isRegisteredUser: true,
-                    isServiceAccount: false,
+                    isServiceAccount: serviceAccount,
                 });
                 const run = vi
                     .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
@@ -7636,8 +7763,8 @@ describe('AsyncQueryService', () => {
                         agentIdentity: plan?.agentIdentity ?? null,
                         account: sessionAccount,
                         projectUuid,
-                        context: QueryExecutionContext.AI,
-                        queryTags: { query_context: QueryExecutionContext.AI },
+                        context,
+                        queryTags: { query_context: context },
                         invalidateCache: false,
                         queryComposer: createQueryComposerMock(),
                         warehouseCredentials: warehouseCredentialsMock,
@@ -7652,11 +7779,15 @@ describe('AsyncQueryService', () => {
                     expect(inserted.agentIdentity).toEqual(
                         buildAgentIdentityClaim({
                             subject: {
-                                type: 'user',
-                                uuid: sessionAccount.user.id,
+                                type: serviceAccount
+                                    ? 'service_account'
+                                    : 'user',
+                                uuid: serviceAccount
+                                    ? 'service-account'
+                                    : sessionAccount.user.id,
                             },
-                            surface: AgentActorSurface.IN_APP_AGENT,
-                            clientId: 'lightdash-chat',
+                            surface: actorSurface,
+                            clientId,
                         }),
                     );
                     expect(run).toHaveBeenCalledWith(
@@ -7670,7 +7801,7 @@ describe('AsyncQueryService', () => {
                 expect(flags.get).toHaveBeenCalledOnce();
                 expect(rules.get).toHaveBeenCalledTimes(enabled ? 1 : 0);
                 expect(users.getUserDetailsByUuid).toHaveBeenCalledTimes(
-                    enabled ? 1 : 0,
+                    enabled && !serviceAccount ? 1 : 0,
                 );
                 run.mockRestore();
             },
@@ -8086,6 +8217,11 @@ describe('AsyncQueryService', () => {
         '$executionPlan.identity logs before warehouse execution and fails closed on log failure: $auditFails',
         async ({ executionPlan, auditFails }) => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'subject' },
+                surface: AgentActorSurface.MCP,
+                clientId: 'OAuth.Client',
+            });
             const recordQuery = vi.fn();
             const auditError = new Error('log unavailable');
             if (auditFails)
@@ -8122,6 +8258,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(service as AnyType, 'markAsyncQueryErrored')
                 .mockResolvedValue(undefined);
             await service.runAsyncWarehouseQuery({
+                agentIdentity,
                 userUuid: sessionAccount.user.id,
                 organizationUuid: sessionAccount.organization.organizationUuid!,
                 isPreviewProject: false,
@@ -8172,6 +8309,8 @@ describe('AsyncQueryService', () => {
                             user_uuid: sessionAccount.user.id,
                             ...executionPlan.audit.queryTags,
                             agent: 'true',
+                            agent_surface: 'mcp',
+                            agent_client: getAgentClientLabel('OAuth.Client'),
                         }),
                     }),
                     expect.any(Function),

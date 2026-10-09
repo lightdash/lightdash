@@ -1081,8 +1081,8 @@ describe('WarehouseClientFactory', () => {
         );
         expect(credentialSource.finish).not.toHaveBeenCalled();
         expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith({
-            agentActor: { surface: 'in_app_agent', clientId: 'lightdash-chat' },
-            serviceAccountUuid: undefined,
+            oauthClientId: null,
+            serviceAccountUuid: null,
             evaluation: { kind: 'query', surface: QuerySurface.APP },
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',

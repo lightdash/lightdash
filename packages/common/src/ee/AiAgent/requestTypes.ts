@@ -553,6 +553,7 @@ export type UpdateSlackResponseTs = {
 
 export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
+    slackAppId?: string | null;
 };
 
 export type AiAgentEvalRunJobPayload = TraceTaskBase & {

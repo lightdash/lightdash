@@ -5,6 +5,7 @@ import {
     AiAccessRefusedError,
     AiAgentMarkerLevel,
     BigqueryAuthenticationType,
+    buildAgentIdentityClaim,
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
@@ -44,6 +45,7 @@ import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { sessionUser } from '../UserService.mock';
+import { agentExecutionContext } from './agentExecutionContext';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import {
     aiAgentMarkerMock,
@@ -276,6 +278,123 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
 };
 
 describe('AiAccessService', () => {
+    test.each([
+        [
+            QueryExecutionContext.AI,
+            QuerySurface.APP,
+            null,
+            false,
+            AgentActorSurface.IN_APP_AGENT,
+            'lightdash-chat',
+        ],
+        [
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+            'OAuth.Client',
+            false,
+            AgentActorSurface.MCP,
+            'OAuth.Client',
+        ],
+        [
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+            null,
+            false,
+            AgentActorSurface.MCP,
+            null,
+        ],
+        [
+            QueryExecutionContext.AI,
+            QuerySurface.CLI,
+            null,
+            false,
+            AgentActorSurface.CLI,
+            'lightdash-cli',
+        ],
+        [
+            QueryExecutionContext.DATA_APP_SAMPLE,
+            QuerySurface.APP,
+            null,
+            false,
+            AgentActorSurface.DATA_APP,
+            'lightdash-data-app',
+        ],
+        [
+            QueryExecutionContext.MCP_RUN_SQL,
+            QuerySurface.MCP,
+            null,
+            true,
+            AgentActorSurface.MCP,
+            null,
+        ],
+    ] as const)(
+        'records both identities for %s on %s (%s, service account=%s)',
+        async (
+            context,
+            surface,
+            oauthClientId,
+            isServiceAccount,
+            actorSurface,
+            clientId,
+        ) => {
+            const { service } = setup();
+            const plan = await service.resolvePlan({
+                ...args,
+                context,
+                evaluation: { kind: 'query', surface },
+                oauthClientId,
+                isServiceAccount,
+                serviceAccountUuid: isServiceAccount ? 'service-account' : null,
+            });
+            expect(plan?.agentIdentity).toEqual(
+                buildAgentIdentityClaim({
+                    subject: {
+                        type: isServiceAccount ? 'service_account' : 'user',
+                        uuid: isServiceAccount ? 'service-account' : 'user',
+                    },
+                    surface: actorSurface,
+                    clientId,
+                }),
+            );
+        },
+    );
+
+    test.each([
+        [AgentActorSurface.SLACK_AGENT, 'A123'],
+        [AgentActorSurface.SLACK_AGENT, null],
+        [AgentActorSurface.AI_SUMMARY, 'lightdash-ai-summary'],
+    ] as const)(
+        'uses async-scoped %s client %s only after enablement',
+        async (surface, clientId) => {
+            const { service, flags } = setup();
+            await agentExecutionContext.run({ surface, clientId }, async () => {
+                const plan = await service.resolvePlan(args);
+                expect(plan?.agentIdentity).toEqual(
+                    buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: 'user' },
+                        surface,
+                        clientId,
+                    }),
+                );
+                flags.get.mockResolvedValue({ enabled: false });
+                expect(await service.resolvePlan(args)).toBeNull();
+            });
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+        },
+    );
+
+    test('ordinary CLI queries do not enter agent evaluation', async () => {
+        const { service, flags } = setup();
+        expect(
+            await service.resolvePlan({
+                ...args,
+                context: QueryExecutionContext.CLI,
+                evaluation: { kind: 'query', surface: QuerySurface.CLI },
+            }),
+        ).toBeNull();
+        expect(flags.get).not.toHaveBeenCalled();
+    });
+
     test('builds the chat claim after the existing flag check', async () => {
         const { service, flags, organizationRules } = setup();
         expect((await service.resolvePlan(args))?.agentIdentity).toEqual({
@@ -2984,6 +3103,72 @@ describe('bounded stored result lineage', () => {
         });
         return { ...built, rows, batch };
     };
+
+    test('keeps each source identity separate on a mixed-actor compose and stored read', async () => {
+        const { service, rows, batch } = buildGraph({
+            root: ['chat', 'mcp'],
+            chat: [],
+            mcp: [],
+        });
+        const info = vi
+            .spyOn(service['logger'], 'info')
+            .mockImplementation(() => service['logger']);
+        rows.chat.agentIdentity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'chat-user' },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+        });
+        rows.mcp.agentIdentity = buildAgentIdentityClaim({
+            subject: { type: 'service_account', uuid: 'service-account' },
+            surface: AgentActorSurface.MCP,
+            clientId: null,
+        });
+        rows.root.agentIdentity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'composer-user' },
+            surface: AgentActorSurface.SLACK_AGENT,
+            clientId: 'A123',
+        });
+        const plans = await service.assertCanReadResultsForQueries(
+            account,
+            'project',
+            [{ queryHistory: rows.root, agentProducedOnly: false }],
+        );
+        expect(plans.get('root')?.agentIdentity).toEqual(
+            rows.root.agentIdentity,
+        );
+        expect(plans.get('root')?.sourceIdentities).toEqual([
+            { queryUuid: 'chat', agentIdentity: rows.chat.agentIdentity },
+            { queryUuid: 'mcp', agentIdentity: rows.mcp.agentIdentity },
+        ]);
+        expect(plans.get('chat')?.agentIdentity).toEqual(
+            rows.chat.agentIdentity,
+        );
+        expect(plans.get('mcp')?.agentIdentity).toEqual(rows.mcp.agentIdentity);
+        expect(info).toHaveBeenCalledWith(
+            'Agent result lineage',
+            expect.objectContaining({
+                queryUuid: 'root',
+                agentIdentity: rows.root.agentIdentity,
+                sourceIdentities: [
+                    {
+                        queryUuid: 'chat',
+                        agentIdentity: rows.chat.agentIdentity,
+                    },
+                    { queryUuid: 'mcp', agentIdentity: rows.mcp.agentIdentity },
+                ],
+            }),
+        );
+        info.mockRestore();
+        expect(batch).toHaveBeenCalledOnce();
+        expect(
+            (
+                await service.assertCanReadResults(account, 'project', {
+                    ...rows.mcp,
+                    duckdbExecutionReferences: {},
+                })
+            )?.agentIdentity,
+        ).toEqual(rows.mcp.agentIdentity);
+    });
 
     test('flag off performs zero lineage reads for a compose with references', async () => {
         const { service, flags, historyModel, rows, batch } = buildGraph({

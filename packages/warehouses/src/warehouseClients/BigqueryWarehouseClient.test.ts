@@ -894,12 +894,24 @@ describe('BigQuery agent job options', () => {
         {
             ...Object.fromEntries(
                 Array.from({ length: 80 }, (_, index) => [
+                    String(index),
+                    'value',
+                ]),
+            ),
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
+        },
+        {
+            ...Object.fromEntries(
+                Array.from({ length: 80 }, (_, index) => [
                     `tag_${index}`,
                     'value',
                 ]),
             ),
             agent: 'false',
             AGENT: 'false',
+            agent_surface: 'mcp',
+            agent_client: 'client-id',
         },
     ];
     test.each(
@@ -942,6 +954,12 @@ describe('BigQuery agent job options', () => {
             if (agentJobControls) {
                 expect(options.useQueryCache).toBe(false);
                 expect(options.labels?.agent).toBe('true');
+                if (tags?.agent_client) {
+                    expect(options.labels).toMatchObject({
+                        agent_surface: 'mcp',
+                        agent_client: 'client-id',
+                    });
+                }
                 expect(
                     Object.keys(options.labels ?? {}).length,
                 ).toBeLessThanOrEqual(64);

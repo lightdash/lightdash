@@ -290,7 +290,10 @@ export class WarehouseClientFactory {
                 isRegisteredUser: person.isRegisteredUser,
                 isServiceAccount: person.isServiceAccount,
                 serviceAccountUuid: person.serviceAccountUuid,
-                agentActor: getAgentActor(context.actor),
+                oauthClientId: person.oauthClientId,
+                ...(context.actor.aiClient?.surface
+                    ? { agentActor: getAgentActor(context.actor) }
+                    : {}),
             });
         }
         if (
