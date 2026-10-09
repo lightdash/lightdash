@@ -10,23 +10,18 @@ import {
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import {
-    getDashboardFilterField,
-    type DashboardFilterRule,
-} from '@lightdash/common';
+import { getDashboardFilterField } from '@lightdash/common';
 import { Group, Skeleton, useMantineTheme } from '@mantine/core';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
-import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import { useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import {
-    doesFilterApplyToAnyTile,
-    getTabsForFilterRule,
-} from '../FilterConfiguration/utils';
-import InvalidFilter from '../InvalidFilter';
-import LockedFilter from '../LockedFilter';
-import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import Filter from './Filter';
+import { moveFilterRule } from './filterOrder';
+import { TemporaryFilters } from './TemporaryFilters';
+import { UnresolvedFilter } from './UnresolvedFilter';
+import {
+    isFilterHiddenOnTab,
+    useFilterTabPlacement,
+} from './useFilterTabPlacement';
 
 interface ActiveFiltersProps {
     isEditMode: boolean;
@@ -37,19 +32,6 @@ interface ActiveFiltersProps {
     triggerClassName?: string;
     dropdownClassName?: string;
 }
-
-const UnresolvedFilter: FC<{
-    isEditMode: boolean;
-    filterRule: DashboardFilterRule;
-    onRemove: () => void;
-}> = (props) => {
-    const isLocked = useIsLockedDashboardFilterRule();
-    return isLocked(props.filterRule) ? (
-        <LockedFilter {...props} />
-    ) : (
-        <InvalidFilter {...props} />
-    );
-};
 
 const DraggableItem: FC<{
     id: string;
@@ -117,13 +99,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     triggerClassName,
     dropdownClassName,
 }) => {
-    const getUiString = useUiStrings();
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const dashboardTemporaryFilters = useDashboardContext(
-        (c) => c.dashboardTemporaryFilters,
-    );
-    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -166,55 +142,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     });
     const dragSensors = useSensors(mouseSensor, touchSensor);
 
-    const sortedTabUuids = useMemo(() => {
-        const sortedTabs = dashboardTabs?.sort((a, b) => a.order - b.order);
-        return sortedTabs?.map((tab) => tab.uuid) || [];
-    }, [dashboardTabs]);
-
-    // Tabs are only "enabled" when there's more than one tab
-    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
-
-    // Compute which tabs a filter applies to based on tileTargets
-    // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
-    // skips disabled filters, but required filters ARE disabled until a value is set
-    const getTabsUsingFilter = useCallback(
-        (filterRule: DashboardFilterRule) =>
-            getTabsForFilterRule(
-                filterRule,
-                dashboardTiles,
-                sortedTabUuids,
-                filterableFieldsByTileUuid,
-            ),
-        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
-    );
-
-    // Compute orphaned state for a filter
-    // - With multiple tabs: orphaned if filter applies to no tabs
-    // - With single/no tabs: orphaned if filter applies to no tiles
-    const getOrphanedState = useCallback(
-        (
-            filterRule: DashboardFilterRule,
-            appliesToTabs: string[],
-        ): { isOrphaned: boolean; orphanedTooltip: string } => {
-            if (tabsEnabled) {
-                return {
-                    isOrphaned: appliesToTabs.length === 0,
-                    orphanedTooltip: getUiString('filters.notAppliedToAnyTabs'),
-                };
-            }
-            // Single tab or no tabs - check if filter applies to any tile
-            const appliesToAnyTile = doesFilterApplyToAnyTile(
-                filterRule,
-                dashboardTiles,
-                filterableFieldsByTileUuid,
-            );
-            return {
-                isOrphaned: !appliesToAnyTile,
-                orphanedTooltip: getUiString('filters.notAppliedToAnyTiles'),
-            };
-        },
-        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid, getUiString],
-    );
+    const { getTabsUsingFilter, getOrphanedState } = useFilterTabPlacement();
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
@@ -235,42 +163,18 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!active || !over || active.id === over.id) return;
-        const oldIndex = dashboardFilters.dimensions.findIndex(
-            (item) => item.id === active.id,
+        setDashboardFilters(
+            moveFilterRule(dashboardFilters, 'dimensions', active.id, over.id),
         );
-        const newIndex = dashboardFilters.dimensions.findIndex(
-            (item) => item.id === over.id,
-        );
-        const newDimensions = arrayMove(
-            dashboardFilters.dimensions,
-            oldIndex,
-            newIndex,
-        );
-        setDashboardFilters({
-            ...dashboardFilters,
-            dimensions: newDimensions,
-        });
         setHaveFiltersChanged(true);
     };
 
     const handleMetricDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!active || !over || active.id === over.id) return;
-        const oldIndex = dashboardFilters.metrics.findIndex(
-            (item) => item.id === active.id,
+        setDashboardFilters(
+            moveFilterRule(dashboardFilters, 'metrics', active.id, over.id),
         );
-        const newIndex = dashboardFilters.metrics.findIndex(
-            (item) => item.id === over.id,
-        );
-        const newMetrics = arrayMove(
-            dashboardFilters.metrics,
-            oldIndex,
-            newIndex,
-        );
-        setDashboardFilters({
-            ...dashboardFilters,
-            metrics: newMetrics,
-        });
         setHaveFiltersChanged(true);
     };
 
@@ -289,13 +193,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     );
                     const appliesToTabs = getTabsUsingFilter(item);
 
-                    const isOrphanedFilter = appliesToTabs.length === 0;
-                    const appliedToCurrentTab =
-                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
-
-                    // Hide filter if it doesn't apply to the current tab
-                    // But always show orphaned filters so users can see and fix them
-                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    if (isFilterHiddenOnTab(appliesToTabs, activeTabUuid)) {
                         return null;
                     }
 
@@ -369,13 +267,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     );
                     const appliesToTabs = getTabsUsingFilter(item);
 
-                    const isOrphanedFilter = appliesToTabs.length === 0;
-                    const appliedToCurrentTab =
-                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
-
-                    // Hide filter if it doesn't apply to the current tab
-                    // But always show orphaned filters so users can see and fix them
-                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    if (isFilterHiddenOnTab(appliesToTabs, activeTabUuid)) {
                         return null;
                     }
 
@@ -426,115 +318,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 <DragOverlay />
             </DndContext>
 
-            {dashboardTemporaryFilters.metrics.map((item, index) => {
-                const metricField = getDashboardFilterField(
-                    allFilterableMetricsMap,
-                    item,
-                    filterableFieldsByTileUuid,
-                );
-                const appliesToTabs = getTabsUsingFilter(item);
-
-                const isOrphanedFilter = appliesToTabs.length === 0;
-                const appliedToCurrentTab =
-                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
-
-                // Hide filter if it doesn't apply to the current tab
-                // But always show orphaned filters so users can see and fix them
-                if (!appliedToCurrentTab && !isOrphanedFilter) {
-                    return null;
-                }
-
-                return metricField ? (
-                    <Filter
-                        key={item.id}
-                        isTemporary
-                        isEditMode={isEditMode}
-                        {...getOrphanedState(item, appliesToTabs)}
-                        field={metricField}
-                        filterRule={item}
-                        triggerClassName={triggerClassName}
-                        dropdownClassName={dropdownClassName}
-                        openPopoverId={openPopoverId}
-                        onPopoverOpen={onPopoverOpen}
-                        onPopoverClose={onPopoverClose}
-                        onRemove={() =>
-                            removeMetricDashboardFilter(index, true)
-                        }
-                        onUpdate={(value) =>
-                            updateMetricDashboardFilter(
-                                value,
-                                index,
-                                true,
-                                isEditMode,
-                            )
-                        }
-                    />
-                ) : (
-                    <UnresolvedFilter
-                        key={item.id}
-                        isEditMode={isEditMode}
-                        filterRule={item}
-                        onRemove={() =>
-                            removeMetricDashboardFilter(index, true)
-                        }
-                    />
-                );
-            })}
-
-            {dashboardTemporaryFilters.dimensions.map((item, index) => {
-                const field = getDashboardFilterField(
-                    allFilterableFieldsMap,
-                    item,
-                    filterableFieldsByTileUuid,
-                );
-                const appliesToTabs = getTabsUsingFilter(item);
-
-                const isOrphanedFilter = appliesToTabs.length === 0;
-                const appliedToCurrentTab =
-                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
-
-                // Hide filter if it doesn't apply to the current tab
-                // But always show orphaned filters so users can see and fix them
-                if (!appliedToCurrentTab && !isOrphanedFilter) {
-                    return null;
-                }
-
-                return field || item.target.isSqlColumn ? (
-                    <Filter
-                        key={item.id}
-                        {...getOrphanedState(item, appliesToTabs)}
-                        isTemporary
-                        isEditMode={isEditMode}
-                        field={field}
-                        filterRule={item}
-                        triggerClassName={triggerClassName}
-                        dropdownClassName={dropdownClassName}
-                        openPopoverId={openPopoverId}
-                        onPopoverOpen={onPopoverOpen}
-                        onPopoverClose={onPopoverClose}
-                        onRemove={() =>
-                            removeDimensionDashboardFilter(index, true)
-                        }
-                        onUpdate={(value) =>
-                            updateDimensionDashboardFilter(
-                                value,
-                                index,
-                                true,
-                                isEditMode,
-                            )
-                        }
-                    />
-                ) : (
-                    <UnresolvedFilter
-                        key={item.id}
-                        isEditMode={isEditMode}
-                        filterRule={item}
-                        onRemove={() =>
-                            removeDimensionDashboardFilter(index, true)
-                        }
-                    />
-                );
-            })}
+            <TemporaryFilters
+                isEditMode={isEditMode}
+                activeTabUuid={activeTabUuid}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={onPopoverOpen}
+                onPopoverClose={onPopoverClose}
+                triggerClassName={triggerClassName}
+                dropdownClassName={dropdownClassName}
+            />
         </>
     );
 };
