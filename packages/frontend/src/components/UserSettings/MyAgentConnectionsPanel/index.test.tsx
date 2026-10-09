@@ -24,6 +24,7 @@ let isError = false;
 vi.mock('../../../features/aiAccess/api', () => ({
     useOrganizationAgentIdentitySettings: () => ({
         data: {
+            snowflakeConfigured: configured,
             rules: [
                 {
                     warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -46,7 +47,7 @@ vi.mock('../../../hooks/useProjects', () => ({
 }));
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
-        data: { auth: { snowflakeAi: { enabled: configured } } },
+        data: { auth: { snowflakeAi: { enabled: !configured } } },
     }),
 }));
 vi.mock(
@@ -133,6 +134,12 @@ describe('MyAgentConnectionsPanel', () => {
             ).toBe(visible);
         },
     );
+    it('allows an organisation client to connect when instance health is unconfigured', () => {
+        renderWithProviders(<MyAgentConnectionsPanel />);
+        expect(
+            screen.getByRole('button', { name: 'Connect agent' }),
+        ).toBeEnabled();
+    });
     it('shows unavailable setup instead of the empty state for a required Snowflake sign-in', () => {
         configured = false;
         warehouses = [WarehouseTypes.SNOWFLAKE];
