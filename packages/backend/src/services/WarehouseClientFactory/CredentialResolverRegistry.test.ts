@@ -1,8 +1,10 @@
 import {
     BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
     RedshiftAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
+    type CreateDatabricksCredentials,
     type CreateRedshiftCredentials,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
@@ -20,7 +22,11 @@ import {
     type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
+import { createCredentialResolverRegistry } from './credentialResolvers';
+import { prepareWarehouseOAuthCredentials } from './preparedOAuthCredentials';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
+import { DatabricksOAuthCredentialResolver } from './resolvers/DatabricksOAuthCredentialResolver';
+import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 
 it('rejects duplicate registrations', () => {
     const registry = new CredentialResolverRegistry();
@@ -360,3 +366,85 @@ describe('transport composition', () => {
         expect(transport.validateOnSave).not.toHaveBeenCalled();
     });
 });
+
+it.each([
+    DatabricksAuthenticationType.OAUTH_U2M,
+    DatabricksAuthenticationType.OAUTH_M2M,
+])(
+    'registers Databricks %s and skips a prepared second exchange',
+    async (authenticationType) => {
+        const resolver = new DatabricksOAuthCredentialResolver({
+            lightdashConfig: lightdashConfigMock,
+        } as never);
+        const resolve = vi
+            .spyOn(resolver, 'resolve')
+            .mockImplementation(async (input) => ({
+                clientCredentials: { ...input.connection, token: 'fresh' },
+                clientOptions: {},
+                cacheable: true,
+            }));
+        const registry = createCredentialResolverRegistry({
+            lightdashConfig: lightdashConfigMock,
+            userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+            sshKeyPairModel: { find: vi.fn() },
+            snowflakeOAuthCredentialResolver:
+                new SnowflakeOAuthCredentialResolver({} as never),
+            databricksOAuthCredentialResolver: resolver,
+        });
+        const connection: CreateDatabricksCredentials = {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType,
+            serverHostName: 'workspace.example.com',
+            database: 'schema',
+            httpPath: '/sql/warehouse',
+            token: 'old',
+            refreshToken: 'refresh-secret',
+            oauthClientId: 'client',
+            oauthClientSecret: 'client-secret',
+        };
+        const input: CredentialSelection<CreateDatabricksCredentials> = {
+            connection,
+            stored: connection,
+            owner: { kind: 'project', uuid: 'project' },
+            context: connectionContextFromUser(
+                { userUuid: 'user' },
+                { organizationUuid: 'org', queryContext: null },
+            ),
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            credentialKind: WarehouseCredentialKind.SHARED,
+            aiPlan: null,
+        };
+        const legacy = vi.fn();
+        expect(registry.has(connection)).toBe(true);
+        expect(
+            registry.has({
+                ...connection,
+                authenticationType:
+                    DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+            }),
+        ).toBe(false);
+        const result = await registry.resolveCredentialSelection(input, legacy);
+        expect(result).toMatchObject({ token: 'fresh' });
+        expect(result[credentialResolution]?.cacheKeyIdentity).toEqual([
+            'databricks-oauth',
+            authenticationType,
+            'workspace.example.com',
+            'client',
+            'project',
+            'project',
+            null,
+        ]);
+        const prepared = prepareWarehouseOAuthCredentials({
+            ...connection,
+            token: 'prepared',
+        });
+        const again = await registry.resolveCredentialSelection(
+            { ...input, connection: { ...prepared } },
+            legacy,
+        );
+        expect(again).toMatchObject({ token: 'prepared' });
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(legacy).not.toHaveBeenCalled();
+    },
+);

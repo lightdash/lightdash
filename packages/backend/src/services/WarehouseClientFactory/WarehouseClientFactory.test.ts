@@ -18,6 +18,7 @@ import {
     WarehouseQueryError,
     WarehouseTypes,
     type AiExecutionPlan,
+    type CreateDatabricksCredentials,
     type CreateDuckdbDucklakeCredentials,
     type CreatePostgresCredentials,
     type CreateSnowflakeCredentials,
@@ -50,8 +51,11 @@ import {
     ConnectionSurface,
     WarehouseCredentialKind,
 } from './ConnectionContext';
+import { preparedCredentials } from './CredentialResolver';
 import { createCredentialResolverRegistry } from './credentialResolvers';
+import { prepareWarehouseOAuthCredentials } from './preparedOAuthCredentials';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
+import { DatabricksOAuthCredentialResolver } from './resolvers/DatabricksOAuthCredentialResolver';
 import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientFactory,
@@ -218,6 +222,10 @@ const buildFixture = (
     };
     const factory = new WarehouseClientFactory({
         credentialResolvers: createCredentialResolverRegistry({
+            databricksOAuthCredentialResolver:
+                new DatabricksOAuthCredentialResolver({
+                    lightdashConfig: lightdashConfigMock,
+                } as never),
             snowflakeOAuthCredentialResolver:
                 new SnowflakeOAuthCredentialResolver({} as never),
             lightdashConfig: lightdashConfigMock,
@@ -3712,6 +3720,152 @@ describe('SSH transport materialisation', () => {
                 projectModel.getWarehouseClientFromCredentials,
             ).toHaveBeenCalledTimes(2);
             expect(Object.keys(factory.warehouseClients)).toEqual([]);
+        },
+    );
+});
+
+describe('prepared OAuth credentials', () => {
+    test.each([
+        DatabricksAuthenticationType.OAUTH_U2M,
+        DatabricksAuthenticationType.OAUTH_M2M,
+    ])(
+        'builds a Databricks %s client without a second exchange or internal markers',
+        async (authenticationType) => {
+            const { factory, projectModel } = buildFixture();
+            const resolve = vi.spyOn(
+                DatabricksOAuthCredentialResolver.prototype,
+                'resolve',
+            );
+            try {
+                const connection: CreateDatabricksCredentials = {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType,
+                    serverHostName: 'workspace.example.com',
+                    database: 'schema',
+                    httpPath: '/sql/warehouse',
+                    token: 'already-exchanged',
+                    refreshToken: 'refresh',
+                };
+                const prepared = prepareWarehouseOAuthCredentials(connection);
+                await factory.withWarehouseClient(
+                    compileRef({ ...prepared }),
+                    contextFor(null, 'compile'),
+                    async ({ warehouseClient }) => {
+                        expect(warehouseClient.credentials).toEqual(connection);
+                    },
+                );
+                expect(resolve).not.toHaveBeenCalled();
+                const constructed =
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[0][0];
+                expect(constructed).toEqual(connection);
+                expect(Object.getOwnPropertySymbols(constructed)).toEqual([]);
+            } finally {
+                resolve.mockRestore();
+            }
+        },
+    );
+
+    test.each([
+        DatabricksAuthenticationType.OAUTH_U2M,
+        DatabricksAuthenticationType.OAUTH_M2M,
+    ])(
+        'keeps Databricks %s cache entries separate by credential owner',
+        async (authenticationType) => {
+            const { factory, projectModel } = buildFixture();
+            const resolve = vi
+                .spyOn(DatabricksOAuthCredentialResolver.prototype, 'resolve')
+                .mockImplementation(async (input) => ({
+                    clientCredentials: input.connection,
+                    clientOptions: {},
+                    cacheable: true,
+                }));
+            try {
+                const connection: CreateDatabricksCredentials = {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType,
+                    serverHostName: 'workspace.example.com',
+                    httpPath: '/sql/warehouse',
+                    database: 'schema',
+                    token: 'access-secret',
+                    refreshToken: 'refresh-secret',
+                    oauthClientId: 'client',
+                    oauthClientSecret: 'client-secret',
+                };
+                const acquire = async (uuid: string) => {
+                    const materialized = await factory.materializeCredentials(
+                        connection,
+                        contextFor(),
+                        'project-uuid',
+                        null,
+                        { kind: 'organization', uuid },
+                    );
+                    await factory.withWarehouseClient(
+                        {
+                            kind: 'resolved',
+                            projectUuid: 'project-uuid',
+                            credentials: materialized,
+                            aiPlan: null,
+                            warehouseConnectionUuid: null,
+                            connectionRoute: null,
+                        },
+                        contextFor(),
+                        async () => {},
+                    );
+                };
+                await acquire('org-row-a');
+                await acquire('org-row-b');
+                await acquire('org-row-a');
+                expect(
+                    projectModel.getWarehouseClientFromCredentials,
+                ).toHaveBeenCalledTimes(2);
+                const keys = Object.keys(factory.warehouseClients);
+                expect(keys).toHaveLength(2);
+                expect(keys[0]).toContain('org-row-a');
+                expect(keys[1]).toContain('org-row-b');
+                expect(keys.join()).not.toContain('secret');
+            } finally {
+                resolve.mockRestore();
+            }
+        },
+    );
+
+    test.each(sshCredentials)(
+        'prepared credentials still resolve the $type SSH transport',
+        async (connection) => {
+            const { factory, sshKeyPairModel, projectModel } = buildFixture();
+            sshKeyPairModel.find.mockResolvedValue({
+                organizationUuid: 'org-uuid',
+                privateKey: 'RESOLVED-PRIVATE',
+                publicKey: 'PUBLIC',
+            } as never);
+            const prepared = {
+                ...connection,
+                sshTunnelPublicKey: 'PUBLIC',
+                sshTunnelPrivateKey: undefined,
+                [preparedCredentials]: true as const,
+            };
+            await factory.withWarehouseClient(
+                compileRef({ ...prepared }),
+                contextFor(null, 'compile'),
+                async () => {},
+            );
+            expect(sshKeyPairModel.find).toHaveBeenCalledExactlyOnceWith(
+                'PUBLIC',
+            );
+            expect(SshTunnel).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sshTunnelPrivateKey: 'RESOLVED-PRIVATE',
+                }),
+                undefined,
+            );
+            expect(
+                Object.getOwnPropertySymbols(
+                    projectModel.getWarehouseClientFromCredentials.mock
+                        .calls[0][0],
+                ),
+            ).toEqual([]);
+            expect(disconnect).toHaveBeenCalledOnce();
         },
     );
 });
