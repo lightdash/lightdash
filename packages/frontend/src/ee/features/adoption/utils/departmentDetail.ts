@@ -124,14 +124,20 @@ const byName = (a: DepartmentRef, b: DepartmentRef): number =>
 
 const ALSO_IN_NAMES = 3;
 
-// The other departments a person is in, by name; past three the rest are counted
-export const formatAlsoIn = (departments: DepartmentRef[]): string | null => {
+// The other departments a person is in, by name; past three the rest are counted and the title names them all
+export const formatAlsoIn = (
+    departments: DepartmentRef[],
+): { text: string; title: string | null } | null => {
     if (departments.length === 0) return null;
     const names = [...departments].sort(byName).map((d) => d.name);
+    const all = `Also in ${formatNames(names, 'and')}`;
     const rest = names.length - ALSO_IN_NAMES;
     return rest > 0
-        ? `Also in ${names.slice(0, ALSO_IN_NAMES).join(', ')} and ${formatCount(rest)} more`
-        : `Also in ${formatNames(names, 'and')}`;
+        ? {
+              text: `Also in ${names.slice(0, ALSO_IN_NAMES).join(', ')} and ${formatCount(rest)} more`,
+              title: all,
+          }
+        : { text: all, title: null };
 };
 
 // How the person is in the department, in plain words
@@ -383,6 +389,15 @@ export const getVennTitle = (sets: DepartmentRef[]): string =>
         sets.map((d) => d.name),
         'and',
     )}`;
+
+const COMPACT_FROM = 10000;
+
+// A count drawn inside the diagram: from 10,000 in thousands to one decimal place ("12.3k"), so it fits its region
+export const formatVennCount = (count: number): string => {
+    if (count < COMPACT_FROM) return formatCount(count);
+    const thousands = Math.round(count / 100) / 10;
+    return `${thousands.toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
+};
 
 export type VennRegionView = {
     people: number;

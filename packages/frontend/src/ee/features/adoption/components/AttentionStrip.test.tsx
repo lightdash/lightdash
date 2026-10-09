@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -30,23 +30,31 @@ const renderStrip = ({
 const SHARED_LINK = {
     name: '48 people are in more than one department',
 };
+// The page header has the Place people button; the strip links from its sentence instead
+const PLACE_LINK = { name: 'place them' };
+const UNASSIGNED =
+    "140 people are in no department. They aren't counted in any department until you place them";
+
+// The unassigned sentence, whole, with its link inside it
+const unassignedSentence = () =>
+    screen.getByText(
+        (_, element) =>
+            element?.tagName === 'P' && element.textContent === UNASSIGNED,
+    );
 
 describe('AttentionStrip', () => {
-    it('says how many people are in no department and links to those in more than one', () => {
+    it('says how many people are in no department, links its last words to placing them, and links to those in more than one', () => {
         renderStrip();
+        expect(unassignedSentence()).toBeVisible();
         expect(
-            screen.getByText(
-                "140 people are in no department. They aren't counted in any department until you place them",
-            ),
+            within(unassignedSentence()).getByRole('button', PLACE_LINK),
         ).toBeVisible();
         expect(screen.getByRole('button', SHARED_LINK)).toBeVisible();
     });
 
-    it('opens placing on people in no department, and the link on people in more than one', async () => {
+    it('opens placing on people in no department from the sentence, and on people in more than one from their link', async () => {
         const { onPlace, onReviewShared } = renderStrip();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Place people' }),
-        );
+        await userEvent.click(screen.getByRole('button', PLACE_LINK));
         expect(onPlace).toHaveBeenCalledTimes(1);
         expect(onReviewShared).not.toHaveBeenCalled();
         await userEvent.click(screen.getByRole('button', SHARED_LINK));
@@ -70,7 +78,7 @@ describe('AttentionStrip', () => {
         renderStrip({ unassignedCount: 0 });
         expect(screen.getByRole('button', SHARED_LINK)).toBeVisible();
         expect(
-            screen.queryByRole('button', { name: 'Place people' }),
+            screen.queryByRole('button', PLACE_LINK),
         ).not.toBeInTheDocument();
         expect(screen.queryByText(/in no department/)).not.toBeInTheDocument();
     });
@@ -92,9 +100,7 @@ describe('AttentionStrip', () => {
 
     it('leaves the link out when nobody is in more than one department', () => {
         renderStrip({ sharedCount: 0 });
-        expect(
-            screen.getByRole('button', { name: 'Place people' }),
-        ).toBeVisible();
+        expect(screen.getByRole('button', PLACE_LINK)).toBeVisible();
         expect(
             screen.queryByText(/more than one department/),
         ).not.toBeInTheDocument();
@@ -107,18 +113,14 @@ describe('AttentionStrip', () => {
         expect(screen.queryByText(/department/)).not.toBeInTheDocument();
     });
 
-    // jsdom has no layout, so these check the flex rules that keep the button whole at any width
-    it('never shrinks the Place people button, and wraps it under the message when the strip is narrow', () => {
+    it('has no button of its own, as the page header has Place people: only the two links', () => {
         renderStrip();
-        const button = screen.getByRole('button', { name: 'Place people' });
-        expect(button).toHaveStyle({ flexShrink: '0' });
-        const message = screen.getByText(
-            /They aren't counted in any department/,
-        ).parentElement;
-        // The messages give up width down to 16rem, then the button takes a line of its own
-        expect(message).toHaveStyle({ flexGrow: '1', flexBasis: '16rem' });
-        expect(message?.parentElement).toHaveStyle('--group-wrap: wrap');
-        expect(message?.parentElement).toContainElement(button);
+        expect(
+            screen.queryByRole('button', { name: 'Place people' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getAllByRole('button').map((control) => control.textContent),
+        ).toEqual(['place them', '48 people are in more than one department']);
     });
 
     it('offers no button or link to people who cannot place others, and still gives both counts', () => {

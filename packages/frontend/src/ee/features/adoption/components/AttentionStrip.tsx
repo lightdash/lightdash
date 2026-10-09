@@ -1,12 +1,9 @@
-import { Anchor, Button, Group, Stack, Text } from '@mantine/core';
+import { Anchor, Stack, Text } from '@mantine/core';
 import { IconUserQuestion, IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import Callout from '../../../../components/common/Callout';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { formatShared, formatUnassigned } from '../utils/attention';
-
-// Narrower than this, the message leaves the button a line of its own rather than squeeze it
-const MESSAGE_MIN_WIDTH = '16rem';
 
 type Props = {
     unassignedCount: number;
@@ -38,49 +35,48 @@ export const AttentionStrip: FC<Props> = ({
                 />
             }
         >
-            <Group justify="space-between" wrap="wrap">
-                <Stack
-                    gap={4}
-                    align="flex-start"
-                    flex={`1 1 ${MESSAGE_MIN_WIDTH}`}
-                >
-                    {hasUnassigned && (
-                        <Text fz="sm">
-                            {formatUnassigned(unassignedCount)}.{' '}
-                            {canManage
-                                ? "They aren't counted in any department until you place them"
-                                : "They aren't counted in any department until an admin places them"}
-                        </Text>
-                    )}
-                    {hasShared &&
-                        (canManage ? (
-                            <Anchor
-                                component="button"
-                                type="button"
-                                fz="sm"
-                                c="dimmed"
-                                ta="left"
-                                onClick={onReviewShared}
-                            >
-                                {formatShared(sharedCount)}
-                            </Anchor>
+            {/* The page header has the Place people button, so the strip only links from its sentences */}
+            <Stack gap={4} align="flex-start">
+                {hasUnassigned && (
+                    <Text fz="sm">
+                        {formatUnassigned(unassignedCount)}.{' '}
+                        {canManage ? (
+                            <>
+                                {
+                                    "They aren't counted in any department until you "
+                                }
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    inherit
+                                    onClick={onPlace}
+                                >
+                                    place them
+                                </Anchor>
+                            </>
                         ) : (
-                            <Text fz="sm" c="dimmed">
-                                {formatShared(sharedCount)}
-                            </Text>
-                        ))}
-                </Stack>
-                {canManage && hasUnassigned && (
-                    <Button
-                        size="compact-sm"
-                        variant="default"
-                        flex="none"
-                        onClick={onPlace}
-                    >
-                        Place people
-                    </Button>
+                            "They aren't counted in any department until an admin places them"
+                        )}
+                    </Text>
                 )}
-            </Group>
+                {hasShared &&
+                    (canManage ? (
+                        <Anchor
+                            component="button"
+                            type="button"
+                            fz="sm"
+                            c="dimmed"
+                            ta="left"
+                            onClick={onReviewShared}
+                        >
+                            {formatShared(sharedCount)}
+                        </Anchor>
+                    ) : (
+                        <Text fz="sm" c="dimmed">
+                            {formatShared(sharedCount)}
+                        </Text>
+                    ))}
+            </Stack>
         </Callout>
     );
 };

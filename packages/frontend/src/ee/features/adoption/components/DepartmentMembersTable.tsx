@@ -115,8 +115,12 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                                         {formatMemberSource(member)}
                                     </Text>
                                     {alsoIn !== null && (
-                                        <Text fz="xs" c="dimmed">
-                                            {alsoIn}
+                                        <Text
+                                            fz="xs"
+                                            c="dimmed"
+                                            title={alsoIn.title ?? undefined}
+                                        >
+                                            {alsoIn.text}
                                         </Text>
                                     )}
                                 </Table.Td>

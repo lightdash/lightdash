@@ -12,7 +12,7 @@ import {
     Title,
 } from '@mantine/core';
 import { IconAlertCircle, IconPencil } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -157,22 +157,22 @@ const AdoptionDepartment: FC = () => {
     // The weekly comparison needs the organization's numbers; the drawer's parent picker needs every department
     const summary = useOrgAdoptionSummary(departmentUuid !== undefined);
     const overlaps = useDepartmentOverlaps(departmentUuid);
-    // Kept with the department it was chosen on, so another department's page starts with everyone
-    const [chosenOverlap, setChosenOverlap] = useState<{
-        departmentUuid: string;
-        selection: OverlapSelection;
-    } | null>(null);
+    const overlapsHeadingRef = useRef<HTMLHeadingElement>(null);
+    // The page stays mounted from one department to the next, so the choice is dropped whenever the department
+    // changes (React's adjust-state-while-rendering pattern), and a department returned to starts with everyone
+    const [overlapChoice, setOverlapChoice] = useState<{
+        departmentUuid: string | undefined;
+        selection: OverlapSelection | null;
+    }>({ departmentUuid, selection: null });
+    if (overlapChoice.departmentUuid !== departmentUuid) {
+        setOverlapChoice({ departmentUuid, selection: null });
+    }
     const selection =
-        chosenOverlap !== null &&
-        chosenOverlap.departmentUuid === departmentUuid
-            ? chosenOverlap.selection
+        overlapChoice.departmentUuid === departmentUuid
+            ? overlapChoice.selection
             : null;
     const selectOverlap = (next: OverlapSelection | null) =>
-        setChosenOverlap(
-            next === null || departmentUuid === undefined
-                ? null
-                : { departmentUuid, selection: next },
-        );
+        setOverlapChoice({ departmentUuid, selection: next });
     // Nobody's people are asked for until an overlap is chosen
     const overlapPeople = useDepartmentOverlaps(
         selection === null ? undefined : departmentUuid,
@@ -343,6 +343,7 @@ const AdoptionDepartment: FC = () => {
                     onRetry={() => void overlaps.refetch()}
                     selection={selection}
                     onSelect={selectOverlap}
+                    headingRef={overlapsHeadingRef}
                 />
 
                 {children.length > 0 && (
@@ -420,7 +421,11 @@ const AdoptionDepartment: FC = () => {
                             }
                             isError={overlapPeople.isError}
                             onRetry={() => void overlapPeople.refetch()}
-                            onClear={() => selectOverlap(null)}
+                            onClear={() => {
+                                selectOverlap(null);
+                                // The chip goes away with the filter, so focus moves to the section it came from
+                                overlapsHeadingRef.current?.focus();
+                            }}
                         />
                     )}
                 </Stack>

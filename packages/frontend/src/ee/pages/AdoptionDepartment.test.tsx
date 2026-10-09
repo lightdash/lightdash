@@ -784,37 +784,72 @@ describe('AdoptionDepartment', () => {
             );
             expect(refetch).toHaveBeenCalledOnce();
         });
-        it('forgets the chosen overlap on the page of another department', async () => {
-            const withChild = departmentDetail();
-            detail.mockReturnValue(
-                loaded({
-                    ...withChild,
-                    members: PEOPLE,
-                    children: [
-                        {
-                            ...withChild.children[0],
-                            departmentUuid: CHILD,
-                            name: 'Science',
-                        },
-                    ],
-                }),
+        it('starts every department with everyone, including one returned to', async () => {
+            const parent = departmentDetail();
+            const science = {
+                ...parent.children[0],
+                departmentUuid: CHILD,
+                name: 'Science',
+            };
+            detail.mockImplementation((departmentUuid: string | undefined) =>
+                loaded(
+                    departmentUuid === CHILD
+                        ? {
+                              ...parent,
+                              department: science,
+                              ancestors: [
+                                  { departmentUuid: DEPARTMENT, name: 'Data' },
+                              ],
+                              children: [],
+                              members: PEOPLE,
+                          }
+                        : { ...parent, members: PEOPLE, children: [science] },
+                ),
             );
+            renderPage();
+            const chooseMarketing = () =>
+                userEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Marketing, 2 people, 0 active',
+                    }),
+                );
+            const expectEveryone = () => {
+                expect(overlaps).toHaveBeenLastCalledWith(undefined, [], []);
+                expect(peopleShown()).toHaveLength(3);
+                expect(
+                    screen.queryByRole('button', { name: /^Clear filter/ }),
+                ).not.toBeInTheDocument();
+            };
+            await chooseMarketing();
+            expect(peopleShown()).toHaveLength(2);
+            await userEvent.click(
+                screen.getByRole('link', { name: 'Science' }),
+            );
+            expect(detail).toHaveBeenLastCalledWith(CHILD);
+            expectEveryone();
+            // Back on the first department, its earlier choice is gone too
+            await userEvent.click(screen.getByRole('link', { name: 'Data' }));
+            expect(detail).toHaveBeenLastCalledWith(DEPARTMENT);
+            expectEveryone();
+        });
+        it('moves keyboard focus to the Overlaps heading when the chip is cleared', async () => {
             renderPage();
             await userEvent.click(
                 screen.getByRole('button', {
                     name: 'Marketing, 2 people, 0 active',
                 }),
             );
-            expect(peopleShown()).toHaveLength(2);
-            await userEvent.click(
-                screen.getByRole('link', { name: 'Science' }),
-            );
-            expect(detail).toHaveBeenLastCalledWith(CHILD);
-            expect(overlaps).toHaveBeenLastCalledWith(undefined, [], []);
-            expect(peopleShown()).toHaveLength(3);
+            const clear = screen.getByRole('button', {
+                name: 'Clear filter: Also in Marketing',
+            });
+            clear.focus();
+            await userEvent.keyboard('{Enter}');
             expect(
                 screen.queryByRole('button', { name: /^Clear filter/ }),
             ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('heading', { name: 'Overlaps' }),
+            ).toHaveFocus();
         });
     });
 });

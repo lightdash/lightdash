@@ -61,7 +61,12 @@
     fill-opacity: 0.36;
 }
 
-.region:focus-visible,
+/* Keyboard focus takes the app's focus ring, apart from the ink outline that marks the chosen region */
+.region:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
 .region[aria-pressed='true'] {
     stroke: var(--mantine-color-text);
     stroke-width: 2.5px;

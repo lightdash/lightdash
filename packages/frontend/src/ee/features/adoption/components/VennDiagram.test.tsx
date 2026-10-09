@@ -1,5 +1,5 @@
 import { type DepartmentOverlaps } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -215,6 +215,55 @@ describe('VennDiagram', () => {
                 name: 'Data, Marketing and Sales, 0 people',
             }),
         ).toHaveAttribute('data-muted');
+    });
+    it('writes counts of 10,000 or more in thousands, and keeps the exact count in names and titles', () => {
+        const { container } = renderVenn({
+            ...threeSets(),
+            regions: threeSets().regions.map((r) =>
+                r.sets.length === 1 && r.sets[0] === 'marketing'
+                    ? { ...r, people: 12345 }
+                    : r.sets.length === 1 && r.sets[0] === 'data'
+                      ? { ...r, people: 10000 }
+                      : r,
+            ),
+        });
+        expect(
+            Array.from(
+                container.querySelectorAll('svg text'),
+                (text) => text.textContent,
+            ),
+        ).toEqual(['10k', '12.3k', '300', '42', '7', '15', '5']);
+        expect(
+            screen.getByRole('button', { name: 'Data only, 10,000 people' }),
+        ).toBeInTheDocument();
+        const marketing = screen.getByRole('img', {
+            name: 'Marketing only, 12,345 people',
+        });
+        expect(marketing.querySelector('title')).toHaveTextContent(
+            'Marketing only, 12,345 people',
+        );
+    });
+    it('titles every region with its name, for a tooltip on hover', () => {
+        renderVenn(threeSets());
+        const regions = Array.from(
+            screen.getByRole('group').querySelectorAll('path'),
+        );
+        expect(regions).toHaveLength(7);
+        regions.forEach((region) => {
+            const title = region.querySelector(':scope > title');
+            expect(title?.textContent).toBe(region.getAttribute('aria-label'));
+        });
+    });
+    it('ignores a key held down, so a region is not chosen and cleared over and over', () => {
+        const { onSelect } = renderVenn(threeSets());
+        const region = screen.getByRole('button', {
+            name: 'Data only, 1,234 people',
+        });
+        fireEvent.keyDown(region, { key: 'Enter', repeat: true });
+        fireEvent.keyDown(region, { key: ' ', repeat: true });
+        expect(onSelect).not.toHaveBeenCalled();
+        fireEvent.keyDown(region, { key: 'Enter' });
+        expect(onSelect).toHaveBeenCalledOnce();
     });
     it('names each circle in a key under the drawing', () => {
         renderVenn(threeSets());

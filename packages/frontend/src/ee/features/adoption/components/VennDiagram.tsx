@@ -3,12 +3,12 @@ import { Group, Stack, Text } from '@mantine/core';
 import { useId, type FC, type KeyboardEvent } from 'react';
 import {
     describeVennRegion,
+    formatVennCount,
     getVennSets,
     getVennTitle,
     isSameSelection,
     type OverlapSelection,
 } from '../utils/departmentDetail';
-import { formatCount } from '../utils/format';
 import { getVennLayout } from '../utils/vennGeometry';
 import styles from './OverlapsSection.module.css';
 
@@ -42,10 +42,10 @@ export const VennDiagram: FC<Props> = ({
         event: KeyboardEvent<SVGPathElement>,
         next: OverlapSelection | null,
     ) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            onSelect(next);
-        }
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        // A key held down repeats; only the first press chooses
+        if (!event.repeat) onSelect(next);
     };
 
     return (
@@ -79,7 +79,9 @@ export const VennDiagram: FC<Props> = ({
                                 data-muted
                                 role="img"
                                 aria-label={name}
-                            />
+                            >
+                                <title>{name}</title>
+                            </path>
                         );
                     }
                     const isSelected =
@@ -99,7 +101,9 @@ export const VennDiagram: FC<Props> = ({
                             aria-pressed={isSelected}
                             onClick={() => onSelect(next)}
                             onKeyDown={(event) => handleKeyDown(event, next)}
-                        />
+                        >
+                            <title>{name}</title>
+                        </path>
                     );
                 })}
                 {regions.map(({ shape, key, people, selection: listed }) => (
@@ -113,7 +117,7 @@ export const VennDiagram: FC<Props> = ({
                         dominantBaseline="central"
                         aria-hidden="true"
                     >
-                        {formatCount(people)}
+                        {formatVennCount(people)}
                     </text>
                 ))}
             </svg>

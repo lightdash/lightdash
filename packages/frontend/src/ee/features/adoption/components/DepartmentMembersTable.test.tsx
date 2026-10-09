@@ -154,5 +154,29 @@ describe('DepartmentMembersTable', () => {
             ).toBeVisible();
         }
         expect(within(single).queryByText(/Also in/)).not.toBeInTheDocument();
+        expect(within(shared).getByText(/^Also in/)).not.toHaveAttribute(
+            'title',
+        );
+    });
+    it('names three other departments and counts the rest, with every name in its title', () => {
+        const departments = ['Sales', 'Finance', 'Marketing', 'Data', 'Legal'];
+        renderWithProviders(
+            <DepartmentMembersTable
+                members={[
+                    memberFixture('many', null, {
+                        sharedWith: departments.map((name) => ({
+                            departmentUuid: name.toLowerCase(),
+                            name,
+                        })),
+                    }),
+                ]}
+            />,
+        );
+        expect(
+            screen.getByText('Also in Data, Finance, Legal and 2 more'),
+        ).toHaveAttribute(
+            'title',
+            'Also in Data, Finance, Legal, Marketing and Sales',
+        );
     });
 });

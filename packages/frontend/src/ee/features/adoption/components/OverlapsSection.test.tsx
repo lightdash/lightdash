@@ -1,6 +1,7 @@
 import { type DepartmentOverlaps } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { OverlapsSection } from './OverlapsSection';
@@ -37,6 +38,7 @@ const renderSection = (
             onRetry={onRetry}
             selection={null}
             onSelect={onSelect}
+            headingRef={createRef<HTMLHeadingElement>()}
             {...props}
         />,
     );
@@ -62,6 +64,13 @@ describe('OverlapsSection', () => {
                 name: 'Data and Marketing, 3 people',
             }),
         ).toBeInTheDocument();
+    });
+    it('hands its heading to the page to take focus, without making it a tab stop', () => {
+        const headingRef = createRef<HTMLHeadingElement>();
+        renderSection({ headingRef });
+        const heading = screen.getByRole('heading', { name: 'Overlaps' });
+        expect(headingRef.current).toBe(heading);
+        expect(heading).toHaveAttribute('tabindex', '-1');
     });
     it('is hidden when no department outside this one shares its people', () => {
         renderSection({ overlaps: overlapsOf({ overlaps: [], venn: null }) });

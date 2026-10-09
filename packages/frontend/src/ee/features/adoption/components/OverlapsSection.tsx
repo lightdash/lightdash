@@ -1,6 +1,6 @@
 import { type DepartmentOverlaps } from '@lightdash/common';
 import { Paper, SimpleGrid, Stack, Text, Title } from '@mantine/core';
-import { type FC } from 'react';
+import { type FC, type RefObject } from 'react';
 import InlineErrorState from '../../../../components/common/InlineErrorState';
 import { type OverlapSelection } from '../utils/departmentDetail';
 import { OverlapList } from './OverlapList';
@@ -12,6 +12,7 @@ type Props = {
     onRetry: () => void;
     selection: OverlapSelection | null;
     onSelect: (selection: OverlapSelection | null) => void;
+    headingRef: RefObject<HTMLHeadingElement | null>; // where focus goes when the people filter is cleared
 };
 
 export const OverlapsSection: FC<Props> = ({
@@ -20,11 +21,18 @@ export const OverlapsSection: FC<Props> = ({
     onRetry,
     selection,
     onSelect,
+    headingRef,
 }) => {
+    // Focusable from code only, never a tab stop
+    const heading = (
+        <Title order={5} ref={headingRef} tabIndex={-1}>
+            Overlaps
+        </Title>
+    );
     if (overlaps === null) {
         return isError ? (
             <Stack gap="xs">
-                <Title order={5}>Overlaps</Title>
+                {heading}
                 <InlineErrorState
                     message="Overlaps couldn't be loaded"
                     onRetry={onRetry}
@@ -37,7 +45,7 @@ export const OverlapsSection: FC<Props> = ({
     const { department, venn } = overlaps;
     return (
         <Stack gap="xs">
-            <Title order={5}>Overlaps</Title>
+            {heading}
             <Text fz="xs" c="dimmed">
                 Departments outside this one that share people with it. Select a
                 department or an area of the diagram to list those people below

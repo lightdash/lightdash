@@ -109,7 +109,7 @@ describe('Adoption', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Close' }));
         await userEvent.click(
             within(screen.getByRole('alert')).getByRole('button', {
-                name: 'Place people',
+                name: 'place them',
             }),
         );
         expect(

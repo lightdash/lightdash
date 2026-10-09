@@ -10,6 +10,7 @@ import {
     formatMemberSource,
     formatOverlapUsage,
     formatTopContentUsage,
+    formatVennCount,
     getActiveCaption,
     getCoverageCaption,
     getOverlapRowLabel,
@@ -669,15 +670,19 @@ describe('describeVennRegion', () => {
 
 describe('formatAlsoIn', () => {
     it('names the other departments a person is in, by name', () => {
-        expect(formatAlsoIn([SALES, FINANCE])).toBe(
-            'Also in Finance and Sales',
-        );
-        expect(formatAlsoIn([MARKETING])).toBe('Also in Marketing');
+        expect(formatAlsoIn([SALES, FINANCE])).toEqual({
+            text: 'Also in Finance and Sales',
+            title: null,
+        });
+        expect(formatAlsoIn([MARKETING])).toEqual({
+            text: 'Also in Marketing',
+            title: null,
+        });
     });
     it('is nothing for someone in no other department', () => {
         expect(formatAlsoIn([])).toBeNull();
     });
-    it('names three and counts the rest', () => {
+    it('names three and counts the rest, with every name in the title', () => {
         expect(
             formatAlsoIn([
                 SALES,
@@ -686,6 +691,24 @@ describe('formatAlsoIn', () => {
                 DATA,
                 { departmentUuid: 'ops', name: 'Operations' },
             ]),
-        ).toBe('Also in Data, Finance, Marketing and 2 more');
+        ).toEqual({
+            text: 'Also in Data, Finance, Marketing and 2 more',
+            title: 'Also in Data, Finance, Marketing, Operations and Sales',
+        });
+    });
+});
+
+describe('formatVennCount', () => {
+    it('groups thousands below 10,000', () => {
+        expect(formatVennCount(0)).toBe('0');
+        expect(formatVennCount(1234)).toBe('1,234');
+        expect(formatVennCount(9999)).toBe('9,999');
+    });
+    it('writes 10,000 and more in thousands, to one decimal place without a trailing .0', () => {
+        expect(formatVennCount(10000)).toBe('10k');
+        expect(formatVennCount(12345)).toBe('12.3k');
+        expect(formatVennCount(12950)).toBe('13k');
+        expect(formatVennCount(99999)).toBe('100k');
+        expect(formatVennCount(1234567)).toBe('1,234.6k');
     });
 });
