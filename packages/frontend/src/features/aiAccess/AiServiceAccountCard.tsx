@@ -27,7 +27,6 @@ import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { AgentAccessReportPanel } from './AgentAccessReportPanel';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
 import {
     useAiServiceAccount,
@@ -36,7 +35,6 @@ import {
     useTestAiServiceAccount,
 } from './api';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
-import { useTestAgentAccess } from './useTestAgentAccess';
 
 const AiServiceAccountDetails = ({
     slot,
@@ -131,12 +129,10 @@ const AiServiceAccountSummary = ({
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
-    const accessTest = useTestAgentAccess(projectUuid, null);
     const [confirmation, setConfirmation] = useState<
         'remove' | 'inherit' | null
     >(null);
-    const testing = test.isLoading || accessTest.isLoading;
-    const busy = testing || remove.isLoading;
+    const busy = test.isLoading || remove.isLoading;
     return (
         <>
             <Group justify="space-between">
@@ -159,7 +155,7 @@ const AiServiceAccountSummary = ({
                     <Button
                         variant="default"
                         loading={test.isLoading}
-                        disabled={remove.isLoading || accessTest.isLoading}
+                        disabled={remove.isLoading}
                         onClick={() =>
                             test.mutate(
                                 { credentials: null },
@@ -176,20 +172,6 @@ const AiServiceAccountSummary = ({
                     </Button>
                     {slot && (
                         <>
-                            <Button
-                                variant="default"
-                                loading={accessTest.isLoading}
-                                disabled={test.isLoading || remove.isLoading}
-                                onClick={() =>
-                                    accessTest.mutate({
-                                        credentials: null,
-                                        entryPoint:
-                                            'project_agent_identity_page',
-                                    })
-                                }
-                            >
-                                Test as agent
-                            </Button>
                             {parent && (
                                 <Button
                                     variant="default"
@@ -211,24 +193,6 @@ const AiServiceAccountSummary = ({
                     )}
                 </Group>
             </Group>
-            {slot && (
-                <>
-                    {accessTest.isLoading ? (
-                        <Text size="sm" role="status">
-                            Checking agent access…
-                        </Text>
-                    ) : (
-                        accessTest.data && (
-                            <AgentAccessReportPanel report={accessTest.data} />
-                        )
-                    )}
-                    {accessTest.isError && (
-                        <Text size="sm" c="red" role="alert">
-                            Could not test agent access. Try again.
-                        </Text>
-                    )}
-                </>
-            )}
             {test.data && !test.data.ok && (
                 <Text size="sm" role="status">
                     {test.data.message}
@@ -251,7 +215,6 @@ const AiServiceAccountSummary = ({
                     remove.mutate(undefined, {
                         onSuccess: () => {
                             test.reset();
-                            accessTest.reset();
                             setConfirmation(null);
                         },
                     })
