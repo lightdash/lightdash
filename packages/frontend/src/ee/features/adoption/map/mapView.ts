@@ -75,9 +75,12 @@ export const groupMembersByDepartment = (
 
 type CircleDots = { kinds: DotKind[]; members: DepartmentMember[] };
 
+// What holds people in a drawing: a circle on the map, or a part of a block in the waffle
+type PeopleHolder = Pick<PackedCircle, 'people' | 'departmentUuid'>;
+
 // Loaded people colour their own dots; otherwise the summary counts do
 const getCircleDots = (
-    circle: PackedCircle,
+    circle: PeopleHolder,
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
     now: Date,
@@ -117,7 +120,7 @@ const getCircleDots = (
 
 // How many dots of each kind are in view
 export const countDotKinds = (
-    circles: PackedCircle[],
+    circles: PeopleHolder[],
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
     now: Date = new Date(),
@@ -145,7 +148,7 @@ export const countDotKinds = (
 // as they are; otherwise the people on Lightdash are counted as drawn and the rest from the panel
 export const getLegendCounts = (
     breakdown: PeopleBreakdown,
-    circles: PackedCircle[],
+    circles: PeopleHolder[],
     colourBy: ColourBy,
     membersByDepartment: MembersByDepartment | null,
     now: Date = new Date(),

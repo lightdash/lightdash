@@ -27,6 +27,7 @@ import {
     resolveAdoptionView,
     writeStoredView,
 } from '../features/adoption/utils/viewPreference';
+import { WaffleView } from '../features/adoption/waffle/WaffleView';
 import { useOrgAdoptionSummary } from '../hooks/useOrgDepartments';
 
 const VIEW_PARAM = 'view';
@@ -175,6 +176,13 @@ const Adoption: FC = () => {
                     {view === 'list' && (
                         <DepartmentsTable
                             departments={departments}
+                            canManage={canManage}
+                            onEdit={openEdit}
+                        />
+                    )}
+                    {view === 'waffle' && (
+                        <WaffleView
+                            summary={summary.data}
                             canManage={canManage}
                             onEdit={openEdit}
                         />

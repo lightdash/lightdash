@@ -1,0 +1,161 @@
+/* Everything in the waffle is placed from its layout, in pixels from the drawing's top-left corner */
+.board {
+    position: absolute;
+    inset: 0;
+}
+
+.block {
+    position: absolute;
+    left: var(--block-x);
+    top: var(--block-y);
+    width: var(--block-width);
+    height: var(--block-height);
+}
+
+/* Covers the whole block: a click anywhere but on a sub-department selects the department */
+.blockButton {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+    cursor: pointer;
+}
+
+.header {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    left: 8px;
+    pointer-events: none;
+}
+
+.name {
+    line-height: 20px;
+}
+
+.counts {
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.part {
+    position: absolute;
+    left: var(--part-x);
+    top: var(--part-y);
+    width: var(--part-width);
+    height: var(--part-height);
+    overflow: hidden;
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-default-border);
+}
+
+/* The people directly in a department, and a department's only part, belong to the block: a click goes to it */
+.part[data-passive] {
+    pointer-events: none;
+}
+
+.partButton {
+    cursor: pointer;
+}
+
+.blockButton:hover,
+.partButton:hover {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-6);
+}
+
+.blockButton[data-selected],
+.partButton[data-selected] {
+    box-shadow: inset 0 0 0 2px var(--mantine-color-text);
+}
+
+.blockButton:focus-visible,
+.partButton:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.label {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    left: 4px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+}
+
+.content {
+    position: absolute;
+    left: var(--content-x);
+    top: var(--content-y);
+    width: var(--content-width);
+    height: var(--content-height);
+}
+
+/* One per person, moved into place */
+.square {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--cell);
+    height: var(--cell);
+    border-radius: 1px;
+    pointer-events: none;
+}
+
+.bar {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+.swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+/* Squares, bar segments and swatches take the map's look for each kind of person: filled, or a ring drawn as an
+   outline, and people without an account in the grey of the panel's track, outlined in the map's ring grey */
+.mark[data-kind='active'],
+.mark[data-kind='editor'] {
+    background-color: var(--mantine-color-violet-filled);
+}
+
+.mark[data-kind='lapsed'] {
+    background-color: var(--mantine-color-teal-3);
+}
+
+.mark[data-kind='interactiveViewer'] {
+    background-color: color-mix(
+        in srgb,
+        var(--mantine-color-violet-filled) 45%,
+        transparent
+    );
+}
+
+.mark[data-kind='admin'] {
+    background-color: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-2)
+    );
+}
+
+.mark[data-kind='idle'],
+.mark[data-kind='inactive'],
+.mark[data-kind='viewer'] {
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-violet-outline);
+}
+
+.mark[data-kind='noAccount'] {
+    background-color: light-dark(
+        var(--mantine-color-gray-2),
+        var(--mantine-color-dark-4)
+    );
+    box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-3);
+}
