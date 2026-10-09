@@ -55,6 +55,20 @@ describe.each([false, true])(
                 ),
             ).toBe(silentRefreshEnabled ? 'connected' : status);
         });
+        it.each([null, new Date(now + 1), new Date(now), new Date(now - 1)])(
+            'expires a replaced client regardless of date %s',
+            (expiresAt) => {
+                expect(
+                    getSnowflakeAgentStatus(
+                        { ...credential, agentClientCurrent: false, expiresAt },
+                        false,
+                        now,
+                        true,
+                        silentRefreshEnabled,
+                    ),
+                ).toBe('expired');
+            },
+        );
         it.each([
             null,
             credential,
