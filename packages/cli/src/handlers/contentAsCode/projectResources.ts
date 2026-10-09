@@ -1,6 +1,6 @@
 import {
     ContentAsCodeType,
-    parseDocumentAsCode,
+    parseDocumentAsCodeFile,
     parseHomepageAsCode,
     parseVersionedContentAsCodeDocument,
     type AgentAsCode,
@@ -190,7 +190,7 @@ export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
     dependencies: [ContentAsCodeType.SPACE],
     identity: ({ slug }) => slug,
     displayName: ({ name }) => name,
-    parse: (input) => parseDocumentAsCode(input),
+    parse: (input) => parseDocumentAsCodeFile(input),
     sort: (left, right) => left.slug.localeCompare(right.slug),
     leadingKeys: [
         'name',
@@ -200,5 +200,6 @@ export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
         'schemaVersion',
         'markdown',
         'charts',
+        'unsupportedCharts',
     ],
 };

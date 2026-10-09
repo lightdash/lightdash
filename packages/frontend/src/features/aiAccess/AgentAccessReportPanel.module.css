@@ -1,0 +1,18 @@
+.panel {
+    overflow: hidden;
+}
+
+.identifier {
+    overflow-wrap: anywhere;
+    font-family: var(--mantine-font-family-monospace);
+}
+
+.tables {
+    max-height: 320px;
+    overflow: auto;
+}
+
+.result {
+    text-align: right;
+    min-width: 150px;
+}

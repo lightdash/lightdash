@@ -114,6 +114,8 @@ export const startStub = async ({ port = 0, host = '127.0.0.1' } = {}) => {
     const sessions = new Map();
     const masters = new Map();
     const queries = new Map();
+    const consumedRefreshTokens = new Set();
+    const failedRefreshTokens = new Set();
     const server = createServer(async (request, response) => {
         try {
             const url = new URL(request.url, 'http://stub');
@@ -150,7 +152,39 @@ export const startStub = async ({ port = 0, host = '127.0.0.1' } = {}) => {
                     json(response, 400, { error: 'invalid_grant' });
                     return;
                 }
+                if (grant === 'refresh_token') {
+                    if (consumedRefreshTokens.has(input)) {
+                        json(response, 400, { error: 'invalid_grant' });
+                        return;
+                    }
+                    if (!failedRefreshTokens.has(input)) {
+                        if (input.startsWith('unavailable-refresh')) {
+                            failedRefreshTokens.add(input);
+                            json(response, 503, { error: 'invalid_grant' });
+                            return;
+                        }
+                        if (input.startsWith('network-drop-refresh')) {
+                            failedRefreshTokens.add(input);
+                            request.socket.destroy();
+                            return;
+                        }
+                    }
+                    if (input.startsWith('single-use-refresh'))
+                        consumedRefreshTokens.add(input);
+                }
                 let refreshPrefix = 'refresh';
+                if (input.startsWith('single-use'))
+                    refreshPrefix = 'single-use-refresh';
+                else if (
+                    grant === 'authorization_code' &&
+                    input.startsWith('unavailable')
+                )
+                    refreshPrefix = 'unavailable-refresh';
+                else if (
+                    grant === 'authorization_code' &&
+                    input.startsWith('network-drop')
+                )
+                    refreshPrefix = 'network-drop-refresh';
                 if (input.startsWith('revoking'))
                     refreshPrefix = 'revoked-refresh';
                 else if (input.startsWith('plain'))

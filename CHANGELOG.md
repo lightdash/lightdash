@@ -1,3 +1,17 @@
+# [2.508.0](https://github.com/lightdash/lightdash/compare/2.507.1...2.508.0) (2026-10-09)
+
+
+### Bug Fixes
+
+* **agent-identity:** refresh Snowflake agent sign-ins while the grant lasts ([#30798](https://github.com/lightdash/lightdash/issues/30798)) ([b336e69](https://github.com/lightdash/lightdash/commit/b336e6969a541de42ddfd2a8a30e51f06414a2a5))
+* **dashboards:** revise the copy of the filter editor ([#30815](https://github.com/lightdash/lightdash/issues/30815)) ([26b81b2](https://github.com/lightdash/lightdash/commit/26b81b2dc178553318bf66bbc0988774020ab9ab))
+
+
+### Features
+
+* **agent-identity:** test what agents can read from a project Agent identity page ([#30810](https://github.com/lightdash/lightdash/issues/30810)) ([5795a29](https://github.com/lightdash/lightdash/commit/5795a297c0afff6ef2cfb5f54080530186f87b95))
+* **documents:** keep newer-release content when reading Documents ([#30741](https://github.com/lightdash/lightdash/issues/30741)) ([004721d](https://github.com/lightdash/lightdash/commit/004721df8eab71eea29cce8ebd8aa175ac754ee7))
+
 ## [2.507.1](https://github.com/lightdash/lightdash/compare/2.507.0...2.507.1) (2026-10-09)
 
 

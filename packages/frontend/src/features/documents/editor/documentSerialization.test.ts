@@ -14,6 +14,7 @@ import {
     getDocumentContent,
     getTopLevelInsertPosition,
 } from './documentSerialization';
+import { DOCUMENT_UNSUPPORTED_NODE } from './documentUnsupportedNode';
 import { moveTopLevelNode } from './moveTopLevelNode';
 
 const chart = (name: string, id = 'c1'): DocumentChartBlock => ({
@@ -528,5 +529,78 @@ describe('getDocumentContent tag-like text', () => {
         expect(getDocumentContent(reloaded)).toEqual(saved);
         editor.destroy();
         reloaded.destroy();
+    });
+});
+
+describe('content from a newer release', () => {
+    const unsupportedChart: DocumentChartBlock = {
+        type: 'unsupportedChart',
+        id: 'c2',
+        raw: { source: 'image', image: { url: 'logo.png' } },
+    };
+    const unsupportedTag: DocumentChartBlock = {
+        type: 'unsupportedTag',
+        line: '<saved-chart slug="monthly-revenue" title="Live">',
+    };
+    const blocks = [
+        markdown('Intro'),
+        chart('Orders'),
+        unsupportedChart,
+        unsupportedTag,
+        markdown('Outro'),
+    ];
+
+    it('writes it back unchanged and in place', () => {
+        const editor = load(blocks);
+        expect(getBlocks(editor)).toStrictEqual(blocks);
+        expect(getDocumentContent(editor).unsupportedCharts).toStrictEqual({
+            c2: unsupportedChart.raw,
+        });
+        editor.destroy();
+    });
+
+    it('keeps it through a text edit', () => {
+        const editor = load(blocks);
+        editor.commands.insertContentAt(1, 'Edited ');
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Edited Intro'),
+            ...blocks.slice(1),
+        ]);
+        editor.destroy();
+    });
+
+    it('drops it when removed', () => {
+        const editor = load(blocks);
+        const positions: number[] = [];
+        editor.state.doc.forEach((node, offset) => {
+            if (node.type.name === DOCUMENT_UNSUPPORTED_NODE) {
+                positions.push(offset);
+            }
+        });
+        positions.reverse().forEach((position) => {
+            editor.commands.deleteRange({
+                from: position,
+                to: position + 1,
+            });
+        });
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Intro'),
+            chart('Orders'),
+            markdown('Outro'),
+        ]);
+        expect(getDocumentContent(editor).unsupportedCharts).toBeUndefined();
+        editor.destroy();
+    });
+
+    it('leaves a typed tag-like line as text', () => {
+        const editor = load([markdown('Intro')]);
+        editor.commands.insertContentAt(editor.state.doc.content.size, {
+            type: 'paragraph',
+            content: [{ type: 'text', text: '<my-widget>' }],
+        });
+        expect(
+            getBlocks(editor).every((block) => block.type === 'markdown'),
+        ).toBe(true);
+        editor.destroy();
     });
 });

@@ -582,3 +582,136 @@ describe('UserWarehouseCredentialsModel', () => {
         });
     });
 });
+
+describe('refresh rotation expiry CAS', () => {
+    let database: Knex;
+    let tracker: ReturnType<typeof getTracker>;
+    let model: UserWarehouseCredentialsModel;
+    beforeAll(() => {
+        database = knex({ client: MockClient, dialect: 'pg' });
+        tracker = getTracker();
+        model = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        });
+    });
+    beforeEach(() => tracker.reset());
+    afterAll(async () => database.destroy());
+    test.each([new Date(0), new Date('2029-01-01')])(
+        'preserves a concurrently extended deadline when the stale deadline was %s',
+        async (staleDeadline) => {
+            const row = {
+                ...makeRow('credential', {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'T1',
+                }),
+                expires_at: staleDeadline,
+            };
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response(() => [row]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            const extendedDeadline = new Date('2035-01-01');
+            await model.rotateRefreshToken('credential', 'T1', 'T1', {
+                kind: 'reported',
+                expiresAt: extendedDeadline,
+            });
+            row.expires_at = extendedDeadline;
+            await model.rotateRefreshToken('credential', 'T1', 'T2', {
+                kind: 'unreported',
+            });
+            expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update[1].sql).not.toContain('"expires_at"');
+            expect(tracker.history.update[0].bindings).toContain(
+                extendedDeadline,
+            );
+            expect(tracker.history.select[1].sql).toContain('"expires_at"');
+            expect(tracker.history.select[1].sql).toContain('for update');
+        },
+    );
+    test.each([new Date(0), new Date('2035-01-01'), null])(
+        'uses the locked deadline for unreported expiry: %s',
+        async (expiresAt) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'T1',
+                    }),
+                    expires_at: expiresAt,
+                },
+            ]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            await model.rotateRefreshToken('credential', 'T1', 'T2', {
+                kind: 'unreported',
+            });
+            if (expiresAt && expiresAt.getTime() <= Date.now()) {
+                expect(tracker.history.update[0].bindings).toContain(null);
+            } else {
+                expect(tracker.history.update[0].sql).not.toContain(
+                    '"expires_at"',
+                );
+            }
+        },
+    );
+    test.each([
+        { stored: 'T1', next: 'T2', expiresAt: new Date('2030-01-01') },
+        {
+            stored: 'newer-token',
+            next: 'T2',
+            expiresAt: new Date('2030-01-01'),
+        },
+        { stored: 'T1', next: 'T1', expiresAt: new Date('2030-01-01') },
+        { stored: 'T1', next: 'T2', expiresAt: null },
+        { stored: 'T1', next: 'T2', expiresAt: undefined },
+    ])(
+        'guards token and expiry writes: %s',
+        async ({ stored, next, expiresAt }) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: stored,
+                    }),
+                    warehouse_type: WarehouseTypes.SNOWFLAKE,
+                    expires_at: new Date(0),
+                },
+            ]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            let expiry: Parameters<
+                UserWarehouseCredentialsModel['rotateRefreshToken']
+            >[3];
+            if (expiresAt !== undefined)
+                expiry =
+                    expiresAt === null
+                        ? { kind: 'unreported' }
+                        : { kind: 'reported', expiresAt };
+            expect(
+                await model.rotateRefreshToken(
+                    'credential',
+                    'T1',
+                    next,
+                    expiry,
+                ),
+            ).toBe(stored === 'T1');
+            expect(tracker.history.select[0].sql).toContain('for update');
+            if (stored === 'T1') {
+                if (expiresAt === undefined) {
+                    expect(tracker.history.update[0].sql).not.toContain(
+                        '"expires_at"',
+                    );
+                } else {
+                    expect(tracker.history.update[0].sql).toContain(
+                        '"expires_at"',
+                    );
+                    expect(tracker.history.update[0].bindings).toContain(
+                        expiresAt,
+                    );
+                }
+            } else expect(tracker.history.update).toHaveLength(0);
+        },
+    );
+});

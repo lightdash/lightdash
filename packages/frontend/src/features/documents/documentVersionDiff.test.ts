@@ -247,3 +247,30 @@ describe('withContext', () => {
         expect(shown).toHaveLength(8);
     });
 });
+
+describe('content from a newer release', () => {
+    const image = { source: 'image', image: { url: 'logo.png' } };
+    const block = '<saved-chart slug="monthly-revenue">';
+    const before = {
+        markdown: [tag('c1'), tag('c2'), 'Text'].join('\n\n'),
+        charts: { c1: chart('Orders') },
+        unsupportedCharts: { c2: image },
+    };
+
+    it('pairs an unchanged unsupported chart and lists one that was added', () => {
+        const after = {
+            ...before,
+            markdown: [tag('c1'), tag('c2'), 'Text', tag('c3'), block].join(
+                '\n\n',
+            ),
+            unsupportedCharts: { c2: image, c3: { source: 'video' } },
+        };
+        const diff = diffDocumentVersions(before, after);
+        expect(diff.charts.map(({ kind, name }) => ({ kind, name }))).toEqual([
+            { kind: 'unchanged', name: 'Orders' },
+            { kind: 'unchanged', name: 'Chart from a newer version' },
+            { kind: 'added', name: 'Chart from a newer version' },
+        ]);
+        expect(diff.text).toContainEqual({ type: 'added', text: block });
+    });
+});

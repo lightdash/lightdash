@@ -7,24 +7,15 @@ import {
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
-import {
-    Alert,
-    Anchor,
-    Button,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Alert, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import { Link } from 'react-router';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { AgentAccessReportPanel } from './AgentAccessReportPanel';
 import { AiServiceAccountForm } from './AiServiceAccountForm';
 import {
     useAiServiceAccount,
@@ -32,11 +23,7 @@ import {
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
-import {
-    agentIdentitySentence,
-    identityWarehouseNames,
-    inlineIdentityLabel,
-} from './identityLabels';
+import { useTestAgentAccess } from './useTestAgentAccess';
 
 const AiServiceAccountSlotSummary = ({
     projectUuid,
@@ -51,6 +38,7 @@ const AiServiceAccountSlotSummary = ({
 }) => {
     const remove = useDeleteAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
+    const accessTest = useTestAgentAccess(projectUuid, null);
     const [removing, setRemoving] = useState(false);
     return (
         <>
@@ -64,7 +52,11 @@ const AiServiceAccountSlotSummary = ({
                 <Group gap="xs">
                     <Button
                         variant="default"
-                        disabled={test.isLoading || remove.isLoading}
+                        disabled={
+                            test.isLoading ||
+                            accessTest.isLoading ||
+                            remove.isLoading
+                        }
                         onClick={() => {
                             test.reset();
                             onReplace();
@@ -75,7 +67,7 @@ const AiServiceAccountSlotSummary = ({
                     <Button
                         variant="default"
                         loading={test.isLoading}
-                        disabled={remove.isLoading}
+                        disabled={remove.isLoading || accessTest.isLoading}
                         onClick={() =>
                             test.mutate(
                                 { credentials: null },
@@ -91,15 +83,46 @@ const AiServiceAccountSlotSummary = ({
                         Test
                     </Button>
                     <Button
+                        variant="default"
+                        loading={accessTest.isLoading}
+                        disabled={test.isLoading || remove.isLoading}
+                        onClick={() =>
+                            accessTest.mutate({
+                                credentials: null,
+                                entryPoint: 'project_agent_identity_page',
+                            })
+                        }
+                    >
+                        Test as agent
+                    </Button>
+                    <Button
                         variant="subtle"
                         color="red"
-                        disabled={test.isLoading || remove.isLoading}
+                        disabled={
+                            test.isLoading ||
+                            accessTest.isLoading ||
+                            remove.isLoading
+                        }
                         onClick={() => setRemoving(true)}
                     >
                         Remove
                     </Button>
                 </Group>
             </Group>
+            {accessTest.isLoading ? (
+                <Text size="sm" role="status">
+                    Checking agent access…
+                </Text>
+            ) : (
+                accessTest.data && (
+                    <AgentAccessReportPanel report={accessTest.data} />
+                )
+            )}
+            {accessTest.isError && (
+                <Text size="sm" c="red" role="alert">
+                    Could not test agent access. Try again.
+                </Text>
+            )}
             {test.data && !test.data.ok && (
                 <Text size="sm" role="status">
                     {test.data.message}
@@ -124,6 +147,7 @@ const AiServiceAccountSlotSummary = ({
                     remove.mutate(undefined, {
                         onSuccess: () => {
                             test.reset();
+                            accessTest.reset();
                             setRemoving(false);
                         },
                     })
@@ -150,27 +174,6 @@ const AiServiceAccountSettingsContent = ({
 }) => {
     return (
         <Stack gap="sm">
-            <Text size="sm">
-                {agentIdentitySentence(identityWarehouseNames.bigquery)}{' '}
-                {inlineIdentityLabel(rule.source)}.
-            </Text>
-            <Text size="sm">
-                {rule.source === 'ai_service_account' &&
-                    'Required by your organisation. '}
-                <Anchor
-                    component={Link}
-                    to="/generalSettings/warehouseCredentials"
-                    size="sm"
-                >
-                    Organisation settings
-                </Anchor>
-            </Text>
-            {rule.source === 'marked_person' && (
-                <Text size="sm" c="dimmed">
-                    Agents use the same credentials as the user. No AI service
-                    account key is needed.
-                </Text>
-            )}
             {!slot && rule.source === 'ai_service_account' && (
                 <Alert color="yellow">
                     AI agents on this connection are refused until an AI service

@@ -341,83 +341,122 @@ describe.skipIf(!stubUrl)(
             expect(connectedPage.body).not.toContain('warehouse agent');
         });
 
-        it.each(['expiring-code', 'revoking-code'])(
-            'refuses SQL after connecting with %s',
+        it('refreshes successfully after the stored grant deadline', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            const callback = await completeSignIn(
+                client,
+                '/agent-connected',
+                'expiring-code',
+            );
+            expect(callback.status).toBe(302);
+            await setTimeout(1500);
+            const callTool = await openMcpSession(client, projectUuid!);
+            const result = await callTool('run_sql', {
+                projectUuid,
+                sql,
+                limit: 1,
+            });
+            expect(result.isError).toBeFalsy();
+            const access = await client.get<Body<AiAccessForUser>>(
+                `/api/v2/projects/${projectUuid}/ai-access/me`,
+            );
+            expect(access.body.results.refusal).toBeNull();
+            expect(
+                new Date(access.body.results.expiresAt!).getTime(),
+            ).toBeGreaterThan(Date.now() + 80 * 86400000);
+        });
+
+        it('refuses SQL when the endpoint reports a revoked grant', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            expect(
+                (
+                    await completeSignIn(
+                        client,
+                        '/agent-connected',
+                        'revoking-code',
+                    )
+                ).status,
+            ).toBe(302);
+            const callTool = await openMcpSession(client, projectUuid!);
+            const result = await callTool('run_sql', {
+                projectUuid,
+                sql,
+                limit: 1,
+            });
+            expect(result.isError).toBe(true);
+            expect(mcpText(result)).toContain(
+                getAiAccessRefusalMessage(
+                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                ),
+            );
+            expect(mcpText(result)).toContain('/agent/connect');
+        });
+
+        it.each(['unavailable-code', 'network-drop-code'])(
+            'keeps the credential and permits retry after %s',
             async (code) => {
                 const { client } = await loginWithPermissions('member', [
                     { role: 'admin', projectUuid: projectUuid! },
                 ]);
                 people.push(client);
-                const callback = await completeSignIn(
-                    client,
-                    '/agent-connected',
-                    code,
-                );
-                expect(callback.status).toBe(302);
-                expect(callback.headers.get('location')).toBe(
-                    new URL('/agent-connected', SITE_URL).href,
-                );
-                if (code === 'expiring-code') await setTimeout(1500);
-                const access = await client.get<Body<AiAccessForUser>>(
-                    `/api/v2/projects/${projectUuid}/ai-access/me`,
-                );
-                expect(access.status).toBe(200);
-                const connectUrl = new URL('/agent/connect', SITE_URL);
-                connectUrl.searchParams.set('project', projectUuid!);
-                connectUrl.searchParams.set('redirect', '/agent-connected');
-                const statusConnectUrl = new URL(connectUrl);
-                statusConnectUrl.searchParams.set(
-                    'entryPoint',
-                    AgentIdentityConnectEntryPoint.UNKNOWN,
-                );
-                const mcpConnectUrl = new URL(connectUrl);
-                mcpConnectUrl.searchParams.set(
-                    'entryPoint',
-                    AgentIdentityConnectEntryPoint.MCP_CONNECT_LINK,
-                );
-                const message = getAiAccessRefusalMessage(
-                    AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                );
-                if (code === 'expiring-code') {
-                    expect(access.body.results).toMatchObject({
-                        expiresAt: null,
-                        refusal: {
-                            reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                            connectUrl: statusConnectUrl.href,
-                        },
-                    });
-                } else {
-                    expect(access.body.results).toMatchObject({
-                        identity: 'connected_person',
-                        refusal: null,
-                    });
-                    expect(
-                        new Date(access.body.results.expiresAt!).getTime(),
-                    ).toBeGreaterThan(Date.now() + 80 * 86400000);
-                }
+                expect(
+                    (await completeSignIn(client, '/agent-connected', code))
+                        .status,
+                ).toBe(302);
+                const credentialsUrl = '/api/v1/user/warehouseCredentials';
+                const before =
+                    await client.get<Body<UserWarehouseCredentials[]>>(
+                        credentialsUrl,
+                    );
                 const callTool = await openMcpSession(client, projectUuid!);
-                const refused = await callTool('run_sql', {
+                const failed = await callTool('run_sql', {
                     projectUuid,
                     sql,
                     limit: 1,
                 });
-                expect(refused.isError).toBe(true);
-                expect(mcpText(refused)).toContain(message);
-                expect(mcpText(refused)).toContain(mcpConnectUrl.href);
-                if (code === 'expiring-code') {
-                    expect(
-                        await callTool('connect_agent', { projectUuid }),
-                    ).toMatchObject({
-                        structuredContent: {
-                            status: 'needs_sign_in',
-                            message,
-                            connectUrl: mcpConnectUrl.href,
-                            expiresAt: null,
-                        },
-                    });
-                }
+                expect(failed.isError).toBe(true);
+                expect(mcpText(failed)).toContain('Try again in a moment.');
+                expect(mcpText(failed)).not.toContain('/agent/connect');
+                const after =
+                    await client.get<Body<UserWarehouseCredentials[]>>(
+                        credentialsUrl,
+                    );
+                expect(after.body.results).toEqual(before.body.results);
+                expect(
+                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
+                        .isError,
+                ).toBeFalsy();
             },
         );
+
+        it('rotates single-use refresh tokens across successive queries', async () => {
+            const { client } = await loginWithPermissions('member', [
+                { role: 'admin', projectUuid: projectUuid! },
+            ]);
+            people.push(client);
+            expect(
+                (
+                    await completeSignIn(
+                        client,
+                        '/agent-connected',
+                        'single-use-code',
+                    )
+                ).status,
+            ).toBe(302);
+            const callTool = await openMcpSession(client, projectUuid!);
+            for (let index = 0; index < 3; index += 1) {
+                expect(
+                    (await callTool('run_sql', { projectUuid, sql, limit: 1 }))
+                        .isError,
+                ).toBeFalsy();
+            }
+        });
 
         it('returns to the local client after sign-in', async () => {
             const callback = await completeSignIn(
