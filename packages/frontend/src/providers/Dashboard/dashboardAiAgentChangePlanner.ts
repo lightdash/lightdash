@@ -1,3 +1,11 @@
+import {
+    assertUnreachable,
+    isDashboardChartTileType,
+    isDashboardSqlChartTile,
+    type DashboardChartTile,
+    type DashboardSqlChartTile,
+    type DashboardTile,
+} from '@lightdash/common';
 import { type StreamPart } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 
 type SuccessfulContentToolCall = Extract<StreamPart, { type: 'toolCall' }> & {
@@ -11,21 +19,26 @@ type SuccessfulContentToolCall = Extract<StreamPart, { type: 'toolCall' }> & {
     };
 };
 
+export type DashboardAiAgentChartRef = {
+    type: 'chart' | 'sql_chart';
+    slug: string;
+};
+
 export type DashboardAiAgentChangeAction =
     | {
           type: 'refreshDashboard';
-          focusChartSlug?: string;
+          focusChart: DashboardAiAgentChartRef | null;
       }
     | {
           type: 'refreshChart';
-          chartSlug: string;
+          chart: DashboardAiAgentChartRef;
           focusTile: boolean;
       };
 
 export type DashboardAiAgentChangePlan = {
     handledToolCallIds: string[];
     actions: DashboardAiAgentChangeAction[];
-    pendingChartSlugToFocus: string | null;
+    pendingChartToFocus: DashboardAiAgentChartRef | null;
 };
 
 const isSuccessfulContentToolCall = (
@@ -49,16 +62,16 @@ export const planDashboardAiAgentChanges = ({
     parts,
     handledToolCallIds,
     currentDashboardSlug,
-    pendingChartSlugToFocus,
+    pendingChartToFocus,
 }: {
     parts: StreamPart[];
     handledToolCallIds: Set<string>;
     currentDashboardSlug: string;
-    pendingChartSlugToFocus: string | null;
+    pendingChartToFocus: DashboardAiAgentChartRef | null;
 }): DashboardAiAgentChangePlan => {
     const actions: DashboardAiAgentChangeAction[] = [];
     const nextHandledToolCallIds: string[] = [];
-    let nextPendingChartSlugToFocus = pendingChartSlugToFocus;
+    let nextPendingChartToFocus = pendingChartToFocus;
 
     for (const part of parts) {
         if (!isSuccessfulContentToolCall(part)) continue;
@@ -70,24 +83,38 @@ export const planDashboardAiAgentChanges = ({
 
         switch (part.toolArgs.type) {
             case 'chart': {
+                const chart: DashboardAiAgentChartRef = {
+                    type: 'chart',
+                    slug: contentSlug,
+                };
                 const targetDashboardSlug = getTargetDashboardSlug(part);
                 if (
                     part.toolName === 'createContent' &&
                     targetDashboardSlug === currentDashboardSlug
                 ) {
-                    nextPendingChartSlugToFocus = contentSlug;
+                    nextPendingChartToFocus = chart;
                     actions.push({
                         type: 'refreshDashboard',
-                        focusChartSlug: contentSlug,
+                        focusChart: chart,
                     });
                     break;
                 }
 
-                actions.push({
-                    type: 'refreshChart',
-                    chartSlug: contentSlug,
-                    focusTile: true,
-                });
+                actions.push({ type: 'refreshChart', chart, focusTile: true });
+                break;
+            }
+            case 'sql_chart': {
+                const chart: DashboardAiAgentChartRef = {
+                    type: 'sql_chart',
+                    slug: contentSlug,
+                };
+                // SQL charts are created outside dashboards; focus once a dashboard edit adds the tile.
+                if (part.toolName === 'createContent') {
+                    nextPendingChartToFocus = chart;
+                    break;
+                }
+
+                actions.push({ type: 'refreshChart', chart, focusTile: true });
                 break;
             }
             case 'dashboard': {
@@ -95,16 +122,57 @@ export const planDashboardAiAgentChanges = ({
 
                 actions.push({
                     type: 'refreshDashboard',
-                    focusChartSlug: nextPendingChartSlugToFocus ?? undefined,
+                    focusChart: nextPendingChartToFocus,
                 });
                 break;
             }
+            case 'document':
+                break;
+            default:
+                return assertUnreachable(
+                    part.toolArgs.type,
+                    `Unknown content type: ${part.toolArgs.type}`,
+                );
         }
     }
 
     return {
         handledToolCallIds: nextHandledToolCallIds,
         actions,
-        pendingChartSlugToFocus: nextPendingChartSlugToFocus,
+        pendingChartToFocus: nextPendingChartToFocus,
     };
+};
+
+export type DashboardAiAgentChartTiles =
+    | { type: 'chart'; tiles: DashboardChartTile[] }
+    | { type: 'sql_chart'; tiles: DashboardSqlChartTile[] };
+
+export const getDashboardTilesForChart = (
+    tiles: DashboardTile[],
+    chart: DashboardAiAgentChartRef,
+): DashboardAiAgentChartTiles => {
+    switch (chart.type) {
+        case 'chart':
+            return {
+                type: 'chart',
+                tiles: tiles.filter(
+                    (tile): tile is DashboardChartTile =>
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.chartSlug === chart.slug &&
+                        !!tile.properties.savedChartUuid,
+                ),
+            };
+        case 'sql_chart':
+            return {
+                type: 'sql_chart',
+                tiles: tiles.filter(
+                    (tile): tile is DashboardSqlChartTile =>
+                        isDashboardSqlChartTile(tile) &&
+                        tile.properties.chartSlug === chart.slug &&
+                        !!tile.properties.savedSqlUuid,
+                ),
+            };
+        default:
+            return assertUnreachable(chart.type, 'Unknown chart type');
+    }
 };
