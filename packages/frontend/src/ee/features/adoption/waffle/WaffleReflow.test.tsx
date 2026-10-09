@@ -3,11 +3,13 @@ import {
     type OrganizationAdoptionSummary,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
+import { useState, type ComponentProps, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import type * as ColourTransitionModule from '../map/colourTransition';
 import mapStyles from '../map/DepartmentMap.module.css';
+import { type ColourBy } from '../map/geometry';
 import {
     dept,
     metricsFixture,
@@ -67,14 +69,30 @@ const crowd = (headcount: number): DepartmentWithMetrics => {
     });
 };
 
+// The page holds the department selected and the colouring; here a stand-in does
+const WaffleOnPage: FC<
+    Omit<
+        ComponentProps<typeof WaffleView>,
+        'selectedUuid' | 'onSelect' | 'colourBy' | 'onColourByChange'
+    >
+> = (props) => {
+    const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
+    return (
+        <WaffleView
+            {...props}
+            selectedUuid={selectedUuid}
+            onSelect={setSelectedUuid}
+            colourBy={colourBy}
+            onColourByChange={setColourBy}
+        />
+    );
+};
+
 const renderWaffle = (departments: DepartmentWithMetrics[]) =>
     renderWithProviders(
         <MemoryRouter>
-            <WaffleView
-                summary={summaryOf(departments)}
-                canManage
-                onEdit={vi.fn()}
-            />
+            <WaffleOnPage summary={summaryOf(departments)} canManage />
         </MemoryRouter>,
     );
 

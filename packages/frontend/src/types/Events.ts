@@ -69,7 +69,6 @@ export enum PageName {
     FUNNEL_BUILDER = 'funnel_builder',
     ROADMAP = 'roadmap',
     ADOPTION = 'adoption',
-    ADOPTION_DEPARTMENT = 'adoption_department',
     LEARN = 'learn',
     LEARN_WORKSPACE = 'learn_workspace',
 }
@@ -268,4 +267,5 @@ export enum EventName {
     LEARN_WALKTHROUGH_STARTED = 'learn_walkthrough.started',
     LEARN_WALKTHROUGH_COMPLETED = 'learn_walkthrough.completed',
     LEARN_WALKTHROUGH_DISMISSED = 'learn_walkthrough.dismissed',
+    ADOPTION_DEPARTMENT_SELECTED = 'adoption_department.selected',
 }

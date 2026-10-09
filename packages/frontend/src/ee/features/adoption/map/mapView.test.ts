@@ -27,11 +27,9 @@ import {
     buildMapAriaLabel,
     countDotKinds,
     describeCircles,
-    formatMemberActivity,
     formatPct,
     getFocusTrail,
     getLegendCounts,
-    getMemberDepartmentLines,
     getRingKeys,
     getViewTotals,
     getVisibleDepartments,
@@ -43,7 +41,6 @@ import {
 } from './mapView';
 import { deepOrganization, flatOrganization } from './organizationFixtures';
 
-const NOW = new Date('2026-10-07T12:00:00Z');
 const RECENT = '2026-10-01T12:00:00Z';
 
 const d = (
@@ -763,59 +760,5 @@ describe('formatPct', () => {
         expect(formatPct(0, 0)).toBe('0%');
         expect(formatPct(41, 12)).toBe('41%');
         expect(formatPct(null, 12)).toBeNull();
-    });
-});
-
-describe('getMemberDepartmentLines', () => {
-    it('adds nothing for a person in one department', () => {
-        expect(
-            getMemberDepartmentLines(
-                memberFixture('ann', null, {
-                    departmentUuid: 'Stores',
-                    departmentName: 'Stores',
-                }),
-            ),
-        ).toEqual([]);
-    });
-    it('names every department a person is in, by name', () => {
-        expect(
-            getMemberDepartmentLines(
-                memberFixture('sam', null, {
-                    departmentUuid: 'Stores',
-                    departmentName: 'Stores',
-                    sharedWith: [ref('Marketing'), ref('Depots')],
-                }),
-            ),
-        ).toEqual(['In 3 departments: Depots, Marketing, Stores']);
-    });
-    it('says where a person with a primary counts', () => {
-        expect(
-            getMemberDepartmentLines(
-                memberFixture('pat', null, {
-                    departmentUuid: 'Stores',
-                    departmentName: 'Stores',
-                    sharedWith: [ref('Finance')],
-                    primaryDepartmentUuid: 'Stores',
-                }),
-            ),
-        ).toEqual(['In 2 departments: Finance, Stores', 'Counts in: Stores']);
-    });
-});
-
-describe('formatMemberActivity', () => {
-    it('reads as a sentence for recent days and keeps dates as written', () => {
-        expect(formatMemberActivity(null, NOW)).toBe('No activity in 90 days');
-        expect(formatMemberActivity('2026-10-07T08:00:00Z', NOW)).toBe(
-            'Last active today',
-        );
-        expect(formatMemberActivity('2026-10-06T08:00:00Z', NOW)).toBe(
-            'Last active yesterday',
-        );
-        expect(formatMemberActivity(RECENT, NOW)).toBe(
-            'Last active 6 days ago',
-        );
-        expect(formatMemberActivity('2026-01-05T08:00:00Z', NOW)).toMatch(
-            /^Last active \d{1,2} Jan 2026$/,
-        );
     });
 });

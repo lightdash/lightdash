@@ -32,6 +32,8 @@ type Props = {
     selectedUuid: string | null;
     // What shows the selection in this block: the block itself, or the part holding the selected department
     markedUuid: string | null;
+    // Another department is selected, so this one gives way to it
+    isDimmed: boolean;
     onSelect: (departmentUuid: string) => void;
 };
 
@@ -128,6 +130,7 @@ export const WaffleBlock = memo<Props>(
         canManage,
         selectedUuid,
         markedUuid,
+        isDimmed,
         onSelect,
     }) => {
         const counts = formatCounts(
@@ -142,6 +145,7 @@ export const WaffleBlock = memo<Props>(
         return (
             <Box
                 className={styles.block}
+                data-dimmed={isDimmed || undefined}
                 __vars={{
                     '--block-x': px(layout.x),
                     '--block-y': px(layout.y),

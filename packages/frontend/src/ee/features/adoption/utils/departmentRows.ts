@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { formatCount, formatQuantity, PEOPLE, type Noun } from './format';
 
-// Levels shown in the table; deeper levels open on the department page
+// Levels shown in the table; deeper levels are the sub-departments of the department selected
 const MAX_TABLE_DEPTH = 3;
 
 export type DepartmentRow = {
@@ -18,7 +18,7 @@ export type DepartmentRow = {
 };
 
 // Ascending coverage; departments without a headcount go last, ties by name
-export const sortByCoverage = (
+const sortByCoverage = (
     departments: DepartmentWithMetrics[],
 ): DepartmentWithMetrics[] =>
     [...departments].sort((a, b) => {

@@ -1,18 +1,17 @@
 import { type DepartmentVennRegion } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { memberFixture } from './adoptionFixtures';
+import { memberFixture, metricsFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
     describeVennRegion,
     filterMembers,
     formatAlsoIn,
+    formatDepartmentCounts,
     formatLastActive,
     formatMemberSource,
     formatOverlapUsage,
     formatTopContentUsage,
     formatVennCount,
-    getActiveCaption,
-    getCoverageCaption,
     getOverlapRowLabel,
     getOverlapSelection,
     getOverlapSelectionLabel,
@@ -321,21 +320,37 @@ describe('getWeeklyChartLabel', () => {
     });
 });
 
-describe('getCoverageCaption', () => {
-    it('counts against the headcount, the same base as the percentage', () => {
-        expect(getCoverageCaption(40, 3)).toBe(
-            '3 of 40 people have an account',
-        );
-        expect(getCoverageCaption(40, 0)).toBe(
-            '0 of 40 people have an account',
-        );
-        expect(getCoverageCaption(2350, 221)).toBe(
-            '221 of 2,350 people have an account',
+describe('formatDepartmentCounts', () => {
+    const counts = (
+        hasHeadcount: boolean,
+        effectiveHeadcount: number,
+        memberCount: number,
+        activeCount30d: number,
+    ) =>
+        formatDepartmentCounts({
+            hasHeadcount,
+            effectiveHeadcount,
+            metrics: metricsFixture(memberCount, null, { activeCount30d }),
+        });
+    it('gives the people on Lightdash of the headcount, the active ones and the people without an account', () => {
+        expect(counts(true, 420, 187, 115)).toBe(
+            '187 of 420 on Lightdash · 115 active in 30 days · 233 without an account',
         );
     });
-    it('gives the people on Lightdash without a headcount, as they are all that is counted', () => {
-        expect(getCoverageCaption(null, 3)).toBe('3 people on Lightdash');
-        expect(getCoverageCaption(null, 1)).toBe('1 person on Lightdash');
+    it('leaves out the people without an account when everyone in the headcount has one', () => {
+        expect(counts(true, 9, 9, 9)).toBe(
+            '9 of 9 on Lightdash · 9 active in 30 days',
+        );
+    });
+    it('gives only the people on Lightdash without a headcount, as they are all it counts', () => {
+        expect(counts(false, 14, 14, 10)).toBe(
+            '14 on Lightdash · 10 active in 30 days',
+        );
+    });
+    it('groups thousands', () => {
+        expect(counts(true, 2350, 1317, 1002)).toBe(
+            '1,317 of 2,350 on Lightdash · 1,002 active in 30 days · 1,033 without an account',
+        );
     });
 });
 
@@ -409,33 +424,6 @@ describe('getTopContentPath', () => {
                 projectUuid: PROJECT,
             }),
         ).toBe(`/projects/${PROJECT}/dashboards/d1/view`);
-    });
-});
-
-describe('getActiveCaption', () => {
-    it('leads with the headcount base and adds the account base separately', () => {
-        expect(getActiveCaption(40, 2, 3)).toBe(
-            '2 of 40 people were active · 2 of the 3 with an account',
-        );
-    });
-    it('uses the account base only without a headcount', () => {
-        expect(getActiveCaption(null, 2, 3)).toBe(
-            '2 of the 3 with an account were active',
-        );
-    });
-    it('handles zero members', () => {
-        expect(getActiveCaption(40, 0, 0)).toBe('0 of 40 people were active');
-        expect(getActiveCaption(null, 0, 0)).toBe('No one has an account yet');
-    });
-    it('groups thousands', () => {
-        expect(getActiveCaption(2350, 1126, 1221)).toBe(
-            '1,126 of 2,350 people were active · 1,126 of the 1,221 with an account',
-        );
-    });
-    it('gives the headcount base alone when everyone in the headcount has an account', () => {
-        expect(getActiveCaption(191, 85, 191)).toBe(
-            '85 of 191 people were active',
-        );
     });
 });
 
