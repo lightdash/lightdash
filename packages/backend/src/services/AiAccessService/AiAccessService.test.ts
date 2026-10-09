@@ -884,12 +884,8 @@ describe('AiAccessService', () => {
         test.each([undefined, 'agent-credential'])(
             'checks Snowflake lineage on a composed result with source %s',
             async (credential) => {
-                const { service, historyModel, connections, projects } =
-                    setup();
+                const { service, historyModel, connections } = setup();
                 connections.getCredentials.mockResolvedValue(snowflake);
-                projects.getWarehouseCredentialsForBinding.mockResolvedValue(
-                    snowflake,
-                );
                 historyModel.getDuckdbExecution.mockImplementation(
                     async (uuid) =>
                         uuid === 'composed'
@@ -916,6 +912,61 @@ describe('AiAccessService', () => {
                             reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
                         },
                     });
+                }
+            },
+        );
+
+        test.each([true, false])(
+            'checks the source identity after a cross-warehouse rule change with result checks %s',
+            async (enabled) => {
+                const {
+                    service,
+                    historyModel,
+                    connections,
+                    organizationRules,
+                } = setup(enabled);
+                const trackRefusal = vi.spyOn(service, 'trackQueryRefusal');
+                connections.getCredentials.mockResolvedValue(snowflake);
+                historyModel.get.mockResolvedValue({
+                    ...history('agent-credential', QueryExecutionContext.AI),
+                    queryUuid: 'source',
+                    warehouseConnectionUuid: 'extra',
+                });
+                const root: QueryHistoryWithLineage = {
+                    ...history('agent-credential', QueryExecutionContext.AI),
+                    queryUuid: 'composed',
+                    duckdbExecutionReferences: { source: 'source' },
+                };
+                await expect(
+                    service.assertCanReadResults(account, 'project', root),
+                ).resolves.toMatchObject({ identity: 'connected_person' });
+
+                organizationRules.get.mockResolvedValue({
+                    source: 'marked_person',
+                });
+                trackRefusal.mockClear();
+                const reading = service.assertCanReadResults(
+                    account,
+                    'project',
+                    root,
+                );
+                if (enabled) {
+                    await expect(reading).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                    expect(trackRefusal).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({
+                            warehouseConnectionUuid: 'extra',
+                        }),
+                        AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                    );
+                } else {
+                    await expect(reading).resolves.toMatchObject({
+                        identity: 'marked_person',
+                    });
+                    expect(trackRefusal).not.toHaveBeenCalled();
                 }
             },
         );

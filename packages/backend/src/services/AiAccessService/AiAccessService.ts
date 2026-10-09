@@ -1153,7 +1153,7 @@ export class AiAccessService extends BaseService {
             Promise<AiExecutionPlan>
         >();
         await [...nodes.values()].reduce(
-            async (previous, { queryHistory: node }) => {
+            async (previous, { queryHistory: node, sources }) => {
                 await previous;
                 const uuid = node.queryUuid;
                 if (
@@ -1199,8 +1199,9 @@ export class AiAccessService extends BaseService {
                 const generation = getAiExecutionCredentialUuid(plan);
                 if (
                     node.status === QueryHistoryStatus.READY &&
-                    (this.lightdashConfig?.ai
-                        ?.agentResultIdentityCheckEnabled !== false ||
+                    ((sources.length === 0 &&
+                        this.lightdashConfig?.ai
+                            ?.agentResultIdentityCheckEnabled !== false) ||
                         generation !== null) &&
                     (node.requestParameters?.aiSignInCredentialUuid ?? null) !==
                         generation
