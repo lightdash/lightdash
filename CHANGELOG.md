@@ -1,3 +1,10 @@
+# [2.498.0](https://github.com/lightdash/lightdash/compare/2.497.1...2.498.0) (2026-10-09)
+
+
+### Features
+
+* **feature-flags:** add desktop-experiments flag for Lightdash Desktop ([#30786](https://github.com/lightdash/lightdash/issues/30786)) ([7d627e4](https://github.com/lightdash/lightdash/commit/7d627e40f8d934594c349758ccd48e04d28f8b7f))
+
 ## [2.497.1](https://github.com/lightdash/lightdash/compare/2.497.0...2.497.1) (2026-10-09)
 
 
