@@ -64,6 +64,7 @@ describe('Csv service', () => {
         analytics: analyticsMock,
         userModel: {} as UserModel,
         projectService: new ProjectService({
+            refreshTokenRotation: { run: vi.fn() },
             aiAccessService: {
                 resolvePlan: vi.fn(async () => null),
             } as unknown as AiAccessService,

@@ -158,6 +158,7 @@ const setup = (
     };
     const userModel = { findSessionUserByUUID: vi.fn(async () => creator) };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigWithGoogleOAuthMock,
             warehouseClient: {

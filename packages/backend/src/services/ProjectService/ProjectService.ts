@@ -236,7 +236,6 @@ import {
     SingleConnectionProjectError,
     snakeCaseName,
     SnowflakeAuthenticationType,
-    SnowflakeTokenError,
     SortField,
     SpaceQuery,
     SpaceSummary,
@@ -379,6 +378,7 @@ import {
     type PushToPreview,
 } from '../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
+import type { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SshKeyPairModel } from '../../models/SshKeyPairModel';
@@ -466,6 +466,7 @@ import {
     aiClientFromQueryContext,
     connectionContextFromAccount,
     connectionContextFromUser,
+    ConnectionSurface,
     connectionSurfaceFromQuerySurface,
     surfaceFromQueryContext,
     WarehouseCredentialKind,
@@ -473,6 +474,10 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { type CredentialOwner } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import {
+    prepareSnowflakeOAuthCredentials,
+    SnowflakeOAuthCredentialResolver,
+} from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
@@ -595,6 +600,7 @@ export type InternalProvisioningSource =
 export type InternalProvisioning = { source: InternalProvisioningSource };
 
 export type ProjectServiceArguments = {
+    refreshTokenRotation: Pick<RefreshTokenRotation, 'run'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -869,7 +875,10 @@ export class ProjectService
 
     seedTrainingCopyEnterpriseContent: ProjectServiceArguments['seedTrainingCopyEnterpriseContent'];
 
+    private readonly snowflakeOAuthCredentialResolver: SnowflakeOAuthCredentialResolver;
+
     constructor({
+        refreshTokenRotation,
         lightdashConfig,
         analytics,
         projectModel,
@@ -933,10 +942,33 @@ export class ProjectService
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
+        this.snowflakeOAuthCredentialResolver =
+            new SnowflakeOAuthCredentialResolver({
+                refreshTokenRotation,
+                featureFlagModel,
+                projectModel,
+                organizationWarehouseCredentialsModel,
+                userWarehouseCredentialsModel,
+                warehouseConnectionModel,
+                userOAuthGrantsModel,
+                logger: this.logger,
+                attributeSharedSignInExpiry: (
+                    projectUuid,
+                    credentials,
+                    error,
+                ) =>
+                    this.warehouseClientFactory.attributeSharedSignInExpiry(
+                        projectUuid,
+                        credentials,
+                        error,
+                    ),
+            });
         const credentialResolvers = createCredentialResolverRegistry({
             lightdashConfig,
             userOAuthGrantsModel,
             sshKeyPairModel,
+            snowflakeOAuthCredentialResolver:
+                this.snowflakeOAuthCredentialResolver,
         });
         this.warehouseClientFactory = new WarehouseClientFactory({
             credentialResolvers,
@@ -1617,56 +1649,6 @@ export class ProjectService
         userUuid: string,
     ): Promise<T> {
         if (
-            args.type === WarehouseTypes.SNOWFLAKE &&
-            args.authenticationType === 'sso'
-        ) {
-            try {
-                const { refreshToken } = args;
-
-                // If we don't have a token, we can't refresh
-                if (!refreshToken) {
-                    throw new Error(
-                        'No refresh token available for Snowflake SSO authentication',
-                    );
-                }
-                this.logger.debug(
-                    `Refreshing snowflake token for user ${userUuid}`,
-                );
-                // If we try to generate access token from token instead of refreshToken
-                // it will throw an error: The request was invalid.
-                const { accessToken, refreshToken: newRefreshToken } =
-                    await UserService.generateSnowflakeAccessToken(
-                        refreshToken,
-                    );
-                return {
-                    ...args,
-                    authenticationType: SnowflakeAuthenticationType.SSO,
-                    token: accessToken,
-                    refreshToken: newRefreshToken,
-                };
-            } catch (e: unknown) {
-                if (e instanceof LightdashError) {
-                    throw e;
-                }
-                this.logger.error(
-                    `Error refreshing snowflake token: ${JSON.stringify(e)}`,
-                );
-
-                let errorMessage = '';
-                try {
-                    // Try to get detailed error message from snowflake refresh token error
-                    const errorDetails = JSON.parse(
-                        (e as { data: string }).data,
-                    ).message;
-                    errorMessage = `Error refreshing snowflake token: ${errorDetails}`;
-                } catch (e2: unknown) {
-                    errorMessage = 'Error refreshing snowflake token';
-                }
-                throw new SnowflakeTokenError(errorMessage);
-            }
-        }
-
-        if (
             args.type === WarehouseTypes.DATABRICKS &&
             args.authenticationType === DatabricksAuthenticationType.OAUTH_M2M
         ) {
@@ -1822,6 +1804,46 @@ export class ProjectService
         userUuid: string,
         source: RefreshTokenRotationSource,
     ): Promise<T> {
+        if (
+            args.type === WarehouseTypes.SNOWFLAKE &&
+            args.authenticationType === SnowflakeAuthenticationType.SSO
+        ) {
+            const owner = ProjectService.getCredentialOwner(source);
+            let projectUuid: string | null = null;
+            if (source.kind === 'project') projectUuid = source.projectUuid;
+            if (source.kind === 'warehouseConnection')
+                projectUuid = source.project.projectUuid;
+            const resolved =
+                await this.snowflakeOAuthCredentialResolver.resolve({
+                    connection: args,
+                    stored: args,
+                    owner,
+                    context: {
+                        organizationUuid: null,
+                        actor: {
+                            surface: ConnectionSurface.APP,
+                            person: {
+                                userUuid,
+                                isRegisteredUser: true,
+                                isServiceAccount: false,
+                            },
+                            aiClient: null,
+                        },
+                        purpose: 'query',
+                        queryContext: null,
+                        aiAccess: 'enforce',
+                    },
+                    projectUuid,
+                    warehouseConnectionUuid:
+                        source.kind === 'warehouseConnection'
+                            ? source.warehouseConnectionUuid
+                            : null,
+                    credentialKind: WarehouseCredentialKind.SHARED,
+                    aiPlan: null,
+                });
+            return { ...args, ...resolved.clientCredentials };
+        }
+
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
         const refreshed = await this.refreshCredentials(args, userUuid).catch(
@@ -2388,6 +2410,21 @@ export class ProjectService
         };
     }
 
+    private static getCredentialOwner(
+        source: RefreshTokenRotationSource,
+    ): CredentialOwner {
+        return source.kind === 'user'
+            ? {
+                  kind: 'user',
+                  uuid: source.userWarehouseCredentialsUuid,
+                  purpose: UserWarehouseCredentialPurpose.DEFAULT,
+              }
+            : {
+                  kind: source.kind,
+                  uuid: ProjectService.getRotationSourceUuid(source),
+              };
+    }
+
     private async materializeSelectedCredentials(
         base: WarehouseCredentialBase,
         context: WarehouseCredentialResolutionContext,
@@ -2395,17 +2432,7 @@ export class ProjectService
         userUuid: string,
         source: RefreshTokenRotationSource,
     ): Promise<CreateWarehouseCredentials> {
-        const owner: CredentialOwner =
-            source.kind === 'user'
-                ? {
-                      kind: 'user',
-                      uuid: source.userWarehouseCredentialsUuid,
-                      purpose: UserWarehouseCredentialPurpose.DEFAULT,
-                  }
-                : {
-                      kind: source.kind,
-                      uuid: ProjectService.getRotationSourceUuid(source),
-                  };
+        const owner = ProjectService.getCredentialOwner(source);
         return this.warehouseClientFactory.materializeCredentials(
             credentials,
             context,
@@ -2641,20 +2668,45 @@ export class ProjectService
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from organization credentials uuid: ${organizationWarehouseCredentialsUuid}`,
             );
-            const credentials =
-                organizationCredentialRotation === 'persist'
-                    ? await this.refreshCredentialsAndPersistRotation(
-                          mergedWarehouseConnection,
-                          userUuid,
-                          {
-                              kind: 'organization',
-                              organizationWarehouseCredentialsUuid,
-                          },
-                      )
-                    : await this.refreshCredentials(
-                          mergedWarehouseConnection,
-                          userUuid,
-                      );
+            if (
+                mergedWarehouseConnection.authenticationType !==
+                SnowflakeAuthenticationType.SSO
+            ) {
+                return {
+                    ...args,
+                    warehouseConnection: mergedWarehouseConnection,
+                };
+            }
+            const owner: CredentialOwner = {
+                kind: 'organization',
+                uuid: organizationWarehouseCredentialsUuid,
+            };
+            const resolved =
+                await this.snowflakeOAuthCredentialResolver.refresh(
+                    {
+                        connection: mergedWarehouseConnection,
+                        stored: mergedWarehouseConnection,
+                        owner,
+                        context: connectionContextFromUser(
+                            { userUuid },
+                            { organizationUuid, queryContext: null },
+                        ),
+                        projectUuid: null,
+                        warehouseConnectionUuid: null,
+                        credentialKind: WarehouseCredentialKind.SHARED,
+                        aiPlan: null,
+                    },
+                    {
+                        errorPolicy: 'standard',
+                        legacyOwner:
+                            organizationCredentialRotation === 'persist'
+                                ? owner
+                                : null,
+                    },
+                );
+            const credentials = prepareSnowflakeOAuthCredentials(
+                resolved.clientCredentials,
+            );
 
             return {
                 ...args,
@@ -2686,42 +2738,15 @@ export class ProjectService
                         credentialKind: WarehouseCredentialKind.SHARED,
                         aiPlan: null,
                         intent:
-                            connection.type === WarehouseTypes.BIGQUERY &&
-                            connection.keyfileContents?.type !==
-                                'authorized_user'
+                            connection.type === WarehouseTypes.SNOWFLAKE ||
+                            (connection.type === WarehouseTypes.BIGQUERY &&
+                                connection.keyfileContents?.type !==
+                                    'authorized_user')
                                 ? { kind: 'linkCurrentPerson', userUuid }
                                 : { kind: 'preserve' },
                     },
                 );
-            return { ...args, warehouseConnection: validated.stored };
-        }
-
-        if (
-            args.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
-            args.warehouseConnection.authenticationType === 'sso' &&
-            !organizationWarehouseCredentialsUuid
-        ) {
-            const refreshToken =
-                await this.userOAuthGrantsModel.getRefreshToken(
-                    userUuid,
-                    OpenIdIdentityIssuerType.SNOWFLAKE,
-                );
-            // Validate refresh token and generate new access token
-            this.logger.debug(
-                `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
-            );
-            const credentials = await this.refreshCredentials(
-                { ...args.warehouseConnection, refreshToken },
-                userUuid,
-            );
-            return {
-                ...args,
-                warehouseConnection: {
-                    ...args.warehouseConnection,
-                    ...credentials,
-                    refreshToken, // Store refresh token from user so we can generate new access tokens later
-                },
-            };
+            return { ...args, warehouseConnection: validated.connection };
         }
 
         if (
@@ -6633,7 +6658,9 @@ export class ProjectService
                             kind: 'bypass',
                             mode: 'test_and_compile',
                             projectUuid: input.projectUuid,
-                            credentials: input.credentials,
+                            credentials: prepareSnowflakeOAuthCredentials(
+                                input.credentials,
+                            ),
                             tunnelOptions: this.connectionTestTunnelOptions(),
                         };
                     }
@@ -6863,7 +6890,7 @@ export class ProjectService
                     kind: 'bypass',
                     mode: 'connection_test',
                     projectUuid: null,
-                    credentials,
+                    credentials: prepareSnowflakeOAuthCredentials(credentials),
                     tunnelOptions: this.connectionTestTunnelOptions(),
                 },
                 context,
@@ -7033,7 +7060,8 @@ export class ProjectService
                 kind: 'bypass',
                 mode: 'timezone_preview',
                 projectUuid: body.mode === 'edit' ? body.projectUuid : null,
-                credentials: effectiveCredentials,
+                credentials:
+                    prepareSnowflakeOAuthCredentials(effectiveCredentials),
             };
         }
         return this.warehouseClientFactory.withWarehouseClient(
@@ -7278,21 +7306,37 @@ export class ProjectService
             warehouseConnection.authenticationType === 'sso' &&
             warehouseConnection.refreshToken
         ) {
-            this.logger.debug(
-                `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
+            const owner: CredentialOwner =
+                project.organizationWarehouseCredentialsUuid
+                    ? {
+                          kind: 'organization',
+                          uuid: project.organizationWarehouseCredentialsUuid,
+                      }
+                    : { kind: 'project', uuid: projectUuid };
+            const resolved =
+                await this.snowflakeOAuthCredentialResolver.refresh(
+                    {
+                        connection: warehouseConnection,
+                        stored: warehouseConnection,
+                        owner,
+                        context: connectionContextFromUser(user, {
+                            organizationUuid: project.organizationUuid,
+                            queryContext: null,
+                            purpose: 'compile',
+                        }),
+                        projectUuid,
+                        warehouseConnectionUuid: null,
+                        credentialKind: WarehouseCredentialKind.COMPILE,
+                        aiPlan: null,
+                    },
+                    {
+                        errorPolicy: 'raw',
+                        legacyOwner: { kind: 'project', uuid: projectUuid },
+                    },
+                );
+            warehouseConnection = prepareSnowflakeOAuthCredentials(
+                resolved.clientCredentials,
             );
-            const oldRefreshToken = warehouseConnection.refreshToken;
-            const { accessToken, refreshToken: newRefreshToken } =
-                await UserService.generateSnowflakeAccessToken(oldRefreshToken);
-            warehouseConnection.token = accessToken;
-            warehouseConnection.refreshToken = newRefreshToken;
-            if (newRefreshToken !== oldRefreshToken) {
-                await this.persistRefreshTokenRotation({
-                    source: { kind: 'project', projectUuid },
-                    oldRefreshToken,
-                    newRefreshToken,
-                });
-            }
         }
 
         if (
@@ -7413,7 +7457,7 @@ export class ProjectService
             }
         }
 
-        return warehouseConnection;
+        return prepareSnowflakeOAuthCredentials(warehouseConnection);
     }
 
     private async withCompileAdapter<T>(
@@ -16876,7 +16920,9 @@ export class ProjectService
                 kind: 'bypass',
                 mode: 'dbt_cloud_preview_webhook',
                 projectUuid,
-                credentials: project.warehouseConnection,
+                credentials: prepareSnowflakeOAuthCredentials(
+                    project.warehouseConnection,
+                ),
             };
         }
         const { convertedExplores, exploreErrors } =

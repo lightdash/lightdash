@@ -993,6 +993,9 @@ export class ServiceRepository
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     providerRegistry: createAiCredentialProviderRegistry({
+                        featureFlagModel: this.models.getFeatureFlagModel(),
+                        refreshTokenRotation:
+                            this.models.getRefreshTokenRotation(),
                         snowflakeAgentClientResolver:
                             new SnowflakeAgentClientResolver({
                                 lightdashConfig: this.context.lightdashConfig,
@@ -1025,6 +1028,7 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1180,6 +1184,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     getDocumentService: () => this.getDocumentService(),
                     lightdashConfig: this.context.lightdashConfig,

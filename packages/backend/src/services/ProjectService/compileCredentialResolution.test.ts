@@ -147,6 +147,7 @@ const setup = (
         getCatalogCache: vi.fn(async () => undefined),
     };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {

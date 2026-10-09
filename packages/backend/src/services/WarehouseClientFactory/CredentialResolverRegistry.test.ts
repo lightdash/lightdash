@@ -14,8 +14,10 @@ import {
 } from './ConnectionContext';
 import {
     credentialResolution,
+    preparedCredentials,
     type CredentialResolver,
     type CredentialSelection,
+    type PreparedCredentials,
 } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
@@ -162,6 +164,30 @@ const transportFixture = () => {
 };
 
 describe('transport composition', () => {
+    it('skips the mode resolver for prepared credentials but still runs the transport', async () => {
+        const { registry, selection, mode, transport, legacy, registerMode } =
+            transportFixture();
+        registerMode();
+        const resolved = await registry.resolveCredentialSelection(
+            {
+                ...selection,
+                connection: {
+                    ...selection.connection,
+                    [preparedCredentials]: true,
+                } as PreparedCredentials as CreateRedshiftCredentials,
+            },
+            legacy,
+        );
+        expect(mode.resolve).not.toHaveBeenCalled();
+        expect(legacy).not.toHaveBeenCalled();
+        expect(transport.resolve).toHaveBeenCalledOnce();
+        expect(
+            Object.getOwnPropertySymbols(
+                transport.resolve.mock.calls[0][0].connection,
+            ),
+        ).toEqual([]);
+        expect(resolved).toMatchObject({ password: 'transport' });
+    });
     it('runs a transport after legacy resolution and preserves stored input', async () => {
         const { registry, selection, transport, legacy } = transportFixture();
         const resolved = await registry.resolveCredentialSelection(

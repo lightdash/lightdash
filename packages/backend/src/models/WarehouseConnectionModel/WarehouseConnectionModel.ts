@@ -15,6 +15,7 @@ import {
 } from '../../database/entities/userWarehouseCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
+import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -138,8 +139,11 @@ export class WarehouseConnectionModel {
         }
     }
 
-    async getProject(projectUuid: string): Promise<WarehouseConnectionProject> {
-        const row = await this.database('projects')
+    async getProject(
+        projectUuid: string,
+        trx?: Knex,
+    ): Promise<WarehouseConnectionProject> {
+        const row = await (trx ?? this.database)('projects')
             .innerJoin(
                 'organizations',
                 'organizations.organization_id',
@@ -262,6 +266,38 @@ export class WarehouseConnectionModel {
             );
         }
         return organizationCredentials.credentials;
+    }
+
+    async getOwnCredentials(
+        project: WarehouseConnectionProject,
+        warehouseConnectionUuid: string,
+        trx?: Knex,
+    ): Promise<CreateWarehouseCredentials> {
+        const row = await (trx ?? this.database)<DbWarehouseConnection>(
+            WAREHOUSE_CONNECTIONS_TABLE,
+        )
+            .where('project_uuid', project.projectUuid)
+            .where('warehouse_connection_uuid', warehouseConnectionUuid)
+            .first();
+        if (
+            !row ||
+            row.is_original ||
+            row.organization_warehouse_credentials_uuid !== null ||
+            row.encrypted_credentials === null
+        ) {
+            throw new RefreshTokenSourceChangedError();
+        }
+        try {
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials,
+            );
+        } catch {
+            throw new UnexpectedServerError(
+                'Failed to load warehouse connection credentials',
+            );
+        }
     }
 
     async getCredentials(
@@ -679,8 +715,9 @@ export class WarehouseConnectionModel {
         warehouseConnectionUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
+        trx?: Knex,
     ): Promise<boolean> {
-        return this.database.transaction(async (transaction) => {
+        return (trx ?? this.database).transaction(async (transaction) => {
             const row = await transaction<DbWarehouseConnection>(
                 WAREHOUSE_CONNECTIONS_TABLE,
             )

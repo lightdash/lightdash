@@ -245,14 +245,19 @@ export class UserWarehouseCredentialsModel {
         }));
     }
 
-    async findAiCredentialWithSecrets({
-        userUuid,
-        warehouseType,
-    }: {
-        userUuid: string;
-        warehouseType: WarehouseTypes;
-    }): Promise<AiUserWarehouseCredentials | undefined> {
-        const row = await this.database(UserWarehouseCredentialsTableName)
+    async findAiCredentialWithSecrets(
+        {
+            userUuid,
+            warehouseType,
+        }: {
+            userUuid: string;
+            warehouseType: WarehouseTypes;
+        },
+        trx?: Knex,
+    ): Promise<AiUserWarehouseCredentials | undefined> {
+        const row = await (trx ?? this.database)(
+            UserWarehouseCredentialsTableName,
+        )
             .where({
                 user_uuid: userUuid,
                 warehouse_type: warehouseType,
@@ -428,8 +433,11 @@ export class UserWarehouseCredentialsModel {
 
     async getByUuidWithSecrets(
         uuid: string,
+        trx?: Knex,
     ): Promise<UserWarehouseCredentialsWithSecrets> {
-        const row = await this.database(UserWarehouseCredentialsTableName)
+        const row = await (trx ?? this.database)(
+            UserWarehouseCredentialsTableName,
+        )
             .where('purpose', UserWarehouseCredentialPurpose.DEFAULT)
             .where('user_warehouse_credentials_uuid', uuid)
             .first();
@@ -1029,9 +1037,10 @@ export class UserWarehouseCredentialsModel {
         expectedOldRefreshToken: string,
         newRefreshToken: string,
         expiry?: RefreshTokenExpiry,
+        trx?: Knex,
     ): Promise<boolean> {
-        return this.database.transaction(async (trx) => {
-            const row = await trx(UserWarehouseCredentialsTableName)
+        return (trx ?? this.database).transaction(async (transaction) => {
+            const row = await transaction(UserWarehouseCredentialsTableName)
                 .select(
                     'name',
                     'warehouse_type',
@@ -1089,7 +1098,7 @@ export class UserWarehouseCredentialsModel {
             const encryptedCredentials = this.encryptionUtil.encrypt(
                 JSON.stringify(credentials),
             );
-            await trx(UserWarehouseCredentialsTableName)
+            await transaction(UserWarehouseCredentialsTableName)
                 .update({
                     name: row.name,
                     warehouse_type: row.warehouse_type,

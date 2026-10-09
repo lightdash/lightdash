@@ -210,6 +210,7 @@ const setup = (
         getRefreshToken: vi.fn(async () => 'user-grant-refresh'),
     };
     const service = new ProjectService({
+        refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {

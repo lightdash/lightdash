@@ -6,6 +6,7 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
+    FeatureFlags,
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -22,10 +23,12 @@ import {
     ORIGINAL_TYPE_LOCKED_MESSAGE,
     ProjectModel,
 } from '../../../models/ProjectModel/ProjectModel';
+import { RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { UserService } from '../../../services/UserService';
 import {
     credentialResolution,
     type MaterializedCredentials,
@@ -606,32 +609,27 @@ describe('Extra connection credentials on the real schema', () => {
             ...callerArgs(userUuid, caller),
         });
 
-    beforeAll(async () => {
-        migrated = await createMigratedTestDatabase(
-            'warehouse_connection_credentials',
-        );
-        database = migrated.database;
-        encryptionUtil = new EncryptionUtil({
-            lightdashConfig: {
-                lightdashSecret: SECRET,
-                lightdashSecrets: {
-                    active: SECRET,
-                    fallbacks: [],
-                    all: [SECRET],
-                },
-            },
-        } as never);
+    const createService = (refreshLockEnabled = false) => {
         const organizationWarehouseCredentialsModel =
             new OrganizationWarehouseCredentialsModel({
                 database,
                 encryptionUtil,
             });
-        service = new ProjectService({
+        return new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            ...(refreshLockEnabled
+                ? {
+                      refreshTokenRotation:
+                          RefreshTokenRotation.forDatabase(database),
+                  }
+                : {}),
             featureFlagModel: {
                 get: async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled: false,
+                    enabled:
+                        refreshLockEnabled &&
+                        featureFlagId ===
+                            FeatureFlags.WarehouseOAuthRefreshLock,
                 }),
             },
             projectModel: new ProjectModel({
@@ -650,6 +648,24 @@ describe('Extra connection credentials on the real schema', () => {
                 organizationWarehouseCredentialsModel,
             }),
         } as never);
+    };
+
+    beforeAll(async () => {
+        migrated = await createMigratedTestDatabase(
+            'warehouse_connection_credentials',
+        );
+        database = migrated.database;
+        encryptionUtil = new EncryptionUtil({
+            lightdashConfig: {
+                lightdashSecret: SECRET,
+                lightdashSecrets: {
+                    active: SECRET,
+                    fallbacks: [],
+                    all: [SECRET],
+                },
+            },
+        } as never);
+        service = createService();
         credentialsApi = service as unknown as ProjectServiceCredentials;
     }, 600000);
 
@@ -1390,101 +1406,135 @@ describe('Extra connection credentials on the real schema', () => {
     });
 
     describe('the warehouseConnection rotation sink', () => {
-        test('a rotated refresh token is written to the extra connection, not to the original', async () => {
-            const organization = await createOrganization();
-            const original = {
-                ...snowflake,
-                authenticationType: SnowflakeAuthenticationType.SSO,
-                refreshToken: 'original-refresh-token',
-            } as CreateWarehouseCredentials;
-            const multiProject = await createProject(organization, {
-                mode: 'multi',
-                credentials: original,
-            });
-            const extra = await createExtra(multiProject, {
-                credentials: {
-                    ...original,
-                    refreshToken: 'old-refresh-token',
-                } as CreateWarehouseCredentials,
-            });
-            vi.spyOn(credentialsApi, 'refreshCredentials').mockImplementation(
-                async (args) =>
-                    ({
-                        ...args,
+        describe.each([false, true])(
+            'refresh lock enabled: %s',
+            (refreshLockEnabled) => {
+                let previousService: ProjectService;
+
+                beforeAll(() => {
+                    previousService = service;
+                    if (refreshLockEnabled) {
+                        service = createService(true);
+                        credentialsApi =
+                            service as unknown as ProjectServiceCredentials;
+                    }
+                });
+
+                afterAll(() => {
+                    service = previousService;
+                    credentialsApi =
+                        service as unknown as ProjectServiceCredentials;
+                });
+
+                test('a rotated refresh token is written to the extra connection, not to the original', async () => {
+                    const organization = await createOrganization();
+                    const original = {
+                        ...snowflake,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'original-refresh-token',
+                    } as CreateWarehouseCredentials;
+                    const multiProject = await createProject(organization, {
+                        mode: 'multi',
+                        credentials: original,
+                    });
+                    const extra = await createExtra(multiProject, {
+                        credentials: {
+                            ...original,
+                            refreshToken: 'old-refresh-token',
+                        } as CreateWarehouseCredentials,
+                    });
+                    vi.spyOn(
+                        UserService,
+                        'generateSnowflakeAccessToken',
+                    ).mockResolvedValue({
+                        accessToken: 'new-access-token',
                         refreshToken: 'new-refresh-token',
-                    }) as CreateWarehouseCredentials,
-            );
+                    });
 
-            const result = await extraCredentials(
-                multiProject,
-                extra,
-                organization.userUuid,
-            );
+                    const result = await extraCredentials(
+                        multiProject,
+                        extra,
+                        organization.userUuid,
+                    );
 
-            expect(result).toMatchObject({
-                refreshToken: 'new-refresh-token',
-            });
-            expect(await decryptConnection(extra)).toMatchObject({
-                refreshToken: 'new-refresh-token',
-            });
-            const originalRow = await database('warehouse_credentials')
-                .innerJoin(
-                    'projects',
-                    'projects.project_id',
-                    'warehouse_credentials.project_id',
-                )
-                .where('projects.project_uuid', multiProject)
-                .first<{ encrypted_credentials: Buffer }>(
-                    'encrypted_credentials',
-                );
-            expect(
-                JSON.parse(
-                    encryptionUtil.decrypt(originalRow.encrypted_credentials),
-                ),
-            ).toMatchObject({ refreshToken: 'original-refresh-token' });
-        });
-
-        test('a rotated organisation credential token is written to the organisation credential', async () => {
-            const organization = await createOrganization();
-            const credentials = {
-                ...snowflake,
-                authenticationType: SnowflakeAuthenticationType.SSO,
-                refreshToken: 'old-refresh-token',
-            } as CreateWarehouseCredentials;
-            const organizationCredential = await createOrganizationCredential(
-                organization,
-                credentials,
-            );
-            const multiProject = await createProject(organization, {
-                mode: 'multi',
-                credentials: withRequire(postgres, false),
-            });
-            const extra = await createExtra(multiProject, {
-                credentials,
-                organizationWarehouseCredentialsUuid: organizationCredential,
-            });
-            vi.spyOn(credentialsApi, 'refreshCredentials').mockImplementation(
-                async (args) =>
-                    ({
-                        ...args,
+                    expect(result).toMatchObject({
                         refreshToken: 'new-refresh-token',
-                    }) as CreateWarehouseCredentials,
-            );
+                    });
+                    expect(await decryptConnection(extra)).toMatchObject({
+                        refreshToken: 'new-refresh-token',
+                    });
+                    const originalRow = await database('warehouse_credentials')
+                        .innerJoin(
+                            'projects',
+                            'projects.project_id',
+                            'warehouse_credentials.project_id',
+                        )
+                        .where('projects.project_uuid', multiProject)
+                        .first<{ encrypted_credentials: Buffer }>(
+                            'encrypted_credentials',
+                        );
+                    expect(
+                        JSON.parse(
+                            encryptionUtil.decrypt(
+                                originalRow.encrypted_credentials,
+                            ),
+                        ),
+                    ).toMatchObject({ refreshToken: 'original-refresh-token' });
+                });
 
-            await extraCredentials(multiProject, extra, organization.userUuid);
+                test('a rotated organisation credential token is written to the organisation credential', async () => {
+                    const organization = await createOrganization();
+                    const credentials = {
+                        ...snowflake,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'old-refresh-token',
+                    } as CreateWarehouseCredentials;
+                    const organizationCredential =
+                        await createOrganizationCredential(
+                            organization,
+                            credentials,
+                        );
+                    const multiProject = await createProject(organization, {
+                        mode: 'multi',
+                        credentials: withRequire(postgres, false),
+                    });
+                    const extra = await createExtra(multiProject, {
+                        credentials,
+                        organizationWarehouseCredentialsUuid:
+                            organizationCredential,
+                    });
+                    vi.spyOn(
+                        UserService,
+                        'generateSnowflakeAccessToken',
+                    ).mockResolvedValue({
+                        accessToken: 'new-access-token',
+                        refreshToken: 'new-refresh-token',
+                    });
 
-            const row = await database('organization_warehouse_credentials')
-                .where(
-                    'organization_warehouse_credentials_uuid',
-                    organizationCredential,
-                )
-                .first<{ warehouse_connection: Buffer }>(
-                    'warehouse_connection',
-                );
-            expect(
-                JSON.parse(encryptionUtil.decrypt(row.warehouse_connection)),
-            ).toMatchObject({ refreshToken: 'new-refresh-token' });
-        });
+                    await extraCredentials(
+                        multiProject,
+                        extra,
+                        organization.userUuid,
+                    );
+
+                    const row = await database(
+                        'organization_warehouse_credentials',
+                    )
+                        .where(
+                            'organization_warehouse_credentials_uuid',
+                            organizationCredential,
+                        )
+                        .first<{ warehouse_connection: Buffer }>(
+                            'warehouse_connection',
+                        );
+                    expect(
+                        JSON.parse(
+                            encryptionUtil.decrypt(row.warehouse_connection),
+                        ),
+                    ).toMatchObject({ refreshToken: 'new-refresh-token' });
+                });
+            },
+        );
 
         test('a stale expected token leaves the stored token unchanged', async () => {
             const organization = await createOrganization();

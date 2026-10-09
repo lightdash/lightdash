@@ -109,6 +109,10 @@ const setup = () => {
         },
     });
     const provider = new SnowflakeAiCredentialProvider({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
+        refreshTokenRotation: { run: vi.fn() },
         snowflakeAgentClientResolver: resolver,
         lightdashConfig: config,
         userWarehouseCredentialsModel:

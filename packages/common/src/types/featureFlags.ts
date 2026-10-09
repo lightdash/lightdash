@@ -11,6 +11,7 @@ export enum FeatureFlags {
      */
     AgentIdentity = 'agent-identity',
     AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
+    WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */

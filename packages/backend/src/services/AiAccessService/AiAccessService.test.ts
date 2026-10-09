@@ -2082,6 +2082,10 @@ describe('AiAccessService', () => {
     });
     test('registers Snowflake', () => {
         const registry = createAiCredentialProviderRegistry({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
+            refreshTokenRotation: { run: vi.fn() },
             snowflakeAgentClientResolver: {
                 resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
             },
@@ -2227,6 +2231,10 @@ describe('AiAccessService', () => {
     });
     test('does not register separate-principal providers', () => {
         const registry = createAiCredentialProviderRegistry({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            },
+            refreshTokenRotation: { run: vi.fn() },
             snowflakeAgentClientResolver: {
                 resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
             },
@@ -4267,6 +4275,10 @@ describe('silent refresh routing', () => {
             };
             registry.mockReturnValue(
                 new SnowflakeAiCredentialProvider({
+                    featureFlagModel: {
+                        get: vi.fn().mockResolvedValue({ enabled: false }),
+                    },
+                    refreshTokenRotation: { run: vi.fn() },
                     snowflakeAgentClientResolver: {
                         resolve: vi
                             .fn()
