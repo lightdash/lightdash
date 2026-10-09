@@ -1,3 +1,11 @@
+# [2.522.0](https://github.com/lightdash/lightdash/compare/2.521.0...2.522.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** remove Test as agent and keep one Test for the AI service account key ([#30839](https://github.com/lightdash/lightdash/issues/30839)) ([71e4771](https://github.com/lightdash/lightdash/commit/71e4771ebe1fc0ebb972b14f51e414e4f269d9af))
+* **warehouse:** resolve the SSH tunnel private key through a credential resolver ([#30837](https://github.com/lightdash/lightdash/issues/30837)) ([c2c32d3](https://github.com/lightdash/lightdash/commit/c2c32d354283496357dd408c31c194a6ffda77e0))
+
 # [2.521.0](https://github.com/lightdash/lightdash/compare/2.520.0...2.521.0) (2026-10-09)
 
 
