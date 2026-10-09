@@ -1,3 +1,11 @@
+## [2.501.1](https://github.com/lightdash/lightdash/compare/2.501.0...2.501.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **ai-agent:** size artifact table to content so scrollbar doesn't hide rows ([#30792](https://github.com/lightdash/lightdash/issues/30792)) ([1ae667a](https://github.com/lightdash/lightdash/commit/1ae667a915dc4e2d5458f27d999e68fbdeb28730))
+* avoid blocking published homepages on fallback content ([#30789](https://github.com/lightdash/lightdash/issues/30789)) ([78dcfcb](https://github.com/lightdash/lightdash/commit/78dcfcb8f639e0495cc9568e3177e991a2fa03db))
+
 # [2.501.0](https://github.com/lightdash/lightdash/compare/2.500.0...2.501.0) (2026-10-09)
 
 
