@@ -23,6 +23,10 @@ import {
 import { LEAVING_COPY_STATE } from '../scopeTours/trainingCopy';
 import DocumentEditor from './DocumentEditor';
 
+const { LINKED_CHART_UUID } = vi.hoisted(() => ({
+    LINKED_CHART_UUID: 'a5632229-9bb1-4e73-9c57-553f0b5915f8',
+}));
+
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     close: vi.fn(),
@@ -35,6 +39,37 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 }));
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({ canDrillInto: mocks.canAuthorCharts }),
+}));
+vi.mock('./DocumentSavedChartPickerModal', () => ({
+    default: ({
+        onLink,
+        onCopy,
+    }: {
+        onLink: (kind: 'chart' | 'sqlChart', uuid: string) => void;
+        onCopy: (chart: SemanticChartAsCode) => void;
+    }) => (
+        <div role="dialog" aria-label="Saved chart picker">
+            <button onClick={() => onLink('chart', LINKED_CHART_UUID)}>
+                Link Revenue
+            </button>
+            <button
+                onClick={() => {
+                    const original = report.version.content.charts.c1;
+                    if (original.source !== 'semantic') {
+                        throw new Error('Expected a semantic chart');
+                    }
+                    onCopy({ ...original.chart, name: 'Revenue' });
+                }}
+            >
+                Copy Revenue
+            </button>
+        </div>
+    ),
+}));
+vi.mock('./DocumentLinkedChart', () => ({
+    default: ({ attributes }: { attributes: Record<string, string> }) => (
+        <div>Linked chart: {attributes.uuid}</div>
+    ),
 }));
 vi.mock('./DocumentChartEditorModal', () => ({
     default: ({
@@ -342,6 +377,35 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
     expect(Object.keys(savedContent().charts)).toStrictEqual(['c1', 'new-1']);
+});
+
+it('links a saved chart and saves it as a tag', async () => {
+    renderEditor();
+    await screen.findByText('Live chart: Orders');
+    fireEvent.click(screen.getByRole('button', { name: 'Add saved chart' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Link Revenue' }),
+    );
+    expect(
+        await screen.findByText(`Linked chart: ${LINKED_CHART_UUID}`),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    expect(savedContent().markdown).toContain(
+        `<saved-chart uuid="${LINKED_CHART_UUID}">`,
+    );
+});
+
+it('opens a copied saved chart in the chart editor before adding it', async () => {
+    renderEditor();
+    await screen.findByText('Live chart: Orders');
+    fireEvent.click(screen.getByRole('button', { name: 'Add saved chart' }));
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Copy Revenue' }),
+    );
+    expect(await screen.findByTestId('editing-chart')).toHaveTextContent(
+        'Revenue',
+    );
 });
 
 it('removes a chart from the body and the saved content', async () => {
