@@ -31,6 +31,7 @@ export const DEFAULT_AUTOPILOT_VALIDATED_MODELS: AutopilotValidatedModel[] = [
         model: 'anthropic.claude-sonnet-5',
         mode: 'cleanup',
     },
+    { provider: 'openai', model: 'gpt-6-sol', mode: 'cleanup' },
     { provider: 'openai', model: 'gpt-5.6-sol', mode: 'cleanup' },
     { provider: 'openai', model: 'gpt-5.5-2026-04-23', mode: 'cleanup' },
     { provider: 'openai', model: 'gpt-5.4-2026-03-05', mode: 'cleanup' },
