@@ -6,6 +6,7 @@ import {
     getDocumentUrl,
     parseDocumentContent,
 } from './document';
+import { getDocumentSummaryMarkdown } from './documentMarkdown';
 
 describe('getDocumentUrl', () => {
     test('prefers the document slug when its canonical UUID is provided', () => {
@@ -367,5 +368,74 @@ describe('getDocumentRuntimeChartConfig', () => {
     test('passes built-in chart configs through', () => {
         const table = { type: ChartType.TABLE } as const;
         expect(getDocumentRuntimeChartConfig(table)).toBe(table);
+    });
+});
+
+describe('SQL charts', () => {
+    const sqlChart = {
+        source: 'sql',
+        chart: {
+            name: 'Revenue by region',
+            sql: 'select region, sum(amount) as revenue from orders group by 1',
+            limit: 500,
+            chartKind: 'vertical_bar',
+            config: {
+                type: 'vertical_bar',
+                metadata: { version: 1 },
+                fieldConfig: {
+                    x: { reference: 'region', type: 'category' },
+                    y: [{ reference: 'revenue', aggregation: 'sum' }],
+                    groupBy: [],
+                },
+                display: {},
+            },
+            connection: 'analytics',
+        },
+    };
+    const content = (entry: unknown) => ({
+        markdown: '<document-chart id="c1">',
+        charts: { c1: entry },
+    });
+
+    test('accepts a SQL chart in its content-as-code shape', () => {
+        expect(parseDocumentContent(2, content(sqlChart))).toEqual(
+            content(sqlChart),
+        );
+    });
+
+    test.each([
+        ['an empty query', { sql: ' ' }, 'sql must be a non-empty string'],
+        ['a zero limit', { limit: 0 }, 'limit must be a positive integer'],
+        [
+            'a chart kind SQL charts do not have',
+            { chartKind: 'funnel', config: { type: 'funnel' } },
+            'chartKind must be one of',
+        ],
+        [
+            'a config of another kind',
+            { config: { ...sqlChart.chart.config, type: 'line' } },
+            'config must be an object whose type is chartKind',
+        ],
+        ['an unknown field', { metricQuery: {} }, 'unknown fields metricQuery'],
+    ])('rejects %s', (_label, change, message) => {
+        expect(() =>
+            parseDocumentContent(
+                2,
+                content({
+                    ...sqlChart,
+                    chart: { ...sqlChart.chart, ...change },
+                }),
+            ),
+        ).toThrow(message);
+    });
+
+    test('describes a SQL chart to agents without an Explore', () => {
+        expect(
+            getDocumentSummaryMarkdown(
+                parseDocumentContent(2, content(sqlChart)),
+            ),
+        ).toBe(
+            '<document-chart id="c1" title="Revenue by region" type="vertical_bar" source="sql">',
+        );
     });
 });

@@ -7,6 +7,7 @@ import {
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
+import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfiguration';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
@@ -236,13 +237,7 @@ export class HealthService extends BaseService {
                         this.isEnterpriseEnabled(),
                 },
                 snowflakeAi: {
-                    enabled:
-                        !!this.lightdashConfig.auth.snowflakeAi.clientId &&
-                        !!this.lightdashConfig.auth.snowflakeAi.clientSecret &&
-                        !!this.lightdashConfig.auth.snowflakeAi
-                            .authorizationEndpoint &&
-                        !!this.lightdashConfig.auth.snowflakeAi.tokenEndpoint &&
-                        this.isEnterpriseEnabled(),
+                    enabled: isSnowflakeAgentConfigured(this.lightdashConfig),
                 },
                 databricks: {
                     // Databricks OAuth browser flow requires a configured client ID.

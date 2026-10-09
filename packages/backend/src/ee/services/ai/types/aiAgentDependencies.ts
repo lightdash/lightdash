@@ -353,8 +353,7 @@ export type DocumentContentResult = {
 export type ReadContentFn = (
     args:
         | { slug: string; type: ReadContentType }
-        | { type: 'document'; slug: string; chartId: string | null }
-        | { type: 'document'; documentUuid: string; chartId: string | null },
+        | { type: 'document'; slug: string; chartId: string | null },
 ) => Promise<
     | DocumentContentResult
     | {

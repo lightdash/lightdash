@@ -298,7 +298,7 @@ agentProgram
     )
     .option(
         '--timeout <seconds>',
-        'Seconds to wait for the browser callback before polling for another 120 seconds',
+        'Seconds the connect link stays valid while the CLI waits for approval',
         Number,
         180,
     )

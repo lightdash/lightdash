@@ -1,0 +1,365 @@
+import {
+    SNOWFLAKE_AGENT_OAUTH_SETTINGS,
+    type OrganizationAgentIdentitySnowflakeSetup,
+    type OrganizationAgentIdentitySnowflakeVerify,
+} from '@lightdash/common';
+import {
+    Badge,
+    Button,
+    Code,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from '@mantine/core';
+import { IconCheck, IconMinus, IconX } from '@tabler/icons-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useState } from 'react';
+import CodeBlock from '../../components/common/CodeBlock/CodeBlock';
+import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../components/common/InlineErrorState';
+import MantineIcon from '../../components/common/MantineIcon';
+import { AgentSetupStep } from './AgentSetupStep';
+import { useSnowflakeAgentSetup, useSnowflakeAgentVerify } from './api';
+
+const checkAppearance = {
+    passed: { icon: IconCheck, color: 'green', label: 'Passed' },
+    failed: { icon: IconX, color: 'red', label: 'Failed' },
+    not_checked: { icon: IconMinus, color: 'dimmed', label: 'Not checked' },
+} as const;
+
+const SnowflakeSetupSteps = ({
+    setup,
+    verification,
+    verifying,
+    onVerify,
+}: {
+    setup: OrganizationAgentIdentitySnowflakeSetup;
+    verification: OrganizationAgentIdentitySnowflakeVerify | null;
+    verifying: boolean;
+    onVerify: () => void;
+}) => {
+    const [copied, setCopied] = useState(false);
+    const missingSettings = new Set(setup.missingSettings);
+    const oauthSettings: { envVar: string; label: string }[] = [
+        ...SNOWFLAKE_AGENT_OAUTH_SETTINGS,
+        ...(missingSettings.has('SNOWFLAKE_AI_OAUTH_ACCOUNT')
+            ? [
+                  {
+                      envVar: 'SNOWFLAKE_AI_OAUTH_ACCOUNT',
+                      label: 'Account (needed when the token endpoint is not on snowflakecomputing.com)',
+                  },
+              ]
+            : []),
+    ];
+    return (
+        <Stack gap="lg">
+            <AgentSetupStep
+                number={1}
+                title="Copy and run in Snowflake"
+                done={copied || setup.configured}
+            >
+                <CodeBlock
+                    language="sql"
+                    code={setup.integrationSql}
+                    copyLabel="Copy integration SQL"
+                    onCopy={() => setCopied(true)}
+                />
+            </AgentSetupStep>
+            <AgentSetupStep
+                number={2}
+                title="Give the client ID and secret to your instance operator"
+                done={setup.configured}
+            >
+                <Stack gap="xs">
+                    <Text size="sm">
+                        The second statement returns the client ID and secret.
+                        Your instance operator sets these and restarts the
+                        instance.
+                    </Text>
+                    {oauthSettings.map(({ envVar, label }) => (
+                        <Group key={envVar} gap="xs">
+                            <Code>{envVar}</Code>
+                            {envVar === 'SNOWFLAKE_AI_OAUTH_ACCOUNT' && (
+                                <Text size="xs">{label}</Text>
+                            )}
+                            <Text
+                                size="xs"
+                                c={
+                                    missingSettings.has(envVar)
+                                        ? 'orange'
+                                        : 'green'
+                                }
+                                aria-label={`${label}: ${missingSettings.has(envVar) ? 'missing' : 'set'}`}
+                            >
+                                {missingSettings.has(envVar)
+                                    ? 'Missing'
+                                    : 'Set'}
+                            </Text>
+                        </Group>
+                    ))}
+                    {setup.missingSettings
+                        .filter(
+                            (setting) =>
+                                !oauthSettings.some(
+                                    ({ envVar }) => envVar === setting,
+                                ),
+                        )
+                        .map((setting) => (
+                            <Text key={setting} size="sm" c="orange">
+                                Missing: {setting}
+                            </Text>
+                        ))}
+                </Stack>
+            </AgentSetupStep>
+            <AgentSetupStep
+                number={3}
+                title="Verify"
+                done={verification?.passed === true}
+                action={
+                    <Button
+                        variant="default"
+                        loading={verifying}
+                        onClick={onVerify}
+                    >
+                        Verify integration
+                    </Button>
+                }
+            >
+                <Stack gap="sm">
+                    <Text size="sm" c="dimmed">
+                        Checks the integration exists and marks sessions as
+                        agent sessions.
+                    </Text>
+                    {verification?.checks.map((check) => {
+                        const appearance = checkAppearance[check.status];
+                        return (
+                            <Group
+                                key={check.id}
+                                align="flex-start"
+                                wrap="nowrap"
+                                gap="xs"
+                            >
+                                <MantineIcon
+                                    icon={appearance.icon}
+                                    color={appearance.color}
+                                    aria-label={appearance.label}
+                                />
+                                <Stack gap={0}>
+                                    <Text size="sm" fw={500}>
+                                        {check.label} · {appearance.label}
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {check.detail}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        );
+                    })}
+                </Stack>
+            </AgentSetupStep>
+        </Stack>
+    );
+};
+
+const SnowflakeIntegrationStatus = ({
+    verified,
+    needsAttention,
+    verification,
+    expanded,
+    onToggle,
+}: {
+    verified: boolean;
+    needsAttention: boolean;
+    verification: OrganizationAgentIdentitySnowflakeVerify | null;
+    expanded: boolean;
+    onToggle: () => void;
+}) => (
+    <Group justify="space-between">
+        <Group gap="xs">
+            <MantineIcon
+                icon={verified ? IconCheck : IconMinus}
+                color={verified ? 'green' : 'orange'}
+            />
+            <Text size="sm" c={verified ? 'green' : 'orange'}>
+                {verified
+                    ? 'Verified · Snowflake agent integration'
+                    : needsAttention
+                      ? 'Snowflake agent integration needs attention'
+                      : 'Checking Snowflake agent integration'}
+                {verification &&
+                    ` · checked ${formatDistanceToNow(new Date(verification.checkedAt), { addSuffix: true })}`}
+            </Text>
+        </Group>
+        <Button variant="subtle" size="xs" onClick={onToggle}>
+            {expanded ? 'Hide setup' : 'View setup'}
+        </Button>
+    </Group>
+);
+
+const SnowflakeSetupContent = ({
+    setup,
+    verify,
+    compactConfirm,
+}: {
+    setup: ReturnType<typeof useSnowflakeAgentSetup>;
+    verify: ReturnType<typeof useSnowflakeAgentVerify>;
+    compactConfirm: boolean;
+}) => {
+    if (setup.isLoading) return <EmptyStateLoader />;
+    if (setup.isError)
+        return (
+            <InlineErrorState
+                message="Could not load the Snowflake setup."
+                onRetry={() => void setup.refetch()}
+            />
+        );
+    if (!setup.data) return null;
+    if (compactConfirm)
+        return (
+            <Text size="sm">
+                The Snowflake agent integration is set up. Turn on agent
+                sign-in? People who haven't connected their agent are asked to
+                connect.
+            </Text>
+        );
+    return (
+        <SnowflakeSetupSteps
+            setup={setup.data}
+            verification={verify.data ?? null}
+            verifying={verify.isFetching}
+            onVerify={() => void verify.refetch()}
+        />
+    );
+};
+
+const SnowflakeSetupActions = ({
+    saving,
+    onCancel,
+    onTurnOn,
+    compactConfirm,
+    setupLoading,
+    setupError,
+    verifying,
+    verified,
+}: {
+    saving: boolean;
+    onCancel: () => void;
+    onTurnOn: () => void;
+    compactConfirm: boolean;
+    setupLoading: boolean;
+    setupError: boolean;
+    verifying: boolean;
+    verified: boolean;
+}) => (
+    <>
+        {!compactConfirm && (
+            <Text size="sm" c="dimmed">
+                Until this is verified, agents keep running as each user. After
+                it's verified, people who haven't connected their agent are
+                asked to connect.
+            </Text>
+        )}
+        <Group justify="flex-end">
+            <Button variant="default" disabled={saving} onClick={onCancel}>
+                Cancel
+            </Button>
+            <Button
+                loading={saving}
+                disabled={
+                    setupLoading ||
+                    setupError ||
+                    verifying ||
+                    (!compactConfirm && !verified)
+                }
+                onClick={onTurnOn}
+            >
+                Turn on
+            </Button>
+        </Group>
+    </>
+);
+
+type Props =
+    | { mode: 'active' }
+    | {
+          mode: 'pending';
+          saving: boolean;
+          onCancel: () => void;
+          onTurnOn: () => void;
+      };
+
+export const SnowflakeAgentSetup = (props: Props) => {
+    const setup = useSnowflakeAgentSetup();
+    const verify = useSnowflakeAgentVerify(props.mode === 'active');
+    const [expanded, setExpanded] = useState(false);
+    const needsAttention = verify.isError || verify.data?.passed === false;
+    const showSteps = props.mode === 'pending' || expanded || needsAttention;
+    const compactConfirm =
+        props.mode === 'pending' && setup.data?.configured === true;
+    const verified = !verify.isError && verify.data?.passed === true;
+    return (
+        <Stack gap="sm">
+            {props.mode === 'active' && (
+                <SnowflakeIntegrationStatus
+                    verified={verified}
+                    needsAttention={needsAttention}
+                    verification={verify.data ?? null}
+                    expanded={expanded}
+                    onToggle={() => setExpanded((value) => !value)}
+                />
+            )}
+            {showSteps && (
+                <Paper withBorder p="md" radius="md">
+                    <Stack gap="md">
+                        <Stack gap="xs">
+                            <Group justify="space-between" wrap="nowrap">
+                                <Title order={5}>
+                                    {compactConfirm
+                                        ? 'Turn on agent sign-in'
+                                        : 'Set up the Snowflake agent integration'}
+                                </Title>
+                                {props.mode === 'pending' && (
+                                    <Badge color="orange" variant="light">
+                                        Not active yet
+                                    </Badge>
+                                )}
+                            </Group>
+                            {!compactConfirm && (
+                                <Text size="sm" c="dimmed">
+                                    Run this once in Snowflake as ACCOUNTADMIN.
+                                    It lets people sign their agent in as
+                                    themselves.
+                                </Text>
+                            )}
+                        </Stack>
+                        <SnowflakeSetupContent
+                            setup={setup}
+                            verify={verify}
+                            compactConfirm={compactConfirm}
+                        />
+                        {verify.isError && (
+                            <Text size="sm" c="red" role="alert">
+                                Could not verify the Snowflake agent
+                                integration. Try again.
+                            </Text>
+                        )}
+                        {props.mode === 'pending' && (
+                            <SnowflakeSetupActions
+                                saving={props.saving}
+                                onCancel={props.onCancel}
+                                onTurnOn={props.onTurnOn}
+                                compactConfirm={compactConfirm}
+                                setupLoading={setup.isLoading}
+                                setupError={setup.isError}
+                                verifying={verify.isFetching}
+                                verified={verified}
+                            />
+                        )}
+                    </Stack>
+                </Paper>
+            )}
+        </Stack>
+    );
+};

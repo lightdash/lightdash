@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     assertIsAccountWithOrg,
+    BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     defineUserAbility,
     ForbiddenError,
@@ -9,6 +10,7 @@ import {
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
+    type CreateBigqueryCredentials,
     type CreateDatabricksCredentials,
     type CreatePostgresCredentials,
     type CreateSnowflakeCredentials,
@@ -163,6 +165,7 @@ const setup = (
     const projectModel = {
         ...singleRouteProjectModelMethods,
         getWithSensitiveFields: vi.fn(async () => project),
+        getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getProjectWarehouseConfig: vi.fn(async () => ({
             organizationWarehouseCredentialsUuid: orgId,
@@ -864,3 +867,42 @@ describe('timezone preview credential resolution', () => {
         },
     );
 });
+
+it.each([true, false])(
+    'hydrates secret-free BigQuery SSO with resolution enabled %s',
+    async (enabled) => {
+        const credentials: CreateBigqueryCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id: 'saved-client',
+                refresh_token: 'saved-refresh',
+            },
+        };
+        const f = setup(credentials, enabled);
+        await f.edit();
+        expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
+            expect.objectContaining({
+                keyfileContents: {
+                    ...credentials.keyfileContents,
+                    client_secret:
+                        lightdashConfigMock.auth.google.oauth2ClientSecret,
+                },
+            }),
+            expect.any(Object),
+        );
+        expect(credentials.keyfileContents).not.toHaveProperty('client_secret');
+        expect(
+            f.userWarehouseCredentialsModel.findForProjectWithSecrets,
+        ).not.toHaveBeenCalled();
+        expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    },
+);

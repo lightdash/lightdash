@@ -311,6 +311,7 @@ export const lightdashConfigMock: LightdashConfig = {
         exploreSummaryProjectionMinStoredBytesPerExplore: 2048,
     },
     ai: {
+        agentResultIdentityCheckEnabled: true,
         decisions: {
             provider: 'jev',
             apiKey: null,
@@ -584,4 +585,16 @@ export const lightdashConfigMock: LightdashConfig = {
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
     previewFeatureFlags: { enabled: false },
+};
+
+export const lightdashConfigWithGoogleOAuthMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    auth: {
+        ...lightdashConfigMock.auth,
+        google: {
+            ...lightdashConfigMock.auth.google,
+            oauth2ClientId: 'test-google-client-id',
+            oauth2ClientSecret: 'test-google-client-secret',
+        },
+    },
 };

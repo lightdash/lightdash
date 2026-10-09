@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aiAccessApi } from '../../../../../features/aiAccess/api';
 import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
@@ -69,9 +70,11 @@ const Composer = () => {
 const Gate = () => {
     const access = useAiAccessGate('project-1');
     return (
-        <AiAccessGate projectUuid="project-1" variant="card" {...access}>
-            <Composer />
-        </AiAccessGate>
+        <MemoryRouter>
+            <AiAccessGate projectUuid="project-1" variant="card" {...access}>
+                <Composer />
+            </AiAccessGate>
+        </MemoryRouter>
     );
 };
 
@@ -121,17 +124,19 @@ describe('AiAccessGate', () => {
     ])('$variant layout', ({ variant, minHeight }) => {
         it('renders allowed children directly in the parent container', () => {
             const { container } = renderWithProviders(
-                <AiAccessGate
-                    projectUuid="project-1"
-                    variant={variant}
-                    refusal={null}
-                    isLoading={false}
-                    isError={false}
-                    refetch={vi.fn()}
-                >
-                    <Composer />
-                    <Text>Suggestions</Text>
-                </AiAccessGate>,
+                <MemoryRouter>
+                    <AiAccessGate
+                        projectUuid="project-1"
+                        variant={variant}
+                        refusal={null}
+                        isLoading={false}
+                        isError={false}
+                        refetch={vi.fn()}
+                    >
+                        <Composer />
+                        <Text>Suggestions</Text>
+                    </AiAccessGate>
+                </MemoryRouter>,
             );
 
             expect(screen.getByText('Composer').parentElement).toBe(container);
@@ -142,16 +147,18 @@ describe('AiAccessGate', () => {
 
         it('reserves the variant height on the loading placeholder', () => {
             renderWithProviders(
-                <AiAccessGate
-                    projectUuid="project-1"
-                    variant={variant}
-                    refusal={undefined}
-                    isLoading
-                    isError={false}
-                    refetch={vi.fn()}
-                >
-                    <Composer />
-                </AiAccessGate>,
+                <MemoryRouter>
+                    <AiAccessGate
+                        projectUuid="project-1"
+                        variant={variant}
+                        refusal={undefined}
+                        isLoading
+                        isError={false}
+                        refetch={vi.fn()}
+                    >
+                        <Composer />
+                    </AiAccessGate>
+                </MemoryRouter>,
             );
 
             expect(
@@ -168,28 +175,34 @@ describe('AiAccessGate', () => {
                     refetch: vi.fn(),
                 };
                 const { rerender } = renderWithProviders(
-                    <AiAccessGate
-                        {...props}
-                        refusal={undefined}
-                        isLoading
-                        isError={false}
-                    >
-                        <Composer />
-                    </AiAccessGate>,
+                    <MemoryRouter>
+                        <AiAccessGate
+                            {...props}
+                            refusal={undefined}
+                            isLoading
+                            isError={false}
+                        >
+                            <Composer />
+                        </AiAccessGate>
+                    </MemoryRouter>,
                 );
                 const placeholderHeight = screen.getByTestId(
                     'ai-access-placeholder',
                 ).style.minHeight;
 
                 rerender(
-                    <AiAccessGate
-                        {...props}
-                        refusal={outcome === 'refusal' ? refusal : undefined}
-                        isLoading={false}
-                        isError={outcome === 'error'}
-                    >
-                        <Composer />
-                    </AiAccessGate>,
+                    <MemoryRouter>
+                        <AiAccessGate
+                            {...props}
+                            refusal={
+                                outcome === 'refusal' ? refusal : undefined
+                            }
+                            isLoading={false}
+                            isError={outcome === 'error'}
+                        >
+                            <Composer />
+                        </AiAccessGate>
+                    </MemoryRouter>,
                 );
 
                 const button = screen.getByRole('button', {
@@ -210,16 +223,18 @@ describe('AiAccessGate', () => {
 
     it('holds an idle query without access data', () => {
         renderWithProviders(
-            <AiAccessGate
-                projectUuid="project-1"
-                variant="card"
-                refusal={undefined}
-                isLoading={false}
-                isError={false}
-                refetch={vi.fn()}
-            >
-                <Composer />
-            </AiAccessGate>,
+            <MemoryRouter>
+                <AiAccessGate
+                    projectUuid="project-1"
+                    variant="card"
+                    refusal={undefined}
+                    isLoading={false}
+                    isError={false}
+                    refetch={vi.fn()}
+                >
+                    <Composer />
+                </AiAccessGate>
+            </MemoryRouter>,
         );
         expect(screen.getByTestId('ai-access-placeholder')).toBeVisible();
         expect(composerRender).not.toHaveBeenCalled();

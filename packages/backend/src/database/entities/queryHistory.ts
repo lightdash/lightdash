@@ -1,4 +1,5 @@
 import type {
+    AgentIdentityClaim,
     AuthType,
     DuckdbExecutionSpec,
     ItemsMap,
@@ -17,6 +18,7 @@ import type {
 import { Knex } from 'knex';
 
 export type DbQueryHistory = {
+    agent_identity: AgentIdentityClaim | null;
     warehouse_connection_uuid?: string | null;
     query_uuid: string;
     created_at: Date;
@@ -58,9 +60,10 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type'
+    'query_uuid' | 'created_at' | 'created_by_actor_type' | 'agent_identity'
 > & {
     created_by_actor_type: AuthType;
+    agent_identity?: AgentIdentityClaim;
     warehouse_connection_uuid?: string | null;
 };
 

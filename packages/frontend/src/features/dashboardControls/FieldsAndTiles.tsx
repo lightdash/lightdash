@@ -1,24 +1,21 @@
 import {
     FeatureFlags,
     getItemId,
-    isDashboardFieldTarget,
     isMetric,
-    type DashboardFieldTarget,
     type DashboardFilterableField,
-    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    SegmentedControl,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Button, Stack, Text, Tooltip } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -26,121 +23,18 @@ import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboar
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
-import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
 import { getFieldCandidates } from './fieldCandidates';
-import { FieldRow, type TileScope } from './FieldRow';
+import { FieldRow } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
-import {
-    applyFieldToAll,
-    applyFieldToUnfilteredTiles,
-    getFieldCount,
-    getFieldScope,
-    getFilterFields,
-    getTileField,
-    removeField,
-    removeFieldFromAll,
-    setTileField,
-    toSqlColumnTarget,
-    type FieldScope,
-    type FieldsByTile,
-    type SqlColumnsByTile,
-} from './peers';
+import { applyFieldToUnfilteredTiles, getFilterFields } from './peers';
 import { useControlsSidebar } from './useControlsSidebar';
-import {
-    toDashboardFilterableField,
-    useFilterRuleField,
-} from './useFilterRuleField';
+import { useFieldTileActions } from './useFieldTileActions';
+import { useFilterRuleField } from './useFilterRuleField';
 import { focusLabelInput } from './useLabelDraft';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
-const SQL_COLUMN_LABEL = 'SQL column';
 const NO_FIELDS: DashboardFilterableField[] = [];
 const NO_TILE_FIELDS: Record<string, DashboardFilterableField[]> = {};
-
-const TILE_SCOPE_OPTIONS: { value: TileScope; label: string }[] = [
-    { value: 'this-tab', label: 'This tab' },
-    { value: 'every-tab', label: 'Every tab' },
-];
-const isTileScope = (value: string): value is TileScope =>
-    TILE_SCOPE_OPTIONS.some((option) => option.value === value);
-
-const getRuleFieldTarget = (
-    rule: DashboardFilterRule,
-    fieldId: string,
-): DashboardFieldTarget | null => {
-    if (rule.target.fieldId === fieldId) return rule.target;
-    return (
-        Object.values(rule.tileTargets ?? {})
-            .filter(isDashboardFieldTarget)
-            .find((target) => target.fieldId === fieldId) ?? null
-    );
-};
-
-const getSqlColumnTiles = (
-    reference: string,
-    tiles: DashboardTile[],
-    sqlColumnsByTile: SqlColumnsByTile,
-): DashboardTile[] =>
-    tiles.filter((tile) =>
-        (sqlColumnsByTile[tile.uuid] ?? []).some(
-            (column) => column.reference === reference,
-        ),
-    );
-
-// A SQL column is offered by the SQL chart tiles that have it, never by a
-// tile's fields
-const getSqlColumnScope = (
-    rule: DashboardFilterRule,
-    reference: string,
-    tiles: DashboardTile[],
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile,
-): FieldScope => {
-    const columnsOnTiles = getSqlColumnTiles(
-        reference,
-        tiles,
-        sqlColumnsByTile,
-    ).map(
-        (tile) =>
-            getTileField(rule, tile, fieldsByTile, sqlColumnsByTile)?.fieldId ??
-            null,
-    );
-    const replacedFieldIds = columnsOnTiles.filter(
-        (onTile): onTile is string => onTile !== null && onTile !== reference,
-    );
-    return {
-        possible: columnsOnTiles.length,
-        applied: getFieldCount(
-            rule,
-            reference,
-            tiles,
-            fieldsByTile,
-            sqlColumnsByTile,
-        ).applied,
-        unfiltered: columnsOnTiles.filter((onTile) => onTile === null).length,
-        replaced: replacedFieldIds.length,
-        replacedFieldIds: [...new Set(replacedFieldIds)],
-    };
-};
-
-const applySqlColumnToAll = (
-    rule: DashboardFilterRule,
-    reference: string,
-    tiles: DashboardTile[],
-    fieldsByTile: FieldsByTile,
-    sqlColumnsByTile: SqlColumnsByTile,
-): DashboardFilterRule =>
-    getSqlColumnTiles(reference, tiles, sqlColumnsByTile).reduce(
-        (next, tile) =>
-            setTileField(
-                next,
-                tile,
-                toSqlColumnTarget(reference),
-                fieldsByTile,
-                sqlColumnsByTile,
-            ),
-        rule,
-    );
 
 type AddFieldSearchProps = {
     fields: DashboardFilterableField[];
@@ -152,7 +46,7 @@ type AddFieldSearchProps = {
     onDismiss: (byKeyboard: boolean) => void;
 };
 
-// Mounted while "Add a field" is open, focused with its list open. It is put
+// Mounted while "Add another field" is open, focused with its list open. It is put
 // away when its list closes (Escape, focus leaving, a pick)
 const AddFieldSearch: FC<AddFieldSearchProps> = ({
     onPick,
@@ -189,11 +83,9 @@ export const FieldsAndTiles: FC = () => {
         isPlaceholder,
         addFirstField,
         addFirstSqlColumn,
-        isNew,
         updateFilter,
         waitingFieldIds,
         addWaitingField,
-        removeWaitingField,
         highlightedFieldId,
         setHighlightedFieldId,
         clearHighlightedField,
@@ -221,26 +113,17 @@ export const FieldsAndTiles: FC = () => {
     );
     const canCreateMetricFilters =
         metricFiltersFlag?.enabled ?? import.meta.env.DEV;
-    const fieldsMap = useFilterableItemsMap();
     const [isAdding, setIsAdding] = useState(false);
-    // Local to the open editor: never saved, back to "This tab" next time
-    const [tileScopeChoice, setTileScopeChoice] =
-        useState<TileScope>('this-tab');
     const addButtonRef = useRef<HTMLButtonElement>(null);
+    const rowsRef = useRef<HTMLDivElement>(null);
+    const starterRef = useRef<HTMLDivElement>(null);
+    // The card whose trash can was pressed, until it has left the list
+    const removedRef = useRef<{ fieldId: string; index: number } | null>(null);
 
     const tiles = useMemo(() => dashboardTiles ?? [], [dashboardTiles]);
-    // Without two tabs there is no scope to choose: every tile is in
-    const scopeTabUuid = dashboardTabs.length >= 2 ? activeTabUuid : undefined;
-    const tileScope = scopeTabUuid === undefined ? null : tileScopeChoice;
-    const scopedTiles = useMemo(
-        () =>
-            tileScope === 'this-tab'
-                ? tiles.filter((tile) => tile.tabUuid === scopeTabUuid)
-                : tiles,
-        [tiles, tileScope, scopeTabUuid],
-    );
     const availableTileFilters = filterableFieldsByTileUuid ?? NO_TILE_FIELDS;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const fieldTileActions = useFieldTileActions(sqlColumnsByTile);
 
     const dimensions = allFilterableFields ?? NO_FIELDS;
     const metrics = allFilterableMetrics ?? NO_FIELDS;
@@ -291,13 +174,31 @@ export const FieldsAndTiles: FC = () => {
         );
     }, [targetField, rowIds, dimensions, metrics, tileCountByFieldId]);
 
+    // The pressed trash can leaves with its card: focus goes to the card that
+    // took its place, else the last one, "Add another field" or the search
+    useLayoutEffect(() => {
+        const removed = removedRef.current;
+        if (removed === null || rowIds.includes(removed.fieldId)) return;
+        removedRef.current = null;
+        if (isPlaceholder) {
+            starterRef.current?.querySelector('input')?.focus();
+            return;
+        }
+        const names =
+            rowsRef.current?.querySelectorAll<HTMLElement>(
+                'button[aria-pressed]',
+            ) ?? [];
+        const next = names[Math.min(removed.index, names.length - 1)];
+        (next ?? addButtonRef.current)?.focus();
+    });
+
     if (editingRule === null) return null;
 
     if (isPlaceholder) {
         // As in the shipped "Add filter": columns only when no tile has fields
         const hasFields = starterFields.length > 0;
         return (
-            <Stack gap="xs">
+            <Stack gap="xs" ref={starterRef}>
                 {hasFields ? (
                     <FilterFieldSelect
                         fields={starterFields}
@@ -334,199 +235,65 @@ export const FieldsAndTiles: FC = () => {
                 )}
                 <Text fz="xs" c="dimmed" className={classes.hint}>
                     {hasFields
-                        ? 'Pick a field to filter tiles by it.'
-                        : 'Pick a column to filter tiles by it.'}
+                        ? 'Select the field to filter tiles by.'
+                        : 'Select the column to filter tiles by.'}
                 </Text>
             </Stack>
         );
     }
 
-    const isSqlColumnFilter = editingRule.target.isSqlColumn === true;
-    const isSqlColumnRow = (fieldId: string) =>
-        isSqlColumnFilter && fieldId === editingRule.target.fieldId;
-
-    const getField = (fieldId: string): DashboardFilterableField | null =>
-        isSqlColumnRow(fieldId)
-            ? null
-            : toDashboardFilterableField(fieldsMap[fieldId]);
-
-    const clearHighlight = (fieldId: string) => {
-        if (highlightedFieldId === fieldId) setHighlightedFieldId(null);
-        if (hoveredFieldId === fieldId) setHoveredFieldId(null);
-    };
+    if (fieldTileActions === null) return null;
 
     const hasCandidates = candidates.length > 0;
 
     return (
         <Stack gap="lg">
-            <Stack gap="xs">
+            <Stack gap="xs" ref={rowsRef}>
                 <Stack gap={2}>
                     <Text fz="sm" fw={600}>
-                        Fields in this filter
+                        Tiles are filtered by
                     </Text>
                     <Text fz="xs" c="dimmed">
-                        Choose which field each tile is filtered by.
+                        Select a field to see and change its tiles.
                     </Text>
                 </Stack>
-                {tileScope !== null && (
-                    <SegmentedControl
-                        size="xs"
-                        fullWidth
-                        aria-label="Where field actions apply"
-                        data={TILE_SCOPE_OPTIONS}
-                        value={tileScope}
-                        onChange={(value) => {
-                            if (isTileScope(value)) setTileScopeChoice(value);
-                        }}
-                    />
-                )}
-                {rowIds.map((fieldId) => {
-                    const field = getField(fieldId);
-                    const isSqlColumn = isSqlColumnRow(fieldId);
-                    const isWaiting = waitingFieldIds.includes(fieldId);
-                    const target =
-                        getRuleFieldTarget(editingRule, fieldId) ??
-                        (field === null
-                            ? null
-                            : { fieldId, tableName: field.table });
-                    const scope = (
-                        isSqlColumn ? getSqlColumnScope : getFieldScope
-                    )(
-                        editingRule,
-                        fieldId,
-                        scopedTiles,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    );
+                {rowIds.map((fieldId, index) => {
+                    const row = fieldTileActions.forField(fieldId);
                     return (
                         <FieldRow
                             key={fieldId}
-                            field={field}
-                            // Each time grain is a field of its own, so the
-                            // name says which one
-                            label={field?.label ?? fieldId}
-                            tableLabel={
-                                isSqlColumn
-                                    ? SQL_COLUMN_LABEL
-                                    : (field?.tableLabel ??
-                                      target?.tableName ??
-                                      '')
-                            }
-                            scope={scope}
-                            tileScope={tileScope}
-                            replacedLabels={scope.replacedFieldIds.map(
-                                (replacedId) =>
-                                    getField(replacedId)?.label ?? replacedId,
-                            )}
+                            field={row.field}
+                            label={row.label}
+                            tableLabel={row.tableLabel}
+                            applied={row.everyTabScope.applied}
+                            possible={row.everyTabScope.possible}
                             isHighlighted={highlightedFieldId === fieldId}
-                            isWaiting={isWaiting}
+                            isWaiting={row.isWaiting}
                             onToggleHighlight={() => {
                                 if (highlightedFieldId === fieldId)
                                     clearHighlightedField();
                                 else setHighlightedFieldId(fieldId);
                             }}
-                            onClearHighlight={clearHighlightedField}
                             onHoverChange={(isHovered) => {
                                 if (isHovered) setHoveredFieldId(fieldId);
                                 else if (hoveredFieldId === fieldId)
                                     setHoveredFieldId(null);
                             }}
-                            onAddToUnfiltered={() => {
-                                if (isSqlColumn) {
-                                    updateFilter(
-                                        applySqlColumnToAll(
-                                            editingRule,
-                                            fieldId,
-                                            scopedTiles.filter(
-                                                (tile) =>
-                                                    getTileField(
-                                                        editingRule,
-                                                        tile,
-                                                        filterableFieldsByTileUuid,
-                                                        sqlColumnsByTile,
-                                                    ) === null,
-                                            ),
-                                            filterableFieldsByTileUuid,
-                                            sqlColumnsByTile,
-                                        ),
-                                    );
-                                    return;
-                                }
-                                if (target === null) return;
-                                updateFilter(
-                                    applyFieldToUnfilteredTiles(
-                                        editingRule,
-                                        target,
-                                        scopedTiles,
-                                        filterableFieldsByTileUuid,
-                                        sqlColumnsByTile,
-                                    ),
-                                );
-                            }}
-                            onAll={() => {
-                                if (isSqlColumn) {
-                                    updateFilter(
-                                        applySqlColumnToAll(
-                                            editingRule,
-                                            fieldId,
-                                            scopedTiles,
-                                            filterableFieldsByTileUuid,
-                                            sqlColumnsByTile,
-                                        ),
-                                    );
-                                    return;
-                                }
-                                if (target === null) return;
-                                updateFilter(
-                                    applyFieldToAll(
-                                        editingRule,
-                                        target,
-                                        scopedTiles,
-                                        filterableFieldsByTileUuid,
-                                    ),
-                                );
-                            }}
-                            onClear={() => {
-                                const next = removeFieldFromAll(
-                                    editingRule,
-                                    fieldId,
-                                    scopedTiles,
-                                    filterableFieldsByTileUuid,
-                                );
-                                updateFilter(next);
-                            }}
                             onRemove={() => {
-                                clearHighlight(fieldId);
-                                if (isWaiting) {
-                                    removeWaitingField(fieldId);
-                                    return;
-                                }
-                                updateFilter(
-                                    removeField(
-                                        editingRule,
-                                        fieldId,
-                                        tiles,
-                                        filterableFieldsByTileUuid,
-                                    ),
-                                );
-                                removeWaitingField(fieldId);
+                                removedRef.current = { fieldId, index };
+                                if (highlightedFieldId === fieldId)
+                                    setHighlightedFieldId(null);
+                                if (hoveredFieldId === fieldId)
+                                    setHoveredFieldId(null);
+                                row.remove();
                             }}
-                            // Without its last field the filter could not be
-                            // kept, and closing would bring it back
-                            removeDisabledReason={
-                                isWaiting || fieldIds.length > 1
-                                    ? null
-                                    : isNew
-                                      ? 'Discard the control instead'
-                                      : 'Remove the filter from More actions instead'
-                            }
                         />
                     );
                 })}
             </Stack>
             <Stack gap="xs" align="flex-start">
                 <Tooltip
-                    label="No other field of this type is on a tile"
+                    label="No tile has another field this filter could use"
                     disabled={hasCandidates}
                 >
                     <Button
@@ -541,7 +308,7 @@ export const FieldsAndTiles: FC = () => {
                         data-disabled={!hasCandidates || undefined}
                         aria-disabled={!hasCandidates || undefined}
                     >
-                        Add a field
+                        Add another field
                     </Button>
                 </Tooltip>
                 {isAdding && hasCandidates && (

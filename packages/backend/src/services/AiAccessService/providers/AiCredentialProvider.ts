@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 
 export type AiMintArgs<T extends CreateWarehouseCredentials> = {
+    silentRefresh: boolean;
     connection: T;
     person: { userUuid: string; email: string };
 };

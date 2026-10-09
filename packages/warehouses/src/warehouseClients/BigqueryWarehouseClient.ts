@@ -579,9 +579,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             timezone?: string;
         },
     ) {
-        const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(
-            options?.tags,
-        );
+        const tags = options?.tags;
+        const labels = BigqueryWarehouseClient.sanitizeLabelsWithValues(tags);
+        const identityLabels =
+            this.agentJobControls && tags
+                ? (BigqueryWarehouseClient.sanitizeLabelsWithValues(
+                      Object.fromEntries(
+                          ['agent_surface', 'agent_client']
+                              .filter((key) => tags[key] !== undefined)
+                              .map((key) => [key, tags[key]]),
+                      ),
+                  ) ?? {})
+                : {};
         return this.client.createQueryJob({
             query,
             params: options?.values,
@@ -603,10 +612,20 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             labels: this.agentJobControls
                 ? {
                       agent: 'true',
+                      ...identityLabels,
                       ...Object.fromEntries(
                           Object.entries(labels ?? {})
-                              .filter(([key]) => key !== 'agent')
-                              .slice(0, BigqueryWarehouseClient.MAX_LABELS - 1),
+                              .filter(
+                                  ([key]) =>
+                                      key !== 'agent' &&
+                                      !Object.hasOwn(identityLabels, key),
+                              )
+                              .slice(
+                                  0,
+                                  BigqueryWarehouseClient.MAX_LABELS -
+                                      1 -
+                                      Object.keys(identityLabels).length,
+                              ),
                       ),
                   }
                 : labels,

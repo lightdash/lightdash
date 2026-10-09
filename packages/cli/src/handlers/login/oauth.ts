@@ -6,7 +6,7 @@ import GlobalState from '../../globalState';
 
 const execAsync = promisify(exec);
 
-export const openBrowser = async (url: string): Promise<void> => {
+export const openBrowser = async (url: string): Promise<boolean> => {
     try {
         const { platform } = process;
 
@@ -17,7 +17,9 @@ export const openBrowser = async (url: string): Promise<void> => {
         } else {
             await execAsync(`xdg-open "${url}"`);
         }
+        return true;
     } catch (error) {
         GlobalState.debug(`> Could not open browser automatically: ${error}`);
+        return false;
     }
 };

@@ -10,13 +10,17 @@ import {
     DocumentVersionList,
     DocumentVersionSummary,
     getDocumentChartTag,
+    getDocumentSavedChartLinks,
     getUserAvatarUrl,
     isUserAvatarColorValue,
     matchDocumentChartKeys,
     NotFoundError,
     ParameterError,
     parseDocumentContent,
+    parseStoredDocumentContent,
     UpdateDocumentContentRequest,
+    type DocumentLinkingChart,
+    type DocumentSavedChartKind,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ContentVerificationTableName } from '../database/entities/contentVerification';
@@ -24,6 +28,7 @@ import {
     DbDocument,
     DbDocumentVersion,
     DocumentsTableName,
+    DocumentVersionSavedChartsTableName,
     DocumentVersionsTableName,
 } from '../database/entities/documents';
 import { EmailTableName } from '../database/entities/emails';
@@ -37,6 +42,16 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+
+/** A saved chart a Document link resolves to; `slugs` lists its current slug last. */
+export type SavedChartForLink = {
+    kind: DocumentSavedChartKind;
+    uuid: string;
+    slugs: string[];
+    spaceUuid: string | null;
+    dashboardUuid: string | null;
+    isDeleted: boolean;
+};
 
 export type CreateDocument = {
     projectUuid: string;
@@ -77,10 +92,56 @@ const cellsToContent = (content: unknown) => {
     return { markdown: blocks.join('\n\n'), charts };
 };
 
+/** Unsupported charts are stored beside the others, so a newer release reads them again. */
+const toChartData = ({
+    charts,
+    unsupportedCharts,
+}: DocumentContent): Record<string, unknown> => ({
+    ...unsupportedCharts,
+    ...charts,
+});
+
+/**
+ * Index a version's links to saved charts. A link to a chart deleted since
+ * keeps its tag but gets no row.
+ */
+const insertSavedChartLinks = async (
+    transaction: Knex,
+    documentVersionUuid: string,
+    content: DocumentContent,
+): Promise<void> => {
+    const links = getDocumentSavedChartLinks(content);
+    const uuidsOf = (kind: DocumentSavedChartKind) => [
+        ...new Set(
+            links.flatMap((link) =>
+                link.kind === kind && link.attributes.uuid
+                    ? [link.attributes.uuid]
+                    : [],
+            ),
+        ),
+    ];
+    const chartUuids = uuidsOf('chart');
+    const sqlChartUuids = uuidsOf('sqlChart');
+    if (chartUuids.length > 0) {
+        await transaction.raw(
+            `INSERT INTO ${DocumentVersionSavedChartsTableName} (document_version_uuid, saved_query_uuid)
+             SELECT ?, saved_query_uuid FROM saved_queries WHERE saved_query_uuid = ANY(?::uuid[])`,
+            [documentVersionUuid, chartUuids],
+        );
+    }
+    if (sqlChartUuids.length > 0) {
+        await transaction.raw(
+            `INSERT INTO ${DocumentVersionSavedChartsTableName} (document_version_uuid, saved_sql_uuid)
+             SELECT ?, saved_sql_uuid FROM saved_sql WHERE saved_sql_uuid = ANY(?::uuid[])`,
+            [documentVersionUuid, sqlChartUuids],
+        );
+    }
+};
+
 const getStoredContent = (version: DbDocumentVersion): unknown => {
     if (![1, DOCUMENT_SCHEMA_VERSION].includes(version.schema_version)) {
         throw new ParameterError(
-            `Unsupported Document schema version: ${version.schema_version}`,
+            `This Document was saved by a newer version (schema version ${version.schema_version}) and can't be opened here`,
         );
     }
     return version.markdown === null
@@ -629,10 +690,7 @@ export class DocumentModel {
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,
-                content: parseDocumentContent(
-                    DOCUMENT_SCHEMA_VERSION,
-                    getStoredContent(version),
-                ),
+                content: parseStoredDocumentContent(getStoredContent(version)),
                 createdByUserUuid: version.created_by_user_uuid,
                 createdAt: version.created_at,
             },
@@ -648,6 +706,122 @@ export class DocumentModel {
                       }
                     : null,
         };
+    }
+
+    /**
+     * Saved charts or saved SQL charts of a project by uuid or slug (chart
+     * slugs include their old aliases), for Document links.
+     */
+    async findSavedChartsForLinks(
+        projectUuid: string,
+        kind: DocumentSavedChartKind,
+        { uuids, slugs }: { uuids: string[]; slugs: string[] },
+    ): Promise<SavedChartForLink[]> {
+        if (uuids.length === 0 && slugs.length === 0) {
+            return [];
+        }
+        if (kind === 'sqlChart') {
+            const rows: Array<{
+                uuid: string;
+                slug: string;
+                space_uuid: string | null;
+                dashboard_uuid: string | null;
+                is_deleted: boolean;
+            }> = await this.database('saved_sql')
+                .where('project_uuid', projectUuid)
+                .where((query) =>
+                    query
+                        .whereIn('saved_sql_uuid', uuids)
+                        .orWhereIn('slug', slugs),
+                )
+                .select(
+                    'saved_sql_uuid as uuid',
+                    'slug',
+                    'space_uuid',
+                    'dashboard_uuid',
+                    this.database.raw('deleted_at IS NOT NULL as is_deleted'),
+                );
+            return rows.map((row) => ({
+                kind,
+                uuid: row.uuid,
+                slugs: [row.slug],
+                spaceUuid: row.space_uuid,
+                dashboardUuid: row.dashboard_uuid,
+                isDeleted: row.is_deleted,
+            }));
+        }
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                uuid: string;
+                slugs: string[];
+                space_uuid: string | null;
+                dashboard_uuid: string | null;
+                is_deleted: boolean;
+            }>;
+        }>(
+            `SELECT sq.saved_query_uuid AS uuid,
+                    array_remove(array_append(array_agg(m.slug), sq.slug), NULL) AS slugs,
+                    s.space_uuid,
+                    sq.dashboard_uuid,
+                    sq.deleted_at IS NOT NULL AS is_deleted
+             FROM saved_queries sq
+             LEFT JOIN spaces s ON s.space_id = sq.space_id
+             LEFT JOIN saved_query_slug_mappings m ON m.saved_query_uuid = sq.saved_query_uuid
+             WHERE sq.project_uuid = ?
+               AND (sq.saved_query_uuid = ANY(?::uuid[])
+                    OR sq.slug = ANY(?::text[])
+                    OR sq.saved_query_uuid IN (
+                        SELECT saved_query_uuid FROM saved_query_slug_mappings
+                        WHERE project_uuid = ? AND slug = ANY(?::text[])))
+             GROUP BY sq.saved_query_uuid, sq.slug, s.space_uuid, sq.dashboard_uuid, sq.deleted_at`,
+            [projectUuid, uuids, slugs, projectUuid, slugs],
+        );
+        return rows.map((row) => ({
+            kind,
+            uuid: row.uuid,
+            slugs: row.slugs,
+            spaceUuid: row.space_uuid,
+            dashboardUuid: row.dashboard_uuid,
+            isDeleted: row.is_deleted,
+        }));
+    }
+
+    /** Live Documents whose current version links this saved chart. */
+    async findDocumentsLinkingChart(
+        projectUuid: string,
+        kind: DocumentSavedChartKind,
+        chartUuid: string,
+    ): Promise<DocumentLinkingChart[]> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                document_uuid: string;
+                name: string;
+                slug: string;
+                space_uuid: string | null;
+            }>;
+        }>(
+            `SELECT d.document_uuid, d.name, d.slug, s.space_uuid
+             FROM documents d
+             LEFT JOIN spaces s ON s.space_id = d.space_id
+             JOIN LATERAL (
+                 SELECT v.document_version_uuid FROM document_versions v
+                 WHERE v.document_id = d.document_id
+                 ORDER BY v.version_number DESC LIMIT 1
+             ) latest ON TRUE
+             JOIN ${DocumentVersionSavedChartsTableName} l
+               ON l.document_version_uuid = latest.document_version_uuid
+             WHERE d.project_uuid = ? AND d.deleted_at IS NULL
+               AND ${kind === 'chart' ? 'l.saved_query_uuid' : 'l.saved_sql_uuid'} = ?
+             GROUP BY d.document_uuid, d.name, d.slug, s.space_uuid
+             ORDER BY d.name`,
+            [projectUuid, chartUuid],
+        );
+        return rows.map((row) => ({
+            documentUuid: row.document_uuid,
+            name: row.name,
+            slug: row.slug,
+            spaceUuid: row.space_uuid,
+        }));
     }
 
     async create(input: CreateDocument): Promise<Document> {
@@ -716,14 +890,21 @@ export class DocumentModel {
             await transaction(DocumentsTableName)
                 .where('document_id', document.document_id)
                 .update({ next_chart_number: nextChartNumber });
-            await transaction(DocumentVersionsTableName).insert({
-                document_id: document.document_id,
-                version_number: 1,
-                schema_version: DOCUMENT_SCHEMA_VERSION,
-                markdown: content.markdown,
-                chart_data: JSON.stringify(content.charts),
-                created_by_user_uuid: input.createdByUserUuid,
-            });
+            const [version] = await transaction(DocumentVersionsTableName)
+                .insert({
+                    document_id: document.document_id,
+                    version_number: 1,
+                    schema_version: DOCUMENT_SCHEMA_VERSION,
+                    markdown: content.markdown,
+                    chart_data: JSON.stringify(toChartData(content)),
+                    created_by_user_uuid: input.createdByUserUuid,
+                })
+                .returning('document_version_uuid');
+            await insertSavedChartLinks(
+                transaction,
+                version.document_version_uuid,
+                content,
+            );
             return this.getWithDatabase(
                 transaction,
                 input.projectUuid,
@@ -768,19 +949,27 @@ export class DocumentModel {
                     parseDocumentContent(
                         DOCUMENT_SCHEMA_VERSION,
                         input.content,
+                        { previous: document.version.content },
                     ),
                     document.version.content,
                 ),
                 row.next_chart_number,
             );
-            await transaction(DocumentVersionsTableName).insert({
-                document_id: row.document_id,
-                version_number: document.version.versionNumber + 1,
-                schema_version: DOCUMENT_SCHEMA_VERSION,
-                markdown: content.markdown,
-                chart_data: JSON.stringify(content.charts),
-                created_by_user_uuid: createdByUserUuid,
-            });
+            const [version] = await transaction(DocumentVersionsTableName)
+                .insert({
+                    document_id: row.document_id,
+                    version_number: document.version.versionNumber + 1,
+                    schema_version: DOCUMENT_SCHEMA_VERSION,
+                    markdown: content.markdown,
+                    chart_data: JSON.stringify(toChartData(content)),
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning('document_version_uuid');
+            await insertSavedChartLinks(
+                transaction,
+                version.document_version_uuid,
+                content,
+            );
             await transaction(DocumentsTableName)
                 .where('document_id', row.document_id)
                 .update({

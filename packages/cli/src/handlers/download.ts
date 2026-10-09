@@ -36,6 +36,7 @@ import {
     DashboardAsCode,
     DashboardTileTypes,
     DATA_APP_VIZ_TEMPLATE,
+    DOCUMENT_SCHEMA_VERSION,
     DocumentAsCode,
     ExternalConnectionAsCode,
     generateSlug,
@@ -1508,6 +1509,7 @@ const downloadDocuments = async (
                 [
                     ...slugs.map((slug): [string, string] => ['slugs', slug]),
                     ['offset', String(offset)],
+                    ['schemaVersion', String(DOCUMENT_SCHEMA_VERSION)],
                 ],
             ).toString()}`,
             body: undefined,

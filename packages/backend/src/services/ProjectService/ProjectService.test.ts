@@ -121,7 +121,7 @@ import { fromJwt } from '../../auth/account/account';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { getDbtPartialParseBaselinePath } from '../../dbt/dbtPartialParseBaseline';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -609,6 +609,7 @@ const getMockedProjectService = (
         Pick<
             ConstructorParameters<typeof ProjectService>[0],
             | 'jobModel'
+            | 'userOAuthGrantsModel'
             | 'projectModel'
             | 'spacePermissionService'
             | 'spaceModel'
@@ -677,7 +678,8 @@ const getMockedProjectService = (
             invalidateSessionUserCache: vi.fn(),
             findSessionUserByUUID: vi.fn(async () => user),
         } as unknown as UserModel,
-        userOAuthGrantsModel: {} as UserOAuthGrantsModel,
+        userOAuthGrantsModel:
+            overrides.userOAuthGrantsModel ?? ({} as UserOAuthGrantsModel),
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
         } as unknown as AiAccessService,
@@ -790,7 +792,7 @@ type RefreshForTest = <T>(
 
 describe('ProjectService', () => {
     const { projectUuid } = defaultProject;
-    const service = getMockedProjectService(lightdashConfigMock);
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
@@ -831,7 +833,7 @@ describe('ProjectService', () => {
                     );
                 getDocumentCounts.mockClear();
                 const countService = getMockedProjectService(
-                    lightdashConfigMock,
+                    lightdashConfigWithGoogleOAuthMock,
                     {
                         featureFlagModel: {
                             get: vi.fn().mockResolvedValue({ enabled }),
@@ -888,15 +890,18 @@ describe('ProjectService', () => {
                 projectUuid: 'training-project',
                 created: true,
             }));
-            const learnService = getMockedProjectService(lightdashConfigMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.EnableLearn,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-                provisionTrainingProject,
-            });
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({
+                            id: FeatureFlags.EnableLearn,
+                            enabled: true,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                    provisionTrainingProject,
+                },
+            );
             const adminUser = {
                 ...learnUser,
                 ability: new Ability<PossibleAbilities>([
@@ -922,7 +927,7 @@ describe('ProjectService', () => {
                 }));
                 const provisionTrainingProject = vi.fn();
                 const learnService = getMockedProjectService(
-                    lightdashConfigMock,
+                    lightdashConfigWithGoogleOAuthMock,
                     {
                         featureFlagModel: {
                             get,
@@ -961,7 +966,7 @@ describe('ProjectService', () => {
                     Parameters<typeof getMockedProjectService>[1]
                 >['seedTrainingCopyEnterpriseContent'],
             ) =>
-                getMockedProjectService(lightdashConfigMock, {
+                getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
                     seedTrainingCopyEnterpriseContent,
                     featureFlagModel: {
                         get: vi.fn(async ({ featureFlagId }) => ({
@@ -1083,11 +1088,14 @@ describe('ProjectService', () => {
         });
 
         test('forbids creating a training copy without Learn access', async () => {
-            const learnService = getMockedProjectService(lightdashConfigMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({ enabled: true })),
-                } as unknown as FeatureFlagModel,
-            });
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({ enabled: true })),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
             await expect(
                 learnService.createTrainingPreview(
                     {
@@ -1103,15 +1111,18 @@ describe('ProjectService', () => {
 
         test('still requires org admin permissions when Learn is enabled', async () => {
             const provisionTrainingProject = vi.fn();
-            const learnService = getMockedProjectService(lightdashConfigMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.EnableLearn,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-                provisionTrainingProject,
-            });
+            const learnService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn(async () => ({
+                            id: FeatureFlags.EnableLearn,
+                            enabled: true,
+                        })),
+                    } as unknown as FeatureFlagModel,
+                    provisionTrainingProject,
+                },
+            );
             await expect(
                 learnService.enableLearn({
                     ...learnUser,
@@ -1287,11 +1298,11 @@ describe('ProjectService', () => {
                 ).mockRestore();
                 vi.stubEnv('NODE_ENV', environment);
                 vi.spyOn(
-                    lightdashConfigMock.enabledFeatureFlags,
+                    lightdashConfigWithGoogleOAuthMock.enabledFeatureFlags,
                     'has',
                 ).mockReturnValue(enabled);
                 vi.spyOn(
-                    lightdashConfigMock.disabledFeatureFlags,
+                    lightdashConfigWithGoogleOAuthMock.disabledFeatureFlags,
                     'has',
                 ).mockReturnValue(disabled);
 
@@ -1331,11 +1342,11 @@ describe('ProjectService', () => {
             ).mockRestore();
             vi.stubEnv('NODE_ENV', 'production');
             vi.spyOn(
-                lightdashConfigMock.enabledFeatureFlags,
+                lightdashConfigWithGoogleOAuthMock.enabledFeatureFlags,
                 'has',
             ).mockReturnValue(false);
             vi.spyOn(
-                lightdashConfigMock.disabledFeatureFlags,
+                lightdashConfigWithGoogleOAuthMock.disabledFeatureFlags,
                 'has',
             ).mockReturnValue(false);
             const flags = {
@@ -1345,7 +1356,7 @@ describe('ProjectService', () => {
                 }),
             } as unknown as FeatureFlagModel;
             const enabledService = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 {
                     featureFlagModel: flags,
                 },
@@ -1441,10 +1452,10 @@ describe('ProjectService', () => {
                 expected,
             }) => {
                 const configuredService = getMockedProjectService({
-                    ...lightdashConfigMock,
+                    ...lightdashConfigWithGoogleOAuthMock,
                     lightdashCloudInstance,
                     motherduckInstanceCache: {
-                        ...lightdashConfigMock.motherduckInstanceCache,
+                        ...lightdashConfigWithGoogleOAuthMock.motherduckInstanceCache,
                         enabled: true,
                         projectUuids,
                     },
@@ -1471,9 +1482,9 @@ describe('ProjectService', () => {
 
         it('keeps the cache disabled when the feature flag is off', async () => {
             const configuredService = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 motherduckInstanceCache: {
-                    ...lightdashConfigMock.motherduckInstanceCache,
+                    ...lightdashConfigWithGoogleOAuthMock.motherduckInstanceCache,
                     enabled: false,
                     projectUuids: [projectUuid],
                 },
@@ -1681,8 +1692,11 @@ describe('ProjectService', () => {
 
     describe('updateProjectResultsCacheSettings', () => {
         const cachingService = getMockedProjectService({
-            ...lightdashConfigMock,
-            results: { ...lightdashConfigMock.results, cacheEnabled: true },
+            ...lightdashConfigWithGoogleOAuthMock,
+            results: {
+                ...lightdashConfigWithGoogleOAuthMock.results,
+                cacheEnabled: true,
+            },
         });
 
         beforeEach(() => {
@@ -1760,7 +1774,8 @@ describe('ProjectService', () => {
                 projectUuid,
                 cacheTtlSeconds: 1800,
                 instanceDefaultTtlSeconds:
-                    lightdashConfigMock.results.cacheStateTimeSeconds,
+                    lightdashConfigWithGoogleOAuthMock.results
+                        .cacheStateTimeSeconds,
             });
         });
 
@@ -1779,7 +1794,8 @@ describe('ProjectService', () => {
                 projectUuid,
                 cacheTtlSeconds: null,
                 instanceDefaultTtlSeconds:
-                    lightdashConfigMock.results.cacheStateTimeSeconds,
+                    lightdashConfigWithGoogleOAuthMock.results
+                        .cacheStateTimeSeconds,
             });
         });
     });
@@ -2113,7 +2129,7 @@ describe('ProjectService', () => {
         const serviceWithOrgInstallation = (
             installationId: string | undefined,
         ) =>
-            getMockedProjectService(lightdashConfigMock, {
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
                 githubAppInstallationsModel: {
                     findInstallationId: vi.fn(async () => installationId),
                 } as unknown as GithubAppInstallationsModel,
@@ -2351,7 +2367,7 @@ describe('ProjectService', () => {
                 created: true,
             }));
             const serviceWithProvisioner = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 { provisionPlaygroundProject },
             );
             const result = serviceWithProvisioner.ensurePlaygroundProject({
@@ -2558,7 +2574,7 @@ describe('ProjectService', () => {
             } as const;
             const copySources = vi.fn(async () => undefined);
             const previewService = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 {
                     projectDbtSourcesModel: {
                         copySources,
@@ -3030,7 +3046,7 @@ describe('ProjectService', () => {
             getExpiredPreviewProjects: typeof getExpiredPreviewProjects;
         };
         const sweepService = () =>
-            getMockedProjectService(lightdashConfigMock, {
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
                 getAppGenerateService: () =>
                     ({ deleteProjectAppFiles }) as never,
             });
@@ -3176,7 +3192,7 @@ describe('ProjectService', () => {
             'refuses a training copy when $reason',
             async ({ credentials, organizationWarehouseCredentialsUuid }) => {
                 const learnService = getMockedProjectService(
-                    lightdashConfigMock,
+                    lightdashConfigWithGoogleOAuthMock,
                     {
                         featureFlagModel: {
                             get: vi.fn(async () => ({
@@ -3587,7 +3603,7 @@ describe('ProjectService', () => {
             const { provisionDefaultAgent, getAiAgentService } =
                 getMockedAiAgentService();
             const serviceWithAiAgent = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 { getAiAgentService },
             );
             const creationUser: SessionUser = {
@@ -3654,7 +3670,7 @@ describe('ProjectService', () => {
             const { provisionDefaultAgent, getAiAgentService } =
                 getMockedAiAgentService();
             const serviceWithAiAgent = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 { getAiAgentService },
             );
             const creationUser: SessionUser = {
@@ -3885,7 +3901,9 @@ describe('ProjectService', () => {
         test.each(['create', 'update'] as const)(
             '%s virtual views without credentials or an SSH tunnel',
             async (operation) => {
-                const configured = getMockedProjectService(lightdashConfigMock);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
                 const virtualViewAccount = buildAccount();
                 virtualViewAccount.user.ability =
                     new Ability<PossibleAbilities>([
@@ -4198,9 +4216,9 @@ describe('ProjectService', () => {
             );
             const configured = getMockedProjectService(
                 {
-                    ...lightdashConfigMock,
+                    ...lightdashConfigWithGoogleOAuthMock,
                     results: {
-                        ...lightdashConfigMock.results,
+                        ...lightdashConfigWithGoogleOAuthMock.results,
                         cacheEnabled: false,
                         autocompleteEnabled: false,
                     },
@@ -4279,6 +4297,8 @@ describe('ProjectService', () => {
                                 userUuid: site.userUuid,
                                 isRegisteredUser: true,
                                 isServiceAccount: false,
+                                serviceAccountUuid: null,
+                                oauthClientId: null,
                             },
                         }),
                     }),
@@ -4326,7 +4346,9 @@ describe('ProjectService', () => {
         ])(
             'catalog cache reads resolve once without acquiring a client for %s',
             async (context) => {
-                const configured = getMockedProjectService(lightdashConfigMock);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
                 const getTables = vi.fn(async () => warehouseCatalog);
                 Object.assign(configured.warehouseAvailableTablesModel, {
                     getTablesForProjectWarehouseCredentials: getTables,
@@ -4350,7 +4372,9 @@ describe('ProjectService', () => {
         );
 
         test('catalog cache reads use the personal credential cache without acquiring a client', async () => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const getTables = vi.fn(async () => warehouseCatalog);
             Object.assign(configured.warehouseAvailableTablesModel, {
                 getTablesForUserWarehouseCredentials: getTables,
@@ -4489,9 +4513,9 @@ describe('ProjectService', () => {
                 const { configured, client } = setup();
                 Object.assign(configured, {
                     lightdashConfig: {
-                        ...lightdashConfigMock,
+                        ...lightdashConfigWithGoogleOAuthMock,
                         results: {
-                            ...lightdashConfigMock.results,
+                            ...lightdashConfigWithGoogleOAuthMock.results,
                             autocompleteEnabled: true,
                         },
                     },
@@ -4556,7 +4580,9 @@ describe('ProjectService', () => {
             userWarehouseCredentialsUuid: null,
         };
         const setup = () => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const connection: WarehouseConnection = {
                 warehouseConnectionUuid: connectionUuid,
                 projectUuid,
@@ -5902,8 +5928,11 @@ describe('ProjectService', () => {
                             executionProject: 'billing-project',
                             location: 'EU',
                             authenticationType: BigqueryAuthenticationType.SSO,
-                            keyfileContents:
-                                personalCredentials.credentials.keyfileContents,
+                            keyfileContents: {
+                                ...personalCredentials.credentials
+                                    .keyfileContents,
+                                client_secret: 'oauth-secret',
+                            },
                             userWarehouseCredentialsUuid:
                                 personalCredentials.uuid,
                         }),
@@ -5923,8 +5952,10 @@ describe('ProjectService', () => {
 
                 expect(await getCredentials(true, 'org-credentials')).toEqual(
                     expect.objectContaining({
-                        keyfileContents:
-                            personalCredentials.credentials.keyfileContents,
+                        keyfileContents: {
+                            ...personalCredentials.credentials.keyfileContents,
+                            client_secret: 'oauth-secret',
+                        },
                         userWarehouseCredentialsUuid: personalCredentials.uuid,
                     }),
                 );
@@ -7129,9 +7160,9 @@ describe('ProjectService', () => {
 
         test('should include pre-aggregate explores for developer users when requested', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -7161,9 +7192,9 @@ describe('ProjectService', () => {
 
         test('should exclude pre-aggregate explores for non-developer users even when requested', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -7291,6 +7322,83 @@ describe('ProjectService', () => {
     });
 
     describe('getExplore', () => {
+        test.each(['allowed', 'denied'])(
+            'applies detail override %s to joined tables, dimensions, and metrics',
+            async (detailAccess) => {
+                const restrictedExplore: Explore = {
+                    ...validExplore,
+                    tables: {
+                        a: {
+                            ...validExplore.tables.a,
+                            anyAttributes: { explore_scope: 'allowed' },
+                            dimensions: {
+                                dim1: {
+                                    ...validExplore.tables.a.dimensions.dim1,
+                                    requiredAttributes: { detail: 'allowed' },
+                                },
+                            },
+                            metrics: {
+                                met1: {
+                                    ...validExplore.tables.a.metrics.met1,
+                                    anyAttributes: { detail: 'allowed' },
+                                },
+                            },
+                        },
+                        b: {
+                            ...validExplore.tables.b,
+                            anyAttributes: { detail: 'allowed' },
+                        },
+                    },
+                };
+                vi.mocked(
+                    projectModel.findExploresFromCache,
+                ).mockResolvedValueOnce([restrictedExplore]);
+                const storedAccess = {
+                    userAttributes: {
+                        detail: ['allowed'],
+                        tenant: ['tenant-a'],
+                    },
+                    intrinsicUserAttributes: { email: 'verified@example.com' },
+                };
+                vi.spyOn(service, 'getUserAttributes').mockResolvedValueOnce(
+                    storedAccess,
+                );
+
+                const { explore, userAccessControls } =
+                    await service.getExploreWithUserAccessControls(
+                        account,
+                        projectUuid,
+                        restrictedExplore.name,
+                        undefined,
+                        false,
+                        { explore_scope: ['allowed'], detail: [detailAccess] },
+                    );
+
+                expect(Object.keys(explore.tables)).toEqual(
+                    detailAccess === 'allowed' ? ['a', 'b'] : ['a'],
+                );
+                expect(explore.joinedTables).toHaveLength(
+                    detailAccess === 'allowed' ? 1 : 0,
+                );
+                expect(Object.keys(explore.tables.a.dimensions)).toEqual(
+                    detailAccess === 'allowed' ? ['dim1'] : [],
+                );
+                expect(Object.keys(explore.tables.a.metrics)).toEqual(
+                    detailAccess === 'allowed' ? ['met1'] : [],
+                );
+                expect(userAccessControls.userAttributes).toEqual({
+                    tenant: ['tenant-a'],
+                    explore_scope: ['allowed'],
+                    detail: [detailAccess],
+                });
+                expect(storedAccess.userAttributes.detail).toEqual(['allowed']);
+                expect(userAccessControls.intrinsicUserAttributes).toEqual(
+                    storedAccess.intrinsicUserAttributes,
+                );
+                expect(explore.unfilteredTables).toBeUndefined();
+            },
+        );
+
         test('returns split candidates when the requested explore name was qualified', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
                 [],
@@ -7330,9 +7438,9 @@ describe('ProjectService', () => {
 
         test('should allow developer users to get a pre-aggregate explore', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -7351,9 +7459,9 @@ describe('ProjectService', () => {
 
         test('should not allow non-developer users to get a pre-aggregate explore', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -8009,7 +8117,7 @@ describe('ProjectService', () => {
                         : projectWithSensitiveFields.dbtConnection,
                 };
                 const boundaryService = getMockedProjectService(
-                    lightdashConfigMock,
+                    lightdashConfigWithGoogleOAuthMock,
                     {
                         jobModel: stepJobModel as unknown as JobModel,
                         projectModel: {
@@ -8200,9 +8308,9 @@ describe('ProjectService', () => {
             'autocomplete cache for %s with flag %s',
             async (context, enabled, usesCache, aiPlan) => {
                 const flaggedService = getMockedProjectService({
-                    ...lightdashConfigMock,
+                    ...lightdashConfigWithGoogleOAuthMock,
                     results: {
-                        ...lightdashConfigMock.results,
+                        ...lightdashConfigWithGoogleOAuthMock.results,
                         autocompleteEnabled: true,
                     },
                 });
@@ -8469,9 +8577,9 @@ describe('ProjectService', () => {
 
             // Enable autocomplete caching
             const serviceWithCache = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 results: {
-                    ...lightdashConfigMock.results,
+                    ...lightdashConfigWithGoogleOAuthMock.results,
                     autocompleteEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
@@ -8548,9 +8656,9 @@ describe('ProjectService', () => {
             };
 
             const serviceWithCache = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 results: {
-                    ...lightdashConfigMock.results,
+                    ...lightdashConfigWithGoogleOAuthMock.results,
                     autocompleteEnabled: true,
                     cacheStateTimeSeconds: 86400,
                 },
@@ -8699,7 +8807,9 @@ describe('ProjectService', () => {
 
     describe('selective deploy model inventory', () => {
         test('tracks a selected source deploy after validation succeeds', async () => {
-            const deployService = getMockedProjectService(lightdashConfigMock);
+            const deployService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const warehouseConnectionModel = Reflect.get(
                 deployService,
                 'warehouseConnectionModel',
@@ -8779,7 +8889,9 @@ describe('ProjectService', () => {
         });
 
         test('tracks a failed selected source deploy when validation fails', async () => {
-            const deployService = getMockedProjectService(lightdashConfigMock);
+            const deployService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const warehouseConnectionModel = Reflect.get(
                 deployService,
                 'warehouseConnectionModel',
@@ -8859,7 +8971,7 @@ describe('ProjectService', () => {
                     .fn()
                     .mockResolvedValue(hasAdditionalSources);
                 const deployService = getMockedProjectService(
-                    lightdashConfigMock,
+                    lightdashConfigWithGoogleOAuthMock,
                     {
                         projectDbtSourcesModel: {
                             hasSources,
@@ -8888,11 +9000,14 @@ describe('ProjectService', () => {
 
         test('preserves legacy selective deploys without querying source ownership', async () => {
             const hasSources = vi.fn();
-            const deployService = getMockedProjectService(lightdashConfigMock, {
-                projectDbtSourcesModel: {
-                    hasSources,
-                } as unknown as ProjectDbtSourcesModel,
-            });
+            const deployService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    projectDbtSourcesModel: {
+                        hasSources,
+                    } as unknown as ProjectDbtSourcesModel,
+                },
+            );
 
             await deployService.saveExploresToCacheAndIndexCatalog({
                 userUuid: user.userUuid,
@@ -8928,9 +9043,9 @@ describe('ProjectService', () => {
 
         test('saveExploresToCacheAndIndexCatalog skips preview project materialization jobs', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -8965,9 +9080,9 @@ describe('ProjectService', () => {
 
         test('syncs external pre-aggregate definitions with null materialization query and null cron', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -9022,9 +9137,9 @@ describe('ProjectService', () => {
 
         test('checkPreAggregateMatch returns a hit for external pre-aggregates without a materialization', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -9099,9 +9214,9 @@ describe('ProjectService', () => {
 
         test('checkPreAggregateMatch returns a miss when the pre-aggregate is not materialized', async () => {
             const serviceWithPreAggregatesEnabled = getMockedProjectService({
-                ...lightdashConfigMock,
+                ...lightdashConfigWithGoogleOAuthMock,
                 preAggregates: {
-                    ...lightdashConfigMock.preAggregates,
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
                     enabled: true,
                 },
             });
@@ -9678,7 +9793,7 @@ describe('ProjectService', () => {
                 getAccessibleSpaceUuids: vi.fn(async () => [spaceUuid]),
             } as unknown as SpacePermissionService;
             const serviceWithPermissions = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 { spacePermissionService },
             );
             (
@@ -9704,7 +9819,7 @@ describe('ProjectService', () => {
                 getAccessibleSpaceUuids: vi.fn(async () => [spaceUuid]),
             } as unknown as SpacePermissionService;
             const serviceWithPermissions = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
                 { spacePermissionService },
             );
             (
@@ -9858,9 +9973,9 @@ describe('ProjectService', () => {
             'releases before saving or after validation failure: $fails, resolution: $enabled',
             async ({ fails, enabled }) => {
                 const configured = getMockedProjectService({
-                    ...lightdashConfigMock,
+                    ...lightdashConfigWithGoogleOAuthMock,
                     warehouseClient: {
-                        ...lightdashConfigMock.warehouseClient,
+                        ...lightdashConfigWithGoogleOAuthMock.warehouseClient,
                         resolveDbtCloudPreviewCredentials: enabled,
                     },
                 });
@@ -9999,7 +10114,9 @@ describe('ProjectService', () => {
         ] as const)(
             'preserves the %s result and releases once',
             async (failure) => {
-                const configured = getMockedProjectService(lightdashConfigMock);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                );
                 const disconnect = vi.fn();
                 const error =
                     failure === 'tunnel'
@@ -10299,7 +10416,7 @@ describe('ProjectService', () => {
 
     describe('getFileStream', () => {
         const getServiceWithDownloadFile = (downloadFile: DownloadFile) =>
-            getMockedProjectService(lightdashConfigMock, {
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
                 downloadFileModel: {
                     getDownloadFile: vi.fn(async () => downloadFile),
                 } as unknown as DownloadFileModel,
@@ -10504,17 +10621,35 @@ describe('ProjectService', () => {
             },
         );
 
-        it('still requires a refresh token for SSO authentication', () => {
+        it.each([{}, serviceAccountKeyfile])(
+            'still requires a refresh token for SSO authentication: %j',
+            (keyfile) => {
+                expect(() =>
+                    service.validateConfigSecrets(
+                        projectWithBigqueryKeyfile(
+                            keyfile,
+                            BigqueryAuthenticationType.SSO,
+                        ),
+                    ),
+                ).toThrowError(
+                    'Bigquery refresh token is required for SSO authentication',
+                );
+            },
+        );
+
+        it('allows a secret-free SSO keyfile on save', () => {
             expect(() =>
                 service.validateConfigSecrets(
                     projectWithBigqueryKeyfile(
-                        serviceAccountKeyfile,
+                        {
+                            type: 'authorized_user',
+                            client_id: 'oauth-client',
+                            refresh_token: 'refresh',
+                        },
                         BigqueryAuthenticationType.SSO,
                     ),
                 ),
-            ).toThrowError(
-                'Bigquery refresh token is required for SSO authentication',
-            );
+            ).not.toThrowError();
         });
 
         it('allows a user credentials keyfile for SSO authentication', () => {
@@ -11206,7 +11341,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     ) => {
         const getSources = vi.fn(async () => sources);
         const projectService = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         // featureFlagModel and projectDbtSourcesModel are private fields set in
         // the constructor; override them post-construction for this test only.
@@ -11352,7 +11487,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         } = {},
     ) => {
         const projectService = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
             buildAdapterWithManifest(sourceManifest, selectedModelIds.source),
@@ -11478,7 +11613,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         'passes each additional source its own partial parse baseline when enabled is $dbtPartialParse',
         async ({ dbtPartialParse, expected }) => {
             const projectService = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
             ) as unknown as ProjectServiceInternals;
             const buildSourceAdapter = vi
                 .spyOn(projectService, 'buildSourceAdapter')
@@ -11561,8 +11696,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
         const buildService = (sourceFetchConcurrency: number | undefined) =>
             getMockedProjectService({
-                ...lightdashConfigMock,
-                dbt: { ...lightdashConfigMock.dbt, sourceFetchConcurrency },
+                ...lightdashConfigWithGoogleOAuthMock,
+                dbt: {
+                    ...lightdashConfigWithGoogleOAuthMock.dbt,
+                    sourceFetchConcurrency,
+                },
             }) as unknown as ProjectServiceInternals;
 
         it('fetches the primary at the same time as the additional sources', async () => {
@@ -11726,7 +11864,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             },
         ]);
         const projectService = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         const info = vi.spyOn(projectService.logger, 'info');
         vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
@@ -12052,7 +12190,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     it('compiles a source with its own warehouse location', async () => {
         const projectService = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         const buildSourceAdapter = vi
             .spyOn(projectService, 'buildSourceAdapter')
@@ -12104,7 +12242,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     it("builds the source's adapter with the source's location applied to the project credentials", async () => {
         const projectService = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
         vi.mocked(warehouseClientFromCredentials).mockClear();
 
@@ -12472,7 +12610,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             getSources: vi.fn(async () => [buildSource('source-b')]),
         } as unknown as ProjectDbtSourcesModel;
 
-        return getMockedProjectService(lightdashConfigMock, {
+        return getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
             featureFlagModel,
             projectDbtSourcesModel,
         });
@@ -12586,7 +12724,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectAdapterModule,
             'projectAdapterFromConfig',
         ).mockResolvedValueOnce(adapter);
-        const projectService = getMockedProjectService(lightdashConfigMock);
+        const projectService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         const internals = projectService as unknown as {
             testProjectAdapter: (
                 data: Omit<UpdateProject, 'warehouseConnection'> & {
@@ -12626,7 +12766,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('test and deploy with no dbt connection releases its tested adapter and tunnel', async () => {
-        const projectService = getMockedProjectService(lightdashConfigMock);
+        const projectService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         projectModel.getWithSensitiveFields.mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: warehouseClientMock.credentials,
@@ -12996,9 +13138,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         ),
     } as unknown as SpacePermissionService;
 
-    const service = getMockedProjectService(lightdashConfigMock, {
-        spacePermissionService,
-    });
+    const service = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+        {
+            spacePermissionService,
+        },
+    );
 
     const baseArgs = {
         projectUuid,
@@ -13063,9 +13208,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
                 getCustomSqlFieldKey(sqlAdditionalMetric),
             ]),
         }));
-        const dataAppService = getMockedProjectService(lightdashConfigMock, {
-            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
-        });
+        const dataAppService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+            },
+        );
 
         await expect(
             assertCustomSql(dataAppService, {
@@ -13094,9 +13242,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             customDimensions: new Set<string>(),
             additionalMetrics: new Set<string>(),
         }));
-        const dataAppService = getMockedProjectService(lightdashConfigMock, {
-            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
-        });
+        const dataAppService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+            },
+        );
 
         await expect(
             assertCustomSql(dataAppService, {
@@ -13119,9 +13270,12 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             ]),
             additionalMetrics: new Set<string>(),
         }));
-        const dataAppService = getMockedProjectService(lightdashConfigMock, {
-            getDataAppCustomSqlProvenance: getCustomSqlProvenance,
-        });
+        const dataAppService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                getDataAppCustomSqlProvenance: getCustomSqlProvenance,
+            },
+        );
 
         await expect(
             assertCustomSql(dataAppService, {
@@ -13679,22 +13833,25 @@ describe('dashboard available filters', () => {
         vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
             explores,
         );
-        const service = getMockedProjectService(lightdashConfigMock, {
-            spacePermissionService: {
-                resolveAccessBatch: vi.fn().mockResolvedValue(
-                    charts.map((chart) => ({
-                        target: { type: 'chart', chartUuid: chart.uuid },
-                        context: {
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                            projectUuid: projectSummary.projectUuid,
-                            inheritsFromOrgOrProject: true,
-                            access: [],
-                        },
-                    })),
-                ),
-            } as unknown as SpacePermissionService,
-        });
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
         const result = await service.getAvailableFiltersForSavedQueries(
             filterAccount,
             charts.map((chart, index) => ({
@@ -13789,25 +13946,30 @@ describe('dashboard available filters hidden fields', () => {
             exploreWithHidden('orders', 'orders'),
             exploreWithHidden('payments', 'payments'),
         ]);
-        const service = getMockedProjectService(lightdashConfigMock, {
-            spacePermissionService: {
-                resolveAccessBatch: vi.fn().mockResolvedValue(
-                    charts.map((chart) => ({
-                        target: { type: 'chart', chartUuid: chart.uuid },
-                        context:
-                            chart.uuid === 'chart-viewable'
-                                ? {
-                                      organizationUuid:
-                                          account.organization.organizationUuid,
-                                      projectUuid: projectSummary.projectUuid,
-                                      inheritsFromOrgOrProject: true,
-                                      access: [],
-                                  }
-                                : null,
-                    })),
-                ),
-            } as unknown as SpacePermissionService,
-        });
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context:
+                                chart.uuid === 'chart-viewable'
+                                    ? {
+                                          organizationUuid:
+                                              account.organization
+                                                  .organizationUuid,
+                                          projectUuid:
+                                              projectSummary.projectUuid,
+                                          inheritsFromOrgOrProject: true,
+                                          access: [],
+                                      }
+                                    : null,
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
 
         const result = await service.getAvailableFiltersForSavedQueries(
             filterAccount,
@@ -13828,7 +13990,9 @@ describe('dashboard available filters hidden fields', () => {
 });
 
 describe('Snowflake credential pins (SPK-2336)', () => {
-    const pinsService = getMockedProjectService(lightdashConfigMock);
+    const pinsService = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+    );
     const { projectUuid: pinsProjectUuid } = defaultProject;
 
     const baseSnowflakeCredentials: CreateSnowflakeCredentials = {
@@ -14195,7 +14359,9 @@ describe('Snowflake credential pins (SPK-2336)', () => {
 });
 
 describe('Personal-credential merge pins across warehouse types (SPK-2338)', () => {
-    const pinsService = getMockedProjectService(lightdashConfigMock);
+    const pinsService = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+    );
     const { projectUuid: pinsProjectUuid } = defaultProject;
 
     const setupProjectCredentials = (
@@ -14419,18 +14585,28 @@ describe('Personal-credential merge pins across warehouse types (SPK-2338)', () 
                 setupPersonalCredentials({
                     type: WarehouseTypes.BIGQUERY,
                     authenticationType: personalAuthType,
-                    keyfileContents: {
-                        client_email: 'personal-secret-email',
-                    },
+                    keyfileContents:
+                        personalAuthType === BigqueryAuthenticationType.SSO
+                            ? {
+                                  type: 'authorized_user',
+                                  client_id: 'personal-client',
+                                  refresh_token: 'personal-refresh',
+                              }
+                            : { client_email: 'personal-secret-email' },
                 });
 
                 const result = await callGetWarehouseCredentials();
 
                 expect(result).toMatchObject({
                     authenticationType: personalAuthType,
-                    keyfileContents: {
-                        client_email: 'personal-secret-email',
-                    },
+                    keyfileContents:
+                        personalAuthType === BigqueryAuthenticationType.SSO
+                            ? {
+                                  type: 'authorized_user',
+                                  client_id: 'personal-client',
+                                  refresh_token: 'personal-refresh',
+                              }
+                            : { client_email: 'personal-secret-email' },
                 });
                 expect(JSON.stringify(result)).not.toContain(
                     'project-secret-key',
@@ -14859,16 +15035,20 @@ describe('preview BigQuery SSO credentials', () => {
     };
     const readProjectWithSensitiveFields =
         model.getWithSensitiveFields.getMockImplementation()!;
-    const service = getMockedProjectService(lightdashConfigMock, {
-        featureFlagModel: {
-            get: vi.fn(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.PreviewSsoCredentialSync &&
-                    syncEnabled,
-            })),
-        } as unknown as FeatureFlagModel,
-    });
+    const service = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+        {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        featureFlagId ===
+                            FeatureFlags.PreviewSsoCredentialSync &&
+                        syncEnabled,
+                })),
+            } as unknown as FeatureFlagModel,
+        },
+    );
     Object.assign(service, {
         projectModel: model,
         checkGoogleRefreshToken: checkRefreshToken,
@@ -15130,9 +15310,12 @@ describe('ProjectService expired shared sign-in', () => {
     });
 
     const queryWith = async (enabled: boolean) => {
-        const service = getMockedProjectService(lightdashConfigMock, {
-            featureFlagModel: flagged(enabled),
-        });
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                featureFlagModel: flagged(enabled),
+            },
+        );
         const { warehouseClient } =
             await service.warehouseClientFactory.acquireUnscoped(
                 `${projectUuid}-${Math.random()}`,
@@ -15183,9 +15366,12 @@ describe('ProjectService expired shared sign-in', () => {
             subject: stored.subject,
             basis: SignInSubjectBasis.RECORDED,
         });
-        const service = getMockedProjectService(lightdashConfigMock, {
-            featureFlagModel: flagged(true),
-        });
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                featureFlagModel: flagged(true),
+            },
+        );
         vi.spyOn(
             UserService,
             'generateSnowflakeAccessToken',
@@ -15247,9 +15433,13 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
         })),
     };
-    const service = getMockedProjectService(lightdashConfigMock, {
-        featureFlagModel: flag as unknown as FeatureFlagModel,
-    });
+    const service = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+        {
+            featureFlagModel: flag as unknown as FeatureFlagModel,
+            userOAuthGrantsModel: grant as unknown as UserOAuthGrantsModel,
+        },
+    );
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -15281,9 +15471,12 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             developerAccount.user.id,
             {
                 type: 'authorized_user',
-                client_id: lightdashConfigMock.auth.google.oauth2ClientId,
+                client_id:
+                    lightdashConfigWithGoogleOAuthMock.auth.google
+                        .oauth2ClientId,
                 client_secret:
-                    lightdashConfigMock.auth.google.oauth2ClientSecret,
+                    lightdashConfigWithGoogleOAuthMock.auth.google
+                        .oauth2ClientSecret,
                 refresh_token: 'new-token',
             },
             developerAccount.user.id,
@@ -15506,9 +15699,12 @@ describe('ProjectService.getSharedSignInStatus', () => {
             enabled: true,
         })),
     };
-    const service = getMockedProjectService(lightdashConfigMock, {
-        featureFlagModel: flag as unknown as FeatureFlagModel,
-    });
+    const service = getMockedProjectService(
+        lightdashConfigWithGoogleOAuthMock,
+        {
+            featureFlagModel: flag as unknown as FeatureFlagModel,
+        },
+    );
     const owner = { userUuid: developerAccount.user.id, name: 'Owner' };
 
     beforeEach(() => {
@@ -15644,7 +15840,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
 describe('ProjectService.compileQueryForResponse', () => {
     const { projectUuid } = defaultProject;
     const { organizationUuid } = projectSummary;
-    const service = getMockedProjectService(lightdashConfigMock);
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
 
     const buildAiAgentAccount = ({
         sqlScopeProjectUuid,
@@ -15807,7 +16003,7 @@ describe('ProjectService.compileQueryForResponse', () => {
 
 describe('ProjectService.getExploreResponse', () => {
     const { projectUuid } = defaultProject;
-    const service = getMockedProjectService(lightdashConfigMock);
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
     const embedAccount = fromJwt({
         decodedToken: {
             content: { type: 'metricsCatalog', canExplore: true },
@@ -15884,16 +16080,19 @@ describe('ProjectService.getExploreResponse', () => {
                 dashboardUuid: null,
             },
         ]);
-        const filtersService = getMockedProjectService(lightdashConfigMock, {
-            spacePermissionService: {
-                resolveAccess: vi.fn().mockResolvedValue({
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid,
-                    inheritsFromOrgOrProject: true,
-                    access: [],
-                }),
-            } as unknown as SpacePermissionService,
-        });
+        const filtersService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccess: vi.fn().mockResolvedValue({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    }),
+                } as unknown as SpacePermissionService,
+            },
+        );
         vi.spyOn(filtersService, 'getExplore').mockResolvedValue(
             exploreWithSql,
         );
@@ -15953,12 +16152,17 @@ describe('homepage popularity', () => {
             getMostPopularApps,
             MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT: 2,
         };
-        const service = getMockedProjectService(lightdashConfigMock, {
-            spaceModel: model as unknown as SpaceModel,
-            spacePermissionService: {
-                getAccessibleSpaceUuids: vi.fn().mockResolvedValue(['visible']),
-            } as unknown as SpacePermissionService,
-        });
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spaceModel: model as unknown as SpaceModel,
+                spacePermissionService: {
+                    getAccessibleSpaceUuids: vi
+                        .fn()
+                        .mockResolvedValue(['visible']),
+                } as unknown as SpacePermissionService,
+            },
+        );
         const result = await service.getMostPopularAndRecentlyUpdated(
             { ...user, organizationUuid: projectSummary.organizationUuid },
             projectSummary.projectUuid,
@@ -16036,7 +16240,9 @@ describe('AI principal credential routing', () => {
     ] as const)(
         'the scoped original path matches the legacy result for $identity on $querySurface',
         async ({ identity, querySurface }) => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             let aiPlan: AiExecutionPlan | null = null;
             if (identity === 'connected_person') {
                 aiPlan = plan;
@@ -16116,7 +16322,9 @@ describe('AI principal credential routing', () => {
     test.each([QuerySurface.SLACK, QuerySurface.API])(
         'the scoped extra path matches the legacy route and AI credentials for %s',
         async (querySurface) => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const resolve = vi
                 .spyOn(configured.aiAccessService, 'resolvePlan')
                 .mockResolvedValue(plan);
@@ -16197,7 +16405,9 @@ describe('AI principal credential routing', () => {
     );
 
     test('the scoped original path keeps preloaded organization configuration and avoids a new summary read for an ordinary query', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseCredentialsForProject,
         ).mockResolvedValueOnce(credentials);
@@ -16235,7 +16445,9 @@ describe('AI principal credential routing', () => {
     ] as const)(
         '$site preserves $querySurface through the factory',
         async ({ site, querySurface }) => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             vi.mocked(
                 projectModel.getWarehouseCredentialsForProject,
             ).mockResolvedValueOnce(credentials);
@@ -16297,7 +16509,9 @@ describe('AI principal credential routing', () => {
     );
 
     test('passes the AI context to table discovery and avoids the person catalog cache', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseCredentialsForProject,
         ).mockResolvedValueOnce(credentials);
@@ -16330,7 +16544,9 @@ describe('AI principal credential routing', () => {
         expect(disconnect).toHaveBeenCalledOnce();
     });
     test('uses the AI credentials before looking up personal credentials', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseCredentialsForProject,
         ).mockResolvedValueOnce({
@@ -16356,7 +16572,9 @@ describe('AI principal credential routing', () => {
     test.each([false, true])(
         'slot resolution skips organization and personal refresh on extra=%s',
         async (extra) => {
-            const configured = getMockedProjectService(lightdashConfigMock);
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             vi.spyOn(
                 configured.aiAccessService,
                 'resolvePlan',
@@ -16428,7 +16646,9 @@ describe('AI principal credential routing', () => {
         },
     );
     test('keeps personal credentials and the audit plan for marked person', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         const marked: AiExecutionPlan = {
             identity: 'marked_person',
             assurances: [
@@ -16474,7 +16694,9 @@ describe('AI principal credential routing', () => {
         expect(personal).toHaveBeenCalledOnce();
     });
     test('uses personal credentials when the resolver returns null', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseCredentialsForProject,
         ).mockResolvedValueOnce({
@@ -16501,7 +16723,9 @@ describe('AI principal credential routing', () => {
         expect(personal).toHaveBeenCalledOnce();
     });
     test('caches AI and explore clients separately without a policy', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseClientFromCredentials,
         ).mockImplementation(() => ({ ...warehouseClientMock }));
@@ -16543,7 +16767,9 @@ describe('AI principal credential routing', () => {
     });
 
     test('caches clients separately for different principals with the same credentials', async () => {
-        const configured = getMockedProjectService(lightdashConfigMock);
+        const configured = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+        );
         vi.mocked(
             projectModel.getWarehouseClientFromCredentials,
         ).mockImplementation(() => ({ ...warehouseClientMock }));
@@ -16610,7 +16836,9 @@ describe('Snowflake AI query credentials', () => {
                     activeRestrictedSessionScopes: null,
                 });
             }
-            const service = getMockedProjectService(lightdashConfigMock);
+            const service = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
             const rotateRefreshToken = vi.fn(async () => true);
             (
                 service as unknown as {
@@ -16785,7 +17013,7 @@ describe('compile adapter connection credentials', () => {
         'withCompileAdapter passes original tunnel-adjusted $type credentials to dbt and its callback',
         async (credentials) => {
             const service = getMockedProjectService(
-                lightdashConfigMock,
+                lightdashConfigWithGoogleOAuthMock,
             ) as unknown as CompileInternals;
             vi.spyOn(service, 'prepareCompileAdapter').mockResolvedValue({
                 project: { organizationUuid: 'org-uuid' },
@@ -16819,7 +17047,7 @@ describe('compile adapter connection credentials', () => {
 
     it('testProjectAdapter passes original DuckLake credentials to dbt', async () => {
         const service = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as CompileInternals;
         const tested = await service.testProjectAdapter(
             {
@@ -16848,7 +17076,7 @@ describe('compile adapter connection credentials', () => {
 
     it('buildSourceAdapter derives from original DuckLake credentials with the source location', async () => {
         const service = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as CompileInternals;
         await service.warehouseClientFactory.withWarehouseClient(
             {
@@ -16890,7 +17118,7 @@ describe('compile adapter connection credentials', () => {
     });
     it('buildMergedManifestAdapter derives its sibling from original DuckLake credentials', async () => {
         const service = getMockedProjectService(
-            lightdashConfigMock,
+            lightdashConfigWithGoogleOAuthMock,
         ) as unknown as CompileInternals;
         const manifest: DbtManifest = {
             nodes: {},

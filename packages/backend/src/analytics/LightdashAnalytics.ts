@@ -41,6 +41,9 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AgentAccessReport,
+    type AgentAccessTestEntryPoint,
+    type AgentActorSurface,
     type AiAgentMemoryConsolidationTrigger,
     type AiAgentMemoryScope,
     type AiAgentMemoryStatus,
@@ -395,6 +398,33 @@ type AgentIdentityServiceAccountTestedEvent = BaseTrack & {
         failureReason: 'connection_failed' | 'query_failed' | null;
         credentialSource: 'submitted' | 'saved';
     };
+};
+
+type AgentIdentityAccessTestedEvent = BaseTrack & {
+    event: 'agent_identity.access_tested';
+    userId: string;
+    properties: AgentIdentityServiceAccountEventProperties &
+        Pick<
+            AgentAccessReport,
+            | 'credentialSource'
+            | 'status'
+            | 'failureReason'
+            | 'readableCount'
+            | 'blockedCount'
+            | 'errorCount'
+            | 'checkedCount'
+            | 'notCheckedCount'
+            | 'totalCount'
+            | 'truncatedCount'
+        > & {
+            connectionUuid: string | null;
+            subjectKind: 'ai_service_account';
+            entryPoint: AgentAccessTestEntryPoint;
+            datasetCount: number;
+            durationMs: number;
+            capReached: boolean;
+            deadlineReached: boolean;
+        };
 };
 
 type AgentIdentityServiceAccountDeletedEvent = BaseTrack & {
@@ -1755,6 +1785,8 @@ export type DocumentChartCounts = {
     chartCount: number;
     customChartCount: number;
     mergeChartCount: number;
+    sqlChartCount: number;
+    savedChartLinkCount: number;
     markdownLength: number;
 };
 
@@ -4649,6 +4681,7 @@ export type AgentIdentityRuleUpdatedEvent = AgentIdentityTrack & {
 };
 
 export type AgentQueryRefusedProperties = {
+    actor: { surface: AgentActorSurface; clientId: string | null } | null;
     organizationId: string;
     projectId: string;
     userId: string | null;
@@ -4721,6 +4754,7 @@ type TypedEvent =
     | AgentIdentityEvent
     | AgentIdentityServiceAccountSavedEvent
     | AgentIdentityServiceAccountTestedEvent
+    | AgentIdentityAccessTestedEvent
     | AgentIdentityServiceAccountDeletedEvent
     | TrackSimpleEvent
     | CreateUserEvent

@@ -1,7 +1,10 @@
 import {
     AiProviderCredential,
     AiProviderCredentialConfig,
+    BEDROCK_INFERENCE_GEOGRAPHIES,
     CreateAiProviderCredential,
+    getBedrockInferenceGeographiesForRegion,
+    getDefaultBedrockInferenceGeography,
     MULTI_CREDENTIAL_AI_PROVIDERS,
     MultiCredentialAiProvider,
     NotFoundError,
@@ -31,7 +34,28 @@ export const credentialConfigSchema = z.object({
     apiKey: z.string().min(1),
     region: z.string().min(1),
     allowedModels: z.array(z.string()).min(1),
+    // Absent on rows saved before geographies were configurable.
+    inferenceGeography: z.enum(BEDROCK_INFERENCE_GEOGRAPHIES).optional(),
 });
+
+/**
+ * A geography is only offered where Bedrock has a matching inference profile
+ * for the region, so a stale pairing (e.g. `jp` left on a credential moved to
+ * a US region) is refused at write time rather than failing at first prompt.
+ */
+export const assertInferenceGeographyForRegion = (
+    config: Pick<AiProviderCredentialConfig, 'region' | 'inferenceGeography'>,
+): void => {
+    if (!config.inferenceGeography) return;
+    const allowed = getBedrockInferenceGeographiesForRegion(config.region);
+    if (!allowed.includes(config.inferenceGeography)) {
+        throw new ParameterError(
+            `Inference geography "${config.inferenceGeography}" is not available for region ${
+                config.region
+            }. Available: ${allowed.join(', ')}.`,
+        );
+    }
+};
 
 export const isMultiCredentialAiProvider = (
     provider: string,
@@ -97,6 +121,9 @@ export const toApiCredential = (
         allowedModels: config.allowedModels,
         apiKeyHint: buildProviderApiKeyHint(config.apiKey),
         isDefault: row.is_default,
+        inferenceGeography:
+            config.inferenceGeography ??
+            getDefaultBedrockInferenceGeography(config.region),
     };
 };
 
@@ -358,7 +385,9 @@ export class AiOrganizationProviderCredentialModel {
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
+            inferenceGeography: data.inferenceGeography,
         });
+        assertInferenceGeographyForRegion(config);
 
         return this.database.transaction(async (trx) => {
             // First credential becomes the default, so an org is never left
@@ -421,7 +450,11 @@ export class AiOrganizationProviderCredentialModel {
             apiKey: data.apiKey?.trim() ?? existing.config.apiKey,
             region: data.region ?? existing.config.region,
             allowedModels: data.allowedModels ?? existing.config.allowedModels,
+            inferenceGeography:
+                data.inferenceGeography ?? existing.config.inferenceGeography,
         });
+        // Also catches a region change that leaves a stored geography behind.
+        assertInferenceGeographyForRegion(config);
 
         const updated =
             await this.database<AiOrganizationProviderCredentialTable>(
@@ -462,7 +495,9 @@ export class AiOrganizationProviderCredentialModel {
             apiKey: data.apiKey.trim(),
             region: data.region,
             allowedModels: data.allowedModels,
+            inferenceGeography: data.inferenceGeography,
         });
+        assertInferenceGeographyForRegion(config);
 
         const updated =
             await this.database<AiOrganizationProviderCredentialTable>(

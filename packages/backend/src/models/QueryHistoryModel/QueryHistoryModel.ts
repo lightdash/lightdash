@@ -1,5 +1,6 @@
 import {
     Account,
+    AgentIdentityClaim,
     assertUnreachable,
     DuckdbExecutionSpec,
     ForbiddenError,
@@ -50,6 +51,7 @@ function convertDbQueryHistoryToQueryHistory(
 ): QueryHistoryWithLineage {
     return {
         queryUuid: queryHistory.query_uuid,
+        agentIdentity: queryHistory.agent_identity ?? null,
         duckdbExecutionReferences:
             queryHistory.duckdb_execution?.references ?? null,
         createdAt: queryHistory.created_at,
@@ -179,6 +181,7 @@ export class QueryHistoryModel {
         account: Account,
         queryHistory: Omit<
             QueryHistory,
+            | 'agentIdentity'
             | 'status'
             | 'queryUuid'
             | 'createdAt'
@@ -204,11 +207,14 @@ export class QueryHistoryModel {
             | 'createdByUserUuid'
             | 'createdByActorType'
             | 'createdBy'
-        >,
+        > & { agentIdentity?: AgentIdentityClaim | null },
         binding?: { warehouseConnectionUuid: string | null },
     ) {
         const [result] = await this.database(QueryHistoryTableName)
             .insert({
+                ...(queryHistory.agentIdentity
+                    ? { agent_identity: queryHistory.agentIdentity }
+                    : {}),
                 status: QueryHistoryStatus.PENDING,
                 created_by_user_uuid: account.isRegisteredUser()
                     ? account.user.id
@@ -418,10 +424,21 @@ export class QueryHistoryModel {
         return this.convertAccountScopedRow(result, account);
     }
 
-    async findMostRecentByCacheKey(cacheKey: string, projectUuid: string) {
+    async findMostRecentByCacheKey(
+        cacheKey: string,
+        projectUuid: string,
+        { excludeAgentProduced }: { excludeAgentProduced: boolean },
+    ) {
         const result = await this.database(QueryHistoryTableName)
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
+            .modify((query) => {
+                if (excludeAgentProduced) {
+                    void query.whereRaw(
+                        "request_parameters->>'aiSignInCredentialUuid' is null",
+                    );
+                }
+            })
             .orderBy('created_at', 'desc')
             .limit(1)
             .first();

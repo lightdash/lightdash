@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
     bigquerySsoUserCredentialsSchema,
     BigqueryTokenError,
     CreateWarehouseCredentials,
@@ -38,7 +39,12 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import Logger from '../../logging/logger';
+import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+
+type RefreshTokenExpiry =
+    | { kind: 'reported'; expiresAt: Date }
+    | { kind: 'unreported' };
 
 type DeletedAiCredential = {
     warehouseType: WarehouseTypes;
@@ -230,6 +236,38 @@ export class UserWarehouseCredentialsModel {
         return row
             ? this.convertToUserWarehouseCredentialsWithSecrets(row)
             : undefined;
+    }
+
+    async hasOrganizationAiSnowflakeCredential(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .join(
+                'users',
+                'users.user_uuid',
+                'user_warehouse_credentials.user_uuid',
+            )
+            .join(
+                'organization_memberships',
+                'organization_memberships.user_id',
+                'users.user_id',
+            )
+            .join(
+                'organizations',
+                'organizations.organization_id',
+                'organization_memberships.organization_id',
+            )
+            .where({
+                'organizations.organization_uuid': organizationUuid,
+                'user_warehouse_credentials.warehouse_type':
+                    WarehouseTypes.SNOWFLAKE,
+                'user_warehouse_credentials.purpose':
+                    UserWarehouseCredentialPurpose.AI,
+            })
+            .first(
+                'user_warehouse_credentials.user_warehouse_credentials_uuid',
+            );
+        return row !== undefined;
     }
 
     async upsertAiSnowflakeCredential(
@@ -689,12 +727,25 @@ export class UserWarehouseCredentialsModel {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
                 data.credentials,
             );
+            let invalidKeyfile = false;
             if (
-                !result.success ||
-                getBigqueryKeyfileError(data.credentials.keyfileContents, {
-                    requireType: 'authorized_user',
-                }) !== undefined
+                data.credentials.authenticationType ===
+                BigqueryAuthenticationType.SSO
             ) {
+                try {
+                    assertValidPersistedBigquerySsoKeyfile(
+                        data.credentials.keyfileContents,
+                    );
+                } catch {
+                    invalidKeyfile = true;
+                }
+            } else {
+                invalidKeyfile =
+                    getBigqueryKeyfileError(data.credentials.keyfileContents, {
+                        requireType: 'authorized_user',
+                    }) !== undefined;
+            }
+            if (!result.success || invalidKeyfile) {
                 throw new ParameterError(
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
                 );
@@ -934,10 +985,16 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         expectedOldRefreshToken: string,
         newRefreshToken: string,
+        expiry?: RefreshTokenExpiry,
     ): Promise<boolean> {
         return this.database.transaction(async (trx) => {
             const row = await trx(UserWarehouseCredentialsTableName)
-                .select('name', 'warehouse_type', 'encrypted_credentials')
+                .select(
+                    'name',
+                    'warehouse_type',
+                    'encrypted_credentials',
+                    'expires_at',
+                )
                 .where(
                     'user_warehouse_credentials_uuid',
                     userWarehouseCredentialsUuid,
@@ -963,6 +1020,27 @@ export class UserWarehouseCredentialsModel {
                 return false;
             }
 
+            let expiresAt: Date | null | undefined;
+            if (expiry) {
+                switch (expiry.kind) {
+                    case 'reported':
+                        expiresAt = expiry.expiresAt;
+                        break;
+                    case 'unreported':
+                        if (
+                            row.expires_at &&
+                            row.expires_at.getTime() <= Date.now()
+                        )
+                            expiresAt = null;
+                        break;
+                    default:
+                        assertUnreachable(
+                            expiry,
+                            'Unknown refresh token expiry',
+                        );
+                }
+            }
+
             (credentials as { refreshToken: string }).refreshToken =
                 newRefreshToken;
             const encryptedCredentials = this.encryptionUtil.encrypt(
@@ -973,6 +1051,9 @@ export class UserWarehouseCredentialsModel {
                     name: row.name,
                     warehouse_type: row.warehouse_type,
                     encrypted_credentials: encryptedCredentials,
+                    ...(expiresAt === undefined
+                        ? {}
+                        : { expires_at: expiresAt }),
                     updated_at: new Date(),
                 })
                 .where(

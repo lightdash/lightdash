@@ -1075,6 +1075,27 @@ describe('SnowflakeWarehouseClient', () => {
         expect(results.rows[0]).toEqual(expectedRow);
     });
 
+    it('keeps agent identity in valid JSON with oversized tags', () => {
+        const result = SnowflakeWarehouseClient.formatQueryTag({
+            huge: 'x'.repeat(3000),
+            ...Object.fromEntries(
+                Array.from({ length: 100 }, (_, i) => [
+                    `tag_${i}`,
+                    'value'.repeat(10),
+                ]),
+            ),
+            agent: 'true',
+            agent_surface: 'slack_agent',
+            agent_client: 'h-1234',
+        });
+        expect(result.length).toBeLessThanOrEqual(2000);
+        expect(JSON.parse(result)).toMatchObject({
+            agent: 'true',
+            agent_surface: 'slack_agent',
+            agent_client: 'h-1234',
+        });
+    });
+
     it('escapes single quotes in query tags for session SQL', () => {
         expect(
             SnowflakeWarehouseClient.formatQueryTag({

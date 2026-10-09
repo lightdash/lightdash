@@ -2,6 +2,8 @@ import { Knex } from 'knex';
 
 export const DocumentsTableName = 'documents';
 export const DocumentVersionsTableName = 'document_versions';
+export const DocumentVersionSavedChartsTableName =
+    'document_version_saved_charts';
 
 export type DbDocument = {
     document_id: number;

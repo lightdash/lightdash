@@ -1,5 +1,6 @@
 import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
+import { type AgentIdentityClaim } from './agentIdentity';
 import type { QueryExecutionContext, QuerySurface } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
@@ -72,6 +73,7 @@ export type QueryUsageMetadata = {
 };
 
 export type QueryHistory = {
+    agentIdentity: AgentIdentityClaim | null;
     warehouseConnectionUuid?: string | null;
     queryUuid: string;
     createdAt: Date;

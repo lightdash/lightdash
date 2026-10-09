@@ -20,6 +20,7 @@ import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/use
 import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import { ProjectAgentIdentityPage } from '../../features/aiAccess/ProjectAgentIdentityPage';
 import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
 import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
@@ -124,6 +125,19 @@ const ProjectSettings: FC<{
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
+    const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const canManageAgentIdentity =
+        agentIdentityFlag?.enabled === true &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const canManageExternalConnections =
@@ -223,6 +237,24 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canManageAgentIdentity && project
+                ? [
+                      {
+                          path: '/agentIdentity',
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Agent identity"
+                                  description="Choose how AI agents connect to this project's warehouse and check what they can read."
+                              >
+                                  <ProjectAgentIdentityPage
+                                      key={project.projectUuid}
+                                      project={project}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/projectAccess`,
                 element: (
@@ -589,6 +621,8 @@ const ProjectSettings: FC<{
         isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
+        canManageAgentIdentity,
+        project,
         canManageExternalSources,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
@@ -610,6 +644,12 @@ const ProjectSettings: FC<{
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
+    const isAwaitingAgentIdentityRoute =
+        isAgentIdentityFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/agentIdentity',
+            location.pathname,
+        );
     const isAwaitingCachingRoute =
         isResultsCacheFlagLoading &&
         !!matchPath(
@@ -629,6 +669,7 @@ const ProjectSettings: FC<{
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
         isAwaitingCachingRoute ||
+        isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {
         return (

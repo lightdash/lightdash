@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AgentSuggestion,
     AgentSummaryContext,
     AI_AGENT_SKILL_LISTING_MAX_CHARS,
@@ -290,6 +291,10 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import {
+    agentExecutionContext,
+    fillScopedSlackAppId,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -4363,7 +4368,7 @@ export class AiAgentService extends BaseService {
             );
         }
         if (isNativeSqlApprovalToolCall(toolName, context.toolArgs)) {
-            await this.resumeSlackSqlApproval(context.promptUuid);
+            await this.resumeSlackSqlApproval(context.promptUuid, null);
         }
 
         return { decision };
@@ -4444,11 +4449,15 @@ export class AiAgentService extends BaseService {
         return recorded;
     }
 
-    private async resumeSlackSqlApproval(promptUuid: string): Promise<void> {
+    private async resumeSlackSqlApproval(
+        promptUuid: string,
+        slackAppId: string | null,
+    ): Promise<void> {
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (!prompt) return;
 
         await this.schedulerClient.slackAiPrompt({
+            slackAppId,
             slackPromptUuid: prompt.promptUuid,
             userUuid: prompt.createdByUserUuid,
             projectUuid: prompt.projectUuid,
@@ -11059,9 +11068,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';
-                    return `- Document "${name}" (documentUuid: ${item.documentUuid}${
-                        item.documentSlug ? `, slug: ${item.documentSlug}` : ''
-                    }) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, documentUuid) before answering or editing, and save changes with editContent.`;
+                    const slugText = item.documentSlug ?? '(slug unavailable)';
+                    return `- Document "${name}" (documentSlug: ${slugText}) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, slug) before answering or editing, and save changes with editContent.`;
                 }
                 case 'data_app_element': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -12252,7 +12260,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }): NonNullable<AiAgentDependencies['chartExportArtifacts']> {
         const access: Omit<
             NonNullable<AiAgentDependencies['chartExportArtifacts']>,
-            'prepareVersion'
+            'prepareVersion' | 'prepareSqlVersion'
         > = {
             list: async () => {
                 const artifacts =
@@ -12338,19 +12346,50 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 });
             },
         };
+        const findArtifactUuid = async (versionUuid: string) => {
+            const artifactUuid =
+                await this.aiAgentModel.findArtifactUuidByVersionUuid(
+                    versionUuid,
+                );
+            if (artifactUuid === undefined) {
+                throw new NotFoundError(
+                    `No chart with versionUuid ${versionUuid} in this conversation`,
+                );
+            }
+            return artifactUuid;
+        };
         return {
             ...access,
-            prepareVersion: async (versionUuid) => {
-                const artifactUuid =
-                    await this.aiAgentModel.findArtifactUuidByVersionUuid(
-                        versionUuid,
-                    );
-                if (artifactUuid === undefined) {
-                    throw new NotFoundError(
-                        `No chart with versionUuid ${versionUuid} in this conversation`,
+            prepareVersion: async (versionUuid) =>
+                access.prepare({
+                    artifactUuid: await findArtifactUuid(versionUuid),
+                    versionUuid,
+                }),
+            prepareSqlVersion: async (versionUuid) => {
+                const artifact = await this.getArtifact(
+                    user,
+                    projectUuid,
+                    agentUuid,
+                    await findArtifactUuid(versionUuid),
+                    versionUuid,
+                );
+                if (artifact.threadUuid !== threadUuid) {
+                    throw new ForbiddenError(
+                        'Only results in the current conversation can be placed here.',
                     );
                 }
-                return access.prepare({ artifactUuid, versionUuid });
+                await this.assertEmbedThreadInSpace(
+                    artifact.threadUuid,
+                    runtimeOptions,
+                );
+                const config = artifact.chartConfig;
+                return config && 'source' in config && config.source === 'sql'
+                    ? {
+                          title: artifact.title,
+                          sql: config.sql,
+                          limit: config.limit,
+                      }
+                    : null;
             },
         };
     }
@@ -14270,8 +14309,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: AiWebAppPrompt;
         agent: AiAgent;
     }): Promise<DocumentTurnContext | null> {
-        const [documentUuid, promptContext] = await Promise.all([
-            this.aiAgentModel.findThreadDocumentUuid(prompt.threadUuid),
+        const [documentSlug, promptContext] = await Promise.all([
+            this.aiAgentModel.findThreadDocumentSlug(prompt.threadUuid),
             this.aiAgentModel.getContextForPromptUuids([prompt.promptUuid]),
         ]);
         // Other pinned content could be what "it" means, so only the agent can tell.
@@ -14279,7 +14318,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptContext.get(prompt.promptUuid) ?? []
         ).some((item) => item.type !== 'document');
         if (
-            documentUuid === null ||
+            documentSlug === null ||
             pinsOtherContent ||
             !this.canUseContentTools(user, agent, prompt)
         ) {
@@ -14312,7 +14351,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const document = await runtime.readContent({
             type: 'document',
-            documentUuid,
+            slug: documentSlug,
             chartId: null,
         });
         if (
@@ -14924,6 +14963,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                     user.organizationUuid,
                 );
+            fillScopedSlackAppId(slackSettings?.appId ?? null);
             hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
             slackLinksOnly = !!slackSettings?.aiLinksOnly;
         }
@@ -17832,12 +17872,18 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     // TODO: user permissions
-    async replyToSlackPrompt(promptUuid: string): Promise<void> {
+    async replyToSlackPrompt(
+        promptUuid: string,
+        slackAppId: string | null = null,
+    ): Promise<void> {
         const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        await this.generateSlackPromptReply(promptUuid, slackPrompt);
+        await agentExecutionContext.run(
+            { surface: AgentActorSurface.SLACK_AGENT, clientId: slackAppId },
+            () => this.generateSlackPromptReply(promptUuid, slackPrompt),
+        );
     }
 
     private async generateSlackPromptReply(
@@ -18392,6 +18438,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 if (isNative && recorded) {
                     await this.resumeSlackSqlApproval(
                         approvalContext.promptUuid,
+                        body.api_app_id ?? null,
                     );
                 }
 
@@ -19592,12 +19639,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
         userUuid,
         channelId,
         threadTs,
+        slackAppId,
     }: {
         agentConfig: AiAgent;
         slackPromptUuid: string;
         userUuid: string;
         channelId: string;
         threadTs: string;
+        slackAppId: string | null;
     }): Promise<void> {
         // Best-effort: a failed status call shouldn't block scheduling.
         void this.slackClient
@@ -19614,6 +19663,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         await this.schedulerClient.slackAiPrompt({
             slackPromptUuid,
+            slackAppId,
             userUuid,
             projectUuid: agentConfig.projectUuid,
             organizationUuid: agentConfig.organizationUuid,
@@ -19782,6 +19832,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,
@@ -19908,6 +19959,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     private async createSlackPromptFromAction(args: {
+        slackAppId: string | null;
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -19935,6 +19987,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: args.slackAppId,
             agentConfig: args.agentConfig,
             slackPromptUuid,
             userUuid: args.userUuid,
@@ -20130,6 +20183,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // A meta-query is not forwarded to the agent, but the choice
                 // still binds the thread so the next turn keeps this agent.
                 await this.createSlackPromptFromAction({
+                    slackAppId: slackSettings.appId ?? null,
                     channelId,
                     threadTs,
                     agentConfig,
@@ -20408,6 +20462,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         });
 
                     await this.schedulerClient.slackAiPrompt({
+                        slackAppId: slackSettings.appId ?? null,
                         slackPromptUuid,
                         userUuid,
                         projectUuid,
@@ -20702,6 +20757,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }
 
                     await this.createSlackPromptFromAction({
+                        slackAppId: slackSettings.appId ?? null,
                         channelId,
                         threadTs,
                         agentConfig,
@@ -21092,6 +21148,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig,
             slackPromptUuid,
             userUuid,
@@ -21382,6 +21439,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         await this.setThinkingStatusAndSchedule({
+            slackAppId: slackSettings.appId ?? null,
             agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,

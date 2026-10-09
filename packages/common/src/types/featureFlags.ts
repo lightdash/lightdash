@@ -10,6 +10,7 @@ export enum FeatureFlags {
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
+    AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Independent Documents containing narrative and saved chart definitions. */

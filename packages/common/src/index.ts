@@ -114,6 +114,7 @@ export * from './templating/template';
 export * from './types/account';
 export * from './types/adminNotifications';
 export * from './types/agentIdentity';
+export * from './types/agentAccessReport';
 export * from './types/aiPrincipal';
 export * from './types/analytics';
 export * from './types/any';
@@ -1277,3 +1278,4 @@ export * from './utils/dashboardTilePositions';
 export * from './utils/savedMerge';
 
 export * from './types/sharedSignIn';
+export * from './utils/agentIdentitySetup';

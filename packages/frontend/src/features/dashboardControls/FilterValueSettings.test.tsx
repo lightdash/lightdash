@@ -13,8 +13,8 @@ vi.mock('../../components/common/Filters/FilterInputs', () => ({
     default: () => <div data-testid="value-input" />,
 }));
 
-const NOTE = /Not set: each tile keeps its own values/;
-const HINT = 'Choose a value, or the default is left off.';
+const NOTE = /No default: each tile keeps its own values/;
+const HINT = 'Set a value, or the default stays off.';
 
 const makeRule = (
     overrides: Partial<DashboardFilterRule>,

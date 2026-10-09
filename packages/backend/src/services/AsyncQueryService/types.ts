@@ -8,6 +8,7 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    type AgentIdentityClaim,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
     type CacheMetadata,
@@ -287,6 +288,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    agentIdentity?: AgentIdentityClaim | null;
     projectUuid: string;
     userUuid: string;
     organizationUuid: string;

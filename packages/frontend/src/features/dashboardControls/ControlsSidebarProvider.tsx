@@ -29,6 +29,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { getLinkKey } from './linkCandidates';
 import { getFilterFields, getTileField, setTileField } from './peers';
+import { isLockedRequiredMissingValue } from './requirements';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -63,11 +64,25 @@ const findEditedPill = (
     return pill ?? findEditedPill(scope.parentElement);
 };
 
+type FilterGroup = 'dimensions' | 'metrics';
+
 type SidebarState = {
     filterId: string;
     isNew: boolean;
     snapshot: ControlsSidebarSnapshot;
+    // Where the control sat before its last field was removed, else null
+    emptiedAt: { group: FilterGroup; index: number; fieldLabel: string } | null;
 };
+
+const createPlaceholder = (id: string): DashboardFilterRule => ({
+    id,
+    target: PLACEHOLDER_TARGET,
+    operator: FilterOperator.EQUALS,
+    values: [],
+    label: undefined,
+    tileTargets: {},
+    disabled: true,
+});
 
 // What the callbacks read. Kept in a ref so their identity never changes, and
 // written eagerly so two calls in one event (commit a label, then close) agree.
@@ -101,15 +116,21 @@ const getEditingRule = ({
 const adoptPlaceholder = (
     placeholder: DashboardFilterRule,
     created: DashboardFilterRule,
-): DashboardFilterRule => ({
-    ...created,
-    id: placeholder.id,
-    label: placeholder.label,
-    lockedTabUuids: placeholder.lockedTabUuids,
-    required: placeholder.required,
-    requiredGroupId: placeholder.requiredGroupId,
-    singleValue: placeholder.singleValue,
-});
+): DashboardFilterRule => {
+    const adopted: DashboardFilterRule = {
+        ...created,
+        id: placeholder.id,
+        label: placeholder.label,
+        lockedTabUuids: placeholder.lockedTabUuids,
+        required: placeholder.required,
+        requiredGroupId: placeholder.requiredGroupId,
+        singleValue: placeholder.singleValue,
+    };
+    // A locked filter cannot stay required once its value went with the field
+    return isLockedRequiredMissingValue(adopted)
+        ? { ...adopted, required: false }
+        : adopted;
+};
 
 const getFirstFieldRule = (
     placeholder: DashboardFilterRule,
@@ -245,6 +266,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             writeState({
                 filterId,
                 isNew: false,
+                emptiedAt: null,
                 snapshot: {
                     dashboardFilters: current.dashboardFilters,
                     haveFiltersChanged: current.haveFiltersChanged,
@@ -256,15 +278,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const openPlaceholder = useCallback(() => {
         const current = latest.current;
-        const rule: DashboardFilterRule = {
-            id: uuidv4(),
-            target: PLACEHOLDER_TARGET,
-            operator: FilterOperator.EQUALS,
-            values: [],
-            label: undefined,
-            tileTargets: {},
-            disabled: true,
-        };
+        const rule = createPlaceholder(uuidv4());
         focusReturn.current = null;
         writePlaceholder(rule);
         setActiveSection('fields');
@@ -273,6 +287,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         writeState({
             filterId: rule.id,
             isNew: true,
+            emptiedAt: null,
             snapshot: {
                 dashboardFilters: current.dashboardFilters,
                 haveFiltersChanged: current.haveFiltersChanged,
@@ -280,21 +295,35 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         });
     }, [writeState, writePlaceholder]);
 
-    // The moment a filter is created, which is what the shipped bar tracks
+    // The moment a filter is created, which is what the shipped bar tracks.
+    // A control that lost its last field goes back where it was, untracked
     const writeFirstRule = useCallback(
-        (rule: DashboardFilterRule, group: 'dimensions' | 'metrics') => {
-            latest.current.track({
-                name: EventName.ADD_FILTER_CLICKED,
-                properties: { mode: 'edit' },
-            });
+        (rule: DashboardFilterRule, group: FilterGroup) => {
+            const { state: editingState, track: trackEvent } = latest.current;
+            const emptiedAt = editingState?.emptiedAt ?? null;
+            if (emptiedAt === null) {
+                trackEvent({
+                    name: EventName.ADD_FILTER_CLICKED,
+                    properties: { mode: 'edit' },
+                });
+            }
+            const index =
+                emptiedAt?.group === group ? emptiedAt.index : Infinity;
             writeFilters((filters) => ({
                 ...filters,
-                [group]: [...filters[group], rule],
+                [group]: [
+                    ...filters[group].slice(0, index),
+                    rule,
+                    ...filters[group].slice(index),
+                ],
             }));
             writeFiltersChanged(true);
             writePlaceholder(null);
+            if (editingState !== null && emptiedAt !== null) {
+                writeState({ ...editingState, emptiedAt: null });
+            }
         },
-        [writeFilters, writeFiltersChanged, writePlaceholder],
+        [writeFilters, writeFiltersChanged, writePlaceholder, writeState],
     );
 
     const addFirstField = useCallback(
@@ -395,6 +424,45 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             writeFiltersChanged(true);
         },
         [writeFilters, writeFiltersChanged, writePlaceholder],
+    );
+
+    // The control stays open and empty, as a new one starts: same id, label
+    // and viewer rules, none of the settings that came with the field's type
+    const removeLastField = useCallback(
+        (fieldLabel: string) => {
+            const current = latest.current;
+            if (current.state === null || current.placeholder !== null) return;
+            const { filterId } = current.state;
+            const rule = findFilterRule(current.dashboardFilters, filterId);
+            if (rule === null) return;
+            const group: FilterGroup = current.dashboardFilters.metrics.some(
+                (metric) => metric.id === filterId,
+            )
+                ? 'metrics'
+                : 'dimensions';
+            const index = current.dashboardFilters[group].findIndex(
+                (candidate) => candidate.id === filterId,
+            );
+            writeState({
+                ...current.state,
+                emptiedAt: { group, index, fieldLabel },
+            });
+            writeFilters((filters) => removeFilterRule(filters, filterId));
+            writeFiltersChanged(true);
+            writePlaceholder({
+                ...createPlaceholder(filterId),
+                label: rule.label,
+                lockedTabUuids: rule.lockedTabUuids,
+                required: rule.required,
+                requiredGroupId: rule.requiredGroupId,
+            });
+            setActiveSection('fields');
+            current.highlightedFieldId = null;
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
+            setWaiting(null);
+        },
+        [writeState, writeFilters, writeFiltersChanged, writePlaceholder],
     );
 
     const addWaitingField = useCallback((fieldId: string) => {
@@ -510,7 +578,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         if (current.state === null) return;
         const rule = getEditingRule(current);
         if (rule === null || !canKeepFilterRule(rule)) {
-            discard();
+            // An existing control left with no field goes as "Remove filter"
+            if (rule !== null && !current.state.isNew) removeFilter();
+            else discard();
             return;
         }
         rememberFocusReturn();
@@ -520,13 +590,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             );
         }
         reset();
-    }, [discard, reset, writeFilters, rememberFocusReturn]);
+    }, [discard, removeFilter, reset, writeFilters, rememberFocusReturn]);
 
-    // A new control is closed first, as "Done" would: kept when it can be,
-    // dropped otherwise. Edits to an existing control are simply kept
+    // A new control, or one with no field, is closed first, as "Done" would:
+    // kept when it can be, dropped otherwise. Other edits are simply kept
     const closeNew = useCallback(() => {
         const current = latest.current;
-        if (current.state?.isNew) close();
+        if (current.state?.isNew || current.placeholder !== null) close();
     }, [close]);
 
     // Whatever is being edited is closed first, as "Done" would. A new
@@ -577,6 +647,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         () => ({
             editing,
             isNew: state?.isNew ?? false,
+            emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
             editingRule,
             isSidebarOpen,
@@ -590,6 +661,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,
+            removeLastField,
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,
@@ -625,6 +697,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,
+            removeLastField,
             waitingFieldIds,
             addWaitingField,
             removeWaitingField,

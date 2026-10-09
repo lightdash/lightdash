@@ -228,3 +228,25 @@ Console changes apply to the next backend flag resolution. Reload or refetch the
 page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
+
+### Snowflake silent agent refresh
+
+`agent-identity-silent-refresh` is a default-on defect-fix kill switch. The
+handler uses the standard database resolver with a true fallback. Console user
+and organisation overrides and instance defaults apply. The generic ENV lists
+have the precedence described above; there is no per-feature ENV setting.
+
+The flag is resolved for the requesting user and organisation only after
+`agent-identity` is enabled and a Snowflake agent sign-in provider is selected.
+Other identity sources and disabled agent identity add no flag or credential
+reads. It affects query refresh and side-effect-free connection status checks.
+
+When on, the OAuth endpoint decides whether the grant is alive. Successful
+refreshes update the token and grant deadline together through a guarded write.
+Temporary failures keep credentials and return a retryable error. A confirmed
+`invalid_grant` refusal emits expiry analytics on query evaluations. When off,
+the stored-deadline checks and legacy refresh-error mapping apply.
+
+Console changes affect the next resolution without a restart. ENV changes need
+a process restart. Disabling this flag does not undo token rotations or revoke
+issued tokens. It does not change non-agent Snowflake authentication.

@@ -30,6 +30,22 @@ export const toSqlColumnTarget = (reference: string): DashboardFieldTarget => ({
 const isSqlTile = (tile: DashboardTile, sqlColumnsByTile: SqlColumnsByTile) =>
     (sqlColumnsByTile[tile.uuid]?.length ?? 0) > 0;
 
+// As the grid draws them: a missing or stale tabUuid is the first tab
+export const getEffectiveTabUuid = (
+    tile: DashboardTile,
+    tabs: DashboardTab[],
+): string | undefined =>
+    tile.tabUuid && tabs.some((tab) => tab.uuid === tile.tabUuid)
+        ? tile.tabUuid
+        : tabs[0]?.uuid;
+
+export const getTilesOnTab = (
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    tabUuid: string,
+): DashboardTile[] =>
+    tiles.filter((tile) => getEffectiveTabUuid(tile, tabs) === tabUuid);
+
 export type FieldCount = { applied: number; possible: number };
 export type TabCount = { applied: number; total: number };
 
@@ -146,20 +162,24 @@ export const getFieldCount = (
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
     sqlColumnsByTile: SqlColumnsByTile = {},
-): FieldCount => ({
-    // A SQL tile is reached through one of its own columns, never a field
-    possible: tiles.filter((tile) =>
-        doesTileOfferField(tile, fieldId, fieldsByTile),
-    ).length,
-    applied: tiles.filter(
-        (tile) =>
-            getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
-            fieldId,
-    ).length,
-});
+): FieldCount => {
+    const isOnField = (tile: DashboardTile) =>
+        getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+        fieldId;
+    return {
+        // A tile on a field it no longer offers still counts as one of its
+        // tiles, so applied never exceeds possible
+        possible: tiles.filter(
+            (tile) =>
+                isOnField(tile) ||
+                doesTileOfferField(tile, fieldId, fieldsByTile),
+        ).length,
+        applied: tiles.filter(isOnField).length,
+    };
+};
 
 // What a field's actions would do over the given tiles: the ones that offer
-// it are on it, unfiltered, or on another field that "all" would replace
+// it are on it, unfiltered, or on another field that a switch would replace
 export type FieldScope = FieldCount & {
     unfiltered: number;
     replaced: number;
@@ -224,14 +244,27 @@ export const setTileField = (
     return withTileTargets(rule, { ...others, [tile.uuid]: field ?? false });
 };
 
-export const applyFieldToAll = (
+// Moves the tiles this filter is on through another field onto the given one;
+// unfiltered tiles stay as they are
+export const switchTilesToField = (
     rule: DashboardFilterRule,
     field: DashboardFieldTarget,
     tiles: DashboardTile[],
     fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
 ): DashboardFilterRule =>
     tiles
-        .filter((tile) => doesTileOfferField(tile, field.fieldId, fieldsByTile))
+        .filter((tile) => {
+            if (!doesTileOfferField(tile, field.fieldId, fieldsByTile))
+                return false;
+            const onTile = getTileField(
+                rule,
+                tile,
+                fieldsByTile,
+                sqlColumnsByTile,
+            );
+            return onTile !== null && onTile.fieldId !== field.fieldId;
+        })
         .reduce(
             (next, tile) => setTileField(next, tile, field, fieldsByTile),
             rule,
@@ -328,7 +361,7 @@ export const getTabCounts = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            const tabTiles = getTilesOnTab(tiles, tabs, tab.uuid);
             return [
                 tab.uuid,
                 {
@@ -358,20 +391,22 @@ export const getTabCountsForField = (
 ): Record<string, TabCount> =>
     Object.fromEntries(
         tabs.map((tab) => {
-            const tabTiles = tiles.filter((tile) => tile.tabUuid === tab.uuid);
+            const tabTiles = getTilesOnTab(tiles, tabs, tab.uuid);
+            const isOnField = (tile: DashboardTile) =>
+                getFieldIdOnTile(rule, tile, fieldsByTile, sqlColumnsByTile) ===
+                fieldId;
+            // Only the tiles that could be on the field, as its card counts
+            const canBeOnField = (tile: DashboardTile) =>
+                isOnField(tile) ||
+                doesTileOfferField(tile, fieldId, fieldsByTile) ||
+                (sqlColumnsByTile[tile.uuid] ?? []).some(
+                    (column) => column.reference === fieldId,
+                );
             return [
                 tab.uuid,
                 {
-                    total: tabTiles.length,
-                    applied: tabTiles.filter(
-                        (tile) =>
-                            getFieldIdOnTile(
-                                rule,
-                                tile,
-                                fieldsByTile,
-                                sqlColumnsByTile,
-                            ) === fieldId,
-                    ).length,
+                    total: tabTiles.filter(canBeOnField).length,
+                    applied: tabTiles.filter(isOnField).length,
                 },
             ];
         }),

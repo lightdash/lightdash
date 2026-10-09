@@ -26,6 +26,7 @@ import {
     ParameterError,
     ParseError,
     SentryConfig,
+    SNOWFLAKE_AI_CALLBACK_PATH,
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
@@ -1825,6 +1826,7 @@ export type LightdashConfig = {
     };
     logging: LoggingConfig;
     ai: {
+        agentResultIdentityCheckEnabled: boolean;
         copilot: AiCopilotConfigSchemaType;
         decisions: AiDecisionProviderConfig;
         /** OpenAI's Decisions API, the alternative fast-decision provider for battles. */
@@ -3508,7 +3510,7 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT,
                 tokenEndpoint: process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT,
                 loginPath: '/login/snowflake-ai',
-                callbackPath: '/oauth/redirect/snowflake-ai',
+                callbackPath: SNOWFLAKE_AI_CALLBACK_PATH,
             },
             databricks: {
                 clientId: process.env.DATABRICKS_OAUTH_CLIENT_ID,
@@ -3894,6 +3896,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING === 'true',
         },
         ai: {
+            agentResultIdentityCheckEnabled:
+                process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED !== 'false',
             copilot: copilotConfig,
             decisions: {
                 provider: 'jev',

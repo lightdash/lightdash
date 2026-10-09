@@ -82,6 +82,7 @@ const artifacts = (prepared = preparedChart) => ({
     list: vi.fn(),
     prepare: vi.fn(),
     prepareVersion: vi.fn().mockResolvedValue(prepared),
+    prepareSqlVersion: vi.fn().mockResolvedValue(null),
 });
 const options: ToolExecutionOptions<Record<string, unknown>> = {
     toolCallId: 'call',
@@ -234,32 +235,26 @@ describe('AI Agent Document authoring', () => {
         expect(createContent).not.toHaveBeenCalled();
     });
 
-    test.each([{ slug: 'findings' }, { documentUuid }])(
-        'reads a Document using %j',
-        async (identifier) => {
-            const readContent = vi.fn().mockResolvedValue(document);
-            const tool = getReadContent({
-                readContent,
-                documentsEnabled: true,
-            });
-            if (!tool.execute) {
-                throw new Error('Missing executor');
-            }
-            const result = await tool.execute(
-                { type: 'document', ...identifier },
-                options,
-            );
-            expect(readContent).toHaveBeenCalledWith({
-                type: 'document',
-                ...identifier,
-                chartId: null,
-            });
-            expect(result).toHaveProperty(
-                'result',
-                expect.stringContaining(versionUuid),
-            );
-        },
-    );
+    test('reads a Document by slug', async () => {
+        const readContent = vi.fn().mockResolvedValue(document);
+        const tool = getReadContent({ readContent, documentsEnabled: true });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        const result = await tool.execute(
+            { type: 'document', slug: 'findings' },
+            options,
+        );
+        expect(readContent).toHaveBeenCalledWith({
+            type: 'document',
+            slug: 'findings',
+            chartId: null,
+        });
+        expect(result).toHaveProperty(
+            'result',
+            expect.stringContaining(versionUuid),
+        );
+    });
 
     test('rejects disabled reads even when called directly', async () => {
         const readContent = vi.fn();
@@ -268,7 +263,7 @@ describe('AI Agent Document authoring', () => {
             throw new Error('Missing executor');
         }
         expect(
-            await tool.execute({ type: 'document', documentUuid }, options),
+            await tool.execute({ type: 'document', slug: 'findings' }, options),
         ).toMatchObject({ metadata: { status: 'error' } });
         expect(readContent).not.toHaveBeenCalled();
     });
@@ -339,21 +334,6 @@ describe('AI Agent Document authoring', () => {
             result: expect.stringContaining('Document has changed'),
         });
         expect(editContent).toHaveBeenCalledOnce();
-    });
-
-    test('rejects ambiguous Document identifiers', async () => {
-        const readContent = vi.fn();
-        const tool = getReadContent({ readContent, documentsEnabled: true });
-        if (!tool.execute) {
-            throw new Error('Missing executor');
-        }
-        expect(
-            await tool.execute(
-                { type: 'document', slug: 'findings', documentUuid },
-                options,
-            ),
-        ).toMatchObject({ metadata: { status: 'error' } });
-        expect(readContent).not.toHaveBeenCalled();
     });
 
     test('passes full replacement and base version to the shared edit path', async () => {
@@ -449,6 +429,51 @@ describe('AI Agent Document authoring', () => {
         });
         expect(content.charts['artifact-2'].chart.chartConfig).toEqual({
             type: ChartType.BIG_NUMBER,
+        });
+    });
+
+    test('places a SQL result from the conversation as a SQL table', async () => {
+        const createContent = vi.fn().mockResolvedValue(document);
+        const access = artifacts();
+        access.prepareSqlVersion.mockResolvedValue({
+            title: 'SQL query results',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+        });
+        const tool = getCreateContent({
+            createContent,
+            documentsEnabled: true,
+            artifacts: access,
+        });
+        if (!tool.execute) {
+            throw new Error('Missing executor');
+        }
+        await tool.execute(
+            {
+                type: 'document',
+                content: {
+                    ...input,
+                    markdown: `<query-result version="${artifactVersionUuid}" title="Orders by status">`,
+                },
+            },
+            options,
+        );
+        expect(access.prepareVersion).not.toHaveBeenCalled();
+        const [[{ content }]] = createContent.mock.calls;
+        expect(content.charts['artifact-1']).toEqual({
+            source: 'sql',
+            chart: {
+                name: 'Orders by status',
+                sql: 'select status, count(*) as orders from orders group by 1',
+                limit: 500,
+                chartKind: 'table',
+                config: {
+                    type: 'table',
+                    metadata: { version: 1 },
+                    columns: {},
+                    display: {},
+                },
+            },
         });
     });
 

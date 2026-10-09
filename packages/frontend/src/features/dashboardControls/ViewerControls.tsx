@@ -169,7 +169,7 @@ export const ViewerControls: FC<Props> = ({
         ? `Locked${everyTab}`
         : isLockedSomewhere
           ? `Locked on ${lockedCount} of ${lockKeys.length} tabs`
-          : `Viewers can change it${everyTab}`;
+          : `Not locked: viewers can change it${everyTab}`;
 
     // Required: rules are over dimensions and metrics, as in the shipped card
     const savedRules = useMemo(
@@ -227,12 +227,12 @@ export const ViewerControls: FC<Props> = ({
         : 'Not required';
     const requiredSub = isRequired
         ? 'Viewers must set this filter to load the dashboard.'
-        : 'Viewers would have to set it before the tiles load';
+        : 'Viewers would have to set this filter before the tiles load.';
 
     return (
         <Stack gap={0}>
             <QuestionRow
-                label="Viewers"
+                label="Lock"
                 summary={lockSummary}
                 isChanged={isLockedSomewhere}
                 {...rowProps('lock')}
@@ -245,7 +245,7 @@ export const ViewerControls: FC<Props> = ({
                         <Switch
                             size="xs"
                             label={hasTabs ? 'Lock on every tab' : 'Lock'}
-                            description="Viewers see the value but cannot change it"
+                            description="Viewers see the value but cannot change it."
                             checked={isLockedEverywhere}
                             disabled={
                                 lockKeys.length === 0 || isLockEverywhereBlocked
@@ -298,8 +298,8 @@ export const ViewerControls: FC<Props> = ({
                 )}
                 {isLockedSomewhere && (
                     <Text size="xs" c="dimmed">
-                        Still filters the tiles. URL and embed values are
-                        ignored.
+                        A locked filter still filters the tiles. Values from the
+                        URL or an embed are ignored.
                     </Text>
                 )}
             </QuestionRow>
@@ -342,7 +342,7 @@ export const ViewerControls: FC<Props> = ({
                             variant="subtle"
                             onClick={onEditRules}
                         >
-                            Edit rule →
+                            Edit rule
                         </Button>
                     </Group>
                 )}

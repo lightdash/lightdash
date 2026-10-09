@@ -426,6 +426,56 @@ export const BEDROCK_REGIONS = [
 ] as const;
 export type BedrockRegion = (typeof BEDROCK_REGIONS)[number];
 
+/**
+ * Where Bedrock may process a request. Each value doubles as the cross-region
+ * inference profile prefix (`jp.<modelId>`, `us.<modelId>`, ...): the endpoint
+ * region only receives the request, the profile decides where inference runs.
+ * @ref https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html
+ */
+export const BEDROCK_INFERENCE_GEOGRAPHIES = [
+    'jp',
+    'us',
+    'eu',
+    'apac',
+    'global',
+] as const;
+export type BedrockInferenceGeography =
+    (typeof BEDROCK_INFERENCE_GEOGRAPHIES)[number];
+
+export const JAPAN_BEDROCK_REGIONS = [
+    'ap-northeast-1',
+    'ap-northeast-3',
+] as const;
+
+/**
+ * Geographies a credential in `region` may pin inference to, narrowest first —
+ * the first entry is the default, so a credential without an explicit choice
+ * gets the tightest residency its region supports. Wider entries are an
+ * explicit admin opt-out for model availability.
+ *
+ * Every offered geography must have a profile for EVERY model we ship on
+ * Bedrock, because validation is per-credential, not per-model. That excludes
+ * `apac` for Japan: AWS documents US, EU, JP and Global profiles for the
+ * current Claude generation (e.g. Sonnet 4.5), but no APAC profile — a Tokyo
+ * credential widened to `apac` would fail at every prompt.
+ */
+export const getBedrockInferenceGeographiesForRegion = (
+    region: string,
+): BedrockInferenceGeography[] => {
+    if ((JAPAN_BEDROCK_REGIONS as readonly string[]).includes(region)) {
+        return ['jp', 'global'];
+    }
+    if (region.startsWith('us-')) return ['us', 'global'];
+    if (region.startsWith('eu-')) return ['eu', 'global'];
+    if (region.startsWith('ap-')) return ['apac', 'global'];
+    return ['global'];
+};
+
+export const getDefaultBedrockInferenceGeography = (
+    region: string,
+): BedrockInferenceGeography =>
+    getBedrockInferenceGeographiesForRegion(region)[0];
+
 export type OrgBedrockConfig = {
     region: string;
     allowedModels: string[];
@@ -454,6 +504,9 @@ export type AiProviderCredentialConfig = {
     apiKey: string;
     region: string;
     allowedModels: string[];
+    // Absent on rows saved before geographies were configurable; resolves to
+    // the region's default (narrowest) geography.
+    inferenceGeography?: BedrockInferenceGeography;
 };
 
 /**
@@ -468,6 +521,8 @@ export type AiProviderCredential = {
     allowedModels: string[];
     apiKeyHint: string;
     isDefault: boolean;
+    /** Effective geography — the stored choice or the region's default. */
+    inferenceGeography: BedrockInferenceGeography;
 };
 
 export type CreateAiProviderCredential = {
@@ -476,6 +531,8 @@ export type CreateAiProviderCredential = {
     region: string;
     allowedModels: string[];
     apiKey: string;
+    // Omit for the region's default (narrowest) geography.
+    inferenceGeography?: BedrockInferenceGeography;
 };
 
 /** A credential row whose ciphertext could not be read with the current secret. */
@@ -513,6 +570,7 @@ export type UpdateAiProviderCredential = {
     allowedModels?: string[];
     // Omit to keep the stored key when changing label, region or models.
     apiKey?: string;
+    inferenceGeography?: BedrockInferenceGeography;
 };
 
 // Explicit shape rather than a mapped type: TSOA cannot model

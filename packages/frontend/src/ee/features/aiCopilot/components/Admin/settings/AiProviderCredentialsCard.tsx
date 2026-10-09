@@ -31,6 +31,7 @@ import {
     BedrockCredentialModal,
     type BedrockCredentialFormValues,
 } from './BedrockCredentialModal';
+import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
 
 type Props = {
     models: AiModelOption[];
@@ -67,6 +68,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                         region: values.region,
                         allowedModels: values.allowedModels,
                         apiKey: values.apiKey ?? '',
+                        inferenceGeography: values.inferenceGeography,
                     },
                 },
                 { onSuccess: () => setModalState(null) },
@@ -88,6 +90,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 region: values.region,
                 allowedModels: values.allowedModels,
                 apiKey: values.apiKey ?? '',
+                inferenceGeography: values.inferenceGeography,
             },
             { onSuccess: () => setModalState(null) },
         );
@@ -168,7 +171,13 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                 )}
                             </Group>
                             <Text c="dimmed" fz="xs">
-                                {credential.region} · {credential.apiKeyHint} ·{' '}
+                                {credential.region} · inference in{' '}
+                                {
+                                    BEDROCK_GEOGRAPHY_LABELS[
+                                        credential.inferenceGeography
+                                    ]
+                                }{' '}
+                                · {credential.apiKeyHint} ·{' '}
                                 {credential.allowedModels.length} model(s)
                             </Text>
                         </Stack>

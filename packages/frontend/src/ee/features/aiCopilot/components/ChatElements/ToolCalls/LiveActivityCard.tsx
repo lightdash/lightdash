@@ -81,6 +81,7 @@ type Props = {
     /** runSql / composer / SQL chart calls awaiting a decision; approval renders inline under the SQL. */
     approval?: SqlApprovalThread & {
         pendingToolCallIds: string[];
+        decidedToolCallIds: string[];
     };
 };
 
@@ -676,15 +677,23 @@ export const LiveActivityCard: FC<Props> = ({
     // A call waiting on approval keeps the card "live" so its SQL is reachable.
     const isActive = isLive || hasPendingApproval;
 
+    // A decided call's SQL was already reviewed, so its group can collapse.
+    const decidedApprovalIds = approval?.decidedToolCallIds ?? [];
+    const approvalDecided =
+        latestGroup?.calls.some((call) =>
+            decidedApprovalIds.includes(call.toolCallId),
+        ) ?? false;
+
     // runSql expands by default; composer only while active (the artifact panel
     // shows the pipeline once done). A user toggle wins until expandKey changes.
     const defaultExpanded =
-        latestGroup?.toolName === 'runSql' ||
         hasPendingApproval ||
-        (isActive && latestGroup?.toolName === 'runComposerQueries');
+        (!approvalDecided &&
+            (latestGroup?.toolName === 'runSql' ||
+                (isActive && latestGroup?.toolName === 'runComposerQueries')));
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
         latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
-    }`;
+    }:${approvalDecided}`;
     const [userToggle, setUserToggle] = useState<{
         key: string;
         value: boolean;

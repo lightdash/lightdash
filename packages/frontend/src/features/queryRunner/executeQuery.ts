@@ -132,7 +132,7 @@ export const executeSqlQuery = async (
     };
 };
 
-const getPivotQueryResults = async (
+export const getPivotQueryResults = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,

@@ -2,6 +2,9 @@ import { expectTypeOf } from 'vitest';
 import { assertValidBigqueryKeyfile } from '../utils/bigqueryKeyfile';
 import {
     AGENT_IDENTITY_SOURCES,
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    getAgentClientLabel,
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
@@ -222,4 +225,68 @@ describe('AI execution credential generation', () => {
             expect(getAiExecutionCredentialUuid(plan)).toBe(expected);
         },
     );
+});
+
+describe('buildAgentIdentityClaim', () => {
+    test.each(['user', 'service_account'] as const)(
+        'identifies a %s subject independently of the agent',
+        (type) => {
+            expect(
+                buildAgentIdentityClaim({
+                    subject: { type, uuid: 'subject-uuid' },
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                }),
+            ).toEqual({
+                sub: `${type}:subject-uuid`,
+                subject: { type, uuid: 'subject-uuid' },
+                act: {
+                    sub: 'in_app_agent:lightdash-chat',
+                    surface: 'in_app_agent',
+                    client_id: 'lightdash-chat',
+                },
+            });
+        },
+    );
+    test('retains null for an unknown client', () => {
+        expect(
+            buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'user' },
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            }).act,
+        ).toEqual({ sub: 'mcp:unknown', surface: 'mcp', client_id: null });
+    });
+});
+
+describe('getAgentClientLabel', () => {
+    test.each([
+        ['lightdash-chat', 'lightdash-chat'],
+        ['client_123', 'client_123'],
+        ['a'.repeat(60), 'a'.repeat(60)],
+        ['mcp-AbCdEf0123456789', 'mcp-abcdef0123456789'],
+        ['A04EJP8LZPD', 'a04ejp8lzpd'],
+    ])('keeps the lowercased id %s', (id, label) => {
+        expect(getAgentClientLabel(id)).toBe(label);
+    });
+    test('uses unknown only for a null client', () => {
+        expect(getAgentClientLabel(null)).toBe('unknown');
+    });
+    test.each(['client.id', 'client/id', 'a'.repeat(61), ''])(
+        'hashes unsafe id %s deterministically',
+        (id) => {
+            const label = getAgentClientLabel(id);
+            expect(label).toMatch(/^h-[a-f0-9]{32}$/);
+            expect(getAgentClientLabel(id)).toBe(label);
+        },
+    );
+    test('keeps unsafe ids distinct after hashing', () => {
+        const ids = [
+            'client.id',
+            'client/id',
+            'a'.repeat(61),
+            `${'a'.repeat(60)}b`,
+        ];
+        expect(new Set(ids.map(getAgentClientLabel)).size).toBe(ids.length);
+    });
 });

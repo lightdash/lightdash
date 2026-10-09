@@ -4,6 +4,7 @@ import {
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
     AiProviderBaseUrls,
+    BEDROCK_INFERENCE_GEOGRAPHIES,
     BYO_AI_API_KEY_PROVIDERS,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
@@ -46,6 +47,11 @@ const storedAiOrgProviderApiKeyFields = {
             apiKey: z.string().min(1),
             region: z.string().min(1),
             allowedModels: z.array(z.string()).min(1),
+            // Carried by named credentials; the legacy blob never stores it
+            // and resolves to the region's default geography.
+            inferenceGeography: z
+                .enum(BEDROCK_INFERENCE_GEOGRAPHIES)
+                .optional(),
         })
         .optional(),
 } satisfies Record<ByoAiProvider, z.ZodTypeAny>;

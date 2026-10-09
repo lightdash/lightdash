@@ -10,8 +10,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    applyFieldToAll,
     getDefaultTileField,
+    getEffectiveTabUuid,
     getFieldCount,
     getFieldScope,
     getFilterFields,
@@ -19,11 +19,13 @@ import {
     getTabCounts,
     getTabCountsForField,
     getTileField,
+    getTilesOnTab,
     isTileChanged,
     canTileTakeFilter,
     removeField,
     removeFieldFromAll,
     setTileField,
+    switchTilesToField,
     toSqlColumnTarget,
     type SqlColumnsByTile,
 } from './peers';
@@ -145,20 +147,32 @@ describe('peers', () => {
         ).not.toHaveProperty('tileTargets');
     });
 
-    it('applyFieldToAll puts a peer on every chart that offers it', () => {
-        const r = applyFieldToAll(rule(), PAYMENTS, tiles, fieldsByTile);
-        expect(r.tileTargets).toEqual({ b: PAYMENTS, c: PAYMENTS });
+    it('switchTilesToField moves the tiles on another field and leaves the rest', () => {
+        const r = switchTilesToField(rule(), PAYMENTS, tiles, fieldsByTile);
+        // b was on orders; c offers payments but was not filtered
+        expect(r.tileTargets).toEqual({ b: PAYMENTS });
         expect(getTileField(r, a, fieldsByTile)).toEqual(ORDERS);
+        expect(getTileField(r, c, fieldsByTile)).toBeNull();
     });
 
-    it('applyFieldToAll on the target clears exclusions and peers on its charts', () => {
-        const r = applyFieldToAll(
+    it('switchTilesToField on the target takes its tiles back, never a left out one', () => {
+        const r = switchTilesToField(
             rule({ a: false, b: PAYMENTS, c: PAYMENTS }),
             ORDERS,
             tiles,
             fieldsByTile,
         );
-        expect(r.tileTargets).toEqual({ c: PAYMENTS });
+        expect(r.tileTargets).toEqual({ a: false, c: PAYMENTS });
+    });
+
+    it('switchTilesToField only touches the tiles it is given', () => {
+        const r = switchTilesToField(
+            rule({ b: PAYMENTS }),
+            ORDERS,
+            [a],
+            fieldsByTile,
+        );
+        expect(r.tileTargets).toEqual({ b: PAYMENTS });
     });
 
     it('removeFieldFromAll stops filtering the charts using the field', () => {
@@ -223,13 +237,13 @@ describe('peers', () => {
         });
     });
 
-    it('counts tiles per tab that use one field of the filter', () => {
+    it('counts, per tab, the tiles on one field out of the tiles that could be', () => {
         const r = rule({ c: PAYMENTS });
         expect(
             getTabCountsForField(r, 'orders_status', tiles, tabs, fieldsByTile),
         ).toEqual({
             t1: { applied: 2, total: 2 },
-            t2: { applied: 0, total: 3 },
+            t2: { applied: 0, total: 0 },
         });
         expect(
             getTabCountsForField(
@@ -240,8 +254,8 @@ describe('peers', () => {
                 fieldsByTile,
             ),
         ).toEqual({
-            t1: { applied: 0, total: 2 },
-            t2: { applied: 1, total: 3 },
+            t1: { applied: 0, total: 1 },
+            t2: { applied: 1, total: 1 },
         });
     });
 
@@ -256,7 +270,7 @@ describe('peers', () => {
             ),
         ).toEqual({
             t1: { applied: 1, total: 2 },
-            t2: { applied: 0, total: 3 },
+            t2: { applied: 0, total: 0 },
         });
     });
 });
@@ -323,8 +337,8 @@ describe('peers with SQL chart tiles', () => {
                 fieldsByTile,
                 sqlColumns,
             ),
-            // a SQL column is reached per tile, so it is never "possible" as a field
-        ).toEqual({ possible: 0, applied: 1 });
+            // No tile offers a column as a field, but the tile on it counts
+        ).toEqual({ possible: 1, applied: 1 });
         expect(
             getFieldCount(rule(), 'status', allTiles, fieldsByTile, sqlColumns)
                 .applied,
@@ -350,7 +364,7 @@ describe('peers with SQL chart tiles', () => {
                 fieldsByTile,
                 sqlColumns,
             ).t2,
-        ).toEqual({ total: 4, applied: 1 });
+        ).toEqual({ total: 1, applied: 1 });
     });
 
     it('counts every tile on the tab, even a SQL tile without a column of the kind', () => {
@@ -407,7 +421,7 @@ describe('peers with data app tiles', () => {
                 tabs,
                 fieldsByTile,
             ).t2,
-        ).toEqual({ applied: 0, total: 4 });
+        ).toEqual({ applied: 0, total: 0 });
     });
 
     it('stays as it is when a field is cleared from its tiles or removed', () => {
@@ -606,5 +620,68 @@ describe('what a field would do over the tiles in scope', () => {
             replaced: 1,
             replacedFieldIds: ['orders_gone'],
         });
+    });
+});
+
+describe('effective tab', () => {
+    const noTab = {
+        ...tile('x', 't1'),
+        tabUuid: undefined,
+    } as DashboardTile;
+    const staleTab = tile('y', 'deleted-tab');
+
+    it('is the first tab for a missing or stale tabUuid, as on the grid', () => {
+        expect(getEffectiveTabUuid(a, tabs)).toBe('t1');
+        expect(getEffectiveTabUuid(c, tabs)).toBe('t2');
+        expect(getEffectiveTabUuid(noTab, tabs)).toBe('t1');
+        expect(getEffectiveTabUuid(staleTab, tabs)).toBe('t1');
+        expect(getEffectiveTabUuid(noTab, [])).toBeUndefined();
+    });
+
+    it('counts such tiles on the first tab', () => {
+        const every = [...tiles, noTab, staleTab];
+        expect(getTilesOnTab(every, tabs, 't1').map((t) => t.uuid)).toEqual([
+            'a',
+            'b',
+            'x',
+            'y',
+        ]);
+        const fields = { ...fieldsByTile, x: fieldsByTile.a };
+        expect(getTabCounts(rule(), every, tabs, fields).t1).toEqual({
+            applied: 3,
+            total: 4,
+        });
+        // The field's badge counts only the tiles that can be on it
+        expect(
+            getTabCountsForField(rule(), 'orders_status', every, tabs, fields)
+                .t1,
+        ).toEqual({ applied: 3, total: 3 });
+    });
+});
+
+describe('a field on a tile that no longer offers it', () => {
+    const GONE: DashboardFieldTarget = {
+        fieldId: 'orders_gone',
+        tableName: 'orders',
+    };
+
+    it('counts the tile as possible too, so applied never exceeds it', () => {
+        const r = rule({ a: GONE });
+        expect(getFieldCount(r, 'orders_gone', tiles, fieldsByTile)).toEqual({
+            applied: 1,
+            possible: 1,
+        });
+        const scope = getFieldScope(r, 'orders_gone', tiles, fieldsByTile);
+        expect(scope).toMatchObject({
+            applied: 1,
+            possible: 1,
+            unfiltered: 0,
+            replaced: 0,
+        });
+        // The badge of its tab agrees
+        expect(
+            getTabCountsForField(r, 'orders_gone', tiles, tabs, fieldsByTile)
+                .t1,
+        ).toEqual({ applied: 1, total: 1 });
     });
 });

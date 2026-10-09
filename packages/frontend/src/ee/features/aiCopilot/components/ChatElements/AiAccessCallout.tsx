@@ -1,4 +1,5 @@
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
     AgentIdentityConnectEntryPoint,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
@@ -74,6 +75,15 @@ export const AiAccessCallout = ({
                             >
                                 Connect agent
                             </Button>
+                            {variant === 'card' && (
+                                <Anchor
+                                    component={Link}
+                                    to="/generalSettings/myAgentConnections"
+                                    size="sm"
+                                >
+                                    Manage agent connections
+                                </Anchor>
+                            )}
                         </Group>
                     )}
                     {requiresSignIn && login.error && (
@@ -85,7 +95,7 @@ export const AiAccessCallout = ({
                         canUpdate && (
                             <Anchor
                                 component={Link}
-                                to="/generalSettings/warehouseCredentials"
+                                to={AGENT_IDENTITY_SETTINGS_PATH}
                                 size="sm"
                             >
                                 {t('aiAccess.settings')}

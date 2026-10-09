@@ -127,11 +127,14 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
+import { type ApiAgentAccessReportResponse } from './agentAccessReport';
 import type {
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
     ApiOrganizationAgentIdentityOverviewResponse,
     ApiOrganizationAgentIdentityRuleResponse,
+    ApiOrganizationAgentIdentitySnowflakeSetupResponse,
+    ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
 } from './agentIdentity';
 import type {
     ApiAiAccessForUserResponse,
@@ -1569,8 +1572,11 @@ type ApiResults =
     | ApiAiAccessForUserResponse['results']
     | ApiOrganizationAgentIdentityOverviewResponse['results']
     | ApiOrganizationAgentIdentityRuleResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeSetupResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeVerifyResponse['results']
     | ApiAiServiceAccountSlotResponse['results']
     | ApiAiServiceAccountTestResponse['results']
+    | ApiAgentAccessReportResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']

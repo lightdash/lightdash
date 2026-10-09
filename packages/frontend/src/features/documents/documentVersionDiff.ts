@@ -1,7 +1,11 @@
 import {
+    formatDocumentTag,
     getDocumentChartBlocks,
+    getSavedChartTagName,
     type DocumentChartContent,
     type DocumentContent,
+    type DocumentExploreChartContent,
+    type DocumentSqlChart,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 
@@ -27,25 +31,60 @@ export type DocumentVersionDiff = {
     hasChanges: boolean;
 };
 
+/** `chart` is null for a chart saved by a newer release; `definition` is what was stored. */
 type PlacedChart = {
     id: string;
-    chart: DocumentChartContent;
+    name: string;
+    chart: DocumentChartContent | null;
+    definition: unknown;
     position: number;
 };
 
+const UNSUPPORTED_CHART_NAME = 'Chart from a newer version';
+
 const getText = (content: DocumentContent): string[] =>
     getDocumentChartBlocks(content)
-        .flatMap((block) => (block.type === 'markdown' ? [block.markdown] : []))
+        .flatMap((block) => {
+            if (block.type === 'markdown') return [block.markdown];
+            if (block.type === 'unsupportedTag') return [block.line];
+            if (block.type === 'savedChart') {
+                return [
+                    formatDocumentTag({
+                        name: getSavedChartTagName(block.kind),
+                        attributes: block.attributes,
+                    }),
+                ];
+            }
+            return [];
+        })
         .join('\n\n')
         .split('\n');
 
 const getCharts = (content: DocumentContent): PlacedChart[] =>
     getDocumentChartBlocks(content)
-        .flatMap((block) =>
-            block.type === 'chart'
-                ? [{ id: block.id, chart: block.chart }]
-                : [],
-        )
+        .flatMap((block): Omit<PlacedChart, 'position'>[] => {
+            if (block.type === 'chart') {
+                return [
+                    {
+                        id: block.id,
+                        name: block.chart.chart.name,
+                        chart: block.chart,
+                        definition: block.chart,
+                    },
+                ];
+            }
+            if (block.type === 'unsupportedChart') {
+                return [
+                    {
+                        id: block.id,
+                        name: UNSUPPORTED_CHART_NAME,
+                        chart: null,
+                        definition: block.raw,
+                    },
+                ];
+            }
+            return [];
+        })
         .map((chart, index) => ({ ...chart, position: index + 1 }));
 
 /** Line diff from the longest common subsequence; ties prefer removals first. */
@@ -128,44 +167,38 @@ export const withContext = (lines: DocumentLineChange[]): DisplayedLine[] => {
     return shown;
 };
 
-const CHART_PARTS: Array<[string, (content: DocumentChartContent) => unknown]> =
+const CHART_PARTS: Array<
+    [string, (content: DocumentExploreChartContent) => unknown]
+> = [
+    ['Title', ({ chart }) => chart.name],
+    ['Description', ({ chart }) => chart.description ?? ''],
+    ['Explore', ({ chart }) => chart.tableName],
+    ['Chart type', ({ chart }) => chart.chartConfig.type],
+    ['Dimensions', ({ chart }) => chart.metricQuery.dimensions],
+    ['Metrics', ({ chart }) => chart.metricQuery.metrics],
+    ['Filters', ({ chart }) => chart.metricQuery.filters],
+    ['Sorts', ({ chart }) => chart.metricQuery.sorts],
+    ['Row limit', ({ chart }) => chart.metricQuery.limit],
+    ['Table calculations', ({ chart }) => chart.metricQuery.tableCalculations],
     [
-        ['Title', ({ chart }) => chart.name],
-        ['Description', ({ chart }) => chart.description ?? ''],
-        ['Explore', ({ chart }) => chart.tableName],
-        ['Chart type', ({ chart }) => chart.chartConfig.type],
-        ['Dimensions', ({ chart }) => chart.metricQuery.dimensions],
-        ['Metrics', ({ chart }) => chart.metricQuery.metrics],
-        ['Filters', ({ chart }) => chart.metricQuery.filters],
-        ['Sorts', ({ chart }) => chart.metricQuery.sorts],
-        ['Row limit', ({ chart }) => chart.metricQuery.limit],
-        [
-            'Table calculations',
-            ({ chart }) => chart.metricQuery.tableCalculations,
+        'Custom fields',
+        ({ chart }) => [
+            chart.metricQuery.additionalMetrics ?? [],
+            chart.metricQuery.customDimensions ?? [],
         ],
-        [
-            'Custom fields',
-            ({ chart }) => [
-                chart.metricQuery.additionalMetrics ?? [],
-                chart.metricQuery.customDimensions ?? [],
-            ],
-        ],
-        ['Visualization', ({ chart }) => chart.chartConfig],
-        [
-            'Table settings',
-            ({ chart }) => [chart.tableConfig, chart.pivotConfig],
-        ],
-        ['Parameters', ({ chart }) => chart.parameters ?? {}],
-        [
-            'Merge',
-            (content) =>
-                content.source === 'merge' ? content.chart.merge : null,
-        ],
-    ];
+    ],
+    ['Visualization', ({ chart }) => chart.chartConfig],
+    ['Table settings', ({ chart }) => [chart.tableConfig, chart.pivotConfig]],
+    ['Parameters', ({ chart }) => chart.parameters ?? {}],
+    [
+        'Merge',
+        (content) => (content.source === 'merge' ? content.chart.merge : null),
+    ],
+];
 
-const getChangedParts = (
-    before: DocumentChartContent,
-    after: DocumentChartContent,
+const getExploreChangedParts = (
+    before: DocumentExploreChartContent,
+    after: DocumentExploreChartContent,
 ): string[] => {
     const parts = CHART_PARTS.filter(
         ([, read]) => !isEqual(read(before), read(after)),
@@ -182,6 +215,40 @@ const getChangedParts = (
     return named.length > 0 || isEqual(before, after)
         ? named
         : ['Query settings'];
+};
+
+const SQL_CHART_PARTS: Array<[string, (chart: DocumentSqlChart) => unknown]> = [
+    ['Title', (chart) => chart.name],
+    ['Description', (chart) => chart.description ?? ''],
+    ['SQL', (chart) => chart.sql],
+    ['Chart type', (chart) => chart.chartKind],
+    ['Row limit', (chart) => chart.limit],
+    ['Connection', (chart) => chart.warehouseConnectionUuid ?? null],
+    ['Visualization', (chart) => chart.config],
+];
+
+const getKnownChangedParts = (
+    before: DocumentChartContent,
+    after: DocumentChartContent,
+): string[] => {
+    if (before.source === 'sql' || after.source === 'sql') {
+        if (before.source !== 'sql' || after.source !== 'sql') {
+            return ['Query source'];
+        }
+        return SQL_CHART_PARTS.filter(
+            ([, read]) => !isEqual(read(before.chart), read(after.chart)),
+        ).map(([label]) => label);
+    }
+    return getExploreChangedParts(before, after);
+};
+
+const getChangedParts = (before: PlacedChart, after: PlacedChart): string[] => {
+    if (before.chart === null || after.chart === null) {
+        return isEqual(before.definition, after.definition)
+            ? []
+            : ['Chart definition'];
+    }
+    return getKnownChangedParts(before.chart, after.chart);
 };
 
 /** Indexes of pairs that keep their relative order (longest increasing run). */
@@ -240,7 +307,7 @@ export const diffDocumentVersions = (
                     pairedAfter.add(match);
                 }
             });
-    pairUp((left, right) => isEqual(left.chart, right.chart));
+    pairUp((left, right) => isEqual(left.definition, right.definition));
     pairUp((left, right) => left.id === right.id);
 
     const pairList = beforeCharts.flatMap((chart) => {
@@ -250,10 +317,10 @@ export const diffDocumentVersions = (
     const stable = getStablePairs(pairList.map(([, match]) => match.position));
     const paired: DocumentChartChange[] = pairList.map(
         ([chart, match], index) => {
-            const changedParts = getChangedParts(chart.chart, match.chart);
+            const changedParts = getChangedParts(chart, match);
             return {
                 kind: changedParts.length > 0 ? 'changed' : 'unchanged',
-                name: match.chart.chart.name,
+                name: match.name,
                 beforePosition: chart.position,
                 afterPosition: match.position,
                 moved: !stable.has(index),
@@ -265,7 +332,7 @@ export const diffDocumentVersions = (
         .filter((chart) => !pairedAfter.has(chart))
         .map((chart) => ({
             kind: 'added',
-            name: chart.chart.chart.name,
+            name: chart.name,
             beforePosition: null,
             afterPosition: chart.position,
             moved: false,
@@ -275,7 +342,7 @@ export const diffDocumentVersions = (
         .filter((chart) => !pairs.has(chart))
         .map((chart) => ({
             kind: 'removed',
-            name: chart.chart.chart.name,
+            name: chart.name,
             beforePosition: chart.position,
             afterPosition: null,
             moved: false,

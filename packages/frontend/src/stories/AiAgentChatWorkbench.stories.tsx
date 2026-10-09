@@ -257,6 +257,7 @@ const composerApproval = {
     agentUuid: 'agent-uuid',
     threadUuid: 'thread-uuid',
     pendingToolCallIds: ['composer-call'],
+    decidedToolCallIds: [],
 };
 
 const ComposerPipelineScenario = () => (

@@ -11,10 +11,12 @@ import { sharedLightdashApi } from '../../../api';
 import { DOCUMENT_CHART_NODE } from './documentChartNode';
 import { buildDocumentContent } from './documentContent';
 import { createDocumentEditorExtensions } from './documentEditorExtensions';
+import { DOCUMENT_SAVED_CHART_NODE } from './documentSavedChartNode';
 import {
     getDocumentContent,
     getTopLevelInsertPosition,
 } from './documentSerialization';
+import { DOCUMENT_UNSUPPORTED_NODE } from './documentUnsupportedNode';
 import { moveTopLevelNode } from './moveTopLevelNode';
 
 const chart = (name: string, id = 'c1'): DocumentChartBlock => ({
@@ -529,5 +531,131 @@ describe('getDocumentContent tag-like text', () => {
         expect(getDocumentContent(reloaded)).toEqual(saved);
         editor.destroy();
         reloaded.destroy();
+    });
+});
+
+describe('content from a newer release', () => {
+    const unsupportedChart: DocumentChartBlock = {
+        type: 'unsupportedChart',
+        id: 'c2',
+        raw: { source: 'image', image: { url: 'logo.png' } },
+    };
+    const unsupportedTag: DocumentChartBlock = {
+        type: 'unsupportedTag',
+        line: '<data-app-embed slug="monthly-revenue" title="Live">',
+    };
+    const blocks = [
+        markdown('Intro'),
+        chart('Orders'),
+        unsupportedChart,
+        unsupportedTag,
+        markdown('Outro'),
+    ];
+
+    it('writes it back unchanged and in place', () => {
+        const editor = load(blocks);
+        expect(getBlocks(editor)).toStrictEqual(blocks);
+        expect(getDocumentContent(editor).unsupportedCharts).toStrictEqual({
+            c2: unsupportedChart.raw,
+        });
+        editor.destroy();
+    });
+
+    it('keeps it through a text edit', () => {
+        const editor = load(blocks);
+        editor.commands.insertContentAt(1, 'Edited ');
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Edited Intro'),
+            ...blocks.slice(1),
+        ]);
+        editor.destroy();
+    });
+
+    it('drops it when removed', () => {
+        const editor = load(blocks);
+        const positions: number[] = [];
+        editor.state.doc.forEach((node, offset) => {
+            if (node.type.name === DOCUMENT_UNSUPPORTED_NODE) {
+                positions.push(offset);
+            }
+        });
+        positions.reverse().forEach((position) => {
+            editor.commands.deleteRange({
+                from: position,
+                to: position + 1,
+            });
+        });
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Intro'),
+            chart('Orders'),
+            markdown('Outro'),
+        ]);
+        expect(getDocumentContent(editor).unsupportedCharts).toBeUndefined();
+        editor.destroy();
+    });
+
+    it('leaves a typed tag-like line as text', () => {
+        const editor = load([markdown('Intro')]);
+        editor.commands.insertContentAt(editor.state.doc.content.size, {
+            type: 'paragraph',
+            content: [{ type: 'text', text: '<my-widget>' }],
+        });
+        expect(
+            getBlocks(editor).every((block) => block.type === 'markdown'),
+        ).toBe(true);
+        editor.destroy();
+    });
+});
+
+describe('saved chart links', () => {
+    const savedChart: DocumentChartBlock = {
+        type: 'savedChart',
+        kind: 'chart',
+        attributes: {
+            uuid: 'a5632229-9bb1-4e73-9c57-553f0b5915f8',
+            title: 'Live "revenue"',
+        },
+    };
+    const savedSqlChart: DocumentChartBlock = {
+        type: 'savedChart',
+        kind: 'sqlChart',
+        attributes: { uuid: '4b993aca-ca6f-455b-a6aa-19c26e65c502' },
+    };
+    const blocks = [
+        markdown('Intro'),
+        savedChart,
+        chart('Orders'),
+        savedSqlChart,
+        markdown('Outro'),
+    ];
+
+    it('writes links back unchanged and in place', () => {
+        const editor = load(blocks);
+        expect(getBlocks(editor)).toStrictEqual(blocks);
+        expect(getDocumentContent(editor).markdown).toContain(
+            '<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8" title="Live &quot;revenue&quot;">',
+        );
+        editor.destroy();
+    });
+
+    it('drops a removed link and keeps the others', () => {
+        const editor = load(blocks);
+        const positions: number[] = [];
+        editor.state.doc.forEach((node, offset) => {
+            if (node.type.name === DOCUMENT_SAVED_CHART_NODE) {
+                positions.push(offset);
+            }
+        });
+        editor.commands.deleteRange({
+            from: positions[1],
+            to: positions[1] + 1,
+        });
+        expect(getBlocks(editor)).toStrictEqual([
+            markdown('Intro'),
+            savedChart,
+            chart('Orders'),
+            markdown('Outro'),
+        ]);
+        editor.destroy();
     });
 });

@@ -1,10 +1,12 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     QueryExecutionContext,
     type SendNowScheduler,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import { SchedulerAiAugmentationService } from './SchedulerAiAugmentationService';
 
 type Dependencies = ConstructorParameters<
@@ -110,6 +112,51 @@ describe('SchedulerAiAugmentationService AI access', () => {
         ).not.toHaveBeenCalled();
         expect(aiService.generateDeliverySummary).not.toHaveBeenCalled();
     });
+    test('attributes fresh summary queries to the summary actor', async () => {
+        const { service, asyncQueryService } = setup(true);
+        asyncQueryService.executeSavedChartQueryAndGetResults.mockImplementation(
+            async () => {
+                expect(agentExecutionContext.getStore()).toEqual({
+                    surface: AgentActorSurface.AI_SUMMARY,
+                    clientId: 'lightdash-ai-summary',
+                });
+                return { rows: [], fields: {} };
+            },
+        );
+        await service.runForDelivery({ scheduler, createdBy: 'user' });
+        expect(
+            asyncQueryService.executeSavedChartQueryAndGetResults,
+        ).toHaveBeenCalledOnce();
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
+
+    test('attributes the report agent own queries to the summary actor', async () => {
+        const { service, aiAgentService } = setup(true);
+        aiAgentService.generateScheduledReport.mockImplementation(async () => {
+            expect(agentExecutionContext.getStore()).toEqual({
+                surface: AgentActorSurface.AI_SUMMARY,
+                clientId: 'lightdash-ai-summary',
+            });
+            return 'agent summary';
+        });
+        await expect(
+            service.runForDelivery({
+                scheduler: {
+                    ...scheduler,
+                    aiAugmentation: {
+                        type: 'agent',
+                        agentUuid: 'agent',
+                        prompt: 'Summarize',
+                        sourceThreadUuid: null,
+                    },
+                },
+                createdBy: 'user',
+            }),
+        ).resolves.toBe('agent summary');
+        expect(aiAgentService.generateScheduledReport).toHaveBeenCalledOnce();
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
+
     test('re-queries normal-session delivery results through the agent', async () => {
         const { service, asyncQueryService, aiService } = setup(true);
         asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(

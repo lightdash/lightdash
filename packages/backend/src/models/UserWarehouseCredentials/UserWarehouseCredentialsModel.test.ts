@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { DbUserWarehouseCredentials } from '../../database/entities/userWarehouseCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentialsModel';
@@ -23,7 +24,8 @@ const validBigqueryCredentials = {
     authenticationType: BigqueryAuthenticationType.SSO,
     keyfileContents: {
         type: 'authorized_user',
-        client_id: 'client-id',
+        client_id:
+            lightdashConfigWithGoogleOAuthMock.auth.google.oauth2ClientId!,
         client_secret: 'client-secret',
         refresh_token: 'refresh-token',
     },
@@ -113,16 +115,56 @@ const createModel = ({
 };
 
 describe('UserWarehouseCredentialsModel', () => {
-    describe('deleteAiCredential', () => {
-        const database = knex({ client: MockClient, dialect: 'pg' });
-        const tracker = getTracker();
-        const model = new UserWarehouseCredentialsModel({
-            database,
-            encryptionUtil: passthroughEncryption,
-        });
-        beforeEach(() => tracker.reset());
-        afterAll(async () => database.destroy());
+    const sqlDatabase = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    const credentialModel = new UserWarehouseCredentialsModel({
+        database: sqlDatabase,
+        encryptionUtil: passthroughEncryption,
+    });
+    beforeEach(() => tracker.reset());
+    afterAll(async () => sqlDatabase.destroy());
 
+    describe('hasOrganizationAiSnowflakeCredential', () => {
+        test.each([true, false])(
+            'returns %s for matching activation evidence without reading secrets',
+            async (exists) => {
+                tracker.on.select('user_warehouse_credentials').response(
+                    exists
+                        ? [
+                              {
+                                  user_warehouse_credentials_uuid: 'credential',
+                              },
+                          ]
+                        : [],
+                );
+                await expect(
+                    credentialModel.hasOrganizationAiSnowflakeCredential('org'),
+                ).resolves.toBe(exists);
+                const query = tracker.history.select[0];
+                expect(query.sql).toContain(
+                    'inner join "users" on "users"."user_uuid" = "user_warehouse_credentials"."user_uuid"',
+                );
+                expect(query.sql).toContain(
+                    'inner join "organization_memberships" on "organization_memberships"."user_id" = "users"."user_id"',
+                );
+                expect(query.sql).toContain(
+                    'inner join "organizations" on "organizations"."organization_id" = "organization_memberships"."organization_id"',
+                );
+                expect(query.sql).toContain(
+                    'where "organizations"."organization_uuid" = $1 and "user_warehouse_credentials"."warehouse_type" = $2 and "user_warehouse_credentials"."purpose" = $3',
+                );
+                expect(query.sql).not.toContain('encrypted_credentials');
+                expect(query.bindings).toEqual([
+                    'org',
+                    WarehouseTypes.SNOWFLAKE,
+                    UserWarehouseCredentialPurpose.AI,
+                    1,
+                ]);
+            },
+        );
+    });
+
+    describe('deleteAiCredential', () => {
         test.each(['project-uuid', null])(
             'returns only deleted metadata with project %s',
             async (projectUuid) => {
@@ -133,7 +175,10 @@ describe('UserWarehouseCredentialsModel', () => {
                     },
                 ]);
                 expect(
-                    await model.deleteAiCredential('owner', 'credential'),
+                    await credentialModel.deleteAiCredential(
+                        'owner',
+                        'credential',
+                    ),
                 ).toEqual({
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                     projectUuid,
@@ -153,7 +198,7 @@ describe('UserWarehouseCredentialsModel', () => {
         test('returns null when no owned AI credential is deleted', async () => {
             tracker.on.delete('user_warehouse_credentials').response([]);
             await expect(
-                model.deleteAiCredential('other-owner', 'credential'),
+                credentialModel.deleteAiCredential('other-owner', 'credential'),
             ).resolves.toBeNull();
             expect(tracker.history.delete[0].bindings).toEqual([
                 'other-owner',
@@ -299,6 +344,25 @@ describe('UserWarehouseCredentialsModel', () => {
             expect(normalize(validBigqueryCredentials).credentials).toEqual(
                 validBigqueryCredentials,
             );
+        });
+
+        test('accepts a secret-free BigQuery SSO keyfile', () => {
+            const { client_secret: _clientSecret, ...keyfileContents } =
+                validBigqueryCredentials.keyfileContents;
+            expect(() =>
+                normalize({ ...validBigqueryCredentials, keyfileContents }),
+            ).not.toThrow();
+        });
+
+        test('keeps the secret of a foreign Google app', () => {
+            const credentials = {
+                ...validBigqueryCredentials,
+                keyfileContents: {
+                    ...validBigqueryCredentials.keyfileContents,
+                    client_id: 'foreign-app',
+                },
+            };
+            expect(normalize(credentials).credentials).toEqual(credentials);
         });
 
         test('rejects unsupported BigQuery key file types', () => {
@@ -581,4 +645,137 @@ describe('UserWarehouseCredentialsModel', () => {
             ).resolves.toBeUndefined();
         });
     });
+});
+
+describe('refresh rotation expiry CAS', () => {
+    let database: Knex;
+    let tracker: ReturnType<typeof getTracker>;
+    let model: UserWarehouseCredentialsModel;
+    beforeAll(() => {
+        database = knex({ client: MockClient, dialect: 'pg' });
+        tracker = getTracker();
+        model = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: passthroughEncryption,
+        });
+    });
+    beforeEach(() => tracker.reset());
+    afterAll(async () => database.destroy());
+    test.each([new Date(0), new Date('2029-01-01')])(
+        'preserves a concurrently extended deadline when the stale deadline was %s',
+        async (staleDeadline) => {
+            const row = {
+                ...makeRow('credential', {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                    refreshToken: 'T1',
+                }),
+                expires_at: staleDeadline,
+            };
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response(() => [row]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            const extendedDeadline = new Date('2035-01-01');
+            await model.rotateRefreshToken('credential', 'T1', 'T1', {
+                kind: 'reported',
+                expiresAt: extendedDeadline,
+            });
+            row.expires_at = extendedDeadline;
+            await model.rotateRefreshToken('credential', 'T1', 'T2', {
+                kind: 'unreported',
+            });
+            expect(tracker.history.update).toHaveLength(2);
+            expect(tracker.history.update[1].sql).not.toContain('"expires_at"');
+            expect(tracker.history.update[0].bindings).toContain(
+                extendedDeadline,
+            );
+            expect(tracker.history.select[1].sql).toContain('"expires_at"');
+            expect(tracker.history.select[1].sql).toContain('for update');
+        },
+    );
+    test.each([new Date(0), new Date('2035-01-01'), null])(
+        'uses the locked deadline for unreported expiry: %s',
+        async (expiresAt) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: 'T1',
+                    }),
+                    expires_at: expiresAt,
+                },
+            ]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            await model.rotateRefreshToken('credential', 'T1', 'T2', {
+                kind: 'unreported',
+            });
+            if (expiresAt && expiresAt.getTime() <= Date.now()) {
+                expect(tracker.history.update[0].bindings).toContain(null);
+            } else {
+                expect(tracker.history.update[0].sql).not.toContain(
+                    '"expires_at"',
+                );
+            }
+        },
+    );
+    test.each([
+        { stored: 'T1', next: 'T2', expiresAt: new Date('2030-01-01') },
+        {
+            stored: 'newer-token',
+            next: 'T2',
+            expiresAt: new Date('2030-01-01'),
+        },
+        { stored: 'T1', next: 'T1', expiresAt: new Date('2030-01-01') },
+        { stored: 'T1', next: 'T2', expiresAt: null },
+        { stored: 'T1', next: 'T2', expiresAt: undefined },
+    ])(
+        'guards token and expiry writes: %s',
+        async ({ stored, next, expiresAt }) => {
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    ...makeRow('credential', {
+                        type: WarehouseTypes.SNOWFLAKE,
+                        authenticationType: SnowflakeAuthenticationType.SSO,
+                        refreshToken: stored,
+                    }),
+                    warehouse_type: WarehouseTypes.SNOWFLAKE,
+                    expires_at: new Date(0),
+                },
+            ]);
+            tracker.on.update('user_warehouse_credentials').response(1);
+            let expiry: Parameters<
+                UserWarehouseCredentialsModel['rotateRefreshToken']
+            >[3];
+            if (expiresAt !== undefined)
+                expiry =
+                    expiresAt === null
+                        ? { kind: 'unreported' }
+                        : { kind: 'reported', expiresAt };
+            expect(
+                await model.rotateRefreshToken(
+                    'credential',
+                    'T1',
+                    next,
+                    expiry,
+                ),
+            ).toBe(stored === 'T1');
+            expect(tracker.history.select[0].sql).toContain('for update');
+            if (stored === 'T1') {
+                if (expiresAt === undefined) {
+                    expect(tracker.history.update[0].sql).not.toContain(
+                        '"expires_at"',
+                    );
+                } else {
+                    expect(tracker.history.update[0].sql).toContain(
+                        '"expires_at"',
+                    );
+                    expect(tracker.history.update[0].bindings).toContain(
+                        expiresAt,
+                    );
+                }
+            } else expect(tracker.history.update).toHaveLength(0);
+        },
+    );
 });

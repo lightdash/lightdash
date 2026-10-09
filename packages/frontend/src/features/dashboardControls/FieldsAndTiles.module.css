@@ -29,11 +29,14 @@
     background-color: var(--mantine-color-blue-light);
 }
 
+.rowHeader {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+}
+
 .rowMain {
     display: block;
     flex: 1;
     min-width: 0;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
     border-radius: var(--mantine-radius-sm);
 }
 
@@ -61,18 +64,23 @@
 
 /* Keyed by the count, so a changed number fades in */
 .rowCount {
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
     font-variant-numeric: tabular-nums;
     animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
 }
 
-.rowActions button,
-.rowUnpin {
+/* Above the card-wide click area. Hidden, never unmounted: focus on the name
+   shows it, so the keyboard reaches it */
+.rowRemove {
     position: relative;
     z-index: 1;
+    visibility: hidden;
 }
 
-.rowActions {
-    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+.row:hover .rowRemove,
+.row:focus-within .rowRemove,
+.rowHighlighted .rowRemove {
+    visibility: visible;
 }
 
 .addFieldSelect {

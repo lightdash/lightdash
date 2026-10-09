@@ -25,6 +25,9 @@ type FilterEditorProps = {
 // never carry over to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const emptiedFieldLabel = useControlsSidebarSelector(
+        (c) => c.emptiedFieldLabel,
+    );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
@@ -112,19 +115,21 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const fallbackName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const title = isPlaceholder
-        ? 'New control'
-        : hasLabel
-          ? label.draft
-          : (fallbackName ?? 'Filter');
+    // A control that lost its last field keeps the title it had
+    const title =
+        isPlaceholder && isNew && emptiedFieldLabel === null
+            ? 'New filter'
+            : hasLabel
+              ? label.draft
+              : (fallbackName ?? emptiedFieldLabel ?? 'Filter');
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus = isPlaceholder
-        ? 'Add a field to keep this control'
+        ? 'Select a field to keep this filter'
         : isDefaultValueIncomplete(filterRule)
-          ? 'No default value chosen, so the default stays off'
+          ? 'No default value set, so the default stays off'
           : null;
     const discardLabel = isNew
-        ? 'Discard control'
+        ? 'Discard filter'
         : isDirty
           ? 'Discard changes'
           : null;
@@ -134,8 +139,8 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             ? ` on ${reach.tabCount} of ${dashboardTabs.length} tabs`
             : '';
     const subtitle = isPlaceholder
-        ? 'No mapping yet'
-        : `${fieldCount} ${fieldCount === 1 ? 'field' : 'fields'} · reaches ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
+        ? 'No field yet'
+        : `${fieldCount > 1 ? `${fieldCount} fields · filters` : 'Filters'} ${reach.applied} of ${reach.total} ${reach.total === 1 ? 'tile' : 'tiles'}${tabReach}`;
     const showSettings = activeSection === 'settings' && !isPlaceholder;
 
     return (
@@ -157,7 +162,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                     value: 'settings',
                     label: 'Settings',
                     disabled: isPlaceholder,
-                    disabledReason: 'Pick a field first',
+                    disabledReason: 'Select a field first',
                 },
             ]}
             activeTab={showSettings ? 'settings' : 'fields'}
@@ -169,9 +174,9 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
             aboveTabs={
                 <>
                     <TextInput
-                        label={isPlaceholder ? 'Label' : 'Filter label'}
+                        label="Filter label"
                         // Left empty, the filter goes by its field's name
-                        placeholder={fallbackName ?? 'What viewers will see'}
+                        placeholder={fallbackName ?? 'Name viewers will see'}
                         autoFocus
                         data-controls-label
                         value={label.draft}

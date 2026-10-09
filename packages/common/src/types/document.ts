@@ -1,7 +1,10 @@
-import type { ApiExecuteAsyncMetricQueryResults } from './api';
+import type {
+    ApiExecuteAsyncMetricQueryResults,
+    ApiExecuteAsyncSqlQueryResults,
+} from './api';
 import type { ApiSuccess } from './api/success';
 import type { ContentAsCodeUpsertAction } from './contentAsCode/base';
-import type { ChartAsCode } from './contentAsCode/charts';
+import type { ChartAsCode, SqlChartAsCode } from './contentAsCode/charts';
 import type { ContentVerificationInfo } from './contentVerification';
 import type { DashboardOwner } from './dashboard';
 import type { SavedMergeQuery } from './mergeQuery';
@@ -37,9 +40,37 @@ export type DocumentMergeChartContent = {
     chart: MergeChartAsCode;
 };
 
+/** A SQL Runner chart owned by the Document, in its content-as-code shape. */
+export type DocumentSqlChart = Pick<
+    SqlChartAsCode,
+    'name' | 'sql' | 'limit' | 'config' | 'chartKind'
+> & {
+    description?: string;
+    /** The warehouse connection's name; omitted for the project's default connection. */
+    connection?: string;
+    /** The stored identity of `connection`, set by the server; dropped as code. */
+    warehouseConnectionUuid?: string;
+};
+
+export type DocumentSqlChartContent = {
+    source: 'sql';
+    chart: DocumentSqlChart;
+};
+
 export type DocumentChartContent =
     | DocumentSemanticChartContent
-    | DocumentMergeChartContent;
+    | DocumentMergeChartContent
+    | DocumentSqlChartContent;
+
+/** Charts that run a metric query against an Explore. */
+export type DocumentExploreChartContent = Exclude<
+    DocumentChartContent,
+    DocumentSqlChartContent
+>;
+
+export const isDocumentExploreChart = (
+    content: DocumentChartContent,
+): content is DocumentExploreChartContent => content.source !== 'sql';
 
 /** Charts by id. Stored ids are sequential per Document (`c1`, `c2`, …). */
 export type DocumentCharts = Record<string, DocumentChartContent>;
@@ -49,7 +80,15 @@ export type DocumentCharts = Record<string, DocumentChartContent>;
  * the charts those blocks reference. On writes, ids that are not `c<n>` are
  * temporary keys the server replaces with the next free id.
  */
-export type DocumentContent = { markdown: string; charts: DocumentCharts };
+export type DocumentContent = {
+    markdown: string;
+    charts: DocumentCharts;
+    /**
+     * Charts saved by a newer release, kept verbatim so saving the Document
+     * here doesn't lose them. Omitted when there are none.
+     */
+    unsupportedCharts?: Record<string, unknown>;
+};
 
 /** Assignable owner, independent of the immutable creator and version authors. */
 export type DocumentOwner = DashboardOwner;
@@ -172,5 +211,16 @@ export type DocumentQueryReference = {
     chartId: string;
 };
 
-export type ApiDocumentChartQueryResponse =
-    ApiSuccess<ApiExecuteAsyncMetricQueryResults>;
+/** A Document whose current version links a saved chart. */
+export type DocumentLinkingChart = Pick<
+    DocumentSummary,
+    'documentUuid' | 'name' | 'slug' | 'spaceUuid'
+>;
+export type ApiDocumentsLinkingChartResponse = ApiSuccess<
+    DocumentLinkingChart[]
+>;
+
+/** SQL charts answer with SQL results; the others with metric query results. */
+export type ApiDocumentChartQueryResponse = ApiSuccess<
+    ApiExecuteAsyncMetricQueryResults | ApiExecuteAsyncSqlQueryResults
+>;

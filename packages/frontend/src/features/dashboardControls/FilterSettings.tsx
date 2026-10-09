@@ -76,7 +76,7 @@ export const FilterSettings: FC<Props> = ({ rule, field, onChange }) => {
                 </Paper>
                 <Paper p="md">
                     <Stack gap="sm">
-                        <Title order={5}>Viewer controls</Title>
+                        <Title order={5}>Viewer access</Title>
                         <ViewerControls
                             rule={rule}
                             filterType={filterType}

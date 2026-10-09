@@ -94,6 +94,10 @@ export const buildCspHeader = (
         // fails under Safari's opaque sandbox origin (see above), so the
         // explicit origin is listed here too.
         `base-uri ${sources()}`,
+        // The iframe sandbox grants allow-forms so submit events reach app
+        // handlers; this keeps a native (un-prevented) submission from
+        // navigating anywhere, so forms cannot exfiltrate to external URLs.
+        `form-action 'none'`,
     ];
 
     return directives.join('; ');

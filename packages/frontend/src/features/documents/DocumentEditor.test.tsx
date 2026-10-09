@@ -52,6 +52,9 @@ vi.mock('./DocumentChartEditorModal', () => ({
             <button
                 onClick={() => {
                     const original = report.version.content.charts.c1;
+                    if (original.source !== 'semantic') {
+                        throw new Error('Expected a semantic chart');
+                    }
                     onApply({
                         ...(chart ?? original.chart),
                         name: chart ? 'Edited chart' : 'New chart',

@@ -1,4 +1,8 @@
-import { type ExecuteAsyncQueryRequestParams } from '@lightdash/common';
+import {
+    type AgentIdentityClaim,
+    type ExecuteAsyncQueryRequestParams,
+    type QueryHistory,
+} from '@lightdash/common';
 
 export function getQuerySourceParameters(
     parameters: ExecuteAsyncQueryRequestParams | undefined,
@@ -32,3 +36,11 @@ export function getQuerySourceParameters(
     }
     return {};
 }
+
+export const getQueryIdentityLineage = (
+    queries: QueryHistory[],
+): { queryUuid: string; agentIdentity: AgentIdentityClaim | null }[] =>
+    queries.map(({ queryUuid, agentIdentity }) => ({
+        queryUuid,
+        agentIdentity: agentIdentity ?? null,
+    }));

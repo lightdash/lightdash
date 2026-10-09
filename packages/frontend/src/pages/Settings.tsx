@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { ProjectType } from '@lightdash/common';
+import { AGENT_IDENTITY_SETTINGS_PATH, ProjectType } from '@lightdash/common';
 import {
     Anchor,
     ActionIcon,
@@ -50,6 +50,7 @@ import InviteLinkExpirationPanel from '../components/UserSettings/InviteLinkExpi
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import LightdashAnalyticsPanel from '../components/UserSettings/LightdashAnalyticsPanel';
 import LimitsPanel from '../components/UserSettings/LimitsPanel';
+import { MyAgentConnectionsPanel } from '../components/UserSettings/MyAgentConnectionsPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
@@ -91,6 +92,7 @@ import { CustomRoleDuplicate } from '../ee/pages/customRoles/CustomRoleDuplicate
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import Roadmap from '../ee/pages/Roadmap';
+import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
@@ -191,8 +193,12 @@ const Settings: FC = () => {
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
+        isAgentIdentityFlagLoading,
         allowPasswordAuthentication,
+        showMyAgentConnections,
         hasSocialLogin,
+        isMyAgentConnectionsLoading,
         isHealthLoading,
         healthError,
         isUserLoading,
@@ -276,6 +282,12 @@ const Settings: FC = () => {
                 </Stack>
             ),
         });
+        if (showMyAgentConnections) {
+            allowedRoutes.push({
+                path: '/myAgentConnections',
+                element: <MyAgentConnectionsPanel />,
+            });
+        }
         if (user?.ability.can('create', 'ScheduledDeliveries')) {
             // A user might not be able to create scheduled permissions on the org level but on a specific project
             // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
@@ -694,6 +706,19 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            isAgentIdentityEnabled &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push({
+                path: AGENT_IDENTITY_SETTINGS_PATH.replace(
+                    '/generalSettings',
+                    '',
+                ),
+                element: <AgentIdentitySettingsPage />,
+            });
+        }
+
         allowedRoutes.push(
             {
                 path: '/mcp',
@@ -841,11 +866,13 @@ const Settings: FC = () => {
         return allowedRoutes;
     }, [
         allowPasswordAuthentication,
+        showMyAgentConnections,
         user?.ability,
         organization,
         project,
         isScimTokenManagementEnabled?.enabled,
         isServiceAccountsEnabled,
+        isAgentIdentityEnabled,
         isCustomRolesEnabled,
         hasSocialLogin,
         showImpersonationPanel,
@@ -1001,6 +1028,9 @@ const Settings: FC = () => {
             matchPath('/generalSettings/mcp/general', location.pathname) ||
             matchPath('/generalSettings/mcp/analytics', location.pathname),
         );
+    const isAwaitingAgentIdentityRoute =
+        isAgentIdentityFlagLoading &&
+        Boolean(matchPath(AGENT_IDENTITY_SETTINGS_PATH, location.pathname));
     const isAwaitingDataAppsRoute =
         isDataAppsFlagLoading &&
         Boolean(matchPath('/generalSettings/dataApps/*', location.pathname));
@@ -1030,6 +1060,11 @@ const Settings: FC = () => {
         : null;
 
     if (
+        (isMyAgentConnectionsLoading &&
+            matchPath(
+                '/generalSettings/myAgentConnections',
+                location.pathname,
+            )) ||
         isHealthLoading ||
         isUserLoading ||
         isOrganizationLoading ||
@@ -1037,6 +1072,7 @@ const Settings: FC = () => {
         isProjectLoading ||
         isAwaitingProjectSettingsRoute ||
         isAwaitingAiSettingsRoute ||
+        isAwaitingAgentIdentityRoute ||
         isAwaitingDataAppsRoute ||
         isAwaitingAnalyticsRoute ||
         isAwaitingAiCreditsRoute

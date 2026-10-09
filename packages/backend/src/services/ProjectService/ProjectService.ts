@@ -418,6 +418,7 @@ import {
 } from '../../types';
 import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { AWS_WEB_IDENTITY_MESSAGES } from '../../utils/awsWebIdentity/messages';
+import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { omitDbtEnvironment } from '../../utils/dbtProjectConfig';
@@ -460,6 +461,7 @@ import {
     doesExploreMatchRequiredAttributes,
     exploreHasFilteredAttribute,
     getFilteredExplore,
+    mergeUserAttributes,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import {
@@ -468,8 +470,11 @@ import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
     surfaceFromQueryContext,
+    WarehouseCredentialKind,
     type ConnectionContext,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { type CredentialOwner } from '../WarehouseClientFactory/CredentialResolver';
+import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
 import {
     WarehouseClientConstructionError,
     WarehouseClientFactory,
@@ -934,7 +939,12 @@ export class ProjectService
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
+        const credentialResolvers = createCredentialResolverRegistry({
+            lightdashConfig,
+            userOAuthGrantsModel,
+        });
         this.warehouseClientFactory = new WarehouseClientFactory({
+            credentialResolvers,
             lightdashConfig,
             projectModel,
             featureFlagModel,
@@ -1954,11 +1964,14 @@ export class ProjectService
         }
     }
 
-    protected checkGoogleRefreshToken: CheckGoogleRefreshToken =
-        checkGoogleRefreshTokenCached;
+    protected checkGoogleRefreshToken: CheckGoogleRefreshToken = (keyfile) =>
+        checkGoogleRefreshTokenCached(
+            keyfile,
+            this.lightdashConfig.auth.google,
+        );
 
-    protected recheckGoogleRefreshToken: CheckGoogleRefreshToken =
-        recheckGoogleRefreshToken;
+    protected recheckGoogleRefreshToken: CheckGoogleRefreshToken = (keyfile) =>
+        recheckGoogleRefreshToken(keyfile, this.lightdashConfig.auth.google);
 
     private async isPreviewSsoCredentialSyncEnabled(
         organizationUuid: string,
@@ -2310,6 +2323,8 @@ export class ProjectService
         context,
         querySurface,
         isServiceAccount = false,
+        serviceAccountUuid,
+        oauthClientId,
         purpose = 'query',
     }: {
         projectUuid: string;
@@ -2319,6 +2334,8 @@ export class ProjectService
         context?: QueryExecutionContext;
         querySurface?: QuerySurface;
         isServiceAccount?: boolean;
+        serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
         purpose?: 'query' | 'compile';
     }): Promise<ResolvedWarehouseCredentials> {
         const base = await this.loadExtraConnectionCredentialBase({
@@ -2331,6 +2348,8 @@ export class ProjectService
             purpose,
         });
         return this.resolveLegacyWarehouseCredentials(base, {
+            serviceAccountUuid,
+            oauthClientId,
             userId,
             isRegisteredUser,
             isServiceAccount,
@@ -2397,6 +2416,42 @@ export class ProjectService
         };
     }
 
+    private async materializeSelectedCredentials(
+        base: WarehouseCredentialBase,
+        context: WarehouseCredentialResolutionContext,
+        credentials: CreateWarehouseCredentials,
+        userUuid: string,
+        source: RefreshTokenRotationSource,
+    ): Promise<CreateWarehouseCredentials> {
+        const owner: CredentialOwner =
+            source.kind === 'user'
+                ? {
+                      kind: 'user',
+                      uuid: source.userWarehouseCredentialsUuid,
+                      purpose:
+                          source.purpose ??
+                          UserWarehouseCredentialPurpose.DEFAULT,
+                  }
+                : {
+                      kind: source.kind,
+                      uuid: ProjectService.getRotationSourceUuid(source),
+                  };
+        return this.warehouseClientFactory.materializeCredentials(
+            credentials,
+            context,
+            base.projectUuid,
+            base.warehouseConnectionUuid,
+            owner,
+            null,
+            () =>
+                this.refreshCredentialsAndPersistRotation(
+                    credentials,
+                    userUuid,
+                    source,
+                ),
+        );
+    }
+
     private async finishExtraConnectionCredentials(
         base: Extract<WarehouseCredentialBase, { kind: 'extra' }>,
         context: WarehouseCredentialResolutionContext,
@@ -2421,7 +2476,9 @@ export class ProjectService
             organizationWarehouseCredentialsUuid &&
             !credentials.requireUserCredentials
         ) {
-            credentials = await this.refreshCredentialsAndPersistRotation(
+            credentials = await this.materializeSelectedCredentials(
+                base,
+                context,
                 credentials,
                 userId,
                 { kind: 'organization', organizationWarehouseCredentialsUuid },
@@ -2478,7 +2535,9 @@ export class ProjectService
                     credentials,
                     userWarehouseCredentials,
                 );
-                credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials = await this.materializeSelectedCredentials(
+                    base,
+                    context,
                     credentials,
                     userId,
                     {
@@ -2513,7 +2572,9 @@ export class ProjectService
                         : "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
                 );
             } else if (!organizationWarehouseCredentialsUuid) {
-                credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials = await this.materializeSelectedCredentials(
+                    base,
+                    context,
                     credentials,
                     userId,
                     connectionRotationSource,
@@ -2524,7 +2585,9 @@ export class ProjectService
                 'Embedded users cannot use personal warehouse credentials',
             );
         } else if (!organizationWarehouseCredentialsUuid) {
-            credentials = await this.refreshCredentialsAndPersistRotation(
+            credentials = await this.materializeSelectedCredentials(
+                base,
+                context,
                 credentials,
                 userId,
                 connectionRotationSource,
@@ -2648,36 +2711,34 @@ export class ProjectService
         }
 
         if (
-            args.warehouseConnection.type === WarehouseTypes.BIGQUERY &&
-            args.warehouseConnection.authenticationType ===
-                BigqueryAuthenticationType.SSO &&
-            args.warehouseConnection.keyfileContents.type !== 'authorized_user'
+            this.warehouseClientFactory.credentialResolvers.has(
+                args.warehouseConnection,
+            )
         ) {
-            const refreshToken =
-                await this.userOAuthGrantsModel.getRefreshToken(
-                    userUuid,
-                    OpenIdIdentityIssuerType.GOOGLE,
-                );
-
-            // Validate refresh token has the right bigquery scopes
-            await UserService.generateGoogleAccessToken(
-                refreshToken,
-                'bigquery',
-            );
-            return {
-                ...args,
-                warehouseConnection: {
-                    ...args.warehouseConnection,
-                    keyfileContents: {
-                        type: 'authorized_user',
-                        client_id:
-                            this.lightdashConfig.auth.google.oauth2ClientId,
-                        client_secret:
-                            this.lightdashConfig.auth.google.oauth2ClientSecret,
-                        refresh_token: refreshToken,
+            const connection = args.warehouseConnection;
+            const validated =
+                await this.warehouseClientFactory.credentialResolvers.validateOnSave(
+                    {
+                        connection,
+                        stored: connection,
+                        owner: null,
+                        context: connectionContextFromUser(
+                            { userUuid },
+                            { organizationUuid, queryContext: null },
+                        ),
+                        projectUuid: null,
+                        warehouseConnectionUuid: null,
+                        credentialKind: WarehouseCredentialKind.SHARED,
+                        aiPlan: null,
+                        intent:
+                            connection.type === WarehouseTypes.BIGQUERY &&
+                            connection.keyfileContents?.type !==
+                                'authorized_user'
+                                ? { kind: 'linkCurrentPerson', userUuid }
+                                : { kind: 'preserve' },
                     },
-                },
-            };
+                );
+            return { ...args, warehouseConnection: validated.stored };
         }
 
         if (
@@ -2903,6 +2964,8 @@ export class ProjectService
             userId,
             isRegisteredUser,
             isServiceAccount = false,
+            serviceAccountUuid,
+            oauthClientId,
             context = null,
             purpose = 'query',
             querySurface,
@@ -2910,6 +2973,8 @@ export class ProjectService
             userId: string;
             isRegisteredUser: boolean;
             isServiceAccount?: boolean;
+            serviceAccountUuid?: string | null;
+            oauthClientId?: string | null;
             context?: QueryExecutionContext | null;
             purpose?: 'query' | 'compile';
             querySurface?: QuerySurface;
@@ -2929,6 +2994,8 @@ export class ProjectService
                     userUuid: userId,
                     isRegisteredUser,
                     isServiceAccount,
+                    serviceAccountUuid: serviceAccountUuid ?? null,
+                    oauthClientId: oauthClientId ?? null,
                 },
                 aiClient: aiClientFromQueryContext(context),
             },
@@ -3091,7 +3158,9 @@ export class ProjectService
             }
         }
         return {
-            ...(await this.refreshCredentialsAndPersistRotation(
+            ...(await this.materializeSelectedCredentials(
+                base,
+                context,
                 credentials,
                 person.userUuid,
                 source,
@@ -3134,6 +3203,8 @@ export class ProjectService
                         userId: args.userId,
                         isRegisteredUser: args.isRegisteredUser,
                         isServiceAccount: args.isServiceAccount,
+                        serviceAccountUuid: args.serviceAccountUuid,
+                        oauthClientId: args.oauthClientId,
                         context: args.context,
                         querySurface: args.querySurface,
                     });
@@ -3300,6 +3371,8 @@ export class ProjectService
         context,
         querySurface,
         isServiceAccount = false,
+        serviceAccountUuid,
+        oauthClientId,
         preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
@@ -3308,6 +3381,8 @@ export class ProjectService
         context?: QueryExecutionContext;
         querySurface?: QuerySurface;
         isServiceAccount?: boolean;
+        serviceAccountUuid?: string | null;
+        oauthClientId?: string | null;
         preloadedOrgWarehouseCredentialsUuid?: string | null;
     }): Promise<ResolvedWarehouseCredentials> {
         const base = await this.loadSingleRouteCredentialBase({
@@ -3319,6 +3394,8 @@ export class ProjectService
             preloadedOrgWarehouseCredentialsUuid,
         });
         return this.resolveLegacyWarehouseCredentials(base, {
+            serviceAccountUuid,
+            oauthClientId,
             userId,
             isRegisteredUser,
             isServiceAccount,
@@ -3423,7 +3500,9 @@ export class ProjectService
             this.logger.debug(
                 `Refreshing warehouse credentials from organization credentials`,
             );
-            credentials = await this.refreshCredentialsAndPersistRotation(
+            credentials = await this.materializeSelectedCredentials(
+                base,
+                context,
                 credentials,
                 userId,
                 {
@@ -3476,7 +3555,9 @@ export class ProjectService
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
                 );
-                credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials = await this.materializeSelectedCredentials(
+                    base,
+                    context,
                     credentials,
                     userId,
                     {
@@ -3502,7 +3583,9 @@ export class ProjectService
                 this.logger.debug(
                     `Refreshing warehouse credentials for session user ${userId}`,
                 );
-                credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials = await this.materializeSelectedCredentials(
+                    base,
+                    context,
                     await this.repairStalePreviewSsoCredentials(
                         projectUuid,
                         credentials,
@@ -3519,7 +3602,9 @@ export class ProjectService
             this.logger.debug(
                 `Refreshing warehouse credentials for embed user ${userId}`,
             );
-            credentials = await this.refreshCredentialsAndPersistRotation(
+            credentials = await this.materializeSelectedCredentials(
+                base,
+                context,
                 await this.repairStalePreviewSsoCredentials(
                     projectUuid,
                     credentials,
@@ -5700,7 +5785,11 @@ export class ProjectService
         ) {
             return;
         }
-        assertValidBigqueryKeyfile(keyfile);
+        if (credentials.authenticationType === BigqueryAuthenticationType.SSO) {
+            assertValidPersistedBigquerySsoKeyfile(keyfile);
+        } else {
+            assertValidBigqueryKeyfile(keyfile);
+        }
     }
 
     validateConfigSecrets(project: UpdateProject) {
@@ -5738,9 +5827,7 @@ export class ProjectService
                                 'Bigquery refresh token is required for SSO authentication',
                             );
                         }
-                        assertValidBigqueryKeyfile(keyFileContents, {
-                            requireType: 'authorized_user',
-                        });
+                        assertValidPersistedBigquerySsoKeyfile(keyFileContents);
                         break;
                     case BigqueryAuthenticationType.ADC:
                         if (keyFileContents) {
@@ -12669,6 +12756,7 @@ export class ProjectService
         exploreName: string,
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
+        userAttributeOverrides?: UserAttributeValueMap,
     ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         await this.assertAnalyticsProjectAccess(
             account,
@@ -12686,6 +12774,7 @@ export class ProjectService
                         projectUuid,
                         exploreNames: [exploreName],
                         organizationUuid,
+                        userAttributeOverrides,
                     });
                 const explore = exploresMap[exploreName];
 
@@ -12745,11 +12834,13 @@ export class ProjectService
         projectUuid,
         exploreNames,
         organizationUuid,
+        userAttributeOverrides,
     }: {
         account: Account;
         projectUuid: string;
         exploreNames: string[];
         organizationUuid?: string;
+        userAttributeOverrides?: UserAttributeValueMap;
     }): Promise<{
         explores: Record<string, Explore | ExploreError>;
         userAccessControls: UserAccessControls;
@@ -12793,7 +12884,7 @@ export class ProjectService
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const [explores, userAccessControls] = await Promise.all([
+                const [explores, baseUserAccessControls] = await Promise.all([
                     this.projectModel.findExploresFromCache(
                         projectUuid,
                         'name',
@@ -12801,6 +12892,13 @@ export class ProjectService
                     ),
                     this.getUserAttributes({ account }),
                 ]);
+                const userAccessControls = {
+                    ...baseUserAccessControls,
+                    userAttributes: mergeUserAttributes(
+                        baseUserAccessControls.userAttributes,
+                        userAttributeOverrides,
+                    ),
+                };
                 const canViewPreAggregateExplores =
                     this.canViewPreAggregateExplores(
                         account,

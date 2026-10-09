@@ -146,7 +146,9 @@ describe('AI access callout', () => {
                 name: 'Connect your agent to your warehouse',
             }),
         ).toBeInTheDocument();
-        expect(screen.queryByRole('link')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('link', { name: 'Manage agent connections' }),
+        ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(
             screen.getByText(
                 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.',
@@ -198,7 +200,7 @@ describe('AI access callout', () => {
         render(AiAccessRefusalAction.ASK_ADMIN);
         expect(
             screen.getByRole('link', { name: 'Review agent identity' }),
-        ).toHaveAttribute('href', '/generalSettings/warehouseCredentials');
+        ).toHaveAttribute('href', '/generalSettings/agentIdentity');
         expect(mocks.can).toHaveBeenCalledWith('manage', 'Organization');
     });
     it('does not link other users to settings', () => {

@@ -23,12 +23,5 @@ export const identityWarehouseNames = {
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
 };
 
-export const inlineIdentityLabel = (source: AiIdentitySource) => {
-    const { label } = identityLabels[source];
-    return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-};
-
 export const agentIdentitySentence = (warehouseName: string) =>
     `When AI agents query ${warehouseName}, they run as`;
-
-export const bigQueryAgentConnectionLabel = `${identityWarehouseNames.bigquery}: Agents run as the project's AI service account. Nothing to connect.`;

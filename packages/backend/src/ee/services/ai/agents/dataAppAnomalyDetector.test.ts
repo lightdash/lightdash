@@ -61,4 +61,26 @@ describe('detectDataAppAnomalies', () => {
             orders_month: '2025-01-01',
         });
     });
+
+    it('tells the model that recurring seasonality is baseline, not an anomaly', async () => {
+        await detectDataAppAnomalies(modelOptions, {
+            content: '## Orders\nQuery: q1\n',
+            instructions: null,
+            today: '2026-09-16',
+        });
+        const { messages } = vi.mocked(generateText).mock.calls[0][0] as {
+            messages: { role: string; content: string }[];
+        };
+        const system = messages[0].content;
+        // Daily data: like-for-like weekday comparison, not calendar neighbours.
+        expect(system).toMatch(
+            /same weekday in (earlier|prior|previous) weeks/,
+        );
+        // A pattern repeating every cycle is baseline.
+        expect(system).toMatch(/repeats every (week|cycle).*baseline/);
+        // Flag only a break of its own like-for-like baseline.
+        expect(system).toMatch(
+            /own (recent )?(weekday|like-for-like) baseline/,
+        );
+    });
 });

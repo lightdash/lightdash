@@ -1,3 +1,8 @@
+import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    getAgentClientLabel,
+} from './agentIdentity';
 import { QueryExecutionContext, withAgentMarkerTag } from './analytics';
 
 describe('withAgentMarkerTag', () => {
@@ -29,4 +34,37 @@ describe('withAgentMarkerTag', () => {
         expect(withAgentMarkerTag(tags)).toEqual(tags);
         expect(withAgentMarkerTag(tags)).not.toHaveProperty('agent');
     });
+});
+
+describe('agent identity query tags', () => {
+    test.each(['oauth-client', 'OAuth.Client', null])(
+        'adds only identifiers for client %s',
+        (clientId) => {
+            const identity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'private-user' },
+                surface: AgentActorSurface.MCP,
+                clientId,
+            });
+            expect(
+                withAgentMarkerTag(
+                    { query_context: QueryExecutionContext.MCP_RUN_SQL },
+                    identity,
+                ),
+            ).toEqual({
+                query_context: QueryExecutionContext.MCP_RUN_SQL,
+                agent: 'true',
+                agent_surface: 'mcp',
+                agent_client: getAgentClientLabel(clientId),
+            });
+        },
+    );
+    test.each(Object.values(QueryExecutionContext))(
+        'keeps flag-off tags byte-identical for %s',
+        (context) => {
+            const tags = { query_context: context, original: 'value' };
+            expect(JSON.stringify(withAgentMarkerTag(tags, null))).toBe(
+                JSON.stringify(withAgentMarkerTag(tags)),
+            );
+        },
+    );
 });

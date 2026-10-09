@@ -48,6 +48,33 @@ const mergeSchema = z
         'Durable SavedMergeQuery. Query sources contain full metric queries, never query UUIDs or result rows.',
     );
 
+const sqlChartSchema = z
+    .object({
+        name: z.string().min(1),
+        description: z.string().optional(),
+        sql: z.string().min(1),
+        limit: z.number().int().positive(),
+        chartKind: z.enum([
+            'vertical_bar',
+            'line',
+            'pie',
+            'big_number',
+            'table',
+        ]),
+        config: z
+            .record(z.string(), z.unknown())
+            .describe(
+                'SQL Runner chart config, as in SQL chart as code: { type: <chartKind>, metadata: { version: 1 }, fieldConfig: { x, y, groupBy } , display } for charts, or { type: "table", metadata: { version: 1 }, columns, display } for tables.',
+            ),
+        connection: z
+            .string()
+            .optional()
+            .describe(
+                "Warehouse connection name; omit for the project's default connection.",
+            ),
+    })
+    .strict();
+
 export const mcpDocumentChartSchema = z.discriminatedUnion('source', [
     z
         .object({
@@ -61,6 +88,15 @@ export const mcpDocumentChartSchema = z.discriminatedUnion('source', [
             chart: chartSchema.extend({ merge: mergeSchema }),
         })
         .strict(),
+    z
+        .object({
+            source: z.literal('sql'),
+            chart: sqlChartSchema,
+        })
+        .strict()
+        .describe(
+            'A SQL Runner chart owned by the Document. Adding or changing one needs SQL Runner access; anyone who can view the Document runs its SQL.',
+        ),
 ]);
 
 const DOCUMENT_MARKDOWN_DESCRIPTION =
@@ -154,27 +190,13 @@ export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
 });
 
 export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
-    slug: z
-        .string()
-        .min(1)
-        .optional()
-        .describe(
-            'Content slug. Required unless reading a Document by documentUuid.',
-        ),
-    documentUuid: z
-        .string()
-        .uuid()
-        .optional()
-        .describe(
-            'For Documents only: UUID from a canonical Document URL, instead of slug.',
-        ),
     type: z.enum(['dashboard', 'chart', 'sql_chart', 'data_app', 'document']),
     chartId: z
         .string()
         .min(1)
-        .optional()
+        .nullish()
         .describe(
-            'For Documents only: return this chart (e.g. c3) in full instead of the Document.',
+            'For Documents only: return this chart (e.g. c3) in full instead of the Document. Null for other content types.',
         ),
 });
 

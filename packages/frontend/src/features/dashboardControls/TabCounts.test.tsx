@@ -147,7 +147,9 @@ describe('TabCounts', () => {
 
         await userEvent.hover(screen.getByText('2 of 3'));
         expect(
-            await screen.findByText('2 of 3 tiles on this tab use this filter'),
+            await screen.findByText(
+                '2 of 3 tiles on this tab are filtered by this filter',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -172,7 +174,7 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 3');
+        expect(badgeText('tab-1')).toBe('0 of 1');
         expect(isBadgeReached('tab-1')).toBe('false');
         expect(isBadgeReached('tab-2')).toBe('true');
     });
@@ -222,12 +224,14 @@ describe('TabCounts', () => {
         });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('0 of 3');
+        expect(badgeText('tab-1')).toBe('0 of 1');
         expect(badgeText('tab-2')).toBe('1 of 1');
 
         await userEvent.hover(screen.getByText('1 of 1'));
         expect(
-            await screen.findByText('1 of 1 tiles on this tab use Region'),
+            await screen.findByText(
+                '1 of 1 tile on this tab is filtered by Region',
+            ),
         ).toBeInTheDocument();
     });
 
@@ -264,7 +268,7 @@ describe('TabCounts', () => {
         setSidebar({ activeFieldId: 'orders_status' });
         renderWithProviders(<TabCounts />);
 
-        expect(badgeText('tab-1')).toBe('1 of 2');
+        expect(badgeText('tab-1')).toBe('1 of 1');
     });
 
     it('renders nothing for a placeholder', () => {

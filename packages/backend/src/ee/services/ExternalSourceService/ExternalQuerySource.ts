@@ -131,6 +131,7 @@ export class ExternalQuerySource implements QuerySourceClient {
         account,
         projectUuid,
         context,
+        querySurface,
         query,
         parameters,
         invalidateCache,
@@ -154,6 +155,7 @@ export class ExternalQuerySource implements QuerySourceClient {
                 limit: sourceQuery.limit,
                 tables: ExternalQuerySource.normalizeTables(sourceQuery.tables),
                 context,
+                querySurface,
                 parameters,
                 invalidateCache,
             });

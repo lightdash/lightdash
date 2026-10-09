@@ -1,7 +1,10 @@
 import {
+    AiAccessRefusalReason,
     AiAgentMarkerLevel,
     applyWarehouseLocation,
     AthenaAuthenticationType,
+    BigqueryAuthenticationType,
+    BigqueryTokenError,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -9,19 +12,24 @@ import {
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
+    SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
     type AiExecutionPlan,
     type CreateDuckdbDucklakeCredentials,
     type CreatePostgresCredentials,
+    type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
+    checkSnowflakeAgentSessionWithToken,
     ListedDatabasesPostgresWarehouseClient,
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import refresh from 'passport-oauth2-refresh';
 import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
@@ -29,12 +37,15 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
+import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
 import {
     connectionContextFromUser,
     ConnectionSurface,
     WarehouseCredentialKind,
 } from './ConnectionContext';
+import { createCredentialResolverRegistry } from './credentialResolvers';
+import { BigquerySsoCredentialResolver } from './resolvers/BigquerySsoCredentialResolver';
 import {
     WarehouseClientFactory,
     type WarehouseClientRef,
@@ -57,6 +68,7 @@ const { connect, disconnect } = vi.hoisted(() => ({
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    checkSnowflakeAgentSessionWithToken: vi.fn(),
     SshTunnel: vi.fn().mockImplementation(function MockSshTunnel(
         this: {
             overrideCredentials: CreateWarehouseCredentials;
@@ -189,6 +201,10 @@ const buildFixture = (
     const logger = { debug: vi.fn(), warn: vi.fn() };
     const featureFlagModel = {} as FeatureFlagModel;
     const factory = new WarehouseClientFactory({
+        credentialResolvers: createCredentialResolverRegistry({
+            lightdashConfig: lightdashConfigMock,
+            userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {
@@ -1073,6 +1089,8 @@ describe('WarehouseClientFactory', () => {
         );
         expect(credentialSource.finish).not.toHaveBeenCalled();
         expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith({
+            oauthClientId: null,
+            serviceAccountUuid: null,
             evaluation: { kind: 'query', surface: QuerySurface.APP },
             projectUuid: 'project-uuid',
             organizationUuid: 'org-uuid',
@@ -2182,6 +2200,13 @@ describe('AI service account factory scopes', () => {
                     userId: 'user-uuid',
                     warehouseConnectionId: 'extra',
                     surface: expectedSurface,
+                    actor: {
+                        surface,
+                        clientId:
+                            surface === ConnectionSurface.IN_APP_AGENT
+                                ? 'lightdash-chat'
+                                : null,
+                    },
                     warehouseType: WarehouseTypes.BIGQUERY,
                     reason: 'ai_service_account_invalid',
                 },
@@ -2253,8 +2278,7 @@ describe('AI service account factory scopes', () => {
                         refusal: {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
-                            settingsUrl:
-                                '/generalSettings/warehouseCredentials',
+                            settingsUrl: '/generalSettings/agentIdentity',
                             connectUrl: null,
                         },
                     });
@@ -2279,6 +2303,10 @@ describe('AI service account factory scopes', () => {
                 aiAccessService.trackQueryRefusal,
             ).toHaveBeenCalledExactlyOnceWith(
                 {
+                    agentActor: {
+                        surface: 'in_app_agent',
+                        clientId: 'lightdash-chat',
+                    },
                     organizationUuid: 'org-uuid',
                     projectUuid: 'project-uuid',
                     userUuid: 'user-uuid',
@@ -2524,4 +2552,639 @@ describe('factory cache tuple and agent probes', () => {
         expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
         expect(factory.warehouseClients).toEqual({});
     });
+});
+
+describe('agent client cache lifetime', () => {
+    test('a released warm client survives an hour but a fresh binding checks its plan again', async () => {
+        vi.useFakeTimers();
+        try {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(plan);
+            const first = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            vi.advanceTimersByTime(60 * 60 * 1000);
+            const second = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(second).toBe(first);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(aiAccessService.resolvePlan).toHaveBeenCalledTimes(2);
+            expect(disconnect).toHaveBeenCalledTimes(2);
+            aiAccessService.resolvePlan.mockRejectedValue(
+                new Error('identity removed'),
+            );
+            const query = vi.fn(async () => {});
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    query,
+                ),
+            ).rejects.toThrow('identity removed');
+            expect(query).not.toHaveBeenCalled();
+            expect(Object.values(factory.warehouseClients)).toContain(first);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    test('a new identity generation uses a new cache slot even with identical credentials', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(plan);
+        const first = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...plan,
+            identityUuid: 'next-generation',
+        });
+        const second = await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => warehouseClient,
+        );
+        expect(second).not.toBe(first);
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(2);
+    });
+
+    test('changed secrets under the same generation replace a client through credential equality', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        aiAccessService.resolvePlan.mockResolvedValue(plan);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => {},
+        );
+        aiAccessService.resolvePlan.mockResolvedValue({
+            ...plan,
+            credentials: { ...credentials, password: 'replacement' },
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(1);
+    });
+});
+
+describe('Snowflake revocation with a warm agent client', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    test.each([
+        ['disconnect', AiAccessRefusalReason.NEEDS_SIGN_IN],
+        ['refresh', AiAccessRefusalReason.SIGN_IN_EXPIRED],
+        ['probe', AiAccessRefusalReason.PRINCIPAL_FAILED],
+    ] as const)(
+        'refuses the next binding after %s without running its callback',
+        async (failure, reason) => {
+            const {
+                factory,
+                aiAccessService: resolver,
+                credentialSource,
+                base,
+                projectModel,
+            } = buildFixture();
+            const connection: CreateSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'account',
+                user: 'person',
+                password: 'test',
+                database: 'test',
+                warehouse: 'test',
+                schema: 'public',
+            };
+            const model = {
+                findAiCredentialWithSecrets: vi
+                    .fn<
+                        () => Promise<
+                            UserWarehouseCredentialsWithSecrets | undefined
+                        >
+                    >()
+                    .mockResolvedValue({
+                        uuid: 'agent-credential',
+                        expiresAt: null,
+                        credentials: {
+                            type: WarehouseTypes.SNOWFLAKE,
+                            authenticationType: SnowflakeAuthenticationType.SSO,
+                            user: 'person',
+                            refreshToken: 'refresh-token',
+                        },
+                    }),
+                rotateRefreshToken: vi.fn(),
+            };
+            const config = {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    snowflakeAi: {
+                        ...lightdashConfigMock.auth.snowflakeAi,
+                        clientId: 'client',
+                        clientSecret: 'secret',
+                        authorizationEndpoint:
+                            'https://snowflake.example.test/authorize',
+                        tokenEndpoint: 'https://snowflake.example.test/token',
+                        account: 'test-account',
+                    },
+                },
+            };
+            const provider = new SnowflakeAiCredentialProvider({
+                lightdashConfig: config,
+                userWarehouseCredentialsModel: model,
+            } as unknown as ConstructorParameters<
+                typeof SnowflakeAiCredentialProvider
+            >[0]);
+            const aiAccessService = new AiAccessService({
+                lightdashConfig: config,
+                analytics: { track: vi.fn() },
+                featureFlagModel: {
+                    get: vi.fn(async () => ({ enabled: true })),
+                },
+                organizationAgentIdentityRulesModel: {
+                    get: vi.fn(async () => ({ source: 'agent_sign_in' })),
+                },
+                userModel: {
+                    getUserDetailsByUuid: vi.fn(async () => ({
+                        email: 'person@example.test',
+                    })),
+                },
+                providerRegistry: () => provider,
+            } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
+            resolver.resolvePlan.mockImplementation(
+                aiAccessService.resolvePlan.bind(aiAccessService),
+            );
+            credentialSource.loadBase.mockResolvedValue({
+                ...base,
+                credentials: connection,
+            });
+            const refreshToken = vi
+                .spyOn(refresh, 'requestNewAccessToken')
+                .mockImplementation((_strategy, _token, callback) => {
+                    callback(null, 'access-token', 'refresh-token', {});
+                });
+            vi.mocked(checkSnowflakeAgentSessionWithToken).mockResolvedValue({
+                agentActivated: true,
+                currentRole: 'role',
+                activeRestrictedSessionScopes: 'scope',
+            });
+            const first = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            const second = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(second).toBe(first);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            if (failure === 'disconnect')
+                model.findAiCredentialWithSecrets.mockResolvedValue(undefined);
+            else if (failure === 'refresh')
+                refreshToken.mockImplementation(
+                    (_strategy, _token, callback) => {
+                        callback(
+                            {
+                                statusCode: 400,
+                                data: '{"error":"invalid_grant"}',
+                            },
+                            '',
+                            '',
+                            {},
+                        );
+                    },
+                );
+            else
+                vi.mocked(
+                    checkSnowflakeAgentSessionWithToken,
+                ).mockRejectedValue(new Error('invalid access token'));
+            const query = vi.fn();
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    query,
+                ),
+            ).rejects.toMatchObject({ refusal: { reason } });
+            expect(query).not.toHaveBeenCalled();
+            expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(
+                failure === 'refresh' ? 6 : 3,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+        },
+    );
+});
+
+describe('BigQuery SSO runtime hydration', () => {
+    it('hydrates a secret-free selected personal credential with the configured secret', async () => {
+        connect.mockImplementation(async (value) => value);
+        const { factory, credentialSource, projectModel, base } =
+            buildFixture();
+        const personal = {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            project: 'analytics',
+            dataset: 'prod',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+            keyfileContents: {
+                type: 'authorized_user',
+                client_id: 'saved-id',
+                refresh_token: 'personal-refresh',
+            },
+            userWarehouseCredentialsUuid: 'personal-uuid',
+        } satisfies Awaited<ReturnType<WarehouseCredentialSource['finish']>>;
+        base.credentials = { ...personal, keyfileContents: {} };
+        credentialSource.finish.mockResolvedValue(personal);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+        ).toHaveProperty(
+            'keyfileContents.client_secret',
+            lightdashConfigMock.auth.google.oauth2ClientSecret,
+        );
+        expect(personal).not.toHaveProperty('keyfileContents.client_secret');
+    });
+});
+
+const ssoCredentials = (
+    refreshToken = 'personal-refresh',
+): CreateWarehouseCredentials => ({
+    type: WarehouseTypes.BIGQUERY,
+    authenticationType: BigqueryAuthenticationType.SSO,
+    project: 'analytics',
+    dataset: 'prod',
+    timeoutSeconds: undefined,
+    priority: undefined,
+    retries: undefined,
+    location: undefined,
+    maximumBytesBilled: undefined,
+    keyfileContents: {
+        type: 'authorized_user',
+        client_id: 'saved-client',
+        refresh_token: refreshToken,
+    },
+});
+
+describe('resolver cache identity and lifecycle', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it('pins the cache key for an unregistered mode', async () => {
+        const { factory } = buildFixture();
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(Object.keys(factory.warehouseClients)).toEqual([
+            '[false,"project-uuid",null,null,null,null,null]',
+        ]);
+    });
+
+    it('reuses one identity and separates personal owners and reconnect tokens', async () => {
+        const { factory, credentialSource, projectModel } = buildFixture();
+        const first = {
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal-one',
+        };
+        credentialSource.finish.mockResolvedValue(first);
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+        credentialSource.finish.mockResolvedValue({
+            ...first,
+            userWarehouseCredentialsUuid: 'personal-two',
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials('reconnected-token'),
+            userWarehouseCredentialsUuid: 'personal-two',
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(3);
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(3);
+        expect(
+            JSON.stringify(Object.keys(factory.warehouseClients)),
+        ).not.toMatch(
+            /personal-refresh|reconnected-token|test-google-client-secret/,
+        );
+    });
+
+    it('replaces a cached client when the configured secret changes', async () => {
+        const { factory, credentialSource, projectModel } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: undefined,
+        });
+        const originalSecret =
+            lightdashConfigMock.auth.google.oauth2ClientSecret;
+        try {
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            lightdashConfigMock.auth.google.oauth2ClientSecret =
+                'rotated-config-secret';
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            expect(Object.keys(factory.warehouseClients)).toHaveLength(1);
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[1][0],
+            ).toHaveProperty(
+                'keyfileContents.client_secret',
+                'rotated-config-secret',
+            );
+        } finally {
+            lightdashConfigMock.auth.google.oauth2ClientSecret = originalSecret;
+        }
+    });
+
+    it.each(['success', 'callback failure', 'construction failure'] as const)(
+        'disposes once after %s',
+        async (outcome) => {
+            const dispose = vi.spyOn(
+                BigquerySsoCredentialResolver.prototype,
+                'dispose',
+            );
+            const { factory, projectModel } = buildFixture();
+            const error = new Error(outcome);
+            if (outcome === 'construction failure')
+                projectModel.getWarehouseClientFromCredentials.mockImplementationOnce(
+                    () => {
+                        throw error;
+                    },
+                );
+            const operation = factory.withWarehouseClient(
+                compileRef(ssoCredentials()),
+                contextFor(),
+                async () => {
+                    if (outcome === 'callback failure') throw error;
+                },
+            );
+            if (outcome === 'success') await operation;
+            else await expect(operation).rejects.toBe(error);
+            expect(dispose).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('releases a lease idempotently and does not resolve an already selected credential twice', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const dispose = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'dispose',
+        );
+        const { factory, credentialSource } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const selected = await factory.resolveWarehouseCredentials(
+            bindingRef,
+            contextFor(),
+        );
+        const lease = await factory.acquireWarehouseConnection(
+            {
+                kind: 'compile',
+                projectUuid: 'project-uuid',
+                credentials: selected.warehouseCredentials,
+            },
+            contextFor(),
+        );
+        await Promise.all([lease.release(), lease.release()]);
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(dispose).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+    });
+
+    it('uses a resolved reference without selecting or resolving again', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const { factory, credentialSource } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const selected = await factory.resolveWarehouseCredentials(
+            bindingRef,
+            contextFor(),
+        );
+        await factory.withWarehouseClient(
+            {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: selected.warehouseCredentials,
+                aiPlan: selected.aiPlan,
+                warehouseConnectionUuid: selected.warehouseConnectionUuid,
+                connectionRoute: selected.connectionRoute,
+            },
+            contextFor(),
+            async () => {},
+        );
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+    });
+
+    it.each(['final', 'ai'] as const)(
+        'hydrates the %s selection without finishing the project credential',
+        async (mode) => {
+            const {
+                factory,
+                credentialSource,
+                aiAccessService,
+                projectModel,
+                base,
+            } = buildFixture();
+            if (mode === 'final') {
+                credentialSource.loadBase.mockResolvedValue({
+                    ...base,
+                    kind: 'final',
+                    warehouseConnectionUuid: null,
+                    credentials: ssoCredentials(),
+                });
+            } else {
+                aiAccessService.resolvePlan.mockResolvedValue({
+                    ...plan,
+                    credentials: ssoCredentials(),
+                });
+            }
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(mode === 'ai' ? QueryExecutionContext.AI : null),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+            ).toHaveProperty(
+                'keyfileContents.client_secret',
+                lightdashConfigMock.auth.google.oauth2ClientSecret,
+            );
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+        },
+    );
+
+    it('honours resolver options and disables caching when requested', async () => {
+        const originalResolve = BigquerySsoCredentialResolver.prototype.resolve;
+        vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        ).mockImplementation(
+            async function resolve(this: BigquerySsoCredentialResolver, input) {
+                return {
+                    ...(await originalResolve.call(this, input)),
+                    cacheable: false,
+                    clientOptions: { maxOpenConnections: 7 },
+                };
+            },
+        );
+        const { factory, credentialSource, projectModel } = buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: undefined,
+        });
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(),
+            async () => {},
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientFromCredentials.mock.calls[0][1],
+        ).toMatchObject({ maxOpenConnections: 7 });
+        expect(Object.keys(factory.warehouseClients)).toHaveLength(0);
+    });
+
+    it('preserves a revoked token error without selecting another identity', async () => {
+        const resolve = vi.spyOn(
+            BigquerySsoCredentialResolver.prototype,
+            'resolve',
+        );
+        const { factory, credentialSource, projectModel, aiAccessService } =
+            buildFixture();
+        credentialSource.finish.mockResolvedValue({
+            ...ssoCredentials(),
+            userWarehouseCredentialsUuid: 'personal',
+        });
+        const revoked = new BigqueryTokenError('invalid_grant');
+        const runQuery = vi.fn().mockRejectedValue(revoked);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            (creds) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery,
+            }),
+        );
+        await expect(
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async ({ warehouseClient }) => {
+                    await warehouseClient.runQuery('SELECT 1', {});
+                },
+            ),
+        ).rejects.toBe(revoked);
+        expect(runQuery).toHaveBeenCalledExactlyOnceWith('SELECT 1', {});
+        expect(credentialSource.loadBase).toHaveBeenCalledOnce();
+        expect(credentialSource.finish).toHaveBeenCalledOnce();
+        expect(aiAccessService.resolvePlan).not.toHaveBeenCalled();
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledOnce();
+    });
+
+    it.each([
+        undefined,
+        BigqueryAuthenticationType.PRIVATE_KEY,
+        BigqueryAuthenticationType.ADC,
+    ])(
+        'leaves %s BigQuery credentials unchanged',
+        async (authenticationType) => {
+            const { factory, projectModel } = buildFixture();
+            const input = {
+                ...ssoCredentials(),
+                authenticationType,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'cli-id',
+                    client_secret: 'cli-secret',
+                    refresh_token: 'cli-refresh',
+                },
+            } as CreateWarehouseCredentials;
+            await factory.withWarehouseClient(
+                compileRef(input),
+                contextFor(),
+                async () => {},
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
+            ).toEqual(input);
+        },
+    );
 });

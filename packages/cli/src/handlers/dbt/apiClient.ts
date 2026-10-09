@@ -25,6 +25,7 @@ type LightdashApiProps = {
     method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
     url: string;
     body: BodyInit | undefined;
+    signal?: AbortSignal;
 };
 
 type LightdashRawApiProps = LightdashApiProps & {
@@ -53,16 +54,29 @@ const getRequestTimeoutMs = (): number | undefined => {
 
 const fetchWithTimeout = async (
     fullUrl: string,
-    init: { method: string; headers: Record<string, string>; body?: BodyInit },
+    init: {
+        method: string;
+        headers: Record<string, string>;
+        body?: BodyInit;
+        signal?: AbortSignal;
+    },
 ): Promise<Response> => {
     const timeoutMs = getRequestTimeoutMs();
     if (timeoutMs === undefined) return fetch(fullUrl, init);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        return await fetch(fullUrl, { ...init, signal: controller.signal });
+        return await fetch(fullUrl, {
+            ...init,
+            signal: init.signal
+                ? AbortSignal.any([init.signal, controller.signal])
+                : controller.signal,
+        });
     } catch (error) {
-        if ((error as { name?: string }).name === 'AbortError') {
+        if (
+            controller.signal.aborted &&
+            (error as { name?: string }).name === 'AbortError'
+        ) {
             throw new Error(
                 `Request to ${fullUrl} timed out after ${timeoutMs}ms`,
             );
@@ -78,6 +92,7 @@ export const lightdashRawApi = async ({
     url,
     body,
     headers: requestHeaders = {},
+    signal,
 }: LightdashRawApiProps): Promise<Response> => {
     const config = await getConfig();
     if (!(config.context?.apiKey && config.context.serverUrl)) {
@@ -92,7 +107,12 @@ export const lightdashRawApi = async ({
     const fullUrl = new URL(url, config.context.serverUrl).href;
     GlobalState.debug(`> Making HTTP ${method} request to: ${fullUrl}`);
 
-    const response = await fetchWithTimeout(fullUrl, { method, headers, body });
+    const response = await fetchWithTimeout(fullUrl, {
+        method,
+        headers,
+        body,
+        signal,
+    });
     GlobalState.debug(`> HTTP request returned status: ${response.status}`);
 
     if (!response.ok) {
@@ -114,6 +134,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
     method,
     url,
     body,
+    signal,
 }: LightdashApiProps): Promise<T> => {
     const headers: Record<string, string> = {};
 
@@ -144,6 +165,7 @@ export const lightdashApi = async <T extends ApiResponse['results']>({
         url,
         body: requestBody,
         headers,
+        signal,
     })
         .then((r) => r.json())
         .then((d: ApiResponse | ApiError) => {

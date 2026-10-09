@@ -1,5 +1,5 @@
 import assertUnreachable from '../utils/assertUnreachable';
-import { type AiActorKind } from './agentIdentity';
+import { type AgentIdentityClaim, type AiActorKind } from './agentIdentity';
 import { type AnyType } from './any';
 import {
     type CreateWarehouseCredentials,
@@ -41,7 +41,13 @@ type AiExecutionAudit = {
     queryTags: Record<string, string>;
 };
 
-export type AiExecutionPlan =
+export type AiExecutionPlan = {
+    agentIdentity?: AgentIdentityClaim | null;
+    sourceIdentities?: {
+        queryUuid: string;
+        agentIdentity: AgentIdentityClaim | null;
+    }[];
+} & (
     | {
           identity: 'ai_service_account';
           identityUuid: string;
@@ -61,7 +67,8 @@ export type AiExecutionPlan =
           identity: 'marked_person';
           assurances: [{ kind: 'agent_marker'; level: AiAgentMarkerLevel }];
           audit: AiExecutionAudit & { userUuid: string | null };
-      };
+      }
+);
 
 export type AiMarkerTestResult = {
     ok: boolean;
@@ -81,6 +88,7 @@ export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
 export enum AgentIdentityConnectEntryPoint {
     CHAT_CARD = 'chat_card',
     MY_WAREHOUSE_CONNECTIONS = 'my_warehouse_connections',
+    MY_AGENT_CONNECTIONS = 'my_agent_connections',
     MCP_CONNECT_LINK = 'mcp_connect_link',
     CLI = 'cli',
     MCP_CONSENT = 'mcp_consent',
@@ -212,6 +220,7 @@ export type AiAccessForUser = {
     principalKind: 'person' | 'service_account' | null;
     refusal: AiAccessRefusal | null;
     expiresAt: Date | null;
+    principalName: string | null;
 };
 
 export type ApiAiWarehouseCapabilitiesResponse = {
