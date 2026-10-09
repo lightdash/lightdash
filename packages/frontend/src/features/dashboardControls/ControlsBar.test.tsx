@@ -43,6 +43,9 @@ vi.mock('./useControlsSidebar', () => ({
     ) => selector(mockSidebar.current),
 }));
 
+vi.mock('./AddControl', () => ({
+    AddControl: () => <button>Add</button>,
+}));
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
@@ -95,17 +98,21 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add' }),
+        ).not.toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
     });
 
-    it('renders the pills and the Required button in edit mode', () => {
+    it('renders Add, the pills and the Required button in edit mode', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(
             screen.getByRole('button', { name: 'Required' }),
         ).toBeInTheDocument();
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();

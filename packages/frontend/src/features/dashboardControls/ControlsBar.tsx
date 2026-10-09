@@ -1,6 +1,7 @@
 import { type ComponentProps, type FC } from 'react';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
+import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -16,6 +17,7 @@ export const ControlsBar: FC<Props> = (props) => {
             filterArea={
                 props.isEditMode ? (
                     <>
+                        <AddControl />
                         <FilterPills activeTabUuid={props.activeTabUuid} />
                         {!isSidebarOpen && <FilterRequirementsButton />}
                     </>

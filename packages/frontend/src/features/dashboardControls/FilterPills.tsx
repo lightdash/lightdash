@@ -18,6 +18,7 @@ import {
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill } from './FilterPill';
+import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -34,6 +35,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         (c) => c.editing?.filterId ?? null,
     );
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const removeFilterById = useControlsSidebarSelector(
         (c) => c.removeFilterById,
     );
@@ -86,7 +88,10 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
             filterableFieldsByTileUuid,
         );
         const isUnresolved =
-            !field && !filter.target.isSqlColumn && !areFieldsLoading;
+            !field &&
+            !filter.target.isSqlColumn &&
+            !isPlaceholderRule(filter) &&
+            !areFieldsLoading;
         if (isUnresolved) {
             // The shipped pills for a deleted or hidden field: no editor
             return (
@@ -103,6 +108,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
                 field={field}
                 {...getOrphanedState(filter, appliesToTabs)}
                 isSelected={isSelected}
+                isDraft={isNew && isSelected && !filter.label}
                 isSidebarOpen={isSidebarOpen}
             />
         );

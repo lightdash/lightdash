@@ -21,11 +21,19 @@ export const useLabelDraft = (
         },
         /** Commits what was typed now, synchronously; a no-op when nothing is pending. */
         flush: () => commitLater.flush(),
+        /** Replaces the text and commits it at once. */
+        set: (next: string) => {
+            commitLater.cancel();
+            setDraft(next);
+            onCommit(next);
+        },
     };
 };
 
 // The editor's label input, for the places that hand focus to it
 const LABEL_SELECTOR = '[data-controls-label]';
+export const focusLabelInput = () =>
+    document.querySelector<HTMLInputElement>(LABEL_SELECTOR)?.focus();
 
 // The sidebar fades in from `display: none`, where focus cannot land, so the
 // editor keeps handing focus to its label for a few frames after it mounts.

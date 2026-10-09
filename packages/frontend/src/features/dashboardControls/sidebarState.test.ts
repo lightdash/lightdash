@@ -5,8 +5,11 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    canKeepFilterRule,
     findFilterRule,
     isFilterRuleDirty,
+    isPlaceholderRule,
+    PLACEHOLDER_TARGET,
     removeFilterRule,
     replaceFilterRule,
 } from './sidebarState';
@@ -49,5 +52,24 @@ describe('sidebarState', () => {
                 'a',
             ),
         ).toBe(true);
+    });
+
+    it('recognises a placeholder by its empty target', () => {
+        expect(isPlaceholderRule(rule('a', []))).toBe(false);
+        expect(
+            isPlaceholderRule({ ...rule('a', []), target: PLACEHOLDER_TARGET }),
+        ).toBe(true);
+    });
+
+    it('a filter is kept once it has a field, with or without a label', () => {
+        expect(canKeepFilterRule(rule('a', []))).toBe(true);
+        expect(canKeepFilterRule({ ...rule('a', []), label: 'A' })).toBe(true);
+        expect(
+            canKeepFilterRule({
+                ...rule('a', []),
+                label: 'A',
+                target: PLACEHOLDER_TARGET,
+            }),
+        ).toBe(false);
     });
 });

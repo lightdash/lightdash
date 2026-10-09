@@ -176,6 +176,7 @@ describe('FilterPills', () => {
         mockSidebar.current = {
             editing: null,
             isSidebarOpen: false,
+            isNew: false,
             open,
             removeFilterById,
         };
