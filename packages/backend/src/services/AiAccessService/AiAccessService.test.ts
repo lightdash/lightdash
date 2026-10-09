@@ -812,7 +812,7 @@ describe('AiAccessService', () => {
         );
     });
 
-    test('returns stored expiry only for connected people', async () => {
+    test('returns stored expiry and principal name only for connected people', async () => {
         const { service, flags, organizationRules, credentials } = setup();
         expect(
             await service.getAiAccessForUser({
@@ -823,6 +823,7 @@ describe('AiAccessService', () => {
             identity: 'connected_person',
             refusal: null,
             expiresAt: new Date('2030-01-01T00:00:00Z'),
+            principalName: 'a.b+tag@example.test',
         });
         credentials.findAiCredentialWithSecrets.mockClear();
         organizationRules.get.mockResolvedValue({
@@ -831,11 +832,13 @@ describe('AiAccessService', () => {
         expect(await service.getAiAccessForUser(args)).toMatchObject({
             identity: 'marked_person',
             expiresAt: null,
+            principalName: null,
         });
         flags.get.mockResolvedValue({ enabled: false });
         expect(await service.getAiAccessForUser(args)).toMatchObject({
             identity: null,
             expiresAt: null,
+            principalName: null,
         });
         expect(credentials.findAiCredentialWithSecrets).not.toHaveBeenCalled();
     });
@@ -1614,6 +1617,7 @@ describe('AiAccessService', () => {
         ).toMatchObject({
             requirementSource: 'organization',
             expiresAt: null,
+            principalName: null,
             refusal: {
                 connectUrl:
                     'https://lightdash.example/agent/connect?project=project&redirect=%2Fagent-connected&entryPoint=unknown',
