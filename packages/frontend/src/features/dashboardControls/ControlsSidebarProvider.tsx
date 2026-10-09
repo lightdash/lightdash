@@ -27,6 +27,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
+import { getFilterFields } from './peers';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -140,6 +141,11 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
     );
+    // Keyed by filter so a stale entry never leaks into another filter
+    const [waiting, setWaiting] = useState<{
+        filterId: string;
+        fieldIds: string[];
+    } | null>(null);
 
     const rendered: Latest = {
         state,
@@ -184,6 +190,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const reset = useCallback(() => {
         writeState(null);
         writePlaceholder(null);
+        setWaiting(null);
     }, [writeState, writePlaceholder]);
 
     // Where focus goes once the editor is gone: the pill when it is still
@@ -305,10 +312,58 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 writePlaceholder(next);
                 return;
             }
+            // A field that just lost its last tile stays listed, waiting
+            const previous = findFilterRule(current.dashboardFilters, next.id);
+            const kept = new Set(getFilterFields(next));
+            const dropped = (
+                previous === null ? [] : getFilterFields(previous)
+            ).filter((fieldId) => !kept.has(fieldId));
+            if (dropped.length > 0) {
+                setWaiting((waitingNow) => ({
+                    filterId: next.id,
+                    fieldIds: [
+                        ...new Set([
+                            ...(waitingNow?.filterId === next.id
+                                ? waitingNow.fieldIds
+                                : []),
+                            ...dropped,
+                        ]),
+                    ],
+                }));
+            }
             writeFilters((filters) => replaceFilterRule(filters, next));
             writeFiltersChanged(true);
         },
         [writeFilters, writeFiltersChanged, writePlaceholder],
+    );
+
+    const addWaitingField = useCallback((fieldId: string) => {
+        if (latest.current.state === null) return;
+        const { filterId } = latest.current.state;
+        setWaiting((current) => ({
+            filterId,
+            fieldIds: [
+                ...new Set([
+                    ...(current?.filterId === filterId ? current.fieldIds : []),
+                    fieldId,
+                ]),
+            ],
+        }));
+    }, []);
+
+    const removeWaitingField = useCallback(
+        (fieldId: string) =>
+            setWaiting((current) =>
+                current === null
+                    ? null
+                    : {
+                          ...current,
+                          fieldIds: current.fieldIds.filter(
+                              (id) => id !== fieldId,
+                          ),
+                      },
+            ),
+        [],
     );
 
     const removeFilterById = useCallback(
@@ -362,6 +417,14 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         () => getEditingRule({ state, placeholder, dashboardFilters }),
         [state, placeholder, dashboardFilters],
     );
+
+    const waitingFieldIds = useMemo(() => {
+        if (state === null || waiting?.filterId !== state.filterId) return [];
+        const current = new Set(
+            editingRule === null ? [] : getFilterFields(editingRule),
+        );
+        return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
+    }, [state, waiting, editingRule]);
 
     // Keeps the edits, which already live in the dashboard draft
     const close = useCallback(() => {
@@ -436,6 +499,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
+            waitingFieldIds,
+            addWaitingField,
+            removeWaitingField,
             updateFilter,
             removeFilter,
             removeFilterById,
@@ -460,6 +526,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             openNew,
             addFirstField,
             addFirstSqlColumn,
+            waitingFieldIds,
+            addWaitingField,
+            removeWaitingField,
             updateFilter,
             removeFilter,
             removeFilterById,

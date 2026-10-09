@@ -122,7 +122,7 @@ In `FilterConfiguration/`:
 - `discard()` restores the snapshot taken when the control was opened. Saving
   to the server stays with the dashboard's own Save. Pure helpers:
   `sidebarState.ts`.
-- `close()`, `discard()` and `removeFilter()`
+- `close()`, `discard()` and `removeFilter()` clear the waiting fields and
   send focus back to the bar once the editor has left the page: to the
   control's pill when it is still there, else to "Add". The provider finds
   them in the DOM, as the pressed button nearest to "Add"
@@ -177,12 +177,22 @@ In `FilterConfiguration/`:
   dimensions, plus metrics under `FeatureFlags.MetricDashboardFilters`.
   - A placeholder shows it inline. When no tile has fields it shows the
     shipped "Select a column to filter" select instead (`SqlColumnSelect`).
+  - "Add a field" mounts it open (`defaultOpened`) and focuses it
+    (`AddFieldSearch`) with the fields of exactly the target's type
+    (`getFieldCandidates`, the shipped `matchFieldByType`) that are not rows
+    yet and that some tile offers: metrics for a metric filter, dimensions
+    otherwise. Another grain of a date the filter is on is offered. It is put
+    away when its list closes (Escape, focus leaving, a pick); Escape hands
+    focus back to the button.
   - The shipped picker sets `aria-expanded` on its input, which is how
     `useEditorDismiss` leaves Escape to its open list. Once the list is
     closed, Escape in the placeholder's search closes the editor like any
     other input.
   - Enter picks the option reached with the arrow keys; it does not pick the
     first match.
+- A row is named by its field's own label (a grain says which one). A SQL
+  column filter has one row, its column, counted over the SQL chart tiles that
+  have the column; it takes no other field.
 
 ## Fields and tiles
 
@@ -193,14 +203,25 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A tile left out is `tileTargets[tileUuid] = false`.
 - A tile uses exactly one field of the filter, and a field belongs to a filter
   only through a tile mapping (`getFilterFields`).
+- A field on no tile cannot be saved, so it *waits*: `waitingFieldIds` in the
+  provider lists fields added with "Add a field" when every tile they fit
+  already had one, and fields that lost their last tile. They show at
+  "0 of N tiles", and they
+  are gone when the sidebar closes. "Add a field" offers any field of the
+  filter's kind that some tile offers.
+- "Remove field" is switched off on a filter's only field: without it the
+  filter could not be kept. Its tooltip points to "Remove filter" in More
+  actions, or to "Discard control" for a new one.
 - SQL chart tiles are mapped per tile with `isSqlColumn` targets
-  (columns from `useSqlColumnsByTile`) and are never
+  (`toSqlColumnTarget`, columns from `useSqlColumnsByTile`) and are never
   fields of the filter.
 - A data app tile takes the filter as a whole, as in the shipped popover: on
   with no entry, off with `false`, never a field.
-  It counts as filtered in the tab and sidebar counts.
+  It counts as filtered in the tab and sidebar counts and
+  never in a field's count; clearing or removing a field leaves it as it is.
 - Counts (`getTabCounts`) use every tile on the tab or
   dashboard, not only the filterable ones.
+- A waiting field's row carries `data-waiting` and a dashed border.
 
 ## Motion
 
@@ -212,7 +233,7 @@ custom properties on its root class:
   with `--controls-ease: ease-in-out`.
 - `--controls-duration-arrive: 0.28s` with
   `--controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1)`, from transparent
-  (the editor uses `translateX(-6px)`, the
+  and `translateY(-6px) scale(0.98)` (the editor uses `translateX(-6px)`, the
   footer status `translateY(4px)`).
 - Press is `scale(0.97)` on "Done".
 
@@ -223,7 +244,7 @@ Rules:
   appear sits on its own layer and that layer's opacity changes.
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
-  footer status). The editor's
+  count in a sidebar row, the footer status). The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Every animation and transition is switched off under

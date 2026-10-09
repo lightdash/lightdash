@@ -1,6 +1,73 @@
+.row {
+    --controls-ease: ease-in-out;
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+    --controls-duration-hover: 0.12s;
+
+    position: relative;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+    animation: rowEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive);
+}
+
+/* A field on no tile yet reads as unfinished */
+.row[data-waiting] {
+    border-style: dashed;
+}
+
+.rowMain {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+/* Keyed by the count, so a changed number fades in */
+.rowCount {
+    font-variant-numeric: tabular-nums;
+    animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
+}
+
+.rowActions {
+    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+}
+
+.addFieldSelect {
+    align-self: stretch;
+}
+
 .hint {
     padding: var(--mantine-spacing-xs);
     border: 1px dashed var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-sm);
     background-color: var(--mantine-color-ldGray-0);
+}
+
+@keyframes rowEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row,
+    .rowCount {
+        animation: none;
+    }
 }

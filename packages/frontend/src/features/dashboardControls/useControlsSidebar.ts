@@ -31,6 +31,13 @@ export type ControlsSidebarContextValue = {
         column: ResultColumn,
         availableTileColumns: Record<string, ResultColumn[]>,
     ) => void;
+    /**
+     * Fields listed on the edited filter that are on no tile yet. They only
+     * live while the sidebar is open: a field is saved through a tile.
+     */
+    waitingFieldIds: string[];
+    addWaitingField: (fieldId: string) => void;
+    removeWaitingField: (fieldId: string) => void;
     updateFilter: (next: DashboardFilterRule) => void;
     /** Removes the edited filter and closes the sidebar. */
     removeFilter: () => void;
