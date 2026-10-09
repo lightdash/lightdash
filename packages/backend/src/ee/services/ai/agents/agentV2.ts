@@ -130,6 +130,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
     type TrackSqlApprovalTimeoutFn,
@@ -2016,26 +2017,23 @@ export const getAgentTools = (
           })
         : null;
 
+    const sqlApproval: SqlApprovalDependencies = {
+        getPrompt: dependencies.getPrompt,
+        updateProgress: dependencies.updateProgress,
+        updateSlackMessage: dependencies.updateSlackMessage,
+        siteUrl: args.siteUrl,
+        waitForSqlApproval: dependencies.waitForSqlApproval,
+        recordSqlApproval: dependencies.recordSqlApproval,
+        isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+        listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+        trackSqlApprovalTimeout,
+        storeToolResults: dependencies.storeToolResults,
+        autoApproveSql: args.autoApproveSql ?? false,
+        autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
+        useSlackStreamCard: args.useSlackStreamCard,
+    };
     const sqlChartSaving: SqlChartSaving = args.canRunSql
-        ? {
-              mode: 'thread_approval',
-              approval: {
-                  getPrompt: dependencies.getPrompt,
-                  updateProgress: dependencies.updateProgress,
-                  updateSlackMessage: dependencies.updateSlackMessage,
-                  siteUrl: args.siteUrl,
-                  waitForSqlApproval: dependencies.waitForSqlApproval,
-                  recordSqlApproval: dependencies.recordSqlApproval,
-                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-                  listSqlApprovalDecisions:
-                      dependencies.listSqlApprovalDecisions,
-                  trackSqlApprovalTimeout,
-                  storeToolResults: dependencies.storeToolResults,
-                  autoApproveSql: args.autoApproveSql ?? false,
-                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
-                  useSlackStreamCard: args.useSlackStreamCard,
-              },
-          }
+        ? { mode: 'thread_approval', approval: sqlApproval }
         : { mode: 'disabled' };
     const editContent = getEditContent({
         editContent: dependencies.editContent,
@@ -2062,6 +2060,15 @@ export const getAgentTools = (
         maxLimit: args.maxQueryLimit,
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
+        sqlQuerying: args.canRunSql
+            ? {
+                  runSqlJob: queryDependencies.runSqlJob,
+                  approval: sqlApproval,
+                  maxLimit: args.runSqlMaxLimit,
+                  sqlScope: args.sqlScope ?? null,
+                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
+              }
+            : null,
     });
 
     const generateDataApp = args.enableGenerateDataApp

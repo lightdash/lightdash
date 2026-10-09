@@ -11,6 +11,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { getCreateContent } from './createContent';
 import { getEditContent } from './editContent';
+import { getRunContentQuery } from './runContentQuery';
 import { getRunSql } from './runSql';
 import { type SqlApprovalDependencies } from './sqlApprovalGate';
 import { type SqlApprovalDecisionOnCall } from './sqlApprovals';
@@ -173,12 +174,32 @@ const makeTurns = ({
             enableDataAccess: false,
             hyphenatedIdentifiers: true,
         }),
+        runContentQuery: getRunContentQuery({
+            updateProgress: approval.updateProgress,
+            runAsyncQuery: vi.fn(),
+            runSavedChartQuery: vi.fn(),
+            getSavedChart: vi.fn(),
+            validateContent: vi.fn(),
+            maxLimit: 5000,
+            maxContextRows: 100,
+            enableDataAccess: true,
+            sqlQuerying: {
+                runSqlJob,
+                approval,
+                maxLimit: 5000,
+                sqlScope: null,
+                hyphenatedIdentifiers: true,
+            },
+        }),
         createContent: getCreateContent({ createContent, sqlChartSaving }),
         editContent: getEditContent({ editContent, sqlChartSaving }),
     };
 
     const argsFor = {
         runSql: (sql: string) => ({ sql, limit: 500 }),
+        runContentQuery: (sql: string) => ({
+            source: { type: 'sql' as const, sql, limit: null },
+        }),
         createContent: (sql: string) => ({
             type: 'sql_chart' as const,
             content: {
@@ -281,6 +302,72 @@ const makeTurns = ({
 };
 
 describe('SQL approved earlier in the same turn', () => {
+    it('saves a SQL chart without asking again for SQL the user approved as a content query', async () => {
+        const turns = makeTurns();
+
+        const queried = await turns.call(
+            'runContentQuery',
+            'query-1',
+            approvedSql,
+        );
+        const output = await turns.call(
+            'createContent',
+            'create-1',
+            approvedSql,
+        );
+
+        expect(queried.metadata?.status).toBe('success');
+        expect(output.metadata?.status).toBe('success');
+        expect(turns.asked).toEqual(['query-1']);
+        expect(turns.saved).toEqual([approvedSql]);
+        expect(turns.recorded).toEqual([
+            expect.objectContaining({
+                toolCallId: 'create-1',
+                source: 'same_turn_approval',
+            }),
+        ]);
+    });
+
+    it('does not run a content query the user rejected', async () => {
+        const turns = makeTurns();
+        turns.answer('query-1', 'rejected');
+
+        const output = await turns.call(
+            'runContentQuery',
+            'query-1',
+            approvedSql,
+        );
+        await turns.call('createContent', 'create-1', approvedSql);
+
+        expect(output.metadata?.status).toBe('error');
+        expect(turns.runSqlJob).not.toHaveBeenCalled();
+        expect(turns.asked).toEqual(['query-1', 'create-1']);
+    });
+
+    it('suspends a Slack content query, then saves the same SQL without asking again', async () => {
+        const turns = makeTurns({
+            prompt: makeSlackPrompt(),
+            useSlackStreamCard: true,
+        });
+
+        await expect(
+            turns.needsApproval('runContentQuery', 'query-1', approvedSql),
+        ).resolves.toBe(true);
+        turns.storeCall('runContentQuery', 'query-1', approvedSql);
+        turns.clickSlackButton('query-1', 'approved');
+        await turns.call('runContentQuery', 'query-1', approvedSql);
+        expect(turns.storeToolResults).toHaveBeenCalledExactlyOnceWith([
+            expect.objectContaining({ toolCallId: 'query-1' }),
+        ]);
+
+        await expect(
+            turns.needsApproval('createContent', 'create-1', approvedSql),
+        ).resolves.toBe(false);
+        await turns.call('createContent', 'create-1', approvedSql);
+        expect(turns.saved).toEqual([approvedSql]);
+        expect(turns.asked).toEqual([]);
+    });
+
     it('saves a SQL chart without asking again for SQL the user approved to run', async () => {
         const turns = makeTurns();
 

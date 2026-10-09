@@ -1,15 +1,29 @@
 import type { ToolRunContentQueryArgs } from '@lightdash/common';
 import { rem, Text } from '@mantine/core';
 import type { FC } from 'react';
+import { type SqlApprovalTarget } from '../SqlApprovalActions';
 import { ToolCallChip } from '../ToolCallChip';
+import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type RunContentQueryToolCallDescriptionProps = {
     source: ToolRunContentQueryArgs['source'];
+    /** Present while a SQL source waits on the user's approval. */
+    approval?: SqlApprovalTarget;
 };
 
 export const RunContentQueryToolCallDescription: FC<
     RunContentQueryToolCallDescriptionProps
-> = ({ source }) => {
+> = ({ source, approval }) => {
+    if (source.type === 'sql') {
+        return (
+            <SqlRunToolCallDescription
+                sql={source.sql}
+                limit={source.limit ?? undefined}
+                approval={approval}
+            />
+        );
+    }
+
     if (source.type === 'metricQuery') {
         return (
             <Text c="dimmed" size="xs">

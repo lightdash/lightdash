@@ -17,6 +17,7 @@ This skill is shared with Lightdash's native agent, so its workflows use camelCa
 - Use `grep_fields` and `get_metadata` for native `grepFields` and `getMetadata`.
 - Use `generate_hashes` for native `generateHashes`.
 - Replace `runContentQuery` with `run_metric_query` to validate a chart's governed semantic-layer `metricQuery`. Do not use `run_sql` for this validation.
+- Replace `runContentQuery` with `source.type: "sql"` with `run_sql` to check a SQL chart's `sql`.
 
 ## What You Can Do
 
