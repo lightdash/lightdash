@@ -871,7 +871,7 @@ describe('AiAccessService', () => {
 
     describe('stored result provenance', () => {
         const history = (
-            credential?: string,
+            credential?: string | null,
             context = QueryExecutionContext.EXPLORE,
         ) =>
             ({
@@ -968,6 +968,184 @@ describe('AiAccessService', () => {
                     });
                     expect(trackRefusal).not.toHaveBeenCalled();
                 }
+            },
+        );
+
+        test.each(
+            ['underlying data', 'warehouse rerun'].flatMap((kind) =>
+                [true, false].flatMap((enabled) =>
+                    [null, undefined].map((duckdbExecutionReferences) => ({
+                        kind,
+                        enabled,
+                        duckdbExecutionReferences,
+                    })),
+                ),
+            ),
+        )(
+            'checks warehouse $kind provenance after a rule change, enabled=$enabled execution=$duckdbExecutionReferences',
+            async ({ kind, enabled, duckdbExecutionReferences }) => {
+                const { service, historyModel, projects, organizationRules } =
+                    setup(enabled);
+                projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                    snowflake,
+                );
+                const plan = await service.resolvePlan({
+                    ...args,
+                    connection: snowflake,
+                });
+                const source = {
+                    ...history(null),
+                    queryUuid: 'person-source',
+                };
+                historyModel.get.mockResolvedValue(source);
+                const root: QueryHistoryWithLineage = {
+                    ...history('agent-credential', QueryExecutionContext.AI),
+                    queryUuid: 'warehouse-root',
+                    duckdbExecutionReferences,
+                    requestParameters: {
+                        aiSignInCredentialUuid:
+                            getAiExecutionCredentialUuid(plan),
+                        ...(kind === 'underlying data'
+                            ? {
+                                  underlyingDataSourceQueryUuid:
+                                      source.queryUuid,
+                              }
+                            : { references: { source: source.queryUuid } }),
+                    } as QueryHistory['requestParameters'],
+                };
+                organizationRules.get.mockResolvedValue({
+                    source: 'marked_person',
+                });
+                const reading = service.assertCanReadResults(
+                    account,
+                    'project',
+                    root,
+                );
+                if (enabled) {
+                    await expect(reading).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                } else {
+                    await expect(reading).resolves.toMatchObject({
+                        identity: 'marked_person',
+                    });
+                }
+                expect(historyModel.getDuckdbExecution.mock.calls).toEqual(
+                    duckdbExecutionReferences === undefined
+                        ? [['warehouse-root'], ['person-source']]
+                        : [['person-source']],
+                );
+            },
+        );
+
+        test.each([true, false])(
+            'checks a nested warehouse source with lineage after a rule change, enabled=%s',
+            async (enabled) => {
+                const { service, historyModel, projects, organizationRules } =
+                    setup(enabled);
+                projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+                    snowflake,
+                );
+                const plan = await service.resolvePlan({
+                    ...args,
+                    connection: snowflake,
+                });
+                const warehouseSource = {
+                    ...history('agent-credential', QueryExecutionContext.AI),
+                    queryUuid: 'warehouse-source',
+                    requestParameters: {
+                        aiSignInCredentialUuid:
+                            getAiExecutionCredentialUuid(plan),
+                        underlyingDataSourceQueryUuid: 'person-source',
+                    },
+                } as QueryHistory;
+                const personSource = {
+                    ...history(null),
+                    queryUuid: 'person-source',
+                };
+                const batch = vi.fn(async (uuids: string[]) =>
+                    uuids.map((uuid) => ({
+                        queryHistory:
+                            uuid === warehouseSource.queryUuid
+                                ? warehouseSource
+                                : personSource,
+                        execution: null,
+                    })),
+                );
+                Object.assign(historyModel, {
+                    getManyWithDuckdbExecutions: batch,
+                });
+                organizationRules.get.mockResolvedValue({
+                    source: 'marked_person',
+                });
+                const reading = service.assertCanReadResults(
+                    account,
+                    'project',
+                    {
+                        ...history(
+                            'agent-credential',
+                            QueryExecutionContext.AI,
+                        ),
+                        queryUuid: 'composed',
+                        duckdbExecutionReferences: {
+                            source: warehouseSource.queryUuid,
+                        },
+                    },
+                );
+                if (enabled) {
+                    await expect(reading).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                } else {
+                    await expect(reading).resolves.toMatchObject({
+                        identity: 'marked_person',
+                    });
+                }
+                expect(batch.mock.calls.map(([uuids]) => uuids)).toEqual([
+                    ['warehouse-source'],
+                    ['person-source'],
+                ]);
+                expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([true, false])(
+            'keeps a DuckDB result with a copied credential readable, projected provenance=%s',
+            async (projected) => {
+                const { service, historyModel, organizationRules } = setup();
+                organizationRules.get.mockResolvedValue({
+                    source: 'marked_person',
+                });
+                historyModel.get.mockResolvedValue({
+                    ...history(null),
+                    queryUuid: 'person-source',
+                });
+                const references = { source: 'person-source' };
+                historyModel.getDuckdbExecution.mockImplementation(
+                    async (uuid) =>
+                        uuid === 'composed' ? { references } : null,
+                );
+                await expect(
+                    service.assertCanReadResults(account, 'project', {
+                        ...history(
+                            'agent-credential',
+                            QueryExecutionContext.AI,
+                        ),
+                        queryUuid: 'composed',
+                        duckdbExecutionReferences: projected
+                            ? references
+                            : undefined,
+                    }),
+                ).resolves.toMatchObject({ identity: 'marked_person' });
+                expect(historyModel.getDuckdbExecution.mock.calls).toEqual(
+                    projected
+                        ? [['person-source']]
+                        : [['composed'], ['person-source']],
+                );
             },
         );
 
@@ -2860,7 +3038,7 @@ describe('current identity transitions', () => {
         status: QueryHistoryStatus.READY,
         context: QueryExecutionContext.AI,
         requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
-        duckdbExecutionReferences: {},
+        duckdbExecutionReferences: null,
     } as QueryHistoryWithLineage;
 
     const serviceAccountFixture = () => {
@@ -2994,7 +3172,7 @@ describe('retained results after identity rule changes', () => {
                 requestParameters: {
                     aiSignInCredentialUuid: getAiExecutionCredentialUuid(plan),
                 },
-                duckdbExecutionReferences: {},
+                duckdbExecutionReferences: null,
             } as QueryHistoryWithLineage;
             await service.assertCanReadResults(account, 'project', source);
             organizationRules.get.mockResolvedValue({
@@ -3011,6 +3189,7 @@ describe('retained results after identity rule changes', () => {
                 ? ({
                       ...source,
                       queryUuid: 'composed',
+                      duckdbExecutionReferences: { source: source.queryUuid },
                       requestParameters: {
                           sql: 'SELECT * FROM source',
                           references: { source: source.queryUuid },
