@@ -202,6 +202,7 @@ describe('LiveActivityCard composer approval', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['composer-approval'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -245,6 +246,7 @@ describe('LiveActivityCard runSql', () => {
                         agentUuid: 'agent',
                         threadUuid: 'thread',
                         pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
                     }}
                 />
             </Provider>,
@@ -265,7 +267,11 @@ describe('LiveActivityCard runSql', () => {
                 <LiveActivityCard
                     isLive
                     toolGroups={sqlToolGroups}
-                    approval={{ ...approval, pendingToolCallIds: ['sql-call'] }}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
                 />
             </Provider>,
         );
@@ -276,7 +282,11 @@ describe('LiveActivityCard runSql', () => {
                 <LiveActivityCard
                     isLive
                     toolGroups={sqlToolGroups}
-                    approval={{ ...approval, pendingToolCallIds: [] }}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
                 />
             </Provider>,
         );
@@ -307,7 +317,11 @@ describe('LiveActivityCard runSql', () => {
                 <LiveActivityCard
                     isLive
                     toolGroups={sqlToolGroups}
-                    approval={{ ...approval, pendingToolCallIds: ['sql-call'] }}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: ['sql-call'],
+                        decidedToolCallIds: [],
+                    }}
                 />
             </Provider>,
         );
@@ -317,7 +331,11 @@ describe('LiveActivityCard runSql', () => {
                 <LiveActivityCard
                     isLive
                     toolGroups={[...sqlToolGroups, nextGroup]}
-                    approval={{ ...approval, pendingToolCallIds: [] }}
+                    approval={{
+                        ...approval,
+                        pendingToolCallIds: [],
+                        decidedToolCallIds: ['sql-call'],
+                    }}
                 />
             </Provider>,
         );

@@ -81,6 +81,7 @@ type Props = {
     /** runSql / composer / SQL chart calls awaiting a decision; approval renders inline under the SQL. */
     approval?: SqlApprovalThread & {
         pendingToolCallIds: string[];
+        decidedToolCallIds: string[];
     };
 };
 
@@ -676,20 +677,11 @@ export const LiveActivityCard: FC<Props> = ({
     // A call waiting on approval keeps the card "live" so its SQL is reachable.
     const isActive = isLive || hasPendingApproval;
 
-    // Remember calls whose approval was decided; their SQL was already reviewed.
-    const [prevPendingIds, setPrevPendingIds] = useState(pendingApprovalIds);
-    const [decidedCallIds, setDecidedCallIds] = useState<string[]>([]);
-    if (prevPendingIds.join() !== pendingApprovalIds.join()) {
-        setPrevPendingIds(pendingApprovalIds);
-        const decided = prevPendingIds.filter(
-            (id) => !pendingApprovalIds.includes(id),
-        );
-        if (decided.length > 0)
-            setDecidedCallIds((ids) => [...ids, ...decided]);
-    }
+    // A decided call's SQL was already reviewed, so its group can collapse.
+    const decidedApprovalIds = approval?.decidedToolCallIds ?? [];
     const approvalDecided =
         latestGroup?.calls.some((call) =>
-            decidedCallIds.includes(call.toolCallId),
+            decidedApprovalIds.includes(call.toolCallId),
         ) ?? false;
 
     // runSql expands by default; composer only while active (the artifact panel
