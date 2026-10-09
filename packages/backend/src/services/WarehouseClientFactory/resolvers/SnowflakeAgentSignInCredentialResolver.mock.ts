@@ -3,6 +3,7 @@ import {
     type AiAssurance,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
+import Logger from '../../../logging/logger';
 import {
     logAgentSignInRefresh,
     mapAgentCredentialResolutionError,
@@ -25,6 +26,8 @@ type Args = {
 };
 
 export class AgentSignInResolverHarness {
+    readonly logger = Logger.child({ service: 'AiAccessService' });
+
     readonly warehouseType = WarehouseTypes.SNOWFLAKE;
 
     readonly resolver: SnowflakeAgentSignInCredentialResolver;
@@ -70,7 +73,7 @@ export class AgentSignInResolverHarness {
             args.silentRefresh,
         );
         return error
-            ? mapAgentCredentialResolutionError(error, {
+            ? mapAgentCredentialResolutionError(this.logger, error, {
                   ...args.person,
                   evaluationKind: 'diagnostic',
               }).refusal.reason
@@ -91,7 +94,7 @@ export class AgentSignInResolverHarness {
                 silentRefresh: args.silentRefresh,
                 onRefresh: (
                     event: import('./SnowflakeAgentSignInCredentialResolver').AgentSignInRefreshEvent,
-                ) => logAgentSignInRefresh(event, context),
+                ) => logAgentSignInRefresh(this.logger, event, context),
             },
             owner: null,
             context: connectionContextFromUser(args.person, {
@@ -121,7 +124,11 @@ export class AgentSignInResolverHarness {
                 expiresAt: result.agentSignIn!.expiresAt,
             };
         } catch (error) {
-            throw mapAgentCredentialResolutionError(error, context);
+            throw mapAgentCredentialResolutionError(
+                this.logger,
+                error,
+                context,
+            );
         }
     }
 

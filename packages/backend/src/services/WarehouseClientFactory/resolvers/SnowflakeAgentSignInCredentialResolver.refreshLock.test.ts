@@ -15,7 +15,6 @@ import {
 } from '../../../auth/oauthRequestDeadline';
 import * as refreshModule from '../../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import Logger from '../../../logging/logger';
 import {
     createDatabase,
     deferred,
@@ -275,8 +274,8 @@ describe('Snowflake agent refresh locking', () => {
         const f = setup();
         const exchanged = deferred<refreshModule.SnowflakeRefreshResult>();
         f.exchange.mockReturnValue(exchanged.promise);
-        const warn = vi.spyOn(Logger, 'warn');
-        const debug = vi.spyOn(Logger, 'debug');
+        const warn = vi.spyOn(f.provider.logger, 'warn');
+        const debug = vi.spyOn(f.provider.logger, 'debug');
         const first = f.provider.mint(args);
         await vi.waitFor(() => expect(f.exchange).toHaveBeenCalledTimes(1));
         const second = f.provider.mint({
@@ -382,8 +381,8 @@ describe('Snowflake agent refresh locking', () => {
             const f = setup();
             const failure = { statusCode: 503, data: 'unavailable' };
             f.exchange.mockRejectedValue(failure);
-            const warn = vi.spyOn(Logger, 'warn');
-            const debug = vi.spyOn(Logger, 'debug');
+            const warn = vi.spyOn(f.provider.logger, 'warn');
+            const debug = vi.spyOn(f.provider.logger, 'debug');
             const error = await f.provider
                 .mint({ ...args, evaluationKind })
                 .catch((caught: unknown) => caught);

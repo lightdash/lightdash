@@ -54,6 +54,7 @@ import {
     type UpdateOrganizationSnowflakeAgentClient,
 } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
+import { type Logger } from 'winston';
 import {
     LightdashAnalytics,
     type AgentIdentityConnectProperties,
@@ -62,7 +63,6 @@ import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
-import Logger from '../../logging/logger';
 import { redactCredentialError } from '../../logging/redactCredentialError';
 import { logAuditEvent } from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
@@ -149,6 +149,7 @@ type AgentResolutionLogContext = {
 };
 
 export const logAgentSignInRefresh = (
+    logger: Pick<Logger, 'info' | 'debug'>,
     event: AgentSignInRefreshEvent,
     context: AgentResolutionLogContext,
 ): void => {
@@ -158,10 +159,10 @@ export const logAgentSignInRefresh = (
     };
     switch (event.kind) {
         case 'refreshed':
-            Logger.info('Agent sign-in refreshed', ids);
+            logger.info('Agent sign-in refreshed', ids);
             return;
         case 'rotation':
-            Logger[event.rotated ? 'info' : 'debug'](
+            logger[event.rotated ? 'info' : 'debug'](
                 event.rotated
                     ? 'Agent sign-in refresh token rotated'
                     : 'Agent sign-in refresh token rotation skipped',
@@ -174,6 +175,7 @@ export const logAgentSignInRefresh = (
 };
 
 export const mapAgentCredentialResolutionError = (
+    logger: Pick<Logger, 'debug' | 'warn'>,
     error: unknown,
     context: AgentResolutionLogContext,
 ): AiAccessRefusedError => {
@@ -223,7 +225,7 @@ export const mapAgentCredentialResolutionError = (
             const legacy =
                 failure.classification === 'legacy_grant_gone' ||
                 failure.classification === 'legacy_failure';
-            Logger[context.evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
+            logger[context.evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
                 'Agent sign-in refresh failed',
                 {
                     userUuid: context.userUuid,
@@ -449,7 +451,7 @@ export class AiAccessService extends BaseService {
             ),
         );
         const reason = inspection
-            ? mapAgentCredentialResolutionError(inspection, {
+            ? mapAgentCredentialResolutionError(this.logger, inspection, {
                   userUuid,
                   organizationUuid,
                   evaluationKind: 'diagnostic',
@@ -1653,7 +1655,7 @@ export class AiAccessService extends BaseService {
                             WarehouseTypes.SNOWFLAKE,
                         ),
                         onRefresh: (event) =>
-                            logAgentSignInRefresh(event, {
+                            logAgentSignInRefresh(this.logger, event, {
                                 userUuid: args.userUuid,
                                 organizationUuid: args.organizationUuid,
                                 evaluationKind: args.evaluation.kind,
@@ -1691,7 +1693,7 @@ export class AiAccessService extends BaseService {
         } catch (caught) {
             const error =
                 caught instanceof AgentCredentialResolutionError
-                    ? mapAgentCredentialResolutionError(caught, {
+                    ? mapAgentCredentialResolutionError(this.logger, caught, {
                           userUuid: args.userUuid,
                           organizationUuid: args.organizationUuid,
                           evaluationKind: args.evaluation.kind,
@@ -2205,11 +2207,15 @@ export class AiAccessService extends BaseService {
                             ),
                         );
                     if (missing !== null)
-                        throw mapAgentCredentialResolutionError(missing, {
-                            userUuid: args.userUuid,
-                            organizationUuid: args.organizationUuid,
-                            evaluationKind: 'diagnostic',
-                        });
+                        throw mapAgentCredentialResolutionError(
+                            this.logger,
+                            missing,
+                            {
+                                userUuid: args.userUuid,
+                                organizationUuid: args.organizationUuid,
+                                evaluationKind: 'diagnostic',
+                            },
+                        );
                     const credential =
                         await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                             {

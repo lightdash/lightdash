@@ -13,7 +13,6 @@ import {
 } from '@lightdash/warehouses';
 import * as refreshModule from '../../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import Logger from '../../../logging/logger';
 import {
     type AiUserWarehouseCredentials,
     type UserWarehouseCredentialsModel,
@@ -760,14 +759,14 @@ describe('agent refresh logs', () => {
             const { provider, model } = setup();
             model.rotateRefreshToken.mockResolvedValue(rotated);
             const debug = vi
-                .spyOn(Logger, 'debug')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'debug')
+                .mockImplementation(() => provider.logger);
             const info = vi
-                .spyOn(Logger, 'info')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'info')
+                .mockImplementation(() => provider.logger);
             const warn = vi
-                .spyOn(Logger, 'warn')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'warn')
+                .mockImplementation(() => provider.logger);
             vi.spyOn(
                 refreshModule,
                 'exchangeSnowflakeRefreshToken',
@@ -821,14 +820,14 @@ describe('agent refresh logs', () => {
         async (evaluationKind) => {
             const { provider, model } = setup();
             const warn = vi
-                .spyOn(Logger, 'warn')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'warn')
+                .mockImplementation(() => provider.logger);
             const debug = vi
-                .spyOn(Logger, 'debug')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'debug')
+                .mockImplementation(() => provider.logger);
             const info = vi
-                .spyOn(Logger, 'info')
-                .mockImplementation(() => Logger);
+                .spyOn(provider.logger, 'info')
+                .mockImplementation(() => provider.logger);
             const error = new Error(
                 'invalid_grant refresh_token=old-refresh-token user@example.test SELECT secret_column FROM private_table',
             );
@@ -872,10 +871,16 @@ describe('agent refresh logs', () => {
 
 describe('silent refresh logs', () => {
     const args = { ...mintArgs, silentRefresh: true };
-    const spyLogs = () => ({
-        info: vi.spyOn(Logger, 'info').mockImplementation(() => Logger),
-        warn: vi.spyOn(Logger, 'warn').mockImplementation(() => Logger),
-        debug: vi.spyOn(Logger, 'debug').mockImplementation(() => Logger),
+    const spyLogs = (provider: AgentSignInResolverHarness) => ({
+        info: vi
+            .spyOn(provider.logger, 'info')
+            .mockImplementation(() => provider.logger),
+        warn: vi
+            .spyOn(provider.logger, 'warn')
+            .mockImplementation(() => provider.logger),
+        debug: vi
+            .spyOn(provider.logger, 'debug')
+            .mockImplementation(() => provider.logger),
     });
     const ids = { userUuid: 'user', organizationUuid: 'org' };
     const secrets =
@@ -911,7 +916,7 @@ describe('silent refresh logs', () => {
                     });
                 },
             );
-            const logs = spyLogs();
+            const logs = spyLogs(provider);
             await provider.mint(args);
             expect(logs.info).toHaveBeenCalledWith(
                 'Agent sign-in refreshed',
@@ -961,7 +966,7 @@ describe('silent refresh logs', () => {
                 (_strategy, _token, callback) =>
                     callback(failure as never, '', '', {}),
             );
-            const logs = spyLogs();
+            const logs = spyLogs(provider);
             const result = provider.mint(args).catch((error: unknown) => error);
             await vi.advanceTimersByTimeAsync(1000);
             const error = await result;
@@ -986,7 +991,7 @@ describe('silent refresh logs', () => {
             (_strategy, _token, callback) =>
                 callback(new Error('ECONNRESET') as never, '', '', {}),
         );
-        const logs = spyLogs();
+        const logs = spyLogs(provider);
         await expect(
             provider.mint({ ...args, evaluationKind: 'diagnostic' }),
         ).rejects.toBeDefined();
