@@ -1,3 +1,10 @@
+# [2.506.0](https://github.com/lightdash/lightdash/compare/2.505.1...2.506.0) (2026-10-09)
+
+
+### Features
+
+* **dashboards:** manage a field's tiles from a floating bar ([#30790](https://github.com/lightdash/lightdash/issues/30790)) ([57d22b6](https://github.com/lightdash/lightdash/commit/57d22b6d65bb5ac5f1be3cdb6d57d55e31e20a0a))
+
 ## [2.505.1](https://github.com/lightdash/lightdash/compare/2.505.0...2.505.1) (2026-10-09)
 
 
