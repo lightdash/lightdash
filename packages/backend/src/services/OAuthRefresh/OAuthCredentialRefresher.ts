@@ -5,15 +5,15 @@ import type {
     RefreshTokenRotation,
 } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 
-export type SnowflakeTokenExchange = {
+export type OAuthTokenExchange = {
     accessToken: string;
-    refreshToken: string;
+    refreshToken?: string;
 };
 
-export class SnowflakeOAuthRefresher {
+export class OAuthCredentialRefresher {
     constructor(private readonly rotation: Pick<RefreshTokenRotation, 'run'>) {}
 
-    async refresh<R extends SnowflakeTokenExchange>({
+    async refresh<R extends OAuthTokenExchange>({
         refreshToken,
         row,
         exchange,

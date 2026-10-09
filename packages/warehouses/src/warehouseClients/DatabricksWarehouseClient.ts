@@ -33,7 +33,7 @@ import {
     type TimestampDomain,
     type WarehouseNestedColumnShape,
 } from '@lightdash/common';
-import fetch from 'node-fetch';
+import fetch, { type RequestInit } from 'node-fetch';
 import { WarehouseCatalog } from '../types';
 import { DEFAULT_BATCH_SIZE } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
@@ -957,11 +957,13 @@ export const exchangeDatabricksOAuthCredentials = async (
     host: string,
     clientId: string,
     clientSecret: string,
+    transport?: Pick<RequestInit, 'agent'>,
 ): Promise<{ accessToken: string; refreshToken?: string }> => {
     const tokenUrl = `https://${host}/oidc/v1/token`;
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
+        agent: transport?.agent,
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -998,6 +1000,7 @@ export const refreshDatabricksOAuthToken = async (
     clientId: string,
     refreshToken: string,
     clientSecret?: string,
+    transport?: Pick<RequestInit, 'agent'>,
 ): Promise<{
     accessToken: string;
     refreshToken: string;
@@ -1016,6 +1019,7 @@ export const refreshDatabricksOAuthToken = async (
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
+        agent: transport?.agent,
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },

@@ -2,6 +2,7 @@ import type {
     AiExecutionPlan,
     CreateWarehouseCredentials,
     UserWarehouseCredentialPurpose,
+    UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import type { WarehouseClientOptions } from '@lightdash/warehouses';
 import type { WarehouseCredentialKind } from './ConnectionContext';
@@ -22,6 +23,12 @@ export type CredentialOwner =
 export type CredentialSelection<C, S = C> = {
     connection: C;
     stored: S;
+    refreshSource?: {
+        credentials:
+            | CreateWarehouseCredentials
+            | UserWarehouseCredentialsWithSecrets['credentials'];
+        fallback: CreateWarehouseCredentials;
+    };
     owner: CredentialOwner | null;
     context: WarehouseCredentialResolutionContext;
     projectUuid: string | null;

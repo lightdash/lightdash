@@ -32,7 +32,7 @@ import {
     RefreshTokenSourceChangedError,
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type AiUserWarehouseCredentials } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
-import { SnowflakeOAuthRefresher } from '../../OAuthRefresh/SnowflakeOAuthRefresher';
+import { OAuthCredentialRefresher } from '../../OAuthRefresh/OAuthCredentialRefresher';
 import { mergePersonalWarehouseCredentials } from '../../ProjectService/personalWarehouseCredentials';
 import { type AiAccessEvaluation } from '../AiAccessService';
 import { type ResolvedSnowflakeAgentClient } from '../SnowflakeAgentClientResolver';
@@ -280,7 +280,7 @@ export class SnowflakeAiCredentialProvider implements AiCredentialProvider<Creat
         evaluationKind: AiAccessEvaluation['kind'];
     }): Promise<AiMintedCredentials<CreateSnowflakeCredentials>> {
         let currentCredential = credential;
-        const refresher = new SnowflakeOAuthRefresher(
+        const refresher = new OAuthCredentialRefresher(
             this.deps.refreshTokenRotation,
         );
         let tokens: SnowflakeRefreshResult;

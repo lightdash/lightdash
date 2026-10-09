@@ -4,8 +4,11 @@ import { type Socket } from 'node:net';
 import { type Strategy } from 'passport-oauth2';
 
 export const OAUTH_REQUEST_TIMEOUT_MS = 30_000;
+export const OAUTH_REQUEST_TIMEOUT_CODE = 'WAREHOUSE_OAUTH_REQUEST_TIMEOUT';
 
 export class OAuthRequestTimeoutError extends Error {
+    readonly code = OAUTH_REQUEST_TIMEOUT_CODE;
+
     constructor() {
         super('The warehouse OAuth request timed out.');
         this.name = 'OAuthRequestTimeoutError';

@@ -286,10 +286,12 @@ export class WarehouseClientFactory {
         aiPlan: AiExecutionPlan | null = null,
         legacyResolve: () => Promise<CreateWarehouseCredentials> = async () =>
             credentials,
+        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<MaterializedCredentials> {
         const selection: CredentialSelection<CreateWarehouseCredentials> = {
             connection: credentials,
             stored: credentials,
+            refreshSource,
             owner,
             context,
             projectUuid,

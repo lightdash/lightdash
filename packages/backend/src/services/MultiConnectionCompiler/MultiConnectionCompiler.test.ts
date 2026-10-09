@@ -33,6 +33,7 @@ import {
     WarehouseCredentialKind,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import { DatabricksOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/DatabricksOAuthCredentialResolver';
 import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
@@ -226,6 +227,8 @@ describe('extra connection scope cleanup', () => {
             };
             const factory = new WarehouseClientFactory({
                 credentialResolvers: createCredentialResolverRegistry({
+                    databricksOAuthCredentialResolver:
+                        new DatabricksOAuthCredentialResolver({} as never),
                     snowflakeOAuthCredentialResolver:
                         new SnowflakeOAuthCredentialResolver({} as never),
                     lightdashConfig: lightdashConfigMock,
@@ -408,6 +411,8 @@ describe('DuckLake extra compile credentials', () => {
         };
         const factory = new WarehouseClientFactory({
             credentialResolvers: createCredentialResolverRegistry({
+                databricksOAuthCredentialResolver:
+                    new DatabricksOAuthCredentialResolver({} as never),
                 snowflakeOAuthCredentialResolver:
                     new SnowflakeOAuthCredentialResolver({} as never),
                 lightdashConfig: lightdashConfigMock,
