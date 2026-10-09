@@ -7,6 +7,7 @@ import {
     isToolEditRepoResult,
     isToolDataAppBuildResult,
     isToolSetupPreviewDeployResult,
+    getSameTurnSqlApprovalProgressId,
     isSqlApprovalToolCall,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
@@ -52,7 +53,10 @@ import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
-import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
+import {
+    type StepProgressMessage,
+    type StreamPart,
+} from '../../store/aiAgentThreadStreamSlice';
 import {
     clearPreview,
     selectArtifactPreview,
@@ -133,20 +137,27 @@ const requiresSqlApproval = (toolName: string, toolArgs: unknown): boolean =>
         ? getComposerQueryNodes(toolArgs).some(isWarehouseSqlNode)
         : isSqlApprovalToolCall(toolName, toolArgs);
 
-// Complete args, no result, no decision: the tool is waiting on the user.
+// Complete args, no result, no decision, and not skipped by the server for
+// SQL approved earlier in the turn: the tool is waiting on the user.
 const getPendingApprovalIds = (
     parts: StreamPart[],
     decidedToolCallIds: string[],
-): string[] =>
-    parts.flatMap((part) =>
+    stepProgressMessages: StepProgressMessage[],
+): string[] => {
+    const progressIds = new Set(
+        stepProgressMessages.map((message) => message.progressId),
+    );
+    return parts.flatMap((part) =>
         part.type !== 'text' &&
         !part.toolResult &&
         part.isArgsPartial !== true &&
         !decidedToolCallIds.includes(part.toolCallId) &&
+        !progressIds.has(getSameTurnSqlApprovalProgressId(part.toolCallId)) &&
         requiresSqlApproval(part.toolName, part.toolArgs)
             ? [part.toolCallId]
             : [],
     );
+};
 
 const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
     const segments: StreamSegment[] = [];
@@ -651,6 +662,7 @@ const AssistantBubbleContent: FC<{
                         ? getPendingApprovalIds(
                               streamingState.parts,
                               streamingState.decidedToolCallIds,
+                              streamingState.stepProgressMessages,
                           )
                         : [];
                     const textSegments = segments.filter(

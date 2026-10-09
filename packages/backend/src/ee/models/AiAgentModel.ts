@@ -265,6 +265,7 @@ import {
     NATIVE_SQL_APPROVAL_TOOL_NAMES,
     type NativeSqlApprovalToolName,
     type SqlApprovalDecision,
+    type SqlApprovalDecisionOnCall,
 } from '../services/ai/tools/sqlApprovals';
 import { type AiAgentThreadLiveStateSignals } from '../services/AiAgentService/aiAgentThreadLiveStatus';
 import { AI_DEEP_RESEARCH_STALE_RUN_THRESHOLD_MINUTES } from '../services/AiDeepResearchService/constants';
@@ -8737,6 +8738,48 @@ export class AiAgentModel {
             }
         }
         return null;
+    }
+
+    async findSqlApprovalDecisionsForPrompt(
+        promptUuid: string,
+    ): Promise<SqlApprovalDecisionOnCall[]> {
+        const rows = await this.database(AiAgentToolCallTableName)
+            .innerJoin(
+                AiSqlApprovalTableName,
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiSqlApprovalTableName}.tool_call_id`,
+            )
+            .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            .whereIn(
+                `${AiAgentToolCallTableName}.tool_name`,
+                NATIVE_SQL_APPROVAL_TOOL_NAMES,
+            )
+            .orderBy(`${AiSqlApprovalTableName}.decided_at`, 'asc')
+            .select<
+                Array<
+                    Pick<
+                        DbAiAgentToolCall,
+                        'tool_call_id' | 'tool_name' | 'tool_args'
+                    > &
+                        Pick<
+                            DbAiSqlApproval,
+                            'decision' | 'decided_by_user_uuid'
+                        >
+                >
+            >(
+                `${AiAgentToolCallTableName}.tool_call_id`,
+                `${AiAgentToolCallTableName}.tool_name`,
+                `${AiAgentToolCallTableName}.tool_args`,
+                `${AiSqlApprovalTableName}.decision`,
+                `${AiSqlApprovalTableName}.decided_by_user_uuid`,
+            );
+        return rows.map((row) => ({
+            toolCallId: row.tool_call_id,
+            toolName: row.tool_name,
+            toolArgs: row.tool_args,
+            decision: row.decision,
+            decidedByUserUuid: row.decided_by_user_uuid,
+        }));
     }
 
     async getToolCallsForPrompt(

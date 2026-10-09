@@ -105,6 +105,7 @@ const makeApproval = ({
     waitForSqlApproval: vi.fn().mockResolvedValue(decision),
     recordSqlApproval: vi.fn().mockResolvedValue(recorded),
     isThreadSqlAutoApproved: vi.fn().mockResolvedValue(threadAutoApproved),
+    listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
     trackSqlApprovalTimeout: vi.fn(),
     storeToolResults: vi.fn().mockResolvedValue(undefined),
     autoApproveSql,
@@ -230,9 +231,13 @@ describe('editContent SQL charts', () => {
             useSlackStreamCard: true,
         });
         const { tool } = makeTool({ mode: 'thread_approval', approval });
-        const needsApproval = tool.needsApproval as (
-            input: unknown,
-        ) => Promise<boolean>;
+        const needsApproval = (input: unknown) =>
+            (
+                tool.needsApproval as (
+                    args: unknown,
+                    options: { toolCallId: string },
+                ) => Promise<boolean>
+            )(input, { toolCallId: 'tool-call-1' });
 
         await expect(
             needsApproval({

@@ -104,6 +104,7 @@ const makeTool = ({
         waitForSqlApproval,
         recordSqlApproval,
         isThreadSqlAutoApproved,
+        listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
         trackSqlApprovalTimeout: vi.fn(),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
         createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),

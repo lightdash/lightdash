@@ -112,6 +112,7 @@ const makeApproval = ({
     waitForSqlApproval: vi.fn().mockResolvedValue(decision),
     recordSqlApproval: vi.fn().mockResolvedValue(recorded),
     isThreadSqlAutoApproved: vi.fn().mockResolvedValue(threadAutoApproved),
+    listSqlApprovalDecisions: vi.fn().mockResolvedValue([]),
     trackSqlApprovalTimeout: vi.fn(),
     storeToolResults: vi.fn().mockResolvedValue(undefined),
     autoApproveSql,
@@ -270,9 +271,13 @@ describe('createContent SQL charts', () => {
             approval,
         });
 
-        const needsApproval = tool.needsApproval as (
-            input: unknown,
-        ) => Promise<boolean>;
+        const needsApproval = (input: unknown) =>
+            (
+                tool.needsApproval as (
+                    args: unknown,
+                    options: { toolCallId: string },
+                ) => Promise<boolean>
+            )(input, { toolCallId: 'tool-call-1' });
         await expect(
             needsApproval({ type: 'sql_chart', content: sqlChart }),
         ).resolves.toBe(true);
@@ -311,10 +316,15 @@ describe('createContent SQL charts', () => {
         expect(output.metadata.status).toBe('success');
         expect(save).toHaveBeenCalledOnce();
         await expect(
-            (tool.needsApproval as (input: unknown) => Promise<boolean>)({
-                type: 'sql_chart',
-                content: sqlChart,
-            }),
+            (
+                tool.needsApproval as (
+                    args: unknown,
+                    options: { toolCallId: string },
+                ) => Promise<boolean>
+            )(
+                { type: 'sql_chart', content: sqlChart },
+                { toolCallId: 'tool-call-1' },
+            ),
         ).resolves.toBe(false);
     });
 });

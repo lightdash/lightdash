@@ -200,6 +200,7 @@ const makeAgentTools = (
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,
+            listSqlApprovalDecisions: noop,
             trackSqlApprovalTimeout: noop,
             storeToolResults: noop,
             runSqlJob: noop,

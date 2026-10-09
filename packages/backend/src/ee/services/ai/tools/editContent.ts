@@ -1,6 +1,5 @@
 import {
     editContentToolDefinition,
-    isSqlApprovalToolCall,
     mcpEditContentArgsSchema,
     mcpEditContentToolDefinition,
     ParameterError,
@@ -192,28 +191,19 @@ export const getEditContent = ({
     return tool({
         ...definition,
         inputSchema,
-        needsApproval: (input) =>
-            sqlChartGate.needsApproval(
-                isSqlApprovalToolCall('editContent', input),
-            ),
+        needsApproval: sqlChartGate.needsApproval,
         execute: (args, { toolCallId }) =>
-            sqlChartGate.run(
-                {
-                    toolCallId,
-                    isSqlChart: args.type === 'sql_chart',
-                    gated: isSqlApprovalToolCall('editContent', args),
-                },
-                (approveSql) =>
-                    executeEditContent(
-                        {
-                            editContent,
-                            sqlChartSaving,
-                            documentsEnabled,
-                            artifacts,
-                        },
-                        args,
-                        approveSql,
-                    ),
+            sqlChartGate.run({ toolCallId, args }, (approveSql) =>
+                executeEditContent(
+                    {
+                        editContent,
+                        sqlChartSaving,
+                        documentsEnabled,
+                        artifacts,
+                    },
+                    args,
+                    approveSql,
+                ),
             ),
         toModelOutput: ({ output }) => toModelOutput(output),
     });

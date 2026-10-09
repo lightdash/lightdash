@@ -15984,6 +15984,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
             isThreadSqlAutoApproved: (threadUuid) =>
                 this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
+            listSqlApprovalDecisions: (promptUuid) =>
+                this.aiAgentModel.findSqlApprovalDecisionsForPrompt(promptUuid),
             loadSkill: async (name, loadOptions) => {
                 const builtIn =
                     await this.aiAgentToolsService.loadAgentSkill(name);

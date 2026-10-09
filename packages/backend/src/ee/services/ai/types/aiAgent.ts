@@ -76,6 +76,7 @@ import {
     ListExploresFn,
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
+    ListSqlApprovalDecisionsFn,
     ListThreadComposerPipelinesFn,
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
@@ -417,6 +418,7 @@ export type AiAgentDependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

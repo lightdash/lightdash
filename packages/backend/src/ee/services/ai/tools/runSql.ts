@@ -16,6 +16,7 @@ import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
+    ListSqlApprovalDecisionsFn,
     RecordSqlApprovalFn,
     RunSqlJobFn,
     SendFileFn,
@@ -49,6 +50,7 @@ type Dependencies = {
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
     isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
+    listSqlApprovalDecisions: ListSqlApprovalDecisionsFn;
     trackSqlApprovalTimeout: TrackSqlApprovalTimeoutFn;
     storeToolResults: StoreToolResultsFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
@@ -148,6 +150,7 @@ export const getRunSql = ({
     waitForSqlApproval,
     recordSqlApproval,
     isThreadSqlAutoApproved,
+    listSqlApprovalDecisions,
     trackSqlApprovalTimeout,
     storeToolResults,
     createOrUpdateArtifact,
@@ -172,6 +175,7 @@ export const getRunSql = ({
             waitForSqlApproval,
             recordSqlApproval,
             isThreadSqlAutoApproved,
+            listSqlApprovalDecisions,
             trackSqlApprovalTimeout,
             storeToolResults,
             autoApproveSql,
@@ -187,16 +191,15 @@ export const getRunSql = ({
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
-        needsApproval: approvalGate.usesNativeApproval,
+        needsApproval: ({ sql }, { toolCallId }) =>
+            approvalGate.needsNativeApproval({ toolCallId, sql }),
         execute: async ({ sql, limit }, { toolCallId }) => {
             const prompt = await getPrompt();
             const isSlack = isSlackPrompt(prompt);
             // Every return routes through persistIfResumed so a resumed call
             // always stores a result; otherwise the resumed request 400s.
             const { approveSql, renderState, persistIfResumed } =
-                await approvalGate.forToolCall(toolCallId, {
-                    needsApproval: true,
-                });
+                await approvalGate.forToolCall(toolCallId, { sql });
 
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
