@@ -40069,8 +40069,16 @@
                 "enum": ["bedrock"],
                 "nullable": false
             },
+            "BedrockInferenceGeography": {
+                "type": "string",
+                "enum": ["jp", "us", "eu", "apac", "global"]
+            },
             "AiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography",
+                        "description": "Effective geography — the stored choice or the region's default."
+                    },
                     "isDefault": {
                         "type": "boolean"
                     },
@@ -40097,6 +40105,7 @@
                     }
                 },
                 "required": [
+                    "inferenceGeography",
                     "isDefault",
                     "apiKeyHint",
                     "allowedModels",
@@ -40212,6 +40221,9 @@
             },
             "CreateAiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography"
+                    },
                     "apiKey": {
                         "type": "string"
                     },
@@ -40242,6 +40254,9 @@
             },
             "UpdateAiProviderCredential": {
                 "properties": {
+                    "inferenceGeography": {
+                        "$ref": "#/components/schemas/BedrockInferenceGeography"
+                    },
                     "apiKey": {
                         "type": "string"
                     },
@@ -70222,7 +70237,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.503.0",
+        "version": "2.504.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

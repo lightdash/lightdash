@@ -41278,11 +41278,30 @@ const models: TsoaRoute.Models = {
         type: { dataType: 'enum', enums: ['bedrock'], validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BedrockInferenceGeography: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['jp'] },
+                { dataType: 'enum', enums: ['us'] },
+                { dataType: 'enum', enums: ['eu'] },
+                { dataType: 'enum', enums: ['apac'] },
+                { dataType: 'enum', enums: ['global'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiProviderCredential: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inferenceGeography: {
+                    ref: 'BedrockInferenceGeography',
+                    required: true,
+                },
                 isDefault: { dataType: 'boolean', required: true },
                 apiKeyHint: { dataType: 'string', required: true },
                 allowedModels: {
@@ -41407,6 +41426,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inferenceGeography: { ref: 'BedrockInferenceGeography' },
                 apiKey: { dataType: 'string', required: true },
                 allowedModels: {
                     dataType: 'array',
@@ -41426,6 +41446,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inferenceGeography: { ref: 'BedrockInferenceGeography' },
                 apiKey: { dataType: 'string' },
                 allowedModels: {
                     dataType: 'array',

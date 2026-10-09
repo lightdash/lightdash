@@ -1,3 +1,10 @@
+# [2.504.0](https://github.com/lightdash/lightdash/compare/2.503.0...2.504.0) (2026-10-09)
+
+
+### Features
+
+* **ai:** configurable Bedrock inference geography per credential ([#30788](https://github.com/lightdash/lightdash/issues/30788)) ([a0a10ef](https://github.com/lightdash/lightdash/commit/a0a10efe955b76df41579084d491e2c0efbd5509)), closes [#30787](https://github.com/lightdash/lightdash/issues/30787)
+
 # [2.503.0](https://github.com/lightdash/lightdash/compare/2.502.1...2.503.0) (2026-10-09)
 
 
