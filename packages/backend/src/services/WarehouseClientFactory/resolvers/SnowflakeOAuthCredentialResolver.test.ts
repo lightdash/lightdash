@@ -23,6 +23,7 @@ import {
 } from '../ConnectionContext';
 import {
     credentialResolution,
+    type CredentialOwner,
     type CredentialSelection,
 } from '../CredentialResolver';
 import { CredentialResolverRegistry } from '../CredentialResolverRegistry';
@@ -328,18 +329,21 @@ describe('SnowflakeOAuthCredentialResolver', () => {
     test('rejects service account and unchecked AI credentials', async () => {
         const f = setup();
         await Promise.all(
-            [
-                {
-                    kind: 'aiServiceAccount' as const,
-                    uuid: 'row',
-                    identityUuid: 'identity',
-                },
-                {
-                    kind: 'user' as const,
-                    uuid: 'row',
-                    purpose: UserWarehouseCredentialPurpose.AI,
-                },
-            ].map(async (owner) => {
+            (
+                [
+                    {
+                        kind: 'aiServiceAccount',
+                        uuid: 'row',
+                        identityUuid: 'identity',
+                        sourceProjectUuid: 'project',
+                    },
+                    {
+                        kind: 'user',
+                        uuid: 'row',
+                        purpose: UserWarehouseCredentialPurpose.AI,
+                    },
+                ] satisfies CredentialOwner[]
+            ).map(async (owner) => {
                 await expect(
                     f.resolver.resolve({ ...selection(), owner }),
                 ).rejects.toBeInstanceOf(ForbiddenError);
