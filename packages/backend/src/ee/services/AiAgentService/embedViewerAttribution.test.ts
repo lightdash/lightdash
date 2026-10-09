@@ -71,6 +71,7 @@ const buildService = () => {
             async () => 'prompt-1',
         ),
         findThreadMessage: vi.fn(async () => ({ uuid: 'prompt-1' })),
+        findThreadModelConfig: vi.fn(async () => null),
     };
     const service = new AiAgentService({
         aiAgentModel,

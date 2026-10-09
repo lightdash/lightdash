@@ -31,7 +31,6 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../deepResearch/types';
-import { useAiAgentModelSelection } from '../../hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { useDashboardPageContextCuration } from '../../hooks/useDashboardPageContextCuration';
 import {
@@ -48,6 +47,7 @@ import {
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
 import { useRefreshDocumentOnAgentSave } from '../../hooks/useRefreshDocumentOnAgentSave';
+import { useThreadModel } from '../../hooks/useThreadModel';
 import { openPanel } from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
@@ -554,13 +554,11 @@ const ExistingThreadPanel: FC<{
         () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
         [threadContext],
     );
-    const { explicitModelConfig, selectedModel } = useAiAgentModelSelection({
+    const threadModel = useThreadModel({
         projectUuid,
         agentUuid: agent.uuid,
-        defaultModelConfig: agent.modelConfig,
+        messages: thread?.messages,
     });
-    // Model can't change mid-thread; the status bar shows what the next message uses.
-    const threadModelName = selectedModel?.displayName ?? null;
 
     const handleSubmit = ({
         message,
@@ -579,7 +577,6 @@ const ExistingThreadPanel: FC<{
 
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig: explicitModelConfig,
             context: curatedContext.context,
             optimisticContext: curatedContext.optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
@@ -608,7 +605,6 @@ const ExistingThreadPanel: FC<{
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 })
             ).uuid;
@@ -630,7 +626,6 @@ const ExistingThreadPanel: FC<{
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: explicitModelConfig,
                     skipAgentResponse: true,
                 }),
             startRun: startDeepResearch.mutateAsync,
@@ -714,7 +709,10 @@ const ExistingThreadPanel: FC<{
                         agentUuid={agent.uuid}
                         fullWidth
                         threadUuid={threadId}
-                        threadModelName={threadModelName}
+                        threadModelName={threadModel?.name ?? null}
+                        threadModelWarning={
+                            threadModel?.deprecationWarning ?? null
+                        }
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

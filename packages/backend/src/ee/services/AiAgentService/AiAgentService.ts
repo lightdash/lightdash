@@ -1326,20 +1326,25 @@ export class AiAgentService extends BaseService {
     }
 
     // Runs once per prompt so the recorded model is the one that actually
-    // serves it; a pinned deprecated preset is swapped for its replacement.
+    // serves it. A thread keeps the model of its first prompt, even once that
+    // model is deprecated; picks, agent model changes and deprecated-preset
+    // replacements only apply to new threads.
     private async resolvePromptModelConfig({
         organizationUuid,
         projectUuid,
         credentialUuid,
+        threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
     }: {
         organizationUuid: string;
         projectUuid: string;
         credentialUuid: string | null;
+        threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
+        if (threadModelConfig) return threadModelConfig;
         const modelConfig =
             requestedModelConfig ??
             agentModelConfig ??
@@ -4673,8 +4678,6 @@ export class AiAgentService extends BaseService {
         });
     }
 
-    // Every prompt, first or follow-up, resolves the same way so a thread
-    // follows the agent's current model unless the user picked one explicitly.
     async createAgentThread(
         user: SessionUser,
         agentUuid: string,
@@ -4759,6 +4762,7 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             projectUuid: agent.projectUuid,
             credentialUuid: agent.providerCredentialUuid,
+            threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
         });
@@ -4972,6 +4976,8 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             projectUuid: agent.projectUuid,
             credentialUuid: agent.providerCredentialUuid,
+            threadModelConfig:
+                await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
         });
@@ -16371,6 +16377,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             organizationUuid: user.organizationUuid,
             projectUuid: data.projectUuid,
             credentialUuid: agent?.providerCredentialUuid ?? null,
+            threadModelConfig: threadUuid
+                ? await this.aiAgentModel.findThreadModelConfig(threadUuid)
+                : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
         });
