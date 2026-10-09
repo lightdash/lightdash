@@ -179,6 +179,8 @@ const makeTurns = ({
             runAsyncQuery: vi.fn(),
             runSavedChartQuery: vi.fn(),
             getSavedChart: vi.fn(),
+            getSqlChart: vi.fn(),
+            runSqlChartQuery: vi.fn(),
             validateContent: vi.fn(),
             maxLimit: 5000,
             maxContextRows: 100,

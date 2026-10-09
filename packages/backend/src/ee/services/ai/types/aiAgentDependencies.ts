@@ -560,6 +560,23 @@ export type RunSavedChartQueryFn = (args: {
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
+export type SqlChartSummary = {
+    uuid: string;
+    slug: string;
+    name: string;
+    sql: string;
+};
+
+/** A saved SQL chart the agent may view; checks view and agent space access, like readContent. */
+export type GetSqlChartFn = (slug: string) => Promise<SqlChartSummary>;
+
+/** Runs a saved SQL chart, on its own or as a dashboard tile with the dashboard's filters. */
+export type RunSqlChartQueryFn = (args: {
+    chartSlug: string;
+    dashboardSlug: string | null;
+    limit: number;
+}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary }>;
+
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
 export type DeferSlackVisualizationFn = (
@@ -706,12 +723,17 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+export type SqlQueryRows = {
     queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
-}>;
+};
+
+export type RunSqlJobFn = (args: {
+    sql: string;
+    limit: number;
+}) => Promise<SqlQueryRows>;
 
 /**
  * Per-node lifecycle event emitted while a composer pipeline executes, so the

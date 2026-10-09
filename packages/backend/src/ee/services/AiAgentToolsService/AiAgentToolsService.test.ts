@@ -4625,3 +4625,177 @@ describe('AiAgentToolsService listDataAppThemes', () => {
         expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
     });
 });
+
+describe('AiAgentToolsService runSqlChartQuery', () => {
+    const sqlChart = {
+        savedSqlUuid: 'sql-chart-uuid',
+        slug: 'orders-by-status',
+        name: 'Orders by status',
+        sql: 'select status, count(*) as orders from jaffle.orders group by 1',
+        space: { uuid: 'allowed-space-uuid' },
+    };
+    const makeSqlChartService = (dashboardTiles: unknown[] = []) => {
+        const executeAsyncSqlChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'chart-query' });
+        const executeAsyncDashboardSqlChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'dashboard-query' });
+        const service = makeService({
+            savedSqlService: {
+                getSqlChart: vi.fn().mockResolvedValue(sqlChart),
+            },
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'dashboard-uuid',
+                    spaceUuid: 'dashboard-space-uuid',
+                    filters: { dimensions: [], metrics: [] },
+                    tiles: dashboardTiles,
+                }),
+            },
+            asyncQueryService: {
+                executeAsyncSqlChartQuery,
+                executeAsyncDashboardSqlChartQuery,
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.READY,
+                    rows: [{ status: 'completed', orders: 97 }],
+                    columns: { status: {}, orders: {} },
+                }),
+            },
+        });
+        return {
+            service,
+            executeAsyncSqlChartQuery,
+            executeAsyncDashboardSqlChartQuery,
+        };
+    };
+
+    it('runs a saved SQL chart and returns its rows', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+                limit: 10,
+            }),
+        ).resolves.toEqual({
+            queryUuid: 'chart-query',
+            rows: [{ status: 'completed', orders: 97 }],
+            columns: ['status', 'orders'],
+            rowCount: 1,
+            sqlChart: {
+                uuid: 'sql-chart-uuid',
+                slug: 'orders-by-status',
+                name: 'Orders by status',
+                sql: sqlChart.sql,
+            },
+        });
+        expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                savedSqlUuid: 'sql-chart-uuid',
+                limit: 10,
+                context: QueryExecutionContext.AI,
+            }),
+        );
+    });
+
+    it('runs a SQL chart tile with its dashboard filters', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService([
+                {
+                    uuid: 'tile-uuid',
+                    type: 'sql_chart',
+                    properties: { savedSqlUuid: 'sql-chart-uuid' },
+                },
+            ]);
+
+        await service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+            chartSlug: 'orders-by-status',
+            dashboardSlug: 'jaffle-dashboard',
+            limit: 10,
+        });
+
+        expect(
+            executeAsyncDashboardSqlChartQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                savedSqlUuid: 'sql-chart-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardFilters: { dimensions: [], metrics: [] },
+            }),
+        );
+    });
+
+    it('refuses a dashboard that does not hold the SQL chart', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService();
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: 'jaffle-dashboard',
+                limit: 10,
+            }),
+        ).rejects.toThrow('not found on dashboard jaffle-dashboard');
+        expect(executeAsyncDashboardSqlChartQuery).not.toHaveBeenCalled();
+    });
+
+    it('hides a SQL chart outside the agent spaces', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['other-space-uuid'] }),
+        );
+
+        await expect(runtime.getSqlChart('orders-by-status')).rejects.toThrow(
+            'SQL chart "orders-by-status" was not found',
+        );
+        await expect(
+            runtime.runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+                limit: 10,
+            }),
+        ).rejects.toThrow('was not found');
+        expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+
+    it('lets a dashboard in the agent spaces grant its SQL chart tiles', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService([
+                {
+                    uuid: 'tile-uuid',
+                    type: 'sql_chart',
+                    properties: { savedSqlUuid: 'sql-chart-uuid' },
+                },
+            ]);
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['dashboard-space-uuid'] }),
+        );
+
+        await runtime.runSqlChartQuery({
+            chartSlug: 'orders-by-status',
+            dashboardSlug: 'jaffle-dashboard',
+            limit: 10,
+        });
+
+        expect(executeAsyncDashboardSqlChartQuery).toHaveBeenCalledOnce();
+    });
+
+    it('refuses saved SQL that reads outside the agent SQL scope', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ sqlScope: { schemas: ['marketing'] } }),
+        );
+
+        await expect(
+            runtime.runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+                limit: 10,
+            }),
+        ).rejects.toThrow('jaffle');
+        expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+});

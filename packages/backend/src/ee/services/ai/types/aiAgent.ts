@@ -66,6 +66,7 @@ import {
     GetPromptFn,
     GetPullRequestDiffFn,
     GetSavedChartFn,
+    GetSqlChartFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
@@ -93,6 +94,7 @@ import {
     RunAsyncQueryFn,
     RunComposerQueriesFn,
     RunSavedChartQueryFn,
+    RunSqlChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
@@ -372,6 +374,7 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runAsyncMergeQuery: RunAsyncMergeQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
+    runSqlChartQuery: RunSqlChartQueryFn;
     runSqlJob: RunSqlJobFn;
     runComposerQueries: RunComposerQueriesFn;
     listWarehouseTables: ListWarehouseTablesFn;
@@ -381,6 +384,7 @@ export type AiAgentDependencies = {
     readPinnedThread: ReadPinnedThreadFn;
     readAttachments: ReadAttachmentsFn;
     getSavedChart: GetSavedChartFn;
+    getSqlChart: GetSqlChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     deferSlackVisualization?: import('./aiAgentDependencies').DeferSlackVisualizationFn;

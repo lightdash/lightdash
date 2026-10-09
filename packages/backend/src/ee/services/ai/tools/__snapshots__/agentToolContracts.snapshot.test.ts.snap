@@ -12005,8 +12005,8 @@ Use this to verify generated or edited chart content before presenting it as com
 
 Input modes:
 - metricQuery: run an unsaved chart-as-code metricQuery with a tableName.
-- chart: run a saved chart by chartSlug.
-- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters.
+- chart: run a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
+- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters. chartType works the same.
 - sql: run a raw SELECT to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12081,6 +12081,18 @@ Input modes:
                   "description": "Slug of the saved chart.",
                   "type": "string",
                 },
+                "chartType": {
+                  "description": "Content type of the saved chart, as in readContent: "chart" (explore chart) or "sql_chart". Null means "chart".",
+                  "enum": [
+                    "chart",
+                    "sql_chart",
+                    null,
+                  ],
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
                 "limit": {
                   "description": "Optional row limit override.",
                   "type": [
@@ -12095,6 +12107,7 @@ Input modes:
               },
               "required": [
                 "type",
+                "chartType",
                 "chartSlug",
                 "limit",
               ],
@@ -12106,6 +12119,18 @@ Input modes:
                 "chartSlug": {
                   "description": "Slug of the saved chart.",
                   "type": "string",
+                },
+                "chartType": {
+                  "description": "Content type of the saved chart, as in readContent: "chart" (explore chart) or "sql_chart". Null means "chart".",
+                  "enum": [
+                    "chart",
+                    "sql_chart",
+                    null,
+                  ],
+                  "type": [
+                    "string",
+                    "null",
+                  ],
                 },
                 "dashboardSlug": {
                   "description": "Slug of the dashboard containing the chart.",
@@ -12125,6 +12150,7 @@ Input modes:
               },
               "required": [
                 "type",
+                "chartType",
                 "chartSlug",
                 "dashboardSlug",
                 "limit",
@@ -12353,10 +12379,10 @@ Input modes:
                           "type": "null",
                         },
                       ],
-                      "description": "The saved chart that was run; null when an unsaved metricQuery or SQL was run.",
+                      "description": "The saved explore chart that was run; null for an unsaved metricQuery, SQL or a saved SQL chart.",
                     },
                     "columns": {
-                      "description": "Ordered columns: \`fieldId\` keys saved chart rows and is null for an unsaved metricQuery or SQL; \`label\` is the CSV header shown to the model.",
+                      "description": "Ordered columns: \`fieldId\` keys saved explore chart rows and is null otherwise; \`label\` is the CSV header shown to the model.",
                       "items": {
                         "additionalProperties": false,
                         "properties": {
@@ -12422,13 +12448,45 @@ Input modes:
                           "type": "array",
                         },
                       ],
-                      "description": "Raw typed values of the rows rendered in the CSV: keyed by field id for saved charts, or cell arrays in column order for an unsaved metricQuery or SQL.",
+                      "description": "Raw typed values of the rows rendered in the CSV: keyed by field id for saved explore charts, or cell arrays in column order otherwise.",
                     },
                     "shownRowCount": {
                       "description": "Rows included in \`rows\`; fewer than rowCount when the result was truncated to keep the conversation small.",
                       "maximum": 9007199254740991,
                       "minimum": 0,
                       "type": "integer",
+                    },
+                    "sqlChart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "slug": {
+                              "type": "string",
+                            },
+                            "sql": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "slug",
+                            "name",
+                            "sql",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The saved SQL chart that was run; null for other sources.",
                     },
                     "truncationNote": {
                       "anyOf": [
@@ -12444,6 +12502,7 @@ Input modes:
                   "required": [
                     "outcome",
                     "chart",
+                    "sqlChart",
                     "rowCount",
                     "shownRowCount",
                     "columns",
@@ -12523,17 +12582,50 @@ Input modes:
                           "type": "null",
                         },
                       ],
-                      "description": "Structure of the saved chart; null when an unsaved metricQuery or SQL was run instead.",
+                      "description": "Structure of the saved explore chart; null for other sources.",
                     },
                     "outcome": {
                       "const": "dataAccessDisabled",
                       "description": "Data access is disabled for this agent; no rows were fetched.",
                       "type": "string",
                     },
+                    "sqlChart": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "chartUuid": {
+                              "type": "string",
+                            },
+                            "name": {
+                              "type": "string",
+                            },
+                            "slug": {
+                              "type": "string",
+                            },
+                            "sql": {
+                              "type": "string",
+                            },
+                          },
+                          "required": [
+                            "chartUuid",
+                            "slug",
+                            "name",
+                            "sql",
+                          ],
+                          "type": "object",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "description": "The saved SQL chart that was run; null for other sources.",
+                    },
                   },
                   "required": [
                     "outcome",
                     "chart",
+                    "sqlChart",
                   ],
                   "type": "object",
                 },
