@@ -823,9 +823,10 @@ describe('timezone preview credential resolution', () => {
         };
         const f = setup(credentials);
         await f.create();
-        expect(f.sshKeyPairModel.find).toHaveBeenCalledExactlyOnceWith(
-            'public-key',
-        );
+        expect(f.sshKeyPairModel.find.mock.calls).toEqual([
+            ['public-key'],
+            ['public-key'],
+        ]);
         expect(SshTunnel).toHaveBeenCalledWith(
             expect.objectContaining({
                 sshTunnelPrivateKey: 'resolved-private-key',

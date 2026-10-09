@@ -35,6 +35,7 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAiCredentialProvider } from '../AiAccessService/providers/SnowflakeAiCredentialProvider';
@@ -102,13 +103,18 @@ const credentials: CreatePostgresCredentials = {
 };
 
 const sshCredentials = [
-    { ...credentials, useSshTunnel: true },
+    {
+        ...credentials,
+        useSshTunnel: true,
+        sshTunnelPrivateKey: 'COPIED-PRIVATE',
+    },
     {
         ...credentials,
         type: WarehouseTypes.REDSHIFT,
         authenticationType: RedshiftAuthenticationType.PASSWORD,
         port: 5439,
         useSshTunnel: true,
+        sshTunnelPrivateKey: 'COPIED-PRIVATE',
     },
 ] satisfies CreateWarehouseCredentials[];
 
@@ -201,9 +207,13 @@ const buildFixture = (
     };
     const logger = { debug: vi.fn(), warn: vi.fn() };
     const featureFlagModel = {} as FeatureFlagModel;
+    const sshKeyPairModel = {
+        find: vi.fn<SshKeyPairModel['find']>().mockResolvedValue(null),
+    };
     const factory = new WarehouseClientFactory({
         credentialResolvers: createCredentialResolverRegistry({
             lightdashConfig: lightdashConfigMock,
+            sshKeyPairModel,
             userOAuthGrantsModel: { getRefreshToken: vi.fn() },
         }),
         lightdashConfig: {
@@ -224,6 +234,7 @@ const buildFixture = (
     });
     return {
         analytics,
+        sshKeyPairModel,
         factory,
         projectModel,
         aiAccessService,
@@ -320,14 +331,18 @@ describe('WarehouseClientFactory', () => {
 
     test('exposes the local tunnel endpoint in connection credentials', async () => {
         const { factory } = buildFixture();
-        const original = { ...credentials, useSshTunnel: true };
+        const original = {
+            ...credentials,
+            useSshTunnel: true,
+            sshTunnelPrivateKey: 'COPIED-PRIVATE',
+        };
         const tunneled = { ...original, host: '127.0.0.1', port: 43210 };
         connect.mockResolvedValueOnce(tunneled);
         await factory.withWarehouseClient(
             compileRef(original),
             contextFor(null, 'compile'),
             async (connection) => {
-                expect(connection.warehouseCredentials).toEqual(original);
+                expect(connection.warehouseCredentials).toMatchObject(original);
                 expect(connection.connectionCredentials).toEqual(tunneled);
             },
         );
@@ -1597,13 +1612,18 @@ describe('WarehouseClientFactory', () => {
             host: '127.0.0.1',
             port: 43210,
             useSshTunnel: true,
+            sshTunnelPrivateKey: 'COPIED-PRIVATE',
         };
         connect.mockResolvedValueOnce(tunneled);
         await factory.withWarehouseClient(
             {
                 kind: 'compile',
                 projectUuid: 'project-uuid',
-                credentials: { ...credentials, useSshTunnel: true },
+                credentials: {
+                    ...credentials,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'COPIED-PRIVATE',
+                },
                 compileGroup,
             },
             contextFor(null, 'compile'),
@@ -1661,13 +1681,18 @@ describe('WarehouseClientFactory', () => {
             host: '127.0.0.1',
             port: 43210,
             useSshTunnel: true,
+            sshTunnelPrivateKey: 'COPIED-PRIVATE',
         };
         connect.mockResolvedValueOnce(tunneled);
         await factory.withWarehouseClient(
             {
                 kind: 'compile',
                 projectUuid: 'project-uuid',
-                credentials: { ...credentials, useSshTunnel: true },
+                credentials: {
+                    ...credentials,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'COPIED-PRIVATE',
+                },
             },
             contextFor(null, 'compile'),
             async (connection) => {
@@ -1710,7 +1735,11 @@ describe('WarehouseClientFactory', () => {
                 {
                     kind: 'compile',
                     projectUuid: 'project-uuid',
-                    credentials: { ...credentials, useSshTunnel: true },
+                    credentials: {
+                        ...credentials,
+                        useSshTunnel: true,
+                        sshTunnelPrivateKey: 'COPIED-PRIVATE',
+                    },
                 },
                 contextFor(null, 'compile'),
                 async (connection) => {
@@ -1951,7 +1980,11 @@ describe('WarehouseClientFactory', () => {
                         kind: 'bypass',
                         mode: 'test_and_compile',
                         projectUuid: null,
-                        credentials: { ...credentials, useSshTunnel: true },
+                        credentials: {
+                            ...credentials,
+                            useSshTunnel: true,
+                            sshTunnelPrivateKey: 'COPIED-PRIVATE',
+                        },
                     },
                     contextFor(null, 'compile'),
                 ),
@@ -3295,6 +3328,102 @@ describe('resolver cache identity and lifecycle', () => {
             expect(
                 projectModel.getWarehouseClientFromCredentials.mock.calls[0][0],
             ).toEqual(input);
+        },
+    );
+});
+
+describe('SSH transport materialisation', () => {
+    it.each(sshCredentials)(
+        'hydrates $type keys before query, compile and rollback tunnel construction',
+        async (creds) => {
+            const { factory, credentialSource, sshKeyPairModel, projectModel } =
+                buildFixture(true, false, false, false);
+            const connection = {
+                ...creds,
+                sshTunnelPublicKey: 'ORG-PUBLIC',
+                sshTunnelPrivateKey: undefined,
+            };
+            sshKeyPairModel.find.mockResolvedValue({
+                publicKey: 'ORG-PUBLIC',
+                privateKey: 'ORG-PRIVATE',
+                organizationUuid: 'org-uuid',
+            });
+            credentialSource.finish.mockResolvedValue({
+                ...connection,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            const refs: WarehouseClientRef[] = [
+                bindingRef,
+                compileRef(connection),
+                ...(
+                    [
+                        'connection_test',
+                        'test_and_compile',
+                        'timezone_preview',
+                        'dbt_cloud_preview_webhook',
+                    ] as const
+                ).map((mode) => ({
+                    kind: 'bypass' as const,
+                    mode,
+                    projectUuid: 'project-uuid',
+                    credentials: connection,
+                })),
+            ];
+            await refs.reduce(async (previous, ref) => {
+                await previous;
+                await factory.withWarehouseClient(
+                    ref,
+                    contextFor(),
+                    async () => {},
+                );
+                expect(SshTunnel).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        sshTunnelPrivateKey: 'ORG-PRIVATE',
+                    }),
+                    undefined,
+                );
+            }, Promise.resolve());
+            expect(sshKeyPairModel.find).toHaveBeenCalledTimes(refs.length);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(refs.length);
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
+        },
+    );
+    it.each(sshCredentials)(
+        'uses a $type copied key when the pair is gone and does not cache',
+        async (creds) => {
+            const { factory, credentialSource, sshKeyPairModel, projectModel } =
+                buildFixture();
+            const connection = {
+                ...creds,
+                sshTunnelPublicKey: 'DELETED-PUBLIC',
+            };
+            credentialSource.finish.mockResolvedValue({
+                ...connection,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async () => {},
+            );
+            expect(SshTunnel).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    sshTunnelPrivateKey: 'COPIED-PRIVATE',
+                }),
+                undefined,
+            );
+            expect(sshKeyPairModel.find).toHaveBeenCalledTimes(2);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
         },
     );
 });

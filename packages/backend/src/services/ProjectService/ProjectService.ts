@@ -524,7 +524,6 @@ import {
 import { projectMergedManifest } from './projectMergedManifest';
 import { TRAINING_SPACE } from './provisionTrainingProject';
 import { applyCurrentGithubInstallationId } from './resolveGithubInstallationId';
-import { resolveSshTunnelPrivateKey } from './resolveSshTunnelCredentials';
 import {
     buildConnectionTestResults,
     tunnelHopsAllOk,
@@ -777,8 +776,6 @@ export class ProjectService
 
     documentModel: DocumentModel;
 
-    sshKeyPairModel: SshKeyPairModel;
-
     userAttributesModel: UserAttributesModel;
 
     s3CacheClient: S3CacheClient;
@@ -939,6 +936,7 @@ export class ProjectService
         const credentialResolvers = createCredentialResolverRegistry({
             lightdashConfig,
             userOAuthGrantsModel,
+            sshKeyPairModel,
         });
         this.warehouseClientFactory = new WarehouseClientFactory({
             credentialResolvers,
@@ -954,7 +952,6 @@ export class ProjectService
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
         this.documentModel = documentModel;
-        this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
         this.s3CacheClient = s3CacheClient;
         this.analyticsModel = analyticsModel;
@@ -2665,21 +2662,6 @@ export class ProjectService
                     ...mergedWarehouseConnection,
                     ...credentials,
                 },
-            };
-        }
-
-        if (
-            (args.warehouseConnection.type === WarehouseTypes.REDSHIFT ||
-                args.warehouseConnection.type === WarehouseTypes.POSTGRES) &&
-            args.warehouseConnection.useSshTunnel
-        ) {
-            return {
-                ...args,
-                warehouseConnection: await resolveSshTunnelPrivateKey(
-                    this.sshKeyPairModel,
-                    args.warehouseConnection,
-                    organizationUuid,
-                ),
             };
         }
 

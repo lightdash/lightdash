@@ -16910,6 +16910,7 @@ describe('compile adapter connection credentials', () => {
             ...warehouseClientMock.credentials,
             type: WarehouseTypes.POSTGRES,
             useSshTunnel: true,
+            sshTunnelPrivateKey: 'COPIED-PRIVATE',
         } as CreatePostgresCredentials,
     ])(
         'withCompileAdapter passes original tunnel-adjusted $type credentials to dbt and its callback',

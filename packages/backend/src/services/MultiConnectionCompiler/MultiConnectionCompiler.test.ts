@@ -212,6 +212,7 @@ describe('extra connection scope cleanup', () => {
                 host: 'extra.internal',
                 dbname: 'extra',
                 useSshTunnel: true,
+                sshTunnelPrivateKey: 'COPIED-PRIVATE',
             };
             const projectModel = {
                 getWarehouseClientFromCredentials: vi.fn<
@@ -226,6 +227,7 @@ describe('extra connection scope cleanup', () => {
                 credentialResolvers: createCredentialResolverRegistry({
                     lightdashConfig: lightdashConfigMock,
                     userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                    sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
                 }),
                 lightdashConfig: lightdashConfigMock,
                 projectModel: projectModel as unknown as ProjectModel,
@@ -349,7 +351,12 @@ describe('extra connection scope cleanup', () => {
             const extraTunnelIndex = vi
                 .mocked(SshTunnel)
                 .mock.calls.findLastIndex(
-                    ([credentials]) => credentials === extraCredentials,
+                    ([credentials]) =>
+                        credentials.type === WarehouseTypes.POSTGRES &&
+                        credentials.host === extraCredentials.host &&
+                        'sshTunnelPrivateKey' in credentials &&
+                        credentials.sshTunnelPrivateKey ===
+                            extraCredentials.sshTunnelPrivateKey,
                 );
             expect(extraTunnelIndex).toBeGreaterThanOrEqual(0);
             const extraTunnel =
@@ -400,6 +407,7 @@ describe('DuckLake extra compile credentials', () => {
             credentialResolvers: createCredentialResolverRegistry({
                 lightdashConfig: lightdashConfigMock,
                 userOAuthGrantsModel: { getRefreshToken: vi.fn() },
+                sshKeyPairModel: { find: vi.fn().mockResolvedValue(null) },
             }),
             lightdashConfig: lightdashConfigMock,
             projectModel,
