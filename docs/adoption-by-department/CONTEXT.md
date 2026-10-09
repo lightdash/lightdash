@@ -45,7 +45,7 @@ A person with two or more placements. With no primary department they count in e
 _Avoid_: conflict, clash, duplicate, multi-department member
 
 **Primary department**:
-The one department a shared person counts in, chosen by someone with `manage:OrganizationAdoption`. The person's other placements stay visible as "also in". A stored primary that is no longer one of the person's placements is ignored.
+The one department a shared person counts in, chosen by someone with `manage:OrganizationAdoption`. The person's other placements stay visible as "also in". It is cleared when they stop being placed there, so placing them there again asks anew.
 _Avoid_: main department, home department, default department
 
 **Counts in**:

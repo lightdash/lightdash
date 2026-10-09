@@ -7,6 +7,7 @@ import {
     getParentMap,
     NotFoundError,
     ParameterError,
+    resolveDepartmentMembership,
     truncateForMessage,
     wouldCreateCycle,
     type CreateDepartment,
@@ -53,6 +54,9 @@ export type DepartmentTreeLimits = {
 type DepartmentRow = Omit<DbDepartment, 'target_date'> & {
     target_date: string | null;
 };
+
+// Everyone on Lightdash, or only the people with a primary stored, whose primary may need clearing
+type MemberRowsScope = 'everyone' | 'withPrimary';
 
 type OwnerRow = {
     department_uuid: string;
@@ -460,6 +464,13 @@ export class DepartmentModel {
                 }
                 throw e;
             }
+            // A move can put one of a person's departments under another, which then stops being a placement
+            if (parent !== undefined) {
+                await DepartmentModel.clearStalePrimaries(
+                    organizationUuid,
+                    trx,
+                );
+            }
         });
         return this.getByUuid(organizationUuid, departmentUuid);
     }
@@ -487,6 +498,7 @@ export class DepartmentModel {
                     department_uuid: departmentUuid,
                 })
                 .delete();
+            await DepartmentModel.clearStalePrimaries(organizationUuid, trx);
         });
     }
 
@@ -626,6 +638,7 @@ export class DepartmentModel {
                     })),
                 );
             }
+            await DepartmentModel.clearStalePrimaries(organizationUuid, trx);
         });
         return this.getByUuid(organizationUuid, departmentUuid);
     }
@@ -663,6 +676,7 @@ export class DepartmentModel {
                     })),
                 );
             }
+            await DepartmentModel.clearStalePrimaries(organizationUuid, trx);
         });
         return this.getByUuid(organizationUuid, departmentUuid);
     }
@@ -769,7 +783,43 @@ export class DepartmentModel {
     async getResolvedMemberRows(
         organizationUuid: string,
     ): Promise<ResolvedMemberRow[]> {
-        const result = await this.database.raw<{
+        return DepartmentModel.readMemberRows(
+            this.database,
+            organizationUuid,
+            'everyone',
+        );
+    }
+
+    // A primary that is no longer one of the person's placements is removed by the write that made it so, so it
+    // never comes back on its own when they are placed there again
+    private static async clearStalePrimaries(
+        organizationUuid: string,
+        trx: Knex.Transaction,
+    ): Promise<void> {
+        const rows = await DepartmentModel.readMemberRows(
+            trx,
+            organizationUuid,
+            'withPrimary',
+        );
+        if (rows.length === 0) return;
+        const tree = await DepartmentModel.getTree(organizationUuid, trx);
+        const stale = resolveDepartmentMembership(rows, tree).flatMap(
+            (member) =>
+                member.primaryDepartmentUuid === null ? [member.userUuid] : [],
+        );
+        if (stale.length === 0) return;
+        await trx(DepartmentPrimaryMembershipTableName)
+            .where('organization_uuid', organizationUuid)
+            .whereIn('user_uuid', stale)
+            .delete();
+    }
+
+    private static async readMemberRows(
+        db: Knex,
+        organizationUuid: string,
+        scope: MemberRowsScope,
+    ): Promise<ResolvedMemberRow[]> {
+        const result = await db.raw<{
             rows: Array<{
                 user_uuid: string;
                 email: string;
@@ -825,7 +875,7 @@ export class DepartmentModel {
             FROM org_users ou
             LEFT JOIN explicit ex ON ex.user_uuid = ou.user_uuid
             LEFT JOIN via_groups vg ON vg.user_uuid = ou.user_uuid
-            LEFT JOIN primaries pr ON pr.user_uuid = ou.user_uuid
+            ${scope === 'withPrimary' ? 'JOIN' : 'LEFT JOIN'} primaries pr ON pr.user_uuid = ou.user_uuid
             `,
             [organizationUuid],
         );

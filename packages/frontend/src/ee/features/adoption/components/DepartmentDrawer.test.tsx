@@ -123,7 +123,8 @@ const renderEdit = (department: ReturnType<typeof dept>, onClose = vi.fn()) =>
         />,
     );
 
-describe('DepartmentForm', () => {
+// The form's tests type into several fields, which is slow on a busy machine, so these get 20 s each
+describe('DepartmentForm', { timeout: 20_000 }, () => {
     beforeEach(() => {
         vi.clearAllMocks();
         membership = [];

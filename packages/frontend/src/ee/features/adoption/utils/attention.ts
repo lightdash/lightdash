@@ -25,8 +25,9 @@ const people = (count: number): string =>
 export const formatUnassigned = (count: number): string =>
     `${people(count)} in no department`;
 
+// Counted in each of their departments until someone chooses one
 export const formatShared = (count: number): string =>
-    `${people(count)} in more than one department`;
+    `${formatQuantity(count, PEOPLE)} in more than one department ${count === 1 ? 'counts' : 'count'} in each of them`;
 
 export const parseMembershipTab = (value: string | null): MembershipTab =>
     value === 'shared' ? 'shared' : 'unassigned';

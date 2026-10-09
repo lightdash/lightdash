@@ -545,12 +545,12 @@ describe('getHoverLabel', () => {
         };
         expect(hoverOf('Ops')).toMatchObject({
             name: 'Ops',
-            detail: '8 of 29 on Lightdash · 2 active · 2 also in another department · 2 sub-departments',
+            detail: '8 of 29 on Lightdash · 2 active · 2 count in another department too · 2 sub-departments',
             isNested: false,
         });
         expect(hoverOf('Depots')).toMatchObject({
             name: 'Depots · 10',
-            detail: '2 also in another department',
+            detail: '2 count in another department too',
             isNested: true,
         });
         expect(hoverOf('Legal')).toMatchObject({

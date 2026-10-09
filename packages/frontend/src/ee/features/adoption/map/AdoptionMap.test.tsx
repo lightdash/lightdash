@@ -412,7 +412,7 @@ describe('AdoptionMap', () => {
         expect(useDepartmentDetail).toHaveBeenLastCalledWith('Field');
     });
 
-    it('hides person dots above 20,000 people and says so', () => {
+    it('hides person dots above 20,000 placements and says so', () => {
         const { container } = renderMap([
             d('Everyone', null, 19997, 10, 5),
             d('Few', null, 4, 2, 1),
@@ -423,7 +423,7 @@ describe('AdoptionMap', () => {
         expect(container.querySelectorAll('[data-department]')).toHaveLength(2);
         expect(
             screen.getByText(
-                'Dots are hidden above 20,000 people. Open a department to see its people',
+                'Dots are hidden above 20,000 placements. Open a department to see its people',
             ),
         ).toBeInTheDocument();
         expect(
@@ -1902,7 +1902,7 @@ describe('AdoptionMap', () => {
         const details = () =>
             screen.getByRole('complementary', { name: 'Details' });
 
-        it('rings as many dots in each department as it has people also in another department, and counts each person once', () => {
+        it('rings as many dots in each department as it has people who count in another department too, and counts each person once', () => {
             const { container } = renderShared();
             // Stores 20, Depots 10 and Finance 8: a dot for each person in each department they count in
             expect(drawn(container, '[data-dot]')).toHaveLength(38);
@@ -1925,17 +1925,17 @@ describe('AdoptionMap', () => {
             ]);
             expect(
                 within(screen.getByRole('list', { name: 'Legend' })).getByText(
-                    'Also in another department',
+                    'Counts in several departments',
                 ),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('img', {
-                    name: 'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 0 at risk, 5 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
+                    name: 'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 count in another department too. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 0 at risk, 5 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
                 }),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('button', {
-                    name: 'Depots, 3 of 10 on Lightdash, 1 active in the last 30 days, 2 also in another department',
+                    name: 'Depots, 3 of 10 on Lightdash, 1 active in the last 30 days, 2 count in another department too',
                 }),
             ).toBeInTheDocument();
             // Coloured by role too, the panel and the legend alike: the departments add up to 9 viewers, the people placed are 8
@@ -2005,7 +2005,7 @@ describe('AdoptionMap', () => {
             ]);
             expect(
                 screen.getByRole('img', {
-                    name: /^Map of Ops: 2 sub-departments, 29 people, 6 on Lightdash, 2 active in the last 30 days, 2 also in another department\./,
+                    name: /^Map of Ops: 2 sub-departments, 29 people, 6 on Lightdash, 2 active in the last 30 days, 2 count in another department too\./,
                 }),
             ).toBeInTheDocument();
             const depots = container.querySelector(
@@ -2018,7 +2018,7 @@ describe('AdoptionMap', () => {
                 ),
             ).toEqual([
                 'Depots',
-                '3 of 10 on Lightdash · 1 active · 2 also in another department',
+                '3 of 10 on Lightdash · 1 active · 2 count in another department too',
             ]);
         });
 
@@ -2064,7 +2064,9 @@ describe('AdoptionMap', () => {
 
         it('leaves the ring out of the legend when nobody in view is in another department', () => {
             renderMap();
-            expect(screen.queryByText('Also in another department')).toBeNull();
+            expect(
+                screen.queryByText('Counts in several departments'),
+            ).toBeNull();
         });
     });
 

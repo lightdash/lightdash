@@ -120,7 +120,7 @@ export const MapLegend: FC<Props> = ({
             {hasSharedDots && (
                 <li className={styles.legendItem}>
                     <SharedSwatch kind={LEGEND_KINDS[colourBy][0]} />
-                    <Text fz="xs">Also in another department</Text>
+                    <Text fz="xs">Counts in several departments</Text>
                 </li>
             )}
             {hasEmptyDepartment && (
@@ -143,7 +143,7 @@ export const MapLegend: FC<Props> = ({
         )}
         {areDotsHidden && (
             <Text fz="xs" c="dimmed">
-                {`Dots are hidden above ${formatCount(dotLimit)} people. Open a department to see its people`}
+                {`Dots are hidden above ${formatCount(dotLimit)} placements. Open a department to see its people`}
             </Text>
         )}
         {hasSubDepartments && (

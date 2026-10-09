@@ -810,6 +810,71 @@ describe('DepartmentModel on the real schema', () => {
         });
     });
 
+    test('clears a primary when the person stops counting there, so it never comes back on its own', async () => {
+        const organization = await createOrganization('Stale primary');
+        const org = organization.organizationUuid;
+        const ann = await createPerson(organization, 'Ann');
+        const bob = await createPerson(organization, 'Bob');
+        const sales = await create(organization, 'Sales');
+        const marketing = await create(organization, 'Marketing');
+        const assign = (departmentUuid: string, people: Person[]) =>
+            departments.setMembers(
+                org,
+                departmentUuid,
+                people.map((person) => person.userUuid),
+            );
+        const primaryOf = async (person: Person) =>
+            (
+                await db('department_primary_memberships')
+                    .where('user_uuid', person.userUuid)
+                    .first('department_uuid')
+            )?.department_uuid ?? null;
+        const countedIn = async (person: Person) =>
+            findPerson(
+                resolveDepartmentMembership(
+                    await departments.getResolvedMemberRows(org),
+                    await departments.listByOrganization(org),
+                ),
+                person,
+            ).countedDepartmentUuids;
+
+        // Removed from the department they count in, then placed there again: they count in both until chosen
+        await assign(sales, [ann]);
+        await assign(marketing, [ann]);
+        await departments.setPrimaryDepartment(org, ann.userUuid, sales);
+        await assign(sales, []);
+        expect(await primaryOf(ann)).toBeNull();
+        await assign(sales, [ann]);
+        expect(await primaryOf(ann)).toBeNull();
+        expect(await countedIn(ann)).toEqual([marketing, sales].sort());
+
+        // The group that placed them there is unlinked: the same
+        const salesStaff = await createGroup(organization, 'Sales staff', [
+            bob,
+        ]);
+        await departments.setGroupLinks(org, sales, [salesStaff]);
+        await assign(marketing, [ann, bob]);
+        await departments.setPrimaryDepartment(org, bob.userUuid, sales);
+        await departments.setGroupLinks(org, sales, []);
+        expect(await primaryOf(bob)).toBeNull();
+
+        // Still placed there another way, or a save elsewhere: the primary stays
+        await departments.setGroupLinks(org, sales, [salesStaff]);
+        await assign(sales, [ann, bob]);
+        await departments.setPrimaryDepartment(org, bob.userUuid, sales);
+        await departments.setPrimaryDepartment(org, ann.userUuid, marketing);
+        await assign(sales, [ann]);
+        expect(await primaryOf(bob)).toBe(sales);
+        expect(await primaryOf(ann)).toBe(marketing);
+
+        // A move that puts Marketing under Sales leaves Sales above another placement, so no longer one of Ann's
+        await departments.setPrimaryDepartment(org, ann.userUuid, sales);
+        await edit(organization, marketing, { parentDepartmentUuid: sales });
+        expect(await primaryOf(ann)).toBeNull();
+        await edit(organization, marketing, { parentDepartmentUuid: null });
+        expect(await countedIn(ann)).toEqual([marketing, sales].sort());
+    });
+
     test('sets a primary only for an active member, and only to a department of the organization', async () => {
         const organization = await createOrganization('Primary checks');
         const other = await createOrganization('Primary checks elsewhere');

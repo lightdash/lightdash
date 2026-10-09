@@ -101,7 +101,7 @@ describe('Adoption', () => {
         );
         await userEvent.click(
             await screen.findByRole('button', {
-                name: '2 people are in more than one department',
+                name: '2 people in more than one department count in each of them',
             }),
         );
         expect(

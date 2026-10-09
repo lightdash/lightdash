@@ -300,7 +300,7 @@ const measureLabel = (
 });
 
 // The fuller line a hover label gives under the name of a circle of the level in view: the full caption, the
-// people also in another department, then its sub-departments, each only where it applies
+// people who count in another department too, then its sub-departments, each only where it applies
 const getFullCaption = (
     stats: CircleStats,
     subDepartments: number,
@@ -335,9 +335,8 @@ const getRestTexts = (
     ];
 };
 
-// What a hover label says: for a circle of the level in view the fuller line first, so hovering one named at
-// rest adds to its name. The people also in another department follow the numbers, or sit under a sub-department's
-// name, and are the first thing left out for room
+// A hover label: the fuller line first for a circle of the level in view, then what its name at rest says. The count
+// of people in another department too comes first and is the first thing left out for room
 const getHoverTexts = (
     circle: PackedCircle,
     stats: CircleStats,

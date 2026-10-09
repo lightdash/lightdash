@@ -53,17 +53,26 @@ const SELECT_PRIMARY_DEPARTMENT = new RegExp(
 const MEMBERS =
     /FROM organization_memberships om\s+JOIN org ON org\.organization_id = om\.organization_id\s+JOIN users u ON u\.user_id = om\.user_id\s+JOIN emails e ON e\.user_id = u\.user_id AND e\.is_primary = true\s+WHERE u\.is_internal = false\s+AND u\.is_active = true\s+AND \(\s+e\.is_verified = true\s+OR EXISTS \(SELECT 1 FROM password_logins pl WHERE pl\.user_id = u\.user_id\)\s+OR EXISTS \(SELECT 1 FROM openid_identities oi WHERE oi\.user_id = u\.user_id\)\s+\)/;
 const LIMITS = { maxDepartments: 1000, maxDepth: 10 };
+// The people with a primary stored, read inside each write that can change where people are placed
+const PRIMARY_HOLDERS =
+    /(?<!LEFT )JOIN primaries pr ON pr\.user_uuid = ou\.user_uuid/;
 
 describe('DepartmentModel', () => {
     const database = knex({ client: MockClient, dialect: 'pg' });
     const model = new DepartmentModel({ database });
     let tracker: Tracker;
+    // Nobody has a primary stored unless a test says so
+    let primaryHolders: Record<string, unknown>[] = [];
     beforeAll(() => {
         tracker = getTracker();
     });
     beforeEach(() => {
+        primaryHolders = [];
         tracker.on.any(LOCK_TIMEOUT).response([]);
         tracker.on.any(LOCK).response([]);
+        tracker.on.any(PRIMARY_HOLDERS).response(() => ({
+            rows: primaryHolders,
+        }));
     });
     afterEach(() => {
         tracker.reset();
@@ -549,6 +558,9 @@ describe('DepartmentModel', () => {
 
     describe('who can be newly assigned or made an owner', () => {
         const ON_LIGHTDASH = /is_active = true/;
+        // The check on the people being added, not the read of the people with a primary that follows the write
+        const isNewcomerCheck = (sql: string) =>
+            ON_LIGHTDASH.test(sql) && !PRIMARY_HOLDERS.test(sql);
         const respondToMemberWrite = (listed: string[]) => {
             tracker.on
                 .select(OrganizationMembershipsTableName)
@@ -615,7 +627,7 @@ describe('DepartmentModel', () => {
                 { type: 'user', uuid: 'u1' },
             ]);
             const checks = tracker.history.all.filter((q) =>
-                ON_LIGHTDASH.test(q.sql),
+                isNewcomerCheck(q.sql),
             );
             expect(checks.map((q) => q.bindings)).toEqual([[['u1']], [['u1']]]);
             expect(tracker.history.insert).toHaveLength(2);
@@ -624,7 +636,7 @@ describe('DepartmentModel', () => {
             respondToMemberWrite(['quiet']);
             await model.setMembers('org', 'dep', ['quiet']);
             expect(
-                tracker.history.all.some((q) => ON_LIGHTDASH.test(q.sql)),
+                tracker.history.all.some((q) => isNewcomerCheck(q.sql)),
             ).toBe(false);
         });
     });
@@ -1105,6 +1117,99 @@ describe('DepartmentModel', () => {
             );
             expect(treeIndex).toBeGreaterThan(0);
             expect(transaction.queries[treeIndex].bindings).toEqual(['org']);
+        });
+
+        // Writes that can change where people are placed, and those that cannot
+        const placementWrites = writes.filter(([name]) =>
+            ['update', 'delete', 'setGroupLinks', 'setMembers'].includes(name),
+        );
+        const otherWrites: Array<[string, () => Promise<unknown>]> = [
+            ...writes.filter(
+                ([name]) =>
+                    ![
+                        'update',
+                        'delete',
+                        'setGroupLinks',
+                        'setMembers',
+                    ].includes(name),
+            ),
+            [
+                'update without a move',
+                () =>
+                    model.update('org', 'dep', { name: 'Ops' }, 'user', LIMITS),
+            ],
+        ];
+        const isWrite = (sql: string) => /^(insert|update|delete) /.test(sql);
+
+        it.each(placementWrites)(
+            '%s reads the people with a primary inside its transaction, after writing',
+            async (_name, write) => {
+                respondToEveryRead();
+                await write();
+                const [transaction] = tracker.history.transactions;
+                const read = transaction.queries.findIndex((q) =>
+                    PRIMARY_HOLDERS.test(q.sql),
+                );
+                const lastWrite = transaction.queries.findLastIndex((q) =>
+                    isWrite(q.sql),
+                );
+                expect(read).toBeGreaterThan(lastWrite);
+                expect(transaction.queries[read].bindings).toEqual(['org']);
+            },
+        );
+        it.each(otherWrites)(
+            '%s leaves primaries alone',
+            async (_name, write) => {
+                respondToEveryRead();
+                await write();
+                expect(
+                    tracker.history.all.some((q) =>
+                        PRIMARY_HOLDERS.test(q.sql),
+                    ),
+                ).toBe(false);
+            },
+        );
+        it('clears, in the same transaction, the primary of someone the write leaves without that placement, and only theirs', async () => {
+            respondToEveryRead();
+            const holder = (
+                userUuid: string,
+                explicit: string[],
+                groupDepartments: string[] = [],
+            ) => ({
+                user_uuid: userUuid,
+                email: `${userUuid}@example.com`,
+                first_name: userUuid,
+                last_name: 'L',
+                role: 'viewer',
+                explicit_department_uuids: explicit,
+                group_links: groupDepartments.map((departmentUuid) => ({
+                    departmentUuid,
+                    groupUuid: 'g1',
+                    groupName: 'Staff',
+                })),
+                primary_department_uuid: 'dep',
+            });
+            // As read after the write: Ann is no longer in dep; Bob still is, and Cy is through a group
+            primaryHolders = [
+                holder('ann', [PARENT]),
+                holder('bob', ['dep', PARENT]),
+                holder('cy', [PARENT], ['dep']),
+            ];
+
+            await model.setMembers('org', 'dep', ['u1']);
+
+            const [transaction] = tracker.history.transactions;
+            const cleared = transaction.queries.filter((q) =>
+                q.sql.startsWith(
+                    `delete from "${DepartmentPrimaryMembershipTableName}"`,
+                ),
+            );
+            expect(cleared).toHaveLength(1);
+            expect(cleared[0].sql).toBe(
+                `delete from "${DepartmentPrimaryMembershipTableName}" where "organization_uuid" = $1 and "user_uuid" in ($2)`,
+            );
+            expect(cleared[0].bindings).toEqual(['org', 'ann']);
+            expect(transaction.state).toBe('committed');
         });
 
         it('rolls back without writing when a check inside the lock fails', async () => {

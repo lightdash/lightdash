@@ -119,7 +119,7 @@ const getCircleDots = (
                     () => segment.kind,
                 ),
         );
-        // Drawn from counts, the people also in another department are spread through the people on Lightdash,
+        // Drawn from counts, those who count in another department too are spread through the people on Lightdash,
         // whose dots come before those of the people without an account
         return {
             kinds,
@@ -315,9 +315,10 @@ export const formatDirectPeople = (
 ): string =>
     `${formatCount(members)}${headcount === null ? '' : ` of ${formatCount(headcount)}`} on Lightdash · ${members > 0 && active === members ? 'all active' : `${formatCount(active)} active`}`;
 
-// "3 also in another department": people with a dot in another department too, on the map's labels and descriptions
+// "3 count in another department too": people with a dot in another department as well, on the map's labels and
+// descriptions
 export const formatSharedPeople = (count: number): string =>
-    `${formatCount(count)} also in another department`;
+    `${formatCount(count)} ${count === 1 ? 'counts' : 'count'} in another department too`;
 
 const describeStats = (stats: CircleStats): string[] => {
     const active = `${formatCount(stats.active)} active in the last 30 days`;

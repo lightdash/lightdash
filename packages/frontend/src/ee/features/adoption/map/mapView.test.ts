@@ -352,7 +352,7 @@ describe('buildDots', () => {
         const ops = layout(null).find((circle) => circle.id === 'Ops');
         expect(ops && buildDots(ops, 'activity', null)).toEqual([]);
     });
-    it('rings as many dots as the department has people also in another department, spread through its people on Lightdash', () => {
+    it('rings as many dots as the department has people who count in another department too, spread through its people on Lightdash', () => {
         const stores = withServerHeadcounts([
             withSharedPeople(d('Stores', null, 20, 6, 4), 2),
         ]);
@@ -474,13 +474,13 @@ describe('describeCircles', () => {
             new Map(shared.map((each) => [each.departmentUuid, each])),
         );
         expect(described.get('Ops')?.description).toBe(
-            'Ops, 8 of 30 on Lightdash, 4 active in the last 30 days, 2 also in another department, 2 sub-departments',
+            'Ops, 8 of 30 on Lightdash, 4 active in the last 30 days, 2 count in another department too, 2 sub-departments',
         );
         expect(described.get('Depots')?.description).toBe(
-            'Depots, 3 of 10 on Lightdash, 0 active in the last 30 days, 2 also in another department',
+            'Depots, 3 of 10 on Lightdash, 0 active in the last 30 days, 2 count in another department too',
         );
         expect(described.get('Product')?.description).toBe(
-            'Product, 5 on Lightdash, 5 active in the last 30 days, 1 also in another department, no headcount set',
+            'Product, 5 on Lightdash, 5 active in the last 30 days, 1 counts in another department too, no headcount set',
         );
         expect(described.get('Depots')?.stats.shared).toBe(2);
     });
@@ -722,7 +722,7 @@ describe('buildMapAriaLabel', () => {
                 hasHeadcount: true,
             }),
         ).toBe(
-            'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 1 at risk, 4 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
+            'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 count in another department too. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 1 at risk, 4 lost, 28 with no account. A person who counts in several departments has a ringed dot in each. The List view has the same numbers as a table',
         );
         // Without dots there are no rings to explain
         expect(
@@ -736,7 +736,7 @@ describe('buildMapAriaLabel', () => {
                 hasHeadcount: true,
             }),
         ).toBe(
-            'Map of Ops: 2 sub-departments, 36 people, 8 on Lightdash, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount. The List view has the same numbers as a table',
+            'Map of Ops: 2 sub-departments, 36 people, 8 on Lightdash, 3 active in the last 30 days, 2 count in another department too. Each circle is a department sized by headcount. The List view has the same numbers as a table',
         );
     });
 });

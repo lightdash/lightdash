@@ -55,19 +55,21 @@ describe('attention copy', () => {
     it('says how many people are in no department and how many in more than one', () => {
         expect(formatUnassigned(3)).toBe('3 people are in no department');
         expect(formatShared(2)).toBe(
-            '2 people are in more than one department',
+            '2 people in more than one department count in each of them',
         );
     });
     it('uses the singular for one person', () => {
         expect(formatUnassigned(1)).toBe('1 person is in no department');
-        expect(formatShared(1)).toBe('1 person is in more than one department');
+        expect(formatShared(1)).toBe(
+            '1 person in more than one department counts in each of them',
+        );
     });
     it('groups thousands', () => {
         expect(formatUnassigned(1200)).toBe(
             '1,200 people are in no department',
         );
         expect(formatShared(1951)).toBe(
-            '1,951 people are in more than one department',
+            '1,951 people in more than one department count in each of them',
         );
     });
 });

@@ -28,7 +28,7 @@ const renderStrip = ({
 };
 
 const SHARED_LINK = {
-    name: '48 people are in more than one department',
+    name: '48 people in more than one department count in each of them',
 };
 // The page header has the Place people button; the strip links from its sentence instead
 const PLACE_LINK = { name: 'place them' };
@@ -69,7 +69,7 @@ describe('AttentionStrip', () => {
         ).toBeVisible();
         expect(
             screen.getByRole('button', {
-                name: '1,951 people are in more than one department',
+                name: '1,951 people in more than one department count in each of them',
             }),
         ).toBeVisible();
     });
@@ -87,7 +87,7 @@ describe('AttentionStrip', () => {
         const { unmount } = renderStrip({ unassignedCount: 0 });
         // Information alone is announced politely
         expect(screen.getByRole('status')).toHaveTextContent(
-            '48 people are in more than one department',
+            '48 people in more than one department count in each of them',
         );
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         unmount();
@@ -120,7 +120,10 @@ describe('AttentionStrip', () => {
         ).not.toBeInTheDocument();
         expect(
             screen.getAllByRole('button').map((control) => control.textContent),
-        ).toEqual(['place them', '48 people are in more than one department']);
+        ).toEqual([
+            'place them',
+            '48 people in more than one department count in each of them',
+        ]);
     });
 
     it('offers no button or link to people who cannot place others, and still gives both counts', () => {
@@ -131,7 +134,9 @@ describe('AttentionStrip', () => {
             ),
         ).toBeVisible();
         expect(
-            screen.getByText('48 people are in more than one department'),
+            screen.getByText(
+                '48 people in more than one department count in each of them',
+            ),
         ).toBeVisible();
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
