@@ -21,9 +21,13 @@ export const resolveAgentProject = async (
     return config.context.project;
 };
 
-export const getAgentAccess = (projectUuid: string): Promise<AiAccessForUser> =>
+export const getAgentAccess = (
+    projectUuid: string,
+    signal: AbortSignal | null = null,
+): Promise<AiAccessForUser> =>
     lightdashApi<AiAccessForUser>({
         method: 'GET',
         url: `/api/v2/projects/${projectUuid}/ai-access/me`,
         body: undefined,
+        ...(signal ? { signal } : {}),
     });

@@ -1288,6 +1288,7 @@ export class AiAccessService extends BaseService {
             principalKind: enabled ? this.actorKind(args) : null,
             refusal: null,
             expiresAt: null,
+            principalName: null,
         };
         if (!rule || rule.source === 'marked_person') return result;
         try {
@@ -1345,6 +1346,7 @@ export class AiAccessService extends BaseService {
                             },
                         );
                     result.expiresAt = credential?.expiresAt ?? null;
+                    result.principalName = credential ? email : null;
                     break;
                 }
                 default:

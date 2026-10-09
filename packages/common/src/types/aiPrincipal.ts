@@ -212,6 +212,7 @@ export type AiAccessForUser = {
     principalKind: 'person' | 'service_account' | null;
     refusal: AiAccessRefusal | null;
     expiresAt: Date | null;
+    principalName: string | null;
 };
 
 export type ApiAiWarehouseCapabilitiesResponse = {
