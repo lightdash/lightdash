@@ -1,3 +1,10 @@
+# [2.533.0](https://github.com/lightdash/lightdash/compare/2.532.0...2.533.0) (2026-10-09)
+
+
+### Features
+
+* **credentials:** add credential tables, codec, rotation entries and lock key ([#30854](https://github.com/lightdash/lightdash/issues/30854)) ([c1e2140](https://github.com/lightdash/lightdash/commit/c1e21406474f445325e5c031d88a1e625007bf1c))
+
 # [2.532.0](https://github.com/lightdash/lightdash/compare/2.531.0...2.532.0) (2026-10-09)
 
 
