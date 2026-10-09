@@ -29,6 +29,10 @@ export class SnowflakeAiServiceAccountCredentialResolver implements CredentialRe
     CreateSnowflakeCredentials,
     AiServiceAccountSecrets
 > {
+    readonly supportedMethods = [
+        SnowflakeAuthenticationType.PRIVATE_KEY,
+    ] as const;
+
     buildCredentials(
         connection: CreateWarehouseCredentials & SshTunnelConfiguration,
         secrets: AiServiceAccountSecrets,

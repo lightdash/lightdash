@@ -80,7 +80,10 @@ import {
     AiServiceAccountSlotResolver,
 } from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
-import { resolveAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
+import {
+    isSupportedAiServiceAccountSlot,
+    resolveAiServiceAccountCredentials,
+} from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     connectionSurfaceFromQuerySurface,
@@ -1921,7 +1924,10 @@ export class AiAccessService extends BaseService {
                     }
                     if (
                         slot.warehouseType !== args.connection.type ||
-                        slot.method !== 'private_key'
+                        !isSupportedAiServiceAccountSlot(
+                            slot.warehouseType,
+                            slot.method,
+                        )
                     ) {
                         throw new AiAccessRefusedError(
                             AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,

@@ -29,6 +29,10 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
     CreateDatabricksCredentials,
     AiServiceAccountSecrets
 > {
+    readonly supportedMethods = [
+        DatabricksAuthenticationType.OAUTH_M2M,
+    ] as const;
+
     buildCredentials(
         connection: CreateWarehouseCredentials,
         secrets: AiServiceAccountSecrets,

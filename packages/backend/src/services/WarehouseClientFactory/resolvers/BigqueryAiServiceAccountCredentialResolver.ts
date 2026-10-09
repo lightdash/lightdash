@@ -29,6 +29,10 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
     CreateBigqueryCredentials,
     AiServiceAccountSecrets
 > {
+    readonly supportedMethods = [
+        BigqueryAuthenticationType.PRIVATE_KEY,
+    ] as const;
+
     buildCredentials(
         connection: CreateWarehouseCredentials & SshTunnelConfiguration,
         secrets: AiServiceAccountSecrets,

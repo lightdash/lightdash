@@ -3147,25 +3147,93 @@ describe('slot result composition and identity validation', () => {
         ).toHaveLength(1);
     });
 
-    test('reports invalid metadata without decrypting or emitting execution analytics', async () => {
-        const { service, organizationRules, slots, analytics } = setup();
-        organizationRules.get.mockResolvedValue({
-            source: 'ai_service_account',
-        });
-        slots.getSlot.mockResolvedValue({ ...slot, method: 'oauth_m2m' });
-        expect(
-            await service.getAiAccessForUser({ ...args, connection: bigquery }),
-        ).toMatchObject({
-            identity: 'ai_service_account',
-            source: 'ai_service_account',
-            principalKind: 'service_account',
-            refusal: {
-                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
-            },
-        });
-        expect(slots.getSecrets).not.toHaveBeenCalled();
-        expect(analytics.track).not.toHaveBeenCalled();
-    });
+    test.each([
+        {
+            connection: bigquery,
+            method: BigqueryAuthenticationType.PRIVATE_KEY,
+        },
+        {
+            connection: snowflake,
+            method: SnowflakeAuthenticationType.PRIVATE_KEY,
+        },
+        {
+            connection: {
+                type: WarehouseTypes.DATABRICKS,
+                serverHostName: 'workspace.example.com',
+                httpPath: '/sql/warehouse',
+                database: 'schema',
+            } satisfies CreateWarehouseCredentials,
+            method: DatabricksAuthenticationType.OAUTH_M2M,
+        },
+    ] as const)(
+        'accepts supported metadata for $connection.type with $method',
+        async ({ connection: warehouseConnection, method }) => {
+            const { service, organizationRules, slots, analytics } = setup();
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            slots.getSlot.mockResolvedValue({
+                ...slot,
+                warehouseType: warehouseConnection.type,
+                method,
+            });
+            expect(
+                await service.getAiAccessForUser({
+                    ...args,
+                    connection: warehouseConnection,
+                }),
+            ).toMatchObject({
+                enabled: true,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                principalKind: 'service_account',
+                refusal: null,
+            });
+            expect(slots.getSlot).toHaveBeenCalledExactlyOnceWith(
+                args.projectUuid,
+                args.warehouseConnectionUuid,
+            );
+            expect(slots.getSecrets).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each([
+        {
+            reason: 'unsupported method',
+            warehouseType: WarehouseTypes.BIGQUERY,
+            method: DatabricksAuthenticationType.OAUTH_M2M,
+        },
+        {
+            reason: 'mismatched warehouse',
+            warehouseType: WarehouseTypes.SNOWFLAKE,
+            method: SnowflakeAuthenticationType.PRIVATE_KEY,
+        },
+    ] as const)(
+        'reports invalid metadata for $reason without decrypting or emitting execution analytics',
+        async ({ warehouseType, method }) => {
+            const { service, organizationRules, slots, analytics } = setup();
+            organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            slots.getSlot.mockResolvedValue({ ...slot, warehouseType, method });
+            expect(
+                await service.getAiAccessForUser({
+                    ...args,
+                    connection: bigquery,
+                }),
+            ).toMatchObject({
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                principalKind: 'service_account',
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(slots.getSecrets).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+        },
+    );
 });
 
 describe('bounded stored result lineage', () => {

@@ -31,6 +31,18 @@ const entries = [
     },
 ] as const;
 
+export const isSupportedAiServiceAccountSlot = (
+    warehouseType: WarehouseTypes,
+    method: string,
+): boolean =>
+    entries.some(
+        (entry) =>
+            entry.warehouseType === warehouseType &&
+            entry.resolver.supportedMethods.some(
+                (supportedMethod) => supportedMethod === method,
+            ),
+    );
+
 export const registerAiServiceAccountCredentialResolvers = (
     registry: CredentialResolverRegistry,
 ): void => {
