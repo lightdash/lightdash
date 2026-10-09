@@ -11059,9 +11059,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 }
                 case 'document': {
                     const name = item.displayName ?? '(name unavailable)';
-                    return `- Document "${name}" (documentUuid: ${item.documentUuid}${
-                        item.documentSlug ? `, slug: ${item.documentSlug}` : ''
-                    }) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, documentUuid) before answering or editing, and save changes with editContent.`;
+                    const slugText = item.documentSlug ?? '(slug unavailable)';
+                    return `- Document "${name}" (documentSlug: ${slugText}) — the Document open in the user's view. When the user says "this" or asks for a change without naming content, they mean this Document. Read it with readContent (type document, slug) before answering or editing, and save changes with editContent.`;
                 }
                 case 'data_app_element': {
                     const name = item.displayName ?? '(name unavailable)';
@@ -14270,8 +14269,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         prompt: AiWebAppPrompt;
         agent: AiAgent;
     }): Promise<DocumentTurnContext | null> {
-        const [documentUuid, promptContext] = await Promise.all([
-            this.aiAgentModel.findThreadDocumentUuid(prompt.threadUuid),
+        const [documentSlug, promptContext] = await Promise.all([
+            this.aiAgentModel.findThreadDocumentSlug(prompt.threadUuid),
             this.aiAgentModel.getContextForPromptUuids([prompt.promptUuid]),
         ]);
         // Other pinned content could be what "it" means, so only the agent can tell.
@@ -14279,7 +14278,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptContext.get(prompt.promptUuid) ?? []
         ).some((item) => item.type !== 'document');
         if (
-            documentUuid === null ||
+            documentSlug === null ||
             pinsOtherContent ||
             !this.canUseContentTools(user, agent, prompt)
         ) {
@@ -14312,7 +14311,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         });
         const document = await runtime.readContent({
             type: 'document',
-            documentUuid,
+            slug: documentSlug,
             chartId: null,
         });
         if (

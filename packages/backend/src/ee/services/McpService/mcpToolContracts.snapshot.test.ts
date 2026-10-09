@@ -394,13 +394,13 @@ describe('MCP tool contracts', () => {
                         .success,
                 ).toBe(true);
                 if (name === 'read_content') {
-                    expect('documentUuid' in tool.config.inputSchema).toBe(
+                    expect('chartId' in tool.config.inputSchema).toBe(
                         documentsEnabled,
                     );
                     expect(
                         z.safeParse(tool.config.inputSchema.slug, undefined)
                             .success,
-                    ).toBe(documentsEnabled);
+                    ).toBe(false);
                 }
                 if (name === 'edit_content') {
                     expect('documentEdit' in tool.config.inputSchema).toBe(

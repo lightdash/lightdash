@@ -64,14 +64,14 @@ type PrivateService = {
 };
 
 const setup = ({
-    pinnedDocumentUuid = 'document' as string | null,
+    pinnedDocumentSlug = 'document' as string | null,
     authorized = true,
     documentsEnabled = true,
     interrupted = false,
     promptContext = ['document'] as string[],
 } = {}) => {
     const aiAgentModel = {
-        findThreadDocumentUuid: vi.fn().mockResolvedValue(pinnedDocumentUuid),
+        findThreadDocumentSlug: vi.fn().mockResolvedValue(pinnedDocumentSlug),
         getContextForPromptUuids: vi
             .fn()
             .mockResolvedValue(
@@ -134,13 +134,13 @@ describe('Document fast edit context', () => {
         });
         expect(runtime.readContent).toHaveBeenCalledWith({
             type: 'document',
-            documentUuid: 'document',
+            slug: 'document',
             chartId: null,
         });
     });
 
     test.each([
-        { name: 'no pinned Document', pinnedDocumentUuid: null },
+        { name: 'no pinned Document', pinnedDocumentSlug: null },
         { name: 'no ContentAsCode access', authorized: false },
         { name: 'Documents flag off', documentsEnabled: false },
         {

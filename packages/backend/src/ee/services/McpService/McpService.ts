@@ -2795,20 +2795,9 @@ export class McpService extends BaseService {
                 const readContentTool = getReadContent({
                     readContent: toolsRuntime.readContent,
                 });
-                const slug = args.slug ?? undefined;
-                const documentUuid = args.documentUuid ?? undefined;
                 if (args.type === 'document') {
-                    if ((slug === undefined) === (documentUuid === undefined)) {
-                        throw new ParameterError(
-                            'Reading a Document requires exactly one of slug or documentUuid',
-                        );
-                    }
-                    const identifier =
-                        documentUuid !== undefined
-                            ? { documentUuid }
-                            : { slug: slug as string };
                     const document = await toolsRuntime.readDocumentContent(
-                        identifier,
+                        args.slug,
                         args.chartId ?? null,
                     );
                     return this.buildScopedResponse(
@@ -2819,13 +2808,8 @@ export class McpService extends BaseService {
                         args.agentUuid,
                     );
                 }
-                if (slug === undefined || documentUuid !== undefined) {
-                    throw new ParameterError(
-                        'Reading charts, dashboards and data apps requires slug',
-                    );
-                }
                 const result = await readContentTool.execute!(
-                    { ...argsWithProject, type: args.type, slug },
+                    { ...argsWithProject, type: args.type, slug: args.slug },
                     {
                         toolCallId: '',
                         context: {},

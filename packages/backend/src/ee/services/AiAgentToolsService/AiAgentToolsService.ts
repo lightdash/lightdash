@@ -316,7 +316,7 @@ export type McpAiAgentToolsRuntime = Omit<
     getDataAppBuildStatus: GetDataAppBuildStatusFn;
     createDocumentContent: (content: unknown) => Promise<DocumentContentResult>;
     readDocumentContent: (
-        identifier: { slug: string } | { documentUuid: string },
+        slug: string,
         chartId: string | null,
     ) => Promise<DocumentContentResult>;
     editDocumentContent: (
@@ -791,8 +791,8 @@ export class AiAgentToolsService extends BaseService {
                 this.getDataAppBuildStatus(context, args),
             createDocumentContent: (content) =>
                 this.createDocumentContent(context, content),
-            readDocumentContent: (identifier, chartId) =>
-                this.readDocumentContent(context, identifier, chartId),
+            readDocumentContent: (slug, chartId) =>
+                this.readDocumentContent(context, slug, chartId),
             editDocumentContent: (slug, edit) =>
                 this.editDocumentContent(context, slug, edit),
             getExplore: this.withMcpRuntimeResult(
@@ -2126,7 +2126,7 @@ export class AiAgentToolsService extends BaseService {
         args: Parameters<ReadContentFn>[0],
     ): ReturnType<ReadContentFn> {
         if (args.type === 'document') {
-            return this.readDocumentContent(context, args, args.chartId);
+            return this.readDocumentContent(context, args.slug, args.chartId);
         }
         const { slug, type } = args;
         return wrapSentryTransaction(
@@ -4798,22 +4798,15 @@ export class AiAgentToolsService extends BaseService {
 
     private async readDocumentContent(
         context: AiAgentToolsRuntimeContext,
-        identifier: { slug: string } | { documentUuid: string },
+        slug: string,
         chartId: string | null = null,
     ) {
         assertRegisteredAccount(context.account);
-        const document =
-            'documentUuid' in identifier
-                ? await this.documentService.get(
-                      context.account,
-                      context.projectUuid,
-                      identifier.documentUuid,
-                  )
-                : await this.documentService.getBySlug(
-                      context.account,
-                      context.projectUuid,
-                      identifier.slug,
-                  );
+        const document = await this.documentService.getBySlug(
+            context.account,
+            context.projectUuid,
+            slug,
+        );
         return this.documentContentResult(context, document, chartId);
     }
 

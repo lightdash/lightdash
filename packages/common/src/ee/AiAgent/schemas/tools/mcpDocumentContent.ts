@@ -154,20 +154,6 @@ export const mcpCreateContentArgsSchema = toolCreateContentArgsSchema.extend({
 });
 
 export const mcpReadContentArgsSchema = toolReadContentArgsSchema.extend({
-    slug: z
-        .string()
-        .min(1)
-        .nullish()
-        .describe(
-            'Content slug. Null only when reading a Document by documentUuid.',
-        ),
-    documentUuid: z
-        .string()
-        .uuid()
-        .nullish()
-        .describe(
-            'For Documents only: UUID from a canonical Document URL, instead of slug. Null for other content types.',
-        ),
     type: z.enum(['dashboard', 'chart', 'sql_chart', 'data_app', 'document']),
     chartId: z
         .string()
