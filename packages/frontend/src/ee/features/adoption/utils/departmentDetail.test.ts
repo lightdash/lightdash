@@ -1,19 +1,29 @@
+import { type DepartmentVennRegion } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { memberFixture } from './adoptionFixtures';
 import {
     countMembersByFilter,
+    describeVennRegion,
     filterMembers,
+    formatAlsoIn,
     formatLastActive,
     formatMemberSource,
+    formatOverlapUsage,
     formatTopContentUsage,
     getActiveCaption,
     getCoverageCaption,
+    getOverlapRowLabel,
+    getOverlapSelection,
+    getOverlapSelectionLabel,
+    getVennSets,
+    getVennTitle,
     getWeekAxisLabels,
     getWeekLabels,
     getWeeklyChartLabel,
     getWeeklyComparison,
     getTopContentPath,
     getWeekTooltipRows,
+    isSameSelection,
     sortMembers,
 } from './departmentDetail';
 
@@ -425,5 +435,257 @@ describe('getActiveCaption', () => {
         expect(getActiveCaption(191, 85, 191)).toBe(
             '85 of 191 people were active',
         );
+    });
+});
+
+const DATA = { departmentUuid: 'data', name: 'Data' };
+const MARKETING = { departmentUuid: 'marketing', name: 'Marketing' };
+const SALES = { departmentUuid: 'sales', name: 'Sales' };
+const FINANCE = { departmentUuid: 'finance', name: 'Finance' };
+
+describe('getOverlapSelectionLabel', () => {
+    it('names the one department the people are also in', () => {
+        expect(getOverlapSelectionLabel(getOverlapSelection(MARKETING))).toBe(
+            'Also in Marketing',
+        );
+    });
+    it('names two departments with and', () => {
+        expect(
+            getOverlapSelectionLabel({
+                withDepartments: [MARKETING, SALES],
+                withoutDepartments: [],
+            }),
+        ).toBe('Also in Marketing and Sales');
+    });
+    it('adds the department they are not in', () => {
+        expect(
+            getOverlapSelectionLabel({
+                withDepartments: [MARKETING],
+                withoutDepartments: [SALES],
+            }),
+        ).toBe('Also in Marketing, not in Sales');
+    });
+    it('names only the departments they are not in when they are in no other', () => {
+        expect(
+            getOverlapSelectionLabel({
+                withDepartments: [],
+                withoutDepartments: [MARKETING, SALES],
+            }),
+        ).toBe('Not in Marketing or Sales');
+        expect(
+            getOverlapSelectionLabel({
+                withDepartments: [],
+                withoutDepartments: [MARKETING],
+            }),
+        ).toBe('Not in Marketing');
+    });
+});
+
+describe('isSameSelection', () => {
+    it('matches the same departments in any order', () => {
+        expect(
+            isSameSelection(
+                { withDepartments: [MARKETING, SALES], withoutDepartments: [] },
+                { withDepartments: [SALES, MARKETING], withoutDepartments: [] },
+            ),
+        ).toBe(true);
+    });
+    it('tells the departments they are in from the ones they are not in', () => {
+        expect(
+            isSameSelection(
+                { withDepartments: [MARKETING], withoutDepartments: [SALES] },
+                { withDepartments: [MARKETING], withoutDepartments: [] },
+            ),
+        ).toBe(false);
+        expect(
+            isSameSelection(
+                { withDepartments: [MARKETING], withoutDepartments: [] },
+                { withDepartments: [], withoutDepartments: [MARKETING] },
+            ),
+        ).toBe(false);
+    });
+});
+
+describe('overlap rows', () => {
+    const overlap = {
+        departmentUuid: 'marketing',
+        name: 'Marketing',
+        people: 1204,
+        active30d: 12,
+    };
+    it('gives the people in both and how many of them are active', () => {
+        expect(formatOverlapUsage(overlap)).toBe('1,204 people · 12 active');
+        expect(formatOverlapUsage({ people: 1, active30d: 1 })).toBe(
+            '1 person · 1 active',
+        );
+    });
+    it('names a row by its department and both counts', () => {
+        expect(getOverlapRowLabel(overlap)).toBe(
+            'Marketing, 1,204 people, 12 active',
+        );
+    });
+    it('selects the people also in that department, leaving no one out', () => {
+        expect(getOverlapSelection(MARKETING)).toEqual({
+            withDepartments: [MARKETING],
+            withoutDepartments: [],
+        });
+    });
+});
+
+describe('getVennSets', () => {
+    it('puts the department first and keeps its overlaps in order', () => {
+        expect(getVennSets([MARKETING, DATA, SALES], 'data')).toEqual([
+            DATA,
+            MARKETING,
+            SALES,
+        ]);
+        expect(getVennSets([DATA, MARKETING], 'data')).toEqual([
+            DATA,
+            MARKETING,
+        ]);
+    });
+    it('draws nothing without the department, or with fewer than two or more than three sets', () => {
+        expect(getVennSets([MARKETING, SALES], 'data')).toBeNull();
+        expect(getVennSets([DATA], 'data')).toBeNull();
+        expect(getVennSets([DATA, MARKETING, SALES, FINANCE], 'data')).toBe(
+            null,
+        );
+    });
+});
+
+describe('getVennTitle', () => {
+    it('names every department drawn', () => {
+        expect(getVennTitle([DATA, MARKETING, SALES])).toBe(
+            'Overlap of Data, Marketing and Sales',
+        );
+        expect(getVennTitle([DATA, MARKETING])).toBe(
+            'Overlap of Data and Marketing',
+        );
+    });
+});
+
+describe('describeVennRegion', () => {
+    const sets = [DATA, MARKETING, SALES];
+    const region = (
+        departmentUuids: string[],
+        people: number,
+    ): DepartmentVennRegion => ({
+        sets: departmentUuids,
+        people,
+        active30d: 0,
+    });
+    const regions = [
+        region(['data'], 1234),
+        region(['marketing'], 2000),
+        region(['sales'], 1),
+        region(['data', 'marketing'], 42),
+        region(['data', 'sales'], 7),
+        region(['marketing', 'sales'], 15),
+        region(['data', 'marketing', 'sales'], 5),
+    ];
+
+    it('counts the people in each region and names it by its departments', () => {
+        expect(
+            [[0], [2], [0, 1], [0, 1, 2]].map((positions) => {
+                const { people, name } = describeVennRegion(
+                    sets,
+                    regions,
+                    positions,
+                );
+                return { people, name };
+            }),
+        ).toEqual([
+            { people: 1234, name: 'Data only, 1,234 people' },
+            { people: 1, name: 'Sales only, 1 person' },
+            { people: 42, name: 'Data and Marketing, 42 people' },
+            { people: 5, name: 'Data, Marketing and Sales, 5 people' },
+        ]);
+    });
+    it('lists exactly the people of a region holding the department: in its other departments and in none of the rest', () => {
+        const selectionOf = (positions: number[]) =>
+            describeVennRegion(sets, regions, positions).selection;
+        expect(selectionOf([0])).toEqual({
+            withDepartments: [],
+            withoutDepartments: [MARKETING, SALES],
+        });
+        expect(selectionOf([0, 1])).toEqual({
+            withDepartments: [MARKETING],
+            withoutDepartments: [SALES],
+        });
+        expect(selectionOf([0, 2])).toEqual({
+            withDepartments: [SALES],
+            withoutDepartments: [MARKETING],
+        });
+        expect(selectionOf([0, 1, 2])).toEqual({
+            withDepartments: [MARKETING, SALES],
+            withoutDepartments: [],
+        });
+    });
+    it('never lists a region outside the department', () => {
+        [[1], [2], [1, 2]].forEach((positions) =>
+            expect(
+                describeVennRegion(sets, regions, positions).selection,
+            ).toBeNull(),
+        );
+    });
+    it('does not list a region with nobody in it, and counts one the server left out as empty', () => {
+        const emptied = regions.map((r) =>
+            r.sets.length === 3 ? { ...r, people: 0 } : r,
+        );
+        expect(describeVennRegion(sets, emptied, [0, 1, 2])).toEqual({
+            people: 0,
+            name: 'Data, Marketing and Sales, 0 people',
+            selection: null,
+        });
+        expect(describeVennRegion(sets, regions.slice(0, 3), [0, 1])).toEqual({
+            people: 0,
+            name: 'Data and Marketing, 0 people',
+            selection: null,
+        });
+    });
+    it('finds a region whatever order its departments come in', () => {
+        expect(
+            describeVennRegion(
+                sets,
+                [region(['sales', 'data', 'marketing'], 9)],
+                [0, 1, 2],
+            ).people,
+        ).toBe(9);
+    });
+    it('lists the department alone, not in the one other department drawn', () => {
+        expect(
+            describeVennRegion(
+                [DATA, MARKETING],
+                [region(['data'], 3), region(['data', 'marketing'], 2)],
+                [0],
+            ),
+        ).toEqual({
+            people: 3,
+            name: 'Data only, 3 people',
+            selection: { withDepartments: [], withoutDepartments: [MARKETING] },
+        });
+    });
+});
+
+describe('formatAlsoIn', () => {
+    it('names the other departments a person is in, by name', () => {
+        expect(formatAlsoIn([SALES, FINANCE])).toBe(
+            'Also in Finance and Sales',
+        );
+        expect(formatAlsoIn([MARKETING])).toBe('Also in Marketing');
+    });
+    it('is nothing for someone in no other department', () => {
+        expect(formatAlsoIn([])).toBeNull();
+    });
+    it('names three and counts the rest', () => {
+        expect(
+            formatAlsoIn([
+                SALES,
+                FINANCE,
+                MARKETING,
+                DATA,
+                { departmentUuid: 'ops', name: 'Operations' },
+            ]),
+        ).toBe('Also in Data, Finance, Marketing and 2 more');
     });
 });

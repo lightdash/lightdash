@@ -7,6 +7,7 @@ import { useMemo, useState, type FC } from 'react';
 import {
     countMembersByFilter,
     filterMembers,
+    formatAlsoIn,
     formatLastActive,
     formatMemberSource,
     sortMembers,
@@ -94,31 +95,43 @@ export const DepartmentMembersTable: FC<{ members: DepartmentMember[] }> = ({
                             </Table.Td>
                         </Table.Tr>
                     )}
-                    {visible.map((member) => (
-                        <Table.Tr key={member.userUuid}>
-                            <Table.Td>
-                                <Text fz="sm" fw={500}>
-                                    {`${member.firstName} ${member.lastName}`.trim()}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {member.email}
-                                </Text>
-                            </Table.Td>
-                            <Table.Td>
-                                {OrganizationMemberRoleLabels[member.role]}
-                            </Table.Td>
-                            <Table.Td>{formatMemberSource(member)}</Table.Td>
-                            <Table.Td>
-                                {formatLastActive(member.lastActiveAt)}
-                            </Table.Td>
-                            <Table.Td>
-                                {formatCount(member.queries30d)}
-                            </Table.Td>
-                            <Table.Td>
-                                {formatCount(member.dashboardViews30d)}
-                            </Table.Td>
-                        </Table.Tr>
-                    ))}
+                    {visible.map((member) => {
+                        const alsoIn = formatAlsoIn(member.sharedWith);
+                        return (
+                            <Table.Tr key={member.userUuid}>
+                                <Table.Td>
+                                    <Text fz="sm" fw={500}>
+                                        {`${member.firstName} ${member.lastName}`.trim()}
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {member.email}
+                                    </Text>
+                                </Table.Td>
+                                <Table.Td>
+                                    {OrganizationMemberRoleLabels[member.role]}
+                                </Table.Td>
+                                <Table.Td>
+                                    <Text fz="sm">
+                                        {formatMemberSource(member)}
+                                    </Text>
+                                    {alsoIn !== null && (
+                                        <Text fz="xs" c="dimmed">
+                                            {alsoIn}
+                                        </Text>
+                                    )}
+                                </Table.Td>
+                                <Table.Td>
+                                    {formatLastActive(member.lastActiveAt)}
+                                </Table.Td>
+                                <Table.Td>
+                                    {formatCount(member.queries30d)}
+                                </Table.Td>
+                                <Table.Td>
+                                    {formatCount(member.dashboardViews30d)}
+                                </Table.Td>
+                            </Table.Tr>
+                        );
+                    })}
                 </Table.Tbody>
             </Table>
             {pageCount > 1 && (

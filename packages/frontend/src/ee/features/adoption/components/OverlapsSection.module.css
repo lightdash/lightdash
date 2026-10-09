@@ -1,0 +1,140 @@
+/* The department is violet, its two largest overlaps teal and orange; each pair keeps 3:1 against the surface */
+.outline {
+    fill: none;
+    stroke-width: 1.5px;
+    pointer-events: none;
+}
+
+.outline[data-set='0'] {
+    stroke: light-dark(
+        var(--mantine-color-violet-7),
+        var(--mantine-color-violet-6)
+    );
+}
+
+.outline[data-set='1'] {
+    stroke: var(--mantine-color-teal-7);
+}
+
+.outline[data-set='2'] {
+    stroke: light-dark(
+        var(--mantine-color-orange-7),
+        var(--mantine-color-orange-8)
+    );
+}
+
+.venn {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* A region holding the department is tinted, deeper the more departments share it */
+.region {
+    fill: light-dark(
+        var(--mantine-color-violet-7),
+        var(--mantine-color-violet-6)
+    );
+    fill-opacity: 0.1;
+    stroke: none;
+    cursor: pointer;
+    outline: none;
+}
+
+.region[data-depth='2'] {
+    fill-opacity: 0.2;
+}
+
+.region[data-depth='3'] {
+    fill-opacity: 0.3;
+}
+
+.region:hover {
+    fill-opacity: 0.16;
+}
+
+.region[data-depth='2']:hover {
+    fill-opacity: 0.26;
+}
+
+.region[data-depth='3']:hover {
+    fill-opacity: 0.36;
+}
+
+.region:focus-visible,
+.region[aria-pressed='true'] {
+    stroke: var(--mantine-color-text);
+    stroke-width: 2.5px;
+}
+
+/* Outside the department, or nobody in it: a count, never a filter */
+.region[data-muted] {
+    fill: none;
+    cursor: default;
+}
+
+.count {
+    fill: var(--mantine-color-text);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.count[data-muted] {
+    fill: var(--mantine-color-dimmed);
+    font-weight: 400;
+}
+
+.key {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.swatch {
+    display: block;
+    flex: none;
+    overflow: visible;
+}
+
+.row {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    width: 100%;
+    padding: 0 var(--mantine-spacing-xs);
+    border: none;
+    border-radius: var(--mantine-radius-sm);
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+}
+
+.row:hover,
+.row[aria-pressed='true'] {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.row[aria-pressed='true'] .rowName {
+    font-weight: 600;
+}
+
+/* The counts stay on one line; the name beside them gives up width instead */
+.usage {
+    white-space: nowrap;
+}
+
+/* People in both, against the department with the most; square where it starts, rounded where it ends */
+.bar {
+    display: block;
+    height: 6px;
+    min-width: 2px;
+    border-radius: 0 3px 3px 0;
+    background-color: light-dark(
+        var(--mantine-color-violet-7),
+        var(--mantine-color-violet-6)
+    );
+}

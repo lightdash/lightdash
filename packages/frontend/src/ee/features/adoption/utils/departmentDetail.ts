@@ -2,8 +2,11 @@ import {
     assertUnreachable,
     type AdoptionMetrics,
     type DepartmentMember,
+    type DepartmentOverlap,
+    type DepartmentRef,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
+    type DepartmentVennRegion,
     type WeeklyActivePoint,
 } from '@lightdash/common';
 import { getAiAgentPageBase } from '../../aiCopilot/hooks/aiAgentRouting';
@@ -108,6 +111,27 @@ export const formatLastActive = (
     if (days === 1) return 'Yesterday';
     if (days <= ACTIVE_DAYS) return `${days} days ago`;
     return formatUtcDate(lastActiveAt);
+};
+
+// "A", "A and B", "A, B and C"
+const formatNames = (names: string[], conjunction: 'and' | 'or'): string =>
+    names.length <= 1
+        ? names.join('')
+        : `${names.slice(0, -1).join(', ')} ${conjunction} ${names[names.length - 1]}`;
+
+const byName = (a: DepartmentRef, b: DepartmentRef): number =>
+    a.name.localeCompare(b.name);
+
+const ALSO_IN_NAMES = 3;
+
+// The other departments a person is in, by name; past three the rest are counted
+export const formatAlsoIn = (departments: DepartmentRef[]): string | null => {
+    if (departments.length === 0) return null;
+    const names = [...departments].sort(byName).map((d) => d.name);
+    const rest = names.length - ALSO_IN_NAMES;
+    return rest > 0
+        ? `Also in ${names.slice(0, ALSO_IN_NAMES).join(', ')} and ${formatCount(rest)} more`
+        : `Also in ${formatNames(names, 'and')}`;
 };
 
 // How the person is in the department, in plain words
@@ -279,4 +303,119 @@ export const getActiveCaption = (
     return withAccount === null || headcount === memberCount
         ? overall
         : `${overall} · ${withAccount}`;
+};
+
+// People of this department also in every "with" department and in no "without" one
+export type OverlapSelection = {
+    withDepartments: DepartmentRef[];
+    withoutDepartments: DepartmentRef[];
+};
+
+// The people also in one department, whatever else they are in
+export const getOverlapSelection = ({
+    departmentUuid,
+    name,
+}: DepartmentRef): OverlapSelection => ({
+    withDepartments: [{ departmentUuid, name }],
+    withoutDepartments: [],
+});
+
+const uuidsOf = (departments: DepartmentRef[]): string =>
+    departments
+        .map((d) => d.departmentUuid)
+        .sort()
+        .join(',');
+
+// The same for the same departments in any order
+export const getOverlapSelectionKey = ({
+    withDepartments,
+    withoutDepartments,
+}: OverlapSelection): string =>
+    `${uuidsOf(withDepartments)}|${uuidsOf(withoutDepartments)}`;
+
+export const isSameSelection = (
+    a: OverlapSelection,
+    b: OverlapSelection,
+): boolean => getOverlapSelectionKey(a) === getOverlapSelectionKey(b);
+
+// The words on the chip that narrows the people to an overlap
+export const getOverlapSelectionLabel = ({
+    withDepartments,
+    withoutDepartments,
+}: OverlapSelection): string => {
+    const notIn = formatNames(
+        withoutDepartments.map((d) => d.name),
+        'or',
+    );
+    if (withDepartments.length === 0) return `Not in ${notIn}`;
+    const alsoIn = `Also in ${formatNames(
+        withDepartments.map((d) => d.name),
+        'and',
+    )}`;
+    return withoutDepartments.length === 0
+        ? alsoIn
+        : `${alsoIn}, not in ${notIn}`;
+};
+
+export const formatOverlapUsage = ({
+    people,
+    active30d,
+}: Pick<DepartmentOverlap, 'people' | 'active30d'>): string =>
+    `${formatQuantity(people, PEOPLE)} · ${formatCount(active30d)} active`;
+
+export const getOverlapRowLabel = (overlap: DepartmentOverlap): string =>
+    `${overlap.name}, ${formatQuantity(overlap.people, PEOPLE)}, ${formatCount(overlap.active30d)} active`;
+
+// The department first, then its largest overlaps; null when there is nothing to draw truthfully
+export const getVennSets = (
+    sets: DepartmentRef[],
+    departmentUuid: string,
+): DepartmentRef[] | null => {
+    const department = sets.find((d) => d.departmentUuid === departmentUuid);
+    if (department === undefined || sets.length < 2 || sets.length > 3) {
+        return null;
+    }
+    return [department, ...sets.filter((d) => d !== department)];
+};
+
+export const getVennTitle = (sets: DepartmentRef[]): string =>
+    `Overlap of ${formatNames(
+        sets.map((d) => d.name),
+        'and',
+    )}`;
+
+export type VennRegionView = {
+    people: number;
+    name: string; // its departments and count, for assistive technology
+    selection: OverlapSelection | null; // null when it cannot be listed
+};
+
+// A drawn region by the positions of its sets, the department at 0. Only a region holding the department, and
+// somebody, can be listed: exactly, as also in its other sets and in none of the rest
+export const describeVennRegion = (
+    sets: DepartmentRef[],
+    regions: DepartmentVennRegion[],
+    positions: number[],
+): VennRegionView => {
+    const inRegion = sets.filter((_, i) => positions.includes(i));
+    const key = uuidsOf(inRegion);
+    const people =
+        regions.find((region) => [...region.sets].sort().join(',') === key)
+            ?.people ?? 0;
+    const names = inRegion.map((d) => d.name);
+    const departments =
+        names.length === 1 ? `${names[0]} only` : formatNames(names, 'and');
+    return {
+        people,
+        name: `${departments}, ${formatQuantity(people, PEOPLE)}`,
+        selection:
+            positions.includes(0) && people > 0
+                ? {
+                      withDepartments: inRegion.slice(1),
+                      withoutDepartments: sets.filter(
+                          (_, i) => !positions.includes(i),
+                      ),
+                  }
+                : null,
+    };
 };

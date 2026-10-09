@@ -129,4 +129,30 @@ describe('DepartmentMembersTable', () => {
             screen.getByText('No one in this department has an account yet'),
         ).toBeVisible();
     });
+    it('says which other departments a person is also in, under how they are in this one', () => {
+        renderWithProviders(
+            <DepartmentMembersTable
+                members={[
+                    memberFixture('shared', null, {
+                        isDirect: false,
+                        departmentName: 'North',
+                        sharedWith: [
+                            { departmentUuid: 'sales', name: 'Sales' },
+                            { departmentUuid: 'finance', name: 'Finance' },
+                        ],
+                    }),
+                    memberFixture('single', null),
+                ]}
+            />,
+        );
+        const [shared, single] = bodyRows();
+        const cell = within(shared).getByText('Via North').closest('td');
+        expect(cell).not.toBeNull();
+        if (cell) {
+            expect(
+                within(cell).getByText('Also in Finance and Sales'),
+            ).toBeVisible();
+        }
+        expect(within(single).queryByText(/Also in/)).not.toBeInTheDocument();
+    });
 });

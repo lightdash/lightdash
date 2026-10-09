@@ -1,7 +1,10 @@
 import { subject } from '@casl/ability';
+import { type DepartmentMember } from '@lightdash/common';
 import {
     Anchor,
     Button,
+    Group,
+    Pill,
     SimpleGrid,
     Stack,
     Table,
@@ -13,12 +16,14 @@ import { useMemo, useState, type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { validate as isUuid } from 'uuid';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
+import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import useApp from '../../providers/App/useApp';
 import { DepartmentDrawer } from '../features/adoption/components/DepartmentDrawer';
 import { DepartmentMembersTable } from '../features/adoption/components/DepartmentMembersTable';
+import { OverlapsSection } from '../features/adoption/components/OverlapsSection';
 import { StatTile } from '../features/adoption/components/StatTile';
 import { TopContentList } from '../features/adoption/components/TopContentList';
 import { WeeklyActiveChart } from '../features/adoption/components/WeeklyActiveChart';
@@ -29,7 +34,10 @@ import {
 import {
     getActiveCaption,
     getCoverageCaption,
+    getOverlapSelectionKey,
+    getOverlapSelectionLabel,
     getWeeklyComparison,
+    type OverlapSelection,
 } from '../features/adoption/utils/departmentDetail';
 import {
     formatShare,
@@ -39,6 +47,7 @@ import {
 import { type Noun } from '../features/adoption/utils/format';
 import {
     useDepartmentDetail,
+    useDepartmentOverlaps,
     useOrgAdoptionSummary,
 } from '../hooks/useOrgDepartments';
 
@@ -72,6 +81,61 @@ const getUnavailableCopy = (
     return { title: "This department isn't available", description: message };
 };
 
+type OverlapPeopleProps = {
+    label: string; // what the people are narrowed to
+    people: DepartmentMember[] | null; // null until loaded
+    isError: boolean;
+    onRetry: () => void;
+    onClear: () => void;
+};
+
+// The department's people narrowed to one overlap, under a chip that brings everyone back
+const OverlapPeople: FC<OverlapPeopleProps> = ({
+    label,
+    people,
+    isError,
+    onRetry,
+    onClear,
+}) => {
+    const renderPeople = () => {
+        if (people !== null) {
+            return people.length === 0 ? (
+                <Text fz="sm" c="dimmed">
+                    Nobody matches this filter
+                </Text>
+            ) : (
+                <DepartmentMembersTable members={people} />
+            );
+        }
+        return isError ? (
+            <InlineErrorState
+                message="These people couldn't be loaded"
+                onRetry={onRetry}
+            />
+        ) : (
+            <EmptyStateLoader title="Loading people" />
+        );
+    };
+    return (
+        <Stack gap="sm">
+            <Group>
+                <Pill
+                    withRemoveButton
+                    onRemove={onClear}
+                    removeButtonProps={{
+                        'aria-label': `Clear filter: ${label}`,
+                        'aria-hidden': false,
+                        tabIndex: 0,
+                    }}
+                >
+                    {label}
+                </Pill>
+            </Group>
+            {renderPeople()}
+        </Stack>
+    );
+};
+
 const AdoptionDepartment: FC = () => {
     const { departmentUuid: routeDepartmentUuid } = useParams<{
         departmentUuid: string;
@@ -92,6 +156,29 @@ const AdoptionDepartment: FC = () => {
     const detail = useDepartmentDetail(departmentUuid);
     // The weekly comparison needs the organization's numbers; the drawer's parent picker needs every department
     const summary = useOrgAdoptionSummary(departmentUuid !== undefined);
+    const overlaps = useDepartmentOverlaps(departmentUuid);
+    // Kept with the department it was chosen on, so another department's page starts with everyone
+    const [chosenOverlap, setChosenOverlap] = useState<{
+        departmentUuid: string;
+        selection: OverlapSelection;
+    } | null>(null);
+    const selection =
+        chosenOverlap !== null &&
+        chosenOverlap.departmentUuid === departmentUuid
+            ? chosenOverlap.selection
+            : null;
+    const selectOverlap = (next: OverlapSelection | null) =>
+        setChosenOverlap(
+            next === null || departmentUuid === undefined
+                ? null
+                : { departmentUuid, selection: next },
+        );
+    // Nobody's people are asked for until an overlap is chosen
+    const overlapPeople = useDepartmentOverlaps(
+        selection === null ? undefined : departmentUuid,
+        selection?.withDepartments.map((d) => d.departmentUuid) ?? [],
+        selection?.withoutDepartments.map((d) => d.departmentUuid) ?? [],
+    );
     const [isEditing, setIsEditing] = useState(false);
     // While a delete is in flight the refetch returns 404; keep the last page until we leave
     const [isDeleting, setIsDeleting] = useState(false);
@@ -250,6 +337,14 @@ const AdoptionDepartment: FC = () => {
                     </SimpleGrid>
                 </Stack>
 
+                <OverlapsSection
+                    overlaps={overlaps.data ?? null}
+                    isError={overlaps.isError}
+                    onRetry={() => void overlaps.refetch()}
+                    selection={selection}
+                    onSelect={selectOverlap}
+                />
+
                 {children.length > 0 && (
                     <Stack gap="xs">
                         <Title order={5}>Sub-departments</Title>
@@ -311,7 +406,23 @@ const AdoptionDepartment: FC = () => {
 
                 <Stack gap="xs">
                     <Title order={5}>People</Title>
-                    <DepartmentMembersTable members={members} />
+                    {selection === null ? (
+                        <DepartmentMembersTable members={members} />
+                    ) : (
+                        // A new overlap starts its list afresh, on its first page
+                        <OverlapPeople
+                            key={getOverlapSelectionKey(selection)}
+                            label={getOverlapSelectionLabel(selection)}
+                            people={
+                                overlapPeople.data
+                                    ? (overlapPeople.data.members ?? [])
+                                    : null
+                            }
+                            isError={overlapPeople.isError}
+                            onRetry={() => void overlapPeople.refetch()}
+                            onClear={() => selectOverlap(null)}
+                        />
+                    )}
                 </Stack>
             </Stack>
 

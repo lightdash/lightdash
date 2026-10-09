@@ -2,6 +2,7 @@ import {
     OrganizationMemberRole,
     type DepartmentDetail,
     type DepartmentMembership,
+    type DepartmentOverlaps,
 } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -53,6 +54,7 @@ const { mutation, hooks } = vi.hoisted(() => ({
     hooks: {
         membership: [] as DepartmentMembership[],
         detail: undefined as DepartmentDetail | undefined,
+        overlaps: undefined as DepartmentOverlaps | undefined,
     },
 }));
 vi.mock('../../../hooks/useOrgDepartments', () => ({
@@ -75,6 +77,25 @@ vi.mock('../../../hooks/useOrgDepartments', () => ({
         error: null,
     }),
     useOrgAdoptionSummary: () => ({ data: undefined }),
+    // The overlaps as set, and for a chosen overlap the page's own people
+    useDepartmentOverlaps: (
+        departmentUuid: string | undefined,
+        withUuids: string[] = [],
+        withoutUuids: string[] = [],
+    ) => ({
+        data:
+            departmentUuid === undefined || hooks.overlaps === undefined
+                ? undefined
+                : {
+                      ...hooks.overlaps,
+                      members:
+                          withUuids.length + withoutUuids.length === 0
+                              ? null
+                              : (hooks.detail?.members ?? []),
+                  },
+        isInitialLoading: false,
+        isError: false,
+    }),
 }));
 vi.mock('../../../../hooks/useOrganizationUsers', () => ({
     useOrganizationUsers: () => ({ data: [] }),
@@ -179,6 +200,7 @@ describe('typed strings render as text', () => {
     afterEach(() => {
         hooks.membership = [];
         hooks.detail = undefined;
+        hooks.overlaps = undefined;
     });
 
     it('in the list table', async () => {
@@ -484,6 +506,103 @@ describe('typed strings render as text', () => {
                 screen.queryAllByText((content) => content.includes(text)),
             ).toHaveLength(0),
         );
+        expectNothingInjected();
+    });
+
+    it('in the overlaps: the diagram, its key, the list, the people filter and who else each person is in', async () => {
+        const PAGE = '11111111-2222-4333-8444-555555555555';
+        const OTHER = hostile('Other');
+        const THIRD = hostile('Third');
+        const other = { departmentUuid: 'other', name: OTHER };
+        const third = { departmentUuid: 'third', name: THIRD };
+        hooks.detail = {
+            department: { ...hostileDepartment, departmentUuid: PAGE },
+            ancestors: [],
+            children: [],
+            targetProgress: null,
+            weeklyActive: [],
+            topContent: { dashboards: [], explores: [], aiAgents: [] },
+            members: [
+                memberFixture('p1', null, {
+                    firstName: PERSON,
+                    departmentUuid: PAGE,
+                    departmentName: NAME,
+                    sharedWith: [other],
+                }),
+            ],
+        };
+        hooks.overlaps = {
+            department: { departmentUuid: PAGE, name: NAME },
+            overlaps: [
+                { ...other, people: 1, active30d: 0 },
+                { ...third, people: 1, active30d: 0 },
+            ],
+            venn: {
+                sets: [{ departmentUuid: PAGE, name: NAME }, other, third],
+                regions: [
+                    { sets: [PAGE], people: 0, active30d: 0 },
+                    { sets: ['other'], people: 4, active30d: 0 },
+                    { sets: ['third'], people: 2, active30d: 0 },
+                    { sets: [PAGE, 'other'], people: 1, active30d: 0 },
+                    { sets: [PAGE, 'third'], people: 1, active30d: 0 },
+                    { sets: ['other', 'third'], people: 0, active30d: 0 },
+                    { sets: [PAGE, 'other', 'third'], people: 0, active30d: 0 },
+                ],
+            },
+            members: null,
+        };
+        const { container } = renderWithProviders(
+            <MemoryRouter
+                initialEntries={[`/generalSettings/adoption/${PAGE}`]}
+            >
+                <Routes>
+                    <Route
+                        path="/generalSettings/adoption/:departmentUuid"
+                        element={<AdoptionDepartment />}
+                    />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        // The drawing's title and its regions' names hold the names as typed, as text
+        expect(
+            screen.getByRole('group', {
+                name: `Overlap of ${NAME}, ${OTHER} and ${THIRD}`,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', {
+                name: `${NAME} and ${OTHER}, 1 person`,
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('img', { name: `${OTHER} only, 4 people` }),
+        ).toBeInTheDocument();
+        container
+            .querySelectorAll('svg title, svg text')
+            .forEach((node) => expect(node.children).toHaveLength(0));
+        // The key, the list and the person's other department are text
+        [NAME, OTHER, THIRD].forEach(expectLiteral);
+        expectLiteral(`Also in ${OTHER}`);
+        expectNothingInjected();
+
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: `${THIRD}, 1 person, 0 active`,
+            }),
+        );
+        expect(
+            screen.getByRole('button', {
+                name: `Clear filter: Also in ${THIRD}`,
+            }),
+        ).toBeInTheDocument();
+        expectLiteral(`Also in ${THIRD}`);
+        await userEvent.click(
+            screen.getByRole('button', {
+                name: `${NAME} and ${OTHER}, 1 person`,
+            }),
+        );
+        expectLiteral(`Also in ${OTHER}, not in ${THIRD}`);
         expectNothingInjected();
     });
 
