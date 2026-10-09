@@ -1,10 +1,7 @@
-import {
-    getChildrenMap,
-    getResidualHeadcount,
-    type DepartmentWithMetrics,
-} from '@lightdash/common';
+import { getChildrenMap, type DepartmentWithMetrics } from '@lightdash/common';
 import { countBucketPeople, type PeopleBucket } from '../map/geometry';
 import { formatCount } from '../utils/format';
+import { getDirectHeadcount } from '../utils/headcount';
 
 // One part of a department's block: a sub-department with everyone below it, the people directly in the department
 // beside its sub-departments ("Directly in" it), or the whole of a department without sub-departments
@@ -86,14 +83,7 @@ export const buildWaffleBlocks = (
                 size: countBucketPeople(people),
             };
         });
-        const residual = getResidualHeadcount(
-            top.effectiveHeadcount,
-            subDepartments.reduce(
-                (sum, child) => sum + child.effectiveHeadcount,
-                0,
-            ),
-            top.directMetrics.memberCount,
-        );
+        const residual = getDirectHeadcount(top, subDepartments);
         if (residual <= 0) return parts;
         return [
             ...parts,
@@ -102,7 +92,11 @@ export const buildWaffleBlocks = (
                 kind: 'direct',
                 departmentUuid: top.departmentUuid,
                 name: `Directly in ${top.name}`,
-                people: { metrics: top.directMetrics, headcount: residual },
+                // Without a headcount anywhere in the department the residual is only its people, so none is quoted
+                people: {
+                    metrics: top.directMetrics,
+                    headcount: top.hasHeadcount ? residual : null,
+                },
                 size: residual,
             },
         ];

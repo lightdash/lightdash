@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
+import adoptionMapStyles from '../map/AdoptionMap.module.css';
 import mapStyles from '../map/DepartmentMap.module.css';
 import { type ColourBy } from '../map/geometry';
 import { COLOUR_BY_LABELS, LEGEND_KINDS } from '../map/mapStyles';
@@ -19,6 +20,7 @@ import {
     dept,
     metricsFixture,
     seededOrganization,
+    withServerHeadcounts,
 } from '../utils/adoptionFixtures';
 import { getSweepDelay } from '../utils/sweepDelay';
 import type * as Layout from './layout';
@@ -33,11 +35,12 @@ vi.mock('./layout', async (importOriginal) => {
     return { ...actual, getSquareOffset };
 });
 
+// The departments with their effective headcounts as the server works them out
 const summary = (
     departments: DepartmentWithMetrics[],
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(0, null),
-    departments,
+    departments: withServerHeadcounts(departments),
     attention: { conflictCount: 0, unassignedCount: 0 },
 });
 
@@ -65,8 +68,6 @@ const d = (
 ) =>
     dept(name, parent, null, {
         headcount,
-        effectiveHeadcount: Math.max(headcount, members),
-        hasHeadcount: true,
         metrics: metricsFixture(members, null, {
             activeCount30d: active,
             activeCount12w: active,
@@ -254,6 +255,15 @@ describe('WaffleView', () => {
             expect(part.style.getPropertyValue('--cell')).toBe('16px'),
         );
         expect(drawnSquares(container)).toHaveLength(33);
+    });
+
+    it("sets the map's shared colours on its root, which the panel's bars and keys read", () => {
+        const { container } = renderWaffle(seededOrganization());
+        expect(
+            container.querySelector(`.${adoptionMapStyles.root}`),
+        ).toContainElement(
+            screen.getByRole('complementary', { name: 'Details' }),
+        );
     });
 
     it('is as tall as its content rather than a fixed drawing', () => {
@@ -620,8 +630,6 @@ describe('WaffleView', () => {
             // Five admins and five viewers spread through ten people, so colouring by role regroups them
             const team = dept('Team', null, null, {
                 headcount: 12,
-                effectiveHeadcount: 12,
-                hasHeadcount: true,
                 metrics: metricsFixture(10, null, {
                     activeCount30d: 4,
                     activeCount12w: 4,

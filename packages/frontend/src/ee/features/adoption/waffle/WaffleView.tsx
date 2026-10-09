@@ -315,7 +315,6 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         () =>
             getCoverageRows(
                 getVisibleDepartments(departments, selectedDepartmentUuid),
-                departments,
             ),
         [departments, selectedDepartmentUuid],
     );
@@ -344,7 +343,8 @@ export const WaffleView: FC<Props> = ({ summary, canManage, onEdit }) => {
         topUuid === null ? null : (trail[1]?.departmentUuid ?? topUuid);
 
     return (
-        <Stack gap="md">
+        // The map's root sets the colours the panel's bars and keys share with the dots and squares
+        <Stack gap="md" className={mapStyles.root}>
             <AdoptionViewHeader
                 label="Selected department"
                 trail={trail}

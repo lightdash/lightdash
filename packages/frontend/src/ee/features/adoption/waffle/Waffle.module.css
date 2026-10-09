@@ -174,7 +174,8 @@
 .mark[data-kind='inactive'],
 .mark[data-kind='viewer'] {
     background-color: var(--mantine-color-body);
-    box-shadow: inset 0 0 0 1px var(--mantine-color-violet-outline);
+    /* The map's shared not-active colour, set on the view's root */
+    box-shadow: inset 0 0 0 1px var(--adoption-not-active);
 }
 
 .mark[data-kind='noAccount'] {

@@ -8,6 +8,7 @@ import {
     dept,
     metricsFixture,
     seededOrganization,
+    withServerHeadcounts,
 } from '../utils/adoptionFixtures';
 import {
     buildWaffleBlocks,
@@ -126,15 +127,38 @@ describe('buildWaffleBlocks', () => {
         expect(product.size).toBe(1);
     });
 
+    it('quotes no headcount for the people directly in a department without one anywhere, as the map does', () => {
+        const [ops] = buildWaffleBlocks(
+            withServerHeadcounts([
+                dept('Ops', null, null, {
+                    headcount: null,
+                    metrics: metricsFixture(5, null),
+                    directMetrics: metricsFixture(2, null),
+                }),
+                dept('Stores', 'Ops', null, {
+                    headcount: null,
+                    metrics: metricsFixture(3, null),
+                    directMetrics: metricsFixture(3, null),
+                }),
+            ]),
+        );
+        const direct = ops.parts.find((part) => part.kind === 'direct');
+        expect(direct?.size).toBe(2);
+        expect(direct?.people.headcount).toBeNull();
+        expect(
+            direct && direct.name !== null ? formatPartLabel(direct) : null,
+        ).toBe('Directly in Ops · 2 on Lightdash');
+    });
+
     it('ignores a department whose parent is missing by putting it at the top', () => {
-        const blocks = buildWaffleBlocks([
-            dept('Orphan', 'gone', null, {
-                headcount: 5,
-                effectiveHeadcount: 5,
-                hasHeadcount: true,
-                metrics: metricsFixture(2, 40),
-            }),
-        ]);
+        const blocks = buildWaffleBlocks(
+            withServerHeadcounts([
+                dept('Orphan', 'gone', null, {
+                    headcount: 5,
+                    metrics: metricsFixture(2, 40),
+                }),
+            ]),
+        );
         expect(blocks.map((block) => block.name)).toEqual(['Orphan']);
     });
 });
