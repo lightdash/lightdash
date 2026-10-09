@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    AgentActorSurface,
     AGENT_IDENTITY_SETTINGS_PATH,
+    AgentActorSurface,
     AgentIdentityConnectEntryPoint,
     AgentIdentityConnectFailureReason,
     AI_AGENT_APPLICATION_NAME,
