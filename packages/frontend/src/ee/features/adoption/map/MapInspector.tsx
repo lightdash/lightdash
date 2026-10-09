@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     OrganizationMemberRoleLabels,
     type DepartmentMember,
     type DepartmentWithMetrics,
@@ -9,7 +10,7 @@ import {
     CloseButton,
     Group,
     Paper,
-    SimpleGrid,
+    Progress,
     Stack,
     Text,
     Title,
@@ -17,22 +18,31 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { getDepartmentPath } from '../utils/adoptionNav';
-import { formatOwners } from '../utils/departmentRows';
-import styles from './AdoptionMap.module.css';
+import { getMissingHeadcountWord } from '../utils/departmentRows';
+import { formatCount } from '../utils/format';
 import {
-    formatCount,
-    formatMemberActivity,
-    formatPct,
-    sortForInspector,
-    type ViewTotals,
-} from './mapView';
+    getDirectRow,
+    hasHeadcountInView,
+    type CoverageReading,
+    type CoverageRow,
+    type PeopleBreakdown,
+} from '../utils/peopleBreakdown';
+import styles from './AdoptionMap.module.css';
+import { type ColourBy } from './geometry';
+import { DotSwatch } from './MapLegend';
+import { DOT_LABELS } from './mapStyles';
+import { formatMemberActivity, formatPct } from './mapView';
 
 type Props = {
     // The focused department, or null at the top of the organization
     department: DepartmentWithMetrics | null;
-    // The departments one level down, which is what the map is showing
-    subDepartments: DepartmentWithMetrics[];
-    totals: ViewTotals;
+    // The focused department's parent, or null for a top-level department
+    parentName: string | null;
+    // Everyone the panel is about, counted as the legend under the map counts them
+    breakdown: PeopleBreakdown;
+    colourBy: ColourBy;
+    // The departments one level down, which is what the map is showing, lowest coverage first
+    rows: CoverageRow[];
     member: DepartmentMember | null;
     canManage: boolean;
     onDepartmentClick: (departmentUuid: string) => void;
@@ -40,179 +50,157 @@ type Props = {
     onEdit: (department: DepartmentWithMetrics) => void;
 };
 
-type TileProps = {
-    label: string;
-    value: number;
-    note: string | null;
-    // A line under the value saying who the number covers
-    caption: string | null;
+// The parts of the people on Lightdash, as the map colours them, over a track that stands for the people
+// without an account; the whole bar is everyone the breakdown counts
+const BreakdownBar: FC<{ breakdown: PeopleBreakdown; size: 'md' | 'lg' }> = ({
+    breakdown,
+    size,
+}) => {
+    const total = breakdown.reduce((sum, part) => sum + part.count, 0);
+    return (
+        <Progress.Root
+            size={size}
+            radius={size === 'lg' ? 'sm' : 'xs'}
+            className={styles.track}
+            aria-hidden
+        >
+            {breakdown
+                .filter((part) => part.kind !== 'noAccount')
+                .map((part) => (
+                    <Progress.Section
+                        key={part.kind}
+                        className={styles.segment}
+                        data-part={part.kind}
+                        value={total > 0 ? (100 * part.count) / total : 0}
+                        withAria={false}
+                    />
+                ))}
+        </Progress.Root>
+    );
 };
 
-const Tile: FC<TileProps> = ({ label, value, note, caption }) => (
-    <Box className={styles.tile}>
-        <Text fz="xs" c="dimmed">
-            {label}
-        </Text>
-        <Group gap={6} align="baseline" wrap="nowrap">
-            <Text fz="xl" fw={600} lh={1.3}>
-                {formatCount(value)}
-            </Text>
-            {note !== null && (
-                <Text fz="xs" c="dimmed">
-                    {note}
-                </Text>
-            )}
-        </Group>
-        {caption !== null && (
-            <Text fz="xs" c="dimmed">
-                {caption}
-            </Text>
-        )}
-    </Box>
+const RowWord: FC<{ children: string }> = ({ children }) => (
+    <Text
+        component="span"
+        fz="xs"
+        c="dimmed"
+        ta="right"
+        className={styles.rowEnd}
+    >
+        {children}
+    </Text>
 );
 
-// Summed over the circles in view, exactly as the legend counts its "No account" dots
-const countWithoutAccount = (totals: ViewTotals): number =>
-    Math.max(totals.people - totals.members, 0);
-
-const getDepartmentTiles = (
-    department: DepartmentWithMetrics,
-    totals: ViewTotals,
-): TileProps[] => {
-    const { metrics, effectiveHeadcount, targetActiveUsers } = department;
-    const remaining =
-        targetActiveUsers === null
-            ? 0
-            : Math.max(targetActiveUsers - metrics.activeCount30d, 0);
-    return [
-        {
-            label: 'On Lightdash',
-            value: metrics.memberCount,
-            note:
-                effectiveHeadcount === null
-                    ? 'no headcount'
-                    : `of ${formatCount(effectiveHeadcount)}`,
-            caption: null,
-        },
-        {
-            label: 'Active in 30 days',
-            value: metrics.activeCount30d,
-            note: formatPct(metrics.activePct, metrics.activeCount30d),
-            caption: null,
-        },
-        ...(effectiveHeadcount === null
-            ? []
-            : [
-                  {
-                      label: 'No account',
-                      value: countWithoutAccount(totals),
-                      note: null,
-                      caption: null,
-                  },
-              ]),
-        ...(targetActiveUsers === null
-            ? []
-            : [
-                  {
-                      label: 'Target',
-                      value: targetActiveUsers,
-                      note:
-                          remaining === 0
-                              ? 'met'
-                              : `${formatCount(remaining)} to go`,
-                      caption: null,
-                  },
-              ]),
-    ];
+// A row's last column: its coverage, or a word where there is no share to give
+const RowEnd: FC<{
+    reading: CoverageReading;
+    memberCount: number;
+    canManage: boolean;
+}> = ({ reading, memberCount, canManage }) => {
+    switch (reading.kind) {
+        case 'coverage':
+            return (
+                <Text
+                    component="span"
+                    fz="sm"
+                    fw={600}
+                    ta="right"
+                    className={`${styles.rowEnd} ${styles.count}`}
+                >
+                    {formatPct(reading.pct, memberCount)}
+                </Text>
+            );
+        case 'noHeadcount':
+            return <RowWord>{getMissingHeadcountWord(canManage)}</RowWord>;
+        case 'nobody':
+            return <RowWord>Nobody yet</RowWord>;
+        default:
+            return assertUnreachable(reading, 'Unknown coverage reading');
+    }
 };
 
-const getOrganizationTiles = (totals: ViewTotals): TileProps[] => [
-    {
-        label: 'On Lightdash',
-        value: totals.members,
-        note: `of ${formatCount(totals.people)}`,
-        // People who still need a department are on Lightdash but not on the map
-        caption: 'placed in a department',
-    },
-    {
-        label: 'Active in 30 days',
-        value: totals.active,
-        note: null,
-        caption: null,
-    },
-    {
-        label: 'No account',
-        value: countWithoutAccount(totals),
-        note: null,
-        caption: null,
-    },
-];
-
-const countOf = (count: number, singular: string): string =>
-    `${formatCount(count)} ${singular}${count === 1 ? '' : 's'}`;
-
-const getSummaryLine = (
-    department: DepartmentWithMetrics | null,
-    subDepartmentCount: number,
-): string | null => {
-    const parts = [
-        department !== null && department.owners.length > 0
-            ? `Owner ${formatOwners(department.owners)}`
-            : null,
-        subDepartmentCount > 0
-            ? countOf(
-                  subDepartmentCount,
-                  department === null ? 'department' : 'sub-department',
-              )
-            : null,
-        department !== null && department.linkedGroups.length > 0
-            ? countOf(department.linkedGroups.length, 'group')
-            : null,
-    ].filter((part): part is string => part !== null);
-    return parts.length > 0 ? parts.join(' · ') : null;
-};
+// Each part keyed with the dot the map draws for those people. Without a headcount anywhere, nobody can be
+// counted as having no account, so that count gives way to a request
+const BreakdownLegend: FC<{
+    breakdown: PeopleBreakdown;
+    hasHeadcount: boolean;
+}> = ({ breakdown, hasHeadcount }) => (
+    <ul className={styles.legend}>
+        {breakdown.map(({ kind, count }) =>
+            kind === 'noAccount' && !hasHeadcount ? (
+                <li key={kind} className={styles.legendItem}>
+                    <Text fz="xs" c="dimmed">
+                        Add headcounts to see coverage
+                    </Text>
+                </li>
+            ) : (
+                <li key={kind} className={styles.legendItem}>
+                    <DotSwatch kind={kind} />
+                    <Text fz="xs" className={styles.count}>
+                        {`${DOT_LABELS[kind]} ${formatCount(count)}`}
+                    </Text>
+                </li>
+            ),
+        )}
+    </ul>
+);
 
 export const MapInspector: FC<Props> = ({
     department,
-    subDepartments,
-    totals,
+    parentName,
+    breakdown,
+    colourBy,
+    rows,
     member,
     canManage,
     onDepartmentClick,
     onClearMember,
     onEdit,
 }) => {
-    const summaryLine = getSummaryLine(department, subDepartments.length);
-    const tiles =
+    const subtitle =
+        department === null ? 'All departments' : (parentName ?? 'Department');
+    const hasHeadcount = hasHeadcountInView(
+        department,
+        rows.map((row) => row.department),
+    );
+    // The people directly in a department beside its sub-departments, as the map draws them
+    const direct =
         department === null
-            ? getOrganizationTiles(totals)
-            : getDepartmentTiles(department, totals);
+            ? null
+            : getDirectRow(
+                  department,
+                  rows.map((row) => row.department),
+                  colourBy,
+              );
     return (
         <Paper p="md" component="aside" aria-label="Details">
-            <Stack gap="md" h="100%">
-                <Stack gap={2}>
-                    <Text fz="xs" c="dimmed">
-                        {department === null ? 'Organization' : 'Department'}
-                    </Text>
-                    <Title order={5}>
-                        {department?.name ?? 'All departments'}
+            <Stack gap="lg" h="100%">
+                <Group
+                    justify="space-between"
+                    align="baseline"
+                    gap="sm"
+                    wrap="nowrap"
+                >
+                    <Title order={5} size="h4" className={styles.title}>
+                        {department?.name ?? 'Organization'}
                     </Title>
-                    {summaryLine !== null && (
-                        <Text fz="xs" c="dimmed">
-                            {summaryLine}
-                        </Text>
-                    )}
-                </Stack>
-                <SimpleGrid cols={2} spacing="xs">
-                    {tiles.map((tile) => (
-                        <Tile key={tile.label} {...tile} />
-                    ))}
-                </SimpleGrid>
-                {department?.headcountBelowChildren && (
-                    <Text fz="xs" c="dimmed">
-                        Headcount is lower than the total of its sub-departments
+                    <Text
+                        fz="xs"
+                        c="dimmed"
+                        truncate
+                        title={subtitle}
+                        className={styles.subtitle}
+                    >
+                        {subtitle}
                     </Text>
-                )}
+                </Group>
+                <Stack gap="xs">
+                    <BreakdownBar breakdown={breakdown} size="lg" />
+                    <BreakdownLegend
+                        breakdown={breakdown}
+                        hasHeadcount={hasHeadcount}
+                    />
+                </Stack>
                 {member !== null && (
                     <Stack gap={6}>
                         <Text fz="xs" c="dimmed">
@@ -248,48 +236,77 @@ export const MapInspector: FC<Props> = ({
                         </Group>
                     </Stack>
                 )}
-                {subDepartments.length > 0 && (
+                {rows.length > 0 && (
                     <Stack gap={6}>
                         <Text fz="xs" c="dimmed">
                             {department === null
-                                ? 'Departments, lowest coverage first'
-                                : 'Sub-departments, lowest coverage first'}
+                                ? 'Departments'
+                                : 'Sub-departments'}
                         </Text>
-                        <Box className={styles.rows}>
-                            {sortForInspector(subDepartments).map((child) => (
+                        <Box>
+                            {rows.map((row) => (
                                 <button
-                                    key={child.departmentUuid}
+                                    key={row.department.departmentUuid}
                                     type="button"
                                     className={styles.row}
                                     onClick={() =>
-                                        onDepartmentClick(child.departmentUuid)
+                                        onDepartmentClick(
+                                            row.department.departmentUuid,
+                                        )
                                     }
                                 >
-                                    <Text fz="sm" truncate>
-                                        {child.name}
-                                    </Text>
                                     <Text
-                                        fz="xs"
-                                        c="dimmed"
-                                        className={styles.count}
-                                    >
-                                        {child.effectiveHeadcount === null
-                                            ? `${formatCount(child.metrics.memberCount)} on Lightdash`
-                                            : `${formatCount(child.metrics.memberCount)} of ${formatCount(child.effectiveHeadcount)}`}
-                                    </Text>
-                                    <Text
+                                        component="span"
                                         fz="sm"
-                                        fw={500}
-                                        ta="right"
-                                        className={styles.count}
+                                        truncate
+                                        title={row.department.name}
                                     >
-                                        {formatPct(
-                                            child.metrics.coveragePct,
-                                            child.metrics.memberCount,
-                                        ) ?? '–'}
+                                        {row.department.name}
                                     </Text>
+                                    <BreakdownBar
+                                        breakdown={row.breakdown}
+                                        size="md"
+                                    />
+                                    <RowEnd
+                                        reading={row.reading}
+                                        memberCount={
+                                            row.department.metrics.memberCount
+                                        }
+                                        canManage={canManage}
+                                    />
                                 </button>
                             ))}
+                            {/* Nothing to open: the department is already open, so the row is plain */}
+                            {department !== null && direct !== null && (
+                                <div
+                                    className={`${styles.row} ${styles.directRow}`}
+                                >
+                                    <span
+                                        className={styles.directLabel}
+                                        title={`Directly in ${department.name} · ${formatCount(direct.memberCount)}`}
+                                    >
+                                        <Text component="span" fz="sm" truncate>
+                                            {`Directly in ${department.name}`}
+                                        </Text>
+                                        <Text
+                                            component="span"
+                                            fz="sm"
+                                            className={styles.directCount}
+                                        >
+                                            {` · ${formatCount(direct.memberCount)}`}
+                                        </Text>
+                                    </span>
+                                    <BreakdownBar
+                                        breakdown={direct.breakdown}
+                                        size="md"
+                                    />
+                                    <RowEnd
+                                        reading={direct.reading}
+                                        memberCount={direct.memberCount}
+                                        canManage={canManage}
+                                    />
+                                </div>
+                            )}
                         </Box>
                     </Stack>
                 )}

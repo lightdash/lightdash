@@ -62,16 +62,20 @@ _Avoid_: system user, bot
 The number of people a department should have on Lightdash, entered by an admin. Unknown is null, not zero.
 _Avoid_: size, seats, licences, employees
 
+**Residual headcount**:
+The headcount a department with sub-departments keeps for the people directly in it: its effective headcount less its sub-departments', and never fewer than those people. The map draws it as the department's "Directly in" circle, and `directMetrics` percentages are of it.
+_Avoid_: leftover, own headcount, direct headcount
+
 **Headcount note**:
 Free text saying where a headcount came from.
 _Avoid_: comment, source, description
 
 **Effective headcount**:
-The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, otherwise unknown.
+The headcount used in calculations: the department's own when set, otherwise the sum of its sub-departments' effective headcounts, and never fewer than its sub-departments' effective headcounts plus the people on Lightdash directly in it (for a department without sub-departments, its members), so a headcount only ever adds people without an account. A department with no headcount counts its members.
 _Avoid_: total headcount, rolled-up headcount, computed headcount
 
 **Headcount below children**:
-A flag raised when a department's own headcount is lower than the sum of its sub-departments'. The own value is still used.
+A flag raised when a department's own headcount is lower than its sub-departments' effective headcounts plus the people on Lightdash directly in it. The department counts that total instead.
 _Avoid_: headcount mismatch, headcount warning
 
 **On Lightdash**:
@@ -84,16 +88,20 @@ _Avoid_: licensed, provisioned, seated
 In this organization in the last 30 days, ran a query from a dashboard, explore, saved chart, SQL runner or metrics explorer, viewed underlying data, asked the AI agent, or used MCP; or viewed a chart or dashboard. API, CLI, scheduled deliveries and alerts as queries, syncs, auto-refreshed dashboards and embeds do not count. A scheduled delivery still writes a chart view under its owner, so it can make the owner active.
 _Avoid_: engaged, retained, MAU
 
+**Activity bucket**:
+Where a member falls by their latest activity, from the same sources as active: healthy with activity in the last 30 days (so healthy and active count the same people), at risk with activity in the last 90 days but not the last 30, and lost with none in the last 90 days or none ever. People without an account are no account, not lost. The bounds are `HEALTHY_ACTIVITY_DAYS` (30) and `AT_RISK_ACTIVITY_DAYS` (90) in common.
+_Avoid_: churned, dormant, inactive, lapsed
+
 **Coverage**:
-Members divided by effective headcount, as a percentage. Null without a headcount.
+Members divided by effective headcount, as a percentage, so never above 100. A department with no headcount entered on it or below it shows no coverage, as it would only read 100 %; the pages ask for a headcount instead.
 _Avoid_: penetration, reach, adoption rate
 
 **Active percentage**:
-Active members divided by effective headcount. Null without a headcount. Uncapped, so it can exceed 100.
+Active members divided by effective headcount, so never above 100.
 _Avoid_: adoption, usage rate
 
 **Target**:
-A number of active people a department aims for, with an optional date. Progress shows the remaining people and the weeks left.
+A number of active people a department aims for, with an optional date. The API reports progress as the people remaining and the weeks left; no page shows or edits targets.
 _Avoid_: goal, OKR, quota
 
 **Weeks left**:
@@ -104,18 +112,18 @@ _Avoid_: days remaining, deadline
 Distinct members with a chart or dashboard view per UTC week (Monday start) over the last 12 weeks. Queries are not counted here, because query history is only kept for about a month.
 _Avoid_: WAU, trend line
 
-**Org average**:
-On a department's trend, the mean weekly active count across departments at the same depth in the tree.
-_Avoid_: benchmark, baseline, peer average
+**At the organization's rate**:
+The dashed line on a department's trend: the organization's weekly active share applied to this department's people on Lightdash, so a 96 %-active department of 70 and a 5 %-active department of 2,000 are each compared with the same rate. The API's `orgAverage` (the mean across departments at the same depth) is no longer drawn.
+_Avoid_: average department, benchmark, baseline, peer average
 
-**Top content**:
-The dashboards, explores and AI agents a department's members used most in the last 30 days.
-_Avoid_: popular content, favourites, what they use
+**Key content**:
+The dashboards, explores and AI agents a department's members used most in the last 30 days, each linked to the content. The API field is `topContent`.
+_Avoid_: popular content, favourites, what they use, what this department uses
 
 ### Views
 
 **Map**:
-The default index view: departments as nested circles with one dot per person, coloured by activity, role or last activity. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
+The default index view: departments as nested circles with one dot per person, coloured by activity bucket (the default) or role. Dots show how a department is doing, not where to find someone; to find a person, use the department page's people list.
 _Avoid_: bubble chart, treemap, org chart
 
 **List**:
@@ -130,11 +138,11 @@ _Avoid_: alerts, issues, to-do
 
 - A **department** has zero or one parent, any number of **sub-departments**, any number of **linked groups**, any number of **assigned people** and an ordered list of **owners**.
 - A **person** resolves to at most one department. An **assigned person** resolves where assigned; otherwise **most specific wins** among linked groups; reaching several branches is a **conflict**; reaching none is **unassigned**.
-- **Members** roll up the tree: a parent counts its descendants' members. **Headcount** rolls up only as a fallback when the parent has none of its own.
-- **Coverage** and **active percentage** are measured against **effective headcount**, so both are null without one and the page shows counts.
+- **Members** roll up the tree: a parent counts its descendants' members. **Headcount** rolls up only as a fallback when the parent has none of its own, and **effective headcount** never falls below the members.
+- **Coverage** and **active percentage** are measured against **effective headcount**, so neither exceeds 100.
 
 ## Flagged ambiguities
 
 - The word "group" always means a Lightdash user group. A department is not a group, and linking a group to a department does not change the group.
-- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. The map's "Active in 12 weeks" is a separate colouring, not the active measure.
+- "Active" means activity in the last 30 days everywhere except **weekly active**, which counts chart and dashboard views per week and leaves queries out. On the map, healthy is the same people as active.
 - The code and API say `unassigned`. Do not introduce "unplaced" in code, docs or copy.

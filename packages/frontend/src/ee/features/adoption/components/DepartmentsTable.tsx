@@ -5,10 +5,11 @@ import {
     Box,
     Button,
     Group,
-    Stack,
     Text,
     Tooltip,
+    type TextProps,
 } from '@mantine/core';
+import { useElementSize } from '@mantine/hooks';
 import {
     IconAlertTriangle,
     IconChevronDown,
@@ -29,14 +30,67 @@ import {
     formatOwners,
     formatRoleSplit,
     formatShare,
-    formatTarget,
+    getMissingHeadcountWord,
     type DepartmentRow,
 } from '../utils/departmentRows';
+import { formatCount, formatQuantity, SUB_DEPARTMENTS } from '../utils/format';
 import { ActivitySparkline } from './ActivitySparkline';
+import styles from './DepartmentsTable.module.css';
 
 const INDENT_PX = 24;
+const EXPANDER_WIDTH = 22;
+const EXPLANATION_MAX_WIDTH = 280;
+// Narrower tables leave out the role split, which the map's Role colouring also counts
+const ROLE_SPLIT_MIN_TABLE_WIDTH = 1300;
+// Hover, keyboard focus and touch, as the headcount note used to be visible text
+const TOOLTIP_EVENTS = { hover: true, focus: true, touch: true };
 const BELOW_CHILDREN_WARNING =
-    'Headcount is lower than the total of its sub-departments';
+    'The headcount entered is below its sub-departments and its own people, so that total counts instead';
+
+// Every cell keeps to one line: text that does not fit ends in an ellipsis and shows in full on hover
+const CellText: FC<
+    Pick<TextProps, 'fz' | 'c' | 'className'> & { children: string }
+> = ({ children, fz = 'sm', c, className }) => (
+    <Text
+        fz={fz}
+        c={c}
+        truncate="end"
+        title={children}
+        miw={0}
+        className={className}
+    >
+        {children}
+    </Text>
+);
+
+// A value with an explanation in its tooltip, marked by a dotted underline; the tooltip repeats the value in case the column cuts it short
+const ExplainedValue: FC<{ value: string; explanation: string }> = ({
+    value,
+    explanation,
+}) => (
+    <Tooltip
+        label={
+            <>
+                {value}
+                <br />
+                {explanation}
+            </>
+        }
+        multiline
+        maw={EXPLANATION_MAX_WIDTH}
+        events={TOOLTIP_EVENTS}
+    >
+        <Text
+            fz="sm"
+            truncate="end"
+            miw={0}
+            tabIndex={0}
+            className={styles.explained}
+        >
+            {value}
+        </Text>
+    </Tooltip>
+);
 
 type Props = {
     departments: DepartmentWithMetrics[];
@@ -54,6 +108,8 @@ export const DepartmentsTable: FC<Props> = ({
         () => buildDepartmentRows(departments, expanded),
         [departments, expanded],
     );
+    const { ref, width } = useElementSize();
+    const showRoleSplit = width >= ROLE_SPLIT_MIN_TABLE_WIDTH;
     const toggle = useCallback((departmentUuid: string) => {
         setExpanded((previous) => {
             const next = new Set(previous);
@@ -63,12 +119,13 @@ export const DepartmentsTable: FC<Props> = ({
         });
     }, []);
 
+    // Without the role split the widths fit a 1,100 px table, so names and numbers show whole
     const columns = useMemo<ContentTableColumnDef<DepartmentRow>[]>(() => {
         const dataColumns: ContentTableColumnDef<DepartmentRow>[] = [
             {
                 id: 'name',
                 header: 'Department',
-                size: 220,
+                size: 252,
                 Cell: ({ row }) => {
                     const {
                         department,
@@ -100,7 +157,10 @@ export const DepartmentsTable: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             ) : (
-                                <Box w={22} />
+                                <Box
+                                    w={EXPANDER_WIDTH}
+                                    className={styles.fixed}
+                                />
                             )}
                             <Anchor
                                 component={Link}
@@ -109,14 +169,23 @@ export const DepartmentsTable: FC<Props> = ({
                                 )}
                                 fz="sm"
                                 fw={depth === 0 ? 600 : 400}
+                                truncate="end"
+                                title={department.name}
+                                miw={0}
                             >
                                 {department.name}
                             </Anchor>
                             {!canExpand && childCount > 0 && (
-                                <Text fz="xs" c="dimmed">
-                                    {childCount} sub-department
-                                    {childCount === 1 ? '' : 's'}
-                                </Text>
+                                <CellText
+                                    fz="xs"
+                                    c="dimmed"
+                                    className={styles.yields}
+                                >
+                                    {formatQuantity(
+                                        childCount,
+                                        SUB_DEPARTMENTS,
+                                    )}
+                                </CellText>
                             )}
                         </Group>
                     );
@@ -125,10 +194,10 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'headcount',
                 header: 'Headcount',
-                size: 100,
+                size: 96,
                 Cell: ({ row }) => {
                     const { department } = row.original;
-                    if (department.effectiveHeadcount === null) {
+                    if (!department.hasHeadcount) {
                         return canManage ? (
                             <Button
                                 variant="subtle"
@@ -144,80 +213,88 @@ export const DepartmentsTable: FC<Props> = ({
                             </Text>
                         );
                     }
+                    const headcount = formatCount(
+                        department.effectiveHeadcount,
+                    );
                     return (
-                        <Stack gap={0}>
-                            <Group gap="xs" wrap="nowrap">
-                                <Text fz="sm">
-                                    {department.effectiveHeadcount}
-                                </Text>
-                                {department.headcountBelowChildren && (
-                                    <Tooltip
-                                        label={BELOW_CHILDREN_WARNING}
-                                        events={{
-                                            hover: true,
-                                            focus: true,
-                                            touch: false,
-                                        }}
-                                    >
-                                        <Box
-                                            component="span"
-                                            role="img"
-                                            tabIndex={0}
-                                            aria-label={BELOW_CHILDREN_WARNING}
-                                        >
-                                            <MantineIcon
-                                                icon={IconAlertTriangle}
-                                                color="yellow"
-                                            />
-                                        </Box>
-                                    </Tooltip>
-                                )}
-                            </Group>
-                            {department.headcountNote !== null && (
-                                <Text fz="xs" c="dimmed" lineClamp={1}>
-                                    {department.headcountNote}
-                                </Text>
+                        <Group gap="xs" wrap="nowrap">
+                            {department.headcountNote === null ? (
+                                <Text fz="sm">{headcount}</Text>
+                            ) : (
+                                <ExplainedValue
+                                    value={headcount}
+                                    explanation={department.headcountNote}
+                                />
                             )}
-                        </Stack>
+                            {department.headcountBelowChildren && (
+                                <Tooltip
+                                    label={BELOW_CHILDREN_WARNING}
+                                    events={TOOLTIP_EVENTS}
+                                >
+                                    <Box
+                                        component="span"
+                                        role="img"
+                                        tabIndex={0}
+                                        aria-label={BELOW_CHILDREN_WARNING}
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertTriangle}
+                                            color="yellow"
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            )}
+                        </Group>
                     );
                 },
             },
             {
                 id: 'coverage',
                 header: 'Coverage',
-                size: 100,
-                Cell: ({ row }) => (
-                    <Text fz="sm">
-                        {formatShare(
-                            row.original.department.metrics.coveragePct,
-                            row.original.department.metrics.memberCount,
-                        )}
-                    </Text>
-                ),
+                size: 144,
+                Cell: ({ row }) => {
+                    const { department } = row.original;
+                    if (department.hasHeadcount) {
+                        return (
+                            <CellText>
+                                {formatShare(
+                                    department.metrics.coveragePct,
+                                    department.metrics.memberCount,
+                                )}
+                            </CellText>
+                        );
+                    }
+                    // Editors have "Add" in the Headcount column already, so the cell stays empty for them
+                    return canManage ? null : (
+                        <CellText c="dimmed">
+                            {getMissingHeadcountWord(false)}
+                        </CellText>
+                    );
+                },
             },
             {
                 id: 'active',
                 header: 'Active 30d',
-                size: 110,
+                size: 120,
                 Cell: ({ row }) => (
-                    <Text fz="sm">
+                    <CellText>
                         {formatShare(
                             row.original.department.metrics.activePct,
                             row.original.department.metrics.activeCount30d,
                         )}
-                    </Text>
+                    </CellText>
                 ),
             },
             {
                 id: 'roles',
                 header: 'Roles',
-                size: 150,
+                size: 100,
                 Cell: ({ row }) => (
-                    <Text fz="xs" c="dimmed">
+                    <CellText fz="xs" c="dimmed">
                         {formatRoleSplit(
                             row.original.department.metrics.roleSplit,
                         )}
-                    </Text>
+                    </CellText>
                 ),
             },
             {
@@ -233,20 +310,31 @@ export const DepartmentsTable: FC<Props> = ({
             {
                 id: 'owner',
                 header: 'Owner',
-                size: 110,
-                Cell: ({ row }) => (
-                    <Text fz="sm">
-                        {formatOwners(row.original.department.owners)}
-                    </Text>
-                ),
-            },
-            {
-                id: 'target',
-                header: 'Target',
-                size: 120,
-                Cell: ({ row }) => (
-                    <Text fz="sm">{formatTarget(row.original.department)}</Text>
-                ),
+                size: 130,
+                Cell: ({ row }) => {
+                    const { owners } = row.original.department;
+                    if (owners.length === 0) {
+                        return <CellText>{formatOwners(owners)}</CellText>;
+                    }
+                    const [first, ...others] = owners;
+                    // Only the name gives way, so the count of other owners stays in sight
+                    return (
+                        <Group
+                            gap={4}
+                            wrap="nowrap"
+                            title={owners.map((owner) => owner.name).join(', ')}
+                        >
+                            <Text fz="sm" truncate="end" miw={0}>
+                                {first.name}
+                            </Text>
+                            {others.length > 0 && (
+                                <Text fz="sm" flex="none">
+                                    {`+${formatCount(others.length)}`}
+                                </Text>
+                            )}
+                        </Group>
+                    );
+                },
             },
         ];
         // No empty column for people who cannot edit
@@ -287,7 +375,12 @@ export const DepartmentsTable: FC<Props> = ({
         enableBottomToolbar: false,
         getRowId: (row) => row.department.departmentUuid,
         mantineTableProps: { highlightOnHover: true },
+        state: { columnVisibility: { roles: showRoleSplit } },
     });
 
-    return <ContentTable table={table} />;
+    return (
+        <Box ref={ref}>
+            <ContentTable table={table} />
+        </Box>
+    );
 };

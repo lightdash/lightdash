@@ -1,4 +1,5 @@
 import { type WeeklyActivePoint } from '@lightdash/common';
+import clsx from 'clsx';
 import { useMemo, type FC } from 'react';
 import {
     getSparklinePoints,
@@ -11,6 +12,8 @@ import {
 import { getSparklineLabel } from '../utils/sparklineLabel';
 import styles from './ActivitySparkline.module.css';
 
+const PARTIAL_POINT_RADIUS = 2;
+
 // Drawn by hand in a fixed box so its size never depends on a chart measuring its container
 export const ActivitySparkline: FC<{ points: WeeklyActivePoint[] }> = ({
     points,
@@ -21,6 +24,10 @@ export const ActivitySparkline: FC<{ points: WeeklyActivePoint[] }> = ({
     );
     const active = hasActivity(values);
     const coordinates = useMemo(() => getSparklinePoints(values), [values]);
+    // The last week is still running: it ends the line as a dashed segment and a hollow point
+    const complete = coordinates.slice(0, -1);
+    const partial = coordinates.slice(-2);
+    const current = coordinates[coordinates.length - 1];
 
     return (
         <svg
@@ -36,9 +43,23 @@ export const ActivitySparkline: FC<{ points: WeeklyActivePoint[] }> = ({
                         className={styles.area}
                         points={toAreaPoints(coordinates)}
                     />
-                    <polyline
-                        className={styles.line}
-                        points={toPolylinePoints(coordinates)}
+                    {complete.length > 1 && (
+                        <polyline
+                            className={styles.line}
+                            points={toPolylinePoints(complete)}
+                        />
+                    )}
+                    {partial.length > 1 && (
+                        <polyline
+                            className={clsx(styles.line, styles.partialLine)}
+                            points={toPolylinePoints(partial)}
+                        />
+                    )}
+                    <circle
+                        className={styles.partialPoint}
+                        cx={current.x}
+                        cy={current.y}
+                        r={PARTIAL_POINT_RADIUS}
                     />
                 </>
             ) : (

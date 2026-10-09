@@ -3,7 +3,7 @@ import {
     type DepartmentDetail,
     type DepartmentMembership,
 } from '@lightdash/common';
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +13,10 @@ import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
 import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    getCoverageRows,
+    getDepartmentBreakdown,
+} from '../utils/peopleBreakdown';
 import { DepartmentDrawer } from './DepartmentDrawer';
 import { DepartmentsTable } from './DepartmentsTable';
 import { MembershipModal } from './MembershipModal';
@@ -27,6 +31,9 @@ const GROUP_OWNER = hostile('Group owner');
 const GROUP = hostile('Group');
 const NOTE = hostile('Note');
 const DASHBOARD = hostile('Dashboard');
+const EXPLORE = hostile('Explore');
+const AGENT = hostile('Agent');
+const PROJECT = '3675b69e-8324-4110-bdca-059031aa8da3';
 const PERSON = hostile('Person');
 const SURNAME = hostile('Surname');
 const EMAIL = hostile('Email');
@@ -89,6 +96,71 @@ const expectLiteral = (text: string) =>
         screen.getAllByText((content) => content.includes(text)).length,
     ).toBeGreaterThan(0);
 
+// One of each kind of content, every name hostile, plus an explore named as a javascript: URL
+const KEY_CONTENT = {
+    dashboards: [
+        {
+            id: 'd1',
+            name: DASHBOARD,
+            projectUuid: PROJECT,
+            count: 3,
+            distinctPeople: 2,
+        },
+    ],
+    explores: [
+        {
+            id: `${PROJECT}:hostile`,
+            name: EXPLORE,
+            projectUuid: PROJECT,
+            count: 2,
+            distinctPeople: 1,
+        },
+        {
+            id: `${PROJECT}:script`,
+            name: 'javascript:alert(1)',
+            projectUuid: PROJECT,
+            count: 1,
+            distinctPeople: 1,
+        },
+    ],
+    aiAgents: [
+        {
+            id: 'a1',
+            name: AGENT,
+            projectUuid: PROJECT,
+            count: 1,
+            distinctPeople: 1,
+        },
+    ],
+};
+
+// Every link is built from the ids and the explore's encoded name, never from a name as typed
+const expectKeyContentLinks = () => {
+    expect(screen.getByRole('link', { name: DASHBOARD })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/dashboards/d1/view`,
+    );
+    expect(screen.getByRole('link', { name: EXPLORE })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/tables/${encodeURIComponent(EXPLORE)}`,
+    );
+    expect(
+        screen.getByRole('link', { name: 'javascript:alert(1)' }),
+    ).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/tables/javascript%3Aalert(1)`,
+    );
+    expect(screen.getByRole('link', { name: AGENT })).toHaveAttribute(
+        'href',
+        `/projects/${PROJECT}/ai-agents/a1`,
+    );
+    // A name cut short keeps the whole name in its title, as text
+    expect(screen.getByRole('link', { name: DASHBOARD })).toHaveAttribute(
+        'title',
+        DASHBOARD,
+    );
+};
+
 const expectNothingInjected = () => {
     expect(document.querySelector('img')).toBeNull();
     expect(document.querySelector('[onerror]')).toBeNull();
@@ -107,7 +179,7 @@ describe('typed strings render as text', () => {
         hooks.detail = undefined;
     });
 
-    it('in the list table', () => {
+    it('in the list table', async () => {
         renderWithProviders(
             <MemoryRouter>
                 <DepartmentsTable
@@ -122,6 +194,9 @@ describe('typed strings render as text', () => {
             '/generalSettings/adoption/hostile',
         );
         expectLiteral(OWNER);
+        // The note is in the headcount's tooltip
+        await userEvent.hover(screen.getByText('10'));
+        await screen.findByRole('tooltip');
         expectLiteral(NOTE);
         expectNothingInjected();
     });
@@ -159,8 +234,13 @@ describe('typed strings render as text', () => {
             <MemoryRouter>
                 <MapInspector
                     department={hostileDepartment}
-                    subDepartments={[child]}
-                    totals={{ people: 50, members: 5, active: 1 }}
+                    parentName={PARENT}
+                    breakdown={getDepartmentBreakdown(
+                        hostileDepartment,
+                        'activity',
+                    )}
+                    colourBy="activity"
+                    rows={getCoverageRows([child], 'activity')}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
                         departmentName: NAME,
@@ -172,24 +252,43 @@ describe('typed strings render as text', () => {
                 />
             </MemoryRouter>,
         );
+        // The title, the parent beside it, the person selected, the sub-department and the people directly in it
         expectLiteral(NAME);
-        expectLiteral(OWNER);
+        expectLiteral(PARENT);
         expectLiteral(PERSON);
         expectLiteral(CHILD);
+        expectLiteral(`Directly in ${NAME}`);
+        expect(screen.getByTitle(`Directly in ${NAME} · 5`)).toHaveTextContent(
+            `Directly in ${NAME} · 5`,
+        );
         expectNothingInjected();
     });
 
-    it('in the top content list', () => {
+    it('in the key content lists, whose links are built from ids alone', () => {
         renderWithProviders(
-            <TopContentList
-                title="Dashboards"
-                unit="views"
-                items={[
-                    { id: 'd1', name: DASHBOARD, count: 3, distinctPeople: 2 },
-                ]}
-            />,
+            <MemoryRouter>
+                <TopContentList
+                    title="Dashboards"
+                    kind="dashboards"
+                    noun={{ one: 'view', other: 'views' }}
+                    items={KEY_CONTENT.dashboards}
+                />
+                <TopContentList
+                    title="Explores"
+                    kind="explores"
+                    noun={{ one: 'query', other: 'queries' }}
+                    items={KEY_CONTENT.explores}
+                />
+                <TopContentList
+                    title="AI agents"
+                    kind="aiAgents"
+                    noun={{ one: 'prompt', other: 'prompts' }}
+                    items={KEY_CONTENT.aiAgents}
+                />
+            </MemoryRouter>,
         );
-        expectLiteral(DASHBOARD);
+        [DASHBOARD, EXPLORE, AGENT].forEach(expectLiteral);
+        expectKeyContentLinks();
         expectNothingInjected();
     });
 
@@ -235,41 +334,71 @@ describe('typed strings render as text', () => {
             drawn('text, title').forEach((node) =>
                 expect(node.children).toHaveLength(0),
             );
+        const hover = (departmentUuid: string) => {
+            const circle = container.querySelector(
+                `svg[role="img"] [data-department="${departmentUuid}"]`,
+            );
+            expect(circle).not.toBeNull();
+            if (circle) fireEvent.pointerOver(circle);
+        };
 
-        // The sub-department's label is drawn whole; both circles' hover titles start with their names
-        expect(drawnText('text')).toContain(`${CHILD} · 10`);
+        // Both circles' hover titles start with their names, and the sub-department's ends with the department
+        // a click opens
         expect(
             drawnText('title').some((title) => title.startsWith(`${NAME},`)),
         ).toBe(true);
         expect(
-            drawnText('title').some((title) => title.startsWith(`${CHILD},`)),
+            drawnText('title').some(
+                (title) =>
+                    title.startsWith(`${CHILD},`) && title.endsWith(NAME),
+            ),
         ).toBe(true);
         expectSvgTextOnly();
         expectNothingInjected();
 
-        // Inside the department, labels cut short still draw the markup as text, and each person's dot is
-        // titled with the full name and labelled with the start of the first name
+        // The department is named at rest, whole; each circle's hover label is drawn whole while it is hovered
+        expect(drawnText('[data-rest-label="hostile"]')).toContain(NAME);
+        expect(drawn('[data-label]')).toHaveLength(0);
+        hover('child');
+        expect(drawnText('[data-label="child"]')).toEqual([`${CHILD} · 10`]);
+        expectSvgTextOnly();
+        hover('hostile');
+        expect(drawnText('[data-label="hostile"]')).toContain(NAME);
+        expectSvgTextOnly();
+        expectNothingInjected();
+
+        // Inside the department: the hovered labels are whole, the circles are titled with the whole name, and
+        // each dot is titled with the full name, which is never drawn on the map
         await userEvent.click(
             screen.getByRole('button', {
                 name: (accessibleName) => accessibleName.startsWith(`${NAME},`),
             }),
         );
-        expect(drawnText('text').some((text) => text.includes('"><img'))).toBe(
+        hover('child');
+        expect(drawnText('[data-label="child"]')).toContain(CHILD);
+        const people = container.querySelector(
+            'svg[role="img"] [data-kind][data-circle="own:hostile"]',
+        );
+        expect(people).not.toBeNull();
+        if (people) fireEvent.pointerOver(people);
+        expect(drawnText('[data-label="own:hostile"]')).toContain(
+            `Directly in ${NAME}`,
+        );
+        expect(drawnText('title').some((title) => title.includes(NAME))).toBe(
             true,
         );
-        expect(drawnText('title')).toContain(`${PERSON} ${SURNAME}`);
+        // The person's dot is titled with their full name and the part of the colouring they are in
+        expect(drawnText('title')).toContain(`${PERSON} ${SURNAME} · Lost`);
+        // No person's name is drawn on the map, whole or cut short
         expect(
-            drawnText('text').some(
-                (text) =>
-                    text.endsWith('…') && PERSON.startsWith(text.slice(0, -1)),
-            ),
-        ).toBe(true);
+            drawnText('text').some((text) => text.includes(PERSON.slice(0, 6))),
+        ).toBe(false);
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectSvgTextOnly();
         expectNothingInjected();
     });
 
-    it('on the department page: header, badges, headcount note, sub-departments and people', async () => {
+    it('on the department page: title, breadcrumb, key content, sub-departments and people', () => {
         const PAGE = '11111111-2222-4333-8444-555555555555';
         const PARENT_UUID = '22222222-3333-4444-8555-666666666666';
         const CHILD_UUID = '33333333-4444-4555-8666-777777777777';
@@ -293,13 +422,7 @@ describe('typed strings render as text', () => {
             ],
             targetProgress: null,
             weeklyActive: [],
-            topContent: {
-                dashboards: [
-                    { id: 'd1', name: DASHBOARD, count: 3, distinctPeople: 2 },
-                ],
-                explores: [],
-                aiAgents: [],
-            },
+            topContent: KEY_CONTENT,
             members: [
                 memberFixture('p1', null, {
                     firstName: PERSON,
@@ -330,29 +453,27 @@ describe('typed strings render as text', () => {
             'href',
             `/generalSettings/adoption/${PARENT_UUID}`,
         );
-        expectLiteral(OWNER);
-        expectLiteral(GROUP_OWNER);
-        expectLiteral(GROUP);
-        expectLiteral(NOTE);
         expect(screen.getByRole('link', { name: CHILD })).toHaveAttribute(
             'href',
             `/generalSettings/adoption/${CHILD_UUID}`,
         );
-        expectLiteral(DASHBOARD);
+        [DASHBOARD, EXPLORE, AGENT].forEach(expectLiteral);
+        expectKeyContentLinks();
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectLiteral(EMAIL);
         expectLiteral(`Group ${GROUP}`);
-
-        // The headcount's tooltip repeats the note
-        const headcount = screen.getByText('Headcount').parentElement;
-        expect(headcount).not.toBeNull();
-        if (headcount) await userEvent.hover(within(headcount).getByText('10'));
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(NOTE);
+        // Owners, linked groups and the headcount note are in Edit department, not on the page
+        [OWNER, GROUP_OWNER, NOTE].forEach((text) =>
+            expect(
+                screen.queryAllByText((content) => content.includes(text)),
+            ).toHaveLength(0),
+        );
         expectNothingInjected();
     });
 
-    it('in the placement modal rows and its department picker', async () => {
+    it('in the placement modal rows and its department pickers', async () => {
         const OTHER = hostile('Other');
+        const UNNAMED = hostile('Unnamed');
         hooks.membership = [
             {
                 userUuid: 'p1',
@@ -367,7 +488,7 @@ describe('typed strings render as text', () => {
             },
             {
                 userUuid: 'p2',
-                email: hostile('Unnamed'),
+                email: UNNAMED,
                 firstName: '',
                 lastName: '',
                 role: OrganizationMemberRole.VIEWER,
@@ -379,7 +500,10 @@ describe('typed strings render as text', () => {
                 opened
                 onClose={vi.fn()}
                 departments={[
-                    hostileDepartment,
+                    {
+                        ...hostileDepartment,
+                        linkedGroups: [{ groupUuid: 'group', name: GROUP }],
+                    },
                     dept(OTHER, null, 50, { departmentUuid: 'other' }),
                 ]}
             />,
@@ -387,22 +511,43 @@ describe('typed strings render as text', () => {
 
         expectLiteral(`${PERSON} ${SURNAME}`);
         expectLiteral(EMAIL);
-        expectLiteral(`In ${NAME} and ${OTHER}`);
-        // Someone with no name is shown by their email
+        // A person in two departments is shown each of them, with the groups linked to it
+        const candidates = screen.getByText(
+            `${NAME} through ${GROUP}`,
+        ).parentElement;
         expect(
-            screen.getByRole('combobox', {
-                name: `Department for ${hostile('Unnamed')}`,
-            }),
+            Array.from(candidates?.children ?? [], (line) => line.textContent),
+        ).toEqual([`${NAME} through ${GROUP}`, OTHER]);
+        // Each row's checkbox and select are named for the person; someone with no name, by their email
+        expect(
+            screen.getByRole('checkbox', { name: `Select ${UNNAMED}` }),
         ).toBeInTheDocument();
+        expect(
+            screen.getByRole('combobox', { name: `Department for ${UNNAMED}` }),
+        ).toBeInTheDocument();
+        // Each picker opens its own list of the departments
+        const expectDepartmentOptions = async (picker: string) => {
+            await userEvent.click(
+                screen.getByRole('combobox', { name: picker }),
+            );
+            const options = within(
+                await screen.findByRole('listbox', { name: picker }),
+            );
+            expect(
+                options.getByRole('option', { name: NAME }),
+            ).toBeInTheDocument();
+            expect(
+                options.getByRole('option', { name: OTHER }),
+            ).toBeInTheDocument();
+            expectNothingInjected();
+        };
+        await expectDepartmentOptions(`Department for ${PERSON} ${SURNAME}`);
+        // The picker for everyone selected offers the same departments
         await userEvent.click(
-            screen.getByRole('combobox', {
-                name: `Department for ${PERSON} ${SURNAME}`,
+            screen.getByRole('checkbox', {
+                name: `Select ${PERSON} ${SURNAME}`,
             }),
         );
-        expect(
-            await screen.findByRole('option', { name: NAME }),
-        ).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: OTHER })).toBeInTheDocument();
-        expectNothingInjected();
+        await expectDepartmentOptions('Place selected in');
     });
 });

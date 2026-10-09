@@ -1,6 +1,7 @@
 import {
     QueryExecutionContext,
     TimeoutError,
+    type ActivityWindows,
     type DepartmentTopContent,
     type DepartmentTopContentItem,
 } from '@lightdash/common';
@@ -10,16 +11,9 @@ import { queryWorkloadOrigin } from '../services/AsyncQueryService/queryUsage';
 
 export type ActivityRow = { userUuid: string; weekStart: string };
 
-// One clock per request, so every read in it shares the same rolling bounds
-export type ActivityWindows = {
-    activeSince: Date;
-    trendSince: Date;
-    // How far back a member's last activity is read
-    lastActiveSince: Date;
-};
-
 export type ActivitySnapshot = {
-    activeUserUuids: string[]; // active since activeSince
+    // Each person's latest activity since lastActiveSince; nobody missing from it had any
+    lastActiveAt: Map<string, Date>;
     weeklyActivity: ActivityRow[]; // chart and dashboard views only, per person per UTC week
 };
 
@@ -34,6 +28,7 @@ export type MemberActivityRow = {
 type TopContentRow = {
     id: string;
     name: string;
+    project_uuid: string;
     count: number;
     distinct_people: number;
 };
@@ -56,6 +51,7 @@ export const COUNTED_QUERY_CONTEXTS: QueryExecutionContext[] = Object.values(
 const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
     id: row.id,
     name: row.name,
+    projectUuid: row.project_uuid,
     count: row.count,
     distinctPeople: row.distinct_people,
 });
@@ -63,7 +59,7 @@ const toTopContentItem = (row: TopContentRow): DepartmentTopContentItem => ({
 type Deps = { database: Knex };
 
 // The view tables have no organization column, so they are tied to it through the content viewed.
-// Queries are only kept for the instance's retention period, so they are read for the 30-day set alone.
+// Every source is read back to the at-risk bound, as getMemberActivity reads it; queries count while kept.
 // The view tables are read by the organization's member set on their (user_uuid, timestamp)
 // index: the set comes from organization_memberships, so it is the tenancy boundary, and a
 // person's activity is theirs whatever content it was on. Joining views through chart, space
@@ -96,11 +92,11 @@ const activityUnion = (
         organizationUuid,
         userUuids,
         COUNTED_QUERY_CONTEXTS,
-        windows.activeSince,
+        windows.lastActiveSince,
         userUuids,
-        windows.trendSince,
+        windows.lastActiveSince,
         userUuids,
-        windows.trendSince,
+        windows.lastActiveSince,
     ],
 });
 
@@ -134,46 +130,46 @@ export class DepartmentAnalyticsModel {
         }
     }
 
-    // One scan answers both: weekly buckets from views only, the 30-day set from views and queries
+    // One scan, one row per person: their latest activity from views and queries, and the UTC weeks they viewed a
+    // chart or dashboard in. Weeks older than the trend's are dropped where the trend is built
     async getActivity(
         organizationUuid: string,
         userUuids: string[],
         windows: ActivityWindows,
     ): Promise<ActivitySnapshot> {
         if (userUuids.length === 0) {
-            return { activeUserUuids: [], weeklyActivity: [] };
+            return { lastActiveAt: new Map(), weeklyActivity: [] };
         }
         const union = activityUnion(organizationUuid, userUuids, windows);
         const result = await this.bounded(async (trx) =>
             trx.raw<{
                 rows: {
                     user_uuid: string;
-                    week_start: string | null; // null on rows that come from queries
-                    is_active_30d: boolean;
+                    last_active_at: Date;
+                    week_starts: string[]; // empty for a person who only ran queries
                 }[];
             }>(
                 `SELECT a.user_uuid,
-                    CASE WHEN a.is_view
-                         THEN to_char(date_trunc('week', a.at), 'YYYY-MM-DD')
-                    END AS week_start,
-                    bool_or(a.at >= ?) AS is_active_30d
+                    MAX(a.at) AS last_active_at,
+                    COALESCE(
+                        array_agg(DISTINCT to_char(date_trunc('week', a.at), 'YYYY-MM-DD'))
+                            FILTER (WHERE a.is_view),
+                        '{}'
+                    ) AS week_starts
              FROM (${union.sql}) a
-             GROUP BY a.user_uuid, a.is_view, date_trunc('week', a.at)`,
-                [windows.activeSince, ...union.bindings],
+             GROUP BY a.user_uuid`,
+                union.bindings,
             ),
         );
         return {
-            activeUserUuids: Array.from(
-                new Set(
-                    result.rows
-                        .filter((r) => r.is_active_30d)
-                        .map((r) => r.user_uuid),
-                ),
+            lastActiveAt: new Map(
+                result.rows.map((r) => [r.user_uuid, r.last_active_at]),
             ),
             weeklyActivity: result.rows.flatMap((r) =>
-                r.week_start === null
-                    ? []
-                    : [{ userUuid: r.user_uuid, weekStart: r.week_start }],
+                r.week_starts.map((weekStart) => ({
+                    userUuid: r.user_uuid,
+                    weekStart,
+                })),
             ),
         };
     }
@@ -189,8 +185,8 @@ export class DepartmentAnalyticsModel {
         return this.aiTablesExist;
     }
 
-    // Same sources, organization scope and 30-day bound as getActivity, so the flag matches the count.
-    // Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
+    // Same sources, organization scope and bounds as getActivity, so a person's flag and last activity match
+    // the counts. Every source is read back to lastActiveSince only, so lastActiveAt is null beyond it
     async getMemberActivity(
         organizationUuid: string,
         userUuids: string[],
@@ -282,6 +278,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT d.dashboard_uuid AS id,
                    d.name,
+                   p.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT v.user_uuid)::int AS distinct_people
             FROM analytics_dashboard_views v
@@ -293,7 +290,7 @@ export class DepartmentAnalyticsModel {
               AND v.user_uuid = ANY(?::uuid[])
               AND v.timestamp >= ?
               AND d.deleted_at IS NULL
-            GROUP BY d.dashboard_uuid, d.name
+            GROUP BY d.dashboard_uuid, d.name, p.project_uuid
             ORDER BY count DESC, d.name ASC
             LIMIT ?
             `,
@@ -314,6 +311,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT concat(qh.project_uuid, ':', qh.metric_query->>'exploreName') AS id,
                    qh.metric_query->>'exploreName' AS name,
+                   qh.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT qh.created_by_user_uuid)::int AS distinct_people
             FROM query_history qh
@@ -321,6 +319,7 @@ export class DepartmentAnalyticsModel {
               AND qh.created_by_user_uuid = ANY(?::uuid[])
               AND qh.context = ANY(?::text[])
               AND qh.created_at >= ?
+              AND qh.project_uuid IS NOT NULL
               AND qh.metric_query->>'exploreName' IS NOT NULL
             GROUP BY qh.project_uuid, qh.metric_query->>'exploreName'
             ORDER BY count DESC, name ASC
@@ -350,6 +349,7 @@ export class DepartmentAnalyticsModel {
                 `
             SELECT a.ai_agent_uuid AS id,
                    a.name,
+                   a.project_uuid,
                    COUNT(*)::int AS count,
                    COUNT(DISTINCT pr.created_by_user_uuid)::int AS distinct_people
             FROM ai_prompt pr
@@ -360,7 +360,7 @@ export class DepartmentAnalyticsModel {
               AND pr.created_by_user_uuid = ANY(?::uuid[])
               AND pr.created_at >= ?
               AND NOT pr.hidden
-            GROUP BY a.ai_agent_uuid, a.name
+            GROUP BY a.ai_agent_uuid, a.name, a.project_uuid
             ORDER BY count DESC, a.name ASC
             LIMIT ?
             `,

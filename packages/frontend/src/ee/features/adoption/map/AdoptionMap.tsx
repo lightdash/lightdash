@@ -24,6 +24,12 @@ import {
     type KeyboardEvent,
 } from 'react';
 import { useDepartmentDetail } from '../../../hooks/useOrgDepartments';
+import {
+    getCoverageRows,
+    getDepartmentBreakdown,
+    getOrganizationBreakdown,
+    hasHeadcountInView,
+} from '../utils/peopleBreakdown';
 import styles from './AdoptionMap.module.css';
 import { DepartmentMap } from './DepartmentMap';
 import {
@@ -35,8 +41,6 @@ import {
     type ColourBy,
     type PackedCircle,
 } from './geometry';
-import { MapCardGrid } from './MapCardGrid';
-import { computeMapCards } from './mapCards';
 import { MapInspector } from './MapInspector';
 import { estimateTextWidth, layoutMap, type TextMeasurer } from './mapLayout';
 import { MapLegend } from './MapLegend';
@@ -44,14 +48,15 @@ import { COLOUR_BY_LABELS, COLOUR_BY_OPTIONS, isColourBy } from './mapStyles';
 import {
     buildDots,
     buildMapAriaLabel,
-    countDotKinds,
     describeCircles,
     getFocusTrail,
+    getLegendCounts,
+    getRingKeys,
     getViewTotals,
     getVisibleDepartments,
     groupMembersByDepartment,
     shouldLoadPeople,
-    shouldShowNames,
+    shouldListPeople,
 } from './mapView';
 import { createTextMeasurer } from './textMeasure';
 import { useContainerSize } from './useContainerSize';
@@ -80,10 +85,8 @@ export const AdoptionMap: FC<Props> = ({
         null,
     );
     const [highlightedUuid, setHighlightedUuid] = useState<string | null>(null);
-    const [colourBy, setColourBy] = useState<ColourBy>('active');
+    const [colourBy, setColourBy] = useState<ColourBy>('activity');
     const { ref, width, height } = useContainerSize(FALLBACK_SIZE);
-    // One clock per visit, so a dot never changes kind between renders
-    const now = useMemo(() => new Date(), []);
 
     // Labels are measured in the font they are drawn in, again once web fonts have loaded
     const [font, setFont] = useState<{ family: string; epoch: number } | null>(
@@ -136,13 +139,23 @@ export const AdoptionMap: FC<Props> = ({
                 input: buildPackInput(departments, focusedUuid),
                 area: { width, height },
                 focusName,
-                describe,
-                measure,
             }),
-        [departments, focusedUuid, focusName, width, height, describe, measure],
+        [departments, focusedUuid, focusName, width, height],
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
     const totals = useMemo(() => getViewTotals(circles), [circles]);
+    // The panel and the legend under the map count the same people from the same numbers
+    const breakdown = useMemo(
+        () =>
+            focus === null
+                ? getOrganizationBreakdown(departments, colourBy)
+                : getDepartmentBreakdown(focus, colourBy),
+        [focus, departments, colourBy],
+    );
+    const rows = useMemo(
+        () => getCoverageRows(visibleDepartments, colourBy),
+        [visibleDepartments, colourBy],
+    );
     const peopleInView = countPeople(circles);
     const showDots = shouldRenderDots(peopleInView);
 
@@ -167,7 +180,7 @@ export const AdoptionMap: FC<Props> = ({
                 : groupMembersByDepartment(loadedMembers),
         [loadedMembers],
     );
-    const showNames = shouldShowNames(peopleInView, loadedMembers !== null);
+    const listPeople = shouldListPeople(peopleInView, loadedMembers !== null);
     const selectedMember =
         loadedMembers?.find((m) => m.userUuid === selectedUserUuid) ?? null;
 
@@ -175,26 +188,12 @@ export const AdoptionMap: FC<Props> = ({
         () =>
             showDots
                 ? circles.flatMap((circle) =>
-                      buildDots(circle, colourBy, membersByDepartment, now),
+                      buildDots(circle, colourBy, membersByDepartment),
                   )
                 : [],
-        [showDots, circles, colourBy, membersByDepartment, now],
+        [showDots, circles, colourBy, membersByDepartment],
     );
-    const legendCounts = useMemo(
-        () => countDotKinds(circles, colourBy, membersByDepartment, now),
-        [circles, colourBy, membersByDepartment, now],
-    );
-    // Only the departments at this level compete: a parent would always beat its own children
-    const cards = useMemo(
-        () =>
-            computeMapCards(
-                visibleDepartments.length > 0 || focus === null
-                    ? visibleDepartments
-                    : [focus],
-                summary.attention,
-            ),
-        [visibleDepartments, focus, summary.attention],
-    );
+    const legendCounts = useMemo(() => getLegendCounts(breakdown), [breakdown]);
 
     // Whether the last thing the person did in the map was a key press or a pointer press
     const lastInputRef = useRef<'keyboard' | 'pointer'>('pointer');
@@ -234,11 +233,13 @@ export const AdoptionMap: FC<Props> = ({
     const departmentCircles = circles.filter(
         (circle) => circle.kind === 'department',
     );
-    const namedDots = showNames ? dots.filter((dot) => dot.member) : [];
+    const ringKeys = getRingKeys(circles);
+    const namedDots = listPeople ? dots.filter((dot) => dot.member) : [];
 
     return (
         <Stack
             gap="md"
+            className={styles.root}
             onKeyDown={handleKeyDown}
             onPointerDownCapture={() => {
                 lastInputRef.current = 'pointer';
@@ -336,12 +337,18 @@ export const AdoptionMap: FC<Props> = ({
                                 circles={circles}
                                 info={info}
                                 dots={dots}
-                                showNames={showNames}
+                                colourBy={colourBy}
                                 ariaLabel={buildMapAriaLabel({
                                     scopeName: focusName,
                                     departmentCount: visibleDepartments.length,
                                     totals,
                                     areDotsHidden: !showDots,
+                                    colourBy,
+                                    breakdown,
+                                    hasHeadcount: hasHeadcountInView(
+                                        focus,
+                                        visibleDepartments,
+                                    ),
                                 })}
                                 measureText={measure}
                                 layoutKey={focusedUuid ?? 'root'}
@@ -400,15 +407,14 @@ export const AdoptionMap: FC<Props> = ({
                     <MapLegend
                         colourBy={colourBy}
                         counts={legendCounts}
-                        hasEmptyDepartment={departmentCircles.some(
-                            (circle) => !circle.hasMembers,
-                        )}
-                        hasDepartmentWithoutHeadcount={departmentCircles.some(
-                            (circle) =>
-                                circle.hasMembers && !circle.hasHeadcount,
-                        )}
+                        isOrganizationView={focus === null}
+                        hasEmptyDepartment={ringKeys.hasEmpty}
+                        hasDepartmentWithoutHeadcount={ringKeys.hasNoHeadcount}
                         hasEnlargedCircle={circles.some(
                             (circle) => !circle.isAreaHonest,
+                        )}
+                        hasSubDepartments={circles.some(
+                            (circle) => circle.depth > 1,
                         )}
                         areDotsHidden={!showDots}
                         haveNamesFailed={haveNamesFailed}
@@ -417,8 +423,10 @@ export const AdoptionMap: FC<Props> = ({
                 </Paper>
                 <MapInspector
                     department={focus}
-                    subDepartments={visibleDepartments}
-                    totals={totals}
+                    parentName={trail[trail.length - 2]?.name ?? null}
+                    breakdown={breakdown}
+                    colourBy={colourBy}
+                    rows={rows}
                     member={selectedMember}
                     canManage={canManage}
                     onDepartmentClick={focusOn}
@@ -426,8 +434,6 @@ export const AdoptionMap: FC<Props> = ({
                     onEdit={onEdit}
                 />
             </Box>
-
-            <MapCardGrid cards={cards} onDepartmentClick={focusOn} />
         </Stack>
     );
 };

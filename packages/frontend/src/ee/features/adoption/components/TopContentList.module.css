@@ -1,0 +1,4 @@
+/* The count stays on one line; the name beside it gives up width instead */
+.usage {
+    white-space: nowrap;
+}

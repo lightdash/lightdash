@@ -354,6 +354,7 @@ export * from './types/querySources';
 export * from './types/rename';
 export * from './types/resourceViewItem';
 export * from './types/results';
+export * from './departments/activityBuckets';
 export * from './departments/departmentInput';
 export * from './departments/departmentTree';
 export * from './departments/resolveDepartmentMembership';

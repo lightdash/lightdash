@@ -1,4 +1,5 @@
 import {
+    computeEffectiveHeadcounts,
     OrganizationMemberRole,
     type AdoptionMetrics,
     type DepartmentMember,
@@ -10,26 +11,37 @@ export const metricsFixture = (
     memberCount: number,
     coveragePct: number | null,
     over: Partial<AdoptionMetrics> = {},
-): AdoptionMetrics => ({
-    memberCount,
-    activeCount30d: 0,
-    activeCount12w: 0,
-    coveragePct,
-    activePct: coveragePct === null ? null : 0,
-    roleSplit: {
-        viewers: memberCount,
-        interactiveViewers: 0,
-        editors: 0,
-        admins: 0,
-    },
-    weeklyActive: Array.from({ length: 12 }, (_, i) => ({
-        weekStart: new Date(Date.UTC(2026, 0, 5 + 7 * i))
-            .toISOString()
-            .slice(0, 10),
-        activeUsers: 0,
-    })),
-    ...over,
-});
+): AdoptionMetrics => {
+    const metrics = {
+        memberCount,
+        activeCount30d: 0,
+        activeCount12w: 0,
+        coveragePct,
+        activePct: coveragePct === null ? null : 0,
+        roleSplit: {
+            viewers: memberCount,
+            interactiveViewers: 0,
+            editors: 0,
+            admins: 0,
+        },
+        weeklyActive: Array.from({ length: 12 }, (_, i) => ({
+            weekStart: new Date(Date.UTC(2026, 0, 5 + 7 * i))
+                .toISOString()
+                .slice(0, 10),
+            activeUsers: 0,
+        })),
+        ...over,
+    };
+    return {
+        ...metrics,
+        // Unless a test sets it, the people active in 30 days are healthy and everyone else on Lightdash is lost
+        activitySplit: over.activitySplit ?? {
+            healthy: metrics.activeCount30d,
+            atRisk: 0,
+            lost: metrics.memberCount - metrics.activeCount30d,
+        },
+    };
+};
 
 export const dept = (
     name: string,
@@ -63,7 +75,9 @@ export const dept = (
         owners: [],
         linkedGroups: [],
         explicitMemberUuids: [],
-        effectiveHeadcount: headcount,
+        // Never below the people on Lightdash, as the server gives it
+        effectiveHeadcount: Math.max(headcount ?? 0, memberCount),
+        hasHeadcount: headcount !== null,
         headcountBelowChildren: false,
         metrics,
         directMetrics: metrics,
@@ -71,27 +85,60 @@ export const dept = (
     };
 };
 
+// Effective headcounts and their flags as the server works them out from the headcounts entered and the people
+// on Lightdash, so a test never describes data the server cannot send
+export const withServerHeadcounts = (
+    departments: DepartmentWithMetrics[],
+): DepartmentWithMetrics[] => {
+    const effective = computeEffectiveHeadcounts(
+        departments,
+        new Map(
+            departments.map((department) => [
+                department.departmentUuid,
+                department.metrics.memberCount,
+            ]),
+        ),
+    );
+    return departments.map((department) => {
+        const value = effective.get(department.departmentUuid);
+        return value === undefined ? department : { ...department, ...value };
+    });
+};
+
 export const memberFixture = (
     userUuid: string,
     lastActiveAt: string | null,
     over: Partial<DepartmentMember> = {},
-): DepartmentMember => ({
-    userUuid,
-    email: `${userUuid}@example.com`,
-    firstName: userUuid,
-    lastName: 'L',
-    role: OrganizationMemberRole.VIEWER,
-    departmentUuid: 'ops',
-    departmentName: 'Operations',
-    isDirect: true,
-    source: 'explicit',
-    sourceGroupName: null,
-    lastActiveAt,
-    isActive30d: false,
-    queries30d: 0,
-    dashboardViews30d: 0,
-    ...over,
-});
+): DepartmentMember => {
+    const member = {
+        userUuid,
+        email: `${userUuid}@example.com`,
+        firstName: userUuid,
+        lastName: 'L',
+        role: OrganizationMemberRole.VIEWER,
+        departmentUuid: 'ops',
+        departmentName: 'Operations',
+        isDirect: true,
+        source: 'explicit' as const,
+        sourceGroupName: null,
+        lastActiveAt,
+        isActive30d: false,
+        queries30d: 0,
+        dashboardViews30d: 0,
+        ...over,
+    };
+    return {
+        ...member,
+        // The server's bucket, unless a test sets it: any last activity it sends is from the last 90 days
+        activity:
+            over.activity ??
+            (member.isActive30d
+                ? 'healthy'
+                : member.lastActiveAt === null
+                  ? 'lost'
+                  : 'atRisk'),
+    };
+};
 
 const seeded = (
     name: string,
@@ -102,7 +149,8 @@ const seeded = (
 ): DepartmentWithMetrics =>
     dept(name, parentDepartmentUuid, null, {
         headcount,
-        effectiveHeadcount: headcount,
+        effectiveHeadcount: Math.max(headcount ?? 0, members),
+        hasHeadcount: headcount !== null,
         metrics: metricsFixture(
             members,
             headcount === null ? null : Math.round((100 * members) / headcount),
@@ -115,16 +163,17 @@ const seeded = (
     });
 
 // A small organization with nesting, a missing headcount and almost nobody on Lightdash yet
-export const seededOrganization = (): DepartmentWithMetrics[] => [
-    seeded('Operations', null, 40, 1, 0),
-    seeded('North', 'Operations', null, 1),
-    seeded('Stores', 'Operations', 22, 0),
-    seeded('Depots', 'Operations', 9, 0),
-    seeded('Supply chain', null, 80, 0),
-    seeded('Procurement', 'Supply chain', 30, 0),
-    seeded('Logistics', 'Supply chain', 50, 0),
-    seeded('Marketing', null, 40, 0),
-    seeded('Finance', null, 32, 0),
-    seeded('Data', null, 9, 1),
-    seeded('Product', null, null, 1),
-];
+export const seededOrganization = (): DepartmentWithMetrics[] =>
+    withServerHeadcounts([
+        seeded('Operations', null, 40, 1, 0),
+        seeded('North', 'Operations', null, 1),
+        seeded('Stores', 'Operations', 22, 0),
+        seeded('Depots', 'Operations', 9, 0),
+        seeded('Supply chain', null, 80, 0),
+        seeded('Procurement', 'Supply chain', 30, 0),
+        seeded('Logistics', 'Supply chain', 50, 0),
+        seeded('Marketing', null, 40, 0),
+        seeded('Finance', null, 32, 0),
+        seeded('Data', null, 9, 1),
+        seeded('Product', null, null, 1),
+    ]);

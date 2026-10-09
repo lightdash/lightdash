@@ -1,3 +1,42 @@
+/* The colours of the map's dots, defined once here and read by the dots, both legends and the panel's bars */
+.root {
+    /* Activity: in both schemes the amber is about 1.5:1 lighter than the green and 2:1 lighter than the red,
+       and the green 1.4:1 to 1.6:1 lighter than the red, so neighbouring buckets differ in lightness, not only hue */
+    --adoption-healthy: light-dark(
+        var(--mantine-color-green-7),
+        var(--mantine-color-green-6)
+    );
+    --adoption-at-risk: light-dark(
+        var(--mantine-color-yellow-6),
+        var(--mantine-color-yellow-5)
+    );
+    --adoption-lost: var(--mantine-color-red-7);
+    /* On the light circle fill the green and the amber take a darker edge of their own hue, 4.9:1 and 3.6:1
+       against it; on the dark fill they stand out without one */
+    --adoption-healthy-edge: light-dark(
+        color-mix(in srgb, var(--adoption-healthy) 70%, black),
+        var(--adoption-healthy)
+    );
+    --adoption-at-risk-edge: light-dark(
+        color-mix(in srgb, var(--adoption-at-risk) 70%, black),
+        var(--adoption-at-risk)
+    );
+    /* Role, from the strongest violet for admins to a ring for viewers, so the four parts of a bar stay apart */
+    --adoption-admin: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-2)
+    );
+    --adoption-editor: var(--mantine-color-violet-filled);
+    --adoption-interactive-viewer: color-mix(
+        in srgb,
+        var(--mantine-color-violet-filled) 45%,
+        var(--mantine-color-body)
+    );
+    --adoption-viewer: var(--mantine-color-violet-outline);
+    /* People without an account: the grey of their ring and of the bars' track */
+    --adoption-no-account: var(--mantine-color-ldGray-3);
+}
+
 .body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 320px;
@@ -58,25 +97,62 @@
     font-variant-numeric: tabular-nums;
 }
 
-.tile {
-    padding: var(--mantine-spacing-sm);
-    border-radius: var(--mantine-radius-md);
-    background: var(--mantine-color-ldGray-0);
+/* The panel's title takes the room its subtitle leaves */
+.title {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
-.rows {
-    overflow: hidden;
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-md);
+.subtitle {
+    flex: none;
+    max-width: 50%;
 }
 
+/* What is left of a bar is its track, the people without an account, in their ring's grey */
+.root .track {
+    background-color: var(--adoption-no-account);
+}
+
+/* The bars' parts drawn as the dots are: filled, with the same edges, and a viewer's part as a ring */
+.segment[data-part='healthy'] {
+    background-color: var(--adoption-healthy);
+    box-shadow: inset 0 0 0 1px var(--adoption-healthy-edge);
+}
+
+.segment[data-part='atRisk'] {
+    background-color: var(--adoption-at-risk);
+    box-shadow: inset 0 0 0 1px var(--adoption-at-risk-edge);
+}
+
+.segment[data-part='lost'] {
+    background-color: var(--adoption-lost);
+}
+
+.segment[data-part='admin'] {
+    background-color: var(--adoption-admin);
+}
+
+.segment[data-part='editor'] {
+    background-color: var(--adoption-editor);
+}
+
+.segment[data-part='interactiveViewer'] {
+    background-color: var(--adoption-interactive-viewer);
+}
+
+.segment[data-part='viewer'] {
+    background-color: var(--mantine-color-body);
+    box-shadow: inset 0 0 0 1px var(--adoption-viewer);
+}
+
+/* Fixed columns, so the bars are the same width in every list whatever the last column says */
 .row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto 3.5em;
-    gap: var(--mantine-spacing-sm);
+    grid-template-columns: minmax(0, 1fr) 4rem 6rem;
+    column-gap: var(--mantine-spacing-sm);
     align-items: center;
     width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) 0;
     border: 0;
     border-bottom: 1px solid var(--mantine-color-default-border);
     background: transparent;
@@ -86,12 +162,42 @@
     cursor: pointer;
 }
 
-.row:last-child {
-    border-bottom: 0;
-}
-
 .row:hover {
     background: var(--mantine-color-default-hover);
+    box-shadow:
+        calc(var(--mantine-spacing-xs) * -1) 0 0
+            var(--mantine-color-default-hover),
+        var(--mantine-spacing-xs) 0 0 var(--mantine-color-default-hover);
+}
+
+.row:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: 2px;
+}
+
+.rowEnd {
+    white-space: nowrap;
+}
+
+/* The count stays whole when the department's name is cut short */
+.directLabel {
+    display: flex;
+    min-width: 0;
+}
+
+.directCount {
+    flex: none;
+    white-space: pre;
+}
+
+/* The people directly in the open department: a row with nothing to open */
+.directRow {
+    cursor: default;
+}
+
+.directRow:hover {
+    background: transparent;
+    box-shadow: none;
 }
 
 .selected {
@@ -102,13 +208,6 @@
 
 .actions {
     margin-top: auto;
-}
-
-.card {
-    width: 100%;
-    color: inherit;
-    font: inherit;
-    text-align: left;
 }
 
 /* Receives focus after the map changes level, so the outline belongs to the keyboard only */

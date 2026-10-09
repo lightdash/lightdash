@@ -78,7 +78,7 @@
     cursor: inherit;
 }
 
-.circle[data-kind='own'][data-nested] {
+.circle[data-kind='direct'][data-nested] {
     fill: none;
     stroke: var(--mantine-color-ldGray-2);
     stroke-width: 1px;
@@ -94,39 +94,58 @@
     cursor: pointer;
 }
 
-.dots circle[data-dot='active'],
-.dots circle[data-dot='editor'] {
-    fill: var(--mantine-color-violet-filled);
+/* The colours are set once on the map's root in AdoptionMap.module.css, which the panel's bars read too */
+.dots circle[data-dot='healthy'] {
+    fill: var(--adoption-healthy);
+    stroke: var(--adoption-healthy-edge);
 }
 
-.dots circle[data-dot='lapsed'],
-.dots circle[data-dot='interactiveViewer'] {
-    fill: var(--mantine-color-violet-filled);
-    fill-opacity: 0.45;
+.dots circle[data-dot='atRisk'] {
+    fill: var(--adoption-at-risk);
+    stroke: var(--adoption-at-risk-edge);
+}
+
+.dots circle[data-dot='lost'] {
+    fill: var(--adoption-lost);
 }
 
 .dots circle[data-dot='admin'] {
-    fill: light-dark(
-        var(--mantine-color-violet-9),
-        var(--mantine-color-violet-2)
-    );
+    fill: var(--adoption-admin);
 }
 
-.dots circle[data-dot='idle'],
-.dots circle[data-dot='inactive'],
+.dots circle[data-dot='editor'] {
+    fill: var(--adoption-editor);
+}
+
+.dots circle[data-dot='interactiveViewer'] {
+    fill: var(--adoption-interactive-viewer);
+}
+
 .dots circle[data-dot='viewer'] {
     fill: var(--mantine-color-body);
-    stroke: var(--mantine-color-violet-outline);
+    stroke: var(--adoption-viewer);
 }
 
+/* People without an account: a light grey ring, open where every activity mark is filled */
 .dots circle[data-dot='noAccount'] {
-    fill: var(--mantine-color-ldGray-3);
+    fill: var(--mantine-color-body);
+    stroke: var(--adoption-no-account);
 }
 
 .dots circle[data-selected] {
     stroke: var(--mantine-color-text);
     stroke-width: 2px;
     vector-effect: non-scaling-stroke;
+}
+
+/* A change of colouring fades each dot to its new look after the delay written on it. The fade has
+   a length only while that change runs, so nothing else that changes a dot ever fades */
+.dots circle {
+    transition-property: fill, fill-opacity, stroke, stroke-width, r;
+    transition-duration: var(--colour-fade, 0ms);
+    transition-timing-function: ease;
+    /* A ring's stroke comes or goes halfway through the fade rather than at its start */
+    transition-behavior: allow-discrete;
 }
 
 .label {
@@ -150,8 +169,39 @@
     font-weight: 600;
 }
 
-.personName {
-    fill: var(--mantine-color-text);
+/* Over the map and empty but for the band while the colouring changes; it never takes the pointer */
+.sweepLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+/* A soft white band slanted like the sweep's front, brightening what it passes over in either scheme */
+.sweepBand {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    background: linear-gradient(
+        to right,
+        transparent,
+        rgb(255 255 255 / 35%),
+        transparent
+    );
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    animation: sweepAcross linear forwards;
+}
+
+@keyframes sweepAcross {
+    from {
+        transform: translateX(var(--sweep-from)) rotate(var(--sweep-angle));
+    }
+
+    to {
+        transform: translateX(var(--sweep-to)) rotate(var(--sweep-angle));
+    }
 }
 
 .controls {
