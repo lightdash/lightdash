@@ -51,6 +51,7 @@ import {
     describeCircles,
     getFocusTrail,
     getLegendCounts,
+    getPeopleInView,
     getRingKeys,
     getViewTotals,
     getVisibleDepartments,
@@ -143,14 +144,29 @@ export const AdoptionMap: FC<Props> = ({
         [departments, focusedUuid, focusName, width, height],
     );
     const info = useMemo(() => describe(circles), [describe, circles]);
-    const totals = useMemo(() => getViewTotals(circles), [circles]);
-    // The panel and the legend under the map count the same people from the same numbers
+    // The panel, the legend under the map and the map's description count the same people from the same numbers
     const breakdown = useMemo(
         () =>
             focus === null
-                ? getOrganizationBreakdown(departments, colourBy)
+                ? getOrganizationBreakdown(summary, colourBy)
                 : getDepartmentBreakdown(focus, colourBy),
-        [focus, departments, colourBy],
+        [focus, summary, colourBy],
+    );
+    const totals = useMemo(
+        () =>
+            getViewTotals(
+                breakdown,
+                focus === null
+                    ? {
+                          active: summary.placed.activeCount30d,
+                          shared: summary.organization.sharedCount,
+                      }
+                    : {
+                          active: focus.metrics.activeCount30d,
+                          shared: focus.metrics.sharedCount,
+                      },
+            ),
+        [breakdown, focus, summary],
     );
     const rows = useMemo(
         () => getCoverageRows(visibleDepartments, colourBy),
@@ -234,7 +250,7 @@ export const AdoptionMap: FC<Props> = ({
         (circle) => circle.kind === 'department',
     );
     const ringKeys = getRingKeys(circles);
-    const namedDots = listPeople ? dots.filter((dot) => dot.member) : [];
+    const namedPeople = listPeople ? getPeopleInView(dots) : [];
 
     return (
         <Stack
@@ -382,31 +398,30 @@ export const AdoptionMap: FC<Props> = ({
                                 </li>
                             ))}
                         </ul>
-                        {namedDots.length > 0 && (
+                        {namedPeople.length > 0 && (
                             <ul aria-label="People on the map">
-                                {namedDots.map(({ key, member }) =>
-                                    member === null ? null : (
-                                        <li key={key}>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    setSelectedUserUuid(
-                                                        member.userUuid,
-                                                    )
-                                                }
-                                            >
-                                                {`${member.firstName} ${member.lastName}`.trim() ||
-                                                    member.email}
-                                            </button>
-                                        </li>
-                                    ),
-                                )}
+                                {namedPeople.map((member) => (
+                                    <li key={member.userUuid}>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setSelectedUserUuid(
+                                                    member.userUuid,
+                                                )
+                                            }
+                                        >
+                                            {`${member.firstName} ${member.lastName}`.trim() ||
+                                                member.email}
+                                        </button>
+                                    </li>
+                                ))}
                             </ul>
                         )}
                     </VisuallyHidden>
                     <MapLegend
                         colourBy={colourBy}
                         counts={legendCounts}
+                        hasSharedDots={dots.some((dot) => dot.isShared)}
                         isOrganizationView={focus === null}
                         hasEmptyDepartment={ringKeys.hasEmpty}
                         hasDepartmentWithoutHeadcount={ringKeys.hasNoHeadcount}

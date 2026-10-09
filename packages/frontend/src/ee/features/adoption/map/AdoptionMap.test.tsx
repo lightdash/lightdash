@@ -12,8 +12,11 @@ import {
     dept,
     memberFixture,
     metricsFixture,
+    placedFixture,
+    placedMetricsFixture,
     seededOrganization,
     withServerHeadcounts,
+    withSharedPeople,
 } from '../utils/adoptionFixtures';
 import { getSweepDelay } from '../utils/sweepDelay';
 import { AdoptionMap } from './AdoptionMap';
@@ -69,16 +72,18 @@ const tree = [
 const summary = (
     departments: DepartmentWithMetrics[],
     organization = metricsFixture(12, null, { activeCount30d: 6 }),
-): OrganizationAdoptionSummary => ({
-    organization,
-    placed: {
-        memberCount: organization.memberCount,
-        activeCount30d: organization.activeCount30d,
-    },
+    placed: OrganizationAdoptionSummary['placed'] | null = null,
+): OrganizationAdoptionSummary => {
     // Every tree the map is given is shaped as the server would send it
-    departments: withServerHeadcounts(departments),
-    attention: { unassignedCount: 2, sharedCount: 1 },
-});
+    const shaped = withServerHeadcounts(departments);
+    return {
+        organization,
+        // Unless a test says otherwise, nobody is in two top-level departments
+        placed: placed ?? placedFixture(shaped),
+        departments: shaped,
+        attention: { unassignedCount: 2, sharedCount: 1 },
+    };
+};
 
 const renderMap = (
     departments: DepartmentWithMetrics[] = tree,
@@ -86,12 +91,13 @@ const renderMap = (
         canManage = true,
         onEdit = vi.fn(),
         organization = metricsFixture(12, null, { activeCount30d: 6 }),
+        placed = null as OrganizationAdoptionSummary['placed'] | null,
     } = {},
 ) =>
     renderWithProviders(
         <MemoryRouter>
             <AdoptionMap
-                summary={summary(departments, organization)}
+                summary={summary(departments, organization, placed)}
                 canManage={canManage}
                 onEdit={onEdit}
                 measureText={estimateTextWidth}
@@ -1830,6 +1836,226 @@ describe('AdoptionMap', () => {
     it('labels the color control in American English', () => {
         renderMap();
         expect(screen.getByText('Color by')).toBeInTheDocument();
+    });
+
+    describe('people in several departments', () => {
+        const ref = (name: string) => ({ departmentUuid: name, name });
+        const person = (
+            userUuid: string,
+            firstName: string,
+            lastName: string,
+            departmentUuid: string,
+            over: Partial<DepartmentMember> = {},
+        ) =>
+            memberFixture(userUuid, null, {
+                firstName,
+                lastName,
+                departmentUuid,
+                departmentName: departmentUuid,
+                isDirect: false,
+                ...over,
+            });
+        const active = {
+            isActive30d: true,
+            lastActiveAt: new Date().toISOString(),
+        };
+        // Sam is in Stores and Depots, Fay in Depots and Finance, and Pat in Stores and Finance, counting in Stores
+        const people = [
+            person('sue', 'Sue', 'Stone', 'Stores', active),
+            person('stan', 'Stan', 'Stone', 'Stores'),
+            person('sam', 'Sam', 'Shared', 'Stores', {
+                ...active,
+                sharedWith: [ref('Depots')],
+            }),
+            person('pat', 'Pat', 'Primary', 'Stores', {
+                sharedWith: [ref('Finance')],
+                primaryDepartmentUuid: 'Stores',
+            }),
+            person('dan', 'Dan', 'Depot', 'Depots'),
+            person('fay', 'Fay', 'Field', 'Depots', {
+                sharedWith: [ref('Finance')],
+            }),
+        ];
+        // Ops holds Stores' 4 and Depots' 3 people, Sam once: 6, 2 of them active. Finance holds Fay and 2 more
+        const departments = [
+            withSharedPeople(
+                d('Ops', null, null, 6, 2, {
+                    directMetrics: metricsFixture(0, null),
+                }),
+                2,
+                0,
+            ),
+            withSharedPeople(d('Stores', 'Ops', 20, 4, 2), 1),
+            withSharedPeople(d('Depots', 'Ops', 10, 3, 1), 2),
+            withSharedPeople(d('Finance', null, 8, 3, 1), 1),
+        ];
+        const renderShared = () =>
+            renderMap(departments, {
+                organization: metricsFixture(9, null, {
+                    activeCount30d: 3,
+                    sharedCount: 2,
+                }),
+                placed: placedMetricsFixture(8, 3),
+            });
+        const drawn = (container: HTMLElement, selector: string) =>
+            container.querySelectorAll(`svg[role="img"] ${selector}`);
+        const details = () =>
+            screen.getByRole('complementary', { name: 'Details' });
+
+        it('rings as many dots in each department as it has people also in another department, and counts each person once', () => {
+            const { container } = renderShared();
+            // Stores 20, Depots 10 and Finance 8: a dot for each person in each department they count in
+            expect(drawn(container, '[data-dot]')).toHaveLength(38);
+            expect(drawn(container, '[data-dot][data-shared]')).toHaveLength(4);
+            expect(drawn(container, `.${styles.shared}`)).toHaveLength(4);
+            drawn(container, '[data-dot][data-shared]').forEach((dot) =>
+                expect(dot).not.toHaveAttribute('data-dot', 'noAccount'),
+            );
+            // The panel and the legend count Sam and Fay once
+            expect(
+                within(details())
+                    .getAllByText(/^(Healthy|At risk|Lost|No account) [\d,]+$/)
+                    .map((node) => node.textContent),
+            ).toEqual(['Healthy 3', 'At risk 0', 'Lost 5', 'No account 28']);
+            expect(legendCounts()).toEqual([
+                { label: 'Healthy', count: 3 },
+                { label: 'At risk', count: 0 },
+                { label: 'Lost', count: 5 },
+                { label: 'No account', count: 28 },
+            ]);
+            expect(
+                within(screen.getByRole('list', { name: 'Legend' })).getByText(
+                    'Also in another department',
+                ),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('img', {
+                    name: 'Map of the organization: 2 departments, 36 people, 8 on Lightdash placed in a department, 3 active in the last 30 days, 2 also in another department. Each circle is a department sized by headcount and each dot is a person, coloured by activity: 3 healthy, 0 at risk, 5 lost, 28 with no account. A person in several departments has a ringed dot in each. The List view has the same numbers as a table',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Depots, 3 of 10 on Lightdash, 1 active in the last 30 days, 2 also in another department',
+                }),
+            ).toBeInTheDocument();
+            // Coloured by role too: the departments add up to 9 viewers, the people placed are 8
+            fireEvent.click(screen.getByRole('radio', { name: 'Role' }));
+            expect(legendCounts()).toEqual([
+                { label: 'Admin', count: 0 },
+                { label: 'Editor', count: 0 },
+                { label: 'Interactive viewer', count: 0 },
+                { label: 'Viewer', count: 8 },
+                { label: 'No account', count: 28 },
+            ]);
+        });
+
+        it('draws a loaded person in each department they count in, ringed, and nobody twice in one', async () => {
+            loadMembers('Ops', people);
+            const { container } = renderShared();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            const circleOf = (userUuid: string) =>
+                [...drawn(container, `[data-user="${userUuid}"]`)].map((dot) =>
+                    dot.getAttribute('data-circle'),
+                );
+            expect(circleOf('sam')).toHaveLength(2);
+            expect(circleOf('sam')).toEqual(
+                expect.arrayContaining(['Depots', 'Stores']),
+            );
+            expect(circleOf('fay')).toEqual(['Depots']);
+            expect(circleOf('pat')).toEqual(['Stores']);
+            expect(
+                [...drawn(container, '[data-dot][data-shared]')].map((dot) =>
+                    dot.getAttribute('data-user'),
+                ),
+            ).toEqual(expect.arrayContaining(['sam', 'sam', 'fay']));
+            expect(drawn(container, '[data-dot][data-shared]')).toHaveLength(3);
+            // Sam is one of Depots' 3 people, so the grey rings stay Ops' 23 without an account
+            expect(drawn(container, '[data-dot="noAccount"]')).toHaveLength(23);
+            expect(drawn(container, '[data-dot]')).toHaveLength(30);
+            expect(
+                within(screen.getByRole('list', { name: 'People on the map' }))
+                    .getAllByRole('button')
+                    .map((button) => button.textContent),
+            ).toEqual(
+                expect.arrayContaining([
+                    'Sue Stone',
+                    'Stan Stone',
+                    'Sam Shared',
+                    'Pat Primary',
+                    'Dan Depot',
+                    'Fay Field',
+                ]),
+            );
+            expect(
+                within(
+                    screen.getByRole('list', { name: 'People on the map' }),
+                ).getAllByRole('button'),
+            ).toHaveLength(6);
+            expect(
+                screen.getByRole('img', {
+                    name: /^Map of Ops: 2 sub-departments, 29 people, 6 on Lightdash, 2 active in the last 30 days, 2 also in another department\./,
+                }),
+            ).toBeInTheDocument();
+            const depots = container.querySelector(
+                'svg[role="img"] [data-department="Depots"]',
+            );
+            if (depots) fireEvent.pointerOver(depots);
+            expect(
+                [...drawn(container, '[data-label="Depots"]')].map(
+                    (node) => node.textContent,
+                ),
+            ).toEqual([
+                'Depots',
+                '3 of 10 on Lightdash · 1 active · 2 also in another department',
+            ]);
+        });
+
+        it('says which departments the person selected is in, and where they count when that is set', async () => {
+            loadMembers('Ops', people);
+            const { container } = renderShared();
+            await userEvent.click(
+                screen.getByRole('button', { name: /^Ops,/ }),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sam Shared' }),
+            );
+            expect(
+                within(details()).getByText('In 2 departments: Depots, Stores'),
+            ).toBeInTheDocument();
+            expect(within(details()).queryByText(/^Counts in/)).toBeNull();
+            expect(within(details()).getByText('Viewer')).toBeInTheDocument();
+            // Both of Sam's dots are the person selected
+            expect(drawn(container, '[data-selected]')).toHaveLength(2);
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Pat Primary' }),
+            );
+            expect(
+                within(details()).getByText(
+                    'In 2 departments: Finance, Stores',
+                ),
+            ).toBeInTheDocument();
+            expect(
+                within(details()).getByText('Counts in: Stores'),
+            ).toBeInTheDocument();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sue Stone' }),
+            );
+            expect(
+                within(details()).getByText('Viewer · Stores'),
+            ).toBeInTheDocument();
+            expect(
+                within(details()).queryByText(/^In \d+ departments/),
+            ).toBeNull();
+        });
+
+        it('leaves the ring out of the legend when nobody in view is in another department', () => {
+            renderMap();
+            expect(screen.queryByText('Also in another department')).toBeNull();
+        });
     });
 
     describe('changing the colouring', () => {

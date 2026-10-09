@@ -69,6 +69,7 @@ export type AdoptionMetrics = {
     memberCount: number;
     activeCount30d: number;
     activeCount12w: number; // active in 30 days, or a chart or dashboard view in the 12-week trend window
+    sharedCount: number; // of these people, those who also count in another department
     coveragePct: number | null; // of the effective headcount, so never above 100; null only when that is 0
     activePct: number | null;
     roleSplit: RoleSplit;
@@ -84,9 +85,17 @@ export type DepartmentWithMetrics = Department & {
     directMetrics: AdoptionMetrics; // members resolved to this department itself; percentages of its residual headcount
 };
 
+// The people who count in at least one department, once each, split as the map colours them
+export type PlacedMetrics = {
+    memberCount: number;
+    activeCount30d: number;
+    roleSplit: RoleSplit;
+    activitySplit: ActivitySplit;
+};
+
 export type OrganizationAdoptionSummary = {
     organization: AdoptionMetrics; // everyone on Lightdash, in a department or not
-    placed: { memberCount: number; activeCount30d: number }; // people who count in at least one department, once each
+    placed: PlacedMetrics;
     departments: DepartmentWithMetrics[]; // flat, tree is in parentDepartmentUuid
     attention: { unassignedCount: number; sharedCount: number }; // shared = 2+ placements, no primary
 };

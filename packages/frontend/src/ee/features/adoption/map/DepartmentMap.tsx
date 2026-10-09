@@ -23,7 +23,11 @@ import {
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { COLOUR_TRANSITION, startColourTransition } from './colourTransition';
 import styles from './DepartmentMap.module.css';
-import { type ColourBy, type PackedCircle } from './geometry';
+import {
+    getSharedDotShape,
+    type ColourBy,
+    type PackedCircle,
+} from './geometry';
 import {
     getHoverLabel,
     getRestLabels,
@@ -151,8 +155,12 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
     ({ dots, selectedUserUuid }) => (
         <>
             {dots.map((dot) => {
-                const outerRadius =
+                const room =
                     dot.kind === 'noAccount' ? dot.r * NO_ACCOUNT_SCALE : dot.r;
+                // Someone who also counts in another department keeps the edge of the room for a ring
+                const outerRadius = dot.isShared
+                    ? getSharedDotShape(room).dotRadius
+                    : room;
                 // A ring's stroke, or a filled dot's thinner edge, drawn inside the dot's footprint
                 const strokeWidth = OUTLINED_DOT_KINDS.has(dot.kind)
                     ? Math.min(1.6, outerRadius * 0.45)
@@ -164,6 +172,7 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
                     <circle
                         key={dot.key}
                         data-dot={dot.kind}
+                        data-shared={dot.isShared || undefined}
                         data-circle={
                             dot.member === null ? undefined : dot.circleId
                         }
@@ -189,6 +198,28 @@ const DotsLayer = memo<{ dots: MapDot[]; selectedUserUuid: string | null }>(
     ),
 );
 DotsLayer.displayName = 'DotsLayer';
+
+// The rings of people who also count in another department. They sit outside the dots layer, which the colour
+// sweep reads as one circle per dot
+const SharedRingsLayer = memo<{ dots: MapDot[] }>(({ dots }) => (
+    <>
+        {dots.map((dot) => {
+            if (!dot.isShared) return null;
+            const { ringRadius, ringWidth } = getSharedDotShape(dot.r);
+            return (
+                <circle
+                    key={dot.key}
+                    className={styles.shared}
+                    cx={dot.x}
+                    cy={dot.y}
+                    r={ringRadius}
+                    strokeWidth={ringWidth}
+                />
+            );
+        })}
+    </>
+));
+SharedRingsLayer.displayName = 'SharedRingsLayer';
 
 // Text keeps its size on screen, so this layer follows the zoom level but not panning
 
@@ -443,6 +474,9 @@ export const DepartmentMap: FC<Props> = ({
                             dots={dots}
                             selectedUserUuid={selectedUserUuid}
                         />
+                    </g>
+                    <g>
+                        <SharedRingsLayer dots={dots} />
                     </g>
                     <LabelsLayer
                         labels={shownRestLabels}

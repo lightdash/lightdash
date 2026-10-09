@@ -19,6 +19,7 @@ const metrics = (weekly: number[]): AdoptionMetrics => ({
     memberCount: 0,
     activeCount30d: 0,
     activeCount12w: 0,
+    sharedCount: 0,
     coveragePct: null,
     activePct: null,
     roleSplit: { viewers: 0, interactiveViewers: 0, editors: 0, admins: 0 },

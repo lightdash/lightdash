@@ -6,7 +6,7 @@ import { DepartmentMap } from './DepartmentMap';
 import styles from './DepartmentMap.module.css';
 import { type PackedCircle } from './geometry';
 import { estimateTextWidth, TEXT_FONTS } from './mapLayout';
-import { describeCircles } from './mapView';
+import { describeCircles, type MapDot } from './mapView';
 
 const AREA = { width: 760, height: 560 };
 
@@ -38,6 +38,7 @@ const SERVICE = dept('Service', null, null, {
 const draw = (
     circles: PackedCircle[],
     highlightedUuid: string | null = null,
+    dots: MapDot[] = [],
 ) => {
     const info = describeCircles(
         circles,
@@ -59,7 +60,7 @@ const draw = (
             height={AREA.height}
             circles={circles}
             info={info}
-            dots={[]}
+            dots={dots}
             colourBy="activity"
             ariaLabel="Map"
             measureText={estimateTextWidth}
@@ -215,5 +216,53 @@ describe('DepartmentMap labels', () => {
         expect(
             container.querySelector('[data-rest-label="Service"]'),
         ).toHaveAttribute('font-size', String(TEXT_FONTS.name.size / 1.6));
+    });
+});
+
+describe('DepartmentMap dots', () => {
+    const dot = (key: string, x: number, isShared: boolean): MapDot => ({
+        key,
+        circleId: 'Service',
+        x,
+        y: 280,
+        r: 5,
+        kind: 'healthy',
+        member: null,
+        isShared,
+    });
+
+    it('rings the dot of a person who counts in another department, inside the room the dot has', () => {
+        const { container } = draw([circleOfPeople(120)], null, [
+            dot('a', 370, true),
+            dot('b', 390, false),
+        ]);
+        const rings = [...container.querySelectorAll(`.${styles.shared}`)];
+        expect(rings).toHaveLength(1);
+        const [ring] = rings;
+        const ringRadius = Number(ring.getAttribute('r'));
+        const ringWidth = Number(ring.getAttribute('stroke-width'));
+        expect(ring).toHaveAttribute('cx', '370');
+        expect(ringWidth).toBe(1);
+        // The ring's outer edge is the dot's own edge, so it never reaches a neighbour
+        expect(ringRadius + ringWidth / 2).toBeCloseTo(5, 9);
+        // How far a dot reaches, its edge included
+        const footprint = (circle: Element | null) =>
+            Number(circle?.getAttribute('r')) +
+            Number(circle?.getAttribute('stroke-width') ?? 0) / 2;
+        const ringed = container.querySelector('[data-dot][data-shared]');
+        expect(ringed).toHaveAttribute('cx', '370');
+        expect(footprint(ringed)).toBeLessThan(ringRadius - ringWidth / 2);
+        // Every dot is still one circle in the dots layer, ringed or not, and one without a ring fills its room
+        expect(container.querySelectorAll('[data-dot]')).toHaveLength(2);
+        expect(
+            footprint(container.querySelector('[data-dot]:not([data-shared])')),
+        ).toBe(5);
+    });
+    it('draws no rings when nobody counts in another department', () => {
+        const { container } = draw([circleOfPeople(120)], null, [
+            dot('a', 370, false),
+        ]);
+        expect(container.querySelector(`.${styles.shared}`)).toBeNull();
+        expect(container.querySelector('[data-shared]')).toBeNull();
     });
 });

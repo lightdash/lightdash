@@ -31,7 +31,11 @@ import styles from './AdoptionMap.module.css';
 import { type ColourBy } from './geometry';
 import { DotSwatch } from './MapLegend';
 import { DOT_LABELS } from './mapStyles';
-import { formatMemberActivity, formatPct } from './mapView';
+import {
+    formatMemberActivity,
+    formatPct,
+    getMemberDepartmentLines,
+} from './mapView';
 
 type Props = {
     // The focused department, or null at the top of the organization
@@ -159,6 +163,9 @@ export const MapInspector: FC<Props> = ({
 }) => {
     const subtitle =
         department === null ? 'All departments' : (parentName ?? 'Department');
+    // A person in several departments is named with all of them, so their role stands alone
+    const departmentLines =
+        member === null ? [] : getMemberDepartmentLines(member);
     const hasHeadcount = hasHeadcountInView(
         department,
         rows.map((row) => row.department),
@@ -221,9 +228,17 @@ export const MapInspector: FC<Props> = ({
                                     {member.email}
                                 </Text>
                                 <Text fz="xs" c="dimmed">
-                                    {OrganizationMemberRoleLabels[member.role]}{' '}
-                                    · {member.departmentName}
+                                    {departmentLines.length === 0
+                                        ? `${OrganizationMemberRoleLabels[member.role]} · ${member.departmentName}`
+                                        : OrganizationMemberRoleLabels[
+                                              member.role
+                                          ]}
                                 </Text>
+                                {departmentLines.map((line) => (
+                                    <Text key={line} fz="xs" c="dimmed">
+                                        {line}
+                                    </Text>
+                                ))}
                                 <Text fz="xs" c="dimmed">
                                     {formatMemberActivity(member.lastActiveAt)}
                                 </Text>

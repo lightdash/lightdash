@@ -3,7 +3,7 @@ import { type FC } from 'react';
 import { formatCount } from '../utils/format';
 import styles from './AdoptionMap.module.css';
 import mapStyles from './DepartmentMap.module.css';
-import { type ColourBy, type DotKind } from './geometry';
+import { getSharedDotShape, type ColourBy, type DotKind } from './geometry';
 import {
     DOT_LABELS,
     EDGED_DOT_KINDS,
@@ -11,9 +11,14 @@ import {
     OUTLINED_DOT_KINDS,
 } from './mapStyles';
 
+// The ringed dot's room in the 12 px swatch for people in several departments
+const SHARED_SWATCH_ROOM = 5.5;
+
 type Props = {
     colourBy: ColourBy;
     counts: Map<DotKind, number>;
+    // Someone in view also counts in another department, so has a ringed dot in each
+    hasSharedDots: boolean;
     // The whole organization is in view, where only the people placed in a department are counted
     isOrganizationView: boolean;
     hasEmptyDepartment: boolean;
@@ -47,6 +52,34 @@ export const DotSwatch: FC<{ kind: DotKind }> = ({ kind }) => (
     </svg>
 );
 
+// The ring the map draws around the dot of a person who also counts in another department
+const SharedSwatch: FC<{ kind: DotKind }> = ({ kind }) => {
+    const { dotRadius, ringRadius, ringWidth } =
+        getSharedDotShape(SHARED_SWATCH_ROOM);
+    // A filled dot's darker edge sits inside it, as on the map
+    const edge = EDGED_DOT_KINDS.has(kind) ? Math.min(1, dotRadius * 0.3) : 0;
+    return (
+        <svg className={mapStyles.swatch} width={12} height={12} aria-hidden>
+            <g className={mapStyles.dots}>
+                <circle
+                    data-dot={kind}
+                    cx={6}
+                    cy={6}
+                    r={dotRadius - edge / 2}
+                    strokeWidth={edge > 0 ? edge : undefined}
+                />
+            </g>
+            <circle
+                className={mapStyles.shared}
+                cx={6}
+                cy={6}
+                r={ringRadius}
+                strokeWidth={ringWidth}
+            />
+        </svg>
+    );
+};
+
 const RingSwatch: FC<{ variant: 'empty' | 'noHeadcount' }> = ({ variant }) => (
     <svg className={mapStyles.swatch} width={14} height={14} aria-hidden>
         <circle
@@ -63,6 +96,7 @@ const RingSwatch: FC<{ variant: 'empty' | 'noHeadcount' }> = ({ variant }) => (
 export const MapLegend: FC<Props> = ({
     colourBy,
     counts,
+    hasSharedDots,
     isOrganizationView,
     hasEmptyDepartment,
     hasDepartmentWithoutHeadcount,
@@ -83,6 +117,12 @@ export const MapLegend: FC<Props> = ({
                     </Text>
                 </li>
             ))}
+            {hasSharedDots && (
+                <li className={styles.legendItem}>
+                    <SharedSwatch kind={LEGEND_KINDS[colourBy][0]} />
+                    <Text fz="xs">Also in another department</Text>
+                </li>
+            )}
             {hasEmptyDepartment && (
                 <li className={styles.legendItem}>
                     <RingSwatch variant="empty" />

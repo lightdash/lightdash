@@ -13,7 +13,12 @@ import AdoptionDepartment from '../../../pages/AdoptionDepartment';
 import { AdoptionMap } from '../map/AdoptionMap';
 import { MapInspector } from '../map/MapInspector';
 import { estimateTextWidth } from '../map/mapLayout';
-import { dept, memberFixture, metricsFixture } from '../utils/adoptionFixtures';
+import {
+    dept,
+    memberFixture,
+    metricsFixture,
+    placedMetricsFixture,
+} from '../utils/adoptionFixtures';
 import {
     getCoverageRows,
     getDepartmentBreakdown,
@@ -280,7 +285,10 @@ describe('typed strings render as text', () => {
                     rows={getCoverageRows([child], 'activity')}
                     member={memberFixture('p1', null, {
                         firstName: PERSON,
+                        departmentUuid: 'hostile',
                         departmentName: NAME,
+                        sharedWith: [{ departmentUuid: 'child', name: CHILD }],
+                        primaryDepartmentUuid: 'hostile',
                     })}
                     canManage
                     onDepartmentClick={vi.fn()}
@@ -295,6 +303,9 @@ describe('typed strings render as text', () => {
         expectLiteral(PERSON);
         expectLiteral(CHILD);
         expectLiteral(`Directly in ${NAME}`);
+        // The departments the person is in, and the one they count in
+        expectLiteral(`In 2 departments: ${CHILD}, ${NAME}`);
+        expectLiteral(`Counts in: ${NAME}`);
         expect(screen.getByTitle(`Directly in ${NAME} · 5`)).toHaveTextContent(
             `Directly in ${NAME} · 5`,
         );
@@ -351,7 +362,7 @@ describe('typed strings render as text', () => {
                 <AdoptionMap
                     summary={{
                         organization: metricsFixture(7, null),
-                        placed: { memberCount: 7, activeCount30d: 0 },
+                        placed: placedMetricsFixture(7, 0),
                         departments: [hostileDepartment, child],
                         attention: { unassignedCount: 0, sharedCount: 0 },
                     }}

@@ -132,6 +132,13 @@
     stroke: var(--adoption-no-account);
 }
 
+/* A ring around a person who also counts in another department, who has a dot there too */
+.shared {
+    fill: none;
+    stroke: var(--adoption-shared-ring);
+    pointer-events: none;
+}
+
 .dots circle[data-selected] {
     stroke: var(--mantine-color-text);
     stroke-width: 2px;

@@ -7,6 +7,7 @@ import { renderWithProviders } from '../../testing/testUtils';
 import {
     dept,
     metricsFixture,
+    placedMetricsFixture,
 } from '../features/adoption/utils/adoptionFixtures';
 import Adoption from './Adoption';
 
@@ -46,7 +47,7 @@ const organizationSummary = (
     },
 ): OrganizationAdoptionSummary => ({
     organization: metricsFixture(memberCount, null, { activeCount30d }),
-    placed: { memberCount, activeCount30d },
+    placed: placedMetricsFixture(memberCount, activeCount30d),
     departments: [dept('Operations', null, 10)],
     attention,
 });

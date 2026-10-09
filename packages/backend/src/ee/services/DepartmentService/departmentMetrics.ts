@@ -13,6 +13,7 @@ import {
     type Department,
     type DepartmentMembership,
     type OrganizationAdoptionSummary,
+    type PlacedMetrics,
     type RoleSplit,
 } from '@lightdash/common';
 import Logger from '../../../logging/logger';
@@ -24,6 +25,7 @@ export type MetricsInput = {
     // Each person's latest activity back to the at-risk bound; anyone missing has none in that time
     lastActiveAt: Map<string, Date>;
     windows: ActivityWindows;
+    sharedUserUuids: Set<string>; // counted in more than one department
     weeksByUser: Map<string, Set<string>>;
     weekStarts: string[];
 };
@@ -82,6 +84,19 @@ const pct = (num: number, headcount: number | null): number | null =>
         ? null
         : Math.round((100 * num) / headcount);
 
+// The people placed are counted once each, in the parts the map colours them by
+const getPlacedMetrics = ({
+    memberCount,
+    activeCount30d,
+    roleSplit,
+    activitySplit,
+}: AdoptionMetrics): PlacedMetrics => ({
+    memberCount,
+    activeCount30d,
+    roleSplit,
+    activitySplit,
+});
+
 const warnedRoles = new Set<string>();
 
 const bucket = (split: RoleSplit, role: OrganizationMemberRole): RoleSplit => {
@@ -122,6 +137,7 @@ export const computeAdoptionMetrics = (
         headcount,
         lastActiveAt,
         windows,
+        sharedUserUuids,
         weeksByUser,
         weekStarts,
     } = input;
@@ -149,11 +165,15 @@ export const computeAdoptionMetrics = (
         }
     });
     const activeCount30d = activitySplit.healthy;
+    const sharedCount = members.filter((m) =>
+        sharedUserUuids.has(m.userUuid),
+    ).length;
 
     return {
         memberCount: members.length,
         activeCount30d,
         activeCount12w,
+        sharedCount,
         coveragePct: pct(members.length, headcount),
         activePct: pct(activeCount30d, headcount),
         roleSplit,
@@ -186,6 +206,17 @@ export const buildAdoptionSnapshot = (
     const placed = membership.filter((m) =>
         m.countedDepartmentUuids.some((uuid) => departmentUuids.has(uuid)),
     );
+    // Counted in more than one department, so drawn in each of them
+    const sharedUserUuids = new Set(
+        membership
+            .filter(
+                (m) =>
+                    m.countedDepartmentUuids.filter((uuid) =>
+                        departmentUuids.has(uuid),
+                    ).length > 1,
+            )
+            .map((m) => m.userUuid),
+    );
     const headcounts = computeEffectiveHeadcounts(
         departments,
         new Map(
@@ -202,6 +233,7 @@ export const buildAdoptionSnapshot = (
             headcount,
             lastActiveAt,
             windows,
+            sharedUserUuids,
             weeksByUser,
             weekStarts,
         });
@@ -210,12 +242,7 @@ export const buildAdoptionSnapshot = (
         summary: {
             // Everyone on Lightdash, a count baseline; there is no org-wide headcount
             organization: metricsFor(membership, null),
-            placed: {
-                memberCount: placed.length,
-                activeCount30d: placed.filter((m) =>
-                    activeUserUuids.has(m.userUuid),
-                ).length,
-            },
+            placed: getPlacedMetrics(metricsFor(placed, null)),
             departments: departments.map((d) => {
                 const members = rolledMembers.get(d.departmentUuid) ?? [];
                 const direct = directMembers.get(d.departmentUuid) ?? [];

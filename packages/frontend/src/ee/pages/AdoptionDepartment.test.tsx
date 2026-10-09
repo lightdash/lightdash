@@ -13,6 +13,7 @@ import {
     dept,
     memberFixture,
     metricsFixture,
+    placedMetricsFixture,
 } from '../features/adoption/utils/adoptionFixtures';
 import { type WeeklyComparisonPoint } from '../features/adoption/utils/departmentDetail';
 import AdoptionDepartment from './AdoptionDepartment';
@@ -104,7 +105,7 @@ const organizationSummary = (): OrganizationAdoptionSummary => ({
             activeUsers: [1000, 500, 250][i],
         })),
     }),
-    placed: { memberCount: 2000, activeCount30d: 0 },
+    placed: placedMetricsFixture(2000, 0),
     departments: [],
     attention: { unassignedCount: 0, sharedCount: 0 },
 });

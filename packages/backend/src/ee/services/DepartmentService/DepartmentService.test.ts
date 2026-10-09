@@ -813,7 +813,17 @@ describe('DepartmentService.getSummary', () => {
         });
         // Everyone on Lightdash is in the organization; only the person in a department is placed
         expect(summary.organization.memberCount).toBe(2);
-        expect(summary.placed).toEqual({ memberCount: 1, activeCount30d: 1 });
+        expect(summary.placed).toEqual({
+            memberCount: 1,
+            activeCount30d: 1,
+            roleSplit: {
+                viewers: 1,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 0,
+            },
+            activitySplit: { healthy: 1, atRisk: 0, lost: 0 },
+        });
     });
     it('counts a person explicitly in Marketing and in Sales through a group in both, and once in the organization', async () => {
         const marketing = { ...departmentFixture('marketing', null, 10) };
@@ -867,11 +877,69 @@ describe('DepartmentService.getSummary', () => {
             memberCount: 2,
             activeCount30d: 1,
         });
-        expect(summary.placed).toEqual({ memberCount: 2, activeCount30d: 1 });
+        // Split as the map colours them, the person in both once
+        expect(summary.placed).toEqual({
+            memberCount: 2,
+            activeCount30d: 1,
+            roleSplit: {
+                viewers: 2,
+                interactiveViewers: 0,
+                editors: 0,
+                admins: 0,
+            },
+            activitySplit: { healthy: 1, atRisk: 0, lost: 1 },
+        });
         expect(summary.attention).toEqual({
             unassignedCount: 0,
             sharedCount: 1,
         });
+        // The person in both is drawn in each, and counted as also in another department in each
+        expect(metricsOf('marketing')?.sharedCount).toBe(1);
+        expect(metricsOf('sales')?.sharedCount).toBe(1);
+        expect(summary.organization.sharedCount).toBe(1);
+    });
+    it('counts nobody as also in another department who has a primary or whose departments collapse into one', async () => {
+        const row = (
+            userUuid: string,
+            explicitDepartmentUuids: string[],
+            primaryDepartmentUuid: string | null,
+        ) => ({
+            userUuid,
+            email: `${userUuid}@example.com`,
+            firstName: userUuid,
+            lastName: 'L',
+            role: OrganizationMemberRole.MEMBER,
+            explicitDepartmentUuids,
+            groupLinks: [],
+            primaryDepartmentUuid,
+        });
+        const { service } = buildService({
+            flag: true,
+            departments: [
+                departmentFixture('ops', null, null),
+                departmentFixture('stores', 'ops', null),
+                departmentFixture('sales', null, null),
+            ],
+            rows: [
+                row('chosen', ['stores', 'sales'], 'sales'),
+                row('nested', ['ops', 'stores'], null),
+            ],
+        });
+        const summary = await service.getSummary(
+            buildAccount(abilityWith(['view', ORG])),
+        );
+        expect(
+            summary.departments.map((d) => [
+                d.departmentUuid,
+                d.metrics.memberCount,
+                d.metrics.sharedCount,
+            ]),
+        ).toEqual([
+            ['ops', 1, 0],
+            ['stores', 1, 0],
+            ['sales', 1, 0],
+        ]);
+        expect(summary.organization.sharedCount).toBe(0);
     });
     it('never puts a headcount below the people on Lightdash, and counts them where none is set', async () => {
         const departments = [
