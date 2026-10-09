@@ -93,7 +93,8 @@
     height: var(--content-height);
 }
 
-/* One per person, moved into place */
+/* One per person, moved into place. A change of colouring fades it to its new look, and a reflow glides it to its
+   new place, after the delay written on it; both have a length only while that change runs */
 .square {
     position: absolute;
     top: 0;
@@ -101,6 +102,19 @@
     width: var(--cell);
     height: var(--cell);
     border-radius: 1px;
+    pointer-events: none;
+    transition-property: background-color, box-shadow, transform;
+    transition-duration:
+        var(--colour-fade, 0ms), var(--colour-fade, 0ms),
+        var(--colour-move, 0ms);
+    transition-timing-function: ease, ease, cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Over the waffle and empty but for the band while the colouring changes; it never takes the pointer */
+.bandLayer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
     pointer-events: none;
 }
 

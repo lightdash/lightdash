@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { select } from 'd3-selection';
+import { select, selectAll } from 'd3-selection';
 import {
     getSweepDelay,
     SWEEP_DOWN_WEIGHT,
@@ -11,11 +11,15 @@ import styles from './DepartmentMap.module.css';
 
 export type ColourTransition = 'sweep' | 'reflow';
 
-// How the people dots change when the map's colouring changes
+// How people's dots and squares change when the colouring changes
 export const COLOUR_TRANSITION: ColourTransition = 'sweep';
 
-// Each dot's fade to its new colour; the dots' CSS transition reads it while a change runs
+// Each mark's fade to its new colour; the marks' CSS transition reads it while a change runs
 const FADE_MS = 380;
+// In a reflow, a mark's glide to its new place, which starts with its fade
+const MOVE_MS = 640;
+// In a reflow, how long a mark waits for each place before its old one, so the reorder runs through a part
+const REFLOW_STAGGER_MS = 0.3;
 const BAND_WIDTH_PX = 160;
 // The band's brightest line crosses each dot halfway through the dot's fade
 const BAND_LAG_MS = FADE_MS / 2;
@@ -26,14 +30,18 @@ const BAND_FALLBACK_MS = 100;
 const SLANT = Math.hypot(1, SWEEP_DOWN_WEIGHT);
 
 type ColourChange = {
-    // The layer the people dots are drawn in: one circle per point, in the same order
-    dotsLayer: SVGGElement;
-    // Where each dot is on screen, under the zoom of the moment
+    // Holds the fade's length, and a glide's, while the change runs
+    layer: HTMLElement | SVGElement;
+    // People's dots or squares, one per point and in the same order
+    marks: Element[];
+    // Where each mark is on screen, under the zoom of the moment
     points: SweepPoint[];
-    // The visible map; the sweep starts at its top-left corner
+    // The visible drawing; the sweep starts at its top-left corner
     area: SweepArea;
-    // Over the map, where the band is drawn
+    // Over the drawing, where the band is drawn
     bandLayer: HTMLElement;
+    // Where grouping moves people (the waffle), each mark's place before the change; null where marks never move
+    previousIndexes: number[] | null;
 };
 
 const prefersReducedMotion = (): boolean =>
@@ -72,45 +80,57 @@ const drawBand = (layer: HTMLElement, area: SweepArea): (() => void) => {
     return remove;
 };
 
-// Fades each dot to the colour React has just drawn once the sweep reaches it. Stopping it early takes the band
-// away at once; fades the browser has already started, or is holding for the sweep, finish on their own timing.
+// Fades each mark to the colour React has just drawn once the change reaches it, and in a reflow glides it to its new
+// place. Stopping it early takes the band away at once; fades and glides already started finish on their own timing.
 export const startColourTransition = (
-    { dotsLayer, points, area, bandLayer }: ColourChange,
+    { layer, marks, points, area, bandLayer, previousIndexes }: ColourChange,
     transition: ColourTransition,
 ): (() => void) => {
-    if (points.length === 0 || prefersReducedMotion()) return () => {};
-    const layer = select(dotsLayer);
-    const dots = layer.selectChildren<SVGCircleElement, unknown>('circle');
-    const delays = points.map((point) => getSweepDelay(point, area));
-    layer.style('--colour-fade', `${FADE_MS}ms`);
-    dots.style('transition-delay', (_, index) => `${delays[index]}ms`);
+    if (marks.length === 0 || prefersReducedMotion()) return () => {};
+    const container = select(layer);
+    const sweepDelays = () => points.map((point) => getSweepDelay(point, area));
+    let delays: number[];
+    let length = FADE_MS;
     let removeBand = () => {};
     switch (transition) {
         case 'sweep':
+            delays = sweepDelays();
             removeBand = drawBand(bandLayer, area);
             break;
-        // Reflow is drawn where grouping reorders people (the waffle view). Dots on the map never move,
-        // so here it is the sweep without the band.
+        // Grouping reorders people, so each one glides to their new place. Dots on the map never move, so there it is
+        // the sweep without the band
         case 'reflow':
+            if (previousIndexes === null) {
+                delays = sweepDelays();
+            } else {
+                delays = previousIndexes.map((index) =>
+                    Math.round(index * REFLOW_STAGGER_MS),
+                );
+                container.style('--colour-move', `${MOVE_MS}ms`);
+                length = MOVE_MS;
+            }
             break;
         default:
             return assertUnreachable(transition, 'Unknown colour transition');
     }
-    let areDotsCleared = false;
-    // Hover, selection and new data change a dot at once again
-    const clearDots = () => {
-        if (areDotsCleared) return;
-        areDotsCleared = true;
-        dots.style('transition-delay', null);
-        layer.style('--colour-fade', null);
+    container.style('--colour-fade', `${FADE_MS}ms`);
+    const changed = selectAll(marks);
+    changed.style('transition-delay', (_, index) => `${delays[index]}ms`);
+    let areMarksCleared = false;
+    // Hover, selection and new data change a mark at once again
+    const clearMarks = () => {
+        if (areMarksCleared) return;
+        areMarksCleared = true;
+        changed.style('transition-delay', null);
+        container.style('--colour-fade', null).style('--colour-move', null);
     };
     const timer = window.setTimeout(
-        clearDots,
-        FADE_MS + delays.reduce((last, delay) => Math.max(last, delay)),
+        clearMarks,
+        length + delays.reduce((last, delay) => Math.max(last, delay), 0),
     );
     return () => {
         window.clearTimeout(timer);
-        clearDots();
+        clearMarks();
         removeBand();
     };
 };
