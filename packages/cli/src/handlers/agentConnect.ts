@@ -40,9 +40,13 @@ const formatRemaining = (milliseconds: number): string => {
 };
 
 type ConnectOutcome =
-    | { status: 'connected'; access: AiAccessForUser | null }
+    | { status: 'connected'; access: AiAccessForUser }
     | { status: 'failed'; code: string }
+    | { status: 'user_not_connected' }
     | { status: 'timeout' };
+
+const isConnected = (access: AiAccessForUser): boolean =>
+    access.refusal === null && access.identity === 'connected_person';
 
 export const agentConnectHandler = async (
     options: AgentConnectOptions,
@@ -50,7 +54,7 @@ export const agentConnectHandler = async (
     GlobalState.setVerbose(options.verbose);
     const projectUuid = await resolveAgentProject(options.project);
     const access = await getAgentAccess(projectUuid);
-    if (access.refusal === null && access.identity === 'connected_person') {
+    if (isConnected(access)) {
         console.error('Agent already connected');
         return;
     }
@@ -99,10 +103,7 @@ export const agentConnectHandler = async (
     const callback = new Promise<void>((resolve, reject) => {
         resolveCallback = resolve;
         rejectCallback = reject;
-    }).then(
-        () => ({ status: 'connected' as const, access: null }),
-        (error: Error) => ({ status: 'failed' as const, code: error.message }),
-    );
+    });
     const server = http.createServer((req, res) => {
         const url = new URL(req.url ?? '/', 'http://localhost');
         if (req.method !== 'GET' || url.pathname !== '/done') {
@@ -133,6 +134,7 @@ export const agentConnectHandler = async (
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pollTimer: ReturnType<typeof setInterval> | null = null;
     let countdownTimer: ReturnType<typeof setInterval> | null = null;
+    let browserTimer: ReturnType<typeof setTimeout> | null = null;
     let spinner: Ora | null = null;
     try {
         await new Promise<void>((resolve, reject) => {
@@ -165,7 +167,29 @@ export const agentConnectHandler = async (
             );
         });
         const result = Promise.race([
-            callback,
+            callback.then(
+                async (): Promise<ConnectOutcome> => {
+                    try {
+                        const currentAccess = await getAgentAccess(
+                            projectUuid,
+                            requests.signal,
+                        );
+                        return isConnected(currentAccess)
+                            ? { status: 'connected', access: currentAccess }
+                            : { status: 'user_not_connected' };
+                    } catch {
+                        if (!stopped)
+                            GlobalState.debug(
+                                '> Could not refresh agent access after approval',
+                            );
+                        return expiry;
+                    }
+                },
+                (error: Error): ConnectOutcome => ({
+                    status: 'failed',
+                    code: error.message,
+                }),
+            ),
             expiry,
             new Promise<ConnectOutcome>((resolve) => {
                 let polling = false;
@@ -177,7 +201,7 @@ export const agentConnectHandler = async (
                             projectUuid,
                             requests.signal,
                         );
-                        if (!stopped && currentAccess.refusal === null) {
+                        if (!stopped && isConnected(currentAccess)) {
                             resolve({
                                 status: 'connected',
                                 access: currentAccess,
@@ -198,8 +222,12 @@ export const agentConnectHandler = async (
         console.error(`\n  Open: ${connectUrl.href}`);
         const opened = await Promise.race([
             openBrowser(connectUrl.href).catch(() => false),
+            new Promise<boolean>((resolve) => {
+                browserTimer = setTimeout(() => resolve(false), 1500);
+            }),
             result.then(() => false),
         ]);
+        if (browserTimer) clearTimeout(browserTimer);
         console.error(
             opened
                 ? '  Opened in your browser.'
@@ -230,20 +258,9 @@ export const agentConnectHandler = async (
         }
         const outcome = await result;
         if (outcome.status === 'connected') {
-            const connectedAccess =
-                outcome.access ??
-                (await Promise.race([
-                    getAgentAccess(projectUuid, requests.signal).catch(() => {
-                        if (!stopped)
-                            GlobalState.debug(
-                                '> Could not refresh agent access after approval',
-                            );
-                        return null;
-                    }),
-                    expiry.then(() => null),
-                ]));
-            const principal = connectedAccess?.principalName ?? 'you';
-            const until = connectedAccess?.expiresAt
+            const connectedAccess = outcome.access;
+            const principal = connectedAccess.principalName ?? 'you';
+            const until = connectedAccess.expiresAt
                 ? ` until ${new Date(
                       connectedAccess.expiresAt,
                   ).toLocaleDateString('en-GB', {
@@ -259,11 +276,17 @@ export const agentConnectHandler = async (
             return;
         }
         spinner?.stop();
-        console.error(
-            outcome.status === 'failed'
-                ? `Connection failed: ${getFailureReason(outcome.code)} Run \`lightdash agent connect\` to try again.`
-                : 'The link expired before you approved it. Run `lightdash agent connect` to get a new link.',
-        );
+        if (outcome.status === 'user_not_connected') {
+            console.error(
+                'You approved in the browser, but this Lightdash user is still not connected. Check the browser is signed in to Lightdash as the same user, then run `lightdash agent connect` again.',
+            );
+        } else {
+            console.error(
+                outcome.status === 'failed'
+                    ? `Connection failed: ${getFailureReason(outcome.code)} Run \`lightdash agent connect\` to try again.`
+                    : 'The link expired before you approved it. Run `lightdash agent connect` to get a new link.',
+            );
+        }
         process.exitCode = 1;
     } finally {
         stopped = true;
@@ -271,6 +294,7 @@ export const agentConnectHandler = async (
         if (timer) clearTimeout(timer);
         if (pollTimer) clearInterval(pollTimer);
         if (countdownTimer) clearInterval(countdownTimer);
+        if (browserTimer) clearTimeout(browserTimer);
         spinner?.stop();
         await new Promise<void>((resolve) => {
             server.close(() => resolve());

@@ -38,6 +38,8 @@ const connectedLine =
     'Connected. Agents now run as charlie@acme.com in an agent session until 7 Jan 2027.';
 const expiredLine =
     'The link expired before you approved it. Run `lightdash agent connect` to get a new link.';
+const mismatchLine =
+    'You approved in the browser, but this Lightdash user is still not connected. Check the browser is signed in to Lightdash as the same user, then run `lightdash agent connect` again.';
 const ttyDescriptor = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY');
 const setTTY = (value: boolean) =>
     Object.defineProperty(process.stderr, 'isTTY', {
@@ -378,18 +380,92 @@ describe('agent connect', () => {
         expect(vi.getTimerCount()).toBe(0);
     });
 
-    it('keeps a successful callback when the access refresh stalls past the deadline', async () => {
+    it.each([null, 'marked_person', 'ai_service_account'] as const)(
+        'keeps polling until expiry when refusal is null and identity is %s',
+        async (identity) => {
+            vi.useFakeTimers();
+            vi.mocked(lightdashApi)
+                .mockResolvedValueOnce(agentAccess)
+                .mockResolvedValue({ ...connectedAgentAccess, identity });
+            const { completion } = await startWaitingForCallback(7);
+            await vi.advanceTimersByTimeAsync(7000);
+            await completion;
+            expect(lightdashApi).toHaveBeenCalledTimes(3);
+            expect(output().join('')).not.toContain('Connected.');
+            expect(console.error).toHaveBeenLastCalledWith(expiredLine);
+            expect(process.exitCode).toBe(1);
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
+
+    it.each([
+        agentAccess,
+        ...([null, 'marked_person', 'ai_service_account'] as const).map(
+            (identity) => ({ ...connectedAgentAccess, identity }),
+        ),
+    ])(
+        'rejects callback approval for disconnected access %j',
+        async (access) => {
+            vi.useFakeTimers();
+            const { completion, redirect } = await startWaitingForCallback();
+            vi.mocked(lightdashApi).mockResolvedValue(access);
+            await approve(redirect);
+            await completion;
+            expect(lightdashApi).toHaveBeenCalledTimes(2);
+            expect(output().join('')).not.toContain('Connected.');
+            expect(console.error).toHaveBeenLastCalledWith(mismatchLine);
+            expect(process.exitCode).toBe(1);
+            expect(
+                vi.mocked(lightdashApi).mock.calls[1][0].signal?.aborted,
+            ).toBe(true);
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
+
+    it('keeps polling after a callback access request error and succeeds', async () => {
+        vi.useFakeTimers();
+        const { completion, redirect } = await startWaitingForCallback(7);
+        vi.mocked(lightdashApi)
+            .mockRejectedValueOnce(new Error('API unavailable'))
+            .mockResolvedValue(connectedAgentAccess);
+        await approve(redirect);
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        expect(output().join('')).not.toContain('Connected.');
+        expect(vi.mocked(lightdashApi).mock.calls[1][0].signal?.aborted).toBe(
+            false,
+        );
+        await vi.advanceTimersByTimeAsync(3000);
+        await completion;
+        expect(lightdashApi).toHaveBeenCalledTimes(3);
+        expect(output()).toContain(connectedLine);
+        expect(process.exitCode ?? 0).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('expires when callback verification and later polls fail', async () => {
+        vi.useFakeTimers();
+        const { completion, redirect } = await startWaitingForCallback(7);
+        vi.mocked(lightdashApi).mockRejectedValue(new Error('API unavailable'));
+        await approve(redirect);
+        await vi.advanceTimersByTimeAsync(7000);
+        await completion;
+        expect(lightdashApi).toHaveBeenCalledTimes(4);
+        expect(output().join('')).not.toContain('Connected.');
+        expect(console.error).toHaveBeenLastCalledWith(expiredLine);
+        expect(process.exitCode).toBe(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('expires when the callback access refresh stalls past the deadline', async () => {
         vi.useFakeTimers();
         const { completion, redirect } = await startWaitingForCallback(2);
         vi.mocked(lightdashApi).mockImplementation(() => new Promise(() => {}));
         await approve(redirect);
         await vi.advanceTimersByTimeAsync(2000);
         await completion;
-        expect(output()).toContain(
-            'Connected. Agents now run as you in an agent session.',
-        );
-        expect(output()).not.toContain(expiredLine);
-        expect(process.exitCode ?? 0).toBe(0);
+        expect(output().join('')).not.toContain('Connected.');
+        expect(console.error).toHaveBeenLastCalledWith(expiredLine);
+        expect(process.exitCode).toBe(1);
         expect(vi.mocked(lightdashApi).mock.calls[1][0].signal?.aborted).toBe(
             true,
         );
@@ -481,13 +557,85 @@ describe('agent connect', () => {
         expect(process.exitCode).toBe(1);
     });
 
-    it('bounds the wait when the browser launcher never settles', async () => {
+    it.each([false, true])(
+        'shows waiting before expiry when the browser launcher stalls with TTY=%s',
+        async (tty) => {
+            vi.useFakeTimers();
+            setTTY(tty);
+            let launched!: () => void;
+            const launch = new Promise<void>((resolve) => {
+                launched = resolve;
+            });
+            vi.mocked(openBrowser).mockImplementation(() => {
+                launched();
+                return new Promise(() => {});
+            });
+            const completion = agentConnectHandler({
+                verbose: false,
+                timeout: 4,
+            });
+            await launch;
+            await vi.advanceTimersByTimeAsync(1499);
+            expect(output()).not.toContain(
+                '  Open this link in a browser to approve.',
+            );
+            await vi.advanceTimersByTimeAsync(1);
+            expect(output()).toContain(
+                '  Open this link in a browser to approve.',
+            );
+            if (tty) {
+                expect(spinner.text).toBe(
+                    'Waiting for you to approve in the browser… (link expires in 0:03)',
+                );
+                await vi.advanceTimersByTimeAsync(1000);
+                expect(spinner.text).toBe(
+                    'Waiting for you to approve in the browser… (link expires in 0:02)',
+                );
+            } else {
+                expect(output()).toContain(
+                    'Waiting for you to approve in the browser…',
+                );
+                expect(output()).toContainEqual(
+                    expect.stringContaining('  Link expires in 0:03'),
+                );
+                await vi.advanceTimersByTimeAsync(1000);
+            }
+            expect(output()).not.toContain(expiredLine);
+            await vi.advanceTimersByTimeAsync(1500);
+            await completion;
+            expect(console.error).toHaveBeenLastCalledWith(expiredLine);
+            expect(process.exitCode).toBe(1);
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
+
+    it('bounds a stalled browser launch by a shorter connection deadline', async () => {
         vi.useFakeTimers();
         vi.mocked(openBrowser).mockImplementation(() => new Promise(() => {}));
         const completion = agentConnectHandler({ verbose: false, timeout: 1 });
         await vi.waitFor(() => expect(openBrowser).toHaveBeenCalled());
         await vi.advanceTimersByTimeAsync(1000);
         await completion;
+        expect(console.error).toHaveBeenLastCalledWith(expiredLine);
+        expect(process.exitCode).toBe(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('handles a browser launch rejection after the wait has ended', async () => {
+        vi.useFakeTimers();
+        let rejectLaunch!: (error: Error) => void;
+        vi.mocked(openBrowser).mockImplementation(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectLaunch = reject;
+                }),
+        );
+        const completion = agentConnectHandler({ verbose: false, timeout: 2 });
+        await vi.waitFor(() => expect(openBrowser).toHaveBeenCalled());
+        await vi.advanceTimersByTimeAsync(2000);
+        await completion;
+        rejectLaunch(new Error('Browser launch failed'));
+        await vi.advanceTimersByTimeAsync(0);
         expect(console.error).toHaveBeenLastCalledWith(expiredLine);
         expect(process.exitCode).toBe(1);
         expect(vi.getTimerCount()).toBe(0);
