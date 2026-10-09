@@ -1,3 +1,10 @@
+## [2.497.1](https://github.com/lightdash/lightdash/compare/2.497.0...2.497.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* **autopilot:** qualify GPT-6 Sol for cleanup ([#30777](https://github.com/lightdash/lightdash/issues/30777)) ([8ac0743](https://github.com/lightdash/lightdash/commit/8ac07431fde1cec6e1af8becf948d914ddc8f5cc))
+
 # [2.497.0](https://github.com/lightdash/lightdash/compare/2.496.0...2.497.0) (2026-10-09)
 
 
