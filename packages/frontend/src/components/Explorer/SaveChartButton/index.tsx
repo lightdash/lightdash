@@ -425,7 +425,6 @@ const SaveChartButton: FC<{
                                 Save
                             </Button>
                             <Button
-                                color="green.7"
                                 data-tour-scope="manage:VerifiedContent"
                                 data-tour-step="2"
                                 data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
@@ -435,7 +434,10 @@ const SaveChartButton: FC<{
                                 data-tour-interactive="true"
                                 data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"] >> [data-tour-anchor="chart-actions"] >> [data-tour-anchor="verify-chart"] >> [data-tour-anchor="edit-chart"] >> [data-tour-anchor="explore-dimension"] >> [data-tour-anchor="run-query"] >> [data-tour-anchor="save-chart-changes"]'
                                 leftSection={
-                                    <IconCircleCheckFilled size={16} />
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
+                                        color="green.7"
+                                    />
                                 }
                                 loading={
                                     update.isLoading || updateMetadata.isLoading

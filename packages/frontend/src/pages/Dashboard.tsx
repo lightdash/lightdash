@@ -41,6 +41,7 @@ import { v4 as uuid4 } from 'uuid';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
@@ -1443,9 +1444,11 @@ const Dashboard: FC = () => {
                                 Save
                             </Button>
                             <Button
-                                color="green.7"
                                 leftSection={
-                                    <IconCircleCheckFilled size={16} />
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
+                                        color="green.7"
+                                    />
                                 }
                                 loading={isSavingVerified}
                                 onClick={() => confirmVerifiedSave(true)}
