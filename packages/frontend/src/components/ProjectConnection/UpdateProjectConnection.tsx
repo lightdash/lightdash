@@ -73,7 +73,7 @@ const UpdateProjectConnection: FC<{
         ability.cannot(
             'update',
             subject('Project', {
-                organizationUuid: user.data?.organizationUuid,
+                organizationUuid: project.organizationUuid,
                 projectUuid,
             }),
         );
@@ -250,6 +250,13 @@ const UpdateProjectConnection: FC<{
                 </FormContainer>
             </form>
             {agentIdentityFlag?.enabled &&
+                ability.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                ) &&
                 project.warehouseConnection &&
                 supportsAiServiceAccount(project.warehouseConnection.type) && (
                     <Text size="sm" mt="md">

@@ -116,12 +116,12 @@ const quoteTable = (table: AgentAccessInventoryTable) =>
     `\`${[table.database, table.schema, table.name].map((part) => part.replaceAll('\\', '\\\\').replaceAll('`', '\\`')).join('.')}\``;
 
 export class BigqueryAgentAccessProbe {
+    private accessToken: Promise<string> | null = null;
+
     constructor(private readonly warehouse: BigqueryWarehouseClient) {}
 
-    private async request<T>(
-        path: string,
-        method: 'GET' | 'POST',
-        data: object | null,
+    private async withDeadline<T>(
+        operation: (signal: AbortSignal) => Promise<T>,
         deadline: number,
     ): Promise<T> {
         const timeout = Math.min(5000, deadline - Date.now());
@@ -130,16 +130,7 @@ export class BigqueryAgentAccessProbe {
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
             return await Promise.race([
-                this.warehouse.client.authClient
-                    .request<T>({
-                        url: `${this.warehouse.client.baseUrl}/${path}`,
-                        method,
-                        ...(data === null ? {} : { data }),
-                        timeout,
-                        retry: false,
-                        signal: controller.signal,
-                    })
-                    .then((response) => response.data),
+                operation(controller.signal),
                 new Promise<never>((_, reject) => {
                     timer = setTimeout(() => {
                         controller.abort();
@@ -150,6 +141,48 @@ export class BigqueryAgentAccessProbe {
         } finally {
             clearTimeout(timer);
         }
+    }
+
+    private async request<T>(
+        path: string,
+        method: 'GET' | 'POST',
+        data: object | null,
+        deadline: number,
+    ): Promise<T> {
+        const requestDeadline = Math.min(Date.now() + 5000, deadline);
+        return this.withDeadline(async (signal) => {
+            this.accessToken ??= this.withDeadline(async () => {
+                const token =
+                    await this.warehouse.client.authClient.getAccessToken();
+                if (!token)
+                    throw new AgentAccessProbeError('invalid_credentials');
+                return token;
+            }, requestDeadline);
+            const token = await this.accessToken;
+            signal.throwIfAborted();
+            if (Date.now() >= requestDeadline)
+                throw new AgentAccessProbeError('timeout');
+            const response = await fetch(
+                `${this.warehouse.client.baseUrl}/${path}`,
+                {
+                    method,
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    ...(data === null ? {} : { body: JSON.stringify(data) }),
+                    signal,
+                },
+            );
+            if (!response.ok) {
+                const body: unknown = await response.json().catch(() => null);
+                throw Object.assign(
+                    new Error('The warehouse rejected the access check.'),
+                    { response: { status: response.status, data: body } },
+                );
+            }
+            return response.json() as Promise<T>;
+        }, requestDeadline);
     }
 
     async principal(deadline: number): Promise<string> {
