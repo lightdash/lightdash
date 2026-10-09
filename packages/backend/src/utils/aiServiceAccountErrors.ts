@@ -136,16 +136,24 @@ const awsErrors = (
     ];
 };
 
-const awsErrorCodes = (error: Record<string, unknown>): string[] => [
-    ...[error.name, error.code].filter(
-        (value): value is string => typeof value === 'string',
-    ),
-    ...(typeof error.message === 'string'
-        ? [...error.message.matchAll(/\[([A-Za-z]+)(?: \d{3})?\]/g)].map(
-              (match) => match[1],
-          )
-        : []),
-];
+const awsErrorCodes = (error: Record<string, unknown>): string[] => {
+    const codes = [error.name, error.code]
+        .filter((value): value is string => typeof value === 'string')
+        .filter(
+            (value) =>
+                ![
+                    'Error',
+                    'WarehouseConnectionError',
+                    'WarehouseQueryError',
+                ].includes(value),
+        );
+    if (codes.length > 0) return codes;
+    const wrappedCode =
+        typeof error.message === 'string'
+            ? error.message.match(/^\[([A-Za-z]+)(?: \d{3})?\](?: |$)/)?.[1]
+            : undefined;
+    return wrappedCode ? [wrappedCode] : [];
+};
 
 export const isAthenaServiceAccountAuthError = (error: unknown): boolean =>
     awsErrors(error).some((entry) =>

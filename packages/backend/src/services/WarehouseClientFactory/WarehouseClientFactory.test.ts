@@ -2253,34 +2253,42 @@ describe('AI service account factory scopes', () => {
             ).toHaveBeenCalledOnce();
         },
     );
-    test('keeps Athena query execution failures as warehouse errors', async () => {
-        const { factory, aiAccessService, projectModel } = buildFixture();
-        aiAccessService.resolvePlan.mockResolvedValue(await athenaPlan());
-        projectModel.getWarehouseClientFromCredentials.mockImplementation(
-            warehouseClientFromCredentials,
-        );
-        athenaSuccess();
-        athenaSdk.send
-            .mockResolvedValueOnce({ QueryExecutionId: 'query-id' })
-            .mockResolvedValueOnce({
-                QueryExecution: {
-                    Status: {
-                        State: 'FAILED',
-                        StateChangeReason:
-                            'Insufficient Lake Formation permissions',
+    test.each([
+        'Insufficient Lake Formation permissions',
+        "INVALID_CAST_ARGUMENT: Cannot cast '[ExpiredToken]' to INT",
+    ])(
+        'keeps Athena query execution failures as warehouse errors: %s',
+        async (reason) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await athenaPlan());
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                warehouseClientFromCredentials,
+            );
+            athenaSuccess();
+            athenaSdk.send
+                .mockResolvedValueOnce({ QueryExecutionId: 'query-id' })
+                .mockResolvedValueOnce({
+                    QueryExecution: {
+                        Status: {
+                            State: 'FAILED',
+                            StateChangeReason: reason,
+                        },
                     },
-                },
-            });
-        await expect(
-            factory.withWarehouseClient(
+                });
+            const result = factory.withWarehouseClient(
                 bindingRef,
                 contextFor(QueryExecutionContext.AI),
                 async ({ warehouseClient }) =>
-                    warehouseClient.runQuery('SELECT 1', {}),
-            ),
-        ).rejects.toThrow('Insufficient Lake Formation permissions');
-        expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
-    });
+                    warehouseClient.runQuery(
+                        "SELECT CAST('[ExpiredToken]' AS INTEGER)",
+                        {},
+                    ),
+            );
+            await expect(result).rejects.toBeInstanceOf(WarehouseQueryError);
+            await expect(result).rejects.toThrow(reason);
+            expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
+        },
+    );
     test('keeps ordinary Athena queries on the main connection', async () => {
         const {
             factory,

@@ -184,6 +184,29 @@ describe('Athena authentication failures', () => {
         expect(isAthenaServiceAccountAuthError(error)).toBe(false);
     });
     it.each([
+        "INVALID_CAST_ARGUMENT: Cannot cast '[ExpiredToken]' to INT",
+        "[InvalidRequestException 400] Invalid query: Cannot cast '[ExpiredToken]' to INT",
+    ])('preserves query failures containing bracketed codes: %s', (message) => {
+        const error = new WarehouseQueryError(message);
+        expect(isAthenaServiceAccountAuthError(error)).toBe(false);
+        expect(getAthenaServiceAccountTestErrorMessage(error)).toBe(
+            'Could not verify the AI service account. Check the credentials and connection settings.',
+        );
+    });
+    it.each([
+        { name: 'InvalidRequestException' },
+        { code: 'InvalidRequestException' },
+    ])('prefers structured codes over message tags: %j', (code) => {
+        const error = {
+            ...code,
+            message: '[ExpiredToken 403] is not an SDK tag here',
+        };
+        expect(isAthenaServiceAccountAuthError(error)).toBe(false);
+        expect(getAthenaServiceAccountTestErrorMessage(error)).not.toContain(
+            'AWS rejected these access keys',
+        );
+    });
+    it.each([
         [{ name: 'AccessDeniedException' }, 'AWS denied access'],
         [{ statusCode: 403 }, 'AWS denied access'],
         [
