@@ -113,6 +113,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
         return {
             clientCredentials: { ...credentials, token: accessToken },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: false,
         };
     }

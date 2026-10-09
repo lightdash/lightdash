@@ -82,6 +82,7 @@ it.each([true, false])(
                 requireUserCredentials: false,
             },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: true,
         });
     },

@@ -554,7 +554,10 @@ test('resolvePlan refuses needs_sign_in after an old pod enables the legacy swit
         },
         lightdashConfig: { siteUrl: 'https://lightdash.example' },
         analytics: { track: vi.fn() },
-        providerRegistry: () => ({ configurationError: () => null, mint }),
+        agentSignInCredentialResolver: {
+            inspectClient: () => null,
+            resolve: mint,
+        },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     await expect(
         service.resolvePlan({

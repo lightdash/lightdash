@@ -1,4 +1,5 @@
 import type {
+    AiAssurance,
     AiExecutionPlan,
     CreateWarehouseCredentials,
     UserWarehouseCredentialPurpose,
@@ -46,7 +47,15 @@ export type CredentialSaveInput<C, S = C> = CredentialSelection<C, S> & {
     intent: SaveIntent;
 };
 export type ValidatedCredential<C, S = C> = { connection: C; stored: S };
+export type AgentSignInResolutionMetadata = {
+    credentialUuid: string;
+    assurances: AiAssurance[];
+    expiresAt: Date | null;
+    clientVersion: string | null;
+};
+
 export type CredentialResolution<C> = {
+    agentSignIn: AgentSignInResolutionMetadata | null;
     clientCredentials: C;
     clientOptions: Partial<WarehouseClientOptions>;
     cacheable: boolean;
@@ -68,6 +77,7 @@ export interface CredentialResolver<
 }
 
 export type MaterializedCredential = {
+    agentSignIn: AgentSignInResolutionMetadata | null;
     clientOptions: Partial<WarehouseClientOptions>;
     cacheable: boolean;
     cacheKeyIdentity: readonly (string | null)[];

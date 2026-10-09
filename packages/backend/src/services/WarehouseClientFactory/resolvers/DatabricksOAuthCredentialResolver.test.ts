@@ -176,6 +176,7 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
                     refreshToken: 'new-refresh',
                 },
                 clientOptions: {},
+                agentSignIn: null,
                 cacheable: true,
             });
             expect(f.input.stored).toEqual({

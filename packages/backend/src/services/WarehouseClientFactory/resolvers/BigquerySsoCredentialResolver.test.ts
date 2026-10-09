@@ -166,6 +166,7 @@ it('resolves old and new rows identically without grant lookup, validation or mu
             },
         },
         clientOptions: {},
+        agentSignIn: null,
         cacheable: true,
     });
     expect(stored.keyfileContents).not.toHaveProperty('client_secret');

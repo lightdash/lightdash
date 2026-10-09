@@ -256,6 +256,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                         refreshToken: result.refreshToken,
                     },
                     clientOptions: {},
+                    agentSignIn: null,
                     cacheable: true,
                 };
             }
@@ -340,6 +341,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                             : result.refreshToken,
                 },
                 clientOptions: {},
+                agentSignIn: null,
                 cacheable: true,
             };
         } catch (caught) {

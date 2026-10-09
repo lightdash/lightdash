@@ -94,6 +94,7 @@ export class SshTunnelCredentialResolver implements CredentialResolver<SshTunnel
                 sshTunnelPrivateKey: ownedKeyPair?.privateKey ?? copiedKey,
             },
             clientOptions: {},
+            agentSignIn: null,
             cacheable: false,
             source: ownedKeyPair === null ? 'copiedKey' : 'organizationKeyPair',
         };

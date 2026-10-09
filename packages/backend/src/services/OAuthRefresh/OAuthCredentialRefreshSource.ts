@@ -4,6 +4,8 @@ import {
     ForbiddenError,
     getErrorMessage,
     NotFoundError,
+    UserWarehouseCredentialPurpose,
+    WarehouseTypes,
     type CreateWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
@@ -13,7 +15,10 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RefreshTokenSourceChangedError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
-import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import type {
+    AiUserWarehouseCredentials,
+    UserWarehouseCredentialsModel,
+} from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type {
     CredentialOwner,
@@ -55,6 +60,24 @@ export type OAuthCredentialRefreshSourceDependencies = {
     logger: Pick<typeof Logger, 'error'>;
 };
 
+type RefreshTokenExpiry = NonNullable<
+    Parameters<UserWarehouseCredentialsModel['rotateRefreshToken']>[3]
+>;
+
+export type OAuthRefreshUserPolicy =
+    | { kind: 'default' }
+    | {
+          kind: 'ai';
+          userUuid: string;
+          model: Pick<
+              UserWarehouseCredentialsModel,
+              'findAiCredentialWithSecrets'
+          >;
+          resolveCredential: (
+              credential: AiUserWarehouseCredentials,
+          ) => OAuthRefreshSourceCredentials;
+      };
+
 export class OAuthCredentialRefreshSource<
     C extends OAuthRefreshSourceCredentials & { refreshToken?: string },
 > {
@@ -69,6 +92,9 @@ export class OAuthCredentialRefreshSource<
                 selected: C,
                 source: CredentialSelection<C>['refreshSource'],
             ) => boolean;
+        },
+        private readonly userPolicy: OAuthRefreshUserPolicy = {
+            kind: 'default',
         },
     ) {}
 
@@ -129,6 +155,25 @@ export class OAuthCredentialRefreshSource<
                     ).credentials;
                     break;
                 case 'user':
+                    if (this.userPolicy.kind === 'ai') {
+                        if (owner.purpose !== UserWarehouseCredentialPurpose.AI)
+                            throw new RefreshTokenSourceChangedError();
+                        const current =
+                            await this.userPolicy.model.findAiCredentialWithSecrets(
+                                {
+                                    userUuid: this.userPolicy.userUuid,
+                                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                                },
+                                trx,
+                            );
+                        if (!current)
+                            throw new RefreshTokenSourceChangedError();
+                        credentials =
+                            this.userPolicy.resolveCredential(current);
+                        if (current.uuid !== owner.uuid)
+                            throw new RefreshTokenSourceChangedError();
+                        break;
+                    }
                     credentials = (
                         await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
                             owner.uuid,
@@ -200,7 +245,8 @@ export class OAuthCredentialRefreshSource<
         oldRefreshToken: string,
         newRefreshToken: string,
         trx?: Knex,
-    ): Promise<void> {
+        expiry: RefreshTokenExpiry | null = null,
+    ): Promise<boolean | void> {
         try {
             switch (owner.kind) {
                 case 'project':
@@ -220,6 +266,30 @@ export class OAuthCredentialRefreshSource<
                     );
                     break;
                 case 'user':
+                    if (this.userPolicy.kind === 'ai') {
+                        if (owner.purpose !== UserWarehouseCredentialPurpose.AI)
+                            throw new RefreshTokenSourceChangedError();
+                        if (trx)
+                            return await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                                owner.uuid,
+                                oldRefreshToken,
+                                newRefreshToken,
+                                expiry ?? undefined,
+                                trx,
+                            );
+                        if (expiry)
+                            return await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                                owner.uuid,
+                                oldRefreshToken,
+                                newRefreshToken,
+                                expiry,
+                            );
+                        return await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
+                            owner.uuid,
+                            oldRefreshToken,
+                            newRefreshToken,
+                        );
+                    }
                     if (trx) {
                         await this.deps.userWarehouseCredentialsModel.rotateRefreshToken(
                             owner.uuid,
@@ -249,6 +319,7 @@ export class OAuthCredentialRefreshSource<
                     assertUnreachable(owner, 'Unknown OAuth credential owner');
             }
         } catch (error) {
+            if (this.userPolicy.kind === 'ai') throw error;
             this.deps.logger.error(
                 'Failed to persist rotated OAuth refresh token',
                 {

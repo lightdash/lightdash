@@ -62,6 +62,7 @@ import { trackSafely } from '../../analytics/trackSafely';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { createAuditLogEvent } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import Logger from '../../logging/logger';
 import { redactCredentialError } from '../../logging/redactCredentialError';
 import { logAuditEvent } from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
@@ -84,6 +85,10 @@ import {
 } from '../AiServiceAccountService/resolveAiServiceAccountSlot';
 import { BaseService } from '../BaseService';
 import {
+    createAgentSignInCredentialResolverRegistry,
+    resolveAgentSignInCredentials,
+} from '../WarehouseClientFactory/agentSignInCredentialResolvers';
+import {
     isSupportedAiServiceAccountSlot,
     resolveAiServiceAccountCredentials,
 } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
@@ -93,14 +98,17 @@ import {
     getAccountAgentIdentityFacts,
     getAgentActor,
 } from '../WarehouseClientFactory/ConnectionContext';
+import { credentialResolution } from '../WarehouseClientFactory/CredentialResolver';
+import { type CredentialResolverRegistry } from '../WarehouseClientFactory/CredentialResolverRegistry';
+import { AgentCredentialResolutionError } from '../WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
+import {
+    type AgentSignInRefreshEvent,
+    type SnowflakeAgentSignInCredentialResolver,
+} from '../WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver';
 import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
-import {
-    AgentSessionCheckError,
-    type AiCredentialProvider,
-} from './providers/AiCredentialProvider';
-import { type AiCredentialProviderRegistry } from './providers/registry';
+import { AgentSessionCheckError } from './agentSession';
 import {
     getQueryIdentityLineage,
     getQuerySourceParameters,
@@ -134,6 +142,152 @@ export type ResolvePlanArgs = {
 
 type AccessArgs = Omit<ResolvePlanArgs, 'context' | 'evaluation'>;
 
+type AgentResolutionLogContext = {
+    userUuid: string;
+    organizationUuid: string;
+    evaluationKind: AiAccessEvaluation['kind'];
+};
+
+export const logAgentSignInRefresh = (
+    event: AgentSignInRefreshEvent,
+    context: AgentResolutionLogContext,
+): void => {
+    const ids = {
+        userUuid: context.userUuid,
+        organizationUuid: context.organizationUuid,
+    };
+    switch (event.kind) {
+        case 'refreshed':
+            Logger.info('Agent sign-in refreshed', ids);
+            return;
+        case 'rotation':
+            Logger[event.rotated ? 'info' : 'debug'](
+                event.rotated
+                    ? 'Agent sign-in refresh token rotated'
+                    : 'Agent sign-in refresh token rotation skipped',
+                ids,
+            );
+            return;
+        default:
+            assertUnreachable(event, 'Unknown agent refresh event');
+    }
+};
+
+export const mapAgentCredentialResolutionError = (
+    error: unknown,
+    context: AgentResolutionLogContext,
+): AiAccessRefusedError => {
+    if (!(error instanceof AgentCredentialResolutionError)) throw error;
+    const { failure, originalCause } = error;
+    let refusal: AiAccessRefusedError;
+    switch (failure.kind) {
+        case 'credential':
+            switch (failure.classification) {
+                case 'binding_mismatch':
+                case 'expired':
+                    refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    );
+                    break;
+                case 'missing':
+                case 'unusable':
+                case 'source_changed':
+                    refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    );
+                    break;
+                default:
+                    return assertUnreachable(
+                        failure,
+                        'Unknown agent credential failure',
+                    );
+            }
+            break;
+        case 'client':
+            refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+            );
+            break;
+        case 'session':
+            return withCause(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.PRINCIPAL_FAILED,
+                ),
+                new AgentSessionCheckError(
+                    failure.session.reason,
+                    failure.session.message,
+                    failure.session.cause,
+                ),
+            );
+        case 'refresh': {
+            const legacy =
+                failure.classification === 'legacy_grant_gone' ||
+                failure.classification === 'legacy_failure';
+            Logger[context.evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
+                'Agent sign-in refresh failed',
+                {
+                    userUuid: context.userUuid,
+                    organizationUuid: context.organizationUuid,
+                    ...(legacy
+                        ? {
+                              reason:
+                                  failure.classification === 'legacy_grant_gone'
+                                      ? AiAccessRefusalReason.SIGN_IN_EXPIRED
+                                      : AiAccessRefusalReason.NEEDS_SIGN_IN,
+                          }
+                        : { kind: failure.classification }),
+                    ...redactCredentialError(originalCause),
+                },
+            );
+            switch (failure.classification) {
+                case 'grant_gone':
+                case 'legacy_grant_gone':
+                    refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.SIGN_IN_EXPIRED,
+                    );
+                    break;
+                case 'legacy_failure':
+                    refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    );
+                    break;
+                case 'configuration':
+                    refusal = new AiAccessRefusedError(
+                        AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+                        {
+                            message:
+                                'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                        },
+                    );
+                    break;
+                case 'temporary':
+                    throw withCause(
+                        new UnexpectedServerError(
+                            'The warehouse sign-in could not be refreshed. Try again in a moment.',
+                            {
+                                code: 'warehouse_oauth_refresh_failed',
+                                retryable: true,
+                            },
+                        ),
+                        originalCause,
+                    );
+                default:
+                    return assertUnreachable(
+                        failure,
+                        'Unknown agent refresh failure',
+                    );
+            }
+            break;
+        }
+        default:
+            return assertUnreachable(
+                failure,
+                'Unknown agent credential failure',
+            );
+    }
+    return originalCause === null ? refusal : withCause(refusal, originalCause);
+};
+
 type AiAccessServiceArguments = {
     analytics: Pick<LightdashAnalytics, 'track'>;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
@@ -147,7 +301,15 @@ type AiAccessServiceArguments = {
     warehouseConnectionModel: WarehouseConnectionModel;
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
-    providerRegistry: AiCredentialProviderRegistry;
+    agentSignInCredentialResolver: Pick<
+        SnowflakeAgentSignInCredentialResolver,
+        | 'resolve'
+        | 'validateOnSave'
+        | 'cacheKeyIdentity'
+        | 'dispose'
+        | 'inspect'
+        | 'inspectClient'
+    >;
 };
 
 export class AiAccessService extends BaseService {
@@ -177,7 +339,17 @@ export class AiAccessService extends BaseService {
 
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
-    private readonly providerRegistry: AiCredentialProviderRegistry;
+    private readonly agentSignInCredentialResolver: Pick<
+        SnowflakeAgentSignInCredentialResolver,
+        | 'resolve'
+        | 'validateOnSave'
+        | 'cacheKeyIdentity'
+        | 'dispose'
+        | 'inspect'
+        | 'inspectClient'
+    >;
+
+    private readonly agentSignInRegistry: CredentialResolverRegistry;
 
     constructor({
         analytics,
@@ -192,7 +364,7 @@ export class AiAccessService extends BaseService {
         projectModel,
         queryHistoryModel,
         warehouseConnectionModel,
-        providerRegistry,
+        agentSignInCredentialResolver,
     }: AiAccessServiceArguments) {
         super();
         this.analytics = analytics;
@@ -215,7 +387,10 @@ export class AiAccessService extends BaseService {
         this.projectModel = projectModel;
         this.queryHistoryModel = queryHistoryModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
-        this.providerRegistry = providerRegistry;
+        this.agentSignInCredentialResolver = agentSignInCredentialResolver;
+        this.agentSignInRegistry = createAgentSignInCredentialResolverRegistry(
+            agentSignInCredentialResolver,
+        );
     }
 
     async resolveSnowflakeAgentClient(organizationUuid: string) {
@@ -262,21 +437,24 @@ export class AiAccessService extends BaseService {
                 ),
         );
         if (!project) return { required: false };
-        const provider = this.providerRegistry(WarehouseTypes.SNOWFLAKE);
-        if (!provider) return { required: false };
-        const connection =
-            await this.projectModel.getWarehouseCredentialsForBinding(
-                project.projectUuid,
-                { kind: 'connection', warehouseConnectionUuid: null },
-            );
-        const reason = await provider.missingPrerequisite({
-            connection,
-            person: { organizationUuid, userUuid, email: user.email ?? '' },
-            silentRefresh: await this.isSilentRefreshEnabled(
+        await this.projectModel.getWarehouseCredentialsForBinding(
+            project.projectUuid,
+            { kind: 'connection', warehouseConnectionUuid: null },
+        );
+        const inspection = await this.agentSignInCredentialResolver.inspect(
+            { organizationUuid, userUuid, email: user.email ?? '' },
+            await this.isSilentRefreshEnabled(
                 { userUuid, organizationUuid },
-                provider.warehouseType,
+                WarehouseTypes.SNOWFLAKE,
             ),
-        });
+        );
+        const reason = inspection
+            ? mapAgentCredentialResolutionError(inspection, {
+                  userUuid,
+                  organizationUuid,
+                  evaluationKind: 'diagnostic',
+              }).refusal.reason
+            : null;
         if (
             reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
@@ -1099,7 +1277,7 @@ export class AiAccessService extends BaseService {
         };
     }
 
-    private async provider(args: AccessArgs): Promise<AiCredentialProvider> {
+    private async assertAgentSignInSupported(args: AccessArgs): Promise<void> {
         if (args.isServiceAccount) {
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.SERVICE_ACCOUNT,
@@ -1110,20 +1288,22 @@ export class AiAccessService extends BaseService {
                 AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
             );
         }
-        const provider = this.providerRegistry(args.connection.type);
-        if (!provider)
+        if (args.connection.type !== WarehouseTypes.SNOWFLAKE)
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
             );
-        const configurationError = await provider.configurationError(
-            args.organizationUuid,
-        );
+        const configurationError =
+            await this.agentSignInCredentialResolver.inspectClient(
+                args.organizationUuid,
+            );
         if (configurationError)
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
-                { message: configurationError },
+                {
+                    message:
+                        'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
+                },
             );
-        return provider;
     }
 
     private connectEntryPoint(
@@ -1446,7 +1626,7 @@ export class AiAccessService extends BaseService {
                     rule.source,
                     'Unknown AI identity source',
                 );
-            const provider = await this.provider(args);
+            await this.assertAgentSignInSupported(args);
             const { email } = await this.userModel.getUserDetailsByUuid(
                 args.userUuid,
             );
@@ -1454,34 +1634,48 @@ export class AiAccessService extends BaseService {
                 throw new UnexpectedServerError(
                     'AI access needs the person to have an email address',
                 );
-            const { credentials, assurances, identityUuid } =
-                await provider.mint({
-                    connection: args.connection,
-                    organizationUuid: args.organizationUuid,
-                    evaluationKind: args.evaluation.kind,
-                    person: {
-                        organizationUuid: args.organizationUuid,
-                        userUuid: args.userUuid,
-                        email,
-                    },
-                    silentRefresh: await this.isSilentRefreshEnabled(
-                        args,
-                        provider.warehouseType,
-                    ),
-                });
-            const probe = await provider.probe(credentials, assurances);
-            if (!probe.ok) {
-                throw withCause(
-                    new AiAccessRefusedError(
-                        AiAccessRefusalReason.PRINCIPAL_FAILED,
-                    ),
-                    new AgentSessionCheckError(
-                        probe.reason,
-                        probe.message,
-                        probe.cause,
-                    ),
+            if (args.connection.type !== WarehouseTypes.SNOWFLAKE)
+                throw new AiAccessRefusedError(
+                    AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
                 );
-            }
+            const credentials = await resolveAgentSignInCredentials(
+                this.agentSignInRegistry,
+                {
+                    connection: args.connection,
+                    stored: {
+                        person: {
+                            organizationUuid: args.organizationUuid,
+                            userUuid: args.userUuid,
+                            email,
+                        },
+                        silentRefresh: await this.isSilentRefreshEnabled(
+                            args,
+                            WarehouseTypes.SNOWFLAKE,
+                        ),
+                        onRefresh: (event) =>
+                            logAgentSignInRefresh(event, {
+                                userUuid: args.userUuid,
+                                organizationUuid: args.organizationUuid,
+                                evaluationKind: args.evaluation.kind,
+                            }),
+                    },
+                    owner: null,
+                    context: {
+                        ...connectionContextFromUser(args, {
+                            organizationUuid: args.organizationUuid,
+                            queryContext: args.context,
+                        }),
+                        aiAccess:
+                            args.evaluation.kind === 'diagnostic'
+                                ? 'diagnostic'
+                                : 'enforce',
+                    },
+                    projectUuid: args.projectUuid,
+                    warehouseConnectionUuid: args.warehouseConnectionUuid,
+                },
+            );
+            const { credentialUuid: identityUuid, assurances } =
+                credentials[credentialResolution]!.agentSignIn!;
             return {
                 identity: 'connected_person',
                 identityUuid,
@@ -1494,7 +1688,15 @@ export class AiAccessService extends BaseService {
                     queryTags: { [AI_PRINCIPAL_QUERY_TAG]: args.userUuid },
                 },
             };
-        } catch (error) {
+        } catch (caught) {
+            const error =
+                caught instanceof AgentCredentialResolutionError
+                    ? mapAgentCredentialResolutionError(caught, {
+                          userUuid: args.userUuid,
+                          organizationUuid: args.organizationUuid,
+                          evaluationKind: args.evaluation.kind,
+                      })
+                    : caught;
             if (error instanceof AiAccessRefusedError) {
                 const refusalError = await this.withRefusalUrls(
                     error,
@@ -1982,7 +2184,7 @@ export class AiAccessService extends BaseService {
                 }
                 case 'agent_sign_in': {
                     result.identity = 'connected_person';
-                    const provider = await this.provider(args);
+                    await this.assertAgentSignInSupported(args);
                     const { email } = await this.userModel.getUserDetailsByUuid(
                         args.userUuid,
                     );
@@ -1990,21 +2192,24 @@ export class AiAccessService extends BaseService {
                         throw new UnexpectedServerError(
                             'AI access needs the person to have an email address',
                         );
-                    const missing = await provider.missingPrerequisite({
-                        connection: args.connection,
-                        person: {
-                            organizationUuid: args.organizationUuid,
+                    const missing =
+                        await this.agentSignInCredentialResolver.inspect(
+                            {
+                                organizationUuid: args.organizationUuid,
+                                userUuid: args.userUuid,
+                                email,
+                            },
+                            await this.isSilentRefreshEnabled(
+                                args,
+                                WarehouseTypes.SNOWFLAKE,
+                            ),
+                        );
+                    if (missing !== null)
+                        throw mapAgentCredentialResolutionError(missing, {
                             userUuid: args.userUuid,
-                            email,
-                        },
-                        silentRefresh: await this.isSilentRefreshEnabled(
-                            args,
-                            provider.warehouseType,
-                        ),
-                    });
-                    if (missing !== null) {
-                        throw new AiAccessRefusedError(missing);
-                    }
+                            organizationUuid: args.organizationUuid,
+                            evaluationKind: 'diagnostic',
+                        });
                     const credential =
                         await this.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                             {

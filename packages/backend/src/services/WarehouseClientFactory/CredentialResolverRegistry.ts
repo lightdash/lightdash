@@ -69,6 +69,7 @@ export class CredentialResolverRegistry {
                 return {
                     ...resolved.clientCredentials,
                     [credentialResolution]: {
+                        agentSignIn: resolved.agentSignIn,
                         clientOptions: resolved.clientOptions,
                         cacheable: resolved.cacheable,
                         cacheKeyIdentity: resolver.cacheKeyIdentity(
@@ -89,15 +90,18 @@ export class CredentialResolverRegistry {
 
     private get(
         credentials: CreateWarehouseCredentials,
-        mode: 'connection' | 'ai_service_account' = 'connection',
+        mode:
+            | 'connection'
+            | 'ai_service_account'
+            | 'agent_identity' = 'connection',
     ): Dispatcher | undefined {
-        if (mode === 'ai_service_account') {
-            const resolver = this.resolvers.get(
-                `${credentials.type}:ai_service_account`,
-            );
+        if (mode !== 'connection') {
+            const resolver = this.resolvers.get(`${credentials.type}:${mode}`);
             if (!resolver)
                 throw new ParameterError(
-                    'This warehouse does not support an AI service account.',
+                    mode === 'agent_identity'
+                        ? 'This warehouse does not support agent sign-in.'
+                        : 'This warehouse does not support an AI service account.',
                 );
             return resolver;
         }
@@ -118,7 +122,7 @@ export class CredentialResolverRegistry {
 
     async validateOnSave<S>(
         input: CredentialSaveInput<CreateWarehouseCredentials, S>,
-        mode: 'ai_service_account',
+        mode: 'ai_service_account' | 'agent_identity',
     ): Promise<ValidatedCredential<CreateWarehouseCredentials, S>>;
     async validateOnSave(
         input: CredentialSaveInput<CreateWarehouseCredentials>,
@@ -126,7 +130,10 @@ export class CredentialResolverRegistry {
     ): Promise<ValidatedCredential<CreateWarehouseCredentials>>;
     async validateOnSave(
         input: CredentialSaveInput<CreateWarehouseCredentials, unknown>,
-        mode: 'connection' | 'ai_service_account' = 'connection',
+        mode:
+            | 'connection'
+            | 'ai_service_account'
+            | 'agent_identity' = 'connection',
     ): Promise<ValidatedCredential<CreateWarehouseCredentials, unknown>> {
         const resolver = this.get(input.connection, mode);
         const validated = resolver
@@ -146,7 +153,7 @@ export class CredentialResolverRegistry {
     async resolveCredentialSelection<S>(
         selection: CredentialSelection<CreateWarehouseCredentials, S>,
         legacyResolve: () => Promise<CreateWarehouseCredentials>,
-        mode: 'ai_service_account',
+        mode: 'ai_service_account' | 'agent_identity',
     ): Promise<MaterializedCredentials>;
     async resolveCredentialSelection(
         selection: CredentialSelection<CreateWarehouseCredentials>,
@@ -156,7 +163,10 @@ export class CredentialResolverRegistry {
     async resolveCredentialSelection(
         selection: CredentialSelection<CreateWarehouseCredentials, unknown>,
         legacyResolve: () => Promise<CreateWarehouseCredentials>,
-        mode: 'connection' | 'ai_service_account' = 'connection',
+        mode:
+            | 'connection'
+            | 'ai_service_account'
+            | 'agent_identity' = 'connection',
     ): Promise<MaterializedCredentials> {
         if (
             (selection.connection as MaterializedCredentials)[
@@ -188,6 +198,7 @@ export class CredentialResolverRegistry {
         return {
             ...transported,
             [credentialResolution]: {
+                agentSignIn: modeResolution?.agentSignIn ?? null,
                 clientOptions: {
                     ...modeResolution?.clientOptions,
                     ...resolved.clientOptions,

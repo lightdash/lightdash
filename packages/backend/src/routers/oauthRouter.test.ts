@@ -7,6 +7,7 @@ import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { AiAccessService } from '../services/AiAccessService/AiAccessService';
 import type { OAuthService } from '../services/OAuthService/OAuthService';
+import { AgentCredentialResolutionError } from '../services/WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
 import oauthRouter from './oauthRouter';
 
 vi.mock('../logging/logger', () => ({
@@ -608,11 +609,14 @@ describe('OAuth authorize redirects', () => {
                     .fn()
                     .mockResolvedValue({ type: WarehouseTypes.SNOWFLAKE }),
             },
-            providerRegistry: () => ({
-                missingPrerequisite: vi
-                    .fn()
-                    .mockResolvedValue(AiAccessRefusalReason.NEEDS_SIGN_IN),
-            }),
+            agentSignInCredentialResolver: {
+                inspect: vi.fn().mockResolvedValue(
+                    new AgentCredentialResolutionError({
+                        kind: 'credential',
+                        classification: 'missing',
+                    }),
+                ),
+            },
         } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
         const response = await requestAuthorizePage({
             query: {

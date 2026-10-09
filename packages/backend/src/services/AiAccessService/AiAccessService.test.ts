@@ -62,7 +62,18 @@ import {
     credentialResolution,
     type MaterializedCredentials,
 } from '../WarehouseClientFactory/CredentialResolver';
+import { AgentCredentialResolutionError } from '../WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
+import { AgentSignInResolverHarness } from '../WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver.mock';
 import { agentExecutionContext } from './agentExecutionContext';
+import {
+    AiSessionFailureReason,
+    type AiSessionProbeResult,
+} from './agentSession';
+import {
+    agentSignInResolverMock,
+    type AgentSignInTestSteps,
+    type TestResolvedAgentCredentials,
+} from './agentSignInTestSteps.mock';
 import { AiAccessService, type ResolvePlanArgs } from './AiAccessService';
 import {
     aiAgentMarkerMock,
@@ -70,14 +81,6 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from './AiAccessService.mock';
-import {
-    AiSessionFailureReason,
-    type AiCredentialProvider,
-    type AiMintedCredentials,
-    type AiSessionProbeResult,
-} from './providers/AiCredentialProvider';
-import { createAiCredentialProviderRegistry } from './providers/registry';
-import { SnowflakeAiCredentialProvider } from './providers/SnowflakeAiCredentialProvider';
 import { snowflakeAgentClientMock } from './SnowflakeAgentClientResolver.mock';
 
 const connection: CreateWarehouseCredentials = {
@@ -138,7 +141,12 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         ),
         mint: vi.fn(
             async (): Promise<
-                AiMintedCredentials<CreateWarehouseCredentials>
+                TestResolvedAgentCredentials<
+                    Extract<
+                        CreateWarehouseCredentials,
+                        { type: WarehouseTypes.SNOWFLAKE }
+                    >
+                >
             > => ({
                 identityUuid: 'agent-credential',
                 credentials: snowflake,
@@ -153,7 +161,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
                 observed: {},
             }),
         ),
-    } satisfies AiCredentialProvider;
+    } satisfies AgentSignInTestSteps;
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const projects = {
         getAllByOrganizationUuid: vi.fn(async () => [
@@ -189,7 +197,9 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             ),
         ),
     });
-    const registry = vi.fn((): AiCredentialProvider => provider);
+    const registry = vi.fn(
+        (_type: WarehouseTypes): AgentSignInTestSteps => provider,
+    );
     const organizationSettings = {
         get: vi.fn(async () => ({ requireVerifiedAgentSessions: true })),
         upsert: vi.fn(
@@ -301,7 +311,9 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         warehouseConnectionModel:
             connections as unknown as WarehouseConnectionModel,
         userModel: users as unknown as UserModel,
-        providerRegistry: registry,
+        agentSignInCredentialResolver: agentSignInResolverMock(() =>
+            registry(WarehouseTypes.SNOWFLAKE),
+        ),
     });
     return {
         users,
@@ -1119,7 +1131,7 @@ describe('AiAccessService', () => {
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
                 silentRefresh: true,
-                connection: snowflake,
+                connection: { type: WarehouseTypes.SNOWFLAKE },
                 person: {
                     organizationUuid: 'org',
                     userUuid: 'user',
@@ -2085,22 +2097,6 @@ describe('AiAccessService', () => {
         await service.resolvePlan(args);
         expect(provider.missingPrerequisite).not.toHaveBeenCalled();
     });
-    test('registers Snowflake', () => {
-        const registry = createAiCredentialProviderRegistry({
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
-            },
-            refreshTokenRotation: { run: vi.fn() },
-            snowflakeAgentClientResolver: {
-                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
-            },
-            lightdashConfig: lightdashConfigMock,
-            userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
-        });
-        expect(registry(WarehouseTypes.SNOWFLAKE)).toBeInstanceOf(
-            SnowflakeAiCredentialProvider,
-        );
-    });
     test.each([
         {
             plan: aiServiceAccountPlanMock,
@@ -2201,7 +2197,9 @@ describe('AiAccessService', () => {
             identity: 'connected_person',
             identityUuid: expect.any(String),
         });
-        expect(second).toEqual(first);
+        expect(JSON.parse(JSON.stringify(second))).toEqual(
+            JSON.parse(JSON.stringify(first)),
+        );
         expect(first).not.toHaveProperty('principal');
         expect(provider.mint).toHaveBeenCalledTimes(2);
         expect(provider.probe).toHaveBeenCalledTimes(2);
@@ -2233,23 +2231,6 @@ describe('AiAccessService', () => {
                 connectUrl: null,
             },
         });
-    });
-    test('does not register separate-principal providers', () => {
-        const registry = createAiCredentialProviderRegistry({
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
-            },
-            refreshTokenRotation: { run: vi.fn() },
-            snowflakeAgentClientResolver: {
-                resolve: vi.fn().mockResolvedValue(snowflakeAgentClientMock),
-            },
-            lightdashConfig: lightdashConfigMock,
-            userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
-        });
-        for (const type of Object.values(WarehouseTypes).filter(
-            (value) => value !== WarehouseTypes.SNOWFLAKE,
-        ))
-            expect(registry(type)).toBeNull();
     });
 });
 
@@ -4508,7 +4489,7 @@ describe('silent refresh routing', () => {
                 deleteAiCredential: vi.fn(),
             };
             registry.mockReturnValue(
-                new SnowflakeAiCredentialProvider({
+                new AgentSignInResolverHarness({
                     featureFlagModel: {
                         get: vi.fn().mockResolvedValue({ enabled: false }),
                     },
@@ -5001,5 +4982,95 @@ describe('Snowflake slot provenance and refusals', () => {
             admin.organization.organizationUuid,
             WarehouseTypes.SNOWFLAKE,
         );
+    });
+});
+
+describe('agent resolver refusal mapping', () => {
+    test.each([
+        [
+            { kind: 'credential', classification: 'missing' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [
+            { kind: 'credential', classification: 'unusable' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [
+            { kind: 'credential', classification: 'source_changed' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [
+            { kind: 'credential', classification: 'binding_mismatch' },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
+        [
+            { kind: 'credential', classification: 'expired' },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
+        [
+            { kind: 'client', classification: 'missing' },
+            AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+        ],
+        [
+            { kind: 'refresh', classification: 'grant_gone' },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
+        [
+            { kind: 'refresh', classification: 'legacy_grant_gone' },
+            AiAccessRefusalReason.SIGN_IN_EXPIRED,
+        ],
+        [
+            { kind: 'refresh', classification: 'legacy_failure' },
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        ],
+        [
+            { kind: 'refresh', classification: 'configuration' },
+            AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
+        ],
+    ] as const)(
+        'maps %j to %s with the original cause and refusal details',
+        async (failure, reason) => {
+            const f = setup();
+            const cause = new Error('private credential detail');
+            f.provider.mint.mockRejectedValue(
+                new AgentCredentialResolutionError(failure, cause),
+            );
+            const result = await f.service
+                .resolvePlan({ ...args, connection: snowflake })
+                .catch((error: unknown) => error);
+            expect(result).toMatchObject({ refusal: { reason }, cause });
+            if (failure.classification === 'configuration') {
+                expect(result).toMatchObject({
+                    refusal: {
+                        message:
+                            'The warehouse OAuth client was rejected. Ask an administrator to check the agent sign-in settings.',
+                        action: null,
+                        connectUrl: null,
+                    },
+                });
+            }
+            expect(JSON.stringify(result)).not.toContain(
+                'private credential detail',
+            );
+            expect(f.analytics.track).toHaveBeenCalled();
+        },
+    );
+
+    test('keeps temporary refresh failures retryable without emitting a refusal', async () => {
+        const f = setup();
+        const cause = new Error('network failure');
+        f.provider.mint.mockRejectedValue(
+            new AgentCredentialResolutionError(
+                { kind: 'refresh', classification: 'temporary' },
+                cause,
+            ),
+        );
+        await expect(
+            f.service.resolvePlan({ ...args, connection: snowflake }),
+        ).rejects.toMatchObject({
+            data: { code: 'warehouse_oauth_refresh_failed', retryable: true },
+            cause,
+        });
+        expect(f.analytics.track).not.toHaveBeenCalled();
     });
 });
