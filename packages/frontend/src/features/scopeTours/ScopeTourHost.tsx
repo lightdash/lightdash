@@ -313,6 +313,9 @@ const ScopeTourHost: FC = () => {
         setFinishedScope(null);
         void leaveCopy(libraryPath(returnProject ?? upstream));
     };
+    // Continue exploring: the dialog goes, the page stays, and so does the
+    // copy, with the lesson's result on it.
+    const handleExplore = () => setFinishedScope(null);
     // One request per tour start. `isLoading` is not set synchronously, and
     // the effect below re-runs as its inputs settle, so a ref does the
     // gating. The server hands back the learner's live copy, or a fresh
@@ -328,40 +331,44 @@ const ScopeTourHost: FC = () => {
             /** Started from the completion dialog, inside the copy. */
             leavingCopy?: boolean;
         }
-    >(({ trainingProjectUuid }) => createTrainingPreview(lightdashApi, trainingProjectUuid), {
-        onError: ({ error }) => {
-            copyRequestedRef.current = false;
-            showToastApiError({
-                title: 'Could not start the walkthrough',
-                apiError: error,
-            });
-        },
-        onSuccess: async (copy, { scope, from, leavingCopy }) => {
-            const to = tourUrlInCopy(copy.projectUuid, scope, from);
-            // The navbar resolves the active project from the cached project
-            // list, and the trainee permissions on a new copy only exist in
-            // a freshly built ability, so both are refreshed around the
-            // move. From the completion dialog the move comes first, so no
-            // page shows on the way. Every org member can view any project
-            // of the org, so a new copy opens on the old ability, and the
-            // walkthrough waits for its controls while the ability catches
-            // up.
-            const refresh = () =>
-                Promise.all([
-                    queryClient.invalidateQueries(['projects']),
-                    queryClient.invalidateQueries(['user']),
-                    queryClient.invalidateQueries(['account']),
-                ]);
-            if (leavingCopy) {
-                setFinishedScope(null);
-                await navigate(to, { state: LEAVING_COPY_STATE });
+    >(
+        ({ trainingProjectUuid }) =>
+            createTrainingPreview(lightdashApi, trainingProjectUuid),
+        {
+            onError: ({ error }) => {
+                copyRequestedRef.current = false;
+                showToastApiError({
+                    title: 'Could not start the walkthrough',
+                    apiError: error,
+                });
+            },
+            onSuccess: async (copy, { scope, from, leavingCopy }) => {
+                const to = tourUrlInCopy(copy.projectUuid, scope, from);
+                // The navbar resolves the active project from the cached project
+                // list, and the trainee permissions on a new copy only exist in
+                // a freshly built ability, so both are refreshed around the
+                // move. From the completion dialog the move comes first, so no
+                // page shows on the way. Every org member can view any project
+                // of the org, so a new copy opens on the old ability, and the
+                // walkthrough waits for its controls while the ability catches
+                // up.
+                const refresh = () =>
+                    Promise.all([
+                        queryClient.invalidateQueries(['projects']),
+                        queryClient.invalidateQueries(['user']),
+                        queryClient.invalidateQueries(['account']),
+                    ]);
+                if (leavingCopy) {
+                    setFinishedScope(null);
+                    await navigate(to, { state: LEAVING_COPY_STATE });
+                    await refresh();
+                    return;
+                }
                 await refresh();
-                return;
-            }
-            await refresh();
-            void navigate(to);
+                void navigate(to);
+            },
         },
-    });
+    );
 
     // Next goes straight into the next walkthrough, in this same copy (the
     // server hands it back), so what this one built is still there.
@@ -516,6 +523,7 @@ const ScopeTourHost: FC = () => {
                 scope={finishedScope}
                 opening={openingCopy}
                 onBack={handleBackToLibrary}
+                onExplore={handleExplore}
                 onNext={handleNext}
             />
         );

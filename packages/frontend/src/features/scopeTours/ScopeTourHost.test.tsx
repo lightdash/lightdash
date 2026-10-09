@@ -129,9 +129,11 @@ vi.mock('../learn/LearnDoneModal', () => ({
     LearnDoneModal: ({
         onNext,
         onBack,
+        onExplore,
     }: {
         onNext: (scope: string) => void;
         onBack: () => void;
+        onExplore: () => void;
     }) => (
         <>
             <button type="button" onClick={() => onNext(NEXT_SCOPE)}>
@@ -139,6 +141,9 @@ vi.mock('../learn/LearnDoneModal', () => ({
             </button>
             <button type="button" onClick={onBack}>
                 back to library
+            </button>
+            <button type="button" onClick={onExplore}>
+                continue exploring
             </button>
         </>
     ),
@@ -329,6 +334,19 @@ describe('ScopeTourHost analytics', () => {
             '/projects/training-1/learn?extra=1&group=developer',
             expect.anything(),
         );
+        expect(mutate).not.toHaveBeenCalled();
+    });
+
+    it('stays in the copy, dialog closed, on Continue exploring', () => {
+        renderHost();
+
+        fireEvent.click(screen.getByText('got it'));
+        fireEvent.click(screen.getByText('continue exploring'));
+
+        expect(
+            screen.queryByText('continue exploring'),
+        ).not.toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
         expect(mutate).not.toHaveBeenCalled();
     });
 

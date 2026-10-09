@@ -11,6 +11,7 @@ import {
 } from '@mantine/core';
 import {
     IconCheck,
+    IconCompass,
     IconFilter,
     IconLayoutGrid,
     IconPlayerPlay,
@@ -26,7 +27,7 @@ import {
     useRef,
     useState,
 } from 'react';
-import { Navigate, useSearchParams } from 'react-router';
+import { Navigate, useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
 import ForbiddenPanel from '../../components/ForbiddenPanel';
@@ -180,6 +181,7 @@ const LearnPage: FC = () => {
         );
     const [confirmingFresh, setConfirmingFresh] = useState(false);
     const { mutate: startFresh, isLoading: startingFresh } = useStartFresh();
+    const navigate = useNavigate();
     // Before the org has enabled Learn (CS-257): admins get the button,
     // everyone else a pointer to an admin.
     const organizationUuid = user.data?.organizationUuid;
@@ -581,6 +583,31 @@ const LearnPage: FC = () => {
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
+                    {ownCopy && (
+                        <Tooltip
+                            label="Open your copy of the training project, with what your lessons built"
+                            withArrow
+                            multiline
+                            w={260}
+                        >
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="compact-sm"
+                                leftSection={
+                                    <MantineIcon icon={IconCompass} size={14} />
+                                }
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${ownCopy.projectUuid}/home`,
+                                    )
+                                }
+                                data-learn-explore
+                            >
+                                Continue exploring
+                            </Button>
+                        </Tooltip>
+                    )}
                     {ownCopy && (
                         <Tooltip
                             label="Remove your copy of the training project; the next lesson starts from the beginning"

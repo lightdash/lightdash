@@ -147,9 +147,15 @@ vi.mock('./thumbnails', () => ({
 const catalogue = buildLearnCatalogue();
 const scopes = catalogue.map((module) => module.scope);
 
-const CurrentLocation = () => (
-    <output data-testid="location">{useLocation().search}</output>
-);
+const CurrentLocation = () => {
+    const { search, pathname } = useLocation();
+    return (
+        <>
+            <output data-testid="location">{search}</output>
+            <output data-testid="pathname">{pathname}</output>
+        </>
+    );
+};
 
 const renderPage = (query = '') =>
     render(
@@ -369,10 +375,33 @@ describe('LearnPage access', () => {
         );
     });
 
+    it('opens the copy from Continue exploring', async () => {
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+            {
+                projectUuid: 'copy-1',
+                type: ProjectType.PREVIEW,
+                provisioningSource: 'training',
+                upstreamProjectUuid: 'training-1',
+                createdByUserUuid: 'user-1',
+            },
+        ];
+        renderPage();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Continue exploring' }),
+        );
+        expect(screen.getByTestId('pathname')).toHaveTextContent(
+            '/projects/copy-1/home',
+        );
+    });
+
     it('offers no Start fresh to a learner without a copy', () => {
         renderPage();
         expect(
             screen.queryByRole('button', { name: 'Start fresh' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Continue exploring' }),
         ).not.toBeInTheDocument();
     });
 
