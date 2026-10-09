@@ -1,3 +1,10 @@
+# [2.518.0](https://github.com/lightdash/lightdash/compare/2.517.0...2.518.0) (2026-10-09)
+
+
+### Features
+
+* **embed:** add SDK onEvent callback for embed events ([#30828](https://github.com/lightdash/lightdash/issues/30828)) ([b048fec](https://github.com/lightdash/lightdash/commit/b048fec805f9e8fabdf40d5c0bf29fff1d08b340))
+
 # [2.517.0](https://github.com/lightdash/lightdash/compare/2.516.0...2.517.0) (2026-10-09)
 
 
