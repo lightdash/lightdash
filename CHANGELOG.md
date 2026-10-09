@@ -1,3 +1,10 @@
+# [2.525.0](https://github.com/lightdash/lightdash/compare/2.524.0...2.525.0) (2026-10-09)
+
+
+### Features
+
+* **agent-identity:** Databricks AI service account with OAuth M2M ([#30843](https://github.com/lightdash/lightdash/issues/30843)) ([09257bd](https://github.com/lightdash/lightdash/commit/09257bd6014132b845e5e895095b92d5b27f77ac))
+
 # [2.524.0](https://github.com/lightdash/lightdash/compare/2.523.0...2.524.0) (2026-10-09)
 
 

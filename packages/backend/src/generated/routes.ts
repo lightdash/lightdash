@@ -71606,11 +71606,59 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.string-or-null_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiServiceAccountTestResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                checkedAt: { dataType: 'datetime', required: true },
+                message: { dataType: 'string', required: true },
+                observed: {
+                    ref: 'Record_string.string-or-null_',
+                    required: true,
+                },
+                principal: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                ok: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiServiceAccountParent: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                verification: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiServiceAccountTestResult' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 principal: {
                     dataType: 'union',
                     subSchemas: [
@@ -71731,8 +71779,91 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountTestResult' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
         },
         additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiServiceAccountSaveResponse: {
+        dataType: 'refObject',
+        properties: {
+            results: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountSlot' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            status: { dataType: 'enum', enums: ['ok'], required: true },
+            verification: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountTestResult' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'BigqueryAuthenticationType.PRIVATE_KEY': {
+        dataType: 'refEnum',
+        enums: ['private_key'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    BigqueryAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
+            authenticationType: {
+                ref: 'BigqueryAuthenticationType.PRIVATE_KEY',
+                required: true,
+            },
+            keyfileContents: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {},
+                additionalProperties: { dataType: 'string' },
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DatabricksAuthenticationType.OAUTH_M2M': {
+        dataType: 'refEnum',
+        enums: ['oauth_m2m'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DatabricksAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.DATABRICKS', required: true },
+            authenticationType: {
+                ref: 'DatabricksAuthenticationType.OAUTH_M2M',
+                required: true,
+            },
+            oauthClientId: { dataType: 'string', required: true },
+            oauthClientSecret: { dataType: 'string', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiServiceAccountCredentialInput: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'BigqueryAiServiceAccountCredentialInput' },
+                { ref: 'DatabricksAiServiceAccountCredentialInput' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiServiceAccountSlotResponse: {
@@ -71749,72 +71880,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'BigqueryAuthenticationType.PRIVATE_KEY': {
-        dataType: 'refEnum',
-        enums: ['private_key'],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiServiceAccountCredentialInput: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                keyfileContents: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
-                },
-                authenticationType: {
-                    ref: 'BigqueryAuthenticationType.PRIVATE_KEY',
-                    required: true,
-                },
-                type: { ref: 'WarehouseTypes.BIGQUERY', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Record_string.string-or-null_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {},
-            additionalProperties: {
-                dataType: 'union',
-                subSchemas: [
-                    { dataType: 'string' },
-                    { dataType: 'enum', enums: [null] },
-                ],
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AiServiceAccountTestResult: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                checkedAt: { dataType: 'datetime', required: true },
-                message: { dataType: 'string', required: true },
-                observed: {
-                    ref: 'Record_string.string-or-null_',
-                    required: true,
-                },
-                principal: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
-                ok: { dataType: 'boolean', required: true },
             },
             validators: {},
         },

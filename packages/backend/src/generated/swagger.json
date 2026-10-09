@@ -70214,8 +70214,54 @@
                 "type": "string",
                 "enum": ["name", "label", "chartUsage", "tableLabel", "owner"]
             },
+            "Record_string.string-or-null_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string",
+                    "nullable": true
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiServiceAccountTestResult": {
+                "properties": {
+                    "checkedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "observed": {
+                        "$ref": "#/components/schemas/Record_string.string-or-null_"
+                    },
+                    "principal": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "checkedAt",
+                    "message",
+                    "observed",
+                    "principal",
+                    "ok"
+                ],
+                "type": "object"
+            },
             "AiServiceAccountParent": {
                 "properties": {
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountTestResult"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "principal": {
                         "type": "string",
                         "nullable": true
@@ -70343,11 +70389,109 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountTestResult"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": ["results", "status", "parent"],
                 "type": "object",
                 "additionalProperties": true
+            },
+            "ApiAiServiceAccountSaveResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountSlot"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiServiceAccountTestResult"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "BigqueryAuthenticationType.PRIVATE_KEY": {
+                "enum": ["private_key"],
+                "type": "string"
+            },
+            "BigqueryAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/BigqueryAuthenticationType.PRIVATE_KEY"
+                    },
+                    "keyfileContents": {
+                        "properties": {},
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": ["type", "authenticationType"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DatabricksAuthenticationType.OAUTH_M2M": {
+                "enum": ["oauth_m2m"],
+                "type": "string"
+            },
+            "DatabricksAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/DatabricksAuthenticationType.OAUTH_M2M"
+                    },
+                    "oauthClientId": {
+                        "type": "string"
+                    },
+                    "oauthClientSecret": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "authenticationType",
+                    "oauthClientId",
+                    "oauthClientSecret"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AiServiceAccountCredentialInput": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/BigqueryAiServiceAccountCredentialInput"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DatabricksAiServiceAccountCredentialInput"
+                    }
+                ]
             },
             "ApiAiServiceAccountSlotResponse": {
                 "properties": {
@@ -70366,67 +70510,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "BigqueryAuthenticationType.PRIVATE_KEY": {
-                "enum": ["private_key"],
-                "type": "string"
-            },
-            "AiServiceAccountCredentialInput": {
-                "properties": {
-                    "keyfileContents": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object"
-                    },
-                    "authenticationType": {
-                        "$ref": "#/components/schemas/BigqueryAuthenticationType.PRIVATE_KEY"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/WarehouseTypes.BIGQUERY"
-                    }
-                },
-                "required": ["authenticationType", "type"],
-                "type": "object"
-            },
-            "Record_string.string-or-null_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string",
-                    "nullable": true
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "AiServiceAccountTestResult": {
-                "properties": {
-                    "checkedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "message": {
-                        "type": "string"
-                    },
-                    "observed": {
-                        "$ref": "#/components/schemas/Record_string.string-or-null_"
-                    },
-                    "principal": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "ok": {
-                        "type": "boolean"
-                    }
-                },
-                "required": [
-                    "checkedAt",
-                    "message",
-                    "observed",
-                    "principal",
-                    "ok"
-                ],
                 "type": "object"
             },
             "ApiAiServiceAccountTestResponse": {
@@ -70732,7 +70815,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.524.0",
+        "version": "2.525.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -113944,7 +114027,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiAiServiceAccountSlotResponse"
+                                    "$ref": "#/components/schemas/ApiAiServiceAccountSaveResponse"
                                 }
                             }
                         }
