@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.525.0",
-  "previousVersion": "2.524.0",
-  "releaseDate": "2026-10-09T20:05:32.829Z",
+  "version": "2.526.0",
+  "previousVersion": "2.525.0",
+  "releaseDate": "2026-10-09T20:35:29.178Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,15 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "PUT /api/v2/projects/{projectUuid}/ai-access/service-account — removed the request property `authenticationType`",
-        "PUT /api/v2/projects/{projectUuid}/ai-access/service-account — removed the request property `keyfileContents`",
-        "PUT /api/v2/projects/{projectUuid}/ai-access/service-account — removed the request property `type`",
-        "POST /api/v2/projects/{projectUuid}/ai-access/service-account/test — removed the request property `credentials/allOf[#/components/schemas/AiServiceAccountCredentialInput]/authenticationType`",
-        "POST /api/v2/projects/{projectUuid}/ai-access/service-account/test — removed the request property `credentials/allOf[#/components/schemas/AiServiceAccountCredentialInput]/keyfileContents`",
-        "POST /api/v2/projects/{projectUuid}/ai-access/service-account/test — removed the request property `credentials/allOf[#/components/schemas/AiServiceAccountCredentialInput]/type`"
-      ],
-      "advisoryCount": 6
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

@@ -1,3 +1,10 @@
+# [2.526.0](https://github.com/lightdash/lightdash/compare/2.525.0...2.526.0) (2026-10-09)
+
+
+### Features
+
+* **warehouse:** refresh Databricks sign-ins through a resolver, one refresh at a time per credential row ([#30844](https://github.com/lightdash/lightdash/issues/30844)) ([4f1fe1e](https://github.com/lightdash/lightdash/commit/4f1fe1ee370a306d4ade820a97c7e556ae73f875))
+
 # [2.525.0](https://github.com/lightdash/lightdash/compare/2.524.0...2.525.0) (2026-10-09)
 
 
