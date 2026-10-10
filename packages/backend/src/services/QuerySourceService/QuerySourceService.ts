@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AgentActorSurface,
+    AgentCapability,
     assertIsAccountWithOrg,
     assertRegisteredAccount,
     FeatureFlags,
@@ -17,6 +18,7 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
+import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -100,6 +102,17 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<void> {
+        const grant =
+            account.authentication.type === 'oauth'
+                ? account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grant.approvedCapabilities.includes(AgentCapability.RawSql)
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
         const execution = agentExecutionContext.getStore();
         if (
             account.authentication.type !== 'oauth' &&
@@ -393,9 +406,8 @@ export class QuerySourceService extends BaseService {
         const ordered = this.validateQueries(queries, plans);
         QuerySourceService.assertPlansNameDuckdbNodes(ordered, plans);
         if (
-            ordered.some(
-                ({ source }) =>
-                    source.definition.sourceType === QuerySourceType.SQL,
+            ordered.some(({ source }) =>
+                sourceRequiresRawSql(source.definition.sourceType),
             )
         ) {
             await this.assertAgentSqlAccess(account, projectUuid);

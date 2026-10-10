@@ -29,7 +29,10 @@ import {
 } from '../auth/oauthScopes/mode';
 import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
 import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
-import { resolveOAuthSecurityStrict } from '../auth/oauthScopes/security';
+import {
+    OAuthBearerRefusalError,
+    resolveOAuthSecurityStrict,
+} from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
@@ -610,6 +613,27 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         if (!result) {
             return false;
+        }
+
+        if (result.agent_connection_grant_uuid != null) {
+            try {
+                await this.getBoundGrant(
+                    this.database,
+                    {
+                        agentConnectionGrantUuid:
+                            result.agent_connection_grant_uuid,
+                        resource: result.resource ?? null,
+                        familyUuid: result.family_uuid ?? null,
+                    },
+                    { id: result.client_id },
+                    {
+                        userId: result.user_id,
+                        organizationUuid: result.organization_uuid,
+                    },
+                );
+            } catch {
+                throw new OAuthBearerRefusalError();
+            }
         }
 
         return {

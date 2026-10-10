@@ -28,15 +28,16 @@ const setup = () => {
             touchLastUsed: vi.fn().mockResolvedValue(undefined),
         },
         featureFlags: { get: vi.fn().mockResolvedValue({ enabled: true }) },
-        resolveProjectUuid: vi
-            .fn()
-            .mockImplementation(async (_org: string, id: string) =>
-                id === 'slug' ? grant.approvedProjectUuids[0] : id,
-            ),
-        resolveResourceProjectUuid: vi
-            .fn()
-            .mockResolvedValue(grant.approvedProjectUuids[0]),
-        resolveUpstreamProjectUuid: vi.fn().mockResolvedValue(null),
+        resourceResolver: {
+            resolveProjectUuid: vi
+                .fn()
+                .mockImplementation(async (_org: string, id: string) =>
+                    id === 'slug' ? grant.approvedProjectUuids[0] : id,
+                ),
+            resolveResourceProjectUuid: vi
+                .fn()
+                .mockResolvedValue(grant.approvedProjectUuids[0]),
+        },
     };
     const service = new AgentConnectionGrantService(deps);
     return { service, deps, grant, token, user };
@@ -108,43 +109,7 @@ it('leaves unbound OAuth unchanged', async () => {
         fromOauth(user, token).authentication.agentConnectionGrant,
     ).toBeNull();
 });
-it.each(['path', 'body', 'slug', 'resource'])(
-    'resolves project from %s',
-    async (source) => {
-        const { service, token, user, grant } = setup();
-        const account = fromOauth(
-            user,
-            token,
-            null,
-            await service.authenticate(token, user),
-        );
-        await expect(
-            service.assertRestOperation(
-                {
-                    account,
-                    params: (
-                        {
-                            path: {
-                                projectUuid: grant.approvedProjectUuids[0],
-                            },
-                            slug: { projectUuidOrSlug: 'slug' },
-                            resource: {
-                                savedQueryUuid: grant.approvedProjectUuids[0],
-                            },
-                            body: {},
-                        } as Record<string, Record<string, string>>
-                    )[source],
-                    body:
-                        source === 'body'
-                            ? { projectUuid: grant.approvedProjectUuids[0] }
-                            : {},
-                },
-                'ProjectController.getProject',
-            ),
-        ).resolves.toEqual(grant.approvedProjectUuids);
-    },
-);
-it('checks every referenced project', async () => {
+it('resolves only the project consumed by the handler', async () => {
     const { service, token, user, grant } = setup();
     const account = fromOauth(
         user,
@@ -156,12 +121,26 @@ it('checks every referenced project', async () => {
         service.assertRestOperation(
             {
                 account,
-                params: { projectUuid: grant.approvedProjectUuids[0] },
+                method: 'GET',
+                query: {},
+                params: { projectUuid: 'slug' },
                 body: { targetProjectUuid: 'other' },
             },
             'ProjectController.getProject',
         ),
-    ).rejects.toThrow('project');
+    ).resolves.toEqual(grant.approvedProjectUuids);
+    await expect(
+        service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                query: { projectUuid: grant.approvedProjectUuids[0] },
+                params: {},
+                body: { projectUuid: grant.approvedProjectUuids[0] },
+            },
+            'ProjectController.getProject',
+        ),
+    ).rejects.toThrow('unresolved');
 });
 it.each(['target', 'sourceUuid'])(
     'denies deploy override %s',
@@ -178,6 +157,8 @@ it.each(['target', 'sourceUuid'])(
             service.assertRestOperation(
                 {
                     account,
+                    method: 'POST',
+                    query: {},
                     params: { projectUuid: grant.approvedProjectUuids[0] },
                     body: {
                         [field]:
@@ -204,6 +185,7 @@ it('resolves a resource slug using its explicit project scope', async () => {
         service.assertRestOperation(
             {
                 account,
+                method: 'GET',
                 params: { dashboardUuidOrSlug: 'dashboard-slug' },
                 query: { projectUuid: grant.approvedProjectUuids[0] },
                 body: {},
@@ -211,7 +193,9 @@ it('resolves a resource slug using its explicit project scope', async () => {
             'dashboardRouter GET /:dashboardUuidOrSlug',
         ),
     ).resolves.toEqual(grant.approvedProjectUuids);
-    expect(deps.resolveResourceProjectUuid).toHaveBeenCalledWith({
+    expect(
+        deps.resourceResolver.resolveResourceProjectUuid,
+    ).toHaveBeenCalledWith({
         type: 'dashboard',
         uuid: 'dashboard-slug',
         projectUuid: grant.approvedProjectUuids[0],
@@ -229,6 +213,7 @@ it('cannot hide a resource slug behind an injected body project', async () => {
         service.assertRestOperation(
             {
                 account,
+                method: 'GET',
                 params: { dashboardUuidOrSlug: 'dashboard-slug' },
                 query: {},
                 body: { projectUuid: grant.approvedProjectUuids[0] },
@@ -238,36 +223,28 @@ it('cannot hide a resource slug behind an injected body project', async () => {
     ).rejects.toThrow('unresolved');
 });
 
-it('requires both projects of an implicit promotion destination', async () => {
-    const { service, token, user, grant, deps } = setup();
-    grant.approvedCapabilities = [AgentCapability.Publish];
-    deps.resolveUpstreamProjectUuid.mockResolvedValue('upstream');
+it('refuses promotions even when both projects are approved', async () => {
+    const { service, token, user, grant } = setup();
+    grant.approvedCapabilities = Object.values(AgentCapability);
+    grant.approvedProjectUuids.push('upstream');
     const account = fromOauth(
         user,
         token,
         null,
         await service.authenticate(token, user),
     );
-    const req = {
-        account,
-        params: { projectUuid: grant.approvedProjectUuids[0] },
-        body: {},
-    };
     await expect(
         service.assertRestOperation(
-            req,
+            {
+                account,
+                method: 'POST',
+                query: {},
+                params: { projectUuid: grant.approvedProjectUuids[0] },
+                body: {},
+            },
             'DashboardController.promoteDashboard',
         ),
-    ).rejects.toThrow('project');
-    account.authentication.agentConnectionGrant!.approvedProjectUuids.push(
-        'upstream',
-    );
-    await expect(
-        service.assertRestOperation(
-            req,
-            'DashboardController.promoteDashboard',
-        ),
-    ).resolves.toEqual([grant.approvedProjectUuids[0], 'upstream']);
+    ).rejects.toThrow('operation');
 });
 
 it('does not accept fake project fields on an organization-wide content listing', async () => {
@@ -303,10 +280,10 @@ it('does not accept fake project fields on an organization-wide content listing'
         ),
     ).resolves.toEqual(grant.approvedProjectUuids);
 });
-it('checks a nested content-move destination', async () => {
+it('refuses content moves without reviewed source and destination contracts', async () => {
     const { service, token, user, grant, deps } = setup();
     grant.approvedCapabilities = [AgentCapability.Publish];
-    deps.resolveResourceProjectUuid.mockResolvedValue('other');
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
     const account = fromOauth(
         user,
         token,
@@ -318,6 +295,7 @@ it('checks a nested content-move destination', async () => {
             {
                 account,
                 method: 'POST',
+                query: {},
                 params: { projectUuid: grant.approvedProjectUuids[0] },
                 body: {
                     item: {
@@ -332,7 +310,7 @@ it('checks a nested content-move destination', async () => {
             },
             'ContentController.moveContent',
         ),
-    ).rejects.toThrow('project');
+    ).rejects.toThrow('operation');
 });
 
 it('rejects unknown grant contracts at authentication', async () => {
@@ -341,4 +319,226 @@ it('rejects unknown grant contracts at authentication', async () => {
     await expect(service.authenticate(token, user)).rejects.toMatchObject({
         name: 'invalid_token',
     });
+});
+
+it.each([
+    [
+        'SqlRunnerController.deleteSqlChart',
+        {
+            projectUuid: '11111111-1111-4111-8111-111111111111',
+            uuid: '22222222-2222-4222-8222-222222222222',
+        },
+    ],
+    [
+        'SchedulerController.get',
+        { schedulerUuid: '22222222-2222-4222-8222-222222222222' },
+    ],
+])('checks the actual resource for %s', async (operation, params) => {
+    const { service, token, user, grant, deps } = setup();
+    grant.approvedCapabilities = Object.values(AgentCapability);
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    await expect(
+        service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params,
+                query: { projectUuid: grant.approvedProjectUuids[0] },
+                body: {},
+            },
+            operation,
+        ),
+    ).rejects.toThrow('project');
+});
+it.each([
+    'SchedulerController.getUserSchedulers',
+    'ProjectController.getTablesConfiguration',
+])('refuses an unregistered operation %s', async (operation) => {
+    const { service, token, user, grant } = setup();
+    grant.approvedCapabilities = Object.values(AgentCapability);
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    await expect(
+        service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params: { projectUuid: grant.approvedProjectUuids[0] },
+                query: { projectUuid: grant.approvedProjectUuids[0] },
+                body: {},
+            },
+            operation,
+        ),
+    ).rejects.toThrow('operation');
+});
+it.each([null, 'sourceUuid', 'targetDatabase', 'targetRegion'])(
+    'handles legacy deploy query override %s',
+    async (field) => {
+        const { service, token, user, grant } = setup();
+        grant.approvedCapabilities = [AgentCapability.DeployUpload];
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        const result = service.assertRestOperation(
+            {
+                account,
+                method: 'PUT',
+                params: { projectUuid: grant.approvedProjectUuids[0] },
+                query: field ? { [field]: 'other' } : {},
+                body: [],
+            },
+            'ExploreController.SetExplores',
+        );
+        if (field) await expect(result).rejects.toThrow('override');
+        else await expect(result).resolves.toEqual(grant.approvedProjectUuids);
+    },
+);
+it.each(['sql', 'duckdb', 'external'])(
+    'requires raw SQL for query source %s',
+    async (sourceType) => {
+        const { service, token, user, grant } = setup();
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        await expect(
+            service.assertRestOperation(
+                {
+                    account,
+                    method: 'POST',
+                    params: { projectUuid: grant.approvedProjectUuids[0] },
+                    query: {},
+                    body: { queries: [{ sourceType, sql: 'select 1' }] },
+                },
+                'QuerySourceController.executeSourceQueries',
+            ),
+        ).rejects.toThrow('SQL');
+    },
+);
+
+it('requires raw SQL for warehouse schema scans and allows explicit approval', async () => {
+    const { service, token, user, grant } = setup();
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    const req = {
+        account,
+        method: 'GET',
+        params: {
+            projectUuid: grant.approvedProjectUuids[0],
+            sourceType: 'sql',
+        },
+        query: {},
+        body: {},
+    };
+    await expect(
+        service.assertRestOperation(
+            req,
+            'QuerySourceController.scanQuerySourceSchema',
+        ),
+    ).rejects.toThrow('SQL');
+    account.authentication.agentConnectionGrant!.approvedCapabilities.push(
+        AgentCapability.RawSql,
+    );
+    await expect(
+        service.assertRestOperation(
+            req,
+            'QuerySourceController.scanQuerySourceSchema',
+        ),
+    ).resolves.toEqual(grant.approvedProjectUuids);
+    await expect(
+        service.assertRestOperation(
+            {
+                ...req,
+                method: 'POST',
+                body: { queries: [{ sourceType: 'sql', sql: 'select 1' }] },
+            },
+            'QuerySourceController.executeSourceQueries',
+        ),
+    ).resolves.toEqual(grant.approvedProjectUuids);
+});
+it.each([
+    'AppGenerateController.listProjectApps',
+    'AppGenerateController.listProjectChartTypes',
+    'AppGenerateController.getAppCode',
+    'ValidationController.get',
+])('allows project-scoped CLI read %s', async (operation) => {
+    const { service, token, user, grant } = setup();
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    await expect(
+        service.assertRestOperation(
+            {
+                account,
+                method: 'GET',
+                params: {
+                    projectUuid: grant.approvedProjectUuids[0],
+                    appUuidOrSlug: 'app',
+                },
+                query: {},
+                body: {},
+            },
+            operation,
+        ),
+    ).resolves.toEqual(grant.approvedProjectUuids);
+});
+it('checks the export chart resource and capability', async () => {
+    const { service, token, user, grant, deps } = setup();
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    const req = {
+        account,
+        method: 'POST',
+        params: { chartUuid: '22222222-2222-4222-8222-222222222222' },
+        query: {},
+        body: {},
+    };
+    await expect(
+        service.assertRestOperation(
+            req,
+            'SavedChartController.exportSavedChartImage',
+        ),
+    ).rejects.toThrow('Export');
+    account.authentication.agentConnectionGrant!.approvedCapabilities.push(
+        AgentCapability.Export,
+    );
+    await expect(
+        service.assertRestOperation(
+            req,
+            'SavedChartController.exportSavedChartImage',
+        ),
+    ).resolves.toEqual(grant.approvedProjectUuids);
+    deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue('other');
+    await expect(
+        service.assertRestOperation(
+            req,
+            'SavedChartController.exportSavedChartImage',
+        ),
+    ).rejects.toThrow('project');
 });

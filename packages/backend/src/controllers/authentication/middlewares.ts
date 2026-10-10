@@ -200,13 +200,17 @@ export const unauthorisedInDemo: RequestHandler = (req, res, next) => {
     }
 };
 
+const hasSessionAndBearer = (req: Request): boolean =>
+    req.isAuthenticated() &&
+    /^Bearer\s+\S+$/i.test(req.headers.authorization ?? '');
+
 /*
 This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
 Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
 For most endpoints, use allowApiKeyAuthentication which includes OAuth + all other auth methods.
 */
 export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() && !hasSessionAndBearer(req)) {
         next();
         return;
     }
@@ -217,6 +221,14 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
+            if (
+                hasSessionAndBearer(req) &&
+                token.agentConnectionGrantUuid == null
+            ) {
+                next();
+                return;
+            }
+
             if (hasWrongOAuthAudience(req, token)) {
                 refuseOAuthToken(req, res);
                 return;
@@ -291,7 +303,7 @@ We first try OAuth (bearer header), then service accounts (bearer header),
 then Personal access tokens (ApiKey header), which can throw an error if the token is invalid.
 */
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
-    if (req.isAuthenticated()) {
+    if (req.isAuthenticated() && !hasSessionAndBearer(req)) {
         next();
         return;
     }
@@ -351,6 +363,14 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
+            if (
+                hasSessionAndBearer(req) &&
+                token.agentConnectionGrantUuid == null
+            ) {
+                next();
+                return;
+            }
+
             if (hasWrongOAuthAudience(req, token)) {
                 refuseOAuthToken(req, res);
                 return;

@@ -16,6 +16,7 @@ import { authenticateServiceAccount } from '../../ee/authentication';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     allowApiKeyAuthentication,
+    allowApiKeyAuthenticationIfPresent,
     allowOauthAuthentication,
 } from './middlewares';
 
@@ -49,11 +50,12 @@ const setup = () => {
                 enabled: featureFlagId === FeatureFlags.AgentIdentity,
             })),
         },
-        resolveProjectUuid: vi
-            .fn()
-            .mockImplementation(async (_org, uuid) => uuid),
-        resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
-        resolveUpstreamProjectUuid: vi.fn().mockResolvedValue(null),
+        resourceResolver: {
+            resolveProjectUuid: vi
+                .fn()
+                .mockImplementation(async (_org, uuid) => uuid),
+            resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
+        },
     };
     const service = new AgentConnectionGrantService(deps);
     const permissions = {
@@ -195,6 +197,7 @@ it.each([null, undefined])(
 it('a normal PAT account remains unchanged', async () => {
     const { req, user, run, deps } = setup();
     req.account = fromApiKey(user, 'pat');
+    req.headers.authorization = 'ApiKey pat';
     req.isAuthenticated = (() => true) as Request['isAuthenticated'];
     expect(await run(allowApiKeyAuthentication)).toEqual({
         status: 200,
@@ -227,10 +230,10 @@ it('refuses an API grant on the MCP audience before using the person', async () 
     expect(deps.model.findActive).not.toHaveBeenCalled();
 });
 
-it('passes body project resolution to the managed org policy too', async () => {
+it('passes the contracted path project to managed org policy', async () => {
     const { req, run, grant, permissions } = setup();
-    req.params = {};
-    req.body = { projectUuid: grant.approvedProjectUuids[0] };
+    req.params = { projectUuid: grant.approvedProjectUuids[0] };
+    req.body = { projectUuid: 'ignored' };
     req.method = 'POST';
     permissions.isManaged.mockResolvedValue(true);
     expect((await run(allowApiKeyAuthentication)).error).toBeUndefined();
@@ -286,4 +289,61 @@ it('uses Console-only enablement and rechecks the org switch without a restart',
         tracker.reset();
         await database.destroy();
     }
+});
+
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('enforces a bound bearer with a session', async (middleware) => {
+    const { req, run, deps } = setup();
+    req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+    deps.featureFlags.get.mockResolvedValue({ enabled: false });
+    expect(await run(middleware)).toMatchObject({
+        status: 401,
+        body: { error: 'invalid_token' },
+    });
+});
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])(
+    'refuses a people-only operation with a session and bound bearer',
+    async (middleware) => {
+        const { req, run } = setup();
+        req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+        req.route.stack[0].handle = Object.defineProperty(() => {}, 'name', {
+            value: 'UserController_createPersonalAccessToken',
+        });
+        expect((await run(middleware)).error).toBeDefined();
+    },
+);
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('preserves a session with an unbound bearer', async (middleware) => {
+    const { req, user, token, run, deps } = setup();
+    req.account = fromApiKey(user, 'pat');
+    req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+    token.agentConnectionGrantUuid = null as unknown as string;
+    expect((await run(middleware)).error).toBeUndefined();
+    expect(req.account.authentication.type).toBe('pat');
+    expect(deps.model.findActive).not.toHaveBeenCalled();
+});
+
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('does no OAuth lookup for a plain session', async (middleware) => {
+    const { req, user, run } = setup();
+    req.account = fromApiKey(user, 'pat');
+    req.headers.authorization = undefined;
+    req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+    const lookup = vi.spyOn(req.services, 'getOauthService');
+    expect((await run(middleware)).error).toBeUndefined();
+    expect(req.account.authentication.type).toBe('pat');
+    expect(lookup).not.toHaveBeenCalled();
 });

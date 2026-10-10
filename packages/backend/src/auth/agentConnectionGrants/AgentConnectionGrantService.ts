@@ -1,7 +1,8 @@
 import {
-    ChartSourceType,
-    ContentType,
+    AgentCapability,
+    assertUnreachable,
     ForbiddenError,
+    QuerySourceType,
     type OAuthAgentConnectionGrant,
     type SessionUser,
 } from '@lightdash/common';
@@ -13,51 +14,22 @@ import Logger from '../../logging/logger';
 import { type AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OAuthTokenBinding } from '../oauthScopes/oauthTokenBinding';
-import { type OAuthRouteResource } from '../oauthScopes/routeOperation';
 import { OAuthBearerRefusalError } from '../oauthScopes/security';
+import type { GrantResourceResolver } from './AgentConnectionGrantResourceResolver';
 import { assertAgentConnectionGrantOperation } from './evaluateGrant';
 import {
     agentConnectionGrantEnabled,
     matchesOAuthGrantBinding,
 } from './oauthGrantBinding';
+import {
+    getGrantOperationContract,
+    sourceEffectCapabilities,
+} from './operationContracts';
 
-export type OAuthGrantRouteResource = {
-    type: OAuthRouteResource['type'] | 'sql_chart' | 'document' | 'data_app';
-    uuid: string;
-    projectUuid: string | null;
-};
-
-const UPSTREAM_OPERATIONS: ReadonlySet<string> = new Set([
-    'DashboardController.promoteDashboard',
-    'DashboardController.promoteDashboardDiff',
-    'SavedChartController.promoteChart',
-    'SavedChartController.promoteChartDiff',
-    'SqlRunnerController.promoteSqlChart',
-    'SqlRunnerController.promoteSqlChartDiff',
-    'DocumentController.promote',
-    'AppGenerateController.promoteApp',
-]);
-
-const contentItemSchema = z.object({
-    uuid: z.string(),
-    contentType: z.enum(ContentType),
-    source: z.enum(ChartSourceType).optional(),
-});
-const contentActionSchema = z.object({
-    item: contentItemSchema.optional(),
-    content: z.array(contentItemSchema).optional(),
-    action: z
-        .object({ targetSpaceUuid: z.string().nullable().optional() })
-        .optional(),
-});
-const CONTENT_ACTION_OPERATIONS: ReadonlySet<string> = new Set([
-    'ContentController.moveContent',
-    'ContentController.bulkMoveContent',
-    'ContentController.deleteContent',
-    'ContentController.bulkDeleteContent',
-    'ContentController.restoreContent',
-    'ContentController.permanentlyDeleteContent',
-]);
+export type GrantRestRequest = Pick<
+    Request,
+    'account' | 'params' | 'body' | 'query' | 'method'
+>;
 
 export class AgentConnectionGrantService {
     constructor(
@@ -67,16 +39,7 @@ export class AgentConnectionGrantService {
                 'findActive' | 'touchLastUsed'
             >;
             featureFlags: Pick<FeatureFlagModel, 'get'>;
-            resolveProjectUuid: (
-                organizationUuid: string,
-                uuidOrSlug: string,
-            ) => Promise<string>;
-            resolveResourceProjectUuid: (
-                resource: OAuthGrantRouteResource,
-            ) => Promise<string | null>;
-            resolveUpstreamProjectUuid: (
-                projectUuid: string,
-            ) => Promise<string | null>;
+            resourceResolver: GrantResourceResolver;
         },
     ) {}
 
@@ -131,8 +94,7 @@ export class AgentConnectionGrantService {
     }
 
     async assertRestOperation(
-        req: Pick<Request, 'account' | 'params' | 'body'> &
-            Partial<Pick<Request, 'query' | 'method'>>,
+        req: GrantRestRequest,
         operation: string | null,
     ): Promise<string[]> {
         if (
@@ -140,168 +102,183 @@ export class AgentConnectionGrantService {
             !req.account.authentication.agentConnectionGrant
         )
             return [];
-        const organizationUuid = req.account.organization.organizationUuid!;
-        const parsedBody = z
-            .record(z.string(), z.unknown())
-            .safeParse(req.method === 'GET' ? {} : (req.body ?? {}));
-        if (!parsedBody.success)
+        const contract =
+            operation === null ? null : getGrantOperationContract(operation);
+        if (contract === null) {
+            assertAgentConnectionGrantOperation(req.account, {
+                kind: 'rest',
+                key: operation ?? 'unknown',
+                projectUuids: [],
+            });
             throw new ForbiddenError(
-                "This agent connection can't resolve this request body.",
+                "This agent connection can't use this operation.",
             );
-        const body = parsedBody.data;
-        const ids = new Set<string>();
-        const listing =
-            operation === 'ContentController.listContent' ||
-            operation === 'ContentController.listDeletedContent';
-        const projectSources = listing
-            ? [{ projectUuids: req.query?.projectUuids }]
-            : [req.params, body, req.query ?? {}];
-        for (const values of projectSources) {
-            for (const key of [
-                'projectUuid',
-                'projectUuidOrSlug',
-                'sourceProjectUuid',
-                'targetProjectUuid',
-                'destinationProjectUuid',
-            ]) {
-                const value: unknown = (values as Record<string, unknown>)[key];
-                if (typeof value === 'string') ids.add(value);
-            }
-            const projectIds =
-                typeof values.projectUuids === 'string'
-                    ? values.projectUuids.split(',')
-                    : values.projectUuids;
-            if (Array.isArray(projectIds)) {
-                for (const value of projectIds)
-                    if (typeof value === 'string') ids.add(value);
-            }
         }
-        const projectUuids = await Promise.all(
-            [...ids].map((id) =>
-                this.deps.resolveProjectUuid(organizationUuid, id),
-            ),
-        );
-        const explicitScope =
-            req.params.projectUuid ??
-            req.params.projectUuidOrSlug ??
-            req.query?.projectUuid;
-        const slugProjectUuid =
-            typeof explicitScope === 'string'
-                ? await this.deps.resolveProjectUuid(
-                      organizationUuid,
-                      explicitScope,
-                  )
-                : null;
-        const resources: readonly [string, OAuthGrantRouteResource['type']][] =
-            [
-                ['dashboardUuid', 'dashboard'],
-                ['dashboardUuidOrSlug', 'dashboard'],
-                ['sourceDashboardUuid', 'dashboard'],
-                ['chartUuid', 'saved_chart'],
-                ['savedQueryUuid', 'saved_chart'],
-                ['savedQueryUuidOrSlug', 'saved_chart'],
-                ['spaceUuid', 'space'],
-                ['sourceSpaceUuid', 'space'],
-                ['targetSpaceUuid', 'space'],
-                ['destinationSpaceUuid', 'space'],
-                ['queryUuid', 'query'],
-                ['savedSqlUuid', 'sql_chart'],
-            ];
-        const references = [req.params, body].flatMap((values) =>
-            resources.flatMap(([parameter, type]) => {
-                const uuid = values[parameter];
-                return typeof uuid === 'string'
-                    ? [{ type, uuid, projectUuid: slugProjectUuid }]
-                    : [];
-            }),
-        );
-        const referenceProjects = await Promise.all(
-            references.map(async (resource) => {
-                if (!isUuid(resource.uuid) && slugProjectUuid === null)
-                    throw new ForbiddenError(
-                        "This agent connection can't use an unresolved project.",
-                    );
-                const project =
-                    await this.deps.resolveResourceProjectUuid(resource);
-                if (project === null)
-                    throw new ForbiddenError(
-                        "This agent connection can't use an unresolved project.",
-                    );
-                return project;
-            }),
-        );
-        projectUuids.push(...referenceProjects);
-        if (operation !== null && CONTENT_ACTION_OPERATIONS.has(operation)) {
-            const action = contentActionSchema.safeParse(body);
-            if (!action.success)
+        const organizationUuid = req.account.organization.organizationUuid!;
+        const resolver = this.deps.resourceResolver;
+        const projects: string[] = [];
+        let additionalCapabilities: AgentCapability[] = [];
+        let deploymentOverrides: {
+            target?: unknown;
+            sourceUuid?: unknown;
+        } | null = null;
+        const resolveProject = async (value: unknown) => {
+            const id = z.string().min(1).safeParse(value);
+            if (!id.success)
                 throw new ForbiddenError(
-                    "This agent connection can't resolve this content action.",
+                    "This agent connection can't use an unresolved project.",
                 );
-            const items = [
-                ...(action.data.content ?? []),
-                ...(action.data.item ? [action.data.item] : []),
-            ];
-            const itemProjects = await Promise.all(
-                items.map(async (item) => {
-                    const types: Record<
-                        ContentType,
-                        OAuthGrantRouteResource['type']
-                    > = {
-                        [ContentType.CHART]:
-                            item.source === ChartSourceType.SQL
-                                ? 'sql_chart'
-                                : 'saved_chart',
-                        [ContentType.DASHBOARD]: 'dashboard',
-                        [ContentType.SPACE]: 'space',
-                        [ContentType.DOCUMENT]: 'document',
-                        [ContentType.DATA_APP]: 'data_app',
-                    };
-                    const project = await this.deps.resolveResourceProjectUuid({
-                        type: types[item.contentType],
-                        uuid: item.uuid,
-                        projectUuid: slugProjectUuid,
-                    });
-                    if (project === null)
-                        throw new ForbiddenError(
-                            "This agent connection can't use an unresolved project.",
+            return resolver.resolveProjectUuid(organizationUuid, id.data);
+        };
+        const parseBody = <T>(schema: z.ZodType<T>): T => {
+            const body = schema.safeParse(req.body ?? {});
+            if (!body.success)
+                throw new ForbiddenError(
+                    "This agent connection can't resolve this request body.",
+                );
+            return body.data;
+        };
+        switch (contract.kind) {
+            case 'org_discovery':
+                if (req.method !== 'GET')
+                    throw new ForbiddenError(
+                        "This agent connection can't use this operation.",
+                    );
+                break;
+            case 'resource': {
+                let projectUuid: string | null = null;
+                switch (contract.scope.kind) {
+                    case 'none':
+                        break;
+                    case 'path':
+                        projectUuid = await resolveProject(
+                            req.params[contract.scope.param],
                         );
-                    return project;
-                }),
-            );
-            projectUuids.push(...itemProjects);
-            if (action.data.action?.targetSpaceUuid) {
-                const project = await this.deps.resolveResourceProjectUuid({
-                    type: 'space',
-                    uuid: action.data.action.targetSpaceUuid,
-                    projectUuid: slugProjectUuid,
-                });
-                if (project === null)
+                        break;
+                    case 'query':
+                        if (req.query[contract.scope.param] !== undefined)
+                            projectUuid = await resolveProject(
+                                req.query[contract.scope.param],
+                            );
+                        break;
+                    default:
+                        assertUnreachable(
+                            contract.scope,
+                            'Unknown grant resource scope',
+                        );
+                }
+                const resource = z
+                    .string()
+                    .min(1)
+                    .safeParse(req.params[contract.param]);
+                if (
+                    !resource.success ||
+                    (projectUuid === null && !isUuid(resource.data))
+                )
                     throw new ForbiddenError(
                         "This agent connection can't use an unresolved project.",
                     );
-                projectUuids.push(project);
+                const actual = await resolver.resolveResourceProjectUuid({
+                    type: contract.resourceType,
+                    uuid: resource.data,
+                    projectUuid,
+                });
+                if (actual === null)
+                    throw new ForbiddenError(
+                        "This agent connection can't use an unresolved project.",
+                    );
+                if (projectUuid !== null && actual !== projectUuid)
+                    throw new ForbiddenError(
+                        "This agent connection can't use this project.",
+                    );
+                projects.push(await resolveProject(actual));
+                break;
             }
-        }
-        if (operation !== null && UPSTREAM_OPERATIONS.has(operation)) {
-            const upstreamProjects = await Promise.all(
-                [...new Set(projectUuids)].map(async (projectUuid) => {
-                    const upstream =
-                        await this.deps.resolveUpstreamProjectUuid(projectUuid);
-                    if (upstream === null)
-                        throw new ForbiddenError(
-                            "This agent connection can't use an unresolved project.",
-                        );
-                    return upstream;
-                }),
-            );
-            projectUuids.push(...upstreamProjects);
+            case 'project_filter': {
+                const raw = req.query[contract.query];
+                const ids = z
+                    .array(z.string().min(1))
+                    .min(1)
+                    .safeParse(typeof raw === 'string' ? raw.split(',') : raw);
+                if (!ids.success)
+                    throw new ForbiddenError(
+                        "This agent connection can't use an unresolved project.",
+                    );
+                projects.push(
+                    ...(await Promise.all(ids.data.map(resolveProject))),
+                );
+                break;
+            }
+            case 'path_project':
+                projects.push(await resolveProject(req.params[contract.param]));
+                break;
+            case 'deployment': {
+                projects.push(await resolveProject(req.params[contract.param]));
+                const body = parseBody(contract.bodySchema);
+                if (contract.overrides === 'legacy_query') {
+                    const overrides = z
+                        .object({
+                            sourceUuid: z.unknown(),
+                            targetDatabase: z.unknown(),
+                            targetRegion: z.unknown(),
+                        })
+                        .partial()
+                        .parse(req.query);
+                    deploymentOverrides = {
+                        sourceUuid: overrides.sourceUuid,
+                        target:
+                            overrides.targetDatabase ?? overrides.targetRegion,
+                    };
+                } else {
+                    const overrides = z
+                        .object({
+                            target: z.unknown(),
+                            sourceUuid: z.unknown(),
+                        })
+                        .partial()
+                        .parse(body);
+                    deploymentOverrides = overrides;
+                }
+                break;
+            }
+            case 'content_upload':
+                projects.push(await resolveProject(req.params[contract.param]));
+                parseBody(contract.bodySchema);
+                additionalCapabilities = [AgentCapability.DeployUpload];
+                break;
+            case 'source_queries': {
+                projects.push(await resolveProject(req.params[contract.param]));
+                const body = parseBody(contract.bodySchema);
+                additionalCapabilities = sourceEffectCapabilities(
+                    body.queries.map(({ sourceType }) => sourceType),
+                );
+                break;
+            }
+            case 'source_schema': {
+                projects.push(await resolveProject(req.params[contract.param]));
+                const sourceType = z
+                    .enum(QuerySourceType)
+                    .safeParse(req.params[contract.sourceTypeParam]);
+                if (!sourceType.success)
+                    throw new ForbiddenError(
+                        "This agent connection can't resolve this query source.",
+                    );
+                additionalCapabilities =
+                    sourceType.data === QuerySourceType.SQL
+                        ? [AgentCapability.RawSql]
+                        : [];
+                break;
+            }
+            default:
+                assertUnreachable(contract, 'Unknown grant operation contract');
         }
         assertAgentConnectionGrantOperation(req.account, {
             kind: 'rest',
-            key: operation ?? 'unknown',
-            projectUuids,
-            deploymentOverrides: body,
+            key: operation!,
+            projectUuids: projects,
+            additionalCapabilities,
+            deploymentOverrides,
         });
-        return [...new Set(projectUuids)];
+        return [...new Set(projects)];
     }
 }
