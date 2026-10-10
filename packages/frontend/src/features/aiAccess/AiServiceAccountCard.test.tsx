@@ -181,6 +181,25 @@ const openForm = async () => {
     return screen.findByRole('dialog', { name: 'Shared agent account' });
 };
 
+const expectSteps = (visible: boolean, name: string) => {
+    const stepTitles =
+        name === 'Trino'
+            ? [
+                  'Create or choose the Trino login',
+                  'Limit what the login can read',
+                  'Enter the user and password',
+              ]
+            : [
+                  `Create the account in ${name}`,
+                  'Grant it only the data agents may read',
+                  'Add it here and select Test',
+              ];
+    for (const title of stepTitles) {
+        if (visible) expect(screen.getByText(title)).toBeVisible();
+        else expect(screen.queryByText(title)).not.toBeInTheDocument();
+    }
+};
+
 describe('AI service account card', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -244,24 +263,6 @@ describe('AI service account card', () => {
             ...project,
             warehouseConnection: { ...project.warehouseConnection, type },
         } as Project;
-        const stepTitles =
-            type === WarehouseTypes.TRINO
-                ? [
-                      'Create or choose the Trino login',
-                      'Limit what the login can read',
-                      'Enter the user and password',
-                  ]
-                : [
-                      `Create the account in ${name}`,
-                      'Grant it only the data agents may read',
-                      'Add it here and select Test',
-                  ];
-        const expectSteps = (visible: boolean) => {
-            for (const title of stepTitles) {
-                if (visible) expect(screen.getByText(title)).toBeVisible();
-                else expect(screen.queryByText(title)).not.toBeInTheDocument();
-            }
-        };
         const missing =
             'Agents are refused on this project until you add a shared agent account.';
         const unused = `Agents on this project use each person's own ${name} credentials. The organization rule decides this.`;
@@ -287,7 +288,7 @@ describe('AI service account card', () => {
             await screen.findByRole('button', {
                 name: 'Add shared agent account',
             });
-            expectSteps(true);
+            expectSteps(true, name);
             expect(
                 screen.queryByRole('button', {
                     name: 'How to set up the shared agent account',
@@ -297,39 +298,44 @@ describe('AI service account card', () => {
                 screen.queryByText('How to set up the shared agent account'),
             ).not.toBeInTheDocument();
         });
-        it('shows untested account steps and removes them after Test in the same render', async () => {
+        it('keeps the steps hidden before and after a successful Test', async () => {
             slot = { ...savedSlot, warehouseType: type };
             setup(props);
             const test = await screen.findByRole('button', { name: 'Test' });
-            expectSteps(true);
+            expectSteps(false, name);
             fireEvent.click(test);
-            await waitFor(() => expectSteps(false));
+            await screen.findByText(/^Tested /);
+            expectSteps(false, name);
         });
         it.each(['own', 'inherited'] as const)(
-            'uses persisted %s verification for step visibility after reload',
+            'hides steps for a saved %s account without verification',
             async (owner) => {
                 if (owner === 'own')
                     slot = { ...savedSlot, warehouseType: type };
-                else parent = parentAccount;
-                const first = setup(props);
-                fireEvent.click(
-                    await screen.findByRole('button', { name: 'Test' }),
-                );
-                await waitFor(() => expectSteps(false));
-                first.unmount();
-                if (owner === 'own') verification = snowflakeVerification;
-                else
+                else parent = { ...parentAccount, principal: null };
+                setup(props);
+                await screen.findByRole('button', { name: 'Test' });
+                expectSteps(false, name);
+            },
+        );
+        it.each(['own', 'inherited'] as const)(
+            'hides steps for a saved %s account with persisted passed verification',
+            async (owner) => {
+                if (owner === 'own') {
+                    slot = { ...savedSlot, warehouseType: type };
+                    verification = snowflakeVerification;
+                } else
                     parent = {
                         ...parentAccount,
                         verification: snowflakeVerification,
                     };
                 setup(props);
                 await screen.findByRole('button', { name: 'Test' });
-                expectSteps(type === WarehouseTypes.BIGQUERY);
+                expectSteps(false, name);
             },
         );
         it.each(scenarios)(
-            'renders %s with status first and guide last',
+            'renders %s with status first and steps only without an account',
             async (scenario) => {
                 const empty =
                     scenario === 'missing required' ||
@@ -360,8 +366,10 @@ describe('AI service account card', () => {
                     ...props,
                     type: inherited ? ProjectType.PREVIEW : ProjectType.DEFAULT,
                 });
-                const guide = await screen.findByText(stepTitles[0]);
-                expectSteps(true);
+                await screen.findByRole('button', {
+                    name: empty ? 'Add shared agent account' : 'Test',
+                });
+                expectSteps(empty, name);
                 const refused =
                     scenario === 'missing required' ||
                     scenario === 'unreadable parent required';
@@ -418,12 +426,6 @@ describe('AI service account card', () => {
                     : (screen.queryByText(
                           /^Uses the shared agent account from/,
                       ) ?? screen.getByText(/^(Signs in as|Not tested yet)/));
-                expect(status.compareDocumentPosition(summary)).toBe(
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-                );
-                expect(summary.compareDocumentPosition(guide)).toBe(
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-                );
                 if (!empty)
                     expect(
                         summary.compareDocumentPosition(
@@ -433,9 +435,16 @@ describe('AI service account card', () => {
                 expect(status.compareDocumentPosition(summary)).toBe(
                     Node.DOCUMENT_POSITION_FOLLOWING,
                 );
-                expect(summary.compareDocumentPosition(guide)).toBe(
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-                );
+                if (empty)
+                    expect(
+                        summary.compareDocumentPosition(
+                            screen.getByText(
+                                type === WarehouseTypes.TRINO
+                                    ? 'Create or choose the Trino login'
+                                    : `Create the account in ${name}`,
+                            ),
+                        ),
+                    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
                 if (empty) {
                     expect(summary).toHaveAttribute('data-variant', 'filled');
                     expect(
@@ -467,36 +476,6 @@ describe('AI service account card', () => {
                         );
                     }
                 }
-                expect(
-                    screen.getByText(
-                        type === WarehouseTypes.TRINO
-                            ? 'Create or choose the Trino login'
-                            : `Create the account in ${name}`,
-                    ),
-                ).toBeInTheDocument();
-                expect(
-                    screen.getByText(
-                        type === WarehouseTypes.TRINO
-                            ? 'Limit what the login can read'
-                            : 'Grant it only the data agents may read',
-                    ),
-                ).toBeInTheDocument();
-                expect(
-                    screen.getByText(
-                        type === WarehouseTypes.TRINO
-                            ? 'Enter the user and password'
-                            : 'Add it here and select Test',
-                    ),
-                ).toBeInTheDocument();
-                expect(
-                    screen.queryByLabelText('Step 1 done'),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByLabelText('Step 2 done'),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByLabelText('Step 3 done'),
-                ).not.toBeInTheDocument();
                 expect(container).not.toHaveTextContent(' · ');
                 expect(container).not.toHaveTextContent('M2M');
                 expect(container).not.toHaveTextContent('agent-active');
@@ -506,15 +485,12 @@ describe('AI service account card', () => {
             },
         );
         it.each(['failure', 'error'] as const)(
-            'hides the steps only after a passed Test and reports %s in an Alert',
+            'keeps the steps hidden and reports Test %s in an Alert',
             async (failure) => {
                 slot = { ...savedSlot, warehouseType: type };
                 setup(props);
                 await screen.findByRole('button', { name: 'Test' });
-                expectSteps(true);
-                expect(
-                    screen.queryByLabelText('Step 3 done'),
-                ).not.toBeInTheDocument();
+                expectSteps(false, name);
                 if (failure === 'failure')
                     vi.mocked(lightdashApi).mockResolvedValueOnce({
                         ...snowflakeVerification,
@@ -530,11 +506,10 @@ describe('AI service account card', () => {
                 const alert = await screen.findByRole('alert');
                 expect(alert).toHaveTextContent('Test failed.');
                 expect(alert).toHaveClass('mantine-Alert-root');
-                expect(
-                    screen.queryByLabelText('Step 3 done'),
-                ).not.toBeInTheDocument();
+                expectSteps(false, name);
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
-                await waitFor(() => expectSteps(false));
+                await screen.findByText(/^Tested /);
+                expectSteps(false, name);
                 expect(screen.getByText(/^Tested /)).toHaveTextContent(
                     `Tested ${formatAiServiceAccountDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatAiServiceAccountDate(savedSlot.updatedAt)}.`,
                 );
@@ -615,10 +590,10 @@ describe('AI service account card', () => {
                 expect(
                     screen.getByText('Signs in as parent@example.test'),
                 ).toBeVisible();
-                expectSteps(true);
+                expectSteps(false, name);
                 expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
             } else {
-                expectSteps(false);
+                expectSteps(false, name);
                 expect(
                     screen.getByText(
                         `Tested ${formatAiServiceAccountDate(snowflakeVerification.checkedAt)}.`,
@@ -714,18 +689,16 @@ describe('AI service account card', () => {
             ).toBeVisible();
         },
     );
-    it('keeps the steps visible after BigQuery Save without Test', async () => {
+    it('hides the steps after BigQuery Save without Test', async () => {
         setup();
         const dialog = await openForm();
+        expectSteps(true, 'BigQuery');
         upload();
         const save = within(dialog).getByRole('button', { name: 'Save' });
         await waitFor(() => expect(save).toBeEnabled());
         fireEvent.click(save);
         await screen.findByRole('button', { name: 'Replace' });
-        expect(
-            screen.getByText('Create the account in BigQuery'),
-        ).toBeVisible();
-        expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
+        expectSteps(false, 'BigQuery');
         expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
@@ -2220,9 +2193,7 @@ describe('AI service account card', () => {
             screen.queryByRole('button', { name: 'Replace' }),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
-        expect(
-            screen.getByText('Create the account in BigQuery'),
-        ).toBeVisible();
+        expectSteps(false, 'BigQuery');
         fireEvent.click(
             screen.getByRole('button', {
                 name: "Add this preview's own account",
@@ -2284,13 +2255,8 @@ describe('AI service account card', () => {
             expect(
                 screen.queryByText('Signs in as tested-principal'),
             ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText('Step 3 done'),
-            ).not.toBeInTheDocument();
         });
-        expect(
-            screen.getByText('Create the account in BigQuery'),
-        ).toBeVisible();
+        expectSteps(false, 'BigQuery');
         expect(
             screen.getByText('Signs in as parent@example.test'),
         ).toBeVisible();
@@ -2729,6 +2695,7 @@ describe('AI service account card', () => {
     it('saves, replaces and removes the slot only after confirmation', async () => {
         const { invalidate } = setup();
         const dialog = await openForm();
+        expectSteps(true, 'BigQuery');
         upload();
         const saveButton = within(dialog).getByRole('button', { name: 'Save' });
         await waitFor(() => expect(saveButton).toBeEnabled());
@@ -2739,6 +2706,7 @@ describe('AI service account card', () => {
         await waitFor(() =>
             expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
         );
+        expectSteps(false, 'BigQuery');
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',
@@ -2765,6 +2733,7 @@ describe('AI service account card', () => {
         const confirmation = await screen.findByRole('dialog', {
             name: 'Remove shared agent account',
         });
+        expectSteps(false, 'BigQuery');
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
         );
@@ -2776,6 +2745,7 @@ describe('AI service account card', () => {
                 name: 'Add shared agent account',
             }),
         ).toBeInTheDocument();
+        expectSteps(true, 'BigQuery');
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
             url: '/projects/project/ai-access/service-account',

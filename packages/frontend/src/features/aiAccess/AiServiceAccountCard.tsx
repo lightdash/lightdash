@@ -374,38 +374,26 @@ const getAiPrincipalState = (
 
 const AiServiceAccountSetup = ({
     connection,
-    tested,
 }: {
     connection: AiServiceAccountConnection;
-    tested: boolean;
 }) => {
     switch (connection.type) {
         case WarehouseTypes.TRINO:
-            return <TrinoAgentSetup connection={connection} tested={tested} />;
+            return <TrinoAgentSetup connection={connection} />;
         case WarehouseTypes.CLICKHOUSE:
-            return (
-                <ClickhouseAgentSetup connection={connection} tested={tested} />
-            );
+            return <ClickhouseAgentSetup connection={connection} />;
         case WarehouseTypes.REDSHIFT:
-            return (
-                <RedshiftAgentSetup connection={connection} tested={tested} />
-            );
+            return <RedshiftAgentSetup connection={connection} />;
         case WarehouseTypes.POSTGRES:
-            return (
-                <PostgresAgentSetup connection={connection} tested={tested} />
-            );
+            return <PostgresAgentSetup connection={connection} />;
         case WarehouseTypes.ATHENA:
-            return <AthenaAgentSetup connection={connection} tested={tested} />;
+            return <AthenaAgentSetup connection={connection} />;
         case WarehouseTypes.BIGQUERY:
-            return (
-                <BigQueryAgentSetup connection={connection} tested={tested} />
-            );
+            return <BigQueryAgentSetup connection={connection} />;
         case WarehouseTypes.DATABRICKS:
-            return (
-                <DatabricksAgentSetup connection={connection} tested={tested} />
-            );
+            return <DatabricksAgentSetup connection={connection} />;
         case WarehouseTypes.SNOWFLAKE:
-            return <SnowflakeAiServiceAccountSetup tested={tested} />;
+            return <SnowflakeAiServiceAccountSetup />;
         default:
             return assertUnreachable(connection, 'Unknown warehouse type');
     }
@@ -464,10 +452,9 @@ const AiServiceAccountSettingsBody = ({
                 }}
                 onEdit={() => setEditing(true)}
             />
-            <AiServiceAccountSetup
-                connection={connection}
-                tested={principal !== null}
-            />
+            {!slot && !parent && (
+                <AiServiceAccountSetup connection={connection} />
+            )}
             {editing && (
                 <AiServiceAccountForm
                     projectUuid={projectUuid}

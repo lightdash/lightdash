@@ -8,20 +8,15 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 interface RedshiftAgentSetupProps {
     connection: RedshiftCredentials;
-    tested: boolean;
 }
 
-export const RedshiftAgentSetup = ({
-    connection,
-    tested,
-}: RedshiftAgentSetupProps) => {
+export const RedshiftAgentSetup = ({ connection }: RedshiftAgentSetupProps) => {
     const commands = buildRedshiftAiServiceAccountCommands({
         schema: connection.schema,
     });
     return (
         <AiServiceAccountSetupGuide
             warehouseName="Redshift"
-            tested={tested}
             createContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">

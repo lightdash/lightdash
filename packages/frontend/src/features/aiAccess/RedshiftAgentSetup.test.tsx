@@ -18,9 +18,7 @@ const connection: RedshiftCredentials = {
 
 describe('Redshift agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
-        renderWithProviders(
-            <RedshiftAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<RedshiftAgentSetup connection={connection} />);
         for (const title of [
             'Create the account in Redshift',
             'Grant it only the data agents may read',
@@ -57,9 +55,7 @@ describe('Redshift agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <RedshiftAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<RedshiftAgentSetup connection={connection} />);
         const buttons = screen.getAllByRole('button', { name: 'Copy SQL' });
         const commands = buildRedshiftAiServiceAccountCommands(connection);
         const snippets = [
@@ -80,22 +76,8 @@ describe('Redshift agent setup', () => {
         const { container } = renderWithProviders(
             <RedshiftAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                tested={false}
             />,
         );
         expect(container).toHaveTextContent('"<schema>"."<table>"');
-    });
-    it('hides the steps after a successful Test', () => {
-        renderWithProviders(
-            <RedshiftAgentSetup connection={connection} tested />,
-        );
-        for (const number of [1, 2, 3]) {
-            expect(
-                screen.queryByLabelText(`Step ${number}`),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText(`Step ${number} done`),
-            ).not.toBeInTheDocument();
-        }
     });
 });

@@ -8,10 +8,8 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 export const BigQueryAgentSetup = ({
     connection,
-    tested,
 }: {
     connection: BigqueryCredentials;
-    tested: boolean;
 }) => {
     const commands = buildBigQueryAiServiceAccountCommands({
         project: connection.project,
@@ -21,7 +19,6 @@ export const BigQueryAgentSetup = ({
     return (
         <AiServiceAccountSetupGuide
             warehouseName="BigQuery"
-            tested={tested}
             createContent={
                 <CodeBlock
                     language="bash"

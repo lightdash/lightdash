@@ -8,18 +8,13 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 interface TrinoAgentSetupProps {
     connection: TrinoCredentials;
-    tested: boolean;
 }
 
-export const TrinoAgentSetup = ({
-    connection,
-    tested,
-}: TrinoAgentSetupProps) => {
+export const TrinoAgentSetup = ({ connection }: TrinoAgentSetupProps) => {
     const commands = buildTrinoAiServiceAccountCommands(connection);
     return (
         <AiServiceAccountSetupGuide
             warehouseName="Trino"
-            tested={tested}
             createTitle="Create or choose the Trino login"
             grantTitle="Limit what the login can read"
             addTitle="Enter the user and password"

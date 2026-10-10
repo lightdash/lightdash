@@ -18,9 +18,7 @@ const connection: ClickhouseCredentials = {
 
 describe('ClickHouse agent setup', () => {
     it('shows three steps, read-only guidance and row policy limits', () => {
-        renderWithProviders(
-            <ClickhouseAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<ClickhouseAgentSetup connection={connection} />);
         for (const title of [
             'Create the account in ClickHouse',
             'Grant it only the data agents may read',
@@ -47,9 +45,7 @@ describe('ClickHouse agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <ClickhouseAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<ClickhouseAgentSetup connection={connection} />);
         const buttons = screen.getAllByRole('button', { name: 'Copy SQL' });
         const commands = buildClickhouseAiServiceAccountCommands(connection);
         expect(commands.grantReadAccess).toContain('`reporting\\`database`');
@@ -74,24 +70,8 @@ describe('ClickHouse agent setup', () => {
     });
     it('uses placeholders when connection settings are empty', () => {
         const { container } = renderWithProviders(
-            <ClickhouseAgentSetup
-                connection={{ ...connection, schema: '' }}
-                tested={false}
-            />,
+            <ClickhouseAgentSetup connection={{ ...connection, schema: '' }} />,
         );
         expect(container).toHaveTextContent('`<database>`.`<table>`');
-    });
-    it('hides the steps after a successful Test', () => {
-        renderWithProviders(
-            <ClickhouseAgentSetup connection={connection} tested />,
-        );
-        for (const number of [1, 2, 3]) {
-            expect(
-                screen.queryByLabelText(`Step ${number}`),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText(`Step ${number} done`),
-            ).not.toBeInTheDocument();
-        }
     });
 });

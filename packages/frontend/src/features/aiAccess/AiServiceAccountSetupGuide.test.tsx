@@ -1,4 +1,3 @@
-import { Box } from '@mantine/core';
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -12,10 +11,8 @@ const props = {
 };
 
 describe('AI service account setup guide', () => {
-    it('shows three steps without a button before Test passes', () => {
-        renderWithProviders(
-            <AiServiceAccountSetupGuide {...props} tested={false} />,
-        );
+    it('shows three steps without a button', () => {
+        renderWithProviders(<AiServiceAccountSetupGuide {...props} />);
         for (const title of [
             'Create the account in Postgres',
             'Grant it only the data agents may read',
@@ -33,14 +30,5 @@ describe('AI service account setup guide', () => {
             screen.queryByText('How to set up the shared agent account'),
         ).not.toBeInTheDocument();
         expect(screen.getByLabelText('Step 3')).toBeVisible();
-        expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
-    });
-    it('renders nothing after Test passes', () => {
-        renderWithProviders(
-            <Box data-testid="guide">
-                <AiServiceAccountSetupGuide {...props} tested />
-            </Box>,
-        );
-        expect(screen.getByTestId('guide')).toBeEmptyDOMElement();
     });
 });

@@ -19,9 +19,7 @@ describe('Databricks agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <DatabricksAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<DatabricksAgentSetup connection={connection} />);
         expect(
             screen.getByText(/Databricks account console/),
         ).toHaveTextContent('CAN USE on the SQL warehouse');
@@ -44,22 +42,8 @@ describe('Databricks agent setup', () => {
         const { container } = renderWithProviders(
             <DatabricksAgentSetup
                 connection={{ ...connection, catalog: '', database: '' }}
-                tested={false}
             />,
         );
         expect(container).toHaveTextContent('`<catalog>`.`<schema>`.`<table>`');
-    });
-    it('hides the steps after a successful Test', () => {
-        renderWithProviders(
-            <DatabricksAgentSetup connection={connection} tested />,
-        );
-        for (const number of [1, 2, 3]) {
-            expect(
-                screen.queryByLabelText(`Step ${number}`),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText(`Step ${number} done`),
-            ).not.toBeInTheDocument();
-        }
     });
 });

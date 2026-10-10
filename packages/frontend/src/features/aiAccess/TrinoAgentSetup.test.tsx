@@ -19,9 +19,7 @@ const connection: TrinoCredentials = {
 
 describe('Trino agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
-        renderWithProviders(
-            <TrinoAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<TrinoAgentSetup connection={connection} />);
         for (const title of [
             'Create or choose the Trino login',
             'Limit what the login can read',
@@ -55,9 +53,7 @@ describe('Trino agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <TrinoAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<TrinoAgentSetup connection={connection} />);
         const buttons = [
             screen.getByRole('button', { name: 'Copy rules.json' }),
             screen.getByRole('button', { name: 'Copy SQL' }),
@@ -79,20 +75,8 @@ describe('Trino agent setup', () => {
         const { container } = renderWithProviders(
             <TrinoAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                tested={false}
             />,
         );
         expect(container).toHaveTextContent('"<schema>"."<table>"');
-    });
-    it('hides the steps after a successful Test', () => {
-        renderWithProviders(<TrinoAgentSetup connection={connection} tested />);
-        for (const number of [1, 2, 3]) {
-            expect(
-                screen.queryByLabelText(`Step ${number}`),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText(`Step ${number} done`),
-            ).not.toBeInTheDocument();
-        }
     });
 });

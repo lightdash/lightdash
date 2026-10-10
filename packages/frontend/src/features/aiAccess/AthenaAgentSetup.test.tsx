@@ -19,9 +19,7 @@ const connection: AthenaCredentials = {
 
 describe('Athena agent setup', () => {
     it('uses the shared three steps and explains identity, expiry and data grants', () => {
-        renderWithProviders(
-            <AthenaAgentSetup connection={connection} tested={false} />,
-        );
+        renderWithProviders(<AthenaAgentSetup connection={connection} />);
         for (const title of [
             'Create the account in Athena',
             'Grant it only the data agents may read',
@@ -56,7 +54,7 @@ describe('Athena agent setup', () => {
             value: { writeText },
         });
         const { container } = renderWithProviders(
-            <AthenaAgentSetup connection={connection} tested={false} />,
+            <AthenaAgentSetup connection={connection} />,
         );
         const commands = buildAthenaAiServiceAccountCommands({
             region: 'eu-west-1',
@@ -87,25 +85,11 @@ describe('Athena agent setup', () => {
                     database: '',
                     schema: '',
                 }}
-                tested={false}
             />,
         );
         const guide = container;
         expect(guide).toHaveTextContent('<region>');
         expect(guide).toHaveTextContent('<catalog>');
         expect(guide).toHaveTextContent('<glue-database>');
-    });
-    it('hides the steps after a successful Test', () => {
-        renderWithProviders(
-            <AthenaAgentSetup connection={connection} tested />,
-        );
-        for (const number of [1, 2, 3]) {
-            expect(
-                screen.queryByLabelText(`Step ${number}`),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByLabelText(`Step ${number} done`),
-            ).not.toBeInTheDocument();
-        }
     });
 });

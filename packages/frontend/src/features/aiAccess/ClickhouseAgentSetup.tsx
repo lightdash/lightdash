@@ -8,12 +8,10 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 interface ClickhouseAgentSetupProps {
     connection: ClickhouseCredentials;
-    tested: boolean;
 }
 
 export const ClickhouseAgentSetup = ({
     connection,
-    tested,
 }: ClickhouseAgentSetupProps) => {
     const commands = buildClickhouseAiServiceAccountCommands({
         schema: connection.schema,
@@ -21,7 +19,6 @@ export const ClickhouseAgentSetup = ({
     return (
         <AiServiceAccountSetupGuide
             warehouseName="ClickHouse"
-            tested={tested}
             createContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">
