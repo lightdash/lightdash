@@ -2753,6 +2753,33 @@ describe('AI service account factory scopes', () => {
             const f = buildFixture();
             const trinoSlotPlan = await trinoPlan();
             const query = vi.fn();
+            const passwordSentinel = 'trino-password-sentinel';
+            const headerSentinel = 'trino-authorization-sentinel';
+            const expectNoSecrets = (
+                value: unknown,
+                seen = new Set<unknown>(),
+            ) => {
+                if (typeof value === 'string') {
+                    expect(value).not.toContain(passwordSentinel);
+                    expect(value).not.toContain(headerSentinel);
+                }
+                if (
+                    typeof value !== 'object' ||
+                    value === null ||
+                    seen.has(value)
+                )
+                    return;
+                seen.add(value);
+                for (const key of Object.getOwnPropertyNames(value)) {
+                    expect(key).not.toMatch(/password|header|config|auth/i);
+                    if (key !== 'cause')
+                        expectNoSecrets(
+                            (value as Record<string, unknown>)[key],
+                            seen,
+                        );
+                }
+                if ('cause' in value) expectNoSecrets(value.cause, seen);
+            };
             const expectedCause =
                 typeof failure === 'number'
                     ? { status: failure }
@@ -2767,9 +2794,12 @@ describe('AI service account factory scopes', () => {
                         new Error(`Request failed with status code ${failure}`),
                         {
                             isAxiosError: true,
-                            response: { status: failure },
+                            response: {
+                                status: failure,
+                                headers: { Authorization: headerSentinel },
+                            },
                             config: {
-                                auth: { password: trinoSecrets.password },
+                                auth: { password: passwordSentinel },
                             },
                         },
                     ),
@@ -2808,21 +2838,24 @@ describe('AI service account factory scopes', () => {
                                 const error = await client
                                     .runQuery('SELECT current_user', {})
                                     .catch((e: unknown) => e);
-                                if (failure === 401)
+                                if (failure === 401) {
                                     expect(error).toMatchObject({
                                         refusal: {
                                             reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
                                         },
-                                        cause: { cause: expectedCause },
                                     });
-                                else
-                                    expect(error).toMatchObject({
-                                        name: 'WarehouseQueryError',
-                                        cause: expectedCause,
-                                    });
-                                expect(JSON.stringify(error)).not.toContain(
-                                    trinoSecrets.password,
-                                );
+                                    expect(
+                                        ((error as Error).cause as Error).cause,
+                                    ).toStrictEqual({ status: 401 });
+                                } else {
+                                    expect(error).toBeInstanceOf(
+                                        WarehouseQueryError,
+                                    );
+                                    expect(
+                                        (error as Error).cause,
+                                    ).toStrictEqual(expectedCause);
+                                }
+                                expectNoSecrets(error);
                             }),
                         );
                     },
