@@ -18,13 +18,7 @@ const connection: PostgresCredentials = {
 
 describe('Postgres agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
-        renderWithProviders(
-            <PostgresAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
-        );
+        renderWithProviders(<PostgresAgentSetup connection={connection} />);
         for (const title of [
             'Create the account in Postgres',
             'Grant it only the data agents may read',
@@ -56,13 +50,7 @@ describe('Postgres agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <PostgresAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
-        );
+        renderWithProviders(<PostgresAgentSetup connection={connection} />);
         const buttons = screen.getAllByRole('button', { name: 'Copy SQL' });
         const commands = buildPostgresAiServiceAccountCommands(connection);
         const snippets = [
@@ -79,33 +67,12 @@ describe('Postgres agent setup', () => {
         }
     });
     it('uses placeholders when connection settings are empty', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <PostgresAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                hasCredentials={false}
-                tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '"<schema>"."<table>"',
-        );
-        expect(screen.getByRole('region')).toHaveTextContent('"<database>"');
-    });
-    it('collapses saved setup and marks only the tested step complete', async () => {
-        renderWithProviders(
-            <PostgresAgentSetup
-                connection={connection}
-                hasCredentials
-                tested
-            />,
-        );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+        expect(container).toHaveTextContent('"<schema>"."<table>"');
+        expect(container).toHaveTextContent('"<database>"');
     });
 });

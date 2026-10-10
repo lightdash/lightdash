@@ -8,12 +8,8 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 export const AthenaAgentSetup = ({
     connection,
-    hasCredentials,
-    tested,
 }: {
     connection: AthenaCredentials;
-    hasCredentials: boolean;
-    tested: boolean;
 }) => {
     const commands = buildAthenaAiServiceAccountCommands({
         region: connection.region,
@@ -23,8 +19,6 @@ export const AthenaAgentSetup = ({
     return (
         <AiServiceAccountSetupGuide
             warehouseName="Athena"
-            hasAccount={hasCredentials}
-            tested={tested}
             createContent={
                 <Stack gap="xs">
                     <Text size="sm" c="dimmed">

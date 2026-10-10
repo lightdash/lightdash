@@ -19,13 +19,7 @@ describe('Databricks agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <DatabricksAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
-        );
+        renderWithProviders(<DatabricksAgentSetup connection={connection} />);
         expect(
             screen.getByText(/Databricks account console/),
         ).toHaveTextContent('CAN USE on the SQL warehouse');
@@ -45,32 +39,11 @@ describe('Databricks agent setup', () => {
         );
     });
     it('uses placeholders for an unknown catalog and schema', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <DatabricksAgentSetup
                 connection={{ ...connection, catalog: '', database: '' }}
-                hasCredentials={false}
-                tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '`<catalog>`.`<schema>`.`<table>`',
-        );
-    });
-    it('collapses setup for saved credentials and marks a verified save complete', async () => {
-        renderWithProviders(
-            <DatabricksAgentSetup
-                connection={connection}
-                hasCredentials
-                tested
-            />,
-        );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+        expect(container).toHaveTextContent('`<catalog>`.`<schema>`.`<table>`');
     });
 });

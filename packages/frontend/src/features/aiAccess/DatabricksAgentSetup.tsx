@@ -8,17 +8,11 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 export const DatabricksAgentSetup = ({
     connection,
-    hasCredentials,
-    tested,
 }: {
     connection: DatabricksCredentials;
-    hasCredentials: boolean;
-    tested: boolean;
 }) => (
     <AiServiceAccountSetupGuide
         warehouseName="Databricks"
-        hasAccount={hasCredentials}
-        tested={tested}
         createContent={
             <Text size="sm" c="dimmed">
                 Create a service principal and an OAuth secret in the Databricks

@@ -19,13 +19,7 @@ const connection: TrinoCredentials = {
 
 describe('Trino agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
-        renderWithProviders(
-            <TrinoAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
-        );
+        renderWithProviders(<TrinoAgentSetup connection={connection} />);
         for (const title of [
             'Create or choose the Trino login',
             'Limit what the login can read',
@@ -59,13 +53,7 @@ describe('Trino agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <TrinoAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
-        );
+        renderWithProviders(<TrinoAgentSetup connection={connection} />);
         const buttons = [
             screen.getByRole('button', { name: 'Copy rules.json' }),
             screen.getByRole('button', { name: 'Copy SQL' }),
@@ -84,28 +72,11 @@ describe('Trino agent setup', () => {
         }
     });
     it('uses placeholders when connection settings are empty', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <TrinoAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                hasCredentials={false}
-                tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '"<schema>"."<table>"',
-        );
-    });
-    it('collapses saved setup and marks only the tested step complete', async () => {
-        renderWithProviders(
-            <TrinoAgentSetup connection={connection} hasCredentials tested />,
-        );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+        expect(container).toHaveTextContent('"<schema>"."<table>"');
     });
 });

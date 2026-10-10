@@ -14,17 +14,9 @@ GRANT USAGE ON DATABASE <database> TO ROLE AI_AGENT_ROLE;
 GRANT USAGE ON SCHEMA <database>.<schema> TO ROLE AI_AGENT_ROLE;
 GRANT SELECT ON TABLE <database>.<schema>.<table> TO ROLE AI_AGENT_ROLE;`;
 
-export const SnowflakeAiServiceAccountSetup = ({
-    hasKey,
-    tested,
-}: {
-    hasKey: boolean;
-    tested: boolean;
-}) => (
+export const SnowflakeAiServiceAccountSetup = () => (
     <AiServiceAccountSetupGuide
         warehouseName="Snowflake"
-        hasAccount={hasKey}
-        tested={tested}
         createContent={
             <Stack gap="xs">
                 <CodeBlock
