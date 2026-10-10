@@ -59,6 +59,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { serializeAccount, toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
 import {
@@ -236,7 +237,11 @@ export class UserController extends BaseController {
      * @param req express request
      * @param body the tour to mark as completed
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.completeUserOnboardingTour'),
+    ])
     @Post('/onboarding')
     @OperationId('CompleteUserOnboardingTour')
     async completeUserOnboardingTour(
@@ -283,7 +288,11 @@ export class UserController extends BaseController {
      * @param req express request
      * @param scope the walkthrough's scope, e.g. `view:Dashboard`
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.markUserLearnScopeStarted'),
+    ])
     @Post('/learn-progress/{scope}/started')
     @OperationId('MarkUserLearnScopeStarted')
     async markUserLearnScopeStarted(
@@ -307,7 +316,13 @@ export class UserController extends BaseController {
      * @param req express request
      * @param scope the walkthrough's scope, e.g. `view:Dashboard`
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'UserController.markUserLearnScopeCompleted',
+        ),
+    ])
     @Post('/learn-progress/{scope}/completed')
     @OperationId('MarkUserLearnScopeCompleted')
     async markUserLearnScopeCompleted(
@@ -332,7 +347,11 @@ export class UserController extends BaseController {
      * @param req express request
      * @param body the browser's completed, started and last-started scopes
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.mergeUserLearnProgress'),
+    ])
     @Post('/learn-progress/merge')
     @OperationId('MergeUserLearnProgress')
     async mergeUserLearnProgress(
@@ -355,7 +374,13 @@ export class UserController extends BaseController {
      * @summary List available organizations
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'UserController.getOrganizationsUserCanJoin',
+        ),
+    ])
     @Get('/me/allowedOrganizations')
     @OperationId('ListMyAvailableOrganizations')
     async getOrganizationsUserCanJoin(
@@ -383,6 +408,7 @@ export class UserController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('UserController.joinOrganization'),
     ])
     @Post('/me/joinOrganization/{organizationUuid}')
     @OperationId('JoinOrganization')
@@ -489,7 +515,11 @@ export class UserController extends BaseController {
      * Get user warehouse credentials
      * @summary List warehouse credentials
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.getWarehouseCredentials'),
+    ])
     @Get('/warehouseCredentials')
     @OperationId('getWarehouseCredentials')
     async getWarehouseCredentials(@Request() req: express.Request): Promise<{
@@ -510,7 +540,11 @@ export class UserController extends BaseController {
      * Create user warehouse credentials
      * @summary Create warehouse credentials
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.createWarehouseCredentials'),
+    ])
     @Post('/warehouseCredentials')
     @OperationId('createWarehouseCredentials')
     async createWarehouseCredentials(
@@ -534,7 +568,13 @@ export class UserController extends BaseController {
      * Start Redshift AWS SSO login
      * @summary Start Redshift AWS SSO login
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'UserController.startRedshiftAwsSsoWarehouseCredentials',
+        ),
+    ])
     @Post('/warehouseCredentials/redshift/aws-sso/start')
     @OperationId('startRedshiftAwsSsoWarehouseCredentials')
     async startRedshiftAwsSsoWarehouseCredentials(
@@ -585,7 +625,13 @@ export class UserController extends BaseController {
      * Complete Redshift AWS SSO login
      * @summary Complete Redshift AWS SSO login
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'UserController.completeRedshiftAwsSsoWarehouseCredentials',
+        ),
+    ])
     @Post('/warehouseCredentials/redshift/aws-sso/complete')
     @OperationId('completeRedshiftAwsSsoWarehouseCredentials')
     async completeRedshiftAwsSsoWarehouseCredentials(
@@ -659,7 +705,11 @@ export class UserController extends BaseController {
      * Update user warehouse credentials
      * @summary Update warehouse credentials
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.updateWarehouseCredentials'),
+    ])
     @Patch('/warehouseCredentials/{uuid}')
     @OperationId('updateWarehouseCredentials')
     async updateWarehouseCredentials(
@@ -688,7 +738,11 @@ export class UserController extends BaseController {
      * Delete user warehouse credentials
      * @summary Delete warehouse credentials
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.deleteWarehouseCredentials'),
+    ])
     @Delete('/warehouseCredentials/{uuid}')
     @OperationId('deleteWarehouseCredentials')
     async deleteWarehouseCredentials(

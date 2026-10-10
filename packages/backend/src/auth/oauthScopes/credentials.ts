@@ -7,6 +7,8 @@ import {
 import { getOAuthScopeContext } from './scopedAbility';
 
 export const OAUTH_CREDENTIAL_OPERATIONS = {
+    startOnboardingRun: ['create', 'OnboardingRunCredential'],
+    enqueueLearnSandboxCommand: ['create', 'LearnSandboxCredential'],
     createPersonalAccessToken: ['create', 'PersonalAccessToken'],
     rotatePersonalAccessToken: ['rotate', 'PersonalAccessToken'],
     createServiceAccount: ['create', 'ServiceAccount'],

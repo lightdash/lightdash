@@ -19,6 +19,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -30,7 +31,13 @@ export class BigquerySSOController extends BaseController {
      * Get BigQuery datasets for a project
      * @summary Get BigQuery datasets
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'BigquerySSOController.getBigQueryDatabases',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/datasets')
     @OperationId('GetBigQueryDatasets')
@@ -54,7 +61,11 @@ export class BigquerySSOController extends BaseController {
      * Get BigQuery projects accessible by the user
      * @summary Get BigQuery projects
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('BigquerySSOController.getBigQueryProjects'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/projects')
     @OperationId('GetBigQueryProjects')
@@ -77,7 +88,13 @@ export class BigquerySSOController extends BaseController {
      * Get the recommended BigQuery project based on dataset size
      * @summary Get BigQuery project recommendation
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'BigquerySSOController.getBigQueryProjectRecommendation',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/projects/recommendation')
     @OperationId('GetBigQueryProjectRecommendation')

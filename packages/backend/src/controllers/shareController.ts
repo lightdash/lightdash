@@ -19,6 +19,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -55,7 +56,11 @@ export class ShareController extends BaseController {
      * @param body a full URL used to generate a short url id
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ShareController.create'),
+    ])
     @SuccessResponse('201', 'Created')
     @Post('/')
     @OperationId('CreateShareUrl')

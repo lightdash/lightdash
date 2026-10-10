@@ -16,7 +16,11 @@ import type {
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
 import { Scope } from 'oauth2-server';
-import { OAUTH_SCOPES, resolveOAuthScopeMode } from '../auth/oauthScopes/mode';
+import {
+    OAUTH_SCOPES,
+    resolveOAuthScopeMode,
+    scopesForOAuthRecord,
+} from '../auth/oauthScopes/mode';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
@@ -431,7 +435,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         Logger.warn('oauth_scope_refusal', {
             mode,
             clientId: client.id,
-            scopes: scope,
+            scopes: scopesForOAuthRecord(scope),
             method: null,
             routeTemplate: null,
             toolName: null,

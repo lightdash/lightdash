@@ -61,6 +61,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -714,7 +715,11 @@ export class OrganizationController extends BaseController {
      * List all color palettes in the organization
      * @summary List color palettes
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getColorPalettes'),
+    ])
     @Get('/color-palettes')
     @OperationId('ListColorPalettes')
     async getColorPalettes(

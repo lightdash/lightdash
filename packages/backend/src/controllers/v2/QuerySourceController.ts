@@ -26,6 +26,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
 
@@ -139,7 +140,13 @@ export class QuerySourceController extends BaseController {
      * results endpoint. Statuses are visible to the query creator only.
      * @summary Get source query status
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QuerySourceController.getSourceQueryStatus',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/queries/status')
     @OperationId('getSourceQueryStatus')

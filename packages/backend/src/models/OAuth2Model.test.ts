@@ -539,9 +539,14 @@ describe('OAuth2Model.validateScope', () => {
                 clientSecret: 'client-secret',
                 redirectUris: ['https://example.com/?secret=private'],
             },
-            ['write'],
+            ['write', 'https://example.test/?token=secret'],
+        );
+        expect(warn).toHaveBeenCalledWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({ scopes: ['write', 'unknown'] }),
         );
         const record = JSON.stringify(warn.mock.calls);
+        expect(record).not.toContain('https://example.test/?token=secret');
         expect(record).not.toContain('user-secret');
         expect(record).not.toContain('client-secret');
         expect(record).not.toContain('private');

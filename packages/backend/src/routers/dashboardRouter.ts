@@ -1,5 +1,6 @@
 import { assertRegisteredAccount } from '@lightdash/common';
 import express, { type Router } from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -61,6 +62,7 @@ dashboardRouter.get(
     '/:dashboardUuid/views',
     allowApiKeyAuthentication,
     isAuthenticated,
+    requireOAuthScopeOperation('dashboardRouter.getDashboardViews'),
     async (req, res, next) => {
         req.services
             .getAnalyticsService()

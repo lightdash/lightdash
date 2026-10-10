@@ -7,8 +7,10 @@ import {
     RequestMethod,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OnboardingAgentService } from '../../ee/services/OnboardingAgentService/OnboardingAgentService';
 import { ServiceAccountService } from '../../ee/services/ServiceAccountService/ServiceAccountService';
 import Logger from '../../logging/logger';
+import { LearnSandboxService } from '../../services/LearnSandboxService/LearnSandboxService';
 import { OAuthService } from '../../services/OAuthService/OAuthService';
 import { PersonalAccessTokenService } from '../../services/PersonalAccessTokenService';
 import { fromOauth, toSessionUser } from '../account/account';
@@ -76,7 +78,27 @@ const build = (mode: 'log' | 'enforce') => {
         clientName: 'client',
         redirectUris: ['https://example.com/callback'],
     };
+    const onboarding = new OnboardingAgentService({
+        lightdashConfig: lightdashConfigMock,
+        projectModel: { getSummary: read },
+        agentOnboardingRunModel: { create: write },
+        schedulerClient: { agentOnboardingRun: write },
+    } as unknown as ConstructorParameters<typeof OnboardingAgentService>[0]);
+    const learn = new LearnSandboxService({
+        lightdashConfig: lightdashConfigMock,
+        featureFlagModel: { get: read },
+        learnWorkspaceModel: { createCommand: write },
+        schedulerClient: { learnSandboxCommand: write },
+    } as unknown as ConstructorParameters<typeof LearnSandboxService>[0]);
     const calls = {
+        startOnboardingRun: () =>
+            onboarding.createRun({ user: sessionUser, projectUuid: 'project' }),
+        enqueueLearnSandboxCommand: () =>
+            learn.enqueueCommand(sessionUser, 'project', {
+                tool: 'dbt',
+                subcommand: 'parse',
+                args: [],
+            }),
         createPersonalAccessToken: () =>
             pat.createPersonalAccessToken(
                 account,
@@ -129,6 +151,8 @@ const build = (mode: 'log' | 'enforce') => {
 };
 
 const operations = [
+    'startOnboardingRun',
+    'enqueueLearnSandboxCommand',
     'createPersonalAccessToken',
     'rotatePersonalAccessToken',
     'createServiceAccount',

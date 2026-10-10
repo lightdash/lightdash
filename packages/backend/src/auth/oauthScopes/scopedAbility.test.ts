@@ -177,3 +177,30 @@ it('preserves inverted manage rules and rule order when expanding wildcards', ()
         ability.can('view', subject('Project', { projectUuid: 'exception' })),
     ).toBe(true);
 });
+
+it.each(['log', 'enforce'] as const)(
+    'redacts unknown scopes in REST and MCP records in %s mode',
+    (mode) => {
+        const ability = create(
+            new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'all' },
+            ]),
+            mode,
+            ['read', 'https://example.test/?token=secret'],
+        );
+        ability.can('create', 'SavedChart');
+        getOAuthScopeContext(ability)!.record(
+            'call',
+            'McpTool',
+            'create_content',
+        );
+        expect(Logger.warn).toHaveBeenCalledTimes(2);
+        expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
+            'secret',
+        );
+        expect(Logger.warn).toHaveBeenCalledWith(
+            'oauth_scope_refusal',
+            expect.objectContaining({ scopes: ['read', 'unknown'] }),
+        );
+    },
+);

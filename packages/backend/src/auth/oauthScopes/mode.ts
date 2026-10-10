@@ -5,6 +5,14 @@ export type OAuthScopeMode = 'log' | 'enforce';
 
 export const OAUTH_SCOPES = ['read', 'write', 'mcp:read', 'mcp:write'] as const;
 
+export const scopesForOAuthRecord = (scopes: readonly string[]): string[] => [
+    ...new Set(
+        scopes.map((scope) =>
+            OAUTH_SCOPES.some((known) => known === scope) ? scope : 'unknown',
+        ),
+    ),
+];
+
 export const resolveOAuthScopeMode = async (
     featureFlagModel: Pick<FeatureFlagModel, 'get'>,
     user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,

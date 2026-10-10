@@ -18,6 +18,7 @@ import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
+import { ScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
 
 export enum OAuthScope {
     READ = 'read',
@@ -72,14 +73,17 @@ export class OAuthService extends BaseService {
         const { getManagedSignInService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            extendedGrantTypes: getManagedSignInService
-                ? {
-                      [TOKEN_EXCHANGE_GRANT_TYPE]:
-                          createMicrosoftTokenExchangeGrantType(
-                              getManagedSignInService,
-                          ),
-                  }
-                : undefined,
+            extendedGrantTypes: {
+                refresh_token: ScopeCheckedRefreshTokenGrant,
+                ...(getManagedSignInService
+                    ? {
+                          [TOKEN_EXCHANGE_GRANT_TYPE]:
+                              createMicrosoftTokenExchangeGrantType(
+                                  getManagedSignInService,
+                              ),
+                      }
+                    : {}),
+            },
             allowBearerTokensInQueryString: true,
             allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:

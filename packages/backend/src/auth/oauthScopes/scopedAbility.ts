@@ -5,7 +5,7 @@ import {
     PossibleAbilities,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { OAuthScopeMode } from './mode';
+import { OAuthScopeMode, scopesForOAuthRecord } from './mode';
 import { OAUTH_OPERATIONS, oauthScopeAllows } from './scopeMap';
 
 export type OAuthScopePolicy = {
@@ -117,7 +117,7 @@ export const createOAuthScopedAbility = (
             Logger.warn('oauth_scope_refusal', {
                 mode,
                 clientId,
-                scopes: context.scopes,
+                scopes: scopesForOAuthRecord(context.scopes),
                 method,
                 routeTemplate: toolName === null ? routeTemplate : null,
                 toolName,

@@ -16,6 +16,8 @@ import { defaultSessionUser } from '../account/account.mock';
 import { assertOAuthCredentialOperationAllowed } from './credentials';
 
 const operations = [
+    ['startOnboardingRun', 'create', 'OnboardingRunCredential'],
+    ['enqueueLearnSandboxCommand', 'create', 'LearnSandboxCredential'],
     ['createPersonalAccessToken', 'create', 'PersonalAccessToken'],
     ['rotatePersonalAccessToken', 'rotate', 'PersonalAccessToken'],
     ['createServiceAccount', 'create', 'ServiceAccount'],

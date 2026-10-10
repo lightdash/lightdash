@@ -14,6 +14,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -24,7 +25,13 @@ import { type AiOrganizationSettingsService } from '../services/AiOrganizationSe
 @Route('/api/v1/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiOrganizationSettingsController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiOrganizationSettingsController.getRuntimeSettings',
+        ),
+    ])
     @SuccessResponse('200', 'Retrieved AI organization runtime settings')
     @Get('/settings')
     @OperationId('getAiOrganizationRuntimeSettings')
