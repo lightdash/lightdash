@@ -1,7 +1,9 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
+    AgentCapability,
     AnyType,
     ChartAsCode,
+    ChartKind,
     ContentType,
     CustomDimensionType,
     DashboardAsCode,
@@ -11,15 +13,27 @@ import {
     DimensionType,
     FilterOperator,
     ForbiddenError,
+    MergeJoinType,
+    MetricType,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
+    SavedMergeDefinition,
     SessionUser,
     SpaceMemberRole,
+    SqlChartAsCode,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { toSessionUser } from '../../auth/account';
+import { fromOauth } from '../../auth/account/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ProjectCoderController } from '../../controllers/ProjectCoderController';
 import { dashboard as dashboardMock } from '../DashboardService/DashboardService.mock';
+import { ProjectService } from '../ProjectService/ProjectService';
+import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -1781,3 +1795,1054 @@ describe.each(['create', 'upsert'] as const)(
         });
     },
 );
+
+describe('bound grant upload effects', () => {
+    const setupBound = (publish = true, bound = true) => {
+        const service = buildService();
+        const projectService: ProjectService = Object.create(
+            ProjectService.prototype,
+        );
+        service.projectService = projectService;
+        vi.spyOn(projectService, 'getExplore').mockResolvedValue({
+            tables: {
+                orders: {
+                    name: 'orders',
+                    dimensions: { amount: { name: 'amount', sql: 'amount' } },
+                    metrics: {},
+                },
+            },
+        } as AnyType);
+        Object.assign(service.projectModel, {
+            getConnectionRoute: vi.fn().mockResolvedValue('original'),
+        });
+        const grant = grantFixture();
+        const account = fromOauth(
+            {
+                ...defaultSessionUser,
+                organizationUuid: ORG_UUID,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            },
+            { accessToken: 'token', client: { id: grant.clientId } },
+            null,
+            {
+                ...grant,
+                revision: 1,
+                approvedProjectUuids: [PROJECT_UUID],
+                approvedCapabilities: Object.values(AgentCapability).filter(
+                    (capability) =>
+                        publish || capability !== AgentCapability.Publish,
+                ),
+            },
+        );
+        if (!bound) account.authentication.agentConnectionGrant = null;
+        const user = toSessionUser(account);
+        const prepare = vi
+            .spyOn(service, 'prepareDirectAccessReplace')
+            .mockResolvedValue(null);
+        const apply = vi
+            .spyOn(service, 'applyDirectAccessPolicy')
+            .mockResolvedValue(undefined);
+        const space = vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        const call = (
+            kind: 'chart' | 'dashboard' | 'sql',
+            payload: Record<string, unknown>,
+            publicSpaceCreate = false,
+        ) => {
+            const options = { account, syncEnabled: false, publicSpaceCreate };
+            if (kind === 'chart')
+                return service.upsertChart(
+                    user,
+                    PROJECT_UUID,
+                    'chart',
+                    { ...chartAsCode, ...payload },
+                    options,
+                );
+            if (kind === 'dashboard')
+                return service.upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    'dashboard',
+                    { ...dashboardAsCode, ...payload },
+                    options,
+                );
+            return service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                'sql',
+                {
+                    name: 'SQL',
+                    slug: 'sql',
+                    spaceSlug: 'space',
+                    sql: 'select 1',
+                    ...payload,
+                } as SqlChartAsCode,
+                options,
+            );
+        };
+        return { service, account, call, prepare, apply, space };
+    };
+    const prepareVerificationUpload = (
+        service: CoderService,
+        kind: 'chart' | 'dashboard',
+        mode: 'create' | 'update',
+        verified: boolean | undefined,
+    ) => {
+        Object.assign(service.contentVerificationModel, {
+            getByContent: vi.fn().mockResolvedValue(
+                verified === false
+                    ? {
+                          verifiedBy: { userUuid: 'user' },
+                          verifiedAt: new Date(),
+                      }
+                    : null,
+            ),
+            verify: vi.fn().mockResolvedValue(undefined),
+            unverify: vi.fn().mockResolvedValue(undefined),
+        });
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
+        vi.mocked(service.dashboardModel.create).mockResolvedValue({
+            ...dashboardAsCode,
+            uuid: 'dashboard-uuid',
+        } as AnyType);
+        if (mode === 'create') return;
+        if (kind === 'chart') {
+            const chart = {
+                ...chartAsCode,
+                uuid: 'chart-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.savedChartModel.get).mockResolvedValue(
+                chart as AnyType,
+            );
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                chart,
+            ] as AnyType);
+            vi.mocked(
+                service.promoteService.getPromoteCharts,
+            ).mockResolvedValue({
+                promotedChart: { chart },
+                upstreamChart: { chart: { ...chart } },
+            } as AnyType);
+            vi.mocked(service.promoteService.getChartChanges).mockResolvedValue(
+                {
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: chart.uuid },
+                        },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as AnyType,
+            );
+        } else {
+            const dashboard = {
+                ...dashboardAsCode,
+                uuid: 'dashboard-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard,
+            ] as AnyType);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard as AnyType,
+            );
+            const promotion = {
+                dashboard,
+                projectUuid: PROJECT_UUID,
+                space: { name: 'Space' },
+                spaceAccessContext: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    access: [],
+                },
+            };
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockResolvedValue({
+                promotedDashboard: promotion,
+                upstreamDashboard: {
+                    ...promotion,
+                    dashboard: { ...dashboard },
+                },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotionDashboardChanges,
+            ).mockResolvedValue([
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: dashboard.uuid },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [],
+            ] as AnyType);
+        }
+    };
+    const sqlQuery = (
+        kind: 'calculation' | 'dimension' | 'metric',
+        sql: string,
+    ): ChartAsCode['metricQuery'] => ({
+        ...chartAsCode.metricQuery,
+        ...(kind === 'calculation'
+            ? {
+                  tableCalculations: [
+                      { name: 'custom', displayName: 'Custom', sql },
+                  ],
+              }
+            : {}),
+        ...(kind === 'dimension'
+            ? {
+                  customDimensions: [
+                      {
+                          id: 'custom',
+                          name: 'Custom',
+                          table: 'orders',
+                          type: CustomDimensionType.SQL,
+                          dimensionType: DimensionType.NUMBER,
+                          sql,
+                      },
+                  ],
+              }
+            : {}),
+        ...(kind === 'metric'
+            ? {
+                  additionalMetrics: [
+                      {
+                          name: 'custom',
+                          table: 'orders',
+                          type: MetricType.SUM,
+                          sql,
+                      },
+                  ],
+              }
+            : {}),
+    });
+    const sqlCases = (['calculation', 'dimension', 'metric'] as const).flatMap(
+        (kind) =>
+            (['create', 'add', 'change', 'unchanged'] as const).flatMap(
+                (mode) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, mode, approval }),
+                    ),
+            ),
+    );
+    it.each(sqlCases)(
+        '$approval grant chart $mode with SQL $kind respects Raw SQL before writes',
+        async ({ kind, mode, approval }) => {
+            const { service, account, call, space, apply } = setupBound(
+                true,
+                approval !== 'unbound',
+            );
+            if (
+                approval === 'denied' &&
+                account.authentication.agentConnectionGrant
+            ) {
+                account.authentication.agentConnectionGrant.approvedCapabilities =
+                    account.authentication.agentConnectionGrant.approvedCapabilities.filter(
+                        (capability) => capability !== AgentCapability.RawSql,
+                    );
+            }
+            prepareVerificationUpload(
+                service,
+                'chart',
+                mode === 'create' ? 'create' : 'update',
+                undefined,
+            );
+            if (mode !== 'create') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                    ...chartAsCode,
+                    metricQuery:
+                        mode === 'add'
+                            ? chartAsCode.metricQuery
+                            : sqlQuery(
+                                  kind,
+                                  mode === 'unchanged'
+                                      ? 'select 2'
+                                      : 'select 1',
+                              ),
+                } as AnyType);
+            }
+            const upload = call('chart', {
+                metricQuery: sqlQuery(kind, 'select 2'),
+            });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expect(space).not.toHaveBeenCalled();
+                expect(apply).not.toHaveBeenCalled();
+                expect(service.savedChartModel.create).not.toHaveBeenCalled();
+                expect(
+                    service.promoteService.upsertCharts,
+                ).not.toHaveBeenCalled();
+                expect(service.dashboardModel.create).not.toHaveBeenCalled();
+                expect(
+                    service.contentAsCodeSnapshotModel.upsert,
+                ).not.toHaveBeenCalled();
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedChartModel.create
+                        : service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    const configureSqlApproval = (
+        approval: 'denied' | 'approved' | 'unbound',
+    ) => {
+        const context = setupBound(true, approval !== 'unbound');
+        if (approval === 'denied') {
+            context.account.authentication.agentConnectionGrant!.approvedCapabilities =
+                [AgentCapability.ContentWrite, AgentCapability.DeployUpload];
+        }
+        return context;
+    };
+    const expectNoChartWrites = (context: ReturnType<typeof setupBound>) => {
+        expect(context.space).not.toHaveBeenCalled();
+        expect(context.apply).not.toHaveBeenCalled();
+        expect(context.service.savedChartModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.upsertCharts,
+        ).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.getChartChanges,
+        ).not.toHaveBeenCalled();
+        expect(context.service.dashboardModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.contentAsCodeSnapshotModel.upsert,
+        ).not.toHaveBeenCalled();
+    };
+    const mergeWithQuery = (
+        query: ChartAsCode['metricQuery'],
+    ): SavedMergeDefinition => ({
+        queries: {
+            extra: {
+                explore: query.exploreName,
+                dimensions: query.dimensions,
+                metrics: query.metrics,
+                tableCalculations: query.tableCalculations,
+                customDimensions: query.customDimensions,
+                additionalMetrics: query.additionalMetrics,
+            },
+        },
+        join: MergeJoinType.FULL,
+        keys: { orders_amount: ['extra.orders_amount'] },
+        limit: 500,
+    });
+    const sqlMerge = (
+        kind: 'calculation' | 'dimension' | 'metric' | 'outer calculation',
+        sql: string,
+    ): SavedMergeDefinition =>
+        kind === 'outer calculation'
+            ? {
+                  ...mergeWithQuery(chartAsCode.metricQuery),
+                  tableCalculations: [
+                      { name: 'custom', displayName: 'Custom', sql },
+                  ],
+              }
+            : mergeWithQuery(sqlQuery(kind, sql));
+    it.each(
+        (['calculation', 'dimension', 'metric'] as const).flatMap((kind) =>
+            (['item fields', 'tableName', 'exploreName'] as const).flatMap(
+                (change) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, change, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval chart $kind with changed $change checks the whole item and explore',
+        async ({ kind, change, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const metricQuery = sqlQuery(kind, '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                metricQuery,
+            } as AnyType);
+            const changedQuery = {
+                ...metricQuery,
+                ...(change === 'exploreName'
+                    ? { exploreName: 'payments' }
+                    : {}),
+                ...(change === 'item fields' && kind === 'calculation'
+                    ? {
+                          tableCalculations: metricQuery.tableCalculations.map(
+                              (item) => ({ ...item, displayName: 'Changed' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'dimension'
+                    ? {
+                          customDimensions: metricQuery.customDimensions?.map(
+                              (item) => ({ ...item, table: 'payments' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'metric'
+                    ? {
+                          additionalMetrics: metricQuery.additionalMetrics?.map(
+                              (item) => ({ ...item, type: MetricType.AVERAGE }),
+                          ),
+                      }
+                    : {}),
+            };
+            const upload = call('chart', {
+                metricQuery: changedQuery,
+                ...(change === 'tableName' ? { tableName: 'payments' } : {}),
+            });
+            if (approval === 'denied') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(
+        (
+            ['calculation', 'dimension', 'metric', 'outer calculation'] as const
+        ).flatMap((kind) =>
+            (['create', 'add', 'change', 'unchanged'] as const).flatMap(
+                (mode) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, mode, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval merge $mode with SQL $kind checks Raw SQL before writes',
+        async ({ kind, mode, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(
+                service,
+                'chart',
+                mode === 'create' ? 'create' : 'update',
+                undefined,
+            );
+            if (mode !== 'create') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                    ...chartAsCode,
+                    merge:
+                        mode === 'add'
+                            ? undefined
+                            : sqlMerge(
+                                  kind,
+                                  mode === 'unchanged'
+                                      ? 'select 2'
+                                      : 'select 1',
+                              ),
+                } as AnyType);
+            }
+            const upload = call('chart', { merge: sqlMerge(kind, 'select 2') });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedChartModel.create
+                        : service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(['item table', 'query explore', 'chart explore'] as const)(
+        'refuses unchanged merge SQL with changed %s without Raw SQL',
+        async (change) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const merge = sqlMerge('dimension', '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                merge,
+            } as AnyType);
+            const incomingMerge = {
+                ...merge,
+                queries: {
+                    extra: {
+                        ...merge.queries.extra,
+                        ...(change === 'query explore'
+                            ? { explore: 'payments' }
+                            : {}),
+                        ...(change === 'item table'
+                            ? {
+                                  customDimensions:
+                                      merge.queries.extra.customDimensions?.map(
+                                          (item) => ({
+                                              ...item,
+                                              table: 'payments',
+                                          }),
+                                      ),
+                              }
+                            : {}),
+                    },
+                },
+            };
+            await expect(
+                call('chart', {
+                    merge: incomingMerge,
+                    ...(change === 'chart explore'
+                        ? {
+                              tableName: 'payments',
+                              metricQuery: {
+                                  ...chartAsCode.metricQuery,
+                                  exploreName: 'payments',
+                              },
+                          }
+                        : {}),
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('compares persisted merge metric UUIDs as part of the whole item', async () => {
+        const context = configureSqlApproval('denied');
+        const { service, call } = context;
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const query = sqlQuery('metric', 'select 1');
+        const storedMerge = mergeWithQuery({
+            ...query,
+            additionalMetrics: query.additionalMetrics?.map((metric) => ({
+                ...metric,
+                uuid: 'stored-uuid',
+            })),
+        });
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            ...chartAsCode,
+            merge: storedMerge,
+        } as AnyType);
+        await expect(
+            call('chart', { merge: mergeWithQuery(query) }),
+        ).rejects.toThrow('not approved for Raw SQL');
+        expectNoChartWrites(context);
+    });
+    it.each([
+        'calculation',
+        'dimension',
+        'metric',
+        'outer calculation',
+    ] as const)(
+        'checks legacy merge SQL %s after normalization',
+        async (kind) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            await expect(
+                call('chart', {
+                    merge: {
+                        primarySourceId: 'orders',
+                        sources: [
+                            { id: 'orders', kind: 'chart' },
+                            {
+                                id: 'extra',
+                                kind: 'query',
+                                metricQuery:
+                                    kind === 'outer calculation'
+                                        ? chartAsCode.metricQuery
+                                        : sqlQuery(kind, 'select 1'),
+                            },
+                        ],
+                        joinType: MergeJoinType.FULL,
+                        joinKey: [
+                            {
+                                name: 'orders_amount',
+                                fieldIdBySourceId: {
+                                    orders: 'orders_amount',
+                                    extra: 'orders_amount',
+                                },
+                            },
+                        ],
+                        tableCalculations:
+                            kind === 'outer calculation'
+                                ? [
+                                      {
+                                          name: 'outer',
+                                          displayName: 'Outer',
+                                          sql: 'select 1',
+                                      },
+                                  ]
+                                : [],
+                    },
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('allows a downloaded chart with unchanged SQL in every component without Raw SQL', async () => {
+        const { service, call } = configureSqlApproval('denied');
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const metricQuery = {
+            ...sqlQuery('dimension', '${amount}'),
+            tableCalculations: [
+                {
+                    name: 'custom',
+                    displayName: 'Custom',
+                    sql: 'select 1',
+                    format: undefined,
+                    type: undefined,
+                    template: undefined,
+                    formula: undefined,
+                    totalMode: undefined,
+                },
+            ],
+            additionalMetrics: sqlQuery(
+                'metric',
+                'select 1',
+            ).additionalMetrics?.map((item) => ({
+                ...item,
+                uuid: 'stored-metric-uuid',
+                label: undefined,
+                description: undefined,
+            })),
+        };
+        const storedChart = {
+            ...chartAsCode,
+            uuid: 'chart-uuid',
+            spaceUuid: SPACE_UUID,
+            metricQuery,
+            merge: {
+                ...mergeWithQuery(metricQuery),
+                tableCalculations: [
+                    { name: 'outer', displayName: 'Outer', sql: 'select 1' },
+                ],
+            },
+        };
+        vi.mocked(service.savedChartModel.get).mockResolvedValue(
+            storedChart as AnyType,
+        );
+        Object.assign(service.contentVerificationModel, {
+            getByContentUuids: vi.fn().mockResolvedValue(new Map()),
+        });
+        const downloaded = await service.getCurrentChartAsCode('chart-uuid');
+        expect(
+            downloaded.metricQuery.additionalMetrics?.[0],
+        ).not.toHaveProperty('uuid');
+        let payload: ChartAsCode;
+        try {
+            payload = JSON.parse(JSON.stringify(downloaded));
+        } catch (error) {
+            throw new Error('Could not serialize chart download', {
+                cause: error,
+            });
+        }
+        await expect(call('chart', payload)).resolves.toBeDefined();
+        expect(service.promoteService.upsertCharts).toHaveBeenCalledOnce();
+    });
+    it.each(['formula', 'template', 'modelled metric'] as const)(
+        'allows merge %s without Raw SQL using the source explore',
+        async (kind) => {
+            const { service, call } = configureSqlApproval('denied');
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            const query =
+                kind === 'modelled metric'
+                    ? sqlQuery('metric', '${orders.amount}')
+                    : {
+                          ...chartAsCode.metricQuery,
+                          tableCalculations: [
+                              {
+                                  name: 'custom',
+                                  displayName: 'Custom',
+                                  ...(kind === 'formula'
+                                      ? { formula: 'SUM(A:A)' }
+                                      : {
+                                            template: {
+                                                type: 'percent_of_column_total',
+                                                fieldId: 'orders_amount',
+                                            },
+                                        }),
+                              },
+                          ],
+                      };
+            const merge = {
+                ...mergeWithQuery({
+                    ...query,
+                    exploreName: 'payments',
+                } as ChartAsCode['metricQuery']),
+                tableCalculations: [
+                    {
+                        name: 'outer',
+                        displayName: 'Outer',
+                        sql: '',
+                        formula: 'SUM(A:A)',
+                    },
+                ],
+            };
+            await expect(call('chart', { merge })).resolves.toBeDefined();
+            expect(service.savedChartModel.create).toHaveBeenCalledOnce();
+            if (kind === 'modelled metric') {
+                expect(service.projectService!.getExplore).toHaveBeenCalledWith(
+                    expect.anything(),
+                    PROJECT_UUID,
+                    'payments',
+                );
+            }
+        },
+    );
+    it.each(['formula', 'template', 'modelled metric'] as const)(
+        'allows %s without Raw SQL',
+        async (kind) => {
+            const { service, account, call } = setupBound();
+            account.authentication.agentConnectionGrant!.approvedCapabilities =
+                [AgentCapability.ContentWrite, AgentCapability.DeployUpload];
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            const metricQuery =
+                kind === 'modelled metric'
+                    ? sqlQuery('metric', '${orders.amount}')
+                    : {
+                          ...chartAsCode.metricQuery,
+                          tableCalculations: [
+                              {
+                                  name: 'custom',
+                                  displayName: 'Custom',
+                                  ...(kind === 'formula'
+                                      ? { formula: 'SUM(A:A)' }
+                                      : {
+                                            template: {
+                                                type: 'percent_of_column_total',
+                                                fieldId: 'orders_amount',
+                                            },
+                                        }),
+                              },
+                          ],
+                      };
+            await expect(call('chart', { metricQuery })).resolves.toBeDefined();
+            expect(service.savedChartModel.create).toHaveBeenCalledOnce();
+        },
+    );
+    it.each(
+        (['create', 'change', 'unchanged'] as const).flatMap((mode) =>
+            (['denied', 'approved', 'unbound'] as const).map((approval) => ({
+                mode,
+                approval,
+            })),
+        ),
+    )(
+        '$approval grant SQL chart $mode checks Raw SQL before writes',
+        async ({ mode, approval }) => {
+            const { service, account, call, space, apply } = setupBound(
+                true,
+                approval !== 'unbound',
+            );
+            if (
+                approval === 'denied' &&
+                account.authentication.agentConnectionGrant
+            ) {
+                account.authentication.agentConnectionGrant.approvedCapabilities =
+                    [
+                        AgentCapability.ContentWrite,
+                        AgentCapability.DeployUpload,
+                    ];
+            }
+            Object.assign(service.savedSqlModel, {
+                create: vi.fn().mockResolvedValue({
+                    savedSqlUuid: 'sql-uuid',
+                    slug: 'sql',
+                }),
+                update: vi.fn().mockResolvedValue(undefined),
+            });
+            if (mode !== 'create')
+                vi.mocked(service.savedSqlModel.find).mockResolvedValue([
+                    {
+                        saved_sql_uuid: 'sql-uuid',
+                        space_uuid: SPACE_UUID,
+                        sql: mode === 'unchanged' ? 'select 2' : 'select 1',
+                    },
+                ] as AnyType);
+            const upload = call('sql', { sql: 'select 2' });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expect(space).not.toHaveBeenCalled();
+                expect(apply).not.toHaveBeenCalled();
+                expect(service.savedSqlModel.create).not.toHaveBeenCalled();
+                expect(service.savedSqlModel.update).not.toHaveBeenCalled();
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedSqlModel.create
+                        : service.savedSqlModel.update,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    const verificationCases = (['chart', 'dashboard'] as const).flatMap(
+        (kind) =>
+            (['create', 'update'] as const).flatMap((mode) =>
+                [true, false].map((verified) => ({ kind, mode, verified })),
+            ),
+    );
+    it.each(verificationCases)(
+        'refuses $kind $mode with verified=$verified without Publish before any write',
+        async ({ kind, mode, verified }) => {
+            const { service, call, space, prepare, apply } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, verified);
+            const result = await call(kind, { verified }).catch(
+                (error) => error,
+            );
+            expect(service.savedChartModel.create).not.toHaveBeenCalled();
+            expect(service.dashboardModel.create).not.toHaveBeenCalled();
+            expect(service.promoteService.upsertCharts).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.getOrCreateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.updateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentAsCodeSnapshotModel.upsert,
+            ).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+            expect(prepare).not.toHaveBeenCalled();
+            expect(apply).not.toHaveBeenCalled();
+            expect(result).toBeInstanceOf(ForbiddenError);
+            expect(result.message).toContain('Publish');
+        },
+    );
+    it.each(
+        verificationCases.flatMap((entry) =>
+            ['approved', 'unbound'].map((authorization) => ({
+                ...entry,
+                authorization,
+            })),
+        ),
+    )(
+        'allows $authorization $kind $mode with verified=$verified',
+        async ({ kind, mode, verified, authorization }) => {
+            const { service, call } = setupBound(
+                authorization === 'approved',
+                authorization !== 'unbound',
+            );
+            prepareVerificationUpload(service, kind, mode, verified);
+            await expect(call(kind, { verified })).resolves.toBeDefined();
+            if (mode === 'create') {
+                expect(
+                    kind === 'chart'
+                        ? service.savedChartModel.create
+                        : service.dashboardModel.create,
+                ).toHaveBeenCalledOnce();
+            } else {
+                expect(
+                    kind === 'chart'
+                        ? service.promoteService.upsertCharts
+                        : service.promoteService.updateDashboard,
+                ).toHaveBeenCalledOnce();
+            }
+            const verificationWrite = verified
+                ? service.contentVerificationModel.verify
+                : service.contentVerificationModel.unverify;
+            expect(verificationWrite).toHaveBeenCalledOnce();
+        },
+    );
+    it.each(
+        (['chart', 'dashboard'] as const).flatMap((kind) =>
+            (['create', 'update'] as const).map((mode) => ({ kind, mode })),
+        ),
+    )(
+        'allows $kind $mode without a verified field or Publish',
+        async ({ kind, mode }) => {
+            const { service, call } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, undefined);
+            await expect(call(kind, {})).resolves.toBeDefined();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses assigning and clearing access before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [
+                    { users: [], groups: [] },
+                    {
+                        users: [
+                            {
+                                email: 'reader@example.com',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                        groups: [],
+                    },
+                ].map(async (access) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    const result = await call(kind, { access }).catch(
+                        (error) => error,
+                    );
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('access');
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses private and public destination space creation before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [false, true].map(async (publicSpaceCreate) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    vi.mocked(service.spaceModel.find).mockResolvedValue([]);
+                    const result = await call(
+                        kind,
+                        { spaceSlug: 'missing' },
+                        publicSpaceCreate,
+                    ).catch((error) => error);
+                    expect(space).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('space');
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'retains the bound account through the %s upload controller',
+        async (kind) => {
+            const { service, account, prepare, space } = setupBound();
+            const controller = new ProjectCoderController({
+                getCoderService: () => service,
+            } as unknown as ServiceRepository);
+            const req = { account } as unknown as Request;
+            const access = { users: [], groups: [] };
+            const uploaders = {
+                chart: () =>
+                    controller.upsertChartAsCode(
+                        PROJECT_UUID,
+                        'chart',
+                        { ...chartAsCode, access },
+                        req,
+                    ),
+                dashboard: () =>
+                    controller.upsertDashboardAsCode(
+                        PROJECT_UUID,
+                        'dashboard',
+                        { ...dashboardAsCode, access },
+                        req,
+                    ),
+                sql: () =>
+                    controller.upsertSqlChartAsCode(
+                        PROJECT_UUID,
+                        'sql',
+                        {
+                            name: 'SQL',
+                            slug: 'sql',
+                            spaceSlug: 'space',
+                            sql: 'select 1',
+                            description: null,
+                            limit: 500,
+                            config: {
+                                type: ChartKind.TABLE,
+                                metadata: { version: 1 },
+                                columns: {},
+                                display: undefined,
+                            },
+                            chartKind: ChartKind.TABLE,
+                            version: 1,
+                            access,
+                        },
+                        req,
+                    ),
+            };
+            const result = uploaders[kind]();
+            await expect(result).rejects.toThrow('access');
+            expect(prepare).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'keeps a simple %s upload into an existing space',
+        async (kind) => {
+            const { service, call } = setupBound();
+            vi.mocked(service.savedChartModel.create).mockResolvedValue({
+                uuid: 'created-chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            const createSql = vi.fn().mockResolvedValue({
+                savedSqlUuid: 'created-sql',
+                slug: 'sql',
+            });
+            Object.assign(service.savedSqlModel, { create: createSql });
+            await expect(call(kind, {})).resolves.toBeDefined();
+            const creators = {
+                chart: service.savedChartModel.create,
+                dashboard: service.dashboardModel.create,
+                sql: createSql,
+            };
+            expect(creators[kind]).toHaveBeenCalledOnce();
+            expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
+        },
+    );
+});

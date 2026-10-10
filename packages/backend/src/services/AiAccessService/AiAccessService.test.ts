@@ -3788,6 +3788,7 @@ describe('bounded stored result lineage', () => {
                     source: 'test-token',
                     token: 'test-token',
                     scopes: [],
+                    agentConnectionGrant: null,
                 },
             };
             const submit = () =>

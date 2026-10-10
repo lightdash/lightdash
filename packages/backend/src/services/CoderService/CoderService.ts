@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
     ApiAlertAsCodeListResponse,
@@ -104,13 +105,19 @@ import {
     type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
+    type MetricQuery,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
+import isPlainObject from 'lodash/isPlainObject';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
+import {
+    grantUploadBodySchema,
+    uploadEffectCapabilities,
+} from '../../auth/agentConnectionGrants/operationContracts';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
@@ -250,6 +257,7 @@ type SqlChartsAsCodeResult = {
 };
 
 type UpsertContentAsCodeOptions = {
+    account?: Account;
     skipSpaceCreate?: boolean;
     publicSpaceCreate?: boolean;
     force?: boolean;
@@ -413,6 +421,12 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
+        await this.assertAgentUploadAllowed(
+            account,
+            getAccountApiAccessContext(account).user,
+            projectUuid,
+            virtualView,
+        );
         return this.virtualViewCoder.upsert(
             account,
             projectUuid,
@@ -3866,6 +3880,113 @@ export class CoderService extends BaseService {
         return [];
     }
 
+    private async assertAgentUploadAllowed(
+        account: Account | null,
+        user: SessionUser,
+        projectUuid: string,
+        payload: unknown,
+    ): Promise<void> {
+        if (
+            account?.authentication.type !== 'oauth' ||
+            !account.authentication.agentConnectionGrant
+        )
+            return;
+        const grant = account.authentication.agentConnectionGrant;
+        const parsed = grantUploadBodySchema.safeParse(payload);
+        if (!parsed.success)
+            throw new ForbiddenError(
+                "This agent connection can't upload an access policy or an unresolved space.",
+            );
+        if (
+            uploadEffectCapabilities(parsed.data).some(
+                (capability) =>
+                    !grant.approvedCapabilities.includes(capability),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Publish and share.',
+            );
+        if (
+            parsed.data.spaceSlug !== undefined &&
+            (await this.findAccessibleSpace(
+                projectUuid,
+                parsed.data.spaceSlug,
+                user,
+            )) === undefined
+        )
+            throw new ForbiddenError(
+                "This agent connection can't create a space during upload.",
+            );
+    }
+
+    private static getChangedAgentChartSqlItems(
+        incoming: Partial<
+            Pick<
+                MetricQuery,
+                'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+            >
+        >,
+        current:
+            | Partial<
+                  Pick<
+                      MetricQuery,
+                      | 'tableCalculations'
+                      | 'customDimensions'
+                      | 'additionalMetrics'
+                  >
+              >
+            | undefined,
+        stripMetricUuids = false,
+    ): Pick<
+        MetricQuery,
+        'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+    > {
+        // JSON transport drops undefined properties at every depth
+        const definedProperties = (item: unknown): unknown => {
+            if (Array.isArray(item)) return item.map(definedProperties);
+            if (!isPlainObject(item)) return item;
+            return Object.fromEntries(
+                Object.entries(item as object)
+                    .filter(([, value]) => value !== undefined)
+                    .map(([key, value]) => [key, definedProperties(value)]),
+            );
+        };
+        const changedItems = <T extends object>(
+            items: T[] | undefined,
+            previous: T[] | undefined,
+        ): T[] =>
+            (items ?? []).filter(
+                (item) =>
+                    !(previous ?? []).some((stored) =>
+                        isEqual(
+                            definedProperties(item),
+                            definedProperties(stored),
+                        ),
+                    ),
+            );
+        const withoutMetricUuids = (
+            metrics: MetricQuery['additionalMetrics'],
+        ) => metrics?.map(({ uuid: _uuid, ...metric }) => metric);
+        return {
+            tableCalculations: changedItems(
+                incoming.tableCalculations,
+                current?.tableCalculations,
+            ),
+            customDimensions: changedItems(
+                incoming.customDimensions,
+                current?.customDimensions,
+            ),
+            additionalMetrics: changedItems(
+                stripMetricUuids
+                    ? withoutMetricUuids(incoming.additionalMetrics)
+                    : incoming.additionalMetrics,
+                stripMetricUuids
+                    ? withoutMetricUuids(current?.additionalMetrics)
+                    : current?.additionalMetrics,
+            ),
+        };
+    }
+
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
@@ -3873,6 +3994,12 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            chartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3886,13 +4013,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { canUploadAnyContent, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
             });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         const metricQuery = {
             ...chartAsCode.metricQuery,
             filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
@@ -3951,6 +4084,80 @@ export class CoderService extends BaseService {
             );
         }
         const [chart] = existingCharts;
+        const grantAccount =
+            options.account?.authentication.type === 'oauth' &&
+            options.account.authentication.agentConnectionGrant
+                ? options.account
+                : null;
+        const currentChart =
+            chart && grantAccount
+                ? await this.savedChartModel.get(chart.uuid)
+                : undefined;
+        if (grantAccount) {
+            const { projectService } = this;
+            if (!projectService) {
+                throw new Error(
+                    'ProjectService is required to check agent chart uploads',
+                );
+            }
+            const sameChartExplore =
+                currentChart?.tableName === chartAsCode.tableName &&
+                currentChart?.metricQuery.exploreName ===
+                    metricQuery.exploreName;
+            const currentQuery = sameChartExplore
+                ? currentChart?.metricQuery
+                : undefined;
+            await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                account: grantAccount,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                metricQuery: CoderService.getChangedAgentChartSqlItems(
+                    metricQuery,
+                    currentQuery,
+                    true,
+                ),
+            });
+            if (merge) {
+                const currentMerge =
+                    sameChartExplore && currentChart?.merge
+                        ? normalizeSavedMergeDefinition(
+                              currentChart.merge,
+                              currentChart.metricQuery,
+                          )
+                        : null;
+                await Promise.all(
+                    Object.entries(merge.queries).map(([name, query]) => {
+                        const currentMergeQuery = currentMerge?.queries[name];
+                        return projectService.assertAgentCustomSqlAuthorizedForQuery(
+                            {
+                                account: grantAccount,
+                                projectUuid,
+                                exploreName: query.explore,
+                                metricQuery:
+                                    CoderService.getChangedAgentChartSqlItems(
+                                        query,
+                                        currentMergeQuery?.explore ===
+                                            query.explore
+                                            ? currentMergeQuery
+                                            : undefined,
+                                    ),
+                            },
+                        );
+                    }),
+                );
+                await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                    account: grantAccount,
+                    projectUuid,
+                    exploreName: metricQuery.exploreName,
+                    metricQuery: CoderService.getChangedAgentChartSqlItems(
+                        { tableCalculations: merge.tableCalculations },
+                        {
+                            tableCalculations: currentMerge?.tableCalculations,
+                        },
+                    ),
+                });
+            }
+        }
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -4212,11 +4419,11 @@ export class CoderService extends BaseService {
         });
 
         if (!canUploadAnyContent) {
-            const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
-                    currentChart,
+                    currentChart ??
+                        (await this.savedChartModel.get(chart.uuid)),
                 ),
                 auditedAbility,
                 project,
@@ -4447,9 +4654,19 @@ export class CoderService extends BaseService {
         sqlChartAsCode: SqlChartAsCode,
         options: Pick<
             UpsertContentAsCodeOptions,
-            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames' | 'mode'
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'mode'
+            | 'account'
         > = {},
     ): Promise<PromotionChanges> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            sqlChartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -4476,14 +4693,19 @@ export class CoderService extends BaseService {
                     action,
                 });
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
             ...sqlChartAsCode,
@@ -4508,6 +4730,20 @@ export class CoderService extends BaseService {
                   })
                 : [];
         const existingSqlChart = sqlChartRows[0];
+        const grant =
+            options.account?.authentication.type === 'oauth'
+                ? options.account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grant.approvedCapabilities.includes(AgentCapability.RawSql) &&
+            (existingSqlChart === undefined ||
+                existingSqlChart.sql !== sqlChartAsCode.sql)
+        ) {
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
+        }
 
         // SQL chart uploads mirror SavedSqlService. Check CustomSql before
         // resolving the space so a rejection cannot orphan a new space.
@@ -5216,6 +5452,12 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            dashboardAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -5228,14 +5470,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
             ...dashboardAsCode,

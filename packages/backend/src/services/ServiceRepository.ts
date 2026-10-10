@@ -1,6 +1,8 @@
 import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { AgentConnectionGrantResourceResolver } from '../auth/agentConnectionGrants/AgentConnectionGrantResourceResolver';
+import { AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
     closePullRequest,
@@ -160,6 +162,7 @@ interface ServiceManifest {
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
     agentPermissionService: AgentPermissionService;
+    agentConnectionGrantService: AgentConnectionGrantService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -985,6 +988,26 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getAgentConnectionGrantService(): AgentConnectionGrantService {
+        return this.getService(
+            'agentConnectionGrantService',
+            () =>
+                new AgentConnectionGrantService({
+                    model: this.models.getAgentConnectionGrantModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                    resourceResolver: new AgentConnectionGrantResourceResolver({
+                        deploySessionModel: this.models.getDeploySessionModel(),
+                        projectModel: this.models.getProjectModel(),
+                        savedSqlModel: this.models.getSavedSqlModel(),
+                        savedChartModel: this.models.getSavedChartModel(),
+                        dashboardModel: this.models.getDashboardModel(),
+                        schedulerModel: this.models.getSchedulerModel(),
+                        queryHistoryModel: this.models.getQueryHistoryModel(),
+                    }),
                 }),
         );
     }

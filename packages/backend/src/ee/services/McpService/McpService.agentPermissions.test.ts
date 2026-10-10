@@ -16,6 +16,7 @@ import {
     fromSession,
 } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { grantFixture } from '../../../auth/agentConnectionGrants/grant.mock';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
@@ -116,6 +117,9 @@ const setup = (
     }) as McpService;
     const extra = {
         authInfo: {
+            token: 'token',
+            clientId: 'client',
+            scopes: ['mcp:read', 'mcp:write'],
             extra: {
                 user,
                 account,
@@ -748,4 +752,45 @@ test('keeps the existing connect URL instructions unchanged', async () => {
         `${error.message}\n\nConnect your agent (once per person): https://lightdash.example/connect\nThen run the same call again.`,
     );
     expect(result.structuredContent.refusal).toEqual(error.refusal);
+});
+
+describe('bound MCP grant in legacy mode', () => {
+    const bound = () => {
+        const fixture = setup();
+        fixture.policy.mode = 'legacy';
+        const grant = grantFixture();
+        const auth = fixture.extra.authInfo.extra.account.authentication;
+        if (auth.type !== 'oauth') throw new Error('Expected OAuth');
+        auth.agentConnectionGrant = {
+            ...grant,
+            revision: grant.grantRevision,
+            approvedProjectUuids: [projectUuid],
+        };
+        return fixture;
+    };
+    test.each(['run_sql', 'create_content', 'unknown_tool'])(
+        'denies %s before unmanaged return',
+        async (name) => {
+            const { service, extra, handler } = bound();
+            await expect(
+                service['assertAgentToolAllowed'](extra, name, {}),
+            ).rejects.toThrow();
+            expect(handler).not.toHaveBeenCalled();
+        },
+    );
+    test('denies projects outside the connection', async () => {
+        const { service, extra } = bound();
+        await expect(
+            service['assertAgentToolAllowed'](extra, 'run_metric_query', {
+                projectUuid: 'other',
+            }),
+        ).rejects.toThrow('operation');
+    });
+    test('refuses all tools until MCP consent contracts exist', async () => {
+        const { service, extra, assertOperation } = bound();
+        await expect(
+            service['assertAgentToolAllowed'](extra, 'run_metric_query', {}),
+        ).rejects.toThrow('operation');
+        expect(assertOperation).not.toHaveBeenCalled();
+    });
 });

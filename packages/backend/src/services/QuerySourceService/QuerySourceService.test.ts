@@ -1,5 +1,6 @@
 import {
     AgentActorSurface,
+    AgentCapability,
     DimensionType,
     ForbiddenError,
     ParameterError,
@@ -14,7 +15,12 @@ import {
     type SourceQuery,
 } from '@lightdash/common';
 import type { Mock } from 'vitest';
-import { buildAccount } from '../../auth/account/account.mock';
+import { fromOauth } from '../../auth/account/account';
+import {
+    buildAccount,
+    defaultSessionUser,
+} from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
@@ -69,6 +75,7 @@ const createFakeSource = (
 });
 
 type Mocks = {
+    permissions: { isManaged: Mock; assertOperation: Mock };
     featureFlagModel: { get: Mock };
     projectModel: { getSummary: Mock };
     queryHistoryModel: { get: Mock };
@@ -78,6 +85,10 @@ const createService = (registry: QuerySourceRegistry) => {
     const mocks: Mocks = {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
+        },
+        permissions: {
+            isManaged: vi.fn().mockResolvedValue(false),
+            assertOperation: vi.fn().mockResolvedValue(undefined),
         },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
@@ -92,10 +103,7 @@ const createService = (registry: QuerySourceRegistry) => {
     };
 
     const service = new QuerySourceService({
-        getAgentPermissionService: () => ({
-            isManaged: vi.fn().mockResolvedValue(false),
-            assertOperation: vi.fn(),
-        }),
+        getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:
             mocks.queryHistoryModel as unknown as QueryHistoryModel,
@@ -1113,3 +1121,146 @@ describe('composer pipelines return the standard results interface', () => {
         );
     });
 });
+
+describe('bound grant SQL source effects', () => {
+    const sqlSourceTypes = [
+        QuerySourceType.SQL,
+        QuerySourceType.DUCKDB,
+        QuerySourceType.EXTERNAL,
+    ] as const;
+    const cases = [false, true].flatMap((managed) =>
+        sqlSourceTypes.map((sourceType) => ({ managed, sourceType })),
+    );
+    it.each(cases)(
+        'checks $sourceType before the managed=$managed return',
+        async ({ managed, sourceType }) => {
+            const { registry, sqlSource } = createRegistryWithFakes();
+            const { service, mocks } = createService(registry);
+            mocks.permissions.isManaged.mockResolvedValue(managed);
+            if (sourceType === QuerySourceType.EXTERNAL)
+                registry.register(createFakeSource(QuerySourceType.EXTERNAL));
+            const grant = grantFixture();
+            const bound = fromOauth(
+                defaultSessionUser,
+                { accessToken: 'token', client: { id: grant.clientId } },
+                null,
+                { ...grant, revision: grant.grantRevision },
+            );
+            const sourceQueries: Record<
+                (typeof sqlSourceTypes)[number],
+                SourceQuery
+            > = {
+                [QuerySourceType.SQL]: {
+                    sourceType: QuerySourceType.SQL,
+                    sql: 'select 1',
+                },
+                [QuerySourceType.DUCKDB]: {
+                    sourceType: QuerySourceType.DUCKDB,
+                    sql: 'select * from result',
+                    references: ['22222222-2222-4222-8222-222222222222'],
+                },
+                [QuerySourceType.EXTERNAL]: {
+                    sourceType: QuerySourceType.EXTERNAL,
+                    sql: 'select * from result',
+                    tables: ['22222222-2222-4222-8222-222222222222'],
+                },
+            };
+            const args = {
+                ...executionContext,
+                account: bound,
+                projectUuid,
+                queries: [sourceQueries[sourceType]],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                plans: {},
+            };
+            await expect(service.submitQueries(args)).rejects.toThrow('SQL');
+            expect(registry.get(sourceType).submitQuery).not.toHaveBeenCalled();
+            expect(mocks.permissions.isManaged).not.toHaveBeenCalled();
+            await expect(
+                service.scanSchema(bound, projectUuid, QuerySourceType.SQL),
+            ).rejects.toThrow('SQL');
+            expect(sqlSource.scanSchema).not.toHaveBeenCalled();
+            bound.authentication.agentConnectionGrant!.approvedCapabilities.push(
+                AgentCapability.RawSql,
+            );
+            await expect(service.submitQueries(args)).resolves.toBeDefined();
+            await expect(
+                service.scanSchema(bound, projectUuid, QuerySourceType.SQL),
+            ).resolves.toBeDefined();
+        },
+    );
+});
+
+it.each(['duckdb', 'external', 'pipeline'] as const)(
+    'preserves unbound managed OAuth source dispatch: %s',
+    async (kind) => {
+        const { registry } = createRegistryWithFakes();
+        registry.register(createFakeSource(QuerySourceType.EXTERNAL));
+        const { service, mocks } = createService(registry);
+        mocks.permissions.isManaged.mockResolvedValue(true);
+        mocks.permissions.assertOperation.mockRejectedValue(
+            new ForbiddenError('Raw SQL disabled'),
+        );
+        const unbound = fromOauth(defaultSessionUser, {
+            accessToken: 'token',
+            client: { id: 'client' },
+        });
+        const queries: SourceQuery[] =
+            kind === 'external'
+                ? [
+                      {
+                          sourceType: QuerySourceType.EXTERNAL,
+                          sql: 'select 1',
+                          tables: [],
+                      },
+                  ]
+                : [
+                      ...(kind === 'pipeline'
+                          ? [
+                                {
+                                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                    nodeId: 'semantic',
+                                    exploreName: 'orders',
+                                    dimensions: [],
+                                    metrics: [],
+                                } satisfies SourceQuery,
+                            ]
+                          : []),
+                      {
+                          sourceType: QuerySourceType.DUCKDB,
+                          sql: 'select * from result',
+                          references: [
+                              kind === 'pipeline'
+                                  ? 'semantic'
+                                  : '22222222-2222-4222-8222-222222222222',
+                          ],
+                      },
+                  ];
+        await expect(
+            service.submitQueries({
+                ...executionContext,
+                account: unbound,
+                projectUuid,
+                queries,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                plans: {},
+            }),
+        ).resolves.toBeDefined();
+        expect(mocks.permissions.isManaged).not.toHaveBeenCalled();
+        expect(mocks.permissions.assertOperation).not.toHaveBeenCalled();
+        for (const query of queries)
+            expect(
+                registry.get(query.sourceType).submitQuery,
+            ).toHaveBeenCalledOnce();
+        await expect(
+            service.submitQueries({
+                ...executionContext,
+                account: unbound,
+                projectUuid,
+                queries: [{ sourceType: QuerySourceType.SQL, sql: 'select 1' }],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                plans: {},
+            }),
+        ).rejects.toThrow('Raw SQL disabled');
+    },
+);

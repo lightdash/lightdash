@@ -231,6 +231,12 @@ export class OAuthService extends BaseService {
         return this.oauthServer.token(request, response);
     }
 
+    public async isAccessTokenBoundToGrant(
+        accessToken: string,
+    ): Promise<boolean> {
+        return this.oauthModel.isAccessTokenBoundToGrant(accessToken);
+    }
+
     public async authenticate(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,

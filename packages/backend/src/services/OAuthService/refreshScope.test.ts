@@ -7,8 +7,10 @@ import OAuth2Server from '@node-oauth/oauth2-server';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
+import { AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
@@ -878,4 +880,53 @@ describe('strict refresh token families', () => {
             );
         },
     );
+});
+
+describe('bound agent refresh', () => {
+    beforeEach(() => {
+        flags.get.mockResolvedValue({ enabled: true });
+        const grant = grantFixture();
+        vi.spyOn(
+            AgentConnectionGrantModel.prototype,
+            'findActive',
+        ).mockResolvedValue(grant);
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            refreshTokenExpiresAt: grant.expiresAt,
+            scope: ['read'],
+            client,
+            user,
+            resource: grant.resource,
+            familyUuid: grant.refreshFamilyUuid,
+            agentConnectionGrantUuid: grant.grantUuid,
+        });
+    });
+    it.each(['write', 'read write', ''])(
+        'cannot change granted scopes to %s',
+        async (scope) => {
+            await expect(refresh(scope)).rejects.toMatchObject({
+                name: 'invalid_scope',
+            });
+            expect(model.saveToken).not.toHaveBeenCalled();
+        },
+    );
+    it('retains the binding and family on each rotation', async () => {
+        const rotate = async () => {
+            await expect(refresh()).resolves.toMatchObject({ scope: ['read'] });
+            expect(model.saveToken).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    agentConnectionGrantUuid: 'grant',
+                    familyUuid: 'family',
+                    parentRefreshToken: 'refresh',
+                    resource: grantFixture().resource,
+                }),
+                expect.anything(),
+                expect.anything(),
+            );
+        };
+        await rotate();
+        await rotate();
+        expect(model.revokeToken).not.toHaveBeenCalled();
+    });
 });
