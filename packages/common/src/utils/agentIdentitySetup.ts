@@ -376,3 +376,65 @@ ATTACH MASKING POLICY ai_agents_mask
   TO ai_agents;`,
     };
 };
+
+export interface TrinoAiServiceAccountCommands {
+    accessControlRules: string;
+    grantReadAccess: string;
+}
+
+interface TrinoAiServiceAccountSetupInput {
+    dbname: string | null;
+    schema: string | null;
+    user?: string;
+    table?: string;
+}
+
+export const buildTrinoAiServiceAccountCommands = ({
+    dbname,
+    schema,
+    user = '<user>',
+    table = '<table>',
+}: TrinoAiServiceAccountSetupInput): TrinoAiServiceAccountCommands => {
+    const regexLiteral = (value: string): string =>
+        value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const catalogName = dbname || '<catalog>';
+    const schemaName = schema || '<schema>';
+    const userPattern = regexLiteral(user);
+    const catalogPattern = regexLiteral(catalogName);
+    const rules = {
+        catalogs: [
+            { user: userPattern, catalog: catalogPattern, allow: 'read-only' },
+            { user: userPattern, allow: 'none' },
+        ],
+        schemas: [
+            {
+                user: userPattern,
+                catalog: catalogPattern,
+                schema: regexLiteral(schemaName),
+                owner: false,
+            },
+            { user: userPattern, owner: false },
+        ],
+        tables: [
+            {
+                user: userPattern,
+                catalog: catalogPattern,
+                schema: regexLiteral(schemaName),
+                table: regexLiteral(table),
+                privileges: ['SELECT'],
+                filter: '<row-filter-expression>',
+                columns: [{ name: '<column>', mask: '<mask-expression>' }],
+            },
+            { user: userPattern, privileges: [] },
+        ],
+    };
+    return {
+        accessControlRules: JSON.stringify(rules, null, 2),
+        grantReadAccess: `CREATE ROLE ai_agents_read;
+GRANT SELECT ON TABLE ${quoteIdentifier(catalogName)}.${quoteIdentifier(schemaName)}.${quoteIdentifier(table)}
+  TO ROLE ai_agents_read;
+GRANT ai_agents_read TO USER ${quoteIdentifier(user)};`,
+    };
+};

@@ -30,6 +30,9 @@ import {
     redshiftVerification,
     snowflakeSecrets,
     snowflakeVerification,
+    trinoConnection,
+    trinoSecrets,
+    trinoVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
@@ -208,6 +211,7 @@ describe.each(operations)('%s boundaries', (operation) => {
             (type) =>
                 type !== WarehouseTypes.POSTGRES &&
                 type !== WarehouseTypes.REDSHIFT &&
+                type !== WarehouseTypes.TRINO &&
                 type !== WarehouseTypes.BIGQUERY &&
                 type !== WarehouseTypes.ATHENA &&
                 type !== WarehouseTypes.DATABRICKS &&
@@ -2321,4 +2325,243 @@ it('disables the Redshift result cache for submitted and saved Test probes', asy
         'SELECT current_user AS principal, session_user AS session_principal',
         {},
     );
+});
+
+const trinoFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(trinoConnection);
+    f.getExtra.mockResolvedValue(trinoConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(trinoSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: trinoSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: trinoVerification.principal }],
+    });
+    return f;
+};
+
+describe('Trino identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = trinoFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                trinoSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                credentials: {
+                    ...trinoSecrets,
+                    host: 'warehouse.internal',
+                    port: 8443,
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...trinoVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                trinoSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([undefined, null, '', ' ', 123])(
+        'refuses an absent or invalid current user %j',
+        async (principal) => {
+            const f = trinoFixture();
+            f.runQuery.mockResolvedValue({ rows: [{ principal }] });
+            expect(
+                await f.service.test(f.account, 'project', null, null),
+            ).toMatchObject({ ok: false, principal: null, observed: {} });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, trinoSecrets),
+            ).rejects.toThrow('Could not verify the AI service account.');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it('refuses an empty result', async () => {
+        const f = trinoFixture();
+        f.runQuery.mockResolvedValue({ rows: [] });
+        expect(
+            await f.service.test(f.account, 'project', null, null),
+        ).toMatchObject({ ok: false, principal: null });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = trinoFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = trinoFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result).toMatchObject({
+            ok: true,
+            principal: trinoVerification.principal,
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user AS principal',
+            {},
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = trinoFixture(preview);
+            f.model.getVerification.mockResolvedValue(trinoVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(trinoVerification);
+            if (preview)
+                expect(status.parent?.verification).toEqual(trinoVerification);
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each([
+        { status: 401 },
+        { status: 403 },
+        { errorName: 'PERMISSION_DENIED' },
+    ])('does not save or expose driver secrets after %s', async (cause) => {
+        const f = trinoFixture();
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(f.service, { logger });
+        f.runQuery.mockRejectedValue(new Error('agent-password', { cause }));
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result.ok).toBe(false);
+        expect(
+            JSON.stringify([result, f.analytics.track.mock.calls]),
+        ).not.toContain('agent-password');
+        await expect(
+            f.service.upsert(f.account, 'project', null, trinoSecrets),
+        ).rejects.toThrow(ParameterError);
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+            trinoSecrets.password,
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+            'AI service account test failed',
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = trinoFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](f.account, 'project', null, trinoSecrets),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](f.account, 'project', null, trinoSecrets),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each(['AI_Agents', 'MappedAgent/RestrictedRole', ' user with spaces '])(
+    'records the exact Trino effective user %s independently of the login',
+    async (principal) => {
+        const f = trinoFixture();
+        f.runQuery.mockResolvedValue({ rows: [{ principal }] });
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            trinoSecrets,
+        );
+        expect(result.verification).toMatchObject({
+            ok: true,
+            principal,
+            observed: { currentUser: principal },
+        });
+        expect(f.model.upsert).toHaveBeenCalledWith(
+            'project',
+            null,
+            trinoSecrets,
+            f.account.user.id,
+            result.verification,
+        );
+    },
+);
+it('uses Trino agent sessions without warehouse-side cache controls for Test and save', async () => {
+    const f = trinoFixture();
+    await f.service.test(f.account, 'project', null, trinoSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    await f.service.upsert(f.account, 'project', null, trinoSecrets);
+    expect(f.withWarehouseClient).toHaveBeenCalledTimes(3);
+    for (const [ref] of f.withWarehouseClient.mock.calls) {
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+        });
+        expect(ref.clientOptions?.agentJobControls).toBeUndefined();
+    }
 });

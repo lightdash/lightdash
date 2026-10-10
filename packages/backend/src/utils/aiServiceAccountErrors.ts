@@ -329,11 +329,41 @@ export const getRedshiftServiceAccountTestErrorMessage = (
     return 'Could not verify the AI service account. Check the credentials and connection settings.';
 };
 
+export const isTrinoServiceAccountAuthError = (
+    error: unknown,
+    ancestors = new Set<unknown>(),
+): boolean => {
+    if (!isRecord(error) || ancestors.has(error)) return false;
+    ancestors.add(error);
+    return (
+        error.status === 401 ||
+        isTrinoServiceAccountAuthError(error.cause, ancestors) ||
+        isTrinoServiceAccountAuthError(error.response, ancestors)
+    );
+};
+
+export const getTrinoServiceAccountTestErrorMessage = (
+    error: unknown,
+): string => {
+    if (isTrinoServiceAccountAuthError(error))
+        return 'Trino rejected the AI service account credentials. Check the user and password.';
+    if (
+        pgErrors(error).some((entry) => entry.errorName === 'PERMISSION_DENIED')
+    )
+        return 'The Trino AI service account lacks access. Ask an admin to check its access control rules.';
+    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+};
+
 export const getUserPasswordServiceAccountTestErrorMessage = (
-    type: WarehouseTypes.POSTGRES | WarehouseTypes.REDSHIFT,
+    type:
+        | WarehouseTypes.POSTGRES
+        | WarehouseTypes.REDSHIFT
+        | WarehouseTypes.TRINO,
     error: unknown,
 ): string => {
     switch (type) {
+        case WarehouseTypes.TRINO:
+            return getTrinoServiceAccountTestErrorMessage(error);
         case WarehouseTypes.POSTGRES:
             return getPostgresServiceAccountTestErrorMessage(error);
         case WarehouseTypes.REDSHIFT:

@@ -11,6 +11,7 @@ describe('isSupportedAiServiceAccountSlot', () => {
     test.each([
         [WarehouseTypes.POSTGRES, 'password'],
         [WarehouseTypes.REDSHIFT, 'password'],
+        [WarehouseTypes.TRINO, 'password'],
         [WarehouseTypes.ATHENA, AthenaAuthenticationType.ACCESS_KEY],
         [WarehouseTypes.BIGQUERY, BigqueryAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.SNOWFLAKE, SnowflakeAuthenticationType.PRIVATE_KEY],
@@ -22,6 +23,8 @@ describe('isSupportedAiServiceAccountSlot', () => {
     });
 
     test.each([
+        [WarehouseTypes.TRINO, 'oauth'],
+        [WarehouseTypes.TRINO, 'jwt'],
         [WarehouseTypes.BIGQUERY, DatabricksAuthenticationType.OAUTH_M2M],
         [WarehouseTypes.SNOWFLAKE, DatabricksAuthenticationType.OAUTH_M2M],
         [WarehouseTypes.DATABRICKS, BigqueryAuthenticationType.PRIVATE_KEY],

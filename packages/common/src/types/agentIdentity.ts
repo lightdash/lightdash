@@ -129,7 +129,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
     },
-    [WarehouseTypes.TRINO]: markedOnly,
+    [WarehouseTypes.TRINO]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.CLICKHOUSE]: markedOnly,
     [WarehouseTypes.ATHENA]: {
         person: ['marked_person', 'ai_service_account'],
@@ -271,7 +274,14 @@ export interface RedshiftAiServiceAccountCredentialInput {
     password: string;
 }
 
+export interface TrinoAiServiceAccountCredentialInput {
+    type: WarehouseTypes.TRINO;
+    user: string;
+    password: string;
+}
+
 export type AiServiceAccountCredentialInput =
+    | TrinoAiServiceAccountCredentialInput
     | RedshiftAiServiceAccountCredentialInput
     | PostgresAiServiceAccountCredentialInput
     | AthenaAiServiceAccountCredentialInput

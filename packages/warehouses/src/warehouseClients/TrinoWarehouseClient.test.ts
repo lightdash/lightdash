@@ -3,6 +3,7 @@ import {
     AnyType,
     DimensionType,
     QueryExecutionContext,
+    WarehouseConnectionError,
     WarehouseQueryError,
 } from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
@@ -387,5 +388,86 @@ describe('TrinoWarehouseClient getAllTables', () => {
                 tableType: 'view',
             },
         ]);
+    });
+});
+
+describe('Trino sanitized errors', () => {
+    const axiosError = (status: number) =>
+        Object.assign(new Error(`Request failed with status code ${status}`), {
+            isAxiosError: true,
+            response: { status, headers: { authorization: 'secret-password' } },
+            config: {
+                auth: { username: 'agent', password: 'secret-password' },
+            },
+        });
+    it.each([401, 403, 404])(
+        'keeps only status for query HTTP %s',
+        async (status) => {
+            queryResultMock.mockRejectedValueOnce(axiosError(status));
+            const warehouse = new TrinoWarehouseClient(credentials);
+            const error = await warehouse
+                .runQuery('SELECT current_user')
+                .catch((e: unknown) => e);
+            expect(error).toBeInstanceOf(WarehouseQueryError);
+            expect(error).toMatchObject({
+                message: `Request failed with status code ${status}`,
+                cause: { status },
+            });
+            expect((error as Error).cause).toEqual({ status });
+            expect(JSON.stringify(error)).not.toMatch(
+                /password|authorization|config|headers|auth/,
+            );
+        },
+    );
+    it('sanitizes an HTTP failure while fetching the first result', async () => {
+        queryResultMock.mockResolvedValueOnce({
+            next: vi.fn().mockRejectedValueOnce(axiosError(401)),
+        });
+        const warehouse = new TrinoWarehouseClient(credentials);
+        await expect(
+            warehouse.runQuery('SELECT current_user'),
+        ).rejects.toMatchObject({
+            cause: { status: 401 },
+        });
+    });
+    it('keeps only status for connection errors', async () => {
+        vi.mocked(Trino.create).mockRejectedValueOnce(axiosError(401));
+        const warehouse = new TrinoWarehouseClient(credentials);
+        const error = await warehouse
+            .runQuery('SELECT current_user')
+            .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(WarehouseConnectionError);
+        expect((error as Error).cause).toEqual({ status: 401 });
+        expect(JSON.stringify(error)).not.toContain('secret-password');
+    });
+    it('preserves only Trino query error classification', async () => {
+        queryResultMock.mockResolvedValueOnce({
+            next: vi.fn().mockResolvedValueOnce({
+                done: true,
+                value: {
+                    error: {
+                        message: 'Access Denied: Cannot select from table',
+                        errorName: 'PERMISSION_DENIED',
+                        errorCode: 4,
+                        errorType: 'USER_ERROR',
+                        failureInfo: { message: 'secret-password' },
+                    },
+                },
+            }),
+        });
+        const warehouse = new TrinoWarehouseClient(credentials);
+        const error = await warehouse
+            .runQuery('SELECT * FROM restricted')
+            .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect((error as Error).message).toBe(
+            'Access Denied: Cannot select from table',
+        );
+        expect((error as Error).cause).toEqual({
+            errorName: 'PERMISSION_DENIED',
+            errorCode: 4,
+            errorType: 'USER_ERROR',
+        });
+        expect(JSON.stringify(error)).not.toContain('secret-password');
     });
 });

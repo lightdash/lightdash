@@ -29,6 +29,7 @@ test.each([
     WarehouseTypes.POSTGRES,
     WarehouseTypes.REDSHIFT,
     WarehouseTypes.DATABRICKS,
+    WarehouseTypes.TRINO,
     WarehouseTypes.ATHENA,
 ])('persists the %s source for both actor kinds', async (warehouseType) => {
     const db = knex({ client: MockClient, dialect: 'pg' });

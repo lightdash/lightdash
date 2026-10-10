@@ -48,6 +48,7 @@ import {
     isPostgresServiceAccountAuthError,
     isRedshiftServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
+    isTrinoServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
 import {
     attributeClientErrors,
@@ -1141,6 +1142,8 @@ export class WarehouseClientFactory {
             !(
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.TRINO &&
+                    isTrinoServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.REDSHIFT &&
                     isRedshiftServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.POSTGRES &&
@@ -1184,7 +1187,8 @@ export class WarehouseClientFactory {
                 reason,
                 ...redactCredentialError(error),
                 ...(credentials.type === WarehouseTypes.POSTGRES ||
-                credentials.type === WarehouseTypes.REDSHIFT
+                credentials.type === WarehouseTypes.REDSHIFT ||
+                credentials.type === WarehouseTypes.TRINO
                     ? {
                           errorMessage:
                               getUserPasswordServiceAccountTestErrorMessage(

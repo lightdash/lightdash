@@ -18,6 +18,8 @@ import {
     redshiftVerification,
     snowflakeSecrets,
     snowflakeVerification,
+    trinoSecrets,
+    trinoVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { AiServiceAccountService } from '../../services/AiServiceAccountService/AiServiceAccountService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
@@ -117,7 +119,7 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
         });
         it('rejects unsupported connections', async () => {
             const f = setup(true);
-            f.load.mockResolvedValue({ type: WarehouseTypes.TRINO });
+            f.load.mockResolvedValue({ type: WarehouseTypes.CLICKHOUSE });
             await expect(call(f)).rejects.toMatchObject({
                 name: 'ParameterError',
             });
@@ -417,6 +419,49 @@ it.each([undefined, 'extra-connection'])(
             results: { uuid: 'slot' },
             parent: null,
             verification: redshiftVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+
+it.each([undefined, 'extra-connection'])(
+    'returns Trino save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: trinoVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: trinoVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert('project', req, trinoSecrets, connection),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: trinoVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            trinoSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: trinoVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
             req.account,

@@ -53,6 +53,7 @@ describe('identity source map', () => {
                 expect(actorSources.includes('ai_service_account')).toBe(
                     type === WarehouseTypes.POSTGRES ||
                         type === WarehouseTypes.REDSHIFT ||
+                        type === WarehouseTypes.TRINO ||
                         type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
                         type === WarehouseTypes.ATHENA ||
@@ -62,6 +63,7 @@ describe('identity source map', () => {
             expect(supportsAiServiceAccount(type)).toBe(
                 type === WarehouseTypes.POSTGRES ||
                     type === WarehouseTypes.REDSHIFT ||
+                    type === WarehouseTypes.TRINO ||
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
@@ -73,6 +75,7 @@ describe('identity source map', () => {
                 [WarehouseTypes.BIGQUERY]: 2,
                 [WarehouseTypes.POSTGRES]: 2,
                 [WarehouseTypes.REDSHIFT]: 2,
+                [WarehouseTypes.TRINO]: 2,
                 [WarehouseTypes.DATABRICKS]: 2,
                 [WarehouseTypes.ATHENA]: 2,
             };
@@ -146,6 +149,7 @@ describe('organization identity rules', () => {
             WarehouseTypes.POSTGRES,
             WarehouseTypes.REDSHIFT,
             WarehouseTypes.DATABRICKS,
+            WarehouseTypes.TRINO,
             WarehouseTypes.ATHENA,
         ]);
     });
@@ -164,6 +168,7 @@ describe('organization identity rules', () => {
             ).toBe(
                 type === WarehouseTypes.POSTGRES ||
                     type === WarehouseTypes.REDSHIFT ||
+                    type === WarehouseTypes.TRINO ||
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||

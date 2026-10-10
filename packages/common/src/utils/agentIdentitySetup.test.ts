@@ -7,6 +7,7 @@ import {
     buildPostgresAiServiceAccountCommands,
     buildRedshiftAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
+    buildTrinoAiServiceAccountCommands,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
 } from './agentIdentitySetup';
@@ -381,5 +382,89 @@ ATTACH MASKING POLICY ai_agents_mask
         expect(commands.grantReadAccess).toContain('IN SCHEMA "<schema>"');
         expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
         expect(commands.masking).toContain('"<schema>"."<table>"');
+    });
+});
+
+describe('Trino agent setup commands', () => {
+    it('uses valid JSON, read-only catalog access and user-scoped deny rules', () => {
+        const commands = buildTrinoAiServiceAccountCommands({
+            dbname: 'catalog',
+            schema: 'schema',
+            user: 'agent',
+        });
+        try {
+            const rules = JSON.parse(commands.accessControlRules);
+            expect(rules.catalogs).toEqual([
+                { user: 'agent', catalog: 'catalog', allow: 'read-only' },
+                { user: 'agent', allow: 'none' },
+            ]);
+            expect(rules.schemas).toEqual([
+                {
+                    user: 'agent',
+                    catalog: 'catalog',
+                    schema: 'schema',
+                    owner: false,
+                },
+                { user: 'agent', owner: false },
+            ]);
+            expect(rules.tables).toEqual([
+                {
+                    user: 'agent',
+                    catalog: 'catalog',
+                    schema: 'schema',
+                    table: '<table>',
+                    privileges: ['SELECT'],
+                    filter: '<row-filter-expression>',
+                    columns: [{ name: '<column>', mask: '<mask-expression>' }],
+                },
+                { user: 'agent', privileges: [] },
+            ]);
+        } catch (error) {
+            throw new Error('Expected valid Trino access rules', {
+                cause: error,
+            });
+        }
+    });
+    it('escapes regex metacharacters in all matching names', () => {
+        const name = 'a.b+c*(d)[e]{f}?^$|\\end';
+        const commands = buildTrinoAiServiceAccountCommands({
+            dbname: name,
+            schema: name,
+            user: name,
+            table: name,
+        });
+        try {
+            const { tables } = JSON.parse(commands.accessControlRules);
+            for (const field of ['catalog', 'schema', 'table', 'user']) {
+                const regex = new RegExp(`^(?:${tables[0][field]})$`);
+                expect(regex.test(name)).toBe(true);
+                expect(regex.test(name.replace('.', 'X'))).toBe(false);
+                expect(regex.test(`prefix${name}`)).toBe(false);
+            }
+        } catch (error) {
+            throw new Error('Expected valid literal patterns', {
+                cause: error,
+            });
+        }
+    });
+    it('quotes SQL identifiers and doubles embedded quotes', () => {
+        const { grantReadAccess } = buildTrinoAiServiceAccountCommands({
+            dbname: 'cat"alog',
+            schema: 'sch"ema',
+            table: 'ta"ble',
+            user: 'us"er',
+        });
+        expect(grantReadAccess).toBe(`CREATE ROLE ai_agents_read;
+GRANT SELECT ON TABLE "cat""alog"."sch""ema"."ta""ble"
+  TO ROLE ai_agents_read;
+GRANT ai_agents_read TO USER "us""er";`);
+    });
+    it('uses placeholders for missing settings', () => {
+        const { grantReadAccess } = buildTrinoAiServiceAccountCommands({
+            dbname: '',
+            schema: null,
+        });
+        expect(grantReadAccess).toContain('"<catalog>"."<schema>"."<table>"');
+        expect(grantReadAccess).toContain('TO USER "<user>";');
     });
 });

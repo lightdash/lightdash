@@ -83,6 +83,43 @@ interface TableInfo {
     table: string;
 }
 
+interface TrinoHttpErrorCause {
+    status: number;
+}
+
+const getSanitizedHttpCause = (
+    error: unknown,
+): TrinoHttpErrorCause | undefined => {
+    if (
+        typeof error !== 'object' ||
+        error === null ||
+        !('isAxiosError' in error) ||
+        error.isAxiosError !== true
+    )
+        return undefined;
+    if ('status' in error && typeof error.status === 'number')
+        return { status: error.status };
+    if (
+        'response' in error &&
+        typeof error.response === 'object' &&
+        error.response !== null &&
+        'status' in error.response &&
+        typeof error.response.status === 'number'
+    )
+        return { status: error.response.status };
+    return undefined;
+};
+
+const getSanitizedQueryCause = ({
+    errorName,
+    errorCode,
+    errorType,
+}: QueryError) => ({
+    errorName,
+    errorCode,
+    errorType,
+});
+
 const getErrorMessage = (e: QueryError) => {
     // Trino returns Object of type QueryError
     if (e.message) {
@@ -340,7 +377,9 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             session = await client.create(this.connectionOptions);
         } catch (e: AnyType) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            const error = new WarehouseConnectionError(getErrorMessage(e));
+            error.cause = getSanitizedHttpCause(e);
+            throw error;
         }
 
         return {
@@ -382,10 +421,14 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                     // eslint-disable-next-line no-await-in-loop
                     timezoneResult = await timezoneQuery.next();
                     if (timezoneResult.value.error) {
-                        throw new WarehouseQueryError(
+                        const error = new WarehouseQueryError(
                             getErrorMessage(timezoneResult.value.error) ??
                                 'Failed to set the time zone',
                         );
+                        error.cause = getSanitizedQueryCause(
+                            timezoneResult.value.error,
+                        );
+                        throw error;
                     }
                 } while (!timezoneResult.done);
             }
@@ -420,10 +463,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             let queryResult = await query.next();
 
             if (queryResult.value.error) {
-                throw new WarehouseQueryError(
+                const error = new WarehouseQueryError(
                     getErrorMessage(queryResult.value.error) ??
                         'Unexpected error in query execution',
                 );
+                error.cause = getSanitizedQueryCause(queryResult.value.error);
+                throw error;
             }
 
             const schema: {
@@ -483,7 +528,10 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 });
             }
         } catch (e: AnyType) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            if (e instanceof WarehouseQueryError) throw e;
+            const error = new WarehouseQueryError(getErrorMessage(e));
+            error.cause = getSanitizedHttpCause(e);
+            throw error;
         } finally {
             await close();
         }
@@ -505,7 +553,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                         const result = (await query.next()).value.data ?? [];
                         return result;
                     } catch (e: AnyType) {
-                        throw new WarehouseQueryError(getErrorMessage(e));
+                        const error = new WarehouseQueryError(
+                            getErrorMessage(e),
+                        );
+                        error.cause = getSanitizedHttpCause(e);
+                        throw error;
                     } finally {
                         if (query) void close();
                     }

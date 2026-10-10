@@ -101,6 +101,8 @@ import {
     redshiftConnection,
     redshiftSecrets,
     snowflakeSecrets,
+    trinoConnection,
+    trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -8587,6 +8589,13 @@ describe('AsyncQueryService', () => {
                 credentials: buildAiServiceAccountCredentials(
                     { ...redshiftConnection, useSshTunnel: false },
                     redshiftSecrets,
+                ),
+            },
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: buildAiServiceAccountCredentials(
+                    trinoConnection,
+                    trinoSecrets,
                 ),
             },
             {
