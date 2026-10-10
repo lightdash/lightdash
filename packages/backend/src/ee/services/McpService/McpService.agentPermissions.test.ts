@@ -607,7 +607,7 @@ test('wraps an identity refusal thrown after the permission check', async () => 
         content: [{ type: 'text', text: `${error.message}\n\n${settingsUrl}` }],
     });
     expect(service['recordToolCall']).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ status: 'error', toolArgs: {} }),
+        expect.objectContaining({ status: 'error', toolArgs: { projectUuid } }),
     );
 });
 
