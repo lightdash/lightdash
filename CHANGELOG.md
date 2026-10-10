@@ -1,3 +1,15 @@
+# [2.553.0](https://github.com/lightdash/lightdash/compare/2.552.0...2.553.0) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show one loading state on the project Agent identity page ([#30894](https://github.com/lightdash/lightdash/issues/30894)) ([1ce2ec5](https://github.com/lightdash/lightdash/commit/1ce2ec5c12c2fea08a889122c758afc03aaac0d9))
+
+
+### Features
+
+* **agent-identity:** store and enforce agent connection grants ([#30888](https://github.com/lightdash/lightdash/issues/30888)) ([b3a1ff0](https://github.com/lightdash/lightdash/commit/b3a1ff09c8bfe1d7689a7761357e552561d10423))
+
 # [2.552.0](https://github.com/lightdash/lightdash/compare/2.551.1...2.552.0) (2026-10-10)
 
 
