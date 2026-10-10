@@ -243,7 +243,7 @@ test('a project connection admin can confirm without organization admin rights',
     ).toHaveBeenCalledOnce();
 });
 
-test('the pilot replaces the system-role matrix and admission limits', async () => {
+test('the preset replaces the system-role matrix and admission limits', async () => {
     const { controller, req, deps } = setup();
     await controller.applyPilotPreset(req, {
         version: 0,
@@ -271,7 +271,7 @@ test('reset preserves grants and admission limits while restoring legacy mode', 
     const policy = {
         mode: 'managed',
         version: 7,
-        allowedUserUuids: ['pilot-user'],
+        allowedUserUuids: ['allowed-user'],
         allowedProjectUuids: ['project'],
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
@@ -297,7 +297,7 @@ test('reset passes the requested version instead of adopting a newer saved versi
     );
 });
 
-test.each([null, [], ['pilot-user']])(
+test.each([null, [], ['allowed-user']])(
     'round-trips user admission %j through ceiling, preset and GET',
     async (allowedUserUuids) => {
         const { controller, req, deps } = setup();
@@ -337,13 +337,13 @@ test.each([null, [], ['pilot-user']])(
 );
 
 test.each(['saveCeiling', 'applyPilotPreset'] as const)(
-    '%s passes an omitted pilot list through so the stored list is not rewritten',
+    '%s passes an omitted people list through so the stored list is not rewritten',
     async (method) => {
         const { controller, req, deps } = setup();
         deps.agentCapabilityPolicyModel.get.mockResolvedValue({
             mode: 'managed',
             version: 3,
-            allowedUserUuids: ['pilot-user'],
+            allowedUserUuids: ['allowed-user'],
             allowedProjectUuids: null,
             systemRoleMatrix: agentSystemRoleMatrix([]),
         });
@@ -366,12 +366,12 @@ test.each(['saveCeiling', 'applyPilotPreset'] as const)(
     },
 );
 
-test('an explicit empty pilot list is kept, not replaced by the stored list', async () => {
+test('an explicit empty people list is kept, not replaced by the stored list', async () => {
     const { controller, req, deps } = setup();
     deps.agentCapabilityPolicyModel.get.mockResolvedValue({
         mode: 'managed',
         version: 3,
-        allowedUserUuids: ['pilot-user'],
+        allowedUserUuids: ['allowed-user'],
         allowedProjectUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     });

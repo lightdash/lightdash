@@ -3,7 +3,6 @@ import {
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicyOverview,
     type AgentCapabilityCeiling,
-    type AgentPilotSelection,
     type AgentWarehouseConfirmationStatus,
     type AgentWarehouseRestrictionConfirmation,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
@@ -464,16 +463,6 @@ export const useSaveAgentCapabilityCeiling = (
         agentPolicyUrl,
         'PUT',
         'Could not save agent permissions.',
-        onSaved,
-        agentPolicyMutationKey,
-    );
-export const useApplyAgentPilotPreset = (
-    onSaved: (policy: AgentCapabilityPolicy) => void,
-) =>
-    useAgentPermissionMutation<AgentCapabilityPolicy, AgentPilotSelection>(
-        `${agentPolicyUrl}/pilot-preset`,
-        'POST',
-        'Could not apply the pilot preset.',
         onSaved,
         agentPolicyMutationKey,
     );

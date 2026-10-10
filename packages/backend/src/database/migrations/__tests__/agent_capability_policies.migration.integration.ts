@@ -204,14 +204,14 @@ test.each([0, 1])(
     },
 );
 
-test('departed pilot members do not block a matrix edit or reset to legacy', async () => {
+test('departed allowed members do not block a matrix edit or reset to legacy', async () => {
     const [org] = await migrated
         .database('organizations')
-        .insert({ organization_name: 'Departed pilot member' })
+        .insert({ organization_name: 'Departed allowed member' })
         .returning('*');
     const [user] = await migrated
         .database('users')
-        .insert({ first_name: 'Pilot', last_name: 'Member' } as never)
+        .insert({ first_name: 'Allowed', last_name: 'Member' } as never)
         .returning('*');
     await migrated.database('organization_memberships').insert({
         organization_id: org.organization_id,

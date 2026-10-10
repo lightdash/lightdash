@@ -18,7 +18,7 @@ test('adds a nullable UUID array to existing policies and reverses it', async ()
     await migrated.database.transaction(async (trx) => {
         await down(trx);
         const [org] = await trx('organizations')
-            .insert({ organization_name: 'Pilot migration' })
+            .insert({ organization_name: 'Admission migration' })
             .returning('organization_uuid');
         await trx('organization_agent_capability_policies').insert({
             organization_uuid: org.organization_uuid,
@@ -53,14 +53,14 @@ test('validates members against the policy organization and round-trips admissio
     const organizations = await migrated
         .database('organizations')
         .insert([
-            { organization_name: 'Pilot org' },
+            { organization_name: 'Admission org' },
             { organization_name: 'Other org' },
         ])
         .returning(['organization_uuid', 'organization_id']);
     const users = await migrated
         .database('users')
         .insert([
-            { first_name: 'Pilot', last_name: 'Member' },
+            { first_name: 'Allowed', last_name: 'Member' },
             { first_name: 'Other', last_name: 'Member' },
         ] as never)
         .returning(['user_uuid', 'user_id']);

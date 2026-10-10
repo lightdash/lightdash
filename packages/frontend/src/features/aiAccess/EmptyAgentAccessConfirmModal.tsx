@@ -1,6 +1,6 @@
 import MantineModal from '../../components/common/MantineModal';
 
-export const EmptyAgentPilotConfirmModal = ({
+export const EmptyAgentAccessConfirmModal = ({
     onCancel,
     onConfirm,
     saving,

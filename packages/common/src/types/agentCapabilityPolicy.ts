@@ -47,7 +47,7 @@ export interface AgentCapabilityCeiling extends Pick<
     allowedUserUuids?: string[] | null;
 }
 
-export type AgentPilotSelection = Pick<
+export type AgentAccessSelection = Pick<
     AgentCapabilityCeiling,
     'version' | 'allowedProjectUuids' | 'allowedUserUuids'
 >;

@@ -298,7 +298,7 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
     },
 );
 
-test('an omitted pilot list keeps the stored column out of the update', async () => {
+test('an omitted people list keeps the stored column out of the update', async () => {
     tracker.on.insert('organization_agent_capability_policies').response([
         {
             mode: 'managed',

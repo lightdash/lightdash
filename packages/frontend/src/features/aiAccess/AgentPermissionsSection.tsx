@@ -28,14 +28,13 @@ import {
     type AgentPickerOption,
 } from './AgentAccessPickers';
 import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
-import { AgentPilotPresetModal } from './AgentPilotPresetModal';
 import {
     agentPolicyMutationKey,
     useAgentCapabilityPolicy,
     useResetAgentCapabilityPolicy,
     useSaveAgentCapabilityCeiling,
 } from './api';
-import { EmptyAgentPilotConfirmModal } from './EmptyAgentPilotConfirmModal';
+import { EmptyAgentAccessConfirmModal } from './EmptyAgentAccessConfirmModal';
 
 const formValues = (
     policy: AgentCapabilityPolicy,
@@ -93,7 +92,6 @@ const AgentPermissionLimits = ({
     people,
     onChange,
     onDiscard,
-    onPreset,
     onSave,
 }: {
     values: ReturnType<typeof formValues>;
@@ -105,7 +103,6 @@ const AgentPermissionLimits = ({
     people: AgentPickerOption[];
     onChange: (changes: Partial<ReturnType<typeof formValues>>) => void;
     onDiscard: () => void;
-    onPreset: () => void;
     onSave: () => void;
 }) => (
     <>
@@ -130,33 +127,28 @@ const AgentPermissionLimits = ({
             onChange={onChange}
             disabled={disabled}
         />
-        <Group justify="space-between">
-            <Button variant="default" disabled={disabled} onClick={onPreset}>
-                Apply restricted pilot preset
+        <Group justify="flex-end" gap="sm">
+            {dirty && (
+                <>
+                    <Text size="sm" c="dimmed">
+                        Unsaved changes
+                    </Text>
+                    <Button
+                        variant="subtle"
+                        disabled={saving}
+                        onClick={onDiscard}
+                    >
+                        Discard changes
+                    </Button>
+                </>
+            )}
+            <Button
+                loading={saving}
+                disabled={disabled || !dirty}
+                onClick={onSave}
+            >
+                Save
             </Button>
-            <Group gap="sm">
-                {dirty && (
-                    <>
-                        <Text size="sm" c="dimmed">
-                            Unsaved changes
-                        </Text>
-                        <Button
-                            variant="subtle"
-                            disabled={saving}
-                            onClick={onDiscard}
-                        >
-                            Discard changes
-                        </Button>
-                    </>
-                )}
-                <Button
-                    loading={saving}
-                    disabled={disabled || !dirty}
-                    onClick={onSave}
-                >
-                    Save
-                </Button>
-            </Group>
         </Group>
     </>
 );
@@ -181,9 +173,7 @@ const AgentPermissionsForm = ({
     } = useAgentPermissionDraft(policy);
     const limitsOn = values.mode === 'managed';
     const starting = limitsOn && baseline.mode === 'legacy';
-    const [modal, setModal] = useState<'empty' | 'reset' | 'preset' | null>(
-        null,
-    );
+    const [modal, setModal] = useState<'empty' | 'reset' | null>(null);
     const onSaved = (updated: AgentCapabilityPolicy) => {
         accept(updated);
         setModal(null);
@@ -254,7 +244,6 @@ const AgentPermissionsForm = ({
                         people={people}
                         onChange={change}
                         onDiscard={discard}
-                        onPreset={() => setModal('preset')}
                         onSave={() => {
                             if (values.allowedUserUuids?.length === 0)
                                 setModal('empty');
@@ -268,7 +257,7 @@ const AgentPermissionsForm = ({
                 </Text>
             </Stack>
             {!conflict && modal === 'empty' && (
-                <EmptyAgentPilotConfirmModal
+                <EmptyAgentAccessConfirmModal
                     saving={saving}
                     onCancel={() => {
                         change({ allowedUserUuids: baseline.allowedUserUuids });
@@ -282,7 +271,7 @@ const AgentPermissionsForm = ({
                     opened
                     role="alertdialog"
                     title="Turn off limits?"
-                    description="Agents will follow each person's permissions again. Project and pilot user limits will no longer apply. Any unsaved changes will be discarded."
+                    description="Agents will follow each person's permissions again. Project and people limits will no longer apply. Any unsaved changes will be discarded."
                     onClose={() => {
                         if (!saving) setModal(null);
                     }}
@@ -293,17 +282,6 @@ const AgentPermissionsForm = ({
                     onConfirm={() => {
                         if (!saving) reset.mutate({ version: values.version });
                     }}
-                />
-            )}
-            {!conflict && modal === 'preset' && (
-                <AgentPilotPresetModal
-                    current={values.systemRoleMatrix}
-                    preset={policy.pilotPreset.systemRoleMatrix}
-                    selection={values}
-                    projects={projects}
-                    people={people}
-                    onClose={() => setModal(null)}
-                    onSaved={onSaved}
                 />
             )}
         </SettingsCard>

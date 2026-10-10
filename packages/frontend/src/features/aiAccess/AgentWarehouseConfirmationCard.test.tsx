@@ -1,5 +1,6 @@
 import {
     WarehouseTypes,
+    supportsAiServiceAccount,
     type OrganizationAgentIdentityOverview,
     type Project,
 } from '@lightdash/common';
@@ -98,8 +99,9 @@ beforeEach(() => {
     });
 });
 describe('Raw SQL for agents', () => {
-    it('allows confirmation on ClickHouse without a shared agent account', async () => {
-        renderCard(WarehouseTypes.CLICKHOUSE);
+    it('allows confirmation on DuckDB without shared agent account support', async () => {
+        expect(supportsAiServiceAccount(WarehouseTypes.DUCKDB)).toBe(false);
+        renderCard(WarehouseTypes.DUCKDB);
         expect(
             await screen.findByText('Raw SQL for agents'),
         ).toBeInTheDocument();
