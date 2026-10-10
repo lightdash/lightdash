@@ -56,6 +56,7 @@ const StatusBadge = ({
     const presentation = statusPresentation[status];
     return (
         <Badge
+            className={classes.statusBadge}
             color={presentation.color}
             leftSection={<MantineIcon icon={presentation.icon} size="xs" />}
         >
@@ -93,10 +94,16 @@ const checkLinkLabel = (kind: AgentPermissionCheck['kind']) => {
             return 'Change';
     }
 };
+const quietWhenAllowed: AgentPermissionCheck['kind'][] = [
+    'agent_enabled',
+    'human_only',
+    'operation_mapping',
+];
 const isVisibleCheck = (row: AgentPermissionCheck) =>
     row.status === 'refused' ||
     row.status === 'setup_needed' ||
-    row.message !== 'Not needed for this action.';
+    (row.message !== 'Not needed for this action.' &&
+        !(row.status === 'allowed' && quietWhenAllowed.includes(row.kind)));
 const checkTitle = (row: AgentPermissionCheck, person: string) => {
     if (row.kind === 'person_permission') return `${person}'s permissions`;
     if (row.kind === 'capability' && row.capability)

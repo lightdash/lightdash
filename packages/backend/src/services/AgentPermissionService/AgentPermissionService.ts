@@ -688,13 +688,30 @@ export class AgentPermissionService extends BaseService {
             allowedByCheckedPermissionsOnly: result === 'allowed',
             mainReason,
             policyMainReason: mainReason,
-            checks: checks.map((check) =>
-                check.settingsUrl &&
-                (check.kind === 'agent_enabled' ||
-                    check.kind === 'content_writes')
-                    ? { ...check, settingsUrl: '/generalSettings/mcp/general' }
-                    : check,
-            ),
+            checks: checks.map((check) => {
+                if (
+                    check.kind === 'agent_enabled' ||
+                    check.kind === 'content_writes'
+                )
+                    return check.status === 'not_checked'
+                        ? check
+                        : {
+                              ...check,
+                              settingsUrl: '/generalSettings/mcp/general',
+                          };
+                if (
+                    check.settingsUrl === null &&
+                    check.status !== 'not_checked' &&
+                    (check.kind === 'agent_admission' ||
+                        check.kind === 'project_scope' ||
+                        check.kind === 'capability')
+                )
+                    return {
+                        ...check,
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    };
+                return check;
+            }),
             blockers,
             coverage: 'checked_permissions_only',
             warehouseAccess: 'not_verified',

@@ -5,7 +5,11 @@
 
 .checkRow {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+}
+
+.statusBadge {
+    flex-shrink: 0;
 }
 
 @media (max-width: 48em) {
@@ -14,7 +18,7 @@
     }
 
     .checkRow {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: 7.5rem minmax(0, 1fr);
     }
 
     .checkRow > a {
