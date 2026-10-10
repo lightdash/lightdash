@@ -16,9 +16,10 @@ export interface AgentCapabilityPolicy {
 
 export interface AgentCapabilityPolicySave extends Omit<
     AgentCapabilityPolicy,
-    'version'
+    'version' | 'allowedUserUuids'
 > {
     version?: number;
+    allowedUserUuids?: string[] | null;
     organizationUuid: string;
     updatedByUserUuid: string | null;
 }

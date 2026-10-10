@@ -337,7 +337,7 @@ test.each([null, [], ['pilot-user']])(
 );
 
 test.each(['saveCeiling', 'applyPilotPreset'] as const)(
-    '%s keeps the stored pilot users when an older payload omits them',
+    '%s passes an omitted pilot list through so the stored list is not rewritten',
     async (method) => {
         const { controller, req, deps } = setup();
         deps.agentCapabilityPolicyModel.get.mockResolvedValue({
@@ -359,9 +359,10 @@ test.each(['saveCeiling', 'applyPilotPreset'] as const)(
                 allowedProjectUuids: null,
             });
         }
-        expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
-            expect.objectContaining({ allowedUserUuids: ['pilot-user'] }),
-        );
+        expect(
+            deps.agentCapabilityPolicyModel.save.mock.calls[0][0]
+                .allowedUserUuids,
+        ).toBeUndefined();
     },
 );
 

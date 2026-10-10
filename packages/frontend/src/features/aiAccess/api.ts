@@ -424,6 +424,8 @@ export const useAgentCapabilityPolicy = () => {
     });
 };
 
+export const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
+
 const useAgentPermissionMutation = <
     TResult extends ApiResponse['results'],
     TRequest,
@@ -432,10 +434,12 @@ const useAgentPermissionMutation = <
     method: 'PUT' | 'POST' | 'DELETE',
     errorTitle: string,
     onSaved?: (result: TResult) => void,
+    mutationKey?: string[],
 ) => {
     const client = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<TResult, ApiError, TRequest>({
+        mutationKey,
         mutationFn: (request) =>
             lightdashApi<TResult>({
                 version: 'v2',
@@ -461,6 +465,7 @@ export const useSaveAgentCapabilityCeiling = (
         'PUT',
         'Could not save agent permissions.',
         onSaved,
+        agentPolicyMutationKey,
     );
 export const useApplyAgentPilotPreset = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
@@ -470,6 +475,7 @@ export const useApplyAgentPilotPreset = (
         'POST',
         'Could not apply the pilot preset.',
         onSaved,
+        agentPolicyMutationKey,
     );
 export const useResetAgentCapabilityPolicy = (
     onSaved: (policy: AgentCapabilityPolicy) => void,
@@ -477,7 +483,13 @@ export const useResetAgentCapabilityPolicy = (
     useAgentPermissionMutation<
         AgentCapabilityPolicy,
         Pick<AgentCapabilityPolicy, 'version'>
-    >(`${agentPolicyUrl}/reset`, 'POST', 'Could not turn off limits.', onSaved);
+    >(
+        `${agentPolicyUrl}/reset`,
+        'POST',
+        'Could not turn off limits.',
+        onSaved,
+        agentPolicyMutationKey,
+    );
 export const useAgentWarehouseConfirmation = (projectUuid: string) =>
     useAccessQuery(projectUuid, null, 'warehouse-confirmation', () =>
         lightdashApi<AgentWarehouseConfirmationStatus>({

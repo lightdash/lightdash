@@ -578,6 +578,52 @@ describe('Agent permissions', () => {
             allowedUserUuids: ['person'],
         });
     });
+    it('shows no conflict when a refetch of its own pending save lands first', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        const client = renderSection();
+        await screen.findByText('Permissions');
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        );
+        let finish: (value: typeof policy) => void = () => undefined;
+        const respond = apiMock.getMockImplementation()!;
+        apiMock.mockImplementation(async (request) => {
+            if (request.method !== 'PUT') return respond(request);
+            policy = {
+                ...policy,
+                ...JSON.parse(String(request.body)),
+                mode: 'managed',
+                version: policy.version + 1,
+            };
+            return new Promise((resolve) => {
+                finish = resolve;
+            });
+        });
+        await save();
+        await waitFor(() => expect(mutations()).toHaveLength(1));
+        await act(() => client.invalidateQueries(['ai-access']));
+        await waitFor(() =>
+            expect(
+                apiMock.mock.calls.filter(
+                    ([request]) => request.method === 'GET',
+                ).length,
+            ).toBeGreaterThan(1),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        await act(async () => finish(policy));
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled(),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).toBeChecked();
+    });
+
     it('blocks a dirty draft on a newer version and reload discards it', async () => {
         policy = { ...legacy(), mode: 'managed', version: 1 };
         const client = renderSection();

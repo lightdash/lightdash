@@ -12,6 +12,7 @@ import {
     Text,
     Title,
 } from '@mantine/core';
+import { useIsMutating } from '@tanstack/react-query';
 import isEqual from 'lodash/isEqual';
 import { useState } from 'react';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
@@ -29,6 +30,7 @@ import {
 import { AgentCapabilityMatrix } from './AgentCapabilityMatrix';
 import { AgentPilotPresetModal } from './AgentPilotPresetModal';
 import {
+    agentPolicyMutationKey,
     useAgentCapabilityPolicy,
     useResetAgentCapabilityPolicy,
     useSaveAgentCapabilityCeiling,
@@ -61,7 +63,10 @@ const useAgentPermissionDraft = (policy: AgentCapabilityPolicyOverview) => {
             ? draft.baseline
             : latest;
     const values = dirty ? draft.values : baseline;
-    const conflict = dirty && policy.version > baseline.version;
+    const ownSavePending =
+        useIsMutating({ mutationKey: agentPolicyMutationKey }) > 0;
+    const conflict =
+        dirty && !ownSavePending && policy.version > baseline.version;
     const change = (changes: Partial<Values>) =>
         setDraft({ baseline, values: { ...values, ...changes } });
     return {

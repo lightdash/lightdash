@@ -106,6 +106,7 @@ export class AgentCapabilityPolicyModel {
         return this.database.transaction(async (transaction) => {
             if (
                 mode === 'managed' &&
+                allowedUserUuids !== undefined &&
                 allowedUserUuids !== null &&
                 allowedUserUuids.length > 0
             ) {
@@ -133,14 +134,16 @@ export class AgentCapabilityPolicyModel {
                     mode,
                     version: 1,
                     allowed_project_uuids: allowedProjectUuids,
-                    allowed_user_uuids: allowedUserUuids,
+                    allowed_user_uuids: allowedUserUuids ?? null,
                     updated_by_user_uuid: updatedByUserUuid,
                 })
                 .onConflict('organization_uuid')
                 .merge({
                     mode,
                     allowed_project_uuids: allowedProjectUuids,
-                    allowed_user_uuids: allowedUserUuids,
+                    ...(allowedUserUuids !== undefined && {
+                        allowed_user_uuids: allowedUserUuids,
+                    }),
                     updated_by_user_uuid: updatedByUserUuid,
                     updated_at: transaction.fn.now(),
                     version: transaction.raw('??.?? + 1', [

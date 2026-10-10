@@ -297,3 +297,30 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
         expect(tracker.history.delete).toHaveLength(0);
     },
 );
+
+test('an omitted pilot list keeps the stored column out of the update', async () => {
+    tracker.on.insert('organization_agent_capability_policies').response([
+        {
+            mode: 'managed',
+            version: 2,
+            allowed_project_uuids: null,
+            allowed_user_uuids: ['member'],
+        },
+    ]);
+    tracker.on
+        .delete('organization_agent_system_role_capabilities')
+        .response(0);
+    await model.save({
+        organizationUuid: 'org',
+        mode: 'managed',
+        allowedProjectUuids: null,
+        systemRoleMatrix: emptyMatrix as never,
+        updatedByUserUuid: 'admin',
+    });
+    const { sql } = tracker.history.insert[0];
+    expect(sql).toContain('do update set');
+    const update = sql.slice(sql.indexOf('do update set'));
+    expect(update).toContain('allowed_project_uuids');
+    expect(update).not.toContain('allowed_user_uuids');
+    expect(tracker.history.select).toHaveLength(0);
+});
