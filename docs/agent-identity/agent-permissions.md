@@ -13,8 +13,9 @@ The source of truth in code:
 | The decision | `AgentPermissionService` (`evaluate`, `resolvePolicy`, `assertOperation`) |
 | Coverage tests | `capabilityMap.test.ts`, `AgentPermissionService.test.ts` |
 
-All of this is behind the `agent-identity` feature flag. With the flag off,
-nothing on this page applies.
+Capability checks and the people-only list apply only when the
+`agent-identity` feature flag is on and "Limit what agents can do" is on.
+The legacy switches at the end of this page apply in every mode.
 
 ## The 11 capabilities
 
@@ -66,9 +67,12 @@ committed or pushed. `editProjectContext` writes one file and never deletes,
 so it has no delete check.
 
 These checks on what a tool call actually does are listed in
-`AGENT_TOOL_EFFECT_CAPABILITIES` in `capabilityMap.ts`. They apply exactly
-where the tool's own agent check applies, so personal access tokens stay
-outside them.
+`AGENT_TOOL_EFFECT_CAPABILITIES` in `capabilityMap.ts`. They apply where the
+tool's own agent check applies, so personal access tokens stay outside them.
+One exception: a repo-edit job queued before this change does not record how
+it was started. Such a job from MCP is treated as covered, even if a personal
+access token started it. This lasts only until old jobs and old servers are
+gone.
 
 ## Operations only a person can do
 
@@ -78,6 +82,12 @@ personal access tokens, invite links, OAuth clients, the agent permission
 policy itself, agent identity rules, feature flag overrides, the Google Drive
 access token, and AI organization settings. The full list is in
 `humanOnlyInManaged.ts`. Granting Administration does not change this.
+
+This list is not yet complete. Some credential and settings changes still
+need only Administration, for example AI provider credentials, connector
+credentials, warehouse credentials, the embed secret and impersonation
+settings. A wider review of these is pending. Until then, do not describe
+Administration as unable to change credentials.
 
 ## Unknown operations
 
@@ -147,8 +157,8 @@ enforce modes; log mode records but does not refuse.
 
 All three live in `ai_organization_settings`. They are written through
 `AiOrganizationSettingsService.upsertSettings` (PATCH on
-`AiAgentAdminController`), which only a person can call. Step 1 does not
-change them.
+`AiAgentAdminController`). When "Limit what agents can do" is on, only a
+person can call it. Step 1 does not change them.
 
 ### `mcpAgentsEnabled` refuses every agent surface when limits are on
 

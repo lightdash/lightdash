@@ -118,7 +118,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: Record<
         capability: AgentCapability.Administration,
         shortName: 'Admin',
         name: 'Administration',
-        allows: 'Perform administrative actions available to agents; access grants, credentials and identity changes stay with people, never agents.',
+        allows: 'Perform administrative actions mapped for agents. Changes to access grants and identity that are reserved for people stay with people.',
         examples: [
             "Update a person's display name",
             'Read permitted administration metadata',
