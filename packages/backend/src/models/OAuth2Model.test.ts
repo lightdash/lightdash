@@ -95,7 +95,35 @@ describe('OAuth2Model.validateRedirectUri', () => {
     });
 
     it.each([
-        ['https://*.example.com/cb', 'https://app.example.com/cb'],
+        ['https://app.example.com/callback', true],
+        ['https://APP-1.Example.com/callback', true],
+        ['https://a.b.example.com/callback', false],
+        ['https://evil.com/.example.com/callback', false],
+        ['https://example.com/callback', false],
+        ['https://app.example.com@evil.com/callback', false],
+        ['https://app.example.com.evil.com/callback', false],
+        ['http://app.example.com/callback', false],
+        ['https://app.example.com/other', false],
+        ['https://app_1.example.com/callback', false],
+        ['https://.example.com/callback', false],
+        ['https://app.example.com:8443/callback', false],
+        ['https://app.example.com\\@evil.com/callback', false],
+    ])('validates wildcard host %s as %s', async (candidate, expected) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: ['https://*.example.com/callback'],
+            } as AnyType),
+        ).toBe(expected);
+    });
+
+    it.each([
+        ['https://a*.example.com/callback', 'https://ab.example.com/callback'],
+        [
+            'https://app.*.example.com/callback',
+            'https://app.x.example.com/callback',
+        ],
+        ['https://*example.com/callback', 'https://evilexample.com/callback'],
+        ['https://*/callback', 'https://evil.com/callback'],
         ['*://app.example.com/cb', 'https://app.example.com/cb'],
         ['https://*@app.example.com/cb', 'https://user@app.example.com/cb'],
         ['https://app.example.com/cb#*', 'https://app.example.com/cb#value'],

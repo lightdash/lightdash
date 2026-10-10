@@ -29,15 +29,25 @@ export const matchesRegisteredRedirectUri = (
 
         const [, protocol, hostname, port, path = '', fragment = ''] =
             patternParts;
-        if (hostname.includes('*') || fragment.includes('*')) return false;
+        const wildcardHostname = /^\*\.[^*]+$/.test(hostname);
+        if (
+            (hostname.includes('*') && !wildcardHostname) ||
+            fragment.includes('*')
+        ) {
+            return false;
+        }
 
         const registeredUrl = new URL(
             `${protocol}//${hostname}${port ? `:${port === '*' ? '1' : port}` : ''}${path}${fragment}`,
         );
-        if (
-            url.protocol !== registeredUrl.protocol ||
-            url.hostname.toLowerCase() !== registeredUrl.hostname.toLowerCase()
-        ) {
+        const [candidateLabel, ...candidateDomain] = url.hostname.split('.');
+        const matchesHostname = wildcardHostname
+            ? /^[a-z0-9-]+$/i.test(candidateLabel) &&
+              candidateDomain.join('.').toLowerCase() ===
+                  registeredUrl.hostname.slice(2).toLowerCase()
+            : url.hostname.toLowerCase() ===
+              registeredUrl.hostname.toLowerCase();
+        if (url.protocol !== registeredUrl.protocol || !matchesHostname) {
             return false;
         }
 
