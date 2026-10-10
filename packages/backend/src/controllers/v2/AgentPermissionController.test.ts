@@ -335,3 +335,51 @@ test.each([null, [], ['pilot-user']])(
         ).toEqual(allowedUserUuids);
     },
 );
+
+test.each(['saveCeiling', 'applyPilotPreset'] as const)(
+    '%s keeps the stored pilot users when an older payload omits them',
+    async (method) => {
+        const { controller, req, deps } = setup();
+        deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+            mode: 'managed',
+            version: 3,
+            allowedUserUuids: ['pilot-user'],
+            allowedProjectUuids: null,
+            systemRoleMatrix: agentSystemRoleMatrix([]),
+        });
+        if (method === 'saveCeiling') {
+            await controller.saveCeiling(req, {
+                allowedProjectUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([
+                    AgentCapability.Query,
+                ]),
+            });
+        } else {
+            await controller.applyPilotPreset(req, {
+                allowedProjectUuids: null,
+            });
+        }
+        expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+            expect.objectContaining({ allowedUserUuids: ['pilot-user'] }),
+        );
+    },
+);
+
+test('an explicit empty pilot list is kept, not replaced by the stored list', async () => {
+    const { controller, req, deps } = setup();
+    deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+        mode: 'managed',
+        version: 3,
+        allowedUserUuids: ['pilot-user'],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([]),
+    });
+    await controller.saveCeiling(req, {
+        allowedUserUuids: [],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
+    });
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+        expect.objectContaining({ allowedUserUuids: [] }),
+    );
+});

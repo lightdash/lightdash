@@ -274,7 +274,7 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
 export interface AgentCapabilityCeiling {
     version?: number;
     allowedProjectUuids: UUID[] | null;
-    allowedUserUuids: UUID[] | null;
+    allowedUserUuids?: UUID[] | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
@@ -660,8 +660,17 @@ export class AgentPermissionService extends BaseService {
                 'Provide the capability list for every system role',
             );
         }
+        const allowedUserUuids =
+            ceiling.allowedUserUuids === undefined
+                ? (
+                      await this.deps.agentCapabilityPolicyModel.get(
+                          organizationUuid,
+                      )
+                  ).allowedUserUuids
+                : ceiling.allowedUserUuids;
         return this.deps.agentCapabilityPolicyModel.save({
             ...ceiling,
+            allowedUserUuids,
             organizationUuid,
             mode: 'managed',
             updatedByUserUuid: account.user.id,
@@ -671,7 +680,7 @@ export class AgentPermissionService extends BaseService {
     async applyPilotPreset(
         account: Account,
         allowedProjectUuids: string[] | null,
-        allowedUserUuids: string[] | null,
+        allowedUserUuids: string[] | null | undefined,
         version: number | undefined,
     ): Promise<AgentCapabilityPolicy> {
         return this.saveCeiling(account, {

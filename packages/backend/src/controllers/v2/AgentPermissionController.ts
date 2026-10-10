@@ -66,7 +66,7 @@ interface ResetPolicyRequest {
 interface PilotPresetRequest {
     version?: number;
     allowedProjectUuids: UUID[] | null;
-    allowedUserUuids: UUID[] | null;
+    allowedUserUuids?: UUID[] | null;
 }
 
 @Route('/api/v2/org/agent-permissions')

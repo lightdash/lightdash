@@ -40,9 +40,10 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
 
 export interface AgentCapabilityCeiling extends Pick<
     AgentCapabilityPolicy,
-    'systemRoleMatrix' | 'allowedProjectUuids' | 'allowedUserUuids'
+    'systemRoleMatrix' | 'allowedProjectUuids'
 > {
     version?: number;
+    allowedUserUuids?: string[] | null;
 }
 
 export type AgentPilotSelection = Pick<
