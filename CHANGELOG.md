@@ -1,3 +1,10 @@
+# [2.541.0](https://github.com/lightdash/lightdash/compare/2.540.0...2.541.0) (2026-10-10)
+
+
+### Features
+
+* **dbt:** build dbt targets through credential resolvers, so dbt does not use the server's identity ([#30872](https://github.com/lightdash/lightdash/issues/30872)) ([bb17b68](https://github.com/lightdash/lightdash/commit/bb17b689aa74af2e06fa4f4f0f02d277c5c9375f))
+
 # [2.540.0](https://github.com/lightdash/lightdash/compare/2.539.0...2.540.0) (2026-10-10)
 
 
