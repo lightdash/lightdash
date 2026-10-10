@@ -21313,6 +21313,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return true;
         } catch (error) {
             if (!(error instanceof InvalidUser)) throw error;
+            Logger.warn('Slack requester is not a member of the organization', {
+                userUuid,
+                organizationUuid,
+                slackUserId,
+                channelId,
+            });
             await client.chat.postEphemeral({
                 channel: channelId,
                 user: slackUserId,
