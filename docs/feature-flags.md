@@ -307,11 +307,17 @@ without scope-refusal records. Neither change revokes issued tokens.
 `agent-identity` also enforces which fields a personal warehouse credential can
 set. Each warehouse has an allowlist of sign-in fields
 (`packages/common/src/types/personalWarehouseCredentials.ts`). The query uses
-the connection with every auth field removed, plus the allowlisted personal
+the connection with its auth fields removed, plus the allowlisted personal
 fields (`composePersonalWarehouseCredentials` in
 `packages/backend/src/services/WarehouseClientFactory/personalCredentialOverlay.ts`).
-Host, port, database, compute, TLS, SSH and policy fields such as roles and
-cost limits always come from the connection.
+Host, port, database, compute, TLS, SSH and policy fields such as the Snowflake
+and Postgres roles and BigQuery cost limits always come from the connection.
+
+Three auth details differ by warehouse. A Redshift IAM credential uses the
+person's own role ARN and external ID, with the person's own AWS keys. Athena
+uses only the person's key pair and drops the connection's role, session token
+and web identity. A Databricks U2M credential with no OAuth client ID uses the
+connection's OAuth app only when the connection itself uses U2M.
 
 With the flag on, a save that sets another field returns HTTP 400. Stored rows
 are projected to the allowlist on read, so old extra fields are ignored. A
