@@ -10,11 +10,15 @@ organization's business models. Users explore fixed dimensions and metrics using
 Lightdash's normal Explore/query flow; this is not just a set of hardcoded report
 queries. It does not require dbt or a MotherDuck account.
 
+For current role requirements, project-list visibility and support guidance, see
+[managed analytics project access](access.md). A standard project type does not
+remove the analytics-specific organization-management check.
+
 ## Current implementation versus rollout intent
 
 | Area                   | Implemented                                                                               | Still required for production                                      |
 | ---------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Project                | Internal `PREVIEW` project with `provisioning_source=analytics`                           | Final metadata-project lifecycle and role design                   |
+| Project                | New projects use `DEFAULT` with `provisioning_source=analytics`; older previews retain their type | Non-admin project access remains a separate follow-up          |
 | Entry point            | Organization analytics settings and session-authenticated, org-admin-only endpoints       | No configurable connector setup UI                                 |
 | Enablement             | Standard `analytics-project` resolver: Console organization flags or deployment ENV flags | Controlled live verification before customer rollout               |
 | Source org             | Persisted, authorized project org; legacy local overrides ignored                         | Live shared-instance isolation verification                        |
