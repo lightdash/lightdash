@@ -48,6 +48,7 @@ const setup = ({
     projectUuid = 'project',
     allowedProjectUuids = null,
     allowedUserUuids = null,
+    allowedGroupUuids = null,
 }: {
     mode?: 'off' | 'legacy' | 'managed';
     operation?: string;
@@ -56,6 +57,7 @@ const setup = ({
     projectUuid?: string | null;
     allowedProjectUuids?: string[] | null;
     allowedUserUuids?: string[] | null;
+    allowedGroupUuids?: string[] | null;
 } = {}) => {
     const ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
@@ -70,10 +72,14 @@ const setup = ({
         version: 1,
         allowedProjectUuids,
         allowedUserUuids,
+        allowedGroupUuids,
         systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     });
     const resolveResourceProjectUuid = vi.fn().mockResolvedValue(null);
+    const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
     const service = new AgentPermissionService({
+        groupsModel,
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
         resolveResourceProjectUuid,
         isCustomRolesLicensed: () => false,
         featureFlagModel: {
@@ -170,6 +176,7 @@ const setup = ({
         });
     return {
         request,
+        groupsModel,
         run,
         assertOperation,
         getPolicy,
@@ -428,6 +435,7 @@ it.each([
         request.method = 'PATCH';
         request.body = { role: 'developer' };
         getPolicy.mockResolvedValue({
+            allowedGroupUuids: null,
             mode: 'managed',
             version: 1,
             allowedProjectUuids: null,
@@ -478,6 +486,7 @@ it('allows managed OAuth space metadata edits with content_write', async () => {
         operation: 'SpaceController_updateSpace',
     });
     getPolicy.mockResolvedValue({
+        allowedGroupUuids: null,
         mode: 'managed',
         version: 1,
         allowedProjectUuids: null,
@@ -492,6 +501,7 @@ it('checks access changes after allowing the OAuth space REST operation', async 
         operation: 'SpaceController_updateSpace',
     });
     const policy = {
+        allowedGroupUuids: null,
         mode: 'managed' as const,
         version: 1,
         allowedProjectUuids: null,
@@ -589,5 +599,28 @@ it.each([null, [], [defaultSessionUser.userUuid], ['another-user']])(
                 },
             );
         }
+    },
+);
+
+test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
+    'OAuth legacy admission precedes managed resource work',
+    async (middleware) => {
+        const h = setup({
+            mode: 'legacy',
+            operation: 'SavedChartController_get',
+            projectUuid: null,
+            allowedGroupUuids: ['group'],
+        });
+        h.request.params = { chartUuid: 'chart' };
+        expect(await h.run(middleware)).toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+        });
+        expect(h.resolveResourceProjectUuid).not.toHaveBeenCalled();
+        expect(h.groupsModel.findUserInGroups).toHaveBeenCalledOnce();
+        h.groupsModel.findUserInGroups.mockResolvedValue([
+            { groupUuid: 'group' },
+        ]);
+        expect(await h.run(middleware)).toBeUndefined();
+        expect(h.resolveResourceProjectUuid).not.toHaveBeenCalled();
     },
 );

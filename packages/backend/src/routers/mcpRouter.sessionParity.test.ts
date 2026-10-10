@@ -30,7 +30,9 @@ test.each(['off', 'legacy', 'managed'] as const)(
     async (mode) => {
         const account = fromSession(defaultSessionUser);
         const getAgentPermissionService = vi.fn(() => ({
-            isManaged: vi.fn().mockResolvedValue(mode === 'managed'),
+            getEnforcementMode: vi
+                .fn()
+                .mockResolvedValue(mode === 'managed' ? 'managed' : 'off'),
             assertOperation: vi.fn(),
         }));
         const service = new McpService({

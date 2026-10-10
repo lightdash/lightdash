@@ -412,7 +412,7 @@ type BuiltInSkillsClient = Pick<
 type AiAgentToolsServiceDependencies = {
     agentPermissionService: Pick<
         AgentPermissionService,
-        'assertOperation' | 'isManaged'
+        'assertOperation' | 'isEnforced'
     >;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     builtInSkills: BuiltInSkillsClient;
@@ -780,7 +780,7 @@ export class AiAgentToolsService extends BaseService {
         )
             return;
         if (
-            !(await this.agentPermissionService.isManaged(
+            !(await this.agentPermissionService.isEnforced(
                 context.organizationUuid,
             ))
         )
@@ -813,7 +813,7 @@ export class AiAgentToolsService extends BaseService {
                     name,
                     async (...args: unknown[]) => {
                         if (
-                            await this.agentPermissionService.isManaged(
+                            await this.agentPermissionService.isEnforced(
                                 context.organizationUuid,
                             )
                         ) {

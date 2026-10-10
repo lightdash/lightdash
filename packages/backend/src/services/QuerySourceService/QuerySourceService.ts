@@ -42,7 +42,7 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
 type QuerySourceServiceArguments = {
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
-        'isManaged' | 'assertOperation'
+        'isEnforced' | 'assertOperation'
     >;
     projectModel: ProjectModel;
     queryHistoryModel: QueryHistoryModel;
@@ -126,7 +126,7 @@ export class QuerySourceService extends BaseService {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         const permissionService = this.getAgentPermissionService();
-        if (!(await permissionService.isManaged(organizationUuid))) return;
+        if (!(await permissionService.isEnforced(organizationUuid))) return;
         assertRegisteredAccount(account);
         await permissionService.assertOperation({
             account,

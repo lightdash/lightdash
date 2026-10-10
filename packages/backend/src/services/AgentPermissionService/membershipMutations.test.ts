@@ -44,6 +44,7 @@ const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
         })),
     };
     vi.spyOn(AgentCapabilityPolicyModel.prototype, 'get').mockResolvedValue({
+        allowedGroupUuids: null,
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
         allowedProjectUuids: null,

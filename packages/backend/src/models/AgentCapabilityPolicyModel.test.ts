@@ -23,6 +23,7 @@ test('defaults a missing policy to legacy without granting capabilities', async 
         mode: 'legacy',
         version: 0,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         allowedProjectUuids: null,
         systemRoleMatrix: emptyMatrix,
     });
@@ -52,6 +53,7 @@ test.each([null, [], ['project']])(
             mode: 'managed',
             version: 3,
             allowedUserUuids: null,
+            allowedGroupUuids: null,
             allowedProjectUuids,
             systemRoleMatrix: {
                 ...emptyMatrix,
@@ -69,6 +71,7 @@ test('increments the stored version and replaces all matrix rows in the same tra
             mode: 'managed',
             version: 4,
             allowed_user_uuids: null,
+            allowed_group_uuids: null,
             allowed_project_uuids: ['project'],
         },
     ]);
@@ -92,6 +95,7 @@ test('increments the stored version and replaces all matrix rows in the same tra
             mode: 'managed',
             version: 3,
             allowedUserUuids: null,
+            allowedGroupUuids: null,
             allowedProjectUuids: ['project'],
             systemRoleMatrix: matrix,
             updatedByUserUuid: 'user',
@@ -100,6 +104,7 @@ test('increments the stored version and replaces all matrix rows in the same tra
         mode: 'managed',
         version: 4,
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         allowedProjectUuids: ['project'],
         systemRoleMatrix: matrix,
     });
@@ -120,15 +125,16 @@ test('clears grants when saving an empty matrix', async () => {
     tracker.on
         .insert('organization_agent_capability_policies')
         .response([
-            { mode: 'legacy', version: 5, allowed_project_uuids: null },
+            { mode: 'managed', version: 5, allowed_project_uuids: null },
         ]);
     tracker.on
         .delete('organization_agent_system_role_capabilities')
         .response(1);
     await model.save({
         organizationUuid: 'org',
-        mode: 'legacy',
+        mode: 'managed',
         allowedUserUuids: null,
+        allowedGroupUuids: null,
         allowedProjectUuids: null,
         systemRoleMatrix: {
             member: [],
@@ -147,6 +153,7 @@ test('clears grants when saving an empty matrix', async () => {
 const saveUsers = (allowedUserUuids: string[] | null) =>
     model.save({
         organizationUuid: 'org',
+        allowedGroupUuids: null,
         mode: 'managed',
         allowedProjectUuids: null,
         allowedUserUuids,
@@ -246,8 +253,12 @@ test('does not revalidate a stored member list when resetting to legacy', async 
     tracker.on
         .delete('organization_agent_system_role_capabilities')
         .response(0);
+    tracker.on
+        .select('organization_agent_capability_policies')
+        .response([{ mode: 'legacy', version: 2 }]);
     await model.save({
         organizationUuid: 'org',
+        allowedGroupUuids: null,
         mode: 'legacy',
         allowedUserUuids: ['departed'],
         allowedProjectUuids: null,
@@ -261,7 +272,10 @@ test('does not revalidate a stored member list when resetting to legacy', async 
         },
         updatedByUserUuid: null,
     });
-    expect(tracker.history.select).toHaveLength(0);
+    expect(tracker.history.select).toHaveLength(1);
+    expect(tracker.history.select[0].sql).not.toContain(
+        'organization_memberships',
+    );
 });
 
 test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
@@ -276,6 +290,7 @@ test.each([{ rows: [] }, { rows: [{ version: 1 }] }])(
                 mode: 'managed',
                 version: 3,
                 allowedUserUuids: null,
+                allowedGroupUuids: null,
                 allowedProjectUuids: null,
                 systemRoleMatrix: {
                     member: [],
@@ -312,6 +327,7 @@ test('an omitted people list keeps the stored column out of the update', async (
         .response(0);
     await model.save({
         organizationUuid: 'org',
+        allowedGroupUuids: null,
         mode: 'managed',
         allowedProjectUuids: null,
         systemRoleMatrix: emptyMatrix as never,
@@ -323,4 +339,163 @@ test('an omitted people list keeps the stored column out of the update', async (
     expect(update).toContain('allowed_project_uuids');
     expect(update).not.toContain('allowed_user_uuids');
     expect(tracker.history.select).toHaveLength(0);
+});
+
+const saveGroups = (allowedGroupUuids?: string[] | null) =>
+    model.save({
+        organizationUuid: 'org',
+        mode: 'managed',
+        allowedProjectUuids: null,
+        allowedGroupUuids,
+        systemRoleMatrix: emptyMatrix as never,
+        updatedByUserUuid: null,
+    });
+
+test.each([null, ['group']])(
+    'saves group admission %j',
+    async (allowedGroupUuids) => {
+        tracker.on.select('groups').response([{ group_uuid: 'group' }]);
+        tracker.on.insert('organization_agent_capability_policies').response([
+            {
+                mode: 'managed',
+                version: 1,
+                allowed_group_uuids: allowedGroupUuids,
+            },
+        ]);
+        tracker.on
+            .delete('organization_agent_system_role_capabilities')
+            .response(0);
+        expect(await saveGroups(allowedGroupUuids)).toMatchObject({
+            allowedGroupUuids,
+        });
+        expect(tracker.history.insert[0].bindings).toContainEqual(
+            allowedGroupUuids,
+        );
+        if (allowedGroupUuids) {
+            expect(tracker.history.select[0].bindings).toEqual([
+                'org',
+                'group',
+            ]);
+            expect(tracker.history.select[0].sql).toContain(
+                '"organizations"."organization_uuid"',
+            );
+        } else expect(tracker.history.select).toHaveLength(0);
+    },
+);
+
+test.each([null, [], ['group']])(
+    'reads group admission %j',
+    async (allowedGroupUuids) => {
+        tracker.on.select('organization_agent_capability_policies').response([
+            {
+                mode: 'legacy',
+                version: 1,
+                allowed_group_uuids: allowedGroupUuids,
+            },
+        ]);
+        tracker.on.select('groups').response([{ group_uuid: 'group' }]);
+        expect(await model.get('org')).toMatchObject({ allowedGroupUuids });
+    },
+);
+
+test.each([{ groups: [] }, { groups: [{ group_uuid: 'group' }] }])(
+    'filters deleted groups without widening admission: %j',
+    async ({ groups }) => {
+        tracker.on.select('organization_agent_capability_policies').response([
+            {
+                mode: 'legacy',
+                version: 1,
+                allowed_group_uuids: ['group', 'deleted'],
+            },
+        ]);
+        tracker.on.select('groups').response(groups);
+        expect((await model.get('org')).allowedGroupUuids).toEqual(
+            groups.map((group) => group.group_uuid),
+        );
+    },
+);
+
+test('rejects groups outside the organization', async () => {
+    tracker.on.select('groups').response([{ group_uuid: 'group' }]);
+    await expect(saveGroups(['group', 'outsider'])).rejects.toBeInstanceOf(
+        ParameterError,
+    );
+    expect(tracker.history.insert).toHaveLength(0);
+});
+
+test('rejects an explicit empty group list', async () => {
+    await expect(saveGroups([])).rejects.toThrow(
+        'Choose at least one group, or allow everyone.',
+    );
+    expect(tracker.history.insert).toHaveLength(0);
+});
+
+test.each([{ stored: [] }, { stored: ['deleted'] }])(
+    'omitting groups preserves the exact stored value %j',
+    async ({ stored: allowedGroupUuids }) => {
+        tracker.on.insert('organization_agent_capability_policies').response([
+            {
+                mode: 'managed',
+                version: 2,
+                allowed_group_uuids: allowedGroupUuids,
+            },
+        ]);
+        tracker.on
+            .delete('organization_agent_system_role_capabilities')
+            .response(0);
+        expect(await saveGroups()).toMatchObject({ allowedGroupUuids });
+        const { sql } = tracker.history.insert[0];
+        expect(sql.slice(sql.indexOf('do update set'))).not.toContain(
+            'allowed_group_uuids',
+        );
+        expect(tracker.history.select).toHaveLength(0);
+    },
+);
+
+test('legacy saves preserve the stored matrix, project list and people list', async () => {
+    tracker.on.select('organization_agent_capability_policies').response([
+        {
+            mode: 'legacy',
+            version: 3,
+            allowed_project_uuids: ['stored-project'],
+            allowed_user_uuids: ['stored-user'],
+            allowed_group_uuids: ['group'],
+            system_role: OrganizationMemberRole.VIEWER,
+            capability: AgentCapability.Query,
+        },
+    ]);
+    tracker.on
+        .select('organization_memberships')
+        .response([{ user_uuid: 'stored-user' }]);
+    tracker.on.select('groups').response([{ group_uuid: 'group' }]);
+    tracker.on.insert('organization_agent_capability_policies').response([
+        {
+            mode: 'legacy',
+            version: 3,
+            allowed_project_uuids: ['stored-project'],
+            allowed_user_uuids: ['stored-user'],
+            allowed_group_uuids: ['group'],
+        },
+    ]);
+    const saved = await model.save({
+        organizationUuid: 'org',
+        mode: 'legacy',
+        allowedProjectUuids: [],
+        allowedUserUuids: [],
+        allowedGroupUuids: ['group'],
+        systemRoleMatrix: emptyMatrix as never,
+        updatedByUserUuid: null,
+    });
+    expect(saved).toMatchObject({
+        mode: 'legacy',
+        allowedProjectUuids: ['stored-project'],
+        allowedUserUuids: ['stored-user'],
+        allowedGroupUuids: ['group'],
+        systemRoleMatrix: { ...emptyMatrix, viewer: [AgentCapability.Query] },
+    });
+    const { sql } = tracker.history.insert[0];
+    const update = sql.slice(sql.indexOf('do update set'));
+    expect(update).not.toContain('allowed_project_uuids');
+    expect(update).not.toContain('allowed_user_uuids');
+    expect(tracker.history.delete).toHaveLength(0);
 });

@@ -286,6 +286,23 @@ access is allowed, but managed OAuth and agent writes omit those access fields
 so they cannot restore a concurrent human revocation. Ordinary human and PAT
 administration keeps its existing behavior.
 
+Group admission uses the same organization-level `agent-identity` flag.
+`allowedGroupUuids: null` allows everyone whose role allows AI. A list admits
+members of at least one listed group. If all listed groups are deleted, it
+reads as `[]` and admits nobody. It applies with capability limits off and on,
+on MCP tools and resource reads, in-app and Slack agents, OAuth REST, and query
+sources. Slack requires a verified sender when the restriction is active.
+
+A valid deployment licence and the organization-level `UserGroupsEnabled` flag
+allow new group restrictions. Saved restrictions still apply when groups later
+become unavailable. Clearing a restriction is always allowed. Personal-access-token
+and service-account calls keep their existing exemptions. With `agent-identity`
+off, group admission adds no checks or reads. There is no page control yet;
+set the field through the policy API. A PUT can set
+`mode: 'legacy'` to save group admission without changing the stored capability
+matrix, projects or people. Omitting the new fields keeps today's save behavior.
+Reset keeps the group restriction.
+
 ### Snowflake silent agent refresh
 
 `agent-identity-silent-refresh` is a default-on defect-fix kill switch. The

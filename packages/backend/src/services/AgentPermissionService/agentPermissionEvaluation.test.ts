@@ -15,6 +15,7 @@ const policy: ResolvedAgentPolicy = {
     capabilities: new Set(),
     allowedProjectUuids: null,
     allowedUserUuids: null,
+    allowedGroupUuids: null,
     version: 1,
     editableCustomRoleUuid: null,
 };
@@ -107,4 +108,60 @@ test('checks a known project independently of an unknown action mapping', () => 
         AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED,
         AiAccessRefusalReason.AGENT_PROJECT_DENIED,
     ]);
+});
+
+test('legacy restriction evaluates only admission, even for unmapped human-only operations', () => {
+    const checks = agentPermissionChecks(
+        {
+            ...policy,
+            mode: 'legacy',
+            allowedGroupUuids: ['group'],
+            allowedUserUuids: [],
+        },
+        {
+            ...operation,
+            userUuid: 'user',
+            groupMember: false,
+            humanOnly: true,
+            requiredCapabilities: null,
+        },
+    ).map((step) => step.evaluate());
+    expect(checks).toEqual([
+        expect.objectContaining({
+            kind: 'agent_admission',
+            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+        }),
+    ]);
+});
+
+test.each([true, false])(
+    'legacy membership %s determines admission without capabilities',
+    (groupMember) => {
+        expect(
+            evaluate(
+                { ...policy, mode: 'legacy', allowedGroupUuids: ['group'] },
+                { ...operation, userUuid: 'user', groupMember },
+            )?.reason ?? null,
+        ).toBe(
+            groupMember ? null : AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+        );
+    },
+);
+
+test('an empty group restriction never passes, even with a stale membership result', () => {
+    expect(
+        evaluate(
+            { ...policy, mode: 'legacy', allowedGroupUuids: [] },
+            { ...operation, userUuid: 'user', groupMember: true },
+        )?.reason,
+    ).toBe(AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED);
+});
+
+test('group admission fails closed without a person', () => {
+    expect(
+        evaluate(
+            { ...policy, mode: 'legacy', allowedGroupUuids: ['group'] },
+            operation,
+        )?.reason,
+    ).toBe(AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED);
 });

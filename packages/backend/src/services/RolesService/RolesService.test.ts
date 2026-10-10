@@ -136,6 +136,7 @@ describe('RolesService', () => {
                 AgentCapabilityPolicyModel.prototype,
                 'get',
             ).mockResolvedValue({
+                allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
                 allowedProjectUuids: null,
@@ -163,6 +164,7 @@ describe('RolesService', () => {
                 AgentCapabilityPolicyModel.prototype,
                 'get',
             ).mockResolvedValue({
+                allowedGroupUuids: null,
                 mode: 'managed',
                 version: 1,
                 allowedProjectUuids: null,
@@ -198,6 +200,7 @@ describe('RolesService', () => {
                 const policy = vi
                     .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
                     .mockResolvedValue({
+                        allowedGroupUuids: null,
                         mode: 'legacy',
                         version: 0,
                         allowedProjectUuids: null,
@@ -248,6 +251,7 @@ describe('RolesService', () => {
                     AgentCapabilityPolicyModel.prototype,
                     'get',
                 ).mockResolvedValue({
+                    allowedGroupUuids: null,
                     mode: 'managed',
                     version: 1,
                     allowedProjectUuids: null,

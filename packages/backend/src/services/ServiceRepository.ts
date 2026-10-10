@@ -26,6 +26,7 @@ import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
+import { areOrganizationGroupsAvailable } from './AgentPermissionService/groupsAvailable';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
@@ -1035,6 +1036,15 @@ export class ServiceRepository
                         };
                         return (await resolvers[type]())?.projectUuid ?? null;
                     },
+                    areGroupsAvailable: (organizationUuid) =>
+                        areOrganizationGroupsAvailable({
+                            organizationUuid,
+                            isLicensed: () =>
+                                this.getLicenseService().getLicenseStatus()
+                                    .valid,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                        }),
+                    groupsModel: this.models.getGroupsModel(),
                     isCustomRolesLicensed: () =>
                         this.getLicenseService().getLicenseStatus().valid,
                     featureFlagModel: this.models.getFeatureFlagModel(),

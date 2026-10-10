@@ -132,7 +132,7 @@ const setup = (spaceAccess: string[] | null = null) => {
     };
     const service = new AiAgentToolsService({
         agentPermissionService: {
-            isManaged: vi.fn().mockResolvedValue(false),
+            isEnforced: vi.fn().mockResolvedValue(false),
             assertOperation: vi.fn(),
         },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },

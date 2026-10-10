@@ -108,7 +108,7 @@ const makeExplore = ({
 const makeService = ({
     agentPermissionService = {
         assertOperation: vi.fn().mockResolvedValue(undefined),
-        isManaged: vi.fn().mockResolvedValue(false),
+        isEnforced: vi.fn().mockResolvedValue(false),
     },
     explores = {},
     userAttributes = {},
@@ -149,7 +149,7 @@ const makeService = ({
 }: {
     agentPermissionService?: {
         assertOperation: import('vitest').Mock;
-        isManaged: import('vitest').Mock;
+        isEnforced: import('vitest').Mock;
     };
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -2480,7 +2480,7 @@ describe('AiAgentToolsService', () => {
             spaceModel?: Record<string, unknown>;
             agentPermissionService?: {
                 assertOperation: import('vitest').Mock;
-                isManaged: import('vitest').Mock;
+                isEnforced: import('vitest').Mock;
             };
         } = {}) => {
             const getSqlChartsForRead = vi.fn(
@@ -2537,7 +2537,7 @@ describe('AiAgentToolsService', () => {
                         const { service, upsertSqlChart } = makeSqlChartService(
                             {
                                 agentPermissionService: {
-                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    isEnforced: vi.fn().mockResolvedValue(true),
                                     assertOperation,
                                 },
                             },
@@ -2621,7 +2621,7 @@ describe('AiAgentToolsService', () => {
                         const { service, upsertSqlChart } = makeSqlChartService(
                             {
                                 agentPermissionService: {
-                                    isManaged: vi
+                                    isEnforced: vi
                                         .fn()
                                         .mockResolvedValue(managed),
                                     assertOperation,
@@ -5372,7 +5372,7 @@ test.each([
         const service = makeService({
             agentPermissionService: {
                 assertOperation,
-                isManaged: vi.fn().mockResolvedValue(true),
+                isEnforced: vi.fn().mockResolvedValue(true),
             },
         });
         const context = makeRuntimeContext();
@@ -5410,7 +5410,7 @@ test.each(['off', 'legacy', 'query-only managed'])(
         const runtime = makeService({
             agentPermissionService: {
                 assertOperation,
-                isManaged: vi
+                isEnforced: vi
                     .fn()
                     .mockResolvedValue(mode === 'query-only managed'),
             },
@@ -5453,7 +5453,7 @@ test('gates effectful runtime operations before their implementations run', asyn
     const service = makeService({
         agentPermissionService: {
             assertOperation,
-            isManaged: vi.fn().mockResolvedValue(true),
+            isEnforced: vi.fn().mockResolvedValue(true),
         },
     });
     const runtime = service.createRuntime(makeRuntimeContext());

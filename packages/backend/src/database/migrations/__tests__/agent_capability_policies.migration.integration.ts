@@ -15,6 +15,7 @@ import {
 } from '../../../testing/migratedDatabase';
 import { down, up } from '../20261011000000_add_agent_capability_policies';
 import { up as upAllowedUsers } from '../20261011000001_add_agent_policy_allowed_users';
+import { up as upAllowedGroups } from '../20261011000004_add_agent_policy_allowed_groups';
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {
@@ -67,6 +68,7 @@ test('backfills exactly four default scopes for every custom role, including emp
         ]);
         await up(trx);
         await upAllowedUsers(trx);
+        await upAllowedGroups(trx);
         await Promise.all(
             roles.map(async (role) => {
                 const rows = await trx('scoped_roles')
@@ -246,6 +248,8 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         resolveResourceProjectUuid: vi.fn(),
         isCustomRolesLicensed: () => true,
+        areGroupsAvailable: vi.fn().mockResolvedValue(true),
+        groupsModel: { findUserInGroups: vi.fn().mockResolvedValue([]) },
         agentWarehouseRestrictionConfirmationModel: {
             get: vi.fn(),
             upsert: vi.fn(),
@@ -267,6 +271,7 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
     expect(
         await service.saveCeiling(account, {
             ...latest,
+            mode: 'managed',
             systemRoleMatrix: matrix(AgentCapability.Export),
         }),
     ).toMatchObject({
@@ -282,6 +287,7 @@ test('departed allowed members do not block a matrix edit or reset to legacy', a
     await expect(
         service.saveCeiling(account, {
             ...(await model.get(org.organization_uuid)),
+            mode: 'managed',
             allowedUserUuids: [user.user_uuid],
         }),
     ).rejects.toThrow('All allowed users must belong to this organization');

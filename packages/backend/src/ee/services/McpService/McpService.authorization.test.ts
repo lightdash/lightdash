@@ -162,7 +162,9 @@ describe('MCP scoped tool catalogue', () => {
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                isManaged: vi.fn().mockResolvedValue(false),
+                                getEnforcementMode: vi
+                                    .fn()
+                                    .mockResolvedValue('off'),
                                 assertOperation: vi.fn(),
                             }),
                             account: createAccount({
@@ -360,7 +362,9 @@ test('MCP catch/rethrow does not duplicate a lower policy refusal', async () => 
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                isManaged: vi.fn().mockResolvedValue(false),
+                                getEnforcementMode: vi
+                                    .fn()
+                                    .mockResolvedValue('off'),
                                 assertOperation: vi.fn(),
                             }),
                             account: fromSession(defaultSessionUser),
@@ -397,7 +401,9 @@ test.each(agentActionTestCases)(
                         extra: {
                             user: defaultSessionUser,
                             getAgentPermissionService: () => ({
-                                isManaged: vi.fn().mockResolvedValue(false),
+                                getEnforcementMode: vi
+                                    .fn()
+                                    .mockResolvedValue('off'),
                                 assertOperation: vi.fn(),
                             }),
                             account: fromSession(defaultSessionUser),

@@ -24,7 +24,7 @@ describe('in-app runtime content identity', () => {
                 },
                 featureFlagService: { get: getFlag },
                 agentPermissionService: {
-                    isManaged: vi.fn().mockResolvedValue(false),
+                    isEnforced: vi.fn().mockResolvedValue(false),
                     assertOperation: vi.fn(),
                 },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
