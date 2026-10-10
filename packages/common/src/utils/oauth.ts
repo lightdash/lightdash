@@ -640,8 +640,8 @@ export const generateOAuthAuthorizePage = (
                   ...params.agentConnect,
                   message:
                       params.agentConnect.reason === 'sign_in_expired'
-                          ? 'Your agent connection expired. Connect again now, or authorise and connect later from the link an AI tool shows you.'
-                          : 'Your organisation requires an agent connection for AI queries. Connect once now, or authorise and connect later from the link an AI tool shows you.',
+                          ? 'Your agent sign-in expired. Connect your agent again now, or authorise and connect later from the link your agent shows you.'
+                          : 'Your organisation requires an agent sign-in. Connect once now, or authorise and connect later from the link your agent shows you.',
                   errorMessage: params.agentConnect.error
                       ? getAgentConnectErrorMessage(params.agentConnect.error)
                       : null,

@@ -64,7 +64,7 @@ const AgentConnect = () => {
     }, [enabled, hasValidProject, siteUrl, target, project, entryPoint]);
 
     const explanation = !hasValidProject
-        ? 'This agent connection link is missing a valid project.'
+        ? 'This agent sign-in link is missing a valid project.'
         : !flag.isInitialLoading && !enabled
           ? 'Agent sign-in is not available for your account.'
           : null;

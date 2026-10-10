@@ -110,7 +110,8 @@ describe('agent connect', () => {
             refusal: {
                 ...agentAccess.refusal!,
                 reason: AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                message: 'Your agent connection expired. Connect again.',
+                message:
+                    'Your agent sign-in expired. Connect your agent again.',
             },
         });
         const { completion, redirect } = await startWaitingForCallback();
@@ -139,7 +140,7 @@ describe('agent connect', () => {
         });
         await agentConnectHandler({ verbose: false });
         expect(console.error).toHaveBeenCalledExactlyOnceWith(
-            'Agent connection is not required for this project',
+            'Agent sign-in is not required for this project',
         );
         expect(http.Server.prototype.listen).not.toHaveBeenCalled();
         expect(process.exitCode ?? 0).toBe(0);
@@ -212,7 +213,7 @@ describe('agent connect', () => {
     it.each([
         [
             'not_agent_session',
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.',
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.',
         ],
         [
             'no_refresh_token',

@@ -1033,7 +1033,7 @@ export class AsyncQueryService extends ProjectService {
                 explore.type === ExploreType.PRE_AGGREGATE
             ) {
                 throw new NotSupportedError(
-                    'AI access cannot query a pre-aggregate explore',
+                    'Agents cannot query a pre-aggregate explore.',
                 );
             }
             return { target: 'warehouse' };

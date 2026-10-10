@@ -68,7 +68,7 @@ describe('agent status', () => {
     ])('reports %s and its link', async (reason) => {
         const message =
             reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
-                ? 'Your agent connection expired. Connect again.'
+                ? 'Your agent sign-in expired. Connect your agent again.'
                 : agentAccess.refusal!.message;
         vi.mocked(lightdashApi).mockResolvedValue({
             ...agentAccess,
@@ -90,7 +90,7 @@ describe('agent status', () => {
         });
         await agentStatusHandler({ verbose: false });
         expect(console.error).toHaveBeenCalledExactlyOnceWith(
-            'Agent connection not required for this project',
+            'Agent sign-in is not required for this project',
         );
         expect(process.exitCode ?? 0).toBe(0);
     });

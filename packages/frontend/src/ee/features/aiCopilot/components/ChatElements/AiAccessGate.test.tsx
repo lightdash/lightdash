@@ -399,7 +399,7 @@ describe('AiAccessGate', () => {
         vi.spyOn(aiAccessApi, 'me').mockRejectedValue(accessError);
         renderGate();
         expect(
-            await screen.findByText(/We could not check your agent connection/),
+            await screen.findByText(/Could not check your agent identity/),
         ).toBeVisible();
         expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled();
         expect(screen.queryByText('Composer')).not.toBeInTheDocument();
@@ -429,7 +429,7 @@ describe('AiAccessGate', () => {
             expect(retry).toBeDisabled();
             expect(retry).toHaveAttribute('data-loading', 'true');
             expect(
-                screen.getByText(/We could not check your agent connection/),
+                screen.getByText(/Could not check your agent identity/),
             ).toBeVisible();
             expect(
                 screen.queryByTestId('ai-access-placeholder'),
@@ -458,9 +458,7 @@ describe('AiAccessGate', () => {
                     ).toBeEnabled(),
                 );
                 expect(
-                    screen.getByText(
-                        /We could not check your agent connection/,
-                    ),
+                    screen.getByText(/Could not check your agent identity/),
                 ).toBeVisible();
                 expect(screen.queryByText('Composer')).not.toBeInTheDocument();
             }

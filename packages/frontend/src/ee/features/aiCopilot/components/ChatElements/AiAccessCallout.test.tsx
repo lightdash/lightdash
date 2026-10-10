@@ -43,7 +43,7 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
     reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
-    message: 'Sign in to run AI queries.',
+    message: 'Sign in to run agent queries.',
     action: AiAccessRefusalAction.SIGN_IN,
     settingsUrl: null,
     connectUrl: null,

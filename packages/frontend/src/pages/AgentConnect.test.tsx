@@ -160,7 +160,7 @@ describe('AgentConnect', () => {
             renderPage(query);
             expect(
                 screen.getByText(
-                    'This agent connection link is missing a valid project.',
+                    'This agent sign-in link is missing a valid project.',
                 ),
             ).toBeInTheDocument();
             expect(

@@ -2387,7 +2387,7 @@ export class McpService extends BaseService {
         if (access.requirementSource === null) {
             return {
                 status: 'not_required' as const,
-                message: 'Agent connection is not required for this project.',
+                message: 'Agent sign-in is not required for this project.',
                 connectUrl: null,
                 expiresAt: null,
             };
@@ -2396,7 +2396,7 @@ export class McpService extends BaseService {
             status: 'unavailable' as const,
             message:
                 access.refusal?.message ??
-                'Agent connection is unavailable for this project.',
+                'Agent sign-in is not available for this project.',
             connectUrl: null,
             expiresAt: null,
         };

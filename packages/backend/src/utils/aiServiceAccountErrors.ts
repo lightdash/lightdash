@@ -197,16 +197,16 @@ export const getAthenaServiceAccountTestErrorMessage = (
             message,
         )
     )
-        return 'Check the AI results location and its S3 permissions. Check KMS permissions if it is encrypted.';
+        return 'Check the S3 results location and its permissions. Check KMS permissions if it is encrypted.';
     if (
         codes.includes('InvalidRequestException') &&
         /work\s*group.*(?:not found|does not exist|disabled|not enabled)|(?:not found|does not exist|disabled|not enabled).*work\s*group/i.test(
             message,
         )
     )
-        return "Check that the AI workgroup exists, is enabled and uses the connection's AWS region.";
+        return "Check that the agent workgroup exists, is enabled and uses the connection's AWS region.";
     if (accessDenied)
-        return "AWS denied access. Check the AI account's Athena, S3 and Lake Formation permissions.";
+        return "AWS denied access. Check the shared agent account's Athena, S3 and Lake Formation permissions.";
     if (
         codes.some((code) =>
             [
@@ -411,7 +411,7 @@ export const getClickhouseServiceAccountTestErrorMessage = (
                 entry.type === 'ACCESS_DENIED',
         )
     )
-        return "ClickHouse denied access. Check the AI account's SELECT grants and connection database.";
+        return "ClickHouse denied access. Check the shared agent account's SELECT grants and connection database.";
     return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 

@@ -1334,7 +1334,7 @@ export class AiAccessService extends BaseService {
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
                 {
                     message:
-                        'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
+                        'Snowflake agent sign-in is not set up for this organisation. An organisation admin can add the OAuth client in Agents settings.',
                 },
             );
     }
@@ -1675,7 +1675,7 @@ export class AiAccessService extends BaseService {
             );
             if (!email)
                 throw new UnexpectedServerError(
-                    'AI access needs the person to have an email address',
+                    'Agents need the person to have an email address.',
                 );
             if (args.connection.type !== WarehouseTypes.SNOWFLAKE)
                 throw new AiAccessRefusedError(
@@ -2233,7 +2233,7 @@ export class AiAccessService extends BaseService {
                     );
                     if (!email)
                         throw new UnexpectedServerError(
-                            'AI access needs the person to have an email address',
+                            'Agents need the person to have an email address.',
                         );
                     const missing =
                         await this.agentSignInCredentialResolver.inspect(

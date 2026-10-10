@@ -589,7 +589,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 cause: null,
                 checkedAt: new Date(),
                 reason: AiSessionFailureReason.CREDENTIAL_REJECTED,
-                message: 'Snowflake AI access requires an access token.',
+                message: 'Snowflake agent sign-in requires an access token.',
                 observed: {
                     current_role: null,
                     active_restricted_session_scopes: null,

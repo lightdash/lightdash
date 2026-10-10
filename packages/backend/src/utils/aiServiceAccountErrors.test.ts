@@ -243,28 +243,28 @@ describe('Athena authentication failures', () => {
                 name: 'InvalidRequestException',
                 message: 'Workgroup agents does not exist',
             },
-            'AI workgroup',
+            'agent workgroup',
         ],
         [
             {
                 name: 'InvalidRequestException',
                 message: 'WorkGroup is disabled',
             },
-            'AI workgroup',
+            'agent workgroup',
         ],
         [
             {
                 name: 'InvalidRequestException',
                 message: 'Unable to verify/create output bucket',
             },
-            'AI results location',
+            'S3 results location',
         ],
         [
             {
                 name: 'AccessDeniedException',
                 message: 'Access denied to output location',
             },
-            'AI results location',
+            'S3 results location',
         ],
         [{ name: 'ThrottlingException' }, 'Try again'],
         [{ code: 'ECONNRESET' }, 'Try again'],
@@ -284,7 +284,7 @@ describe('Athena authentication failures', () => {
                 name: 'AccessDeniedException',
                 message: 'S3 output location s3://results/',
             }),
-        ).toContain('AI results location');
+        ).toContain('S3 results location');
     });
     it('handles cyclic causes', () => {
         const error: { cause?: unknown; name: string } = { name: 'Unknown' };
@@ -594,7 +594,7 @@ describe('ClickHouse AI service account errors', () => {
         ],
         [
             '497',
-            "ClickHouse denied access. Check the AI account's SELECT grants and connection database.",
+            "ClickHouse denied access. Check the shared agent account's SELECT grants and connection database.",
         ],
         [
             '210',

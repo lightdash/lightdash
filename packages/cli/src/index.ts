@@ -315,7 +315,7 @@ ${styles.bold('Examples:')}
 
 agentProgram
     .command('status')
-    .description('Shows your agent connection status for a project')
+    .description('Shows your agent sign-in status for a project')
     .option(
         '--project <project uuid or slug>',
         'Specify the project',

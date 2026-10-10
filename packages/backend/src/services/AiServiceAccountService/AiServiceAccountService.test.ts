@@ -2929,7 +2929,7 @@ it.each([
     ],
     [
         '497',
-        "ClickHouse denied access. Check the AI account's SELECT grants and connection database.",
+        "ClickHouse denied access. Check the shared agent account's SELECT grants and connection database.",
     ],
 ])(
     'returns the safe ClickHouse Test message for code %s',
