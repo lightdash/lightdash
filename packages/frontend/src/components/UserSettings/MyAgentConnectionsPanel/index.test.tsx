@@ -18,6 +18,7 @@ let warehouses: (WarehouseTypes | undefined)[] = [
 ];
 let postgresSource: AiIdentitySource = 'marked_person';
 let redshiftSource: AiIdentitySource = 'marked_person';
+let trinoSource: AiIdentitySource = 'marked_person';
 let athenaSource: AiIdentitySource = 'marked_person';
 let databricksSource: AiIdentitySource = 'marked_person';
 let configured = true;
@@ -30,6 +31,7 @@ vi.mock('../../../features/aiAccess/api', () => ({
         data: {
             snowflakeConfigured: configured,
             rules: [
+                { warehouseType: WarehouseTypes.TRINO, source: trinoSource },
                 {
                     warehouseType: WarehouseTypes.REDSHIFT,
                     source: redshiftSource,
@@ -88,6 +90,7 @@ describe('MyAgentConnectionsPanel', () => {
         databricksSource = 'marked_person';
         postgresSource = 'marked_person';
         redshiftSource = 'marked_person';
+        trinoSource = 'marked_person';
         athenaSource = 'marked_person';
         warehouses = [WarehouseTypes.SNOWFLAKE, WarehouseTypes.BIGQUERY];
         configured = true;
@@ -226,6 +229,31 @@ describe('MyAgentConnectionsPanel', () => {
                 expect(
                     screen.getByText(
                         /Agents on Redshift projects run as the AI service account your admin set up/,
+                    ),
+                ).toBeVisible();
+        },
+    );
+    it.each([
+        ['ai_service_account', [WarehouseTypes.TRINO], true],
+        ['marked_person', [WarehouseTypes.TRINO], false],
+        ['ai_service_account', [WarehouseTypes.BIGQUERY], false],
+        ['ai_service_account', [], false],
+    ] satisfies [AiIdentitySource, WarehouseTypes[], boolean][])(
+        'gates Trino on rule %s and projects %j without a personal connection',
+        (source, projectWarehouses, visible) => {
+            trinoSource = source;
+            warehouses = projectWarehouses;
+            renderWithProviders(<MyAgentConnectionsPanel />);
+            expect(
+                screen.queryByRole('heading', { name: 'Trino' }) !== null,
+            ).toBe(visible);
+            expect(
+                screen.queryByRole('button', { name: /Connect/ }),
+            ).not.toBeInTheDocument();
+            if (visible)
+                expect(
+                    screen.getByText(
+                        /Agents on Trino projects run as the AI service account your admin set up/,
                     ),
                 ).toBeVisible();
         },

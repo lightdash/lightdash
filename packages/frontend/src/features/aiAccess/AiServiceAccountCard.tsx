@@ -8,6 +8,7 @@ import {
     type Project,
     type PostgresCredentials,
     type RedshiftCredentials,
+    type TrinoCredentials,
     type AthenaCredentials,
     type BigqueryCredentials,
     type DatabricksCredentials,
@@ -43,9 +44,11 @@ import { PostgresAgentSetup } from './PostgresAgentSetup';
 import { RedshiftAgentSetup } from './RedshiftAgentSetup';
 import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
 import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
+import { TrinoAgentSetup } from './TrinoAgentSetup';
 
 type AiServiceAccountConnection =
     | RedshiftCredentials
+    | TrinoCredentials
     | PostgresCredentials
     | AthenaCredentials
     | BigqueryCredentials
@@ -353,7 +356,8 @@ const getAiPrincipalState = (
         currentTest?.principal ??
         (warehouseType === WarehouseTypes.SNOWFLAKE
             ? getSnowflakeAiPrincipal(observation)
-            : warehouseType === WarehouseTypes.REDSHIFT ||
+            : warehouseType === WarehouseTypes.TRINO ||
+                warehouseType === WarehouseTypes.REDSHIFT ||
                 warehouseType === WarehouseTypes.POSTGRES ||
                 warehouseType === WarehouseTypes.DATABRICKS ||
                 warehouseType === WarehouseTypes.ATHENA
@@ -374,6 +378,14 @@ const AiServiceAccountSetup = ({
     tested: boolean;
 }) => {
     switch (connection.type) {
+        case WarehouseTypes.TRINO:
+            return (
+                <TrinoAgentSetup
+                    connection={connection}
+                    hasCredentials={hasKey}
+                    tested={tested}
+                />
+            );
         case WarehouseTypes.REDSHIFT:
             return (
                 <RedshiftAgentSetup

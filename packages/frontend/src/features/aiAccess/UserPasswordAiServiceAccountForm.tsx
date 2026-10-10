@@ -28,7 +28,10 @@ interface UserPasswordAiServiceAccountFormCallbacks {
 }
 
 interface UserPasswordAiServiceAccountFormProps extends UserPasswordAiServiceAccountFormCallbacks {
-    warehouseType: WarehouseTypes.POSTGRES | WarehouseTypes.REDSHIFT;
+    warehouseType:
+        | WarehouseTypes.POSTGRES
+        | WarehouseTypes.REDSHIFT
+        | WarehouseTypes.TRINO;
     userDescription: string;
 }
 

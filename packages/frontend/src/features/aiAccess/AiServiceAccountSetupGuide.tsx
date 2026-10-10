@@ -9,6 +9,9 @@ export const AiServiceAccountSetupGuide = ({
     createContent,
     grantContent,
     addHelp,
+    createTitle = `Create the account in ${warehouseName}`,
+    grantTitle = 'Grant it only the data agents may read',
+    addTitle = 'Add it here and select Test',
 }: {
     warehouseName: string;
     hasAccount: boolean;
@@ -16,6 +19,9 @@ export const AiServiceAccountSetupGuide = ({
     createContent: ReactNode;
     grantContent: ReactNode;
     addHelp: string;
+    createTitle?: string;
+    grantTitle?: string;
+    addTitle?: string;
 }) => (
     <Accordion defaultValue={hasAccount ? null : 'setup'} variant="default">
         <Accordion.Item value="setup">
@@ -24,25 +30,13 @@ export const AiServiceAccountSetupGuide = ({
             </Accordion.Control>
             <Accordion.Panel>
                 <Stack gap="lg">
-                    <AgentSetupStep
-                        number={1}
-                        title={`Create the account in ${warehouseName}`}
-                        done={false}
-                    >
+                    <AgentSetupStep number={1} title={createTitle} done={false}>
                         {createContent}
                     </AgentSetupStep>
-                    <AgentSetupStep
-                        number={2}
-                        title="Grant it only the data agents may read"
-                        done={false}
-                    >
+                    <AgentSetupStep number={2} title={grantTitle} done={false}>
                         {grantContent}
                     </AgentSetupStep>
-                    <AgentSetupStep
-                        number={3}
-                        title="Add it here and select Test"
-                        done={tested}
-                    >
+                    <AgentSetupStep number={3} title={addTitle} done={tested}>
                         <Text size="sm" c="dimmed">
                             {addHelp}
                         </Text>

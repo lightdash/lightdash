@@ -130,6 +130,16 @@ const credentialCases: {
         observed: { currentUser: 'principal-id' },
     },
     {
+        name: 'Trino',
+        credentials: {
+            type: WarehouseTypes.TRINO,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
         name: 'Postgres',
         credentials: {
             type: WarehouseTypes.POSTGRES,
