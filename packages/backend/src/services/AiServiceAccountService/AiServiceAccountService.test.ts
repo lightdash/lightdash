@@ -1040,7 +1040,7 @@ describe('Databricks identity verification', () => {
                 ok: true,
                 principal: 'principal-uuid',
                 observed: { currentUser: 'principal-uuid' },
-                message: 'AI service account connection checked.',
+                message: 'Shared agent account connection checked.',
                 checkedAt: expect.any(Date),
             },
         });
@@ -2409,7 +2409,7 @@ describe('Trino identity verification', () => {
             expect(f.model.updateVerification).not.toHaveBeenCalled();
             await expect(
                 f.service.upsert(f.account, 'project', null, trinoSecrets),
-            ).rejects.toThrow('Could not verify the AI service account.');
+            ).rejects.toThrow('Could not verify the shared agent account.');
             expect(f.model.upsert).not.toHaveBeenCalled();
         },
     );

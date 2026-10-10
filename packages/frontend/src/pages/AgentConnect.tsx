@@ -66,7 +66,7 @@ const AgentConnect = () => {
     const explanation = !hasValidProject
         ? 'This agent connection link is missing a valid project.'
         : !flag.isInitialLoading && !enabled
-          ? 'Agent connections are not enabled for your account.'
+          ? 'Agent sign-in is not available for your account.'
           : null;
 
     return (
@@ -90,7 +90,7 @@ const AgentConnect = () => {
                                 }
                             >
                                 {enabled
-                                    ? 'My agent connections'
+                                    ? 'My agent identity'
                                     : 'My warehouse connections'}
                             </Anchor>
                         }

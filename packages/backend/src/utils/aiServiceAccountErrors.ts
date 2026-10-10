@@ -227,7 +227,7 @@ export const getAthenaServiceAccountTestErrorMessage = (
         )
     )
         return 'AWS could not complete the connection check. Try again.';
-    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+    return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 
 const pgErrors = (
@@ -283,16 +283,16 @@ export const getPostgresServiceAccountTestErrorMessage = (
                 pattern.test(entry.message),
         );
     if (matches(postgresLoginDisabled))
-        return 'The Postgres AI service account cannot log in. Add LOGIN to the role.';
+        return 'The Postgres shared agent account cannot log in. Add LOGIN to the role.';
     if (matches(postgresNetworkBlocked))
-        return 'Postgres network rules (pg_hba.conf) block this user. Allow the AI service account to connect.';
+        return 'Postgres network rules (pg_hba.conf) block this user. Allow the shared agent account to connect.';
     if (isPostgresServiceAccountAuthError(error))
-        return 'Postgres rejected the AI service account credentials. Check the user and password.';
+        return 'Postgres rejected the shared agent account credentials. Check the user and password.';
     if (matches(postgresDatabaseDenied))
-        return 'The Postgres AI service account lacks CONNECT on the database. Grant CONNECT to the role.';
+        return 'The Postgres shared agent account lacks CONNECT on the database. Grant CONNECT to the role.';
     if (errors.some((entry) => entry.code === '3D000'))
         return 'The Postgres database does not exist. Check the connection database.';
-    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+    return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 
 const redshiftCredentialRejected =
@@ -314,7 +314,7 @@ export const getRedshiftServiceAccountTestErrorMessage = (
 ): string => {
     const errors = pgErrors(error);
     if (isRedshiftServiceAccountAuthError(error))
-        return 'Redshift rejected the AI service account credentials. Check the user and password.';
+        return 'Redshift rejected the shared agent account credentials. Check the user and password.';
     if (errors.some((entry) => entry.code === '3D000'))
         return 'The Redshift database does not exist. Check the connection database.';
     if (
@@ -325,8 +325,8 @@ export const getRedshiftServiceAccountTestErrorMessage = (
                     /^permission denied\b/i.test(entry.message)),
         )
     )
-        return 'The Redshift AI service account lacks access. Ask an admin to check its grants.';
-    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+        return 'The Redshift shared agent account lacks access. Ask an admin to check its grants.';
+    return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 
 export const isTrinoServiceAccountAuthError = (
@@ -346,12 +346,12 @@ export const getTrinoServiceAccountTestErrorMessage = (
     error: unknown,
 ): string => {
     if (isTrinoServiceAccountAuthError(error))
-        return 'Trino rejected the AI service account credentials. Check the user and password.';
+        return 'Trino rejected the shared agent account credentials. Check the user and password.';
     if (
         pgErrors(error).some((entry) => entry.errorName === 'PERMISSION_DENIED')
     )
-        return 'The Trino AI service account lacks access. Ask an admin to check its access control rules.';
-    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+        return 'The Trino shared agent account lacks access. Ask an admin to check its access control rules.';
+    return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 
 const clickhouseAuthCodes = new Set(['516', '192', '193', '194']);
@@ -412,7 +412,7 @@ export const getClickhouseServiceAccountTestErrorMessage = (
         )
     )
         return "ClickHouse denied access. Check the AI account's SELECT grants and connection database.";
-    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+    return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
 
 export const getUserPasswordServiceAccountTestErrorMessage = (

@@ -68,7 +68,7 @@ const SnowflakeAgentConnectionDetails = ({
             <Text c="dimmed" fz="sm">
                 {status === 'unavailable'
                     ? 'Agent sign-in is not set up yet. Ask an admin to finish the Snowflake setup.'
-                    : 'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.'}
+                    : "Your agents can't run on Snowflake projects until you connect. It takes about 30 seconds."}
             </Text>
         )}
         {status !== 'unavailable' && errorMessage && (

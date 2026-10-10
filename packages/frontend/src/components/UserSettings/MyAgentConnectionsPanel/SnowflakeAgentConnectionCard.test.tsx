@@ -115,7 +115,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             ).toBeInTheDocument();
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
             expect(
-                screen.queryByText(/Your AI questions/),
+                screen.queryByText(/Your agents can't run/),
             ).not.toBeInTheDocument();
             expect(login).not.toHaveBeenCalled();
         },
@@ -173,7 +173,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             ).not.toBeInTheDocument();
             expect(
                 screen.getByText(
-                    'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.',
+                    "Your agents can't run on Snowflake projects until you connect. It takes about 30 seconds.",
                 ),
             ).toBeInTheDocument();
         },
@@ -250,7 +250,7 @@ describe('SnowflakeAgentConnectionCard', () => {
                 screen.queryByRole('button', { name: 'Disconnect' }),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByText(/Your AI questions/),
+                screen.queryByText(/Your agents can't run/),
             ).not.toBeInTheDocument();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Sign in again' }),
@@ -265,7 +265,7 @@ describe('SnowflakeAgentConnectionCard', () => {
             renderCard([credential]);
             expect(screen.getByText('Connected')).toBeInTheDocument();
             expect(
-                screen.queryByText(/Your AI questions/),
+                screen.queryByText(/Your agents can't run/),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByText(/Your agent sign-in lasts until/),
@@ -315,7 +315,7 @@ describe('SnowflakeAgentConnectionCard', () => {
         expect(screen.getByText('Failing')).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Your AI questions on Snowflake projects are refused until you connect. Takes about 30 seconds.',
+                "Your agents can't run on Snowflake projects until you connect. It takes about 30 seconds.",
             ),
         ).toBeInTheDocument();
         expect(button).toBeEnabled();
@@ -345,7 +345,7 @@ describe('SnowflakeAgentConnectionCard', () => {
         expect(
             screen.queryByRole('button', { name: 'Disconnect' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText(/Your AI questions/)).toBeInTheDocument();
+        expect(screen.getByText(/Your agents can't run/)).toBeInTheDocument();
     });
 
     it('hides a previous login failure when setup becomes unavailable', async () => {
@@ -398,7 +398,9 @@ describe('SnowflakeAgentConnectionCard', () => {
         vi.setSystemTime(new Date(2027, 0, 8));
         renderCard([{ ...credential, agentClientCurrent: false, expiresAt }]);
         expect(screen.getByText(message)).toBeInTheDocument();
-        expect(screen.queryByText(/Your AI questions/)).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(/Your agents can't run/),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Sign in again' }),
         ).toBeEnabled();

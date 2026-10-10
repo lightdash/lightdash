@@ -249,7 +249,7 @@ export const parseAiServiceAccountSecrets = (
     const result = credentialsSchema.safeParse(value);
     if (!result.success) {
         throw new ParameterError(
-            'Provide complete AI service account credentials for the selected method.',
+            'Provide complete shared agent account credentials for the selected method.',
         );
     }
     const credentials = result.data;
@@ -408,7 +408,7 @@ export class AiServiceAccountCredentialsModel {
             return { secrets, verification: verification ?? null };
         } catch {
             throw new ParameterError(
-                'The saved AI service account credentials could not be read. Replace the credentials.',
+                'The saved shared agent account credentials could not be read. Replace the credentials.',
             );
         }
     }

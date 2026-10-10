@@ -149,11 +149,13 @@ export const useSettingsNavigation = (
 
         if (showMyAgentConnections) {
             yourSettings.push({
-                label: 'My agent connections',
+                label: 'My agent identity',
                 to: '/generalSettings/myAgentConnections',
                 icon: IconPlugConnected,
                 keywords: [
                     'agent',
+                    'identity',
+                    'sign-in',
                     'ai',
                     'mcp',
                     'snowflake',
@@ -657,15 +659,28 @@ export const useSettingsNavigation = (
 
         if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
             organizationItems.push({
-                label: 'Agent identity',
+                label: 'Agents',
                 to: AGENT_IDENTITY_SETTINGS_PATH,
                 icon: IconIdBadge2,
                 keywords: [
                     'agents',
                     'identity',
+                    'agent identity',
+                    'permissions',
+                    'shared agent account',
                     'warehouse',
                     'snowflake',
                     'bigquery',
+                ],
+                pageSections: [
+                    {
+                        title: 'Identity',
+                        keywords: [
+                            'who agents run as',
+                            'shared agent account',
+                            'agent sign-in',
+                        ],
+                    },
                 ],
                 children: [],
                 exact: true,

@@ -26,7 +26,7 @@ describe('AiServiceAccountConnectionCard', () => {
             expect(screen.getByRole('heading', { name })).toBeInTheDocument();
             expect(
                 screen.getByText(
-                    `Agents on ${name} projects run as the AI service account your admin set up. They read only what that account can read. Your own access doesn't change.`,
+                    `Agents on ${name} projects run as a shared agent account that your admin set up. They read only what that account can read. Your own access doesn't change.`,
                 ),
             ).toBeInTheDocument();
             expect(screen.queryByText('Nothing to do')).not.toBeInTheDocument();

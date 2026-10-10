@@ -8,7 +8,7 @@ import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 const getFailureReason = (error: string): string => {
     switch (error) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
         case 'no_refresh_token':
             return 'Snowflake did not return a refresh token. Try again.';
         case 'license_required':
@@ -39,7 +39,7 @@ const AgentConnected = () => {
                                 component={Link}
                                 to="/generalSettings/myAgentConnections"
                             >
-                                Try again from My agent connections
+                                Try again from My agent identity
                             </Anchor>
                         }
                     />

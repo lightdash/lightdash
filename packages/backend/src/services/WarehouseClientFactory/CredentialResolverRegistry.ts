@@ -114,7 +114,7 @@ export class CredentialResolverRegistry {
                 throw new ParameterError(
                     mode === 'agent_identity'
                         ? 'This warehouse does not support agent sign-in.'
-                        : 'This warehouse does not support an AI service account.',
+                        : 'This warehouse does not support a shared agent account.',
                 );
             return resolver;
         }

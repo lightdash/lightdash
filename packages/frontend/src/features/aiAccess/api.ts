@@ -234,12 +234,12 @@ export const useSaveAiServiceAccount = (projectUuid: string) => {
             };
         },
         onSuccess: async () => {
-            showToastSuccess({ title: 'AI service account saved.' });
+            showToastSuccess({ title: 'Shared agent account saved.' });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not save the AI service account.',
+                title: 'Could not save the shared agent account.',
                 apiError: error,
             }),
     });
@@ -264,12 +264,12 @@ export const useDeleteAiServiceAccount = (projectUuid: string) => {
                 body: undefined,
             }),
         onSuccess: async () => {
-            showToastSuccess({ title: 'AI service account removed.' });
+            showToastSuccess({ title: 'Shared agent account removed.' });
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not remove the AI service account.',
+                title: 'Could not remove the shared agent account.',
                 apiError: error,
             }),
     });
@@ -300,7 +300,7 @@ export const useTestAiServiceAccount = (projectUuid: string) => {
         },
         onError: ({ error }) =>
             showToastApiError({
-                title: 'Could not test the AI service account.',
+                title: 'Could not test the shared agent account.',
                 apiError: error,
             }),
     });

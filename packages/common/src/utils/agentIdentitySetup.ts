@@ -56,7 +56,7 @@ export const buildBigQueryAiServiceAccountCommands = ({
             title: 'Create the service account',
             command: `gcloud iam service-accounts create ${shellWord(serviceAccountName)} \\
   --project=${shellWord(project)} \\
-  --display-name="AI agents"`,
+  --display-name="Lightdash agents"`,
         },
         {
             step: 'job_user',

@@ -2361,7 +2361,7 @@ export class McpService extends BaseService {
             return {
                 status: 'not_required' as const,
                 message:
-                    "Agents run as the project's AI service account. Nothing to connect.",
+                    "Agents run as the project's shared agent account. Nothing to connect.",
                 connectUrl: null,
                 expiresAt: null,
             };

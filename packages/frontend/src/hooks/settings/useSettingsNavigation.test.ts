@@ -339,7 +339,7 @@ describe('My agent connections navigation', () => {
                 ({ id }) => id === 'your-settings',
             )!.items;
             const index = items.findIndex(
-                ({ label }) => label === 'My agent connections',
+                ({ label }) => label === 'My agent identity',
             );
             if (showMyAgentConnections) {
                 expect(items[index - 1].label).toBe('My warehouse connections');
@@ -347,6 +347,8 @@ describe('My agent connections navigation', () => {
                     to: '/generalSettings/myAgentConnections',
                     keywords: [
                         'agent',
+                        'identity',
+                        'sign-in',
                         'ai',
                         'mcp',
                         'snowflake',

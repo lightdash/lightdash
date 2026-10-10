@@ -5,16 +5,16 @@ export const identityLabels: Record<
     { label: string; helper: string }
 > = {
     marked_person: {
-        label: 'Same credentials as the user',
-        helper: "Agents get the same access as the person asking. Agent queries are labelled, but warehouse rules can't use the label.",
+        label: 'The person',
+        helper: "Agents get the access of the person asking. Their queries are labelled, but warehouse rules can't act on the label.",
     },
     agent_sign_in: {
-        label: 'A separate agent sign-in for each person',
-        helper: 'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your Snowflake policies can limit them.',
+        label: "The person's agent sign-in",
+        helper: 'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your policies can limit them.',
     },
     ai_service_account: {
-        label: 'The AI service account',
-        helper: "Agents run as one account that a project admin adds to each project. Everyone's agent gets that account's access.",
+        label: 'A shared agent account',
+        helper: 'A project admin adds one account to each project. All agents run as it and get only its access.',
     },
 };
 

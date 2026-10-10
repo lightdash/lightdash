@@ -26,7 +26,7 @@ export const AiServiceAccountSetupGuide = ({
     <Accordion defaultValue={hasAccount ? null : 'setup'} variant="default">
         <Accordion.Item value="setup">
             <Accordion.Control>
-                How to set up the AI service account
+                How to set up the shared agent account
             </Accordion.Control>
             <Accordion.Panel>
                 <Stack gap="lg">

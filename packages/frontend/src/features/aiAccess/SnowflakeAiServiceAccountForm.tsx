@@ -159,7 +159,7 @@ export const SnowflakeAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="AI service account"
+            title="Shared agent account"
             onClose={close}
             withCloseButton={!busy}
             cancelDisabled={busy}

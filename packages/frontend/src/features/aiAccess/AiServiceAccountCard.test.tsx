@@ -175,10 +175,10 @@ const setup = (
 const openForm = async () => {
     fireEvent.click(
         await screen.findByRole('button', {
-            name: 'Add AI service account',
+            name: 'Add shared agent account',
         }),
     );
-    return screen.findByRole('dialog', { name: 'AI service account' });
+    return screen.findByRole('dialog', { name: 'Shared agent account' });
 };
 
 describe('AI service account card', () => {
@@ -245,11 +245,11 @@ describe('AI service account card', () => {
             warehouseConnection: { ...project.warehouseConnection, type },
         } as Project;
         const missing =
-            'Agents are refused on this project until you add an AI service account.';
+            'Agents are refused on this project until you add a shared agent account.';
         const unused = `Agents on this project use each person's own ${name} credentials. The organization rule decides this.`;
         const used = `Agents on this project run as this account. The organization rule for ${name} requires it.`;
         const unreadableParent =
-            "Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.";
+            "This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.";
         const scenarios = [
             'in use',
             'not in use',
@@ -297,7 +297,7 @@ describe('AI service account card', () => {
                     type: inherited ? ProjectType.PREVIEW : ProjectType.DEFAULT,
                 });
                 const guide = await screen.findByRole('button', {
-                    name: 'How to set up the AI service account',
+                    name: 'How to set up the shared agent account',
                 });
                 expect(guide).toHaveAttribute('aria-expanded', String(empty));
                 const refused =
@@ -332,7 +332,7 @@ describe('AI service account card', () => {
                     );
                     expect(
                         screen.getByRole('heading', {
-                            name: 'AI service account',
+                            name: 'Shared agent account',
                         }).parentElement,
                     ).toContainElement(badge);
                     expect(
@@ -347,14 +347,14 @@ describe('AI service account card', () => {
                     );
                 if (scenario.startsWith('own unreadable'))
                     expect(screen.getByRole('alert')).toHaveTextContent(
-                        "The AI service account can't be read. Replace it.",
+                        "The shared agent account can't be read. Replace it.",
                     );
                 const summary = empty
                     ? screen.getByRole('button', {
-                          name: 'Add AI service account',
+                          name: 'Add shared agent account',
                       })
                     : (screen.queryByText(
-                          /^Uses the AI service account from/,
+                          /^Uses the shared agent account from/,
                       ) ?? screen.getByText(/^(Signs in as|Not tested yet)/));
                 expect(status.compareDocumentPosition(summary)).toBe(
                     Node.DOCUMENT_POSITION_FOLLOWING,
@@ -389,22 +389,22 @@ describe('AI service account card', () => {
                             ? [
                                   'Test',
                                   "Add this preview's own account",
-                                  'How to set up the AI service account',
+                                  'How to set up the shared agent account',
                               ]
                             : [
                                   'Test',
                                   'Replace',
                                   'Remove',
-                                  'How to set up the AI service account',
+                                  'How to set up the shared agent account',
                               ],
                     );
                     if (scenario === 'inherited') {
                         expect(
                             screen.getByText(
-                                /Uses the AI service account from/,
+                                /Uses the shared agent account from/,
                             ),
                         ).toHaveTextContent(
-                            'Uses the AI service account from Production, the parent project. Changes there apply here on the next query.',
+                            'Uses the shared agent account from Production, the parent project. Changes there apply here on the next query.',
                         );
                         expect(
                             screen.getByRole('link', { name: 'Production' }),
@@ -460,7 +460,7 @@ describe('AI service account card', () => {
                 setup(props);
                 fireEvent.click(
                     await screen.findByRole('button', {
-                        name: 'How to set up the AI service account',
+                        name: 'How to set up the shared agent account',
                     }),
                 );
                 expect(
@@ -527,7 +527,7 @@ describe('AI service account card', () => {
                 'Replace',
                 "Use the parent's account",
                 'Remove',
-                'How to set up the AI service account',
+                'How to set up the shared agent account',
             ]);
             fireEvent.click(
                 screen.getByRole('button', {
@@ -555,7 +555,7 @@ describe('AI service account card', () => {
             };
             setup(props);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                "Agents are refused on this preview. Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of the parent project to replace it.",
+                "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of the parent project to replace it.",
             );
             expect(
                 screen.queryByRole('link', { name: 'Production' }),
@@ -565,7 +565,7 @@ describe('AI service account card', () => {
             parent = { ...parentAccount, verification: snowflakeVerification };
             setup(props);
             const guide = await screen.findByRole('button', {
-                name: 'How to set up the AI service account',
+                name: 'How to set up the shared agent account',
             });
             fireEvent.click(guide);
             if (type === WarehouseTypes.BIGQUERY) {
@@ -593,7 +593,7 @@ describe('AI service account card', () => {
             const { container } = setup(props);
             expect(container.querySelector('.mantine-Card-root')).toBeNull();
             expect(
-                screen.queryByText('AI service account'),
+                screen.queryByText('Shared agent account'),
             ).not.toBeInTheDocument();
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
             expect(lightdashApi).not.toHaveBeenCalled();
@@ -654,7 +654,7 @@ describe('AI service account card', () => {
                             ? {
                                   color: 'red',
                                   message:
-                                      "The AI service account can't be read. Replace it.",
+                                      "The shared agent account can't be read. Replace it.",
                               }
                             : null,
             });
@@ -685,7 +685,7 @@ describe('AI service account card', () => {
         await screen.findByRole('button', { name: 'Replace' });
         expect(
             screen.getByRole('button', {
-                name: 'How to set up the AI service account',
+                name: 'How to set up the shared agent account',
             }),
         ).toHaveAttribute('aria-expanded', 'true');
         expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
@@ -707,7 +707,7 @@ describe('AI service account card', () => {
         ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'How to set up the AI service account',
+                name: 'How to set up the shared agent account',
             }),
         );
         expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
@@ -826,7 +826,7 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -901,7 +901,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(
                 screen.getByText('Signs in as recorded-principal'),
@@ -912,11 +912,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(databricksProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -927,7 +927,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(databricksProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -1012,7 +1012,7 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -1100,7 +1100,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(
                 screen.getByText(
@@ -1159,7 +1159,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
             const confirmation = await screen.findByRole('dialog', {
-                name: 'Remove AI service account',
+                name: 'Remove shared agent account',
             });
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
@@ -1168,7 +1168,7 @@ describe('AI service account card', () => {
                 within(confirmation).getByRole('button', { name: 'Remove' }),
             );
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
@@ -1177,11 +1177,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(athenaProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -1192,7 +1192,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(athenaProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -1267,7 +1267,7 @@ describe('AI service account card', () => {
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -1341,7 +1341,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
         });
@@ -1393,7 +1393,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
             const confirmation = await screen.findByRole('dialog', {
-                name: 'Remove AI service account',
+                name: 'Remove shared agent account',
             });
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
@@ -1402,7 +1402,7 @@ describe('AI service account card', () => {
                 within(confirmation).getByRole('button', { name: 'Remove' }),
             );
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
@@ -1411,11 +1411,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(postgresProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -1426,7 +1426,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(postgresProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -1501,7 +1501,7 @@ describe('AI service account card', () => {
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -1575,7 +1575,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
         });
@@ -1627,7 +1627,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
             const confirmation = await screen.findByRole('dialog', {
-                name: 'Remove AI service account',
+                name: 'Remove shared agent account',
             });
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
@@ -1636,7 +1636,7 @@ describe('AI service account card', () => {
                 within(confirmation).getByRole('button', { name: 'Remove' }),
             );
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
@@ -1645,11 +1645,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(redshiftProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -1660,7 +1660,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(redshiftProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -1740,7 +1740,7 @@ describe('AI service account card', () => {
             ).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -1816,7 +1816,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(
                 screen.getByText('Signs in as MappedAgent/RestrictedRole'),
@@ -1870,7 +1870,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
             const confirmation = await screen.findByRole('dialog', {
-                name: 'Remove AI service account',
+                name: 'Remove shared agent account',
             });
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
@@ -1879,7 +1879,7 @@ describe('AI service account card', () => {
                 within(confirmation).getByRole('button', { name: 'Remove' }),
             );
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
@@ -1888,11 +1888,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(trinoProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -1903,7 +1903,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(trinoProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -1966,7 +1966,7 @@ describe('AI service account card', () => {
             ).toBeVisible();
             fireEvent.click(
                 screen.getByRole('button', {
-                    name: 'How to set up the AI service account',
+                    name: 'How to set up the shared agent account',
                 }),
             );
             await waitFor(() =>
@@ -2004,7 +2004,7 @@ describe('AI service account card', () => {
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
             expect(
                 screen.getByText(
-                    'The principal above is from the last successful check.',
+                    'The account above is from the last successful check.',
                 ),
             ).toBeVisible();
         });
@@ -2078,7 +2078,7 @@ describe('AI service account card', () => {
                 }),
             );
             expect(
-                await screen.findByText(/Uses the AI service account from/),
+                await screen.findByText(/Uses the shared agent account from/),
             ).toBeVisible();
             expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
         });
@@ -2130,7 +2130,7 @@ describe('AI service account card', () => {
             ).not.toBeInTheDocument();
             fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
             const confirmation = await screen.findByRole('dialog', {
-                name: 'Remove AI service account',
+                name: 'Remove shared agent account',
             });
             expect(lightdashApi).not.toHaveBeenCalledWith(
                 expect.objectContaining({ method: 'DELETE' }),
@@ -2139,7 +2139,7 @@ describe('AI service account card', () => {
                 within(confirmation).getByRole('button', { name: 'Remove' }),
             );
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
         });
@@ -2148,11 +2148,11 @@ describe('AI service account card', () => {
             source = 'ai_service_account';
             setup(clickhouseProject);
             expect(await screen.findByRole('alert')).toHaveTextContent(
-                'Agents are refused on this project until you add an AI service account.',
+                'Agents are refused on this project until you add a shared agent account.',
             );
             expect(
                 screen.getByRole('button', {
-                    name: 'Add AI service account',
+                    name: 'Add shared agent account',
                 }),
             ).toBeVisible();
         });
@@ -2163,7 +2163,7 @@ describe('AI service account card', () => {
                 mocks.canManage = reason !== 'permission';
                 setup(clickhouseProject, false, true);
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(lightdashApi).not.toHaveBeenCalled();
             },
@@ -2174,7 +2174,7 @@ describe('AI service account card', () => {
         parent = parentAccount;
         setup();
         expect(
-            await screen.findByText(/Uses the AI service account from/),
+            await screen.findByText(/Uses the shared agent account from/),
         ).toBeVisible();
         expect(
             screen.getByRole('link', { name: 'Production' }),
@@ -2187,7 +2187,7 @@ describe('AI service account card', () => {
         ).toBeVisible();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Add AI service account' }),
+            screen.queryByRole('button', { name: 'Add shared agent account' }),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Remove' }),
@@ -2198,7 +2198,7 @@ describe('AI service account card', () => {
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expect(
             screen.getByRole('button', {
-                name: 'How to set up the AI service account',
+                name: 'How to set up the shared agent account',
             }),
         ).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(
@@ -2207,7 +2207,7 @@ describe('AI service account card', () => {
             }),
         );
         const dialog = await screen.findByRole('dialog', {
-            name: 'AI service account',
+            name: 'Shared agent account',
         });
         upload();
         const save = within(dialog).getByRole('button', { name: 'Save' });
@@ -2217,7 +2217,7 @@ describe('AI service account card', () => {
             await screen.findByRole('button', { name: 'Replace' }),
         ).toBeVisible();
         expect(
-            screen.queryByText(/Uses the AI service account from/),
+            screen.queryByText(/Uses the shared agent account from/),
         ).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: "Use the parent's account" }),
@@ -2232,7 +2232,7 @@ describe('AI service account card', () => {
         setup();
         expect(
             await screen.findByText(
-                "Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.",
+                "This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.",
             ),
         ).toBeVisible();
         expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
@@ -2250,7 +2250,7 @@ describe('AI service account card', () => {
         await screen.findByText('Signs in as tested-principal');
         fireEvent.click(
             screen.getByRole('button', {
-                name: 'How to set up the AI service account',
+                name: 'How to set up the shared agent account',
             }),
         );
         expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
@@ -2278,7 +2278,7 @@ describe('AI service account card', () => {
         setup();
         expect(
             await screen.findByText(
-                'Uses the AI service account from the parent project. Changes there apply here on the next query.',
+                'Uses the shared agent account from the parent project. Changes there apply here on the next query.',
             ),
         ).toBeVisible();
         expect(
@@ -2327,7 +2327,7 @@ describe('AI service account card', () => {
             }),
         );
         expect(
-            await screen.findByText(/Uses the AI service account from/),
+            await screen.findByText(/Uses the shared agent account from/),
         ).toBeVisible();
         expect(lightdashApi).toHaveBeenCalledWith({
             version: 'v2',
@@ -2385,7 +2385,7 @@ describe('AI service account card', () => {
                 },
             } as Project);
             expect(
-                screen.queryByText('AI service account'),
+                screen.queryByText('Shared agent account'),
             ).not.toBeInTheDocument();
             expect(lightdashApi).not.toHaveBeenCalled();
         },
@@ -2436,7 +2436,7 @@ describe('AI service account card', () => {
         slot = savedSlot;
         setup();
         const control = await screen.findByRole('button', {
-            name: 'How to set up the AI service account',
+            name: 'How to set up the shared agent account',
         });
         expect(control).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(control);
@@ -2449,7 +2449,7 @@ describe('AI service account card', () => {
         setup();
         expect(
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             }),
         ).toBeInTheDocument();
         expect(
@@ -2459,7 +2459,7 @@ describe('AI service account card', () => {
             screen.getAllByRole('link', { name: 'Organization settings' }),
         ).toHaveLength(1);
         expect(
-            screen.queryByText(/Agents use the same credentials as the user/),
+            screen.queryByText(/Agents run as the person/),
         ).not.toBeInTheDocument();
         expect(screen.queryByRole('switch')).not.toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -2468,7 +2468,7 @@ describe('AI service account card', () => {
         source = 'ai_service_account';
         setup();
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Agents are refused on this project until you add an AI service account.',
+            'Agents are refused on this project until you add a shared agent account.',
         );
     });
     it.each(['marked_person', 'ai_service_account'] as const)(
@@ -2482,7 +2482,9 @@ describe('AI service account card', () => {
                 screen.queryByText('Organization rule for this warehouse'),
             ).not.toBeInTheDocument();
             expect(
-                screen.getAllByRole('heading', { name: 'AI service account' }),
+                screen.getAllByRole('heading', {
+                    name: 'Shared agent account',
+                }),
             ).toHaveLength(1);
             expect(
                 screen.getAllByRole('link', { name: 'Organization settings' }),
@@ -2709,7 +2711,7 @@ describe('AI service account card', () => {
             within(confirmation).getByRole('button', { name: 'Remove' }),
         );
         await screen.findByRole('button', {
-            name: 'Add AI service account',
+            name: 'Add shared agent account',
         });
         expect(
             screen.queryByText('Signs in as tested-principal'),
@@ -2742,7 +2744,7 @@ describe('AI service account card', () => {
         expect(invalidate).toHaveBeenCalledWith(['ai-access']);
         fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
         const replacement = await screen.findByRole('dialog', {
-            name: 'AI service account',
+            name: 'Shared agent account',
         });
         expect(
             within(replacement).getByRole('button', { name: 'Save' }),
@@ -2752,7 +2754,7 @@ describe('AI service account card', () => {
         );
         fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
         const confirmation = await screen.findByRole('dialog', {
-            name: 'Remove AI service account',
+            name: 'Remove shared agent account',
         });
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'DELETE' }),
@@ -2762,7 +2764,7 @@ describe('AI service account card', () => {
         );
         expect(
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             }),
         ).toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith({
@@ -2810,7 +2812,7 @@ describe('AI service account card', () => {
             mocks.enabled = enabled;
             setup(project, true);
             expect(
-                screen.queryByText('AI service account'),
+                screen.queryByText('Shared agent account'),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('link', { name: 'Agent identity' }),
@@ -2836,7 +2838,7 @@ describe('AI service account card', () => {
         expect(
             await screen.findByText('Signs in as tested-principal'),
         ).toBeVisible();
-        expect(screen.getByText('AI service account')).toBeVisible();
+        expect(screen.getByText('Shared agent account')).toBeVisible();
     });
     it.each(['flag', 'permission'])(
         'does not load the identity page without %s',
@@ -2879,7 +2881,7 @@ describe('AI service account card', () => {
         fireEvent.click(button);
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
-                title: 'Could not save the AI service account.',
+                title: 'Could not save the shared agent account.',
                 apiError: error,
             }),
         );
@@ -2891,14 +2893,14 @@ describe('AI service account card', () => {
         setup();
         fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
         const dialog = await screen.findByRole('dialog', {
-            name: 'Remove AI service account',
+            name: 'Remove shared agent account',
         });
         const error = { message: 'Could not remove credentials.' };
         vi.mocked(lightdashApi).mockRejectedValueOnce({ error });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Remove' }));
         await waitFor(() =>
             expect(mocks.errorToast).toHaveBeenCalledWith({
-                title: 'Could not remove the AI service account.',
+                title: 'Could not remove the shared agent account.',
                 apiError: error,
             }),
         );
@@ -2928,10 +2930,10 @@ describe('AI service account card', () => {
         });
         setup();
         expect(
-            await screen.findByText('Could not load the AI service account.'),
+            await screen.findByText('Could not load the shared agent account.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByRole('button', { name: 'Add AI service account' }),
+            screen.queryByRole('button', { name: 'Add shared agent account' }),
         ).not.toBeInTheDocument();
     });
     describe('Snowflake', () => {
@@ -2946,7 +2948,7 @@ describe('AI service account card', () => {
         it('shows setup and the missing-slot warning without BigQuery setup', async () => {
             setup(snowflakeProject);
             await screen.findByRole('button', {
-                name: 'Add AI service account',
+                name: 'Add shared agent account',
             });
             expect(
                 screen.getByText(/Agents are refused on this project/),
@@ -2996,7 +2998,7 @@ describe('AI service account card', () => {
                 ).not.toBeInTheDocument();
                 if (owner === 'inherited')
                     expect(
-                        screen.getByText(/Uses the AI service account from/),
+                        screen.getByText(/Uses the shared agent account from/),
                     ).toBeVisible();
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
                 await waitFor(() =>
@@ -3034,8 +3036,8 @@ describe('AI service account card', () => {
                 setup(snowflakeProject);
                 expect(await screen.findByRole('alert')).toHaveTextContent(
                     owner === 'own'
-                        ? "The AI service account can't be read. Replace it."
-                        : "Agents are refused on this preview. Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of Production to replace it.",
+                        ? "The shared agent account can't be read. Replace it."
+                        : "Agents are refused on this preview. This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of Production to replace it.",
                 );
                 if (owner === 'own')
                     expect(
@@ -3260,7 +3262,7 @@ describe('AI service account card', () => {
                     container.querySelector('.mantine-Accordion-root'),
                 ).toBeNull();
                 expect(
-                    screen.queryByText('AI service account'),
+                    screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();
                 expect(
                     screen.queryByText(

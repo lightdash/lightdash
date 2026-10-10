@@ -37,17 +37,17 @@ export class RedshiftAiServiceAccountCredentialResolver implements CredentialRes
     ): CreateRedshiftCredentials {
         if (connection.type !== WarehouseTypes.REDSHIFT) {
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
         if (credentials.type !== WarehouseTypes.REDSHIFT)
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         if (!connection.host?.trim())
             throw new ParameterError(
-                'Set the Redshift host before adding an AI service account.',
+                'Set the Redshift host before adding a shared agent account.',
             );
         return {
             ...pickRoutingFields(WarehouseTypes.REDSHIFT, connection),
@@ -77,7 +77,7 @@ export class RedshiftAiServiceAccountCredentialResolver implements CredentialRes
             case 'linkCurrentPerson':
             case 'verifiedGoogleCallback':
                 throw new ParameterError(
-                    'An AI service account cannot use a person sign-in.',
+                    'A shared agent account cannot use a person sign-in.',
                 );
             default:
                 return assertUnreachable(
@@ -92,7 +92,7 @@ export class RedshiftAiServiceAccountCredentialResolver implements CredentialRes
     ): Promise<CredentialResolution<CreateRedshiftCredentials>> {
         if (input.owner !== null && input.owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         const clientCredentials = this.buildCredentials(
@@ -111,7 +111,7 @@ export class RedshiftAiServiceAccountCredentialResolver implements CredentialRes
         const { owner } = input;
         if (owner !== null && owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         return [
@@ -126,7 +126,7 @@ export class RedshiftAiServiceAccountCredentialResolver implements CredentialRes
     toDbtTarget(): DbtTargetResult {
         return {
             kind: 'none',
-            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+            reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
         };
     }
 

@@ -215,7 +215,7 @@ it.each(Object.values(RedshiftAuthenticationType))(
                     redshiftSecrets,
                 ),
             ).toThrow(
-                'Set the Redshift host before adding an AI service account.',
+                'Set the Redshift host before adding a shared agent account.',
             );
     },
 );

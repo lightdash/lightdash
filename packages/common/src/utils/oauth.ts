@@ -166,7 +166,7 @@ const OAUTH_REDIRECT_TEMPLATE = `
 export const getAgentConnectErrorMessage = (code: string): string => {
     switch (code) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
         case 'no_refresh_token':
             return 'Snowflake did not return a refresh token. Try again.';
         case 'license_required':

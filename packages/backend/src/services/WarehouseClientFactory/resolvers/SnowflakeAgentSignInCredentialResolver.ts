@@ -573,7 +573,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                     break;
                 case 'agent_marker':
                     throw new UnexpectedServerError(
-                        'Snowflake cannot verify this AI principal assurance.',
+                        'Snowflake cannot verify this agent sign-in.',
                     );
                 default:
                     assertUnreachable(
@@ -630,7 +630,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                 transient: reason === AiSessionFailureReason.UNKNOWN,
                 checkedAt: new Date(),
                 reason,
-                message: 'Snowflake could not verify the AI principal.',
+                message: 'Snowflake could not verify the agent sign-in.',
                 observed: {
                     current_role: null,
                     active_restricted_session_scopes: null,

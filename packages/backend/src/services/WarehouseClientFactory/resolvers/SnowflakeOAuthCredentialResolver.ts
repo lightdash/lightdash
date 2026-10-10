@@ -154,7 +154,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
         const { owner } = input;
         if (owner?.kind === 'aiServiceAccount') {
             throw new ForbiddenError(
-                'Snowflake OAuth does not support AI service account credentials',
+                'Snowflake OAuth does not support shared agent account credentials',
             );
         }
         if (input.aiPlan?.identity === 'connected_person') {
@@ -194,7 +194,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
             const persistOwner = lockEnabled ? owner : policy.legacyOwner;
             if (persistOwner?.kind === 'aiServiceAccount') {
                 throw new ForbiddenError(
-                    'Snowflake OAuth does not support AI service account credentials',
+                    'Snowflake OAuth does not support shared agent account credentials',
                 );
             }
             const result = await this.refresher.refresh({

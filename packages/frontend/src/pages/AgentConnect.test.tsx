@@ -145,7 +145,7 @@ describe('AgentConnect', () => {
         renderPage(`project=${project}`);
         expect(
             screen.getByText(
-                'Agent connections are not enabled for your account.',
+                'Agent sign-in is not available for your account.',
             ),
         ).toBeInTheDocument();
         expect(
@@ -164,7 +164,7 @@ describe('AgentConnect', () => {
                 ),
             ).toBeInTheDocument();
             expect(
-                screen.getByRole('link', { name: 'My agent connections' }),
+                screen.getByRole('link', { name: 'My agent identity' }),
             ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
             expect(mocks.assign).not.toHaveBeenCalled();
         },

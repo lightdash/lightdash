@@ -34,11 +34,11 @@ export const MyAgentConnectionsPanel = () => {
     const isError = queries.some((query) => query.isError);
     return (
         <SettingsPage
-            title="My agent connections"
-            description="Some warehouses need your agent to sign in as you, once."
+            title="My agent identity"
+            description="See who your agents run as on each warehouse. Some warehouses need you to sign in once."
         >
             {isError ? (
-                <InlineErrorState message="Could not load your agent connections." />
+                <InlineErrorState message="Could not load your agent identity." />
             ) : isLoading ? (
                 <Loader size="sm" />
             ) : (
@@ -61,8 +61,8 @@ export const MyAgentConnectionsPanel = () => {
                         serviceAccountWarehouses.length === 0 && (
                             <SettingsEmptyState
                                 icon={IconPlugConnected}
-                                title="No agent connections needed"
-                                description="Agents use your own warehouse access. There's nothing to connect."
+                                title="Your agents run as you"
+                                description="Agents use your own warehouse access. There's nothing to set up."
                             />
                         )}
                 </>

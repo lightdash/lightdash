@@ -45,7 +45,7 @@ const resolver = new TrinoAiServiceAccountCredentialResolver();
 it('refuses to build a dbt target from AI service account credentials', () => {
     expect(resolver.toDbtTarget()).toEqual({
         kind: 'none',
-        reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+        reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
     });
 });
 it('validates preserve locally and rejects incorrect secret and connection discriminants', async () => {
@@ -175,7 +175,7 @@ it.each([false, true])(
             registry.toDbtTarget(result, result, { explicitCredentials }),
         ).toEqual({
             kind: 'none',
-            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+            reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
         });
         expect(legacy).not.toHaveBeenCalled();
     },
@@ -184,5 +184,5 @@ it.each([false, true])(
 it.each(['', '  '])('refuses a blank host %j', (host) => {
     expect(() =>
         resolver.buildCredentials({ ...trinoConnection, host }, trinoSecrets),
-    ).toThrow('Set the Trino host before adding an AI service account.');
+    ).toThrow('Set the Trino host before adding a shared agent account.');
 });

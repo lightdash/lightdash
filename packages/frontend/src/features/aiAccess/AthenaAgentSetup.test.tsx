@@ -113,7 +113,7 @@ describe('Athena agent setup', () => {
             <AthenaAgentSetup connection={connection} hasCredentials tested />,
         );
         const button = screen.getByRole('button', {
-            name: 'How to set up the AI service account',
+            name: 'How to set up the shared agent account',
         });
         expect(button).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(button);

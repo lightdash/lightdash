@@ -13,7 +13,7 @@ export const AiServiceAccountConnectionCard = ({
             <Stack gap="sm">
                 <Title order={5}>{warehouseName}</Title>
                 <Text fz="sm" c="dimmed">
-                    {`Agents on ${warehouseName} projects run as the AI service account your admin set up. They read only what that account can read. Your own access doesn't change.`}
+                    {`Agents on ${warehouseName} projects run as a shared agent account that your admin set up. They read only what that account can read. Your own access doesn't change.`}
                 </Text>
             </Stack>
         </Paper>

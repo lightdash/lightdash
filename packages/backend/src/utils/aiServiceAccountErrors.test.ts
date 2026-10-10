@@ -24,11 +24,11 @@ describe('User-password AI service account test errors', () => {
     it.each([
         [
             WarehouseTypes.POSTGRES,
-            'Postgres rejected the AI service account credentials. Check the user and password.',
+            'Postgres rejected the shared agent account credentials. Check the user and password.',
         ],
         [
             WarehouseTypes.REDSHIFT,
-            'Redshift rejected the AI service account credentials. Check the user and password.',
+            'Redshift rejected the shared agent account credentials. Check the user and password.',
         ],
     ] as const)('returns safe guidance for %s', (type, message) => {
         const error = new WarehouseQueryError('private password bytes');
@@ -219,7 +219,7 @@ describe('Athena authentication failures', () => {
         const error = new WarehouseQueryError(message);
         expect(isAthenaServiceAccountAuthError(error)).toBe(false);
         expect(getAthenaServiceAccountTestErrorMessage(error)).toBe(
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         );
     });
     it.each([
@@ -418,11 +418,11 @@ describe('Redshift AI service account errors', () => {
     it.each([
         [
             { code: '28P01' },
-            'Redshift rejected the AI service account credentials. Check the user and password.',
+            'Redshift rejected the shared agent account credentials. Check the user and password.',
         ],
         [
             { code: '28000' },
-            'Redshift rejected the AI service account credentials. Check the user and password.',
+            'Redshift rejected the shared agent account credentials. Check the user and password.',
         ],
         [
             { code: '3D000' },
@@ -430,15 +430,15 @@ describe('Redshift AI service account errors', () => {
         ],
         [
             { code: '42501' },
-            'The Redshift AI service account lacks access. Ask an admin to check its grants.',
+            'The Redshift shared agent account lacks access. Ask an admin to check its grants.',
         ],
         [
             { message: 'permission denied for table "orders"' },
-            'The Redshift AI service account lacks access. Ask an admin to check its grants.',
+            'The Redshift shared agent account lacks access. Ask an admin to check its grants.',
         ],
         [
             { code: 'ECONNRESET' },
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         ],
     ])('returns safe Redshift guidance for %j', (cause, message) => {
         const error = new WarehouseQueryError('private password bytes');
@@ -450,7 +450,7 @@ describe('Redshift AI service account errors', () => {
         error.cause = error;
         expect(isRedshiftServiceAccountAuthError(error)).toBe(false);
         expect(getRedshiftServiceAccountTestErrorMessage(error)).toBe(
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         );
     });
 });
@@ -476,7 +476,7 @@ describe('Trino service account errors', () => {
         error.response = error;
         expect(isTrinoServiceAccountAuthError(error)).toBe(false);
         expect(getTrinoServiceAccountTestErrorMessage(error)).toBe(
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         );
         error.response = { status: 401 };
         expect(isTrinoServiceAccountAuthError(error)).toBe(true);
@@ -485,7 +485,7 @@ describe('Trino service account errors', () => {
         const error = new WarehouseQueryError('secret-password');
         error.cause = { status: 401 };
         expect(getTrinoServiceAccountTestErrorMessage(error)).toBe(
-            'Trino rejected the AI service account credentials. Check the user and password.',
+            'Trino rejected the shared agent account credentials. Check the user and password.',
         );
     });
     it('keeps permission failures separate from invalid credentials', () => {
@@ -501,12 +501,12 @@ describe('Trino service account errors', () => {
                 new Error('wrapper', { cause: error }),
             ),
         ).toBe(
-            'The Trino AI service account lacks access. Ask an admin to check its access control rules.',
+            'The Trino shared agent account lacks access. Ask an admin to check its access control rules.',
         );
     });
     it.each([403, 404, 500])('uses generic guidance for HTTP %s', (status) => {
         expect(getTrinoServiceAccountTestErrorMessage({ status })).toBe(
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         );
     });
 });
@@ -598,7 +598,7 @@ describe('ClickHouse AI service account errors', () => {
         ],
         [
             '210',
-            'Could not verify the AI service account. Check the credentials and connection settings.',
+            'Could not verify the shared agent account. Check the credentials and connection settings.',
         ],
     ])('returns a safe test message for %s', (code, expected) => {
         const error = new Error('wrapper', {

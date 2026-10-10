@@ -535,7 +535,7 @@ export class AiAccessService extends BaseService {
             !isAllowedAgentIdentitySource(warehouseType, 'ai_service_account')
         ) {
             throw new ParameterError(
-                'The AI service account is not supported for the warehouse type',
+                'A shared agent account is not supported for the warehouse type',
             );
         }
         return this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
@@ -729,7 +729,7 @@ export class AiAccessService extends BaseService {
             status: hasAgentSession ? 'passed' : 'not_checked',
             detail: hasAgentSession
                 ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
-                : 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
+                : 'No one has connected an agent yet. Connect yours in My agent identity to confirm Snowflake marks the session as an agent session.',
         });
         return {
             checkedAt: new Date(),

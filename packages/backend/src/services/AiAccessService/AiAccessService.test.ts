@@ -1994,7 +1994,7 @@ describe('AiAccessService', () => {
             refusal: {
                 reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED,
                 message:
-                    'AI access runs as a signed-in person. Embedded viewers cannot use it on this connection.',
+                    "Agents run as a signed-in person on this connection. Embedded viewers can't use them.",
             },
         });
     });
@@ -3119,8 +3119,8 @@ describe('per-type execution identity resolution', () => {
                     message:
                         reason ===
                         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
-                            ? `Agents can't query ${projectName ?? 'this project'} yet. It needs an AI service account, and none is set up. A project admin can add one in Agent identity.`
-                            : `Agents can't query ${projectName ?? 'this project'} right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.`,
+                            ? `Agents can't run on ${projectName ?? 'this project'} yet. It needs a shared agent account. A project admin can add one in Agent identity.`
+                            : `Agents can't run on ${projectName ?? 'this project'} right now. Its shared agent account failed to sign in. A project admin can check it in Agent identity.`,
                 },
             });
             expect(projects.getSummary).toHaveBeenCalledWith('refused-project');
@@ -3145,7 +3145,7 @@ describe('per-type execution identity resolution', () => {
                 settingsUrl:
                     '/generalSettings/projectManagement/refused-project/agentIdentity',
                 message:
-                    "Agents can't query this project right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.",
+                    "Agents can't run on this project right now. Its shared agent account failed to sign in. A project admin can check it in Agent identity.",
             },
         });
     });
@@ -4819,7 +4819,7 @@ it('materializes the plan with the slot row, generation and source project', asy
     f.slots.getSecrets.mockResolvedValue({ slot, secrets });
     const plan = await f.service.resolvePlan({ ...args, connection: bigquery });
     if (plan?.identity !== 'ai_service_account') {
-        throw new Error('Expected an AI service account plan');
+        throw new Error('Expected a shared agent account plan');
     }
     const credentials = plan.credentials as MaterializedCredentials;
     expect(credentials[credentialResolution]?.cacheKeyIdentity).toEqual([
