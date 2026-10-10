@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     Account,
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
@@ -67,6 +68,7 @@ const user = {
 } as unknown as SessionUser;
 
 const account = {
+    authentication: { type: 'session', source: 'test-session' },
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
     user: { type: 'registered', id: userUuid },
@@ -2475,9 +2477,14 @@ describe('AiAgentToolsService', () => {
                 dashboards: [],
             }),
             spaceModel,
+            agentPermissionService,
         }: {
             upsertSqlChart?: import('vitest').Mock;
             spaceModel?: Record<string, unknown>;
+            agentPermissionService?: {
+                assertOperation: import('vitest').Mock;
+                isManaged: import('vitest').Mock;
+            };
         } = {}) => {
             const getSqlChartsForRead = vi.fn(
                 async (_user: SessionUser, _project: string, [slug]) => ({
@@ -2490,6 +2497,7 @@ describe('AiAgentToolsService', () => {
                 .mockResolvedValue({ versionUuid: 'version-after' });
             const service = makeService({
                 spaceModel,
+                agentPermissionService,
                 savedSqlService: makeSavedSqlService(),
                 coderService: {
                     upsertSqlChart,
@@ -2504,6 +2512,181 @@ describe('AiAgentToolsService', () => {
             });
             return { service, upsertSqlChart, getSqlChartsForRead };
         };
+
+        describe.each([
+            { source: 'ai_agent', authenticationType: 'session' },
+            { source: 'mcp', authenticationType: 'session' },
+            { source: 'mcp', authenticationType: 'oauth' },
+            { source: 'mcp', authenticationType: 'pat' },
+        ] as const)(
+            '$source $authenticationType SQL chart effects',
+            ({ source, authenticationType }) => {
+                it.each(['create', 'sql', 'name', 'config'] as const)(
+                    'refuses %s before approval or saving without Raw SQL',
+                    async (change) => {
+                        const refusal = new AiAccessRefusedError(
+                            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                            {
+                                capability: AgentCapability.RawSql,
+                                policyLayer: 'org_ceiling',
+                            },
+                        );
+                        const assertOperation = vi.fn(
+                            async (operation: { kind: string }) => {
+                                if (operation.kind === 'tool_effect')
+                                    throw refusal;
+                            },
+                        );
+                        const { service, upsertSqlChart } = makeSqlChartService(
+                            {
+                                agentPermissionService: {
+                                    isManaged: vi.fn().mockResolvedValue(true),
+                                    assertOperation,
+                                },
+                            },
+                        );
+                        const effectAccount = {
+                            ...account,
+                            authentication: {
+                                type: authenticationType,
+                                source: 'test-credential',
+                                token: 'test-token',
+                                clientId: 'test-client',
+                                scopes: [],
+                            },
+                        } as Account;
+                        const context = makeRuntimeContext({
+                            account: effectAccount,
+                        });
+                        const runtime =
+                            source === 'mcp'
+                                ? service.createRuntime({ ...context, source })
+                                : service.createRuntime(context);
+                        const approveSql = vi.fn().mockResolvedValue(undefined);
+                        const patchValues = {
+                            sql: 'select 1',
+                            name: 'New title',
+                            config: makeSqlChartContent().config,
+                        };
+                        const result =
+                            change === 'create'
+                                ? runtime.createContent({
+                                      type: 'sql_chart',
+                                      content: makeSqlChartContent() as never,
+                                      approveSql,
+                                  })
+                                : runtime.editContent({
+                                      type: 'sql_chart',
+                                      slug: 'orders-by-status',
+                                      patch: [
+                                          {
+                                              op: 'replace',
+                                              path: `/${change}`,
+                                              value: patchValues[change],
+                                          },
+                                      ],
+                                      approveSql,
+                                  });
+                        if (source === 'mcp' && authenticationType === 'pat') {
+                            await expect(result).resolves.toBeDefined();
+                            expect(upsertSqlChart).toHaveBeenCalledOnce();
+                            expect(assertOperation).not.toHaveBeenCalled();
+                            return;
+                        }
+                        await expect(result).rejects.toBe(refusal);
+                        expect(assertOperation).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                kind: 'tool_effect',
+                                key:
+                                    change === 'create'
+                                        ? 'createContent.sql_chart'
+                                        : 'editContent.sql_chart',
+                                account: effectAccount,
+                                organizationUuid,
+                                projectUuid,
+                                surface:
+                                    source === 'mcp'
+                                        ? AgentActorSurface.MCP
+                                        : AgentActorSurface.IN_APP_AGENT,
+                            }),
+                        );
+                        expect(approveSql).not.toHaveBeenCalled();
+                        expect(upsertSqlChart).not.toHaveBeenCalled();
+                    },
+                );
+
+                it.each([true, false])(
+                    'saves SQL content when the effect is allowed (managed=%s)',
+                    async (managed) => {
+                        const assertOperation = vi
+                            .fn()
+                            .mockResolvedValue(undefined);
+                        const { service, upsertSqlChart } = makeSqlChartService(
+                            {
+                                agentPermissionService: {
+                                    isManaged: vi
+                                        .fn()
+                                        .mockResolvedValue(managed),
+                                    assertOperation,
+                                },
+                            },
+                        );
+                        const effectAccount = {
+                            ...account,
+                            authentication: {
+                                type: authenticationType,
+                                source: 'test-credential',
+                                token: 'test-token',
+                                clientId: 'test-client',
+                                scopes: [],
+                            },
+                        } as Account;
+                        const context = makeRuntimeContext({
+                            account: effectAccount,
+                        });
+                        const runtime =
+                            source === 'mcp'
+                                ? service.createRuntime({ ...context, source })
+                                : service.createRuntime(context);
+                        const approveSql = vi.fn().mockResolvedValue(undefined);
+                        await runtime.createContent({
+                            type: 'sql_chart',
+                            content: makeSqlChartContent() as never,
+                            approveSql,
+                        });
+                        await runtime.editContent({
+                            type: 'sql_chart',
+                            slug: 'orders-by-status',
+                            patch: [
+                                {
+                                    op: 'replace',
+                                    path: '/name',
+                                    value: 'New title',
+                                },
+                            ],
+                            approveSql,
+                        });
+                        expect(upsertSqlChart).toHaveBeenCalledTimes(2);
+                        if (managed && authenticationType !== 'pat') {
+                            expect(assertOperation).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    kind: 'tool_effect',
+                                    key: 'createContent.sql_chart',
+                                }),
+                            );
+                            expect(assertOperation).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    kind: 'tool_effect',
+                                    key: 'editContent.sql_chart',
+                                }),
+                            );
+                        } else {
+                            expect(assertOperation).not.toHaveBeenCalled();
+                        }
+                    },
+                );
+            },
+        );
 
         it('saves an approved SQL chart with a unique slug on the primary connection', async () => {
             const { service, upsertSqlChart } = makeSqlChartService();

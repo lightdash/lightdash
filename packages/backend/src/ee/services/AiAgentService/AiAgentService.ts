@@ -11819,6 +11819,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 {},
                 () =>
                     this.aiWritebackService.run({
+                        agentPermissionsApply: true,
                         user,
                         projectUuid,
                         prompt: writebackPrompt,
@@ -12862,6 +12863,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 {},
                 () =>
                     this.aiWritebackService.runEditRepo({
+                        agentPermissionsApply: true,
                         user,
                         projectUuid,
                         repoTarget: args.repoTarget,

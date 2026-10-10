@@ -67,6 +67,8 @@ import {
     type SqlChartAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
+import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
+import { type AgentToolEffect } from '../../../auth/agentPermissions/capabilityMap';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
@@ -765,6 +767,36 @@ export class AiAgentToolsService extends BaseService {
             throw new NotFoundError('Explore not found');
         }
         return explore;
+    }
+
+    private async assertToolEffectAllowed(
+        context: AiAgentToolsRuntimeContext,
+        key: AgentToolEffect,
+    ): Promise<void> {
+        if (
+            context.source === 'mcp' &&
+            !mcpAgentPermissionsApply(context.account.authentication.type)
+        )
+            return;
+        if (
+            !(await this.agentPermissionService.isManaged(
+                context.organizationUuid,
+            ))
+        )
+            return;
+        assertRegisteredAccount(context.account);
+        await this.agentPermissionService.assertOperation({
+            account: context.account,
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+            kind: 'tool_effect',
+            key,
+            surface:
+                agentExecutionContext.getStore()?.surface ??
+                (context.source === 'mcp'
+                    ? AgentActorSurface.MCP
+                    : AgentActorSurface.IN_APP_AGENT),
+        });
     }
 
     private withAgentRuntimePermissions(
@@ -3056,6 +3088,7 @@ export class AiAgentToolsService extends BaseService {
             approveSql: ApproveSqlFn;
         },
     ): Promise<string | undefined> {
+        await this.assertToolEffectAllowed(context, 'editContent.sql_chart');
         this.validateContentAsCode('sql_chart', patched);
         await this.assertContentSpaceInScope(
             context,
@@ -3100,6 +3133,7 @@ export class AiAgentToolsService extends BaseService {
         content: SqlChartAsCode,
         approveSql: ApproveSqlFn,
     ) {
+        await this.assertToolEffectAllowed(context, 'createContent.sql_chart');
         this.assertCanSaveSqlCharts(context);
         await approveSql({
             sql: content.sql,

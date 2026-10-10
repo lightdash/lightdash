@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AgentActorSurface,
+    assertUnreachable,
     DbtProjectType,
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     FeatureFlags,
@@ -34,6 +36,7 @@ import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account/account';
 import {
     getRepoDefaultBranch,
     getRepoMetadata,
@@ -57,6 +60,7 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type { UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
     getContentWriteAgentIdentity,
@@ -172,6 +176,7 @@ import {
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
+    parseGitNameStatus,
     parsePullNumber,
     parsePullRequestUrl,
     progressTextForStage,
@@ -180,6 +185,7 @@ import {
     resolveSandboxAnthropicConfig,
     resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
+    resolveWritebackAgentPermissionsApply,
     splitStreamBuffer,
     summarizeRepoListing,
     summarizeToolInput,
@@ -240,6 +246,10 @@ type DbtTargetCandidate = {
 };
 
 type AiWritebackServiceDeps = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'isManaged' | 'assertOperation'
+    >;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -476,6 +486,8 @@ const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
 };
 
 export class AiWritebackService extends BaseService {
+    private readonly agentPermissionService: AiWritebackServiceDeps['agentPermissionService'];
+
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -528,6 +540,7 @@ export class AiWritebackService extends BaseService {
     private sandboxManager: SandboxManager | undefined;
 
     constructor({
+        agentPermissionService,
         agentActionLogModel,
         lightdashConfig,
         analytics,
@@ -549,6 +562,7 @@ export class AiWritebackService extends BaseService {
         orgAiCopilotConfigResolver,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
+        this.agentPermissionService = agentPermissionService;
         this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -1956,6 +1970,7 @@ export class AiWritebackService extends BaseService {
             dbtSourceUuid: args.dbtSourceUuid,
             prUrl: args.prUrl,
             startNewPullRequest: args.startNewPullRequest,
+            agentPermissionsApply: args.agentPermissionsApply,
             source,
         });
         return {
@@ -1991,6 +2006,8 @@ export class AiWritebackService extends BaseService {
                 prUrl: payload.prUrl,
                 startNewPullRequest: payload.startNewPullRequest,
                 source: payload.source,
+                agentPermissionsApply:
+                    resolveWritebackAgentPermissionsApply(payload),
                 aiWritebackRunUuid,
             });
         } catch (error) {
@@ -2231,6 +2248,25 @@ export class AiWritebackService extends BaseService {
                     error,
                 });
             throw error;
+        }
+    }
+
+    private static getAgentSurface(
+        source: AiWritebackSource,
+    ): AgentActorSurface {
+        switch (source) {
+            case 'mcp':
+                return AgentActorSurface.MCP;
+            case 'slack':
+                return AgentActorSurface.SLACK_AGENT;
+            case 'web':
+            case 'admin_review':
+                return AgentActorSurface.IN_APP_AGENT;
+            case 'api':
+            case 'changeset':
+                return AgentActorSurface.API;
+            default:
+                return assertUnreachable(source, 'Unknown writeback source');
         }
     }
 
@@ -2653,6 +2689,35 @@ export class AiWritebackService extends BaseService {
                     projectSubPath: turn.gitConnection.projectSubPath,
                     warehouseType: turn.warehouseType,
                 });
+            }
+
+            if (
+                hasChanges &&
+                args.agentPermissionsApply &&
+                (await this.agentPermissionService.isManaged(
+                    turn.organizationUuid,
+                ))
+            ) {
+                const changes = await sandbox.commands.run(
+                    `git -C ${CWD} diff HEAD --name-status --no-renames -z`,
+                );
+                if (changes.exitCode !== 0) {
+                    throw new UnexpectedServerError(
+                        'Could not inspect repository changes before commit',
+                    );
+                }
+                if (parseGitNameStatus(changes.stdout).deletions.length > 0) {
+                    await this.agentPermissionService.assertOperation({
+                        account: fromSession(user),
+                        organizationUuid: turn.organizationUuid,
+                        projectUuid,
+                        kind: 'tool_effect',
+                        key: 'editRepo.delete_file',
+                        surface:
+                            agentExecutionContext.getStore()?.surface ??
+                            AiWritebackService.getAgentSurface(source),
+                    });
+                }
             }
 
             // Finalize claim: atomic arbitration with tasks/cancel before any

@@ -144,6 +144,7 @@ export type AgentPermissionOperationKind =
     | 'agent_turn'
     | 'mcp_tool'
     | 'agent_tool'
+    | 'tool_effect'
     | 'rest_operation'
     | 'connected_mcp_tool';
 
@@ -160,6 +161,7 @@ const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
     ],
     agent_tool: ['listProjects'],
     agent_turn: [],
+    tool_effect: [],
     connected_mcp_tool: [],
     rest_operation: [
         'UserController.getAccount',
@@ -199,6 +201,8 @@ const requiredCapabilitiesForOperation = (
             return getRequiredAgentCapabilities('mcp', key);
         case 'agent_tool':
             return getRequiredAgentCapabilities('agent', key);
+        case 'tool_effect':
+            return getRequiredAgentCapabilities('tool_effect', key);
         case 'rest_operation':
             return getRequiredAgentCapabilities('rest', key);
         case 'connected_mcp_tool':
