@@ -1,5 +1,4 @@
 import {
-    AGENT_PILOT_CAPABILITIES,
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
@@ -30,6 +29,12 @@ vi.mock('@sentry/node', () => ({
 }));
 
 const projectUuid = 'allowed-project';
+
+const restrictedCapabilities = [
+    AgentCapability.ReadDiscover,
+    AgentCapability.Query,
+    AgentCapability.Export,
+] as const;
 
 const setup = (
     authentication: 'oauth' | 'session' | 'pat' | 'service-account' = 'oauth',
@@ -62,7 +67,7 @@ const setup = (
         version: 1,
         allowedProjectUuids: [projectUuid],
         allowedUserUuids: null,
-        systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
+        systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     };
     const deps = {
         resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),

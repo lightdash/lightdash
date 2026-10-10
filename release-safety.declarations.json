@@ -57,6 +57,21 @@
         "agent-identity-test-access-endpoint-removed": {
             "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/projects/{projectUuid}/ai-access/service-account/test-access and the exported AgentAccessReport, AgentAccessTestRequest and BigqueryAgentAccessProbe types. API clients that called the per-table access check get a 404 and must use POST .../ai-access/service-account/test instead, which still checks the AI service account key. Only the Lightdash frontend called the removed endpoint, so no rolling upgrade is affected.",
             "requiredStop": false
+        },
+        "agent-permissions-pilot-preset-removed": {
+            "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/org/agent-permissions/pilot-preset and the pilotPreset field from GET /api/v2/org/agent-permissions. The agent-identity flag is off by default on Cloud and on self-hosted, and the endpoint refuses callers when the flag is off. No released Lightdash UI ever called the endpoint or read the field. API clients get a 404 and must save the capability ceiling with PUT /api/v2/org/agent-permissions instead.",
+            "requiredStop": false,
+            "impact": {
+                "kind": "no-external-callers",
+                "featureFlag": "agent-identity",
+                "covers": {
+                    "rest": [
+                        "POST /api/v2/org/agent-permissions/pilot-preset",
+                        "GET /api/v2/org/agent-permissions"
+                    ],
+                    "mcp": []
+                }
+            }
         }
     }
 }
