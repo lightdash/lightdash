@@ -300,6 +300,8 @@ import { type AgentPermissionService } from '../../../services/AgentPermissionSe
 import {
     agentExecutionContext,
     createAgentExecutionContext,
+    resolveQueryAgentActor,
+    type QueryAgentActor,
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
@@ -3615,6 +3617,22 @@ export class AiAgentService extends BaseService {
         return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
     }
 
+    private async getArtifactQueryActor(
+        promptUuid: string | null,
+        agentUuid: string,
+    ) {
+        const querySurface = await this.getArtifactQuerySurface(promptUuid);
+        const actor = resolveQueryAgentActor({
+            context: QueryExecutionContext.AI,
+            querySurface,
+            oauthClientId: null,
+        });
+        return {
+            querySurface,
+            agentActor: actor ? { ...actor, agentUuid } : null,
+        };
+    }
+
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
@@ -3622,6 +3640,7 @@ export class AiAgentService extends BaseService {
         vizConfig: AiAgentVizConfig['config'],
         parameters: ParametersValuesMap | null,
         querySurface: QuerySurface,
+        agentActor: QueryAgentActor | null,
         // Set for custom chart type answers (built from the artifact
         // envelope): pivot derivation follows the type's schema instead of
         // the builtin groupBy path.
@@ -3693,6 +3712,7 @@ export class AiAgentService extends BaseService {
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
                 querySurface,
+                agentActor,
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
                 userAttributeOverrides,
@@ -3736,6 +3756,7 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
         querySurface: QuerySurface,
+        agentActor: QueryAgentActor | null,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
@@ -3749,6 +3770,7 @@ export class AiAgentService extends BaseService {
             mergeQuery,
             context: QueryExecutionContext.AI,
             querySurface,
+            agentActor,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
             userAttributeOverrides,
@@ -9270,11 +9292,18 @@ export class AiAgentService extends BaseService {
             if (!parsed?.mergeConfig) {
                 throw new ParameterError('Invalid merge visualization config');
             }
+            const { querySurface, agentActor } =
+                await this.getArtifactQueryActor(
+                    artifact.promptUuid,
+                    agent.uuid,
+                );
+
             const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
                 user,
                 projectUuid,
                 parsed,
-                await this.getArtifactQuerySurface(artifact.promptUuid),
+                querySurface,
+                agentActor,
                 runtimeOptions?.userAttributeOverrides,
             );
             this.analytics.track({
@@ -9323,15 +9352,20 @@ export class AiAgentService extends BaseService {
             }
 
             // Re-executes as the viewer — same trust model as viewing a saved SQL chart.
+            const { querySurface, agentActor } =
+                await this.getArtifactQueryActor(
+                    artifact.promptUuid,
+                    agent.uuid,
+                );
+
             const query = await this.asyncQueryService.executeAsyncSqlQuery({
                 account: fromSession(user),
                 projectUuid,
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
                 context: QueryExecutionContext.AI,
-                querySurface: await this.getArtifactQuerySurface(
-                    artifact.promptUuid,
-                ),
+                querySurface,
+                agentActor,
             });
 
             this.analytics.track({
@@ -9383,13 +9417,19 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('Could not generate a visualization');
         }
 
+        const { querySurface, agentActor } = await this.getArtifactQueryActor(
+            artifact.promptUuid,
+            agent.uuid,
+        );
+
         const query = await this.executeAsyncAiMetricQuery(
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
             artifactChartConfig.config,
             parsedVizConfig.parameters,
-            await this.getArtifactQuerySurface(artifact.promptUuid),
+            querySurface,
+            agentActor,
             customChartType,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -9524,13 +9564,18 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const { querySurface, agentActor } = await this.getArtifactQueryActor(
+            artifact.promptUuid,
+            agent.uuid,
+        );
         const query = await this.executeAsyncAiMetricQuery(
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
             parsedVizConfig.parameters,
-            await this.getArtifactQuerySurface(artifact.promptUuid),
+            querySurface,
+            agentActor,
             undefined,
             runtimeOptions?.userAttributeOverrides,
         );

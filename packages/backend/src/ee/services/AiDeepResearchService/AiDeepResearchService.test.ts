@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
     AiAccessRefusalReason,
@@ -2762,6 +2763,14 @@ describe('AiDeepResearchService', () => {
                     metricQuery: refreshQueryHistory.metricQuery,
                     context: QueryExecutionContext.AI,
                     querySurface,
+                    agentActor:
+                        querySurface === QuerySurface.API
+                            ? null
+                            : {
+                                  surface: AgentActorSurface.IN_APP_AGENT,
+                                  clientId: 'lightdash-chat',
+                                  agentUuid: 'agent-1',
+                              },
                     pivotConfiguration: undefined,
                 });
                 expect(result).toEqual({

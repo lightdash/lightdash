@@ -4903,6 +4903,167 @@ describe('AsyncQueryService', () => {
             ).rejects.toThrow('Agents cannot query a pre-aggregate explore.');
         });
 
+        describe.each(['metric', 'SQL'] as const)(
+            'artifact %s recorded claim',
+            (queryKind) => {
+                test.each([
+                    'user subject',
+                    'service-account subject',
+                    'shared agent account',
+                    'preview inherits parent account',
+                    'omitted actor',
+                    'null agent UUID',
+                    'identity disabled',
+                ])('preserves the plan for %s', async (scenario) => {
+                    const service =
+                        getMockedAsyncQueryService(lightdashConfigMock);
+                    Object.assign(service, {
+                        projectModel: {
+                            ...projectModel,
+                            getAgentSqlScope: vi.fn().mockResolvedValue(null),
+                        },
+                    });
+                    const baseline = buildAgentIdentityClaim({
+                        subject: {
+                            type:
+                                scenario === 'service-account subject'
+                                    ? 'service_account'
+                                    : 'user',
+                            uuid: 'plan-subject',
+                        },
+                        surface: AgentActorSurface.SLACK_AGENT,
+                        clientId: 'plan-client',
+                        agentUuid: 'plan-agent',
+                    });
+                    Object.freeze(baseline.subject);
+                    Object.freeze(baseline.act);
+                    Object.freeze(baseline);
+                    const agentActor =
+                        scenario === 'omitted actor'
+                            ? undefined
+                            : {
+                                  surface: AgentActorSurface.IN_APP_AGENT,
+                                  clientId: 'lightdash-chat',
+                                  agentUuid:
+                                      scenario === 'null agent UUID'
+                                          ? null
+                                          : 'artifact-agent',
+                              };
+                    const plan =
+                        scenario === 'shared agent account' ||
+                        scenario === 'preview inherits parent account'
+                            ? {
+                                  ...aiServiceAccountPlanMock,
+                                  inheritedFromProjectUuid:
+                                      scenario ===
+                                      'preview inherits parent account'
+                                          ? 'parent-project'
+                                          : null,
+                              }
+                            : markedPersonPlanMock;
+                    const aiPlan =
+                        scenario === 'identity disabled'
+                            ? null
+                            : { ...plan, agentIdentity: baseline };
+                    const credentials = {
+                        warehouseCredentials: warehouseCredentialsMock,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: {
+                            route: 'single',
+                            originalWarehouseConnectionUuid: null,
+                        },
+                        aiPlan,
+                    };
+                    vi.spyOn(
+                        service,
+                        'getExploreWithUserAccessControls',
+                    ).mockResolvedValue({
+                        explore: validExplore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                    vi.spyOn(
+                        service as AnyType,
+                        'getWarehouseCredentialsWithConnection',
+                    ).mockResolvedValue(credentials);
+                    const queryComposer = createQueryComposerMock();
+                    vi.spyOn(
+                        service as AnyType,
+                        'prepareMetricQueryAsyncQueryArgs',
+                    ).mockResolvedValue(queryComposer);
+                    vi.spyOn(
+                        service as AnyType,
+                        'prepareSqlChartAsyncQueryArgs',
+                    ).mockResolvedValue({
+                        ...credentials,
+                        queryComposer,
+                        queryTags: {},
+                    });
+                    const execute = vi.spyOn(
+                        service as AnyType,
+                        'executeAsyncQuery',
+                    );
+                    const run = vi
+                        .spyOn(service, 'runAsyncWarehouseQuery')
+                        .mockResolvedValue(undefined);
+                    const args = {
+                        account: sessionAccount,
+                        projectUuid,
+                        context: QueryExecutionContext.AI,
+                        querySurface: QuerySurface.APP,
+                        ...(agentActor === undefined ? {} : { agentActor }),
+                    };
+                    if (queryKind === 'metric') {
+                        await service.executeAsyncMetricQuery({
+                            ...args,
+                            metricQuery: metricQueryMock,
+                        });
+                    } else {
+                        await service.executeAsyncSqlQuery({
+                            ...args,
+                            sql: 'select 1',
+                            limit: 10,
+                        });
+                    }
+                    expect(
+                        service.queryHistoryModel.create,
+                    ).toHaveBeenCalledOnce();
+                    const recorded = vi.mocked(service.queryHistoryModel.create)
+                        .mock.calls[0][1];
+                    const expected =
+                        aiPlan === null
+                            ? null
+                            : {
+                                  ...baseline,
+                                  act: {
+                                      ...baseline.act,
+                                      agent_uuid:
+                                          agentActor?.agentUuid ??
+                                          baseline.act.agent_uuid,
+                                  },
+                              };
+                    expect(recorded.agentIdentity ?? null).toEqual(expected);
+                    expect(run).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({
+                            agentIdentity: expected,
+                        }),
+                    );
+                    expect(execute.mock.calls[0][0]).toEqual(
+                        expect.objectContaining({
+                            inheritedFromProjectUuid:
+                                scenario === 'preview inherits parent account'
+                                    ? 'parent-project'
+                                    : null,
+                        }),
+                    );
+                    expect(baseline.act.agent_uuid).toBe('plan-agent');
+                    expect(agentExecutionContext.getStore()).toBeUndefined();
+                });
+            },
+        );
+
         test.each([
             'reuse',
             'scope-change',
@@ -14748,6 +14909,67 @@ describe('executeAsyncMergeQuery on the compose engine', () => {
         count: number,
     ) =>
         vi.waitFor(() => expect(mergeEvents(trackAccount)).toHaveLength(count));
+
+    it.each([true, false])(
+        'carries the artifact actor to every merge leg and the gated join claim: %s',
+        async (enabled) => {
+            const { service, create, trackAccount } = buildService({
+                config: cappedConfig,
+                legRowCount: 2,
+            });
+            const agentActor = {
+                surface: AgentActorSurface.API,
+                clientId: 'artifact-client',
+                agentUuid: 'artifact-agent',
+            };
+            vi.spyOn(
+                (service as unknown as { aiAccessService: AiAccessService })
+                    .aiAccessService,
+                'assertCanReadResultsForQueries',
+            ).mockImplementation(
+                async (
+                    _account,
+                    _projectUuid,
+                    _roots,
+                    _evaluation,
+                    onIdentityEnabled,
+                ) => {
+                    if (enabled) onIdentityEnabled?.();
+                    return new Map();
+                },
+            );
+            await service.executeAsyncMergeQuery({
+                account: sessionAccount,
+                projectUuid,
+                mergeQuery,
+                context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.APP,
+                agentActor,
+                mode: { type: 'interactive' },
+            });
+            expect(service.executeAsyncMetricQuery).toHaveBeenCalledTimes(2);
+            for (const [args] of vi.mocked(service.executeAsyncMetricQuery).mock
+                .calls) {
+                expect(args.agentActor).toEqual(agentActor);
+            }
+            expect(create).toHaveBeenCalledOnce();
+            expect(create.mock.calls[0][1].agentIdentity ?? null).toEqual(
+                enabled
+                    ? buildAgentIdentityClaim({
+                          subject: {
+                              type: 'user',
+                              uuid: sessionAccount.user.id,
+                          },
+                          surface: AgentActorSurface.IN_APP_AGENT,
+                          clientId: 'lightdash-chat',
+                          agentUuid: agentActor.agentUuid,
+                      })
+                    : null,
+            );
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+            await drainMergeEvents(trackAccount, 1);
+        },
+    );
 
     it('runs a saved Document merge for a view-only reader with RLS and provenance on every leg and root', async () => {
         const {

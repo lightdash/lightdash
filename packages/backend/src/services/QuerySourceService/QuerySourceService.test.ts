@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     DimensionType,
     ForbiddenError,
     ParameterError,
@@ -707,6 +708,64 @@ describe('composer pipelines return the standard results interface', () => {
             }
         },
     );
+
+    it('carries the artifact actor through semantic and planned DuckDB merge nodes', async () => {
+        const agentActor = {
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'artifact-agent',
+        };
+        const plan: DuckdbQueryPlan = {
+            columns: { mode: 'discover' },
+            engine: 'scopedToReferencedResults',
+            guard: null,
+            referenceLabels: {},
+        };
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+        await service.submitQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.AI,
+            querySurface: QuerySurface.APP,
+            agentActor,
+            queries: [
+                {
+                    nodeId: 'metric',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                },
+                {
+                    nodeId: 'join',
+                    sourceType: QuerySourceType.DUCKDB,
+                    sql: 'select * from metric',
+                    references: ['metric'],
+                },
+            ],
+            plans: { join: plan },
+        });
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ agentActor }),
+        );
+        expect(
+            asyncQueryService.executeAsyncDuckdbSourceQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                agentActor,
+                plan,
+                references: { metric: 'metric-query-uuid' },
+            }),
+        );
+        expect(
+            asyncQueryService.executeAsyncComposeSqlQuery,
+        ).not.toHaveBeenCalled();
+        expect(asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
+    });
 
     it('resolves a single-node semantic-layer pipeline to the metric query itself, without a DuckDB wrapper', async () => {
         const { registry, asyncQueryService } = createRealSources();

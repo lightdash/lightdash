@@ -64,6 +64,7 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type UserModel } from '../../../models/UserModel';
+import { resolveQueryAgentActor } from '../../../services/AiAccessService/agentExecutionContext';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { type DocumentService } from '../../../services/DocumentService/DocumentService';
@@ -1197,14 +1198,21 @@ export class AiDeepResearchService extends BaseService {
             run.prompt_uuid,
         );
 
+        const querySurface = prompt
+            ? querySurfaceFromPrompt(prompt)
+            : QuerySurface.APP;
+        const actor = resolveQueryAgentActor({
+            context: QueryExecutionContext.AI,
+            querySurface,
+            oauthClientId: null,
+        });
         const query = await this.asyncQueryService.executeAsyncMetricQuery({
             account: args.account,
             projectUuid: args.projectUuid,
             metricQuery: chart.metricQuery,
             context: QueryExecutionContext.AI,
-            querySurface: prompt
-                ? querySurfaceFromPrompt(prompt)
-                : QuerySurface.APP,
+            querySurface,
+            agentActor: actor ? { ...actor, agentUuid: run.agent_uuid } : null,
             pivotConfiguration: this.getChartPivotConfiguration(chart),
         });
 

@@ -3,10 +3,18 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     MergeJoinType,
+    QueryExecutionContext,
+    QuerySurface,
     type AnonymousAccount,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
+import {
+    agentExecutionContext,
+    buildQueryAgentIdentity,
+    withQueryAgentUuid,
+} from '../../../services/AiAccessService/agentExecutionContext';
+import type { CommonAsyncQueryArgs } from '../../../services/AsyncQueryService/types';
 import {
     metricQueryMock,
     validExplore,
@@ -82,6 +90,19 @@ const query = {
 const redactedQuery = {
     ...query,
     fields: { a_dim1: expect.objectContaining({ sql: '', compiledSql: '' }) },
+};
+
+const expectArtifactClaim = (args: CommonAsyncQueryArgs) => {
+    const baseline = buildQueryAgentIdentity(
+        args.account,
+        QueryExecutionContext.AI,
+        args.querySurface ?? QuerySurface.APP,
+    );
+    expect(withQueryAgentUuid(baseline, args.agentActor)).toEqual({
+        ...baseline,
+        act: { ...baseline!.act, agent_uuid: 'agent-uuid' },
+    });
+    expect(agentExecutionContext.getStore()).toBeUndefined();
 };
 
 const buildService = () => {
@@ -192,6 +213,9 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
+                expectArtifactClaim(
+                    asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
+                );
                 expect(result.query).toEqual(embedded ? redactedQuery : query);
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
@@ -248,6 +272,9 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
+            expectArtifactClaim(
+                asyncQueryService.executeAsyncMergeQuery.mock.calls[0][0],
+            );
             expect(result.query).toEqual(embedded ? redactedQuery : query);
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
@@ -305,4 +332,53 @@ describe('artifact visualization identity refusals', () => {
             }),
         ).rejects.toBe(refusal);
     });
+});
+
+describe('artifact visualization agent ownership', () => {
+    it('uses the resolved agent row rather than the path value', async () => {
+        const { service, asyncQueryService } = buildService();
+        await service.getArtifactVizQuery(user, {
+            projectUuid: 'project-uuid',
+            agentUuid: 'request-agent-value',
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-uuid',
+        });
+        expectArtifactClaim(
+            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
+        );
+    });
+
+    it.each(['chart', 'dashboard'] as const)(
+        'rejects a mismatched path agent before executing a %s query',
+        async (artifactType) => {
+            const { service, aiAgentModel, asyncQueryService } = buildService();
+            aiAgentModel.findThread.mockResolvedValue({
+                organizationUuid: 'org-uuid',
+                projectUuid: 'project-uuid',
+                agentUuid: 'different-thread-agent',
+            });
+            const options = {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            };
+            await expect(
+                artifactType === 'chart'
+                    ? service.getArtifactVizQuery(user, options)
+                    : service.getDashboardArtifactChartVizQuery(user, {
+                          ...options,
+                          chartIndex: 0,
+                      }),
+            ).rejects.toThrow(
+                'Insufficient permissions to access this artifact',
+            );
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.executeAsyncMergeQuery,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });
