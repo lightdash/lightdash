@@ -24,6 +24,7 @@ export const createScopeCheckedRefreshTokenGrant = (
             const binding: OAuthTokenBinding = {
                 resource: null,
                 familyUuid: null,
+                agentConnectionGrantUuid: null,
                 parentRefreshToken: null,
             };
             const boundOptions = {
@@ -46,7 +47,27 @@ export const createScopeCheckedRefreshTokenGrant = (
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.Token> {
             const token = await super.getRefreshToken(request, client);
-            if (await resolveStrict(token.user)) {
+            this.binding.agentConnectionGrantUuid =
+                token.agentConnectionGrantUuid ?? null;
+            if (this.binding.agentConnectionGrantUuid !== null) {
+                if (!token.familyUuid)
+                    throw new OAuth2Server.InvalidGrantError(
+                        'Agent connection refresh family is missing',
+                    );
+                const requested = this.getScope(request, token) ?? [];
+                const original: string[] = token.scope ?? [];
+                if (
+                    requested.length !== original.length ||
+                    requested.some((scope) => !original.includes(scope))
+                )
+                    throw new OAuth2Server.InvalidScopeError(
+                        'Agent connection scopes cannot change',
+                    );
+            }
+            if (
+                this.binding.agentConnectionGrantUuid !== null ||
+                (await resolveStrict(token.user))
+            ) {
                 this.binding.familyUuid = token.familyUuid ?? randomUUID();
                 this.binding.parentRefreshToken = token.refreshToken ?? null;
                 this.binding.resource = resolveGrantedOAuthResource(

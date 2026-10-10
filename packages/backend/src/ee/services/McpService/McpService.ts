@@ -141,6 +141,7 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import { assertAgentConnectionGrantOperation } from '../../../auth/agentConnectionGrants/evaluateGrant';
 import { mcpAgentPermissionsApply } from '../../../auth/agentPermissions/caller';
 import {
     assertOAuthMcpToolAllowed,
@@ -5571,7 +5572,11 @@ export class McpService extends BaseService {
         if (!permissions) {
             throw new ForbiddenError('Agent permission service is unavailable');
         }
-        if (!(await permissions.isManaged(organizationUuid))) return;
+        const bound =
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant != null;
+        const managed = await permissions.isManaged(organizationUuid);
+        if (!bound && !managed) return;
         const explicitScope = mcpToolScopeArgsSchema.safeParse(toolArgs);
         const pinnedProjectUuid = context.authInfo?.extra.headerProjectUuid;
         if (
@@ -5586,6 +5591,12 @@ export class McpService extends BaseService {
         const projectUuid = explicitScope.success
             ? explicitScope.data.projectUuid
             : ((await this.getProjectUuidFromContext(context)) ?? null);
+        assertAgentConnectionGrantOperation(account, {
+            kind: 'mcp',
+            key: toolName,
+            projectUuids: projectUuid === null ? [] : [projectUuid],
+        });
+        if (!managed) return;
         await permissions.assertOperation({
             account,
             organizationUuid,

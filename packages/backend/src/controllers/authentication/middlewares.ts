@@ -78,14 +78,15 @@ const hasWrongOAuthAudience = (
 const getOAuthScopePolicy = async (
     req: Request,
     user: SessionUser,
+    enforceGrant = false,
 ): Promise<OAuthScopePolicy | null> => {
     const mode = await resolveOAuthScopeMode(
         req.services.getFeatureFlagService(),
         user,
     );
-    if (mode === null) return null;
+    if (mode === null && !enforceGrant) return null;
     return {
-        mode,
+        mode: enforceGrant ? 'enforce' : mode!,
         getRequest: () => {
             const route = req.route as { path: unknown } | undefined;
             return {
@@ -104,23 +105,46 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const { account } = req;
     if (
         account?.authentication.type !== 'oauth' ||
-        !account.organization.organizationUuid ||
-        isMcpRequest(req)
+        !account.organization.organizationUuid
     )
         return;
     assertRegisteredAccount(account);
+    const operation = resolveOAuthRouteOperation(req);
+    const grantProjectUuids =
+        account.authentication.agentConnectionGrant && !isMcpRequest(req)
+            ? await req.services
+                  .getAgentConnectionGrantService()
+                  .assertRestOperation(req, operation)
+            : null;
+    const scopeOperation =
+        operation !== null &&
+        Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
+            ? (operation as keyof typeof OAUTH_UNCHECKED_OPERATIONS)
+            : null;
+    if (grantProjectUuids !== null && scopeOperation !== null)
+        assertOAuthScopeOperation(account, scopeOperation);
+    if (isMcpRequest(req)) return;
     const service = req.services.getAgentPermissionService();
     if (!(await service.isManaged(account.organization.organizationUuid)))
         return;
-    const operation = resolveOAuthRouteOperation(req);
-    if (
-        operation !== null &&
-        Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
-    ) {
-        assertOAuthScopeOperation(
-            account,
-            operation as keyof typeof OAUTH_UNCHECKED_OPERATIONS,
+    if (grantProjectUuids === null && scopeOperation !== null)
+        assertOAuthScopeOperation(account, scopeOperation);
+    if (grantProjectUuids !== null) {
+        await Promise.all(
+            (grantProjectUuids.length === 0 ? [null] : grantProjectUuids).map(
+                (projectUuid) =>
+                    service.assertOperation({
+                        account,
+                        organizationUuid:
+                            account.organization.organizationUuid!,
+                        projectUuid,
+                        kind: 'rest_operation',
+                        key: operation ?? 'unknown',
+                        surface: AgentActorSurface.API,
+                    }),
+            ),
         );
+        return;
     }
     let projectUuid =
         typeof req.params.projectUuid === 'string'
@@ -210,12 +234,26 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    if (!user && token.agentConnectionGrantUuid != null)
+                        throw new OAuthBearerRefusalError();
                     req.user = user;
                     if (user) {
+                        const grant =
+                            token.agentConnectionGrantUuid == null
+                                ? null
+                                : await req.services
+                                      .getAgentConnectionGrantService()
+                                      .authenticate(token, user);
+                        const scopePolicy = await getOAuthScopePolicy(
+                            req,
+                            user,
+                            grant !== null,
+                        );
                         req.account = fromOauth(
                             user,
                             token,
-                            await getOAuthScopePolicy(req, user),
+                            scopePolicy,
+                            grant,
                         );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
@@ -230,6 +268,10 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     next();
                 })
                 .catch((userError) => {
+                    if (userError instanceof OAuthBearerRefusalError) {
+                        refuseOAuthToken(req, res);
+                        return;
+                    }
                     next(userError);
                 });
         })
@@ -326,12 +368,26 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    if (!user && token.agentConnectionGrantUuid != null)
+                        throw new OAuthBearerRefusalError();
                     req.user = user;
                     if (user) {
+                        const grant =
+                            token.agentConnectionGrantUuid == null
+                                ? null
+                                : await req.services
+                                      .getAgentConnectionGrantService()
+                                      .authenticate(token, user);
+                        const scopePolicy = await getOAuthScopePolicy(
+                            req,
+                            user,
+                            grant !== null,
+                        );
                         req.account = fromOauth(
                             user,
                             token,
-                            await getOAuthScopePolicy(req, user),
+                            scopePolicy,
+                            grant,
                         );
                         const requestContext = requestContextFromExpress(req);
                         req.account.requestContext = requestContext;
@@ -346,6 +402,10 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     next();
                 })
                 .catch((userError) => {
+                    if (userError instanceof OAuthBearerRefusalError) {
+                        refuseOAuthToken(req, res);
+                        return;
+                    }
                     // Valid oauth token but user not found — throw
                     next(userError);
                 });

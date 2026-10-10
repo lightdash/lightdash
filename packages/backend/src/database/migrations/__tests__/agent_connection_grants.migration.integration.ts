@@ -420,13 +420,13 @@ test('revokes one grant atomically without changing another grant or unbound tok
         reason: 'user_request',
     };
     await model.revoke(args);
-    const first = await model.get(args.grantUuid);
+    const first = await model.find(args.grantUuid);
     await model.revoke({
         ...args,
         revokedByUserUuid: null,
         reason: 'different',
     });
-    expect(await model.get(args.grantUuid)).toEqual(first);
+    expect(await model.find(args.grantUuid)).toEqual(first);
     expect(
         await database('oauth2_access_tokens').where(
             'access_token',
@@ -544,15 +544,15 @@ test('allows only one refresh family under concurrent binding and keeps repeat b
         families[
             outcomes.findIndex((outcome) => outcome.status === 'fulfilled')
         ];
-    expect(await model.get(binding.grantUuid)).toMatchObject({
+    expect(await model.find(binding.grantUuid)).toMatchObject({
         refreshFamilyUuid: winner,
     });
     await model.bindRefreshFamily({ ...binding, familyUuid: winner });
-    expect(await model.get(binding.grantUuid)).toMatchObject({
+    expect(await model.find(binding.grantUuid)).toMatchObject({
         refreshFamilyUuid: winner,
     });
     await model.touchLastUsed(binding.grantUuid);
-    const touched = await model.get(binding.grantUuid);
+    const touched = await model.find(binding.grantUuid);
     await model.touchLastUsed(binding.grantUuid);
-    expect(await model.get(binding.grantUuid)).toEqual(touched);
+    expect(await model.find(binding.grantUuid)).toEqual(touched);
 });

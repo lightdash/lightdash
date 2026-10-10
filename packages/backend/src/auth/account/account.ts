@@ -19,6 +19,7 @@ import {
     isJwtUser,
     MemberAbility,
     OauthAccount,
+    OAuthAgentConnectionGrant,
     Organization,
     OssEmbed,
     RegisteredAccount,
@@ -363,6 +364,7 @@ export const fromOauth = (
         client: { id: string };
     },
     scopePolicy: OAuthScopePolicy | null = null,
+    agentConnectionGrant: OAuthAgentConnectionGrant | null = null,
 ): OauthAccount => {
     const [organization, user] = extractOrganizationFromUser(sessionUser);
     const ability =
@@ -380,6 +382,7 @@ export const fromOauth = (
             token: token.accessToken,
             clientId: token.client.id,
             scopes: token.scope || [],
+            agentConnectionGrant,
         },
         organization,
         user: {
