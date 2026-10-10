@@ -22,17 +22,27 @@ export type CredentialOwner =
           sourceProjectUuid: string;
       };
 
-export type CredentialSelection<C, S = C> = {
+export type CredentialRefreshSource = {
+    credentials:
+        | CreateWarehouseCredentials
+        | UserWarehouseCredentialsWithSecrets['credentials'];
+    fallback: CreateWarehouseCredentials;
+    personalCredentialPolicy: PersonalCredentialPersistencePolicy;
+};
+
+export type CredentialSelectionSource =
+    | {
+          owner: CredentialOwner | null;
+          refreshSource: CredentialRefreshSource;
+      }
+    | {
+          owner: Exclude<CredentialOwner, { kind: 'user' }> | null;
+          refreshSource?: CredentialRefreshSource;
+      };
+
+export type CredentialSelection<C, S = C> = CredentialSelectionSource & {
     connection: C;
     stored: S;
-    refreshSource?: {
-        credentials:
-            | CreateWarehouseCredentials
-            | UserWarehouseCredentialsWithSecrets['credentials'];
-        fallback: CreateWarehouseCredentials;
-        personalCredentialPolicy: PersonalCredentialPersistencePolicy;
-    };
-    owner: CredentialOwner | null;
     context: WarehouseCredentialResolutionContext;
     projectUuid: string | null;
     warehouseConnectionUuid: string | null;

@@ -39,7 +39,7 @@ const maliciousExtras = {
 };
 
 describe('POSTGRES', () => {
-    test('shape D: routing extras on a stored row cannot change host, port or SSH tunnel', () => {
+    test('shape D: stored routing extras keep the connection routing', () => {
         const connection = {
             type: WarehouseTypes.POSTGRES,
             host: 'connection-host',
@@ -97,7 +97,7 @@ describe('POSTGRES', () => {
 });
 
 describe('REDSHIFT', () => {
-    test('shape D: routing extras on a stored row cannot change host, port or SSH tunnel', () => {
+    test('shape D: stored routing extras keep the connection routing', () => {
         const connection = {
             type: WarehouseTypes.REDSHIFT,
             host: 'connection-host',
@@ -887,3 +887,145 @@ test('preserves connection-owned BigQuery SSH transport supplied alongside its c
         sshTunnelPrivateKey: 'connection-tunnel-key',
     });
 });
+
+test('composes a Snowflake password identity without competing connection authentication', () => {
+    const connection = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'connection-account',
+        database: 'connection-db',
+        warehouse: 'connection-warehouse',
+        schema: 'public',
+        role: 'connection-role',
+        user: 'connection-user',
+        password: 'connection-password',
+        privateKey: 'connection-key',
+        privateKeyPass: 'connection-pass',
+        refreshToken: 'connection-refresh',
+        token: 'connection-token',
+        authenticationType: 'sso',
+    } as CreateWarehouseCredentials;
+    const personal = project({
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: 'password',
+        user: 'personal-user',
+        password: 'personal-password',
+    });
+    expect(personal).toEqual({
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: 'password',
+        user: 'personal-user',
+        password: 'personal-password',
+    });
+    expect(composePersonalWarehouseCredentials(connection, personal)).toEqual({
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'connection-account',
+        database: 'connection-db',
+        warehouse: 'connection-warehouse',
+        schema: 'public',
+        role: 'connection-role',
+        authenticationType: 'password',
+        user: 'personal-user',
+        password: 'personal-password',
+    });
+});
+
+test('composes a Snowflake private_key identity without competing connection authentication', () => {
+    const connection = {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'connection-account',
+        database: 'connection-db',
+        warehouse: 'connection-warehouse',
+        schema: 'public',
+        role: 'connection-role',
+        user: 'connection-user',
+        password: 'connection-password',
+        privateKey: 'connection-key',
+        privateKeyPass: 'connection-pass',
+        refreshToken: 'connection-refresh',
+        token: 'connection-token',
+        authenticationType: 'sso',
+    } as CreateWarehouseCredentials;
+    const personal = project({
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: 'private_key',
+        user: 'personal-user',
+        privateKey: 'personal-key',
+        privateKeyPass: 'personal-pass',
+    });
+    expect(personal).toEqual({
+        type: WarehouseTypes.SNOWFLAKE,
+        authenticationType: 'private_key',
+        user: 'personal-user',
+        privateKey: 'personal-key',
+        privateKeyPass: 'personal-pass',
+    });
+    expect(composePersonalWarehouseCredentials(connection, personal)).toEqual({
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'connection-account',
+        database: 'connection-db',
+        warehouse: 'connection-warehouse',
+        schema: 'public',
+        role: 'connection-role',
+        authenticationType: 'private_key',
+        user: 'personal-user',
+        privateKey: 'personal-key',
+        privateKeyPass: 'personal-pass',
+    });
+});
+
+test.each(['iam', 'iam_browser'] as const)(
+    'composes a Redshift %s identity with temporary credentials and role identity',
+    (authenticationType) => {
+        const connection = {
+            type: WarehouseTypes.REDSHIFT,
+            host: 'connection-host',
+            port: 5439,
+            dbname: 'connection-db',
+            schema: 'public',
+            user: 'connection-user',
+            password: 'connection-password',
+            authenticationType: 'password',
+            accessKeyId: 'connection-access',
+            secretAccessKey: 'connection-secret',
+            sessionToken: 'connection-session',
+            assumeRoleArn: 'connection-arn',
+            assumeRoleExternalId: 'connection-external',
+        } as CreateWarehouseCredentials;
+        const personal = project({
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType,
+            user: 'personal-user',
+            accessKeyId: 'personal-access',
+            secretAccessKey: 'personal-secret',
+            sessionToken: 'personal-session',
+            assumeRoleArn: 'personal-arn',
+            assumeRoleExternalId: 'personal-external',
+        });
+        expect(personal).toEqual({
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType,
+            user: 'personal-user',
+            accessKeyId: 'personal-access',
+            secretAccessKey: 'personal-secret',
+            sessionToken: 'personal-session',
+            assumeRoleArn: 'personal-arn',
+            assumeRoleExternalId: 'personal-external',
+        });
+        expect(
+            composePersonalWarehouseCredentials(connection, personal),
+        ).toEqual({
+            type: WarehouseTypes.REDSHIFT,
+            host: 'connection-host',
+            port: 5439,
+            dbname: 'connection-db',
+            schema: 'public',
+            authenticationType,
+            user: 'personal-user',
+            accessKeyId: 'personal-access',
+            secretAccessKey: 'personal-secret',
+            sessionToken: 'personal-session',
+            assumeRoleArn: 'personal-arn',
+            assumeRoleExternalId: 'personal-external',
+        });
+    },
+);

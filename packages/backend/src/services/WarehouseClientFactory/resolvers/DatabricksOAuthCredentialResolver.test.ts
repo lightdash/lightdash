@@ -480,7 +480,15 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
                           purpose: UserWarehouseCredentialPurpose.DEFAULT,
                       }
                     : { kind, uuid: 'row' };
-            await f.resolver.resolve({ ...f.input, owner });
+            await f.resolver.resolve({
+                ...f.input,
+                owner,
+                refreshSource: {
+                    credentials: f.input.connection,
+                    fallback: f.input.connection,
+                    personalCredentialPolicy: { strictPersonalOverlay: false },
+                },
+            });
             const rotate = {
                 project: f.deps.projectModel.rotateRefreshToken,
                 organization:

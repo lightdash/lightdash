@@ -269,7 +269,9 @@ const buildFixture = (
         }),
     };
     const logger = { debug: vi.fn(), warn: vi.fn() };
-    const featureFlagModel = {} as FeatureFlagModel;
+    const featureFlagModel = {
+        get: vi.fn().mockResolvedValue({ enabled: false }),
+    } as unknown as FeatureFlagModel;
     const sshKeyPairModel = {
         find: vi.fn<SshKeyPairModel['find']>().mockResolvedValue(null),
     };
@@ -3255,10 +3257,12 @@ describe('AI service account factory scopes', () => {
             async () => undefined,
         );
         expect(materialize.mock.calls[0][4]).toEqual({
-            kind: 'aiServiceAccount',
-            uuid: slotPlan.credentialUuid,
-            identityUuid: slotPlan.identityUuid,
-            sourceProjectUuid: slotPlan.sourceProjectUuid,
+            owner: {
+                kind: 'aiServiceAccount',
+                uuid: slotPlan.credentialUuid,
+                identityUuid: slotPlan.identityUuid,
+                sourceProjectUuid: slotPlan.sourceProjectUuid,
+            },
         });
     });
 
@@ -4709,7 +4713,7 @@ describe('prepared OAuth credentials', () => {
                         contextFor(),
                         'project-uuid',
                         null,
-                        { kind: 'organization', uuid },
+                        { owner: { kind: 'organization', uuid } },
                     );
                     await factory.withWarehouseClient(
                         {

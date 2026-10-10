@@ -473,7 +473,9 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import {
     type CredentialOwner,
+    type CredentialRefreshSource,
     type CredentialSelection,
+    type CredentialSelectionSource,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
 import {
@@ -587,6 +589,7 @@ type RefreshTokenRotationSource =
     | {
           kind: 'user';
           userWarehouseCredentialsUuid: string;
+          refreshSource: CredentialRefreshSource;
       }
     | {
           kind: 'warehouseConnection';
@@ -1681,7 +1684,6 @@ export class ProjectService
         args: T,
         userUuid: string,
         source: RefreshTokenRotationSource,
-        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<T> {
         if (
             (args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1692,7 +1694,8 @@ export class ProjectService
                     args.authenticationType ===
                         DatabricksAuthenticationType.OAUTH_M2M))
         ) {
-            const owner = ProjectService.getCredentialOwner(source);
+            const selectionSource =
+                ProjectService.getCredentialSelectionSource(source);
             let projectUuid: string | null = null;
             if (source.kind === 'project') projectUuid = source.projectUuid;
             if (source.kind === 'warehouseConnection')
@@ -1700,8 +1703,7 @@ export class ProjectService
             const selection = {
                 connection: args,
                 stored: args,
-                refreshSource,
-                owner,
+                ...selectionSource,
                 context: {
                     organizationUuid: null,
                     actor: {
@@ -2218,18 +2220,23 @@ export class ProjectService
         };
     }
 
-    private static getCredentialOwner(
+    private static getCredentialSelectionSource(
         source: RefreshTokenRotationSource,
-    ): CredentialOwner {
+    ): CredentialSelectionSource {
         return source.kind === 'user'
             ? {
-                  kind: 'user',
-                  uuid: source.userWarehouseCredentialsUuid,
-                  purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                  owner: {
+                      kind: 'user',
+                      uuid: source.userWarehouseCredentialsUuid,
+                      purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                  },
+                  refreshSource: source.refreshSource,
               }
             : {
-                  kind: source.kind,
-                  uuid: ProjectService.getRotationSourceUuid(source),
+                  owner: {
+                      kind: source.kind,
+                      uuid: ProjectService.getRotationSourceUuid(source),
+                  },
               };
     }
 
@@ -2239,24 +2246,22 @@ export class ProjectService
         credentials: CreateWarehouseCredentials,
         userUuid: string,
         source: RefreshTokenRotationSource,
-        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<CreateWarehouseCredentials> {
-        const owner = ProjectService.getCredentialOwner(source);
+        const selectionSource =
+            ProjectService.getCredentialSelectionSource(source);
         return this.warehouseClientFactory.materializeCredentials(
             credentials,
             context,
             base.projectUuid,
             base.warehouseConnectionUuid,
-            owner,
+            selectionSource,
             null,
             () =>
                 this.refreshCredentialsAndPersistRotation(
                     credentials,
                     userUuid,
                     source,
-                    refreshSource,
                 ),
-            refreshSource,
         );
     }
 
@@ -2376,8 +2381,8 @@ export class ProjectService
                         kind: 'user',
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
+                        refreshSource,
                     },
-                    refreshSource,
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
@@ -2849,7 +2854,6 @@ export class ProjectService
             };
         }
         let userWarehouseCredentialsUuid: string | undefined;
-        let refreshSource: CredentialSelection<CreateWarehouseCredentials>['refreshSource'];
 
         if (base.kind === 'original' && !organizationWarehouseCredentialsUuid) {
             credentials = await this.repairStalePreviewSsoCredentials(
@@ -2880,7 +2884,7 @@ export class ProjectService
                         policy,
                     );
                 if (policy.strictPersonalOverlay && userCredentials) {
-                    refreshSource = {
+                    const refreshSource = {
                         credentials: userCredentials.credentials,
                         fallback: credentials,
                         personalCredentialPolicy: policy,
@@ -2892,7 +2896,11 @@ export class ProjectService
                         ),
                     );
                     userWarehouseCredentialsUuid = userCredentials.uuid;
-                    source = { kind: 'user', userWarehouseCredentialsUuid };
+                    source = {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid,
+                        refreshSource,
+                    };
                 } else if (
                     userCredentials?.credentials.type ===
                         WarehouseTypes.DATABRICKS &&
@@ -2911,7 +2919,7 @@ export class ProjectService
                             'Please authenticate to access Databricks for this workspace',
                         );
                     }
-                    refreshSource = {
+                    const refreshSource = {
                         credentials: userCredentials.credentials,
                         fallback: credentials,
                         personalCredentialPolicy: policy,
@@ -2927,6 +2935,7 @@ export class ProjectService
                     source = {
                         kind: 'user',
                         userWarehouseCredentialsUuid,
+                        refreshSource,
                     };
                 }
             }
@@ -2938,7 +2947,6 @@ export class ProjectService
                 credentials,
                 person.userUuid,
                 source,
-                refreshSource,
             )),
             userWarehouseCredentialsUuid,
         };
@@ -3366,8 +3374,8 @@ export class ProjectService
                         kind: 'user',
                         userWarehouseCredentialsUuid:
                             userWarehouseCredentials.uuid,
+                        refreshSource,
                     },
-                    refreshSource,
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
@@ -7183,15 +7191,15 @@ export class ProjectService
                 warehouseConnection.authenticationType ===
                     DatabricksAuthenticationType.OAUTH_U2M)
         ) {
-            let owner: CredentialOwner =
-                project.organizationWarehouseCredentialsUuid
+            let selectionSource: CredentialSelectionSource = {
+                owner: project.organizationWarehouseCredentialsUuid
                     ? {
                           kind: 'organization',
                           uuid: project.organizationWarehouseCredentialsUuid,
                       }
-                    : { kind: 'project', uuid: projectUuid };
+                    : { kind: 'project', uuid: projectUuid },
+            };
             let selected = warehouseConnection;
-            let refreshSource: CredentialSelection<CreateWarehouseCredentials>['refreshSource'];
             if (
                 selected.authenticationType ===
                     DatabricksAuthenticationType.OAUTH_U2M &&
@@ -7212,7 +7220,7 @@ export class ProjectService
                         policy,
                     );
                 if (policy.strictPersonalOverlay && userCreds) {
-                    refreshSource = {
+                    const refreshSource = {
                         credentials: userCreds.credentials,
                         fallback: selected,
                         personalCredentialPolicy: policy,
@@ -7228,10 +7236,13 @@ export class ProjectService
                             'Personal warehouse credentials do not match this connection.',
                         );
                     selected = composed;
-                    owner = {
-                        kind: 'user',
-                        uuid: userCreds.uuid,
-                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    selectionSource = {
+                        owner: {
+                            kind: 'user',
+                            uuid: userCreds.uuid,
+                            purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                        },
+                        refreshSource,
                     };
                 } else if (
                     userCreds?.credentials.type === WarehouseTypes.DATABRICKS &&
@@ -7239,7 +7250,7 @@ export class ProjectService
                         DatabricksAuthenticationType.OAUTH_U2M &&
                     userCreds.credentials.refreshToken
                 ) {
-                    refreshSource = {
+                    const refreshSource = {
                         credentials: userCreds.credentials,
                         fallback: selected,
                         personalCredentialPolicy: policy,
@@ -7251,10 +7262,13 @@ export class ProjectService
                             userCreds.credentials.oauthClientId ||
                             selected.oauthClientId,
                     };
-                    owner = {
-                        kind: 'user',
-                        uuid: userCreds.uuid,
-                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    selectionSource = {
+                        owner: {
+                            kind: 'user',
+                            uuid: userCreds.uuid,
+                            purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                        },
+                        refreshSource,
                     };
                 }
             }
@@ -7270,8 +7284,7 @@ export class ProjectService
                         {
                             connection: selected,
                             stored: selected,
-                            refreshSource,
-                            owner,
+                            ...selectionSource,
                             context: connectionContextFromUser(user, {
                                 organizationUuid: project.organizationUuid,
                                 queryContext: null,

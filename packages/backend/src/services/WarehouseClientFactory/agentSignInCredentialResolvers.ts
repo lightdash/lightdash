@@ -4,7 +4,10 @@ import {
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
 import { WarehouseCredentialKind } from './ConnectionContext';
-import type { CredentialSelection } from './CredentialResolver';
+import type {
+    CredentialSelection,
+    CredentialSelectionSource,
+} from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import {
     type AgentSignInInput,
@@ -26,8 +29,9 @@ export const resolveAgentSignInCredentials = (
     registry: CredentialResolverRegistry,
     selection: Omit<
         CredentialSelection<CreateSnowflakeCredentials, AgentSignInInput>,
-        'credentialKind' | 'aiPlan'
-    >,
+        'credentialKind' | 'aiPlan' | 'owner' | 'refreshSource'
+    > &
+        CredentialSelectionSource,
 ) =>
     registry.resolveCredentialSelection(
         {

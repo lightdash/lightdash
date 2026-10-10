@@ -301,3 +301,26 @@ separate OAuth-scope ENV setting. Console changes apply to the next request or
 grant validation; ENV changes require a process restart. Disabling enforcement
 restores log mode. Disabling agent identity restores the previous behaviour
 without scope-refusal records. Neither change revokes issued tokens.
+
+### Personal credential overlay
+
+`agent-identity` also enforces which fields a personal warehouse credential can
+set. Each warehouse has an allowlist of sign-in fields
+(`packages/common/src/types/personalWarehouseCredentials.ts`). The query uses
+the connection with every auth field removed, plus the allowlisted personal
+fields (`composePersonalWarehouseCredentials` in
+`packages/backend/src/services/WarehouseClientFactory/personalCredentialOverlay.ts`).
+Host, port, database, compute, TLS, SSH and policy fields such as roles and
+cost limits always come from the connection.
+
+With the flag on, a save that sets another field returns HTTP 400. Stored rows
+are projected to the allowlist on read, so old extra fields are ignored. A
+stored row that cannot be used safely fails with one reconnect error and never
+falls back to the shared credential. Databricks rows fail with
+`DatabricksTokenError`; other warehouses fail with
+`MissingWarehouseCredentialsError`.
+
+The flag resolves for the project's organisation and the person whose credential
+is used. A user with no organisation keeps the legacy save. With the flag off,
+saves, reads and merges keep their previous behaviour. Disabling the flag does
+not rewrite rows saved while it was on.

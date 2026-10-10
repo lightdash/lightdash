@@ -17367,6 +17367,13 @@ describe.each([
                 user: {
                     kind: 'user',
                     userWarehouseCredentialsUuid: 'user-row',
+                    refreshSource: {
+                        credentials: connection,
+                        fallback: connection,
+                        personalCredentialPolicy: {
+                            strictPersonalOverlay: false,
+                        },
+                    },
                 },
                 warehouseConnection: {
                     kind: 'warehouseConnection',
@@ -17387,18 +17394,12 @@ describe.each([
                         credentials: CreateDatabricksCredentials,
                         userUuid: string,
                         source: (typeof sources)[keyof typeof sources],
-                        refreshSource: object,
                     ) => Promise<CreateDatabricksCredentials>;
                 }
             ).refreshCredentialsAndPersistRotation(
                 connection,
                 'actor',
                 sources[kind],
-                {
-                    credentials: connection,
-                    fallback: connection,
-                    personalCredentialPolicy: { strictPersonalOverlay: false },
-                },
             );
             expect(result).toMatchObject({
                 token: 'fresh-access',
@@ -17675,7 +17676,7 @@ describe('strict personal overlay (agent-identity on)', () => {
         });
     });
     test.each([WarehouseTypes.POSTGRES, WarehouseTypes.REDSHIFT])(
-        'shape D: routing extras cannot redirect a personal query through the connection SSH tunnel (%s)',
+        'shape D: stored routing extras keep the connection routing on query (%s)',
         async (type) => {
             const base = {
                 type,

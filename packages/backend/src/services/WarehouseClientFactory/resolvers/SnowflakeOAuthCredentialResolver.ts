@@ -211,7 +211,6 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                               readCurrentRefreshToken: (trx) =>
                                   this.source.readCurrentRefreshToken(
                                       input,
-                                      owner,
                                       trx,
                                   ),
                           }

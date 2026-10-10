@@ -34,6 +34,11 @@ const stored: CreateBigqueryCredentials = {
     },
 };
 const selection: CredentialSelection<CreateBigqueryCredentials> = {
+    refreshSource: {
+        credentials: stored,
+        fallback: stored,
+        personalCredentialPolicy: { strictPersonalOverlay: false },
+    },
     connection: stored,
     stored,
     owner: {

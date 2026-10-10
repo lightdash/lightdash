@@ -358,13 +358,13 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                               source.readCurrentRefreshToken(
                                   {
                                       ...input,
+                                      owner,
                                       refreshSource: {
                                           credentials: credential.credentials,
                                           fallback: input.connection,
                                           personalCredentialPolicy: policy,
                                       },
                                   },
-                                  owner,
                                   trx,
                               ),
                       }

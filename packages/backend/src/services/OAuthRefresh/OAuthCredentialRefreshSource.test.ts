@@ -113,7 +113,7 @@ describe.each(owners)('$kind source', (owner) => {
     test('reads the exact owner and uses the held transaction for the guarded write', async () => {
         const f = setup();
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).resolves.toBe('current');
         await f.source.persist(f.input, owner, 'current', 'rotated', trx);
         const readArgs =
@@ -190,7 +190,10 @@ test.each(['serverHostName', 'oauthClientId'] as const)(
             { ...credentials, [field]: 'replacement' },
         );
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+            f.source.readCurrentRefreshToken(
+                { ...f.input, owner: owners[0] },
+                trx,
+            ),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     },
 );
@@ -203,7 +206,7 @@ test('ignores routing and token changes when the provider identity still matches
         refreshToken: 'rotated',
     });
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).resolves.toBe('rotated');
 });
 
@@ -214,7 +217,7 @@ test('returns no token when the provider predicate rejects changed credentials',
         authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
     });
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).resolves.toBeNull();
     expect(f.matchesIdentity).not.toHaveBeenCalled();
 });
@@ -225,7 +228,7 @@ test('maps missing owner rows to a retryable source change', async () => {
         new NotFoundError('missing'),
     );
     await expect(
-        f.source.readCurrentRefreshToken(f.input, owners[0], trx),
+        f.source.readCurrentRefreshToken({ ...f.input, owner: owners[0] }, trx),
     ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
 });
 
@@ -240,7 +243,10 @@ test.each([null, 'another-org'])(
                 organizationUuid,
             });
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owners[3], trx),
+            f.source.readCurrentRefreshToken(
+                { ...f.input, owner: owners[3] },
+                trx,
+            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
         expect(
             f.deps.warehouseConnectionModel.getOwnCredentials,
@@ -385,7 +391,10 @@ describe('AI-purpose user policy', () => {
         });
         try {
             await expect(
-                f.source.readCurrentRefreshToken(f.input, owner, transaction),
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner },
+                    transaction,
+                ),
             ).rejects.toThrow(MissingWarehouseCredentialsError);
             expect(database).not.toHaveBeenCalled();
             expect(tracker.history.select).toHaveLength(1);
@@ -399,7 +408,7 @@ describe('AI-purpose user policy', () => {
     test('reads the AI row with its transaction and validates the binding', async () => {
         const f = setupAi();
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).resolves.toBe('current');
         expect(
             f.model.findAiCredentialWithSecrets,
@@ -421,7 +430,7 @@ describe('AI-purpose user policy', () => {
         const f = setupAi();
         f.model.findAiCredentialWithSecrets.mockResolvedValue(current);
         await expect(
-            f.source.readCurrentRefreshToken(f.input, owner, trx),
+            f.source.readCurrentRefreshToken({ ...f.input, owner }, trx),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     });
 
@@ -461,8 +470,13 @@ describe('AI-purpose user policy', () => {
         const f = setupAi();
         await expect(
             f.source.readCurrentRefreshToken(
-                f.input,
-                { ...owner, purpose: UserWarehouseCredentialPurpose.DEFAULT },
+                {
+                    ...f.input,
+                    owner: {
+                        ...owner,
+                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    },
+                },
                 trx,
             ),
         ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
@@ -500,7 +514,10 @@ describe('strict personal overlay (agent-identity on)', () => {
                 },
             );
             await expect(
-                f.source.readCurrentRefreshToken(f.input, owners[2], trx),
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner: owners[2] },
+                    trx,
+                ),
             ).resolves.toBe('current');
             expect(f.matchesIdentity.mock.calls[0][0]).toMatchObject({
                 httpPath: enabled ? credentials.httpPath : '/redirect',
@@ -517,7 +534,10 @@ describe('strict personal overlay (agent-identity on)', () => {
                 { credentials: { ...credentials, serverHostName } },
             );
             await expect(
-                f.source.readCurrentRefreshToken(f.input, owners[2], trx),
+                f.source.readCurrentRefreshToken(
+                    { ...f.input, owner: owners[2] },
+                    trx,
+                ),
             ).rejects.toThrow('Reconnect your credentials');
         },
     );

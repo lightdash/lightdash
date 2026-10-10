@@ -304,7 +304,6 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                               readCurrentRefreshToken: (trx) =>
                                   this.source.readCurrentRefreshToken(
                                       input,
-                                      owner,
                                       trx,
                                   ),
                           }

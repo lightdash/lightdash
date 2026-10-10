@@ -23,6 +23,7 @@ import type { WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import type {
     CredentialOwner,
     CredentialSelection,
+    CredentialSelectionSource,
 } from '../WarehouseClientFactory/CredentialResolver';
 import {
     composePersonalWarehouseCredentials,
@@ -136,13 +137,14 @@ export class OAuthCredentialRefreshSource<
     }
 
     async readCurrentRefreshToken(
-        input: OAuthRefreshSelection<C>,
-        owner: OAuthCredentialOwner,
+        input: OAuthRefreshSelection<C> & CredentialSelectionSource,
         trx: Knex,
     ): Promise<string | null> {
         try {
             let credentials: OAuthRefreshSourceCredentials;
-            const { refreshSource } = input;
+            const { refreshSource, owner } = input;
+            if (owner === null || owner.kind === 'aiServiceAccount')
+                throw new RefreshTokenSourceChangedError();
             switch (owner.kind) {
                 case 'project':
                     credentials =
@@ -160,6 +162,8 @@ export class OAuthCredentialRefreshSource<
                     ).credentials;
                     break;
                 case 'user':
+                    if (!refreshSource)
+                        throw new RefreshTokenSourceChangedError();
                     if (this.userPolicy.kind === 'ai') {
                         if (owner.purpose !== UserWarehouseCredentialPurpose.AI)
                             throw new RefreshTokenSourceChangedError();
@@ -169,7 +173,7 @@ export class OAuthCredentialRefreshSource<
                                     userUuid: this.userPolicy.userUuid,
                                     warehouseType: WarehouseTypes.SNOWFLAKE,
                                 },
-                                refreshSource!.personalCredentialPolicy,
+                                refreshSource.personalCredentialPolicy,
                                 trx,
                             );
                         if (!current)
@@ -182,7 +186,7 @@ export class OAuthCredentialRefreshSource<
                     }
                     {
                         const personalPolicy =
-                            refreshSource!.personalCredentialPolicy;
+                            refreshSource.personalCredentialPolicy;
                         const current =
                             await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
                                 owner.uuid,
@@ -191,8 +195,7 @@ export class OAuthCredentialRefreshSource<
                             );
                         credentials = personalPolicy.strictPersonalOverlay
                             ? composePersonalWarehouseCredentials(
-                                  input.refreshSource?.fallback ??
-                                      (input.connection as CreateWarehouseCredentials),
+                                  refreshSource.fallback,
                                   projectPersonalWarehouseCredentials(
                                       current.credentials,
                                   ),
