@@ -28,7 +28,6 @@ import {
     composePersonalWarehouseCredentials,
     projectPersonalWarehouseCredentials,
 } from '../WarehouseClientFactory/personalCredentialOverlay';
-import { resolvePersonalCredentialPolicy } from '../WarehouseClientFactory/personalCredentialPolicy';
 
 export type OAuthCredentialOwner = Exclude<
     CredentialOwner,
@@ -143,7 +142,7 @@ export class OAuthCredentialRefreshSource<
     ): Promise<string | null> {
         try {
             let credentials: OAuthRefreshSourceCredentials;
-            let { refreshSource } = input;
+            const { refreshSource } = input;
             switch (owner.kind) {
                 case 'project':
                     credentials =
@@ -170,6 +169,7 @@ export class OAuthCredentialRefreshSource<
                                     userUuid: this.userPolicy.userUuid,
                                     warehouseType: WarehouseTypes.SNOWFLAKE,
                                 },
+                                refreshSource!.personalCredentialPolicy,
                                 trx,
                             );
                         if (!current)
@@ -181,42 +181,13 @@ export class OAuthCredentialRefreshSource<
                         break;
                     }
                     {
-                        let personalPolicy =
-                            input.refreshSource?.personalCredentialPolicy;
-                        if (!personalPolicy) {
-                            const { person } = input.context.actor;
-                            const organizationUuid =
-                                input.context.organizationUuid ??
-                                (input.projectUuid
-                                    ? (
-                                          await this.deps.projectModel.getSummary(
-                                              input.projectUuid,
-                                          )
-                                      ).organizationUuid
-                                    : null);
-                            if (!person || !organizationUuid)
-                                throw new RefreshTokenSourceChangedError();
-                            personalPolicy =
-                                await resolvePersonalCredentialPolicy(
-                                    this.deps.featureFlagModel,
-                                    {
-                                        organizationUuid,
-                                        userUuid: person.userUuid,
-                                    },
-                                );
-                        }
-                        if (refreshSource)
-                            refreshSource = {
-                                ...refreshSource,
-                                personalCredentialPolicy: personalPolicy,
-                            };
+                        const personalPolicy =
+                            refreshSource!.personalCredentialPolicy;
                         const current =
                             await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
                                 owner.uuid,
                                 trx,
-                                ...(personalPolicy.strictPersonalOverlay
-                                    ? [personalPolicy]
-                                    : []),
+                                personalPolicy,
                             );
                         credentials = personalPolicy.strictPersonalOverlay
                             ? composePersonalWarehouseCredentials(

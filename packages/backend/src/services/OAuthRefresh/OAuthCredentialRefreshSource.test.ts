@@ -2,14 +2,20 @@ import {
     DatabricksAuthenticationType,
     FeatureFlags,
     ForbiddenError,
+    MissingWarehouseCredentialsError,
     NotFoundError,
     SnowflakeAuthenticationType,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
 } from '@lightdash/common';
-import { type Knex } from 'knex';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import { RefreshTokenSourceChangedError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
-import type { AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    UserWarehouseCredentialsModel,
+    type AiUserWarehouseCredentials,
+} from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
 import { type WarehouseCredentialResolutionContext } from '../WarehouseClientFactory/WarehouseCredentialSource';
 import {
@@ -89,6 +95,11 @@ const setup = () => {
     });
     const input = {
         connection: credentials,
+        refreshSource: {
+            credentials,
+            fallback: credentials,
+            personalCredentialPolicy: { strictPersonalOverlay: true },
+        },
         projectUuid: 'project' as string | null,
         context: connectionContextFromUser(
             { userUuid: 'person' },
@@ -347,6 +358,44 @@ describe('AI-purpose user policy', () => {
         };
     };
 
+    test('locked strict AI reread refuses malformed ciphertext using the held transaction', async () => {
+        const transaction = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('user_warehouse_credentials').response([
+            {
+                user_warehouse_credentials_uuid: 'ai-row',
+                warehouse_type: WarehouseTypes.SNOWFLAKE,
+                encrypted_credentials: Buffer.from('not-json'),
+            },
+        ]);
+        const database = vi.fn(() => {
+            throw new Error('Must use the held transaction');
+        }) as unknown as Knex;
+        const realModel = new UserWarehouseCredentialsModel({
+            database,
+            encryptionUtil: {
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil,
+        });
+        const f = setupAi();
+        Object.assign(f.model, {
+            findAiCredentialWithSecrets:
+                realModel.findAiCredentialWithSecrets.bind(realModel),
+        });
+        try {
+            await expect(
+                f.source.readCurrentRefreshToken(f.input, owner, transaction),
+            ).rejects.toThrow(MissingWarehouseCredentialsError);
+            expect(database).not.toHaveBeenCalled();
+            expect(tracker.history.select).toHaveLength(1);
+            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
+        } finally {
+            tracker.reset();
+            await transaction.destroy();
+        }
+    });
+
     test('reads the AI row with its transaction and validates the binding', async () => {
         const f = setupAi();
         await expect(
@@ -356,6 +405,7 @@ describe('AI-purpose user policy', () => {
             f.model.findAiCredentialWithSecrets,
         ).toHaveBeenCalledExactlyOnceWith(
             { userUuid: 'person', warehouseType: WarehouseTypes.SNOWFLAKE },
+            { strictPersonalOverlay: true },
             trx,
         );
         expect(
@@ -434,10 +484,12 @@ describe('AI-purpose user policy', () => {
 
 describe('strict personal overlay (agent-identity on)', () => {
     test.each([true, false])(
-        'locked personal reread uses the resource org and person and keeps legacy input when disabled (%s)',
+        'locked personal reread uses the supplied policy without a flag lookup (%s)',
         async (enabled) => {
             const f = setup();
-            f.deps.featureFlagModel.get.mockResolvedValue({ enabled });
+            f.input.refreshSource.personalCredentialPolicy = {
+                strictPersonalOverlay: enabled,
+            };
             f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
                 {
                     credentials: {
@@ -454,10 +506,7 @@ describe('strict personal overlay (agent-identity on)', () => {
                 httpPath: enabled ? credentials.httpPath : '/redirect',
                 database: enabled ? credentials.database : 'redirect',
             });
-            expect(f.deps.featureFlagModel.get).toHaveBeenCalledWith({
-                featureFlagId: FeatureFlags.AgentIdentity,
-                user: { organizationUuid: 'org', userUuid: 'person' },
-            });
+            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
         },
     );
     test.each(['', undefined, 'other-workspace'])(

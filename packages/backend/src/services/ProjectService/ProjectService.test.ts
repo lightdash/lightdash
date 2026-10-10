@@ -66,6 +66,7 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
     WarehouseConnectionError,
@@ -115,6 +116,8 @@ import {
     type WarehouseClient,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
 import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
@@ -5814,6 +5817,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.DATABRICKS,
+                { strictPersonalOverlay: false },
             );
 
             // Query should still execute successfully with user credentials
@@ -5998,6 +6002,7 @@ describe('ProjectService', () => {
                         projectUuid,
                         sessionAccount.user.id,
                         WarehouseTypes.BIGQUERY,
+                        { strictPersonalOverlay: false },
                     );
                     expect(credentials).toEqual(
                         expect.objectContaining({
@@ -6161,6 +6166,7 @@ describe('ProjectService', () => {
                     projectUuid,
                     sessionAccount.user.id,
                     WarehouseTypes.TRINO,
+                    { strictPersonalOverlay: false },
                 );
                 expect(credentials).toEqual(
                     expect.objectContaining({
@@ -6385,6 +6391,7 @@ describe('ProjectService', () => {
                 projectUuid,
                 sessionAccount.user.id,
                 WarehouseTypes.REDSHIFT,
+                { strictPersonalOverlay: false },
             );
             expect(mergedCredentials).toEqual(
                 expect.objectContaining({
@@ -17459,6 +17466,9 @@ describe.each([
                     ...(kind === 'warehouseConnection' ? [project] : []),
                     `${kind}-row`,
                     { raw },
+                    ...(kind === 'user'
+                        ? [{ strictPersonalOverlay: false }]
+                        : []),
                 );
             }
         },
@@ -17513,6 +17523,112 @@ describe('strict personal overlay (agent-identity on)', () => {
             });
         return { configured, flags, model, materialize, query };
     };
+    test.each([
+        ['original', true],
+        ['extra', true],
+        ['original', false],
+        ['extra', false],
+    ] as const)(
+        'shape G: %s optional connection handles a stale preferred type with strict=%s',
+        async (kind, enabled) => {
+            const f = setupStrict({}, connection, enabled);
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            const row = {
+                user_warehouse_credentials_uuid: 'stale',
+                user_uuid: user.userUuid,
+                warehouse_type: WarehouseTypes.POSTGRES,
+                encrypted_credentials: Buffer.from(
+                    JSON.stringify({
+                        type: WarehouseTypes.POSTGRES,
+                        user: 'person',
+                        password: '',
+                    }),
+                ),
+                project_uuid: null,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                expires_at: null,
+            };
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response((query) => {
+                    const filtersWarehouseType = query.sql.includes(
+                        '"user_warehouse_credentials"."warehouse_type" =',
+                    );
+                    return filtersWarehouseType ? [] : [row];
+                });
+            const encryptionUtil = {
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil;
+            const credentialsModel = new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil,
+            });
+            const connectionModel = new WarehouseConnectionModel({
+                database,
+                encryptionUtil,
+                organizationWarehouseCredentialsModel: {} as never,
+            });
+            Object.assign(f.model, {
+                findForProjectWithSecrets:
+                    credentialsModel.findForProjectWithSecrets.bind(
+                        credentialsModel,
+                    ),
+                getByUuidWithSecrets:
+                    credentialsModel.getByUuidWithSecrets.bind(
+                        credentialsModel,
+                    ),
+            });
+            Object.assign(f.configured.warehouseConnectionModel, {
+                findPreferredUserCredentialsUuid:
+                    connectionModel.findPreferredUserCredentialsUuid.bind(
+                        connectionModel,
+                    ),
+            });
+            try {
+                const query =
+                    kind === 'original'
+                        ? f.query()
+                        : f.configured.finish(
+                              {
+                                  kind: 'extra',
+                                  projectUuid: 'project',
+                                  organizationUuid: 'resource-org',
+                                  connectionRoute: null,
+                                  warehouseConnectionUuid: 'extra',
+                                  organizationWarehouseCredentialsUuid: null,
+                                  project: {
+                                      projectUuid: 'project',
+                                      organizationUuid: 'resource-org',
+                                      connectionMode: 'multi',
+                                      originalWarehouseType:
+                                          WarehouseTypes.DATABRICKS,
+                                  },
+                                  credentials: connection,
+                              },
+                              connectionContextFromUser(user, {
+                                  organizationUuid: 'resource-org',
+                                  queryContext: null,
+                              }),
+                          );
+                if (enabled) {
+                    await expect(query).rejects.toThrow(reconnect);
+                    expect(f.materialize).not.toHaveBeenCalled();
+                } else {
+                    await expect(query).resolves.toMatchObject({
+                        oauthClientId: 'shared-client',
+                        userWarehouseCredentialsUuid: undefined,
+                    });
+                    expect(f.materialize).toHaveBeenCalled();
+                }
+                expect(tracker.history.select.length).toBeGreaterThan(0);
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
     test.each([
         [
             'shape A: legacy Databricks OAuth row with empty binding is refused on query and never runs as shared',
@@ -17678,6 +17794,7 @@ describe('strict personal overlay (agent-identity on)', () => {
                     projectWithSensitiveFields.projectUuid,
                     user.userUuid,
                     WarehouseTypes.POSTGRES,
+                    { strictPersonalOverlay: false },
                 );
         },
     );
@@ -17744,9 +17861,8 @@ describe('strict personal overlay (agent-identity on)', () => {
             });
             expect(f.model.getByUuidWithSecrets).toHaveBeenCalledWith(
                 'personal',
-                ...(enabled
-                    ? [undefined, { strictPersonalOverlay: true }]
-                    : []),
+                undefined,
+                { strictPersonalOverlay: enabled },
             );
         },
     );

@@ -1075,6 +1075,7 @@ describe('strict personal overlay (agent-identity on)', () => {
             f.project.projectUuid,
             user.userUuid,
             WarehouseTypes.DATABRICKS,
+            { strictPersonalOverlay: false },
         );
         expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
             featureFlagId: FeatureFlags.AgentIdentity,

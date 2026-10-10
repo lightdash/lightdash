@@ -2,8 +2,10 @@ import {
     AiAccessRefusalReason,
     AiAgentMarkerLevel,
     FeatureFlags,
+    MissingWarehouseCredentialsError,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type AiAssurance,
     type CreateSnowflakeCredentials,
@@ -12,12 +14,15 @@ import {
     checkSnowflakeAgentSessionWithToken,
     SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
 } from '@lightdash/warehouses';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import * as refreshModule from '../../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import {
+    UserWarehouseCredentialsModel,
     type AiUserWarehouseCredentials,
-    type UserWarehouseCredentialsModel,
 } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { AiSessionFailureReason } from '../../AiAccessService/agentSession';
 import { SnowflakeAgentClientResolver } from '../../AiAccessService/SnowflakeAgentClientResolver';
 import { createAgentSignInCredentialResolverRegistry } from '../agentSignInCredentialResolvers';
@@ -125,6 +130,61 @@ const setup = (strictPersonalOverlay = false) => {
 };
 
 describe('AgentSignInResolverHarness', () => {
+    test.each([
+        ['malformed ciphertext', 'not-json'],
+        [
+            'different payload type',
+            JSON.stringify({
+                type: WarehouseTypes.POSTGRES,
+                user: 'person',
+                password: '',
+            }),
+        ],
+        [
+            'invalid Snowflake identity',
+            JSON.stringify({ ...credential.credentials, refreshToken: '' }),
+        ],
+    ])(
+        'strict resolver refuses a real AI row with %s using the reconnect error',
+        async (_name, encrypted) => {
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            tracker.reset();
+            tracker.on.select('user_warehouse_credentials').response([
+                {
+                    user_warehouse_credentials_uuid: 'credential',
+                    user_uuid: 'user',
+                    warehouse_type: WarehouseTypes.SNOWFLAKE,
+                    purpose: UserWarehouseCredentialPurpose.AI,
+                    expires_at: null,
+                    encrypted_credentials: Buffer.from(encrypted),
+                },
+            ]);
+            const realModel = new UserWarehouseCredentialsModel({
+                database,
+                encryptionUtil: {
+                    decrypt: (value: Buffer) => value.toString(),
+                } as EncryptionUtil,
+            });
+            const f = setup(true);
+            Object.assign(f.model, {
+                findAiCredentialWithSecrets:
+                    realModel.findAiCredentialWithSecrets.bind(realModel),
+            });
+            try {
+                await expect(
+                    f.provider.resolver.resolve(f.provider.selection(mintArgs)),
+                ).rejects.toThrow(MissingWarehouseCredentialsError);
+                await expect(
+                    f.provider.resolver.resolve(f.provider.selection(mintArgs)),
+                ).rejects.toThrow('Reconnect your credentials');
+            } finally {
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
+
     test('disconnect blocks mint immediately after a successful mint without waiting eight minutes', async () => {
         const { provider, model } = setup();
         await provider.mint(mintArgs);
@@ -257,10 +317,13 @@ describe('AgentSignInResolverHarness', () => {
             );
             expect(
                 model.findAiCredentialWithSecrets,
-            ).toHaveBeenCalledExactlyOnceWith({
-                userUuid: 'user',
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-            });
+            ).toHaveBeenCalledExactlyOnceWith(
+                {
+                    userUuid: 'user',
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            );
             expect(
                 refreshModule.exchangeSnowflakeRefreshToken,
             ).not.toHaveBeenCalled();

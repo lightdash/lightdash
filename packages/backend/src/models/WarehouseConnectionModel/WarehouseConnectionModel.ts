@@ -16,6 +16,7 @@ import {
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
+import type { PersonalCredentialPersistencePolicy } from '../UserWarehouseCredentials/UserWarehouseCredentialsModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const EVENTS_TABLE = 'project_connection_mode_events';
@@ -592,21 +593,27 @@ export class WarehouseConnectionModel {
         }
     }
 
-    private fittingUserCredentials({
-        userUuid,
-        projectUuid,
-        warehouseType,
-    }: Omit<UserCredentialsForConnection, 'warehouseConnectionUuid'>) {
+    private fittingUserCredentials(
+        {
+            userUuid,
+            projectUuid,
+            warehouseType,
+        }: Omit<UserCredentialsForConnection, 'warehouseConnectionUuid'>,
+        filterWarehouseType: boolean,
+    ) {
         return this.database(UserWarehouseCredentialsTableName)
             .where(`${UserWarehouseCredentialsTableName}.user_uuid`, userUuid)
             .where(
                 `${UserWarehouseCredentialsTableName}.purpose`,
                 UserWarehouseCredentialPurpose.DEFAULT,
             )
-            .where(
-                `${UserWarehouseCredentialsTableName}.warehouse_type`,
-                warehouseType,
-            )
+            .modify((query) => {
+                if (filterWarehouseType)
+                    void query.where(
+                        `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                        warehouseType,
+                    );
+            })
             .where((builder) => {
                 void builder
                     .where(
@@ -621,8 +628,12 @@ export class WarehouseConnectionModel {
 
     async findPreferredUserCredentialsUuid(
         lookup: UserCredentialsForConnection,
+        policy: PersonalCredentialPersistencePolicy,
     ): Promise<string | null> {
-        const row = await this.fittingUserCredentials(lookup)
+        const row = await this.fittingUserCredentials(
+            lookup,
+            !policy.strictPersonalOverlay,
+        )
             .innerJoin(
                 CONNECTION_PREFERENCE_TABLE,
                 `${CONNECTION_PREFERENCE_TABLE}.user_warehouse_credentials_uuid`,
@@ -651,7 +662,7 @@ export class WarehouseConnectionModel {
     async findSoleUnclaimedUserCredentialsUuid(
         lookup: UserCredentialsForConnection,
     ): Promise<string | null> {
-        const rows = await this.fittingUserCredentials(lookup)
+        const rows = await this.fittingUserCredentials(lookup, true)
             .whereNotExists(
                 this.database(ProjectUserWarehouseCredentialPreferenceTableName)
                     .select(this.database.raw('1'))

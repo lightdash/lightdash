@@ -153,6 +153,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
     private async read(
         person: AgentSignInInput['person'],
         silentRefresh: boolean,
+        policy: PersonalCredentialPersistencePolicy,
     ) {
         const client = await this.deps.snowflakeAgentClientResolver.resolve(
             person.organizationUuid,
@@ -163,6 +164,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                     userUuid: person.userUuid,
                     warehouseType: WarehouseTypes.SNOWFLAKE,
                 },
+                policy,
             );
         if (!client)
             throw new AgentCredentialResolutionError({
@@ -183,7 +185,11 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         silentRefresh: boolean,
     ): Promise<AgentCredentialResolutionError | null> {
         try {
-            await this.read(person, silentRefresh);
+            const policy = await resolvePersonalCredentialPolicy(
+                this.deps.featureFlagModel,
+                person,
+            );
+            await this.read(person, silentRefresh, policy);
             return null;
         } catch (error) {
             if (error instanceof AgentCredentialResolutionError) return error;
@@ -206,7 +212,6 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         input: Selection,
     ): Promise<CredentialResolution<CreateSnowflakeCredentials>> {
         const { person, silentRefresh } = input.stored;
-        const { client, credential } = await this.read(person, silentRefresh);
         const policy = await resolvePersonalCredentialPolicy(
             this.deps.featureFlagModel,
             {
@@ -214,6 +219,11 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                     input.context.organizationUuid ?? person.organizationUuid,
                 userUuid: person.userUuid,
             },
+        );
+        const { client, credential } = await this.read(
+            person,
+            silentRefresh,
+            policy,
         );
         const refreshed = await this.refresh(
             input,
@@ -345,7 +355,18 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                               silentRefresh,
                           ]),
                           readCurrentRefreshToken: (trx) =>
-                              source.readCurrentRefreshToken(input, owner, trx),
+                              source.readCurrentRefreshToken(
+                                  {
+                                      ...input,
+                                      refreshSource: {
+                                          credentials: credential.credentials,
+                                          fallback: input.connection,
+                                          personalCredentialPolicy: policy,
+                                      },
+                                  },
+                                  owner,
+                                  trx,
+                              ),
                       }
                     : null,
                 exchange: (refreshToken) =>
@@ -488,6 +509,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         const current =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 { userUuid, warehouseType: WarehouseTypes.SNOWFLAKE },
+                policy,
             );
         const latest =
             current &&

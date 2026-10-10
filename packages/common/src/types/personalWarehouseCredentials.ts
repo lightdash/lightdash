@@ -60,7 +60,7 @@ export const strictBigqueryPersonalCredentialsSchema = z
                 client_secret: z.string().optional(),
                 refresh_token: z.string().min(1),
             })
-            .catchall(z.string()),
+            .strict(),
         authenticationType: z
             .literal(BigqueryAuthenticationType.SSO)
             .optional(),
@@ -86,7 +86,7 @@ export const strictDatabricksPersonalCredentialsSchema = z.union([
             ),
             refreshToken: z.string().min(1),
             oauthClientId: z.string().optional(),
-            serverHostName: z.string().optional(),
+            serverHostName: z.string().trim().min(1),
         })
         .strict(),
 ]);

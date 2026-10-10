@@ -2239,6 +2239,7 @@ export class AiAccessService extends BaseService {
                                 userUuid: args.userUuid,
                                 warehouseType: args.connection.type,
                             },
+                            { strictPersonalOverlay: false },
                         );
                     result.expiresAt = credential?.expiresAt ?? null;
                     result.principalName = credential ? email : null;

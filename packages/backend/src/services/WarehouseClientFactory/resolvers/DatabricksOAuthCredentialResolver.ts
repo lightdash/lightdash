@@ -43,6 +43,7 @@ import {
     type CredentialSelection,
     type ValidatedCredential,
 } from '../CredentialResolver';
+import { resolvePersonalCredentialPolicy } from '../personalCredentialPolicy';
 import { prepareWarehouseOAuthCredentials } from '../preparedOAuthCredentials';
 
 type DatabricksSelection = CredentialSelection<CreateDatabricksCredentials>;
@@ -185,6 +186,13 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                 ? await this.deps.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                       userUuid,
                       input.connection.serverHostName,
+                      await resolvePersonalCredentialPolicy(
+                          this.deps.featureFlagModel,
+                          {
+                              organizationUuid: input.context.organizationUuid,
+                              userUuid,
+                          },
+                      ),
                   )
                 : undefined;
             if (

@@ -2056,6 +2056,7 @@ export class ProjectService
         let userWarehouseCredentialsUuid =
             await this.warehouseConnectionModel.findPreferredUserCredentialsUuid(
                 lookup,
+                policy,
             );
         if (userWarehouseCredentialsUuid === null && requireUserCredentials) {
             userWarehouseCredentialsUuid =
@@ -2075,15 +2076,12 @@ export class ProjectService
         if (userWarehouseCredentialsUuid === null) {
             return undefined;
         }
-        const userWarehouseCredentials = policy.strictPersonalOverlay
-            ? await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                  userWarehouseCredentialsUuid,
-                  undefined,
-                  policy,
-              )
-            : await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                  userWarehouseCredentialsUuid,
-              );
+        const userWarehouseCredentials =
+            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                userWarehouseCredentialsUuid,
+                undefined,
+                policy,
+            );
         if (policy.strictPersonalOverlay) return userWarehouseCredentials;
         const validationError =
             UserWarehouseCredentialsModel.getQueryTimeValidationError(
@@ -2879,7 +2877,7 @@ export class ProjectService
                         projectUuid,
                         person.userUuid,
                         WarehouseTypes.DATABRICKS,
-                        ...(policy.strictPersonalOverlay ? [policy] : []),
+                        policy,
                     );
                 if (policy.strictPersonalOverlay && userCredentials) {
                     refreshSource = {
@@ -3314,7 +3312,7 @@ export class ProjectService
                       projectUuid,
                       userId,
                       credentials.type,
-                      ...(policy.strictPersonalOverlay ? [policy] : []),
+                      policy,
                   )
                 : undefined;
 
@@ -7211,7 +7209,7 @@ export class ProjectService
                         projectUuid,
                         user.userUuid,
                         WarehouseTypes.DATABRICKS,
-                        ...(policy.strictPersonalOverlay ? [policy] : []),
+                        policy,
                     );
                 if (policy.strictPersonalOverlay && userCreds) {
                     refreshSource = {

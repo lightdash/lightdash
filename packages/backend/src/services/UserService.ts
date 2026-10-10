@@ -152,6 +152,7 @@ import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import {
     UserWarehouseCredentialsModel,
+    type PersonalCredentialPersistencePolicy,
     type SnowflakeAiClientBinding,
 } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
@@ -3634,6 +3635,7 @@ export class UserService extends BaseService {
             await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                 user.userUuid,
                 serverHostName,
+                { strictPersonalOverlay: false },
             );
         return credential !== undefined;
     }
@@ -3650,12 +3652,6 @@ export class UserService extends BaseService {
             );
         }
 
-        // Remove old BigQuery credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.BIGQUERY,
-        );
-
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
@@ -3670,7 +3666,30 @@ export class UserService extends BaseService {
                 },
             },
         };
-        await this.createWarehouseCredentials(user, bigqueryCredentials);
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        if (policy.strictPersonalOverlay) {
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                bigqueryCredentials,
+                policy,
+            );
+        }
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
+        await this.createWarehouseCredentialsWithPolicy(
+            user,
+            bigqueryCredentials,
+            policy,
+        );
     }
 
     async createSnowflakeWarehouseCredentials(
@@ -3760,6 +3779,7 @@ export class UserService extends BaseService {
                     await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                         user.userUuid,
                         serverHostName,
+                        { strictPersonalOverlay: false },
                         {
                             projectUuid: options.projectUuid,
                         },
@@ -3799,6 +3819,7 @@ export class UserService extends BaseService {
                 await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                     user.userUuid,
                     serverHostName,
+                    { strictPersonalOverlay: false },
                     {
                         includeProjectScoped: false,
                     },
@@ -4038,14 +4059,32 @@ export class UserService extends BaseService {
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
     ) {
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        return this.createWarehouseCredentialsWithPolicy(
+            user,
+            data,
+            policy,
+            projectUuid,
+        );
+    }
+
+    private async createWarehouseCredentialsWithPolicy(
+        user: SessionUser,
+        data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
+        projectUuid?: string,
+    ) {
         const userWarehouseCredentialsUuid =
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
-                await resolvePersonalCredentialPolicy(this.featureFlagModel, {
-                    organizationUuid: user.organizationUuid!,
-                    userUuid: user.userUuid,
-                }),
+                policy,
                 projectUuid,
             );
         this.analytics.track({
@@ -4071,7 +4110,7 @@ export class UserService extends BaseService {
             userWarehouseCredentialsUuid,
             data,
             await resolvePersonalCredentialPolicy(this.featureFlagModel, {
-                organizationUuid: user.organizationUuid!,
+                organizationUuid: user.organizationUuid ?? null,
                 userUuid: user.userUuid,
             }),
         );

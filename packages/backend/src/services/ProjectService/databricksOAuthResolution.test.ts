@@ -415,7 +415,9 @@ test('U2M save loads host-matching credentials and retains their original token'
     expect(
         f.userWarehouseCredentialsModel
             .findDatabricksOauthU2mForHostWithSecrets,
-    ).toHaveBeenCalledExactlyOnceWith('person', credentials.serverHostName);
+    ).toHaveBeenCalledExactlyOnceWith('person', credentials.serverHostName, {
+        strictPersonalOverlay: false,
+    });
     expect(f.run).not.toHaveBeenCalled();
 });
 

@@ -635,6 +635,7 @@ describe('test-and-compile credential resolution', () => {
                             f.project.projectUuid,
                             workerUser.userUuid,
                             WarehouseTypes.DATABRICKS,
+                            { strictPersonalOverlay: false },
                         ),
                     );
                 }
@@ -985,6 +986,7 @@ describe('strict personal overlay (agent-identity on)', () => {
             f.project.projectUuid,
             user.userUuid,
             WarehouseTypes.DATABRICKS,
+            { strictPersonalOverlay: false },
         );
         expect(f.service.featureFlagModel.get).toHaveBeenCalledWith({
             featureFlagId: FeatureFlags.AgentIdentity,

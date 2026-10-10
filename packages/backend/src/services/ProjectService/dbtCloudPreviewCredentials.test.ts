@@ -702,6 +702,7 @@ describe('dbt Cloud preview credential resolution', () => {
             f.project.projectUuid,
             user.userUuid,
             WarehouseTypes.DATABRICKS,
+            { strictPersonalOverlay: false },
         );
         expect(refreshDatabricksOAuthToken).toHaveBeenCalledExactlyOnceWith(
             'workspace.databricks.com',

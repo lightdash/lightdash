@@ -89,6 +89,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
             'T1',
             null,
             { organizationUuid, clientVersion },
+            { strictPersonalOverlay: false },
         );
         const client = {
             organizationUuid,
@@ -152,10 +153,13 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
                 'A2',
             ]);
             expect(
-                await model.findAiCredentialWithSecrets({
-                    userUuid: f.userUuid,
-                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                }),
+                await model.findAiCredentialWithSecrets(
+                    {
+                        userUuid: f.userUuid,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    },
+                    { strictPersonalOverlay: false },
+                ),
             ).toMatchObject({
                 uuid: f.uuid,
                 credentials: { refreshToken: 'T2' },
@@ -184,10 +188,13 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
             });
             await f.harness.mint(f.args);
             expect(
-                await model.findAiCredentialWithSecrets({
-                    userUuid: f.userUuid,
-                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                }),
+                await model.findAiCredentialWithSecrets(
+                    {
+                        userUuid: f.userUuid,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    },
+                    { strictPersonalOverlay: false },
+                ),
             ).toMatchObject({
                 credentials: { refreshToken: 'T1' },
                 expiresAt,
@@ -199,10 +206,13 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
                 }),
             ).toBe(false);
             expect(
-                await model.findAiCredentialWithSecrets({
-                    userUuid: f.userUuid,
-                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                }),
+                await model.findAiCredentialWithSecrets(
+                    {
+                        userUuid: f.userUuid,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    },
+                    { strictPersonalOverlay: false },
+                ),
             ).toMatchObject({ expiresAt });
         },
     );
@@ -243,10 +253,13 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
             expect.any(Function),
         );
         expect(
-            await model.findAiCredentialWithSecrets({
-                userUuid: f.userUuid,
-                warehouseType: WarehouseTypes.SNOWFLAKE,
-            }),
+            await model.findAiCredentialWithSecrets(
+                {
+                    userUuid: f.userUuid,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            ),
         ).toMatchObject({ credentials: { refreshToken: 'T2' }, expiresAt });
     });
 
@@ -273,10 +286,13 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
             });
             expect(run).not.toHaveBeenCalled();
             expect(
-                await model.findAiCredentialWithSecrets({
-                    userUuid: f.userUuid,
-                    warehouseType: WarehouseTypes.SNOWFLAKE,
-                }),
+                await model.findAiCredentialWithSecrets(
+                    {
+                        userUuid: f.userUuid,
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                    },
+                    { strictPersonalOverlay: false },
+                ),
             ).toMatchObject({ credentials: { refreshToken: 'T2' } });
         },
     );

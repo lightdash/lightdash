@@ -643,6 +643,7 @@ describe('timezone preview credential resolution', () => {
         ).toHaveBeenCalledExactlyOnceWith(
             account.user.id,
             'workspace.databricks.com',
+            { strictPersonalOverlay: false },
         );
         expect(refreshDatabricksOAuthToken).toHaveBeenCalledExactlyOnceWith(
             'workspace.databricks.com',

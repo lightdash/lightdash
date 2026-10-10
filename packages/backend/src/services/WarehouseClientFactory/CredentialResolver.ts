@@ -30,7 +30,7 @@ export type CredentialSelection<C, S = C> = {
             | CreateWarehouseCredentials
             | UserWarehouseCredentialsWithSecrets['credentials'];
         fallback: CreateWarehouseCredentials;
-        personalCredentialPolicy?: PersonalCredentialPersistencePolicy;
+        personalCredentialPolicy: PersonalCredentialPersistencePolicy;
     };
     owner: CredentialOwner | null;
     context: WarehouseCredentialResolutionContext;

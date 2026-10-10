@@ -9,6 +9,7 @@ import {
     personalCredentialIdentityFields,
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
+    strictBigqueryPersonalCredentialsSchema,
     strictPersonalWarehouseCredentialsSchema,
     WarehouseTypes,
     type CreateDuckdbCredentials,
@@ -330,6 +331,15 @@ export const projectPersonalWarehouseCredentials = (
         if (value !== undefined && (value !== '' || requiredPassword))
             projected[field] = value;
     });
+    if (stored.type === WarehouseTypes.BIGQUERY) {
+        projected.keyfileContents = pick(
+            stored.keyfileContents,
+            Object.keys(
+                strictBigqueryPersonalCredentialsSchema.shape.keyfileContents
+                    .shape,
+            ),
+        );
+    }
     if (projected.authenticationType === undefined) {
         switch (stored.type) {
             case WarehouseTypes.DATABRICKS:

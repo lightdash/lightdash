@@ -223,6 +223,40 @@ describe('SNOWFLAKE', () => {
 });
 
 describe('BIGQUERY', () => {
+    test('legacy nested keyfile policy is dropped from reads and composed credentials', () => {
+        const identity = {
+            type: 'authorized_user',
+            client_id: 'client',
+            client_secret: 'secret',
+            refresh_token: 'refresh',
+        };
+        const personal = project({
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: {
+                ...identity,
+                quota_project_id: 'legacy-project',
+            },
+        });
+        expect(personal).toMatchObject({ keyfileContents: identity });
+        const composed = composePersonalWarehouseCredentials(
+            {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'connection-project',
+                dataset: 'connection-dataset',
+            } as CreateWarehouseCredentials,
+            personal,
+        );
+        expect(composed).toMatchObject({ keyfileContents: identity });
+        if (composed.type !== WarehouseTypes.BIGQUERY)
+            throw new Error('Expected BigQuery');
+        expect(Object.keys(composed.keyfileContents ?? {}).sort()).toEqual([
+            'client_id',
+            'client_secret',
+            'refresh_token',
+            'type',
+        ]);
+    });
+
     test('composes only personal identity and preserves connection policy', () => {
         const connection = {
             type: WarehouseTypes.BIGQUERY,

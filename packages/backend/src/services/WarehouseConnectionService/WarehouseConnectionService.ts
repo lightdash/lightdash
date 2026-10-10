@@ -586,6 +586,7 @@ export class WarehouseConnectionService extends BaseService {
                     warehouseConnectionUuid,
                     warehouseType: connection.warehouseType,
                 },
+                { strictPersonalOverlay: false },
             );
         return {
             warehouseConnectionUuid,
