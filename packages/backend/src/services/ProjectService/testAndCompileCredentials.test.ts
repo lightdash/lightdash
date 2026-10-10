@@ -177,6 +177,11 @@ const setup = (
         ),
     };
     const analytics = { track: vi.fn() };
+    const featureFlagModel = {
+        get: vi.fn(async (_input: { featureFlagId: FeatureFlags }) => ({
+            enabled: false,
+        })),
+    };
     const service = new ProjectService({
         refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
@@ -200,7 +205,7 @@ const setup = (
         adminNotificationService: {
             notifyConnectionSettingsChange: vi.fn(async () => undefined),
         },
-        featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
+        featureFlagModel,
     } as unknown as ProjectServiceArguments);
     const resolve = vi.spyOn(
         service.warehouseClientFactory,
@@ -214,6 +219,7 @@ const setup = (
         service,
         project,
         projectModel,
+        featureFlagModel,
         userWarehouseCredentialsModel,
         organizationWarehouseCredentialsModel,
         userOAuthGrantsModel,
@@ -315,9 +321,9 @@ beforeEach(() => {
         },
     );
     vi.mocked(projectAdapterFromConfig).mockImplementation(
-        async (_dbt, _client, credentials) =>
+        async (_dbt, client) =>
             ({
-                test: () => adapterTest(credentials),
+                test: () => adapterTest(client.credentials),
                 destroy,
                 getLightdashProjectConfig: vi.fn(async () => ({})),
             }) as unknown as ProjectAdapter,
@@ -327,6 +333,53 @@ afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
 });
+
+it.each([false, true])(
+    'test and compile uses the loaded project organization without a summary read when explicit credentials is %s',
+    async (enabled) => {
+        const f = setup(databricks());
+        f.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DbtExplicitCredentials &&
+                    enabled,
+            }),
+        );
+
+        await f.worker();
+
+        expect(
+            f.projectModel.getWithSensitiveFields,
+        ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
+        expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: f.project.organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+    },
+);
+
+it.each([false, true])(
+    'creation uses the actor organization without a summary read when explicit credentials is %s',
+    async (enabled) => {
+        const f = setup(databricks());
+        f.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DbtExplicitCredentials &&
+                    enabled,
+            }),
+        );
+
+        await expect(f.create()).rejects.toThrow(createStop);
+
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
+        expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid: workerUser.organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+    },
+);
 
 const authCases = [
     {
@@ -403,6 +456,9 @@ describe('test-and-compile credential resolution', () => {
                     );
                     if (name.endsWith('user fallback')) setUserFallback(f);
                     await f.worker();
+                    expect(f.projectModel.getSummary).toHaveBeenCalledTimes(
+                        name.endsWith('user fallback') ? 1 : 0,
+                    );
                     expect(adapterTest).toHaveBeenCalledExactlyOnceWith(
                         expect.objectContaining({
                             token,
@@ -762,7 +818,8 @@ describe('test-and-compile credential resolution', () => {
                     );
                     expect(projectAdapterFromConfig).toHaveBeenCalledOnce();
                     expect(
-                        vi.mocked(projectAdapterFromConfig).mock.calls[0][2],
+                        vi.mocked(projectAdapterFromConfig).mock.calls[0][1]
+                            .credentials,
                     ).toMatchObject({
                         ...expected,
                         keyfileContents: {

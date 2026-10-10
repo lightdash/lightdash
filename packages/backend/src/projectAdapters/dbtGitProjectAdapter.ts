@@ -1,6 +1,6 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
+    ParameterError,
     SupportedDbtVersions,
     UnexpectedServerError,
 } from '@lightdash/common';
@@ -11,6 +11,7 @@ import * as path from 'path';
 import { SimpleGit, simpleGit, SimpleGitProgressEvent } from 'simple-git';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import {
     CachedWarehouse,
     DbtManifestFetchResult,
@@ -26,7 +27,8 @@ export type DbtGitProjectAdapterArgs = {
     repository: string;
     gitBranch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -61,7 +63,8 @@ export class DbtGitProjectAdapter
         remoteRepositoryUrl,
         gitBranch,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -73,6 +76,8 @@ export class DbtGitProjectAdapter
         dbtDepsErrorHint,
         partialParseBaselinePath,
     }: DbtGitProjectAdapterArgs) {
+        if (dbtTarget.kind === 'none')
+            throw new ParameterError(dbtTarget.reason);
         const localRepositoryDir = fs.mkdtempSync('/tmp/git_');
         const projectDir = path.join(
             localRepositoryDir,
@@ -81,7 +86,8 @@ export class DbtGitProjectAdapter
         super({
             warehouseClient,
             projectDir,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             targetName,
             environment,
             environmentVariableAllowlist,

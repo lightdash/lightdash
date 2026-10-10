@@ -4667,6 +4667,10 @@ describe('identity-resolved credentials', () => {
                     clientOptions: {},
                     cacheable: true,
                     cacheKeyIdentity: ['personal-identity'],
+                    toDbtTarget: vi.fn(() => ({
+                        kind: 'none' as const,
+                        reason: 'Mock credentials cannot run dbt.',
+                    })),
                     dispose: disposeIdentity,
                 },
             };

@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { toDbtTarget } from '../../dbt/targets';
 import {
     connectionContextFromUser,
     WarehouseCredentialKind,
@@ -148,6 +149,11 @@ const transportFixture = () => {
                 stored: { ...input.stored, password: name },
             })),
         cacheKeyIdentity: vi.fn(() => [name]),
+        toDbtTarget: vi.fn<
+            CredentialResolver<CreateRedshiftCredentials>['toDbtTarget']
+        >((_resolved, finalConnection, policy) =>
+            toDbtTarget(finalConnection, policy),
+        ),
         dispose: vi.fn(async () => {}),
     });
     const registry = new CredentialResolverRegistry();
@@ -493,3 +499,93 @@ it.each([
         expect(legacy).not.toHaveBeenCalled();
     },
 );
+
+describe('dbt target resolution', () => {
+    it('keeps the mode converter through transport and applies final tunnel and source locations without refreshing', async () => {
+        const { registry, selection, mode, transport, legacy, registerMode } =
+            transportFixture();
+        registerMode();
+        const resolved = await registry.resolveCredentialSelection(
+            selection,
+            legacy,
+        );
+        if (resolved.type !== WarehouseTypes.REDSHIFT)
+            throw new Error('Expected Redshift');
+        const finalConnection = {
+            ...resolved,
+            host: '127.0.0.1',
+            port: 43123,
+            dbname: 'source_database',
+            schema: 'source_schema',
+        };
+        const policy = { explicitCredentials: true };
+        expect(registry.toDbtTarget(resolved, finalConnection, policy)).toEqual(
+            toDbtTarget(finalConnection, policy),
+        );
+        expect(mode.toDbtTarget).toHaveBeenCalledExactlyOnceWith(
+            await mode.resolve.mock.results[0].value,
+            finalConnection,
+            policy,
+        );
+        expect(transport.toDbtTarget).not.toHaveBeenCalled();
+        expect(mode.resolve).toHaveBeenCalledOnce();
+        expect(transport.resolve).toHaveBeenCalledOnce();
+        expect(legacy).not.toHaveBeenCalled();
+        await resolved[credentialResolution]!.dispose();
+    });
+
+    it('preserves a mode refusal through transport', async () => {
+        const { registry, selection, mode, transport, legacy, registerMode } =
+            transportFixture();
+        registerMode();
+        const refusal = {
+            kind: 'none' as const,
+            reason: 'This mode cannot run dbt.',
+        };
+        mode.toDbtTarget.mockReturnValue(refusal);
+        const resolved = await registry.resolveCredentialSelection(
+            selection,
+            legacy,
+        );
+        expect(
+            registry.toDbtTarget(resolved, resolved, {
+                explicitCredentials: true,
+            }),
+        ).toEqual(refusal);
+        expect(transport.toDbtTarget).not.toHaveBeenCalled();
+        await resolved[credentialResolution]!.dispose();
+    });
+
+    it('converts prepared and legacy static credentials using the final source location', async () => {
+        const { selection } = transportFixture();
+        const registry = new CredentialResolverRegistry();
+        const legacy = vi.fn(async () => selection.connection);
+        const resolved = await registry.resolveCredentialSelection(
+            selection,
+            legacy,
+        );
+        if (resolved.type !== WarehouseTypes.REDSHIFT)
+            throw new Error('Expected Redshift');
+        const finalConnection = {
+            ...resolved,
+            dbname: 'source_database',
+            schema: 'source_schema',
+        };
+        const policy = { explicitCredentials: false };
+        expect(registry.toDbtTarget(resolved, finalConnection, policy)).toEqual(
+            toDbtTarget(finalConnection, policy),
+        );
+        const preparedConnection: PreparedCredentials = {
+            ...resolved,
+            [preparedCredentials]: true,
+        };
+        const prepared = await registry.resolveCredentialSelection(
+            { ...selection, connection: preparedConnection },
+            legacy,
+        );
+        expect(registry.toDbtTarget(prepared, finalConnection, policy)).toEqual(
+            toDbtTarget(finalConnection, policy),
+        );
+        expect(legacy).toHaveBeenCalledOnce();
+    });
+});

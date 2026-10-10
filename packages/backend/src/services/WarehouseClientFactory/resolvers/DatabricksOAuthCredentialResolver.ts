@@ -19,6 +19,7 @@ import { refreshDatabricksOAuthTokenWithDeadline } from '../../../auth/databrick
 import { OAuthRequestTimeoutError } from '../../../auth/oauthRequestDeadline';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../../controllers/authentication/strategies/databricksStrategy';
+import { toDbtTarget } from '../../../dbt/targets';
 import {
     RefreshTokenLockTimeoutError,
     RefreshTokenRowMissingError,
@@ -41,6 +42,8 @@ import {
     type CredentialResolver,
     type CredentialSaveInput,
     type CredentialSelection,
+    type DbtTargetPolicy,
+    type DbtTargetResult,
     type ValidatedCredential,
 } from '../CredentialResolver';
 import { resolvePersonalCredentialPolicy } from '../personalCredentialPolicy';
@@ -403,6 +406,14 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
             input.owner?.uuid ?? null,
             input.owner?.kind === 'user' ? input.owner.purpose : null,
         ];
+    }
+
+    toDbtTarget(
+        _resolved: CredentialResolution<CreateDatabricksCredentials>,
+        finalConnection: CreateDatabricksCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        return toDbtTarget(finalConnection, policy);
     }
 
     async dispose(): Promise<void> {}

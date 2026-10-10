@@ -33,6 +33,7 @@ import bcrypt from 'bcrypt';
 import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import { toDbtTarget } from '../../../dbt/targets';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
@@ -270,7 +271,6 @@ export async function seed(knex: Knex): Promise<void> {
         const adapter = await projectAdapterFromConfig(
             projectSettings,
             warehouseClientFromCredentials(warehouseCredentials),
-            warehouseCredentials,
             {
                 warehouseCatalog: undefined,
                 onWarehouseCatalogChange: () => {},
@@ -278,6 +278,13 @@ export async function seed(knex: Knex): Promise<void> {
             SupportedDbtVersions.V1_12,
             lightdashConfig.dbt.environmentVariableAllowlist,
             null,
+            {
+                resolve: () =>
+                    toDbtTarget(warehouseCredentials, {
+                        explicitCredentials: false,
+                    }),
+                policy: { explicitCredentials: false },
+            },
         );
         const explores = await adapter.compileAllExplores({
             userUuid: user.user_uuid,

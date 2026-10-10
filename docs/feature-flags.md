@@ -330,3 +330,23 @@ The flag resolves for the project's organisation and the person whose credential
 is used. A user with no organisation keeps the legacy save. With the flag off,
 saves, reads and merges keep their previous behaviour. Disabling the flag does
 not rewrite rows saved while it was on.
+
+### Explicit dbt credentials
+
+`dbt-explicit-credentials` is off by default. It uses the standard resolver for
+the project's organisation, without a user UUID. Personal overrides do not
+apply. Compile, test-and-compile, preview projects and scheduler workers use the
+same policy. Console changes apply to the next policy resolution. The generic
+ENV lists use the precedence above and need an API and worker restart.
+
+When enabled, local dbt compilation refuses authentication modes that depend on
+the server's cloud identity. Use an explicit key or a person's sign-in instead.
+The dbt child process also stops inheriting the cloud credential variables in
+`CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS`, including those in the machine
+allowlist. Project environment variables and target-injected credentials remain
+available. The server environment does not change.
+
+Disabling the flag restores the existing profile and child-environment behaviour.
+It does not change credential selection, revoke credentials or stop work already
+in progress. This policy does not isolate the child from host files or metadata
+endpoints; it rejects known ambient modes and filters inherited variables.

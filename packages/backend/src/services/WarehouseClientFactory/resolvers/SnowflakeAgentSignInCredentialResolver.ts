@@ -55,6 +55,7 @@ import type {
     CredentialResolver,
     CredentialSaveInput,
     CredentialSelection,
+    DbtTargetResult,
     ValidatedCredential,
 } from '../CredentialResolver';
 import {
@@ -550,6 +551,13 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
             input.stored.person.organizationUuid,
             resolved.agentSignIn!.clientVersion,
         ];
+    }
+
+    toDbtTarget(): DbtTargetResult {
+        return {
+            kind: 'none',
+            reason: "Agent sign-in credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+        };
     }
 
     async dispose(): Promise<void> {}

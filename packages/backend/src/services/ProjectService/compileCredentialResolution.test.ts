@@ -5,6 +5,7 @@ import {
     EMPTY_WAREHOUSE_LOCATION,
     FeatureFlags,
     ProjectType,
+    RequestMethod,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateBigqueryCredentials,
@@ -18,17 +19,26 @@ import {
     refreshDatabricksOAuthToken,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import execa from 'execa';
+import fs, { writeFileSync } from 'fs';
+import * as yaml from 'js-yaml';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { DbtCliClient } from '../../dbt/dbtCliClient';
+import { CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS } from '../../dbt/dbtProcessEnvironment';
+import { profileFromCredentials } from '../../dbt/profiles';
+import { bigqueryAdc, bigqueryAdcTarget } from '../../dbt/targets/targets.mock';
 import { type OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { type ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
+import { DbtLocalCredentialsProjectAdapter } from '../../projectAdapters/dbtLocalCredentialsProjectAdapter';
 import { type ProjectAdapter } from '../../types';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
 import { connectionContextFromUser } from '../WarehouseClientFactory/ConnectionContext';
+import type { CredentialResolver } from '../WarehouseClientFactory/CredentialResolver';
 import { organizationCredentialStorage } from './organizationCredentialStorage.mock';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
@@ -43,6 +53,17 @@ afterAll(() => {
     if (previousCacheSetting === undefined)
         delete process.env.EXPERIMENTAL_CACHE;
     else process.env.EXPERIMENTAL_CACHE = previousCacheSetting;
+});
+
+vi.mock('execa', () => ({ default: vi.fn() }));
+vi.mock('fs', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('fs')>();
+    const write = vi.fn(actual.writeFileSync);
+    return {
+        ...actual,
+        writeFileSync: write,
+        default: { ...actual, writeFileSync: write },
+    };
 });
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
@@ -146,7 +167,15 @@ const setup = (
             vi.fn<WarehouseConnectionCompileModel['getCompileConnections']>(),
         getCatalogCache: vi.fn(async () => undefined),
     };
+    const featureFlagModel = {
+        get: vi.fn(
+            async (_input: { featureFlagId: FeatureFlags; user: unknown }) => ({
+                enabled: false,
+            }),
+        ),
+    };
     const service = new ProjectService({
+        analytics: { track: vi.fn() },
         refreshTokenRotation: { run: vi.fn() },
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -162,7 +191,7 @@ const setup = (
         organizationWarehouseCredentialsModel,
         warehouseConnectionModel,
         userOAuthGrantsModel,
-        featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
+        featureFlagModel,
     } as unknown as ProjectServiceArguments);
     const prepare = () =>
         (
@@ -199,6 +228,7 @@ const setup = (
     };
     return {
         service,
+        featureFlagModel,
         project,
         projectModel,
         projectDbtSourcesModel,
@@ -787,6 +817,13 @@ describe('compile credential resolution', () => {
         'loads and refreshes each compile group once through the service with switch %s',
         async (enabled) => {
             const f = setup(snowflake(), { enabled });
+            f.project.organizationUuid = 'different-project-organization';
+            const installationLookup = vi.spyOn(
+                f.service as unknown as {
+                    resolveDbtConnectionInstallationId: ProjectService['resolveDbtConnectionInstallationId'];
+                },
+                'resolveDbtConnectionInstallationId',
+            );
             const buildManifest = (name: string): DbtManifest => ({
                 nodes: Object.fromEntries([
                     [
@@ -923,14 +960,15 @@ describe('compile credential resolution', () => {
                 withCompileAdapter: ProjectService['withCompileAdapter'];
                 compileMultiConnectionProject: ProjectService['compileMultiConnectionProject'];
             };
+            const actor = { ...user, organizationUuid: 'actor-organization' };
             const adapters: ProjectAdapter[] = [];
             const compiled = await probe.withCompileAdapter(
                 f.project.projectUuid,
-                user,
+                actor,
                 (primary) =>
                     probe.compileMultiConnectionProject({
                         projectUuid: f.project.projectUuid,
-                        organizationUuid: f.project.organizationUuid,
+                        organizationUuid: actor.organizationUuid,
                         userUuid: user.userUuid,
                         primary,
                         manifestFetchAdapters: adapters,
@@ -942,6 +980,24 @@ describe('compile credential resolution', () => {
                     }),
                 adapters,
             );
+            expect(
+                f.featureFlagModel.get.mock.calls.filter(
+                    ([input]) =>
+                        input.featureFlagId ===
+                        FeatureFlags.DbtExplicitCredentials,
+                ),
+            ).toEqual([
+                [
+                    {
+                        featureFlagId: FeatureFlags.DbtExplicitCredentials,
+                        user: { organizationUuid: f.project.organizationUuid },
+                    },
+                ],
+            ]);
+            expect(installationLookup).toHaveBeenCalledTimes(3);
+            for (const [, organizationUuid] of installationLookup.mock.calls) {
+                expect(organizationUuid).toBe(actor.organizationUuid);
+            }
             expect(compiled.warnings).toEqual([]);
             expect(compiled.carry).toEqual({
                 kind: 'connections',
@@ -1085,4 +1141,264 @@ describe('strict personal overlay (agent-identity on)', () => {
             },
         });
     });
+});
+
+describe('factory dbt target handoff to the real local adapter', () => {
+    const reason =
+        "BigQuery Application Default Credentials cannot be used to run dbt, because they use the server's own identity. Use a service account key or a person's sign-in instead.";
+    const paths = ['compile', 'test-and-compile'] as const;
+    type CompilePath = (typeof paths)[number];
+
+    const setupTarget = (explicitCredentials: boolean) => {
+        const f = setup(bigqueryAdc);
+        f.project.dbtConnection = {
+            type: DbtProjectType.DBT,
+            project_dir: '/unused/dbt-project',
+        };
+        f.featureFlagModel.get.mockImplementation(
+            async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DbtExplicitCredentials &&
+                    explicitCredentials,
+            }),
+        );
+        const resolver: CredentialResolver<CreateBigqueryCredentials> = {
+            validateOnSave: vi.fn(async (input) => ({
+                connection: input.connection,
+                stored: input.stored,
+            })),
+            resolve: vi.fn(async (input) => ({
+                agentSignIn: null,
+                clientCredentials: input.connection,
+                clientOptions: {},
+                cacheable: false,
+            })),
+            cacheKeyIdentity: vi.fn(() => ['dbt-target-test']),
+            dispose: vi.fn(async () => undefined),
+            toDbtTarget: vi.fn<
+                CredentialResolver<CreateBigqueryCredentials>['toDbtTarget']
+            >((_resolved, _connection, policy) =>
+                policy.explicitCredentials
+                    ? { kind: 'none', reason }
+                    : {
+                          kind: 'target',
+                          target: bigqueryAdcTarget,
+                          environment: {},
+                      },
+            ),
+        };
+        f.service.warehouseClientFactory.credentialResolvers.register(
+            WarehouseTypes.BIGQUERY,
+            BigqueryAuthenticationType.ADC,
+            resolver,
+        );
+        vi.mocked(warehouseClientFromCredentials).mockImplementation(
+            (credentials) => ({ ...warehouseClientMock, credentials }),
+        );
+        const writeProfile = vi.mocked(writeFileSync);
+        const createDirectory = vi.spyOn(fs, 'mkdtempSync');
+        const dbtTest = vi
+            .spyOn(DbtCliClient.prototype, 'test')
+            .mockResolvedValue(undefined);
+        const probe = f.service as unknown as {
+            withCompileAdapter: ProjectService['withCompileAdapter'];
+            testProjectAdapter: ProjectService['testProjectAdapter'];
+        };
+        const run = async (compilePath: CompilePath, actor = user) => {
+            let captured: {
+                profile: string;
+                environment: Record<string, string>;
+            } | null = null;
+            const capture = (adapter: ProjectAdapter) => {
+                expect(adapter).toBeInstanceOf(
+                    DbtLocalCredentialsProjectAdapter,
+                );
+                const local = adapter as DbtLocalCredentialsProjectAdapter;
+                captured = {
+                    profile: fs.readFileSync(
+                        `${local.profilesDir}/profiles.yml`,
+                        'utf8',
+                    ),
+                    environment: (local.dbtClient as DbtCliClient).environment,
+                };
+            };
+            if (compilePath === 'compile') {
+                await probe.withCompileAdapter(
+                    f.project.projectUuid,
+                    actor,
+                    async ({ adapter }) => {
+                        capture(adapter);
+                        await adapter.test();
+                    },
+                    [],
+                );
+            } else {
+                const tested = await probe.testProjectAdapter(
+                    {
+                        ...projectWithSensitiveFields,
+                        dbtConnection: f.project.dbtConnection,
+                        warehouseConnection: {
+                            kind: 'stored',
+                            projectUuid: f.project.projectUuid,
+                            credentials: bigqueryAdc,
+                        },
+                    },
+                    actor,
+                    'project_update',
+                    RequestMethod.WEB_APP,
+                    f.project.projectUuid,
+                    f.project.organizationUuid,
+                );
+                try {
+                    capture(tested.adapter);
+                } finally {
+                    await tested.adapter.destroy();
+                    await tested.lease.release();
+                }
+            }
+            return captured;
+        };
+        return { ...f, resolver, writeProfile, createDirectory, dbtTest, run };
+    };
+
+    afterEach(() => vi.unstubAllEnvs());
+
+    it.each(paths)(
+        '%s flag off preserves ambient profile bytes and environment at the adapter',
+        async (compilePath) => {
+            const f = setupTarget(false);
+            const legacy = profileFromCredentials(bigqueryAdc, '/tmp/profiles');
+            expect(await f.run(compilePath)).toEqual({
+                profile: legacy.profile,
+                environment: legacy.environment,
+            });
+            expect(f.dbtTest).toHaveBeenCalledOnce();
+            expect(f.writeProfile).toHaveBeenCalledWith(
+                expect.stringMatching(/profiles\.yml$/),
+                legacy.profile,
+            );
+            expect(f.resolver.resolve).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each(paths)(
+        '%s flag off obtains its target from the resolver using the project organization',
+        async (compilePath) => {
+            const f = setupTarget(false);
+            await f.run(compilePath);
+            expect(f.featureFlagModel.get).toHaveBeenCalledWith({
+                user: { organizationUuid: f.project.organizationUuid },
+                featureFlagId: FeatureFlags.DbtExplicitCredentials,
+            });
+            expect(f.resolver.toDbtTarget).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    clientCredentials: expect.objectContaining(bigqueryAdc),
+                }),
+                expect.objectContaining(bigqueryAdc),
+                { explicitCredentials: false },
+            );
+        },
+    );
+
+    it('flag off keeps the actor credential context and resolves the project flag scope', async () => {
+        const f = setupTarget(false);
+        f.project.organizationUuid = 'different-project-organization';
+        const acquire = vi.spyOn(
+            f.service.warehouseClientFactory,
+            'acquireWarehouseConnection',
+        );
+
+        await f.run('test-and-compile', {
+            ...user,
+            organizationUuid: 'actor-organization',
+        });
+
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
+
+        expect(acquire).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            expect.objectContaining({
+                organizationUuid: 'actor-organization',
+            }),
+        );
+        expect(
+            f.featureFlagModel.get.mock.calls.filter(
+                ([input]) =>
+                    input.featureFlagId === FeatureFlags.DbtExplicitCredentials,
+            ),
+        ).toEqual([
+            [
+                {
+                    featureFlagId: FeatureFlags.DbtExplicitCredentials,
+                    user: { organizationUuid: f.project.organizationUuid },
+                },
+            ],
+        ]);
+    });
+
+    it.each(paths)(
+        '%s serializes the resolver target and injects its environment',
+        async (compilePath) => {
+            const f = setupTarget(true);
+            const target = {
+                ...bigqueryAdcTarget,
+                project: 'resolver-selected-project',
+            };
+            const environment = {
+                LIGHTDASH_DBT_PROFILE_VAR_SENTINEL: 'resolver-owned-secret',
+            };
+            vi.mocked(f.resolver.toDbtTarget).mockReturnValue({
+                kind: 'target',
+                target,
+                environment,
+            });
+            const result = await f.run(compilePath);
+            expect(result).toEqual({
+                profile: yaml.dump({
+                    lightdash_profile: {
+                        target: 'prod',
+                        outputs: { prod: target },
+                    },
+                }),
+                environment,
+            });
+            expect(f.resolver.toDbtTarget).toHaveBeenCalledOnce();
+        },
+    );
+
+    it.each(paths)(
+        '%s rejects resolver none before files or dbt despite host credentials',
+        async (compilePath) => {
+            CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS.forEach((key) =>
+                vi.stubEnv(key, `host-${key}`),
+            );
+            const before = { ...process.env };
+            const f = setupTarget(true);
+            const outcome = await f.run(compilePath).then(
+                () => ({ error: null }),
+                (error: unknown) => ({ error }),
+            );
+            expect.soft(outcome.error).toBeInstanceOf(Error);
+            expect
+                .soft(
+                    outcome.error instanceof Error
+                        ? outcome.error.message
+                        : null,
+                )
+                .toBe(reason);
+            expect.soft(f.resolver.toDbtTarget).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    clientCredentials: expect.objectContaining(bigqueryAdc),
+                }),
+                expect.objectContaining(bigqueryAdc),
+                { explicitCredentials: true },
+            );
+            expect.soft(f.writeProfile).not.toHaveBeenCalled();
+            expect.soft(f.createDirectory).not.toHaveBeenCalled();
+            expect.soft(f.dbtTest).not.toHaveBeenCalled();
+            expect.soft(execa).not.toHaveBeenCalled();
+            expect.soft(f.resolver.dispose).toHaveBeenCalledOnce();
+            expect(process.env).toEqual(before);
+        },
+    );
 });

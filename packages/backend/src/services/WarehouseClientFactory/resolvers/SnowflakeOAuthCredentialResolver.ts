@@ -14,6 +14,7 @@ import {
     OAUTH_REQUEST_TIMEOUT_MS,
     OAuthRequestTimeoutError,
 } from '../../../auth/oauthRequestDeadline';
+import { toDbtTarget } from '../../../dbt/targets';
 import type Logger from '../../../logging/logger';
 import {
     RefreshTokenLockTimeoutError,
@@ -37,6 +38,8 @@ import {
     type CredentialResolver,
     type CredentialSaveInput,
     type CredentialSelection,
+    type DbtTargetPolicy,
+    type DbtTargetResult,
     type ValidatedCredential,
 } from '../CredentialResolver';
 import { prepareWarehouseOAuthCredentials } from '../preparedOAuthCredentials';
@@ -305,6 +308,14 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
 
     cacheKeyIdentity(input: SnowflakeSelection): readonly (string | null)[] {
         return cacheKeyIdentity(input.owner);
+    }
+
+    toDbtTarget(
+        _resolved: CredentialResolution<CreateSnowflakeCredentials>,
+        finalConnection: CreateSnowflakeCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        return toDbtTarget(finalConnection, policy);
     }
 
     async dispose(): Promise<void> {}

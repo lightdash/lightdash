@@ -5,6 +5,7 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
      * Snowflake agent sign-in. Off by default; organization scope; no handler.

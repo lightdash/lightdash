@@ -159,6 +159,33 @@ describe('DbtCliClient environment', () => {
         });
     });
 
+    it('keeps explicit credentials while removing inherited and allowlisted host credentials', async () => {
+        vi.stubEnv('AWS_ACCESS_KEY_ID', 'host-key');
+        vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'host-secret');
+        vi.stubEnv('GOOGLE_APPLICATION_CREDENTIALS', '/host/adc.json');
+        await new DbtCliClient({
+            ...cliArgs,
+            explicitCredentials: true,
+            environmentVariableAllowlist: ['GOOGLE_APPLICATION_CREDENTIALS'],
+            environment: {
+                AWS_ACCESS_KEY_ID: 'target-key',
+                AWS_SECRET_ACCESS_KEY: 'target-secret',
+                PROJECT_SETTING: 'explicit',
+            },
+        }).installDeps();
+        const [, , options] = execaMock.mock.calls[0];
+        const { env } = options as { env: Record<string, string> };
+        expect(env).toMatchObject({
+            AWS_ACCESS_KEY_ID: 'target-key',
+            AWS_SECRET_ACCESS_KEY: 'target-secret',
+            PROJECT_SETTING: 'explicit',
+        });
+        expect(env).not.toHaveProperty('GOOGLE_APPLICATION_CREDENTIALS');
+        expect(process.env.GOOGLE_APPLICATION_CREDENTIALS).toBe(
+            '/host/adc.json',
+        );
+    });
+
     it('passes the scoped git config to dbt without exposing a token', async () => {
         await new DbtCliClient({
             ...cliArgs,

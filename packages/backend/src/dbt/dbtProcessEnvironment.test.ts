@@ -1,4 +1,5 @@
 import {
+    CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
     getDbtProcessEnvironment,
     getMissingEnvironmentVariableHint,
 } from './dbtProcessEnvironment';
@@ -28,6 +29,7 @@ const processEnvironment: NodeJS.ProcessEnv = {
 
 const buildEnvironment = (projectEnvironment: Record<string, string> = {}) =>
     getDbtProcessEnvironment({
+        explicitCredentials: false,
         processEnvironment,
         environmentVariableAllowlist: [],
         projectEnvironment,
@@ -81,6 +83,7 @@ describe('getDbtProcessEnvironment', () => {
 
     it('forwards machine variables named in the dbt allowlist', () => {
         const environment = getDbtProcessEnvironment({
+            explicitCredentials: false,
             processEnvironment: {
                 ...processEnvironment,
             },
@@ -105,6 +108,7 @@ describe('getDbtProcessEnvironment', () => {
 
     it('lets project variables override allowlisted machine variables', () => {
         const environment = getDbtProcessEnvironment({
+            explicitCredentials: false,
             processEnvironment: {
                 ...processEnvironment,
             },
@@ -132,6 +136,7 @@ describe('getDbtProcessEnvironment', () => {
 
     it('enables partial parsing only when Lightdash seeds the target directory', () => {
         const environment = getDbtProcessEnvironment({
+            explicitCredentials: false,
             processEnvironment,
             environmentVariableAllowlist: [],
             projectEnvironment: { DBT_PARTIAL_PARSE: 'false' },
@@ -144,6 +149,7 @@ describe('getDbtProcessEnvironment', () => {
 
     it('uses only the Lightdash-controlled git config when provided', () => {
         const environment = getDbtProcessEnvironment({
+            explicitCredentials: false,
             processEnvironment,
             environmentVariableAllowlist: [],
             projectEnvironment: {
@@ -220,4 +226,130 @@ describe('getMissingEnvironmentVariableHint', () => {
             getMissingEnvironmentVariableHint('Database Error in model orders'),
         ).toBeUndefined();
     });
+});
+
+describe('dbt explicit credential child environment', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    const cloudKeys = [
+        'AWS_ACCESS_KEY_ID',
+        'AWS_SECRET_ACCESS_KEY',
+        'AWS_SESSION_TOKEN',
+        'AWS_ROLE_ARN',
+        'AWS_ROLE_SESSION_NAME',
+        'AWS_WEB_IDENTITY_TOKEN_FILE',
+        'AWS_CONTAINER_CREDENTIALS_RELATIVE_URI',
+        'AWS_CONTAINER_CREDENTIALS_FULL_URI',
+        'AWS_CONTAINER_AUTHORIZATION_TOKEN',
+        'AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE',
+        'AWS_PROFILE',
+        'AWS_DEFAULT_PROFILE',
+        'AWS_SHARED_CREDENTIALS_FILE',
+        'AWS_CONFIG_FILE',
+        'AWS_REGION',
+        'AWS_DEFAULT_REGION',
+        'AWS_CA_BUNDLE',
+        'AWS_STS_REGIONAL_ENDPOINTS',
+        'AWS_EC2_METADATA_DISABLED',
+        'AWS_EC2_METADATA_SERVICE_ENDPOINT',
+        'AWS_METADATA_SERVICE_TIMEOUT',
+        'AWS_METADATA_SERVICE_NUM_ATTEMPTS',
+        'AWS_ENDPOINT_URL',
+        'AWS_ENDPOINT_URL_S3',
+        'AWS_ENDPOINT_URL_STS',
+        'GOOGLE_APPLICATION_CREDENTIALS',
+        'CLOUDSDK_CONFIG',
+        'GOOGLE_CLOUD_PROJECT',
+        'GCLOUD_PROJECT',
+        'GOOGLE_CLOUD_QUOTA_PROJECT',
+        'GCE_METADATA_HOST',
+        'GCE_METADATA_IP',
+        'GCE_METADATA_ROOT',
+        'NO_GCE_CHECK',
+        'AZURE_TENANT_ID',
+        'AZURE_CLIENT_ID',
+        'AZURE_CLIENT_SECRET',
+        'AZURE_CLIENT_CERTIFICATE_PATH',
+        'AZURE_CLIENT_CERTIFICATE_PASSWORD',
+        'AZURE_FEDERATED_TOKEN_FILE',
+        'AZURE_AUTHORITY_HOST',
+        'MSI_ENDPOINT',
+        'MSI_SECRET',
+        'IDENTITY_ENDPOINT',
+        'IDENTITY_HEADER',
+        'IMDS_ENDPOINT',
+    ];
+
+    const cloudEnvironment = Object.fromEntries(
+        cloudKeys.map((key) => [key, `host-${key}`]),
+    );
+
+    it('flag off inherits every cloud credential variable exactly as before', () => {
+        expect(CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS).toEqual(cloudKeys);
+        const args = {
+            processEnvironment: {
+                ...cloudEnvironment,
+                PATH: '/usr/bin',
+                UNRELATED_SECRET: 'private',
+            },
+            environmentVariableAllowlist: [],
+            projectEnvironment: {},
+            targetPath: '/tmp/target',
+            partialParse: false,
+        };
+        const off = getDbtProcessEnvironment({
+            ...args,
+            explicitCredentials: false,
+        });
+        expect(off).toEqual({
+            ...cloudEnvironment,
+            PATH: '/usr/bin',
+            DBT_PARTIAL_PARSE: 'false',
+            DBT_SEND_ANONYMOUS_USAGE_STATS: 'false',
+            DBT_TARGET_PATH: '/tmp/target',
+        });
+        expect(off).toEqual(
+            getDbtProcessEnvironment({ ...args, explicitCredentials: false }),
+        );
+    });
+
+    it.each([
+        { source: 'inherited', action: 'removes' },
+        { source: 'allowlisted', action: 'removes' },
+        { source: 'project', action: 'keeps' },
+    ] as const)(
+        'flag on $action $source cloud credentials without mutating process.env',
+        ({ source }) => {
+            Object.entries(cloudEnvironment).forEach(([key, value]) =>
+                vi.stubEnv(key, value),
+            );
+            const before = { ...process.env };
+            const environment = getDbtProcessEnvironment({
+                processEnvironment: process.env,
+                environmentVariableAllowlist:
+                    source === 'allowlisted' ? cloudKeys : [],
+                projectEnvironment: {
+                    ...(source === 'project' ? cloudEnvironment : {}),
+                    LIGHTDASH_DBT_PROFILE_VAR_PASSWORD: 'resolved-password',
+                    PROJECT_SETTING: 'project-value',
+                },
+                targetPath: '/tmp/target',
+                partialParse: false,
+                explicitCredentials: true,
+            });
+            expect(process.env).toEqual(before);
+            expect(environment.PATH).toEqual(before.PATH);
+            expect(environment.LIGHTDASH_DBT_PROFILE_VAR_PASSWORD).toBe(
+                'resolved-password',
+            );
+            expect(environment.PROJECT_SETTING).toBe('project-value');
+            expect(
+                Object.keys(environment).filter((key) =>
+                    cloudKeys.includes(key),
+                ),
+            ).toEqual(source === 'project' ? cloudKeys : []);
+            if (source === 'project')
+                expect(environment).toMatchObject(cloudEnvironment);
+        },
+    );
 });

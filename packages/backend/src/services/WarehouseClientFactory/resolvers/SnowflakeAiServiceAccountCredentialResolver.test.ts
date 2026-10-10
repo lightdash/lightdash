@@ -98,6 +98,10 @@ it.each([
         resolve: personalResolve,
         validateOnSave: vi.fn(),
         cacheKeyIdentity: vi.fn(),
+        toDbtTarget: vi.fn(() => ({
+            kind: 'none' as const,
+            reason: 'Mock credentials cannot run dbt.',
+        })),
         dispose: vi.fn(),
     });
     const input = selection();

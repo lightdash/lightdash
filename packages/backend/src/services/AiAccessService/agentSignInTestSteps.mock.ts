@@ -54,11 +54,16 @@ export const agentSignInResolverMock = (
     SnowflakeAgentSignInCredentialResolver,
     | 'resolve'
     | 'validateOnSave'
+    | 'toDbtTarget'
     | 'cacheKeyIdentity'
     | 'dispose'
     | 'inspect'
     | 'inspectClient'
 > => ({
+    toDbtTarget: () => ({
+        kind: 'none',
+        reason: 'Agent sign-in cannot run dbt.',
+    }),
     inspectClient: async (organizationUuid) => {
         const message = await steps().configurationError(organizationUuid);
         if (message)

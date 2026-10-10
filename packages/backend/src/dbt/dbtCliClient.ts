@@ -36,6 +36,8 @@ type DbtCliArgs = {
     dbtProfilesDirectory: string;
     environment: Record<string, string>;
     environmentVariableAllowlist: string[];
+
+    explicitCredentials: boolean;
     profileName?: string;
     target?: string;
     dbtVersion: SupportedDbtVersions;
@@ -66,6 +68,8 @@ export class DbtCliClient implements DbtClient {
 
     environmentVariableAllowlist: string[];
 
+    explicitCredentials: boolean;
+
     profileName: string | undefined;
 
     target: string | undefined;
@@ -89,6 +93,7 @@ export class DbtCliClient implements DbtClient {
         dbtProfilesDirectory,
         environment,
         environmentVariableAllowlist,
+        explicitCredentials,
         profileName,
         target,
         dbtVersion,
@@ -101,6 +106,7 @@ export class DbtCliClient implements DbtClient {
         this.dbtProfilesDirectory = dbtProfilesDirectory;
         this.environment = environment;
         this.environmentVariableAllowlist = environmentVariableAllowlist;
+        this.explicitCredentials = explicitCredentials;
         this.profileName = profileName;
         this.target = target;
         this.targetDirectory = undefined;
@@ -258,6 +264,7 @@ export class DbtCliClient implements DbtClient {
                 extendEnv: false,
                 env: getDbtProcessEnvironment({
                     processEnvironment: process.env,
+                    explicitCredentials: this.explicitCredentials,
                     environmentVariableAllowlist:
                         this.environmentVariableAllowlist,
                     projectEnvironment: this.environment,
