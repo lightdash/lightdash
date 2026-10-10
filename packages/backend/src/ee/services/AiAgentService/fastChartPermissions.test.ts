@@ -37,6 +37,7 @@ const setup = () => {
         mode: 'managed',
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const settings = { mcpAgentsEnabled: true, mcpContentWritesEnabled: true };
@@ -172,6 +173,7 @@ const denials = [
     ['query', AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
     ['project', AiAccessRefusalReason.AGENT_PROJECT_DENIED],
     ['switch', AiAccessRefusalReason.AGENT_ACCESS_DISABLED],
+    ['user', AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED],
 ] as const;
 
 test.each(denials)(
@@ -179,6 +181,7 @@ test.each(denials)(
     async (denial, reason) => {
         const h = setup();
         if (denial === 'query') h.policy.systemRoleMatrix.viewer = [];
+        if (denial === 'user') h.policy.allowedUserUuids = [];
         if (denial === 'project') h.policy.allowedProjectUuids = [];
         if (denial === 'switch') h.settings.mcpAgentsEnabled = false;
         await Promise.all(
@@ -205,6 +208,7 @@ test.each(denials.slice(1))(
     'the real turn rejects %s before fast decisions',
     async (denial, reason) => {
         const h = setup();
+        if (denial === 'user') h.policy.allowedUserUuids = [];
         if (denial === 'project') h.policy.allowedProjectUuids = [];
         if (denial === 'switch') h.settings.mcpAgentsEnabled = false;
         await expect(
@@ -234,6 +238,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
             h.policy.systemRoleMatrix.viewer = [];
             h.settings.mcpAgentsEnabled = false;
             h.policy.allowedProjectUuids = [];
+            h.policy.allowedUserUuids = [];
         }
         await h.privateService.tryApplyChartEdit(h.args);
         await h.privateService.searchFilterValueCandidates({

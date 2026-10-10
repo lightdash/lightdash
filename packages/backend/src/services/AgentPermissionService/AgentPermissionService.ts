@@ -43,6 +43,7 @@ export interface ResolvedAgentPolicy {
     mode: 'off' | 'legacy' | 'managed';
     capabilities: Set<AgentCapability> | null;
     allowedProjectUuids: string[] | null;
+    allowedUserUuids: string[] | null;
     version: number;
     editableCustomRoleUuid: string | null;
 }
@@ -272,6 +273,7 @@ export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
 
 export interface AgentCapabilityCeiling {
     allowedProjectUuids: UUID[] | null;
+    allowedUserUuids: UUID[] | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
@@ -324,6 +326,7 @@ export class AgentPermissionService extends BaseService {
                 mode: 'off',
                 capabilities: null,
                 allowedProjectUuids: null,
+                allowedUserUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
             };
@@ -374,6 +377,7 @@ export class AgentPermissionService extends BaseService {
             mode: 'managed',
             version: policy.version,
             allowedProjectUuids: policy.allowedProjectUuids,
+            allowedUserUuids: policy.allowedUserUuids,
             capabilities,
             editableCustomRoleUuid: canEditRoles
                 ? (assignments.customRoles[0]?.roleUuid ?? null)
@@ -407,6 +411,22 @@ export class AgentPermissionService extends BaseService {
     async assertOperation(args: AssertOperationArgs): Promise<void> {
         const policy = await this.resolvePolicy(args);
         if (policy.mode !== 'managed') return;
+        if (
+            policy.allowedUserUuids !== null &&
+            !policy.allowedUserUuids.includes(args.account.user.id)
+        ) {
+            const error = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                {
+                    policyLayer: 'organization_setting',
+                    policyVersion: policy.version,
+                    operation: args.key,
+                    projectUuid: args.projectUuid,
+                },
+            );
+            await this.recordRefusal(args, error);
+            throw error;
+        }
         if (
             args.kind === 'rest_operation' &&
             HUMAN_ONLY_IN_MANAGED.has(args.key)
@@ -650,9 +670,11 @@ export class AgentPermissionService extends BaseService {
     async applyPilotPreset(
         account: Account,
         allowedProjectUuids: string[] | null,
+        allowedUserUuids: string[] | null,
     ): Promise<AgentCapabilityPolicy> {
         return this.saveCeiling(account, {
             allowedProjectUuids,
+            allowedUserUuids,
             systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
         });
     }

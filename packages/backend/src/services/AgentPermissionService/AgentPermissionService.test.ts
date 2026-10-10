@@ -4,6 +4,7 @@ import {
     AgentCapability,
     AiAccessRefusalReason,
     FeatureFlags,
+    ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
     type PossibleAbilities,
@@ -23,6 +24,7 @@ const setup = () => {
         mode: 'managed',
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: { ...matrix, viewer: [AgentCapability.Query] },
     };
     const deps = {
@@ -72,6 +74,7 @@ test.each(['off', 'legacy'] as const)(
     '%s leaves existing behavior unchanged',
     async (mode) => {
         const { service, deps, operation, policy } = setup();
+        policy.allowedUserUuids = [];
         if (mode === 'off')
             deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
         else policy.mode = 'legacy';
@@ -243,6 +246,7 @@ test('pure evaluation is suitable for tool filtering', () => {
                 mode: 'off',
                 capabilities: null,
                 allowedProjectUuids: null,
+                allowedUserUuids: null,
                 version: 0,
                 editableCustomRoleUuid: null,
             },
@@ -488,3 +492,91 @@ test.each([...HUMAN_ONLY_IN_MANAGED])(
         expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
     },
 );
+
+const admissionSurfaces = [
+    ['mcp_tool', 'read_content', AgentActorSurface.MCP],
+    ['agent_tool', 'getMetadata', AgentActorSurface.IN_APP_AGENT],
+    ['agent_tool', 'getMetadata', AgentActorSurface.SLACK_AGENT],
+    ['agent_turn', 'agent_turn', AgentActorSurface.IN_APP_AGENT],
+    ['agent_turn', 'agent_turn', AgentActorSurface.SLACK_AGENT],
+    ['rest_operation', 'UserController.getAccount', AgentActorSurface.API],
+] as const;
+
+describe.each(admissionSurfaces)(
+    '%s %s on %s admission',
+    (kind, key, surface) => {
+        test.each(['listed', 'unlisted', 'unrestricted', 'empty'] as const)(
+            '%s user list',
+            async (list) => {
+                const { service, policy, account, operation, deps } = setup();
+                const allowedUserLists = {
+                    unrestricted: null,
+                    empty: [],
+                    listed: [account.user.id],
+                    unlisted: ['another-user'],
+                };
+                policy.allowedUserUuids = allowedUserLists[list];
+                policy.systemRoleMatrix.viewer = [AgentCapability.ReadDiscover];
+                const result = service.assertOperation({
+                    ...operation,
+                    kind,
+                    key,
+                    surface,
+                });
+                if (list === 'listed' || list === 'unrestricted') {
+                    await expect(result).resolves.toBeUndefined();
+                } else {
+                    await expect(result).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                            settingsUrl: '/generalSettings/agentIdentity',
+                            message:
+                                'Your account is not allowed to use agents. Ask an organization admin to update agent access.',
+                        },
+                    });
+                    expect(
+                        deps.agentActionLogModel.insert,
+                    ).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            reason_code:
+                                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                            policy_version: 1,
+                        }),
+                    );
+                }
+            },
+        );
+    },
+);
+
+test('user admission precedes capability checks without granting capabilities', async () => {
+    const { service, policy, account, operation } = setup();
+    policy.allowedUserUuids = [];
+    await expect(service.assertOperation(operation)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    policy.allowedUserUuids = [account.user.id];
+    await expect(service.assertOperation(operation)).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED },
+    });
+});
+
+test('a stale listed user cannot bypass current organization membership', async () => {
+    const { service, policy, account, operation, deps } = setup();
+    policy.allowedUserUuids = [account.user.id];
+    deps.userModel.getAgentRoleAssignments.mockRejectedValue(
+        new ForbiddenError('Your account does not belong to this organization'),
+    );
+    await expect(
+        service.assertOperation({
+            ...operation,
+            kind: 'agent_turn',
+            key: 'agent_turn',
+        }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(deps.userModel.getAgentRoleAssignments).toHaveBeenCalledWith(
+        account.user.id,
+        operation.organizationUuid,
+        operation.projectUuid,
+    );
+});

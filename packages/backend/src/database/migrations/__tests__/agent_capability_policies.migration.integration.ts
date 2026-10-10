@@ -9,6 +9,7 @@ import {
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { down, up } from '../20261011000000_add_agent_capability_policies';
+import { up as upAllowedUsers } from '../20261011000001_add_agent_policy_allowed_users';
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {
@@ -60,6 +61,7 @@ test('backfills exactly four default scopes for every custom role, including emp
             },
         ]);
         await up(trx);
+        await upAllowedUsers(trx);
         await Promise.all(
             roles.map(async (role) => {
                 const rows = await trx('scoped_roles')
@@ -98,6 +100,7 @@ test('serializes concurrent policy saves and replaces the entire grant matrix', 
             model.save({
                 organizationUuid: org.organization_uuid,
                 mode: 'managed',
+                allowedUserUuids: null,
                 allowedProjectUuids: [],
                 systemRoleMatrix: matrix(capability),
                 updatedByUserUuid: null,
@@ -137,6 +140,7 @@ test('rolls the policy version and project limit back when the grant replacement
     const original = await model.save({
         organizationUuid: org.organization_uuid,
         mode: 'managed',
+        allowedUserUuids: null,
         allowedProjectUuids: null,
         systemRoleMatrix: matrix(AgentCapability.Query),
         updatedByUserUuid: null,
@@ -145,6 +149,7 @@ test('rolls the policy version and project limit back when the grant replacement
         model.save({
             organizationUuid: org.organization_uuid,
             mode: 'managed',
+            allowedUserUuids: null,
             allowedProjectUuids: [],
             systemRoleMatrix: matrix('invalid' as AgentCapability),
             updatedByUserUuid: null,

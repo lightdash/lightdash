@@ -20,6 +20,7 @@ const LATER_MIGRATIONS_REFERENCING_CONNECTIONS = [
     '20261008120000_add_ai_service_account_credentials',
     '20261009223647_create_credentials_tables',
     '20261011000000_add_agent_capability_policies',
+    '20261011000001_add_agent_policy_allowed_users',
 ] as const;
 
 const LATER_TABLES = [

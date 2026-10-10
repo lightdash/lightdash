@@ -62,6 +62,7 @@ interface DeleteConfirmationResponse extends Omit<
 }
 interface PilotPresetRequest {
     allowedProjectUuids: UUID[] | null;
+    allowedUserUuids: UUID[] | null;
 }
 
 @Route('/api/v2/org/agent-permissions')
@@ -109,7 +110,11 @@ export class AgentPermissionController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getAgentPermissionService()
-                .applyPilotPreset(req.account, body.allowedProjectUuids),
+                .applyPilotPreset(
+                    req.account,
+                    body.allowedProjectUuids,
+                    body.allowedUserUuids,
+                ),
         };
     }
 

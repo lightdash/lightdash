@@ -1,5 +1,6 @@
 import {
     OrganizationMemberRole,
+    ParameterError,
     type AgentCapabilityPolicy,
     type AgentCapabilityPolicySave,
     type AgentSystemRoleMatrix,
@@ -11,6 +12,7 @@ import {
     type DbAgentCapabilityPolicy,
     type DbAgentSystemRoleCapability,
 } from '../database/entities/agentCapabilityPolicies';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 
 const emptyMatrix = (): AgentSystemRoleMatrix => ({
     [OrganizationMemberRole.MEMBER]: [],
@@ -60,6 +62,7 @@ export class AgentCapabilityPolicyModel {
             mode: policy?.mode ?? 'legacy',
             version: policy?.version ?? 0,
             allowedProjectUuids: policy?.allowed_project_uuids ?? null,
+            allowedUserUuids: policy?.allowed_user_uuids ?? null,
             systemRoleMatrix,
         };
     }
@@ -68,22 +71,55 @@ export class AgentCapabilityPolicyModel {
         organizationUuid,
         mode,
         allowedProjectUuids,
+        allowedUserUuids,
         systemRoleMatrix,
         updatedByUserUuid,
     }: AgentCapabilityPolicySave): Promise<AgentCapabilityPolicy> {
         return this.database.transaction(async (transaction) => {
+            if (allowedUserUuids !== null && allowedUserUuids.length > 0) {
+                const members = await transaction(
+                    OrganizationMembershipsTableName,
+                )
+                    .join(
+                        'users',
+                        'users.user_id',
+                        'organization_memberships.user_id',
+                    )
+                    .join(
+                        'organizations',
+                        'organizations.organization_id',
+                        'organization_memberships.organization_id',
+                    )
+                    .where('organizations.organization_uuid', organizationUuid)
+                    .whereIn('users.user_uuid', allowedUserUuids)
+                    .select('users.user_uuid');
+                const memberUuids = new Set(
+                    members.map((member) => member.user_uuid),
+                );
+                if (
+                    allowedUserUuids.some(
+                        (userUuid) => !memberUuids.has(userUuid),
+                    )
+                ) {
+                    throw new ParameterError(
+                        'All allowed users must belong to this organization',
+                    );
+                }
+            }
             const [policy] = await transaction(AgentCapabilityPoliciesTableName)
                 .insert({
                     organization_uuid: organizationUuid,
                     mode,
                     version: 1,
                     allowed_project_uuids: allowedProjectUuids,
+                    allowed_user_uuids: allowedUserUuids,
                     updated_by_user_uuid: updatedByUserUuid,
                 })
                 .onConflict('organization_uuid')
                 .merge({
                     mode,
                     allowed_project_uuids: allowedProjectUuids,
+                    allowed_user_uuids: allowedUserUuids,
                     updated_by_user_uuid: updatedByUserUuid,
                     updated_at: transaction.fn.now(),
                     version: transaction.raw('??.?? + 1', [
@@ -112,6 +148,7 @@ export class AgentCapabilityPolicyModel {
                 mode: policy.mode,
                 version: policy.version,
                 allowedProjectUuids: policy.allowed_project_uuids,
+                allowedUserUuids: policy.allowed_user_uuids,
                 systemRoleMatrix,
             };
         });

@@ -10,6 +10,7 @@ export interface AgentCapabilityPolicy {
     mode: 'legacy' | 'managed';
     version: number;
     allowedProjectUuids: string[] | null;
+    allowedUserUuids: string[] | null;
     systemRoleMatrix: AgentSystemRoleMatrix;
 }
 
