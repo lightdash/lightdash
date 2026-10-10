@@ -13,6 +13,7 @@ import {
     AI_USER_THREAD_CREATED_FROM,
     AiAccessRefusal,
     AiAccessRefusalAction,
+    AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgent,
     AiAgentBattleProfile,
@@ -14747,14 +14748,51 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     key: 'slack_prompt',
                                     surface: AgentActorSurface.SLACK_AGENT,
                                     actorVerified:
-                                        !!slackInstallation?.aiRequireOAuth &&
                                         senderIdentity?.userUuid ===
-                                            user.userUuid,
+                                        user.userUuid,
                                 },
                             );
                         } catch (error) {
                             if (error instanceof AiAccessRefusedError) {
-                                options.onSlackAccessRefusal?.(error.refusal);
+                                let refusalError = error;
+                                if (
+                                    error.refusal.reason ===
+                                    AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+                                ) {
+                                    const installation =
+                                        await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                                            organizationUuid,
+                                        );
+                                    const teamId =
+                                        installation?.isEnterpriseInstall
+                                            ? installation.enterprise?.id
+                                            : installation?.team?.id;
+                                    if (teamId) {
+                                        refusalError = new AiAccessRefusedError(
+                                            error.refusal.reason,
+                                            {
+                                                ...error.refusal,
+                                                connectUrl:
+                                                    this.getSlackAccountConnectUrl(
+                                                        {
+                                                            teamId,
+                                                            channelId:
+                                                                prompt.slackChannelId,
+                                                            messageId:
+                                                                prompt.promptSlackTs,
+                                                            threadTs:
+                                                                prompt.slackThreadTs ??
+                                                                null,
+                                                        },
+                                                    ),
+                                            },
+                                        );
+                                    }
+                                }
+                                options.onSlackAccessRefusal?.(
+                                    refusalError.refusal,
+                                );
+                                throw refusalError;
                             }
                             throw error;
                         }
@@ -18101,6 +18139,25 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return true;
         } catch (error) {
             await flushTaskUpdates();
+            if (error instanceof AiAccessRefusedError && streamTs) {
+                const reply = this.getSlackAccessRefusalReply(error.refusal);
+                finalizeToolTasksForSuccess();
+                queueReasoningTaskUpdate({ status: 'complete' });
+                await flushTaskUpdates();
+                await updatePlanTitle(reply.title);
+                await this.slackClient.stopAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    text: reply.text,
+                    chunks: [{ type: 'blocks', blocks: reply.blocks }],
+                });
+                accessRefusalState.select(error.refusal);
+                accessRefusalState.markDelivered();
+                await persistCardResponseTs();
+                return false;
+            }
             // Status-only phase: let the caller post the error message.
             if (!streamTs) throw error;
 
@@ -18359,6 +18416,27 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 },
             );
         } catch (e) {
+            if (e instanceof AiAccessRefusedError) {
+                const reply = this.getSlackAccessRefusalReply(e.refusal);
+                const response = await this.slackClient.postMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    text: reply.text,
+                    blocks: [reply.titleBlock, ...reply.blocks],
+                    channel: slackPrompt.slackChannelId,
+                    thread_ts:
+                        slackPrompt.slackThreadTs ?? slackPrompt.promptSlackTs,
+                    username: agent?.name,
+                });
+                accessRefusalState.select(e.refusal);
+                accessRefusalState.markDelivered();
+                if (response.ts) {
+                    await this.aiAgentModel.updateSlackResponseTs({
+                        promptUuid,
+                        responseSlackTs: response.ts,
+                    });
+                }
+                return;
+            }
             const userFacingMessage = await this.getPromptErrorMessage(
                 {
                     userUuid: slackPrompt.createdByUserUuid,
@@ -21151,6 +21229,61 @@ Use your existing tools to inspect them when relevant to the user's question (re
         );
     }
 
+    private getSlackAccountConnectUrl({
+        teamId,
+        channelId,
+        messageId,
+        threadTs,
+    }: {
+        teamId: string;
+        channelId: string;
+        messageId: string;
+        threadTs: string | null;
+    }): string {
+        const params = new URLSearchParams({
+            team: teamId,
+            channel: channelId,
+            message: messageId,
+            trigger: 'app_mention',
+        });
+        if (threadTs) params.set('thread_ts', threadTs);
+        return `${this.lightdashConfig.siteUrl}/api/v1/auth/slack?${params}`;
+    }
+
+    private getSlackAccessRefusalReply(refusal: AiAccessRefusal): {
+        title: string;
+        titleBlock: KnownBlock;
+        text: string;
+        blocks: KnownBlock[];
+    } {
+        const title =
+            refusal.action === AiAccessRefusalAction.SIGN_IN
+                ? 'Needs your sign-in'
+                : 'Needs an admin';
+        const message = getSlackAiAccessRefusalMessage(refusal);
+        const blocks = getAiAccessRefusalBlocks(
+            refusal,
+            this.lightdashConfig.siteUrl,
+        );
+        return {
+            title,
+            titleBlock: {
+                type: 'header',
+                text: { type: 'plain_text', text: title },
+            },
+            text: `${title}: ${message}`,
+            blocks:
+                blocks.length > 0
+                    ? blocks
+                    : [
+                          {
+                              type: 'section',
+                              text: { type: 'plain_text', text: message },
+                          },
+                      ],
+        };
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -21177,7 +21310,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
         let observedIdentity: OpenIdIdentity | null = null;
         try {
             const aiRequireOAuth = slackSettings?.aiRequireOAuth;
-            if (!aiRequireOAuth) {
+            if (
+                !aiRequireOAuth &&
+                !(await this.agentPermissionService.isManaged(organizationUuid))
+            ) {
                 result = 'oauth_not_required';
                 return {
                     userUuid:
@@ -21193,6 +21329,51 @@ Use your existing tools to inspect them when relevant to the user's question (re
             observedIdentity = openIdIdentity;
 
             if (!openIdIdentity) {
+                if (!aiRequireOAuth) {
+                    const installerUuid =
+                        await this.slackAuthenticationModel.getUserUuid(teamId);
+                    const installer =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            installerUuid,
+                            organizationUuid,
+                        );
+                    try {
+                        await this.agentPermissionService.assertActorVerified({
+                            account: fromSession(installer),
+                            organizationUuid,
+                            projectUuid: null,
+                            kind: 'agent_tool',
+                            key: 'slack_prompt',
+                            surface: AgentActorSurface.SLACK_AGENT,
+                            actorVerified: false,
+                        });
+                    } catch (error) {
+                        if (!(error instanceof AiAccessRefusedError))
+                            throw error;
+                        const refusalError = new AiAccessRefusedError(
+                            error.refusal.reason,
+                            {
+                                ...error.refusal,
+                                connectUrl: this.getSlackAccountConnectUrl({
+                                    teamId,
+                                    channelId,
+                                    messageId,
+                                    threadTs: threadTs ?? null,
+                                }),
+                            },
+                        );
+                        const reply = this.getSlackAccessRefusalReply(
+                            refusalError.refusal,
+                        );
+                        await client.chat.postMessage({
+                            channel: channelId,
+                            thread_ts: threadTs ?? messageId,
+                            text: reply.text,
+                            blocks: [reply.titleBlock, ...reply.blocks],
+                        });
+                    }
+                    return null;
+                }
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: userId,
@@ -21216,11 +21397,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                     },
                                     // Encode message info in action_id since URL isn't available in action payload
                                     action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
-                                    url: `${
-                                        this.lightdashConfig.siteUrl
-                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}&trigger=app_mention${
-                                        threadTs ? `&thread_ts=${threadTs}` : ''
-                                    }`,
+                                    url: this.getSlackAccountConnectUrl({
+                                        teamId,
+                                        channelId,
+                                        messageId,
+                                        threadTs: threadTs ?? null,
+                                    }),
                                     style: 'primary',
                                 },
                             ],
@@ -21231,6 +21413,12 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return null;
             }
 
+            if (!aiRequireOAuth) {
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    openIdIdentity.userUuid,
+                    organizationUuid,
+                );
+            }
             result = 'authenticated';
             return { userUuid: openIdIdentity.userUuid };
         } finally {
@@ -21379,6 +21567,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // Auth is now established; user re-clicks the vote button to record it.
         if (trigger === 'vote') {
             return;
+        }
+
+        if (
+            !slackSettings.aiRequireOAuth &&
+            (await this.agentPermissionService.isManaged(organizationUuid))
+        ) {
+            await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
         }
 
         // Fetch the original message

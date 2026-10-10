@@ -59,7 +59,8 @@ export const selectSlackAiAccessRefusal = (
 export const getSlackAiAccessRefusalMessage = (
     refusal: AiAccessRefusal,
 ): string =>
-    refusal.action === AiAccessRefusalAction.SIGN_IN
+    refusal.action === AiAccessRefusalAction.SIGN_IN &&
+    refusal.reason !== AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
         ? 'I need you to sign in to Snowflake before I can run this. It takes about 30 seconds. Then ask me again.'
         : refusal.message;
 
@@ -72,6 +73,10 @@ export const getAiAccessRefusalBlocks = (
     const isProjectServiceAccountRefusal =
         refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
         refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;
+    const connectLabel =
+        refusal.reason === AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+            ? 'Connect your Slack account'
+            : 'Connect agent';
     const settingsLabel = isProjectServiceAccountRefusal
         ? 'Open project agent settings'
         : 'Open agent settings';
@@ -99,7 +104,7 @@ export const getAiAccessRefusalBlocks = (
                         : 'ai_access_settings',
                     text: {
                         type: 'plain_text',
-                        text: isSignIn ? 'Connect agent' : settingsLabel,
+                        text: isSignIn ? connectLabel : settingsLabel,
                     },
                     url,
                 },

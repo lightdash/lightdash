@@ -2194,3 +2194,35 @@ describe('Slack AI access refusals', () => {
         }
     });
 });
+
+test('offers Slack account linking for an unverified actor', () => {
+    const connectUrl =
+        'https://example.com/api/v1/auth/slack?team=T1&channel=C1&message=1&trigger=app_mention';
+    const { refusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+        { connectUrl },
+    );
+    expect(getAiAccessRefusalBlocks(refusal, 'https://example.com')).toEqual([
+        {
+            type: 'section',
+            text: {
+                type: 'plain_text',
+                text: 'Connect your Slack account so agents can run as you.',
+            },
+        },
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: 'ai_access_connect',
+                    text: {
+                        type: 'plain_text',
+                        text: 'Connect your Slack account',
+                    },
+                    url: connectUrl,
+                },
+            ],
+        },
+    ]);
+});
