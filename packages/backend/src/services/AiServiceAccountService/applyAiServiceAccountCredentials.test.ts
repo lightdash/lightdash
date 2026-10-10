@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import {
     athenaSecrets,
+    clickhouseConnection,
+    clickhouseSecrets,
     postgresConnection,
     postgresSecrets,
     redshiftConnection,
@@ -93,6 +95,7 @@ it.each(
             type !== WarehouseTypes.POSTGRES &&
             type !== WarehouseTypes.REDSHIFT &&
             type !== WarehouseTypes.TRINO &&
+            type !== WarehouseTypes.CLICKHOUSE &&
             type !== WarehouseTypes.BIGQUERY &&
             type !== WarehouseTypes.ATHENA &&
             type !== WarehouseTypes.DATABRICKS &&
@@ -403,4 +406,48 @@ it('requires a complete Trino replacement and never keeps a blank password', () 
         ...replacement,
         requireUserCredentials: false,
     });
+});
+
+it('requires a complete ClickHouse replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...clickhouseSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                clickhouseSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...clickhouseSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, clickhouseSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(clickhouseConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        requireUserCredentials: false,
+    });
+});
+
+it('retains ClickHouse routing and rejects a mismatched warehouse', () => {
+    expect(
+        applyAiServiceAccountCredentials(
+            clickhouseConnection,
+            clickhouseSecrets,
+        ),
+    ).toEqual({
+        ...clickhouseConnection,
+        ...clickhouseSecrets,
+        requireUserCredentials: false,
+    });
+    expect(() =>
+        applyAiServiceAccountCredentials(clickhouseConnection, postgresSecrets),
+    ).toThrow('match');
 });

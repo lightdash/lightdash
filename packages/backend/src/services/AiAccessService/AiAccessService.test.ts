@@ -53,6 +53,8 @@ import {
 import {
     athenaConnection,
     athenaSecrets,
+    clickhouseConnection,
+    clickhouseSecrets,
     postgresConnection,
     postgresSecrets,
     redshiftConnection,
@@ -5882,4 +5884,314 @@ it('refuses anonymous Trino agent execution before reading the slot', async () =
         refusal: { reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED },
     });
     expect(f.slots.getSecrets).not.toHaveBeenCalled();
+});
+
+describe('ClickHouse AI service account runtime', () => {
+    test.each(actorCases.slice(0, 2))(
+        'resolves only slot user and password credentials for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot: {
+                    ...slot,
+                    warehouseType: WarehouseTypes.CLICKHOUSE,
+                    method: 'password',
+                },
+                secrets: clickhouseSecrets,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                ...actor,
+                connection: clickhouseConnection,
+            });
+            expect(plan).toMatchObject({
+                identity: 'ai_service_account',
+                identityUuid: slot.identityUuid,
+                assurances: expect.arrayContaining([
+                    { kind: 'result_cache_off' },
+                ]),
+                credentials: {
+                    ...clickhouseSecrets,
+                    host: clickhouseConnection.host,
+                    port: clickhouseConnection.port,
+                    secure: clickhouseConnection.secure,
+                    schema: clickhouseConnection.schema,
+                    requireUserCredentials: false,
+                },
+            });
+            if (plan?.identity !== 'ai_service_account')
+                throw new Error('Expected slot plan');
+            expect(plan.credentials).not.toHaveProperty('refreshToken');
+            expect(plan.credentials).not.toHaveProperty('personalAccessToken');
+            expect(plan.credentials).not.toHaveProperty('role');
+            expect(plan.credentials).not.toHaveProperty('sslcert');
+            expect(plan.credentials).not.toHaveProperty('sslkey');
+            expect(plan.credentials).not.toHaveProperty('webIdentityAudience');
+            expect(plan.credentials).not.toHaveProperty('sessionToken');
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(actorCases.slice(0, 2))(
+        'flag off skips stored ClickHouse rules and slots for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot,
+                secrets: clickhouseSecrets,
+            });
+            f.flags.get.mockResolvedValue({ enabled: false });
+            expect(
+                await f.service.resolvePlan({
+                    ...args,
+                    ...actor,
+                    connection: clickhouseConnection,
+                }),
+            ).toBeNull();
+            expect(f.organizationRules.get).not.toHaveBeenCalled();
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['missing', 'unreadable', 'mismatch', 'method'] as const)(
+        'refuses %s slots without falling back',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          slot,
+                          secrets:
+                              failure === 'mismatch'
+                                  ? secrets
+                                  : clickhouseSecrets,
+                      },
+            );
+            if (failure === 'unreadable')
+                f.slots.getSecrets.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'method')
+                f.slots.getSecrets.mockResolvedValue({
+                    slot,
+                    secrets: {
+                        ...clickhouseSecrets,
+                        authenticationType: 'iam_role',
+                    } as never,
+                });
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: clickhouseConnection,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                'slot-secret',
+            );
+        },
+    );
+});
+describe('ClickHouse slot availability', () => {
+    test.each(['missing', 'method', 'type'] as const)(
+        'refuses %s metadata without reading keys',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSlot.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          ...slot,
+                          warehouseType:
+                              failure === 'type'
+                                  ? WarehouseTypes.BIGQUERY
+                                  : WarehouseTypes.CLICKHOUSE,
+                          method:
+                              failure === 'method' ? 'iam_role' : 'password',
+                      },
+            );
+            expect(
+                await f.service.getAiAccessForUser({
+                    ...args,
+                    connection: clickhouseConnection,
+                }),
+            ).toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it('refuses anonymous ClickHouse agent execution before reading the slot', async () => {
+    const f = setup();
+    f.organizationRules.get.mockResolvedValue({ source: 'ai_service_account' });
+    await expect(
+        f.service.resolvePlan({
+            ...args,
+            connection: clickhouseConnection,
+            isRegisteredUser: false,
+            isServiceAccount: false,
+        }),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED },
+    });
+    expect(f.slots.getSecrets).not.toHaveBeenCalled();
+});
+
+describe('preview ClickHouse AI service account inheritance', () => {
+    const previewSetup = () => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({
+            source: 'ai_service_account',
+        });
+        f.projects.getSummary.mockImplementation(async (uuid: string) => ({
+            name: null,
+            organizationUuid: 'org',
+            type:
+                uuid === 'project' ? ProjectType.PREVIEW : ProjectType.DEFAULT,
+            upstreamProjectUuid: uuid === 'project' ? 'parent' : undefined,
+        }));
+        f.projects.getWarehouseCredentialsForBinding.mockResolvedValue(
+            clickhouseConnection,
+        );
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? {
+                      slot: { ...slot, projectUuid: 'parent' },
+                      secrets: clickhouseSecrets,
+                  }
+                : null,
+        );
+        return f;
+    };
+    test('carries parent generation and keeps preview settings and actor', async () => {
+        const f = previewSetup();
+        expect(
+            await f.service.resolvePlan({
+                ...args,
+                connection: {
+                    ...clickhouseConnection,
+                    host: 'preview.internal',
+                    schema: 'preview_analytics',
+                },
+            }),
+        ).toMatchObject({
+            identity: 'ai_service_account',
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+            inheritedFromProjectUuid: 'parent',
+            credentials: {
+                host: 'preview.internal',
+                schema: 'preview_analytics',
+                password: clickhouseSecrets.password,
+            },
+            audit: { personUuid: args.userUuid },
+        });
+    });
+    test('attributes an unreadable parent key refusal to the parent', async () => {
+        const f = previewSetup();
+        f.slots.getSecrets
+            .mockResolvedValueOnce(null)
+            .mockRejectedValueOnce(new Error('broken parent key'));
+        await expect(
+            f.service.resolvePlan({
+                ...args,
+                connection: clickhouseConnection,
+            }),
+        ).rejects.toMatchObject({
+            inheritedFromProjectUuid: 'parent',
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            },
+        });
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.refused',
+                properties: expect.objectContaining({
+                    projectId: 'project',
+                    inheritedFromProjectUuid: 'parent',
+                }),
+            }),
+        );
+    });
+    test('reports inherited slot metadata without decrypting', async () => {
+        const f = previewSetup();
+        f.slots.getSlot.mockResolvedValueOnce(null).mockResolvedValueOnce({
+            ...slot,
+            warehouseType: WarehouseTypes.CLICKHOUSE,
+            method: 'password',
+        });
+        expect(
+            await f.service.getAiAccessForUser({
+                ...args,
+                connection: clickhouseConnection,
+            }),
+        ).toMatchObject({ identity: 'ai_service_account', refusal: null });
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        expect(f.slots.getSlot).toHaveBeenLastCalledWith('parent', null);
+    });
+    test('does not resolve inherited credentials when the flag is off', async () => {
+        const f = previewSetup();
+        f.flags.get.mockResolvedValue({ enabled: false });
+        expect(
+            await f.service.resolvePlan({
+                ...args,
+                connection: clickhouseConnection,
+            }),
+        ).toBeNull();
+        expect(f.slots.getSecrets).not.toHaveBeenCalled();
+    });
+    test('compares stored lineage with the current parent generation', async () => {
+        const f = previewSetup();
+        const history = {
+            queryUuid: 'query',
+            context: QueryExecutionContext.AI,
+            status: QueryHistoryStatus.READY,
+            requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+        } as QueryHistory;
+        expect(
+            await f.service.assertCanReadResults(account, 'project', history),
+        ).toMatchObject({
+            identityUuid: slot.identityUuid,
+            sourceProjectUuid: 'parent',
+        });
+        f.slots.getSecrets.mockImplementation(async (uuid: string) =>
+            uuid === 'parent'
+                ? {
+                      slot: { ...slot, identityUuid: 'replaced' },
+                      secrets: clickhouseSecrets,
+                  }
+                : null,
+        );
+        await expect(
+            f.service.assertCanReadResults(account, 'project', history),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+            },
+        });
+    });
 });

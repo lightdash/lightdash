@@ -22,6 +22,9 @@ import {
     athenaConnection,
     athenaSecrets,
     athenaVerification,
+    clickhouseConnection,
+    clickhouseSecrets,
+    clickhouseVerification,
     postgresConnection,
     postgresSecrets,
     postgresVerification,
@@ -212,6 +215,7 @@ describe.each(operations)('%s boundaries', (operation) => {
                 type !== WarehouseTypes.POSTGRES &&
                 type !== WarehouseTypes.REDSHIFT &&
                 type !== WarehouseTypes.TRINO &&
+                type !== WarehouseTypes.CLICKHOUSE &&
                 type !== WarehouseTypes.BIGQUERY &&
                 type !== WarehouseTypes.ATHENA &&
                 type !== WarehouseTypes.DATABRICKS &&
@@ -2565,3 +2569,379 @@ it('uses Trino agent sessions without warehouse-side cache controls for Test and
         expect(ref.clientOptions?.agentJobControls).toBeUndefined();
     }
 });
+
+const clickhouseProbe =
+    "SELECT\n  currentUser() AS principal,\n  getSetting('readonly') AS readonly,\n  getSetting('use_query_cache') AS use_query_cache";
+
+const clickhouseFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(clickhouseConnection);
+    f.getExtra.mockResolvedValue(clickhouseConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(clickhouseSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: clickhouseSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', readonly: 2, use_query_cache: false }],
+    });
+    return f;
+};
+
+describe('ClickHouse identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = clickhouseFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                clickhouseSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                clickhouseProbe,
+                { agent: 'true' },
+                'Europe/London',
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                clientOptions: { agentJobControls: true },
+                credentials: {
+                    ...clickhouseSecrets,
+                    host: 'warehouse.internal',
+                    port: 8443,
+                    secure: true,
+                    schema: 'analytics',
+                    timeoutSeconds: 60,
+                    startOfWeek: 1,
+                    dataTimezone: 'Europe/London',
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...clickhouseVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                clickhouseSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = clickhouseFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = clickhouseFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            clickhouseSecrets,
+        );
+        expect(result).toMatchObject({ ok: true, principal: 'ai_agents' });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            clickhouseProbe,
+            { agent: 'true' },
+            'Europe/London',
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = clickhouseFixture(preview);
+            f.model.getVerification.mockResolvedValue(clickhouseVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(clickhouseVerification);
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    clickhouseVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['516', '192', '193', '194', '164', '497', '210'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = clickhouseFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                clickhouseSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, clickhouseSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                clickhouseSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = clickhouseFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    clickhouseSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    clickhouseSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each(
+    [1, 2, '1', '2'].flatMap((readonly) =>
+        [false, 0, '0'].map((useQueryCache) => ({ readonly, useQueryCache })),
+    ),
+)(
+    'accepts ClickHouse settings %j after the tagged probe',
+    async ({ readonly, useQueryCache }) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [
+                {
+                    principal: 'AI_Agents',
+                    readonly,
+                    use_query_cache: useQueryCache,
+                },
+            ],
+        });
+        const result = await f.service.test(f.account, 'project', null, {
+            ...clickhouseSecrets,
+            user: ' AI_Agents ',
+        });
+        expect(result).toMatchObject({
+            ok: true,
+            principal: 'AI_Agents',
+            observed: {
+                currentUser: 'AI_Agents',
+                readonly: String(readonly),
+                useQueryCache: '0',
+            },
+        });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            clickhouseProbe,
+            { agent: 'true' },
+            'Europe/London',
+        );
+    },
+);
+
+it.each([
+    ...[0, '0'].map((readonly) => ({
+        row: { principal: 'ai_agents', readonly, use_query_cache: false },
+        message:
+            'This ClickHouse user is not read-only. Set readonly to 2 before using it for agents.',
+    })),
+    ...[true, 1, '1'].map((cache) => ({
+        row: { principal: 'ai_agents', readonly: 2, use_query_cache: cache },
+        message:
+            'The ClickHouse query cache is enabled for this connection check.',
+    })),
+    ...['other', 'AI_AGENTS'].map((principal) => ({
+        row: { principal, readonly: 2, use_query_cache: false },
+        message: 'ClickHouse signed in as a different user.',
+    })),
+    ...[
+        {},
+        { principal: 'ai_agents' },
+        { principal: '', readonly: 2, use_query_cache: false },
+        { principal: ' ', readonly: 2, use_query_cache: false },
+        { principal: 1, readonly: 2, use_query_cache: false },
+        ...[undefined, null, true, 3, '2 ', 'false', {}, []].map(
+            (readonly) => ({
+                principal: 'ai_agents',
+                readonly,
+                use_query_cache: false,
+            }),
+        ),
+        ...[undefined, null, 'false', '0 ', 2, {}, []].map((cache) => ({
+            principal: 'ai_agents',
+            readonly: 2,
+            use_query_cache: cache,
+        })),
+    ].map((row) => ({
+        row,
+        message:
+            'ClickHouse did not return its current user and read-only settings.',
+    })),
+])(
+    'refuses invalid ClickHouse observations %j before replacing a saved slot',
+    async ({ row, message }) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockResolvedValue({ rows: [row] });
+        expect(await f.service.test(f.account, 'project', null, null)).toEqual({
+            ok: false,
+            principal: null,
+            observed: {},
+            message,
+            checkedAt: expect.any(Date),
+        });
+        await expect(
+            f.service.upsert(f.account, 'project', null, clickhouseSecrets),
+        ).rejects.toThrow(message);
+        expect(f.model.upsert).not.toHaveBeenCalled();
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    },
+);
+
+it('disables the ClickHouse query cache for Test and save', async () => {
+    const f = clickhouseFixture();
+    await f.service.test(f.account, 'project', null, clickhouseSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    await f.service.upsert(f.account, 'project', null, clickhouseSecrets);
+    expect(f.withWarehouseClient).toHaveBeenCalledTimes(3);
+    for (const [ref] of f.withWarehouseClient.mock.calls)
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+        });
+});
+
+it('uses UTC for the ClickHouse tagged probe when no timezone is configured', async () => {
+    const f = clickhouseFixture();
+    f.load.mockResolvedValue({
+        ...clickhouseConnection,
+        dataTimezone: undefined,
+    });
+    await f.service.test(f.account, 'project', null, clickhouseSecrets);
+    expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+        clickhouseProbe,
+        { agent: 'true' },
+        'UTC',
+    );
+});
+
+it('uses preview ClickHouse routing and persists the source generation', async () => {
+    const f = clickhouseFixture(true);
+    f.load.mockResolvedValue({
+        ...clickhouseConnection,
+        host: 'preview.internal',
+        schema: 'preview',
+        dataTimezone: 'America/New_York',
+    });
+    const result = await f.service.test(f.account, 'project', null, null);
+    expect(f.withWarehouseClient.mock.calls[0][0].credentials).toMatchObject({
+        ...clickhouseSecrets,
+        host: 'preview.internal',
+        schema: 'preview',
+        dataTimezone: 'America/New_York',
+    });
+    expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+        clickhouseProbe,
+        { agent: 'true' },
+        'America/New_York',
+    );
+    expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+        'parent',
+        null,
+        'parent-generation',
+        result,
+    );
+});
+
+it.each([
+    [
+        '516',
+        'ClickHouse rejected this user or password. Check the credentials or replace them.',
+    ],
+    [
+        '164',
+        'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.',
+    ],
+    [
+        '497',
+        "ClickHouse denied access. Check the AI account's SELECT grants and connection database.",
+    ],
+])(
+    'returns the safe ClickHouse Test message for code %s',
+    async (code, message) => {
+        const f = clickhouseFixture();
+        f.runQuery.mockRejectedValue(
+            new Error('wrapper', {
+                cause: { code, message: 'private password' },
+            }),
+        );
+        expect(
+            await f.service.test(f.account, 'project', null, clickhouseSecrets),
+        ).toMatchObject({ ok: false, principal: null, observed: {}, message });
+    },
+);

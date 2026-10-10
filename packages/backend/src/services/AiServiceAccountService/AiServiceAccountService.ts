@@ -64,6 +64,7 @@ type Dependencies = {
 };
 
 const verifiedWarehouseTypes = new Set<WarehouseTypes>([
+    WarehouseTypes.CLICKHOUSE,
     WarehouseTypes.POSTGRES,
     WarehouseTypes.REDSHIFT,
     WarehouseTypes.TRINO,
@@ -556,7 +557,8 @@ export class AiServiceAccountService extends BaseService {
                     credentials,
                     ...(databricks ||
                     snowflake ||
-                    connection.type === WarehouseTypes.REDSHIFT
+                    connection.type === WarehouseTypes.REDSHIFT ||
+                    connection.type === WarehouseTypes.CLICKHOUSE
                         ? { clientOptions: { agentJobControls: true } }
                         : {}),
                 },
@@ -576,8 +578,9 @@ export class AiServiceAccountService extends BaseService {
                             case WarehouseTypes.REDSHIFT:
                             case WarehouseTypes.POSTGRES:
                                 return 'SELECT current_user AS principal, session_user AS session_principal';
-                            case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.CLICKHOUSE:
+                                return "SELECT\n  currentUser() AS principal,\n  getSetting('readonly') AS readonly,\n  getSetting('use_query_cache') AS use_query_cache";
+                            case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.DUCKDB:
                                 return 'SELECT SESSION_USER() AS principal';
                             default:
@@ -587,7 +590,13 @@ export class AiServiceAccountService extends BaseService {
                                 );
                         }
                     })();
-                    return warehouseClient.runQuery(query, {});
+                    return connection.type === WarehouseTypes.CLICKHOUSE
+                        ? warehouseClient.runQuery(
+                              query,
+                              { agent: 'true' },
+                              connection.dataTimezone ?? 'UTC',
+                          )
+                        : warehouseClient.runQuery(query, {});
                 },
             );
         const row = Object.fromEntries(
@@ -623,6 +632,51 @@ export class AiServiceAccountService extends BaseService {
             throw new ParameterError(
                 'The session did not return its current user.',
             );
+        if (credentials.type === WarehouseTypes.CLICKHOUSE) {
+            const readonly: unknown = row.readonly;
+            const useQueryCache: unknown = row.use_query_cache;
+            const message = (() => {
+                if (
+                    !principal?.trim() ||
+                    !(
+                        readonly === 0 ||
+                        readonly === 1 ||
+                        readonly === 2 ||
+                        readonly === '0' ||
+                        readonly === '1' ||
+                        readonly === '2'
+                    ) ||
+                    !(
+                        useQueryCache === false ||
+                        useQueryCache === true ||
+                        useQueryCache === 0 ||
+                        useQueryCache === 1 ||
+                        useQueryCache === '0' ||
+                        useQueryCache === '1'
+                    )
+                )
+                    return 'ClickHouse did not return its current user and read-only settings.';
+                if (principal !== credentials.user)
+                    return 'ClickHouse signed in as a different user.';
+                if (readonly === 0 || readonly === '0')
+                    return 'This ClickHouse user is not read-only. Set readonly to 2 before using it for agents.';
+                if (
+                    useQueryCache !== false &&
+                    useQueryCache !== 0 &&
+                    useQueryCache !== '0'
+                )
+                    return 'The ClickHouse query cache is enabled for this connection check.';
+                return null;
+            })();
+            if (message !== null)
+                return {
+                    ok: false,
+                    principal: null,
+                    observed: {},
+                    message,
+                    checkedAt: new Date(),
+                };
+        }
         if (
             credentials.type === WarehouseTypes.POSTGRES &&
             (principal !== credentials.user ||
@@ -656,6 +710,12 @@ export class AiServiceAccountService extends BaseService {
             principal,
             observed: ((): AiServiceAccountTestResult['observed'] => {
                 switch (connection.type) {
+                    case WarehouseTypes.CLICKHOUSE:
+                        return {
+                            currentUser: principal,
+                            readonly: String(row.readonly),
+                            useQueryCache: '0',
+                        };
                     case WarehouseTypes.SNOWFLAKE:
                         return { currentUser: principal, currentRole: role };
                     case WarehouseTypes.TRINO:
@@ -666,7 +726,6 @@ export class AiServiceAccountService extends BaseService {
                     case WarehouseTypes.ATHENA:
                         return { principalArn: principal };
                     case WarehouseTypes.BIGQUERY:
-                    case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
                         return { principal };
                     default:
@@ -767,7 +826,8 @@ export class AiServiceAccountService extends BaseService {
                 ...redactCredentialError(error),
                 ...(connection.type === WarehouseTypes.POSTGRES ||
                 connection.type === WarehouseTypes.REDSHIFT ||
-                connection.type === WarehouseTypes.TRINO
+                connection.type === WarehouseTypes.TRINO ||
+                connection.type === WarehouseTypes.CLICKHOUSE
                     ? {
                           errorMessage:
                               getUserPasswordServiceAccountTestErrorMessage(
@@ -784,6 +844,7 @@ export class AiServiceAccountService extends BaseService {
                 message: (() => {
                     switch (connection.type) {
                         case WarehouseTypes.TRINO:
+                        case WarehouseTypes.CLICKHOUSE:
                         case WarehouseTypes.REDSHIFT:
                         case WarehouseTypes.POSTGRES:
                             return getUserPasswordServiceAccountTestErrorMessage(

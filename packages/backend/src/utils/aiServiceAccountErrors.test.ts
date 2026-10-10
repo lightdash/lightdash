@@ -5,12 +5,14 @@ import {
 } from '@lightdash/common';
 import {
     getAthenaServiceAccountTestErrorMessage,
+    getClickhouseServiceAccountTestErrorMessage,
     getPostgresServiceAccountTestErrorMessage,
     getRedshiftServiceAccountTestErrorMessage,
     getTrinoServiceAccountTestErrorMessage,
     getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
+    isClickhouseServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isPostgresServiceAccountAuthError,
     isRedshiftServiceAccountAuthError,
@@ -506,5 +508,110 @@ describe('Trino service account errors', () => {
         expect(getTrinoServiceAccountTestErrorMessage({ status })).toBe(
             'Could not verify the AI service account. Check the credentials and connection settings.',
         );
+    });
+});
+
+describe('ClickHouse AI service account errors', () => {
+    it.each([516, 192, 193, 194])(
+        'recognizes string and numeric code %s through causes',
+        (code) => {
+            for (const value of [code, String(code)]) {
+                const error = Object.assign(new Error('private message'), {
+                    code: value,
+                });
+                expect(isClickhouseServiceAccountAuthError(error)).toBe(true);
+                expect(
+                    isClickhouseServiceAccountAuthError(
+                        new Error('wrapped', { cause: error }),
+                    ),
+                ).toBe(true);
+                const wrapped = new WarehouseQueryError('query failed');
+                wrapped.cause = error;
+                expect(isClickhouseServiceAccountAuthError(wrapped)).toBe(true);
+            }
+        },
+    );
+    it.each([
+        'AUTHENTICATION_FAILED',
+        'UNKNOWN_USER',
+        'WRONG_PASSWORD',
+        'REQUIRED_PASSWORD',
+    ])('recognizes SDK type %s', (type) => {
+        expect(isClickhouseServiceAccountAuthError({ type })).toBe(true);
+    });
+    it.each([164, 497, 60, 62, 81, 115, 209, 210, 704])(
+        'does not classify code %s as rejected credentials',
+        (code) => {
+            expect(isClickhouseServiceAccountAuthError({ code })).toBe(false);
+            expect(
+                isClickhouseServiceAccountAuthError({
+                    cause: { code: String(code) },
+                }),
+            ).toBe(false);
+        },
+    );
+    it('limits the legacy message fallback to a server error prefix', () => {
+        expect(
+            isClickhouseServiceAccountAuthError(
+                new Error('Code: 516. DB::Exception: rejected'),
+            ),
+        ).toBe(true);
+        expect(
+            isClickhouseServiceAccountAuthError(
+                new Error("SELECT 'Code: 516. DB::Exception: rejected'"),
+            ),
+        ).toBe(false);
+        expect(
+            isClickhouseServiceAccountAuthError({
+                message: 'password authentication failed',
+            }),
+        ).toBe(false);
+        expect(
+            isClickhouseServiceAccountAuthError({
+                code: '62',
+                message: 'Code: 516. DB::Exception: rejected',
+            }),
+        ).toBe(false);
+        expect(isClickhouseServiceAccountAuthError({ statusCode: 403 })).toBe(
+            false,
+        );
+    });
+    it('traverses cyclic causes safely', () => {
+        const error = new Error('wrapper');
+        Object.assign(error, { cause: error });
+        expect(isClickhouseServiceAccountAuthError(error)).toBe(false);
+        Object.assign(error, { cause: { code: '516', cause: error } });
+        expect(isClickhouseServiceAccountAuthError(error)).toBe(true);
+    });
+    it.each([
+        [
+            '516',
+            'ClickHouse rejected this user or password. Check the credentials or replace them.',
+        ],
+        [
+            '164',
+            'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.',
+        ],
+        [
+            '497',
+            "ClickHouse denied access. Check the AI account's SELECT grants and connection database.",
+        ],
+        [
+            '210',
+            'Could not verify the AI service account. Check the credentials and connection settings.',
+        ],
+    ])('returns a safe test message for %s', (code, expected) => {
+        const error = new Error('wrapper', {
+            cause: { code, message: 'private password' },
+        });
+        expect(getClickhouseServiceAccountTestErrorMessage(error)).toBe(
+            expected,
+        );
+        expect(
+            getUserPasswordServiceAccountTestErrorMessage(
+                WarehouseTypes.CLICKHOUSE,
+                error,
+            ),
+        ).toBe(expected);
     });
 });

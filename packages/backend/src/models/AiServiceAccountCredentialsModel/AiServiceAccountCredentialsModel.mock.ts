@@ -3,7 +3,9 @@ import {
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type AiServiceAccountSlot,
     type CreateAthenaCredentials,
+    type CreateClickhouseCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
     type CreateTrinoCredentials,
@@ -193,4 +195,48 @@ export const trinoVerification = {
     observed: { currentUser: 'MappedAgent/RestrictedRole' },
     message: 'AI service account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
+};
+
+export const clickhouseSecrets = {
+    type: WarehouseTypes.CLICKHOUSE,
+    user: 'ai_agents',
+    password: 'agent-password',
+} as const;
+
+export const clickhouseConnection: CreateClickhouseCredentials = {
+    type: WarehouseTypes.CLICKHOUSE,
+    host: 'warehouse.internal',
+    port: 8443,
+    schema: 'analytics',
+    secure: true,
+    timeoutSeconds: 60,
+    startOfWeek: 1,
+    dataTimezone: 'Europe/London',
+    user: 'project-user',
+    password: 'project-password',
+    requireUserCredentials: true,
+};
+
+export const clickhouseVerification = {
+    ok: true,
+    principal: 'ai_agents',
+    observed: { currentUser: 'ai_agents', readonly: '2', useQueryCache: '0' },
+    message: 'AI service account connection checked.',
+    checkedAt: new Date('2026-10-10T00:00:00Z'),
+};
+
+export const clickhouseSlot: AiServiceAccountSlot = {
+    uuid: 'clickhouse-slot',
+    identityUuid: 'clickhouse-generation',
+    projectUuid: 'project',
+    warehouseConnectionUuid: null,
+    kind: 'ai_service_account',
+    scope: 'connection',
+    warehouseType: WarehouseTypes.CLICKHOUSE,
+    method: 'password',
+    createdByUserUuid: 'creator',
+    updatedByUserUuid: 'updater',
+    credentialSubjectUserUuid: null,
+    createdAt: new Date('2026-10-10T00:00:00Z'),
+    updatedAt: new Date('2026-10-10T00:00:00Z'),
 };

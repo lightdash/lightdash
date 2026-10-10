@@ -49,6 +49,8 @@ import Logger from '../../logging/logger';
 import {
     athenaConnection,
     athenaSecrets,
+    clickhouseConnection,
+    clickhouseSecrets,
     postgresConnection,
     postgresSecrets,
     redshiftConnection,
@@ -2978,6 +2980,212 @@ describe('AI service account factory scopes', () => {
             await oldQuery;
         }
     });
+
+    const clickhousePlan = async (
+        identityUuid = 'generation-a',
+        sourceProjectUuid = 'project',
+    ) => ({
+        ...slotPlan,
+        identityUuid,
+        sourceProjectUuid,
+        inheritedFromProjectUuid:
+            sourceProjectUuid === 'parent' ? 'parent' : null,
+        credentials: await resolveAiServiceAccountCredentials({
+            connection: clickhouseConnection,
+            stored: clickhouseSecrets,
+            owner: {
+                kind: 'aiServiceAccount' as const,
+                uuid: 'slot-row',
+                identityUuid,
+                sourceProjectUuid,
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project-uuid',
+            warehouseConnectionUuid: null,
+        }),
+    });
+
+    test('builds a ClickHouse AI service account client with agent job controls', async () => {
+        const { factory, aiAccessService, projectModel, credentialSource } =
+            buildFixture();
+        const resolved = await clickhousePlan();
+        aiAccessService.resolvePlan.mockResolvedValue(resolved);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        await factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => {
+                expect(warehouseClient.credentials).toMatchObject({
+                    ...clickhouseSecrets,
+                    host: clickhouseConnection.host,
+                    schema: clickhouseConnection.schema,
+                    secure: clickhouseConnection.secure,
+                    requireUserCredentials: false,
+                });
+            },
+        );
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining(clickhouseSecrets),
+            expect.objectContaining({
+                agentSession: true,
+                agentJobControls: true,
+            }),
+        );
+        expect(credentialSource.finish).not.toHaveBeenCalled();
+    });
+
+    test.each([false, true])(
+        'keeps ClickHouse project, marked-person and AI service account clients separate, reverse=%s',
+        async (reverse) => {
+            const { factory, projectModel } = buildFixture();
+            const own = await clickhousePlan();
+            const rotated = await clickhousePlan('generation-b');
+            const inherited = await clickhousePlan('generation-b', 'parent');
+            const plain = buildAiServiceAccountCredentials(
+                clickhouseConnection,
+                clickhouseSecrets,
+            );
+            const identities = [
+                { aiPlan: null, credentials: plain },
+                { aiPlan: markedPlan, credentials: plain },
+                { aiPlan: own, credentials: own.credentials },
+                { aiPlan: rotated, credentials: rotated.credentials },
+                { aiPlan: inherited, credentials: inherited.credentials },
+            ];
+            if (reverse) identities.reverse();
+            const acquire = async ({
+                aiPlan,
+                credentials: resolvedCredentials,
+            }: (typeof identities)[number]) =>
+                factory.withWarehouseClient(
+                    {
+                        kind: 'resolved',
+                        projectUuid: 'project-uuid',
+                        credentials: resolvedCredentials,
+                        aiPlan,
+                        warehouseConnectionUuid: null,
+                        connectionRoute: null,
+                    },
+                    contextFor(
+                        aiPlan === null
+                            ? QueryExecutionContext.EXPLORE
+                            : QueryExecutionContext.AI,
+                    ),
+                    async ({ warehouseClient }) => warehouseClient,
+                );
+            const clients = await Promise.all(identities.map(acquire));
+            expect(new Set(clients).size).toBe(5);
+            const repeated = await Promise.all(identities.map(acquire));
+            for (const [index, again] of repeated.entries()) {
+                expect(again.credentials).toEqual(clients[index].credentials);
+            }
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(5);
+            expect(Object.keys(factory.warehouseClients)).toHaveLength(5);
+            const options =
+                projectModel.getWarehouseClientFromCredentials.mock.calls.map(
+                    ([, value]) => value,
+                );
+            expect(
+                options.filter((value) => value?.agentJobControls),
+            ).toHaveLength(4);
+        },
+    );
+
+    test.each(['runQuery', 'streamQuery'] as const)(
+        'attributes rejected ClickHouse credentials once through reused inherited %s clients',
+        async (method) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                logger,
+            } = buildFixture();
+            const inherited = await clickhousePlan('generation-a', 'parent');
+            aiAccessService.resolvePlan.mockResolvedValue(inherited);
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async () => undefined,
+            );
+            const client = Object.values(factory.warehouseClients)[0];
+            const error = new WarehouseQueryError('Authentication failed');
+            error.cause = Object.assign(new Error(clickhouseSecrets.password), {
+                code: '516',
+                type: 'AUTHENTICATION_FAILED',
+            });
+            vi.spyOn(client, method).mockRejectedValue(error);
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    async ({ warehouseClient }) => {
+                        if (method === 'runQuery')
+                            return warehouseClient.runQuery('SELECT 1', {});
+                        return warehouseClient.streamQuery(
+                            'SELECT 1',
+                            async () => undefined,
+                            { tags: {} },
+                        );
+                    },
+                ),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(
+                aiAccessService.trackQueryRefusal,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    warehouseType: WarehouseTypes.CLICKHOUSE,
+                }),
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                'parent',
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                clickhouseSecrets.password,
+            );
+        },
+    );
+
+    test.each(['164', '497', '60', '62', '81', '115', '209', '210', '704'])(
+        'preserves ordinary ClickHouse error %s without a credential refusal',
+        async (code) => {
+            const { factory, aiAccessService, projectModel } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(
+                await clickhousePlan(),
+            );
+            const error = new WarehouseQueryError('Query failed');
+            error.cause = Object.assign(new Error('SDK failure'), { code });
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: vi.fn().mockRejectedValue(error),
+                }),
+            );
+            await expect(
+                factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    async ({ warehouseClient }) =>
+                        warehouseClient.runQuery('SELECT 1', {}),
+                ),
+            ).rejects.toBe(error);
+            expect(aiAccessService.trackQueryRefusal).not.toHaveBeenCalled();
+        },
+    );
 
     const athenaPlan = async () => ({
         ...slotPlan,

@@ -354,16 +354,80 @@ export const getTrinoServiceAccountTestErrorMessage = (
     return 'Could not verify the AI service account. Check the credentials and connection settings.';
 };
 
+const clickhouseAuthCodes = new Set(['516', '192', '193', '194']);
+const clickhouseAuthTypes = new Set([
+    'AUTHENTICATION_FAILED',
+    'UNKNOWN_USER',
+    'WRONG_PASSWORD',
+    'REQUIRED_PASSWORD',
+]);
+
+const clickhouseErrors = (
+    error: unknown,
+    ancestors = new Set<unknown>(),
+): Record<string, unknown>[] => {
+    if (!isRecord(error) || ancestors.has(error)) return [];
+    ancestors.add(error);
+    return [error, ...clickhouseErrors(error.cause, ancestors)];
+};
+
+const clickhouseErrorCode = (error: Record<string, unknown>): string | null => {
+    if (typeof error.code === 'number' || typeof error.code === 'string')
+        return String(error.code);
+    return typeof error.message === 'string'
+        ? (error.message.match(
+              /^\s*Code: (\d+)\.\s*(?:DB::Exception:|$)/,
+          )?.[1] ?? null)
+        : null;
+};
+
+export const isClickhouseServiceAccountAuthError = (error: unknown): boolean =>
+    clickhouseErrors(error).some((entry) => {
+        const code = clickhouseErrorCode(entry);
+        return code !== null
+            ? clickhouseAuthCodes.has(code)
+            : typeof entry.type === 'string' &&
+                  clickhouseAuthTypes.has(entry.type);
+    });
+
+export const getClickhouseServiceAccountTestErrorMessage = (
+    error: unknown,
+): string => {
+    const errors = clickhouseErrors(error);
+    if (isClickhouseServiceAccountAuthError(error))
+        return 'ClickHouse rejected this user or password. Check the credentials or replace them.';
+    if (
+        errors.some(
+            (entry) =>
+                clickhouseErrorCode(entry) === '164' ||
+                entry.type === 'READONLY',
+        )
+    )
+        return 'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.';
+    if (
+        errors.some(
+            (entry) =>
+                clickhouseErrorCode(entry) === '497' ||
+                entry.type === 'ACCESS_DENIED',
+        )
+    )
+        return "ClickHouse denied access. Check the AI account's SELECT grants and connection database.";
+    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+};
+
 export const getUserPasswordServiceAccountTestErrorMessage = (
     type:
         | WarehouseTypes.POSTGRES
         | WarehouseTypes.REDSHIFT
-        | WarehouseTypes.TRINO,
+        | WarehouseTypes.TRINO
+        | WarehouseTypes.CLICKHOUSE,
     error: unknown,
 ): string => {
     switch (type) {
         case WarehouseTypes.TRINO:
             return getTrinoServiceAccountTestErrorMessage(error);
+        case WarehouseTypes.CLICKHOUSE:
+            return getClickhouseServiceAccountTestErrorMessage(error);
         case WarehouseTypes.POSTGRES:
             return getPostgresServiceAccountTestErrorMessage(error);
         case WarehouseTypes.REDSHIFT:

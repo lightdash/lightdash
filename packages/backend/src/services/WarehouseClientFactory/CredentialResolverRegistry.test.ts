@@ -12,6 +12,11 @@ import { expectTypeOf } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { toDbtTarget } from '../../dbt/targets';
 import {
+    clickhouseConnection,
+    clickhouseSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import { registerAiServiceAccountCredentialResolvers } from './aiServiceAccountCredentialResolvers';
+import {
     connectionContextFromUser,
     WarehouseCredentialKind,
 } from './ConnectionContext';
@@ -589,3 +594,59 @@ describe('dbt target resolution', () => {
         expect(legacy).toHaveBeenCalledOnce();
     });
 });
+
+test.each([true, false])(
+    'preserves the ClickHouse AI service account dbt refusal after materialization, explicit=%s',
+    async (explicitCredentials) => {
+        const registry = new CredentialResolverRegistry();
+        registerAiServiceAccountCredentialResolvers(registry);
+        const context = connectionContextFromUser(
+            { userUuid: 'user' },
+            { organizationUuid: 'org', queryContext: null },
+        );
+        const legacy = vi.fn();
+        const selection = {
+            connection: clickhouseConnection,
+            stored: clickhouseSecrets,
+            owner: {
+                kind: 'aiServiceAccount' as const,
+                uuid: 'slot',
+                identityUuid: 'generation',
+                sourceProjectUuid: 'parent',
+            },
+            context,
+            projectUuid: 'project',
+            warehouseConnectionUuid: null,
+            credentialKind: WarehouseCredentialKind.AI_SERVICE_ACCOUNT,
+            aiPlan: null,
+        };
+        const resolved = await registry.resolveCredentialSelection(
+            selection,
+            legacy,
+            'ai_service_account',
+        );
+        expect(resolved).toMatchObject({
+            ...clickhouseSecrets,
+            host: clickhouseConnection.host,
+        });
+        expect(resolved[credentialResolution]?.cacheKeyIdentity).toEqual([
+            'ai-service-account-v1',
+            WarehouseTypes.CLICKHOUSE,
+            'slot',
+            'generation',
+            'parent',
+        ]);
+        const materialized = await registry.resolveCredentialSelection(
+            { ...selection, connection: resolved },
+            legacy,
+            'ai_service_account',
+        );
+        expect(
+            registry.toDbtTarget(materialized, materialized, {
+                explicitCredentials,
+            }),
+        ).toMatchObject({ kind: 'none' });
+        expect(legacy).not.toHaveBeenCalled();
+        await materialized[credentialResolution]!.dispose();
+    },
+);

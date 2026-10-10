@@ -55,6 +55,7 @@ import {
     VizAggregationOptions,
     VizIndexType,
     WarehouseClient,
+    WarehouseQueryError,
     WarehouseTypes,
     type CaslSubjectNames,
     type CreateBigqueryCredentials,
@@ -98,6 +99,8 @@ import { CommercialCacheService } from '../../ee/services/CommercialCacheService
 import {
     athenaConnection,
     athenaSecrets,
+    clickhouseConnection,
+    clickhouseSecrets,
     redshiftConnection,
     redshiftSecrets,
     snowflakeSecrets,
@@ -5268,17 +5271,28 @@ describe('AsyncQueryService', () => {
     });
 
     describe('agent refusal counting across execution and result reads', () => {
-        const setupRefusal = () => {
-            const credentials: CreateWarehouseCredentials = {
-                type: WarehouseTypes.SNOWFLAKE,
-                account: 'account',
-                user: 'person',
-                password: 'private',
-                database: 'test',
-                warehouse: 'test',
-                schema: 'public',
-            };
+        const setupRefusal = (clickhouse = false) => {
+            const credentials: CreateWarehouseCredentials = clickhouse
+                ? clickhouseConnection
+                : {
+                      type: WarehouseTypes.SNOWFLAKE,
+                      account: 'account',
+                      user: 'person',
+                      password: 'private',
+                      database: 'test',
+                      warehouse: 'test',
+                      schema: 'public',
+                  };
             const analytics = { track: vi.fn() };
+            const slots = {
+                getSecrets: vi.fn().mockResolvedValue({
+                    slot: {
+                        uuid: 'clickhouse-slot',
+                        identityUuid: 'generation-a',
+                    },
+                    secrets: clickhouseSecrets,
+                }),
+            };
             const refusal = new AiAccessRefusedError(
                 AiAccessRefusalReason.SIGN_IN_EXPIRED,
             );
@@ -5292,8 +5306,13 @@ describe('AsyncQueryService', () => {
                     get: vi.fn(async () => ({ enabled: true })),
                 },
                 organizationAgentIdentityRulesModel: {
-                    get: vi.fn(async () => ({ source: 'agent_sign_in' })),
+                    get: vi.fn(async () => ({
+                        source: clickhouse
+                            ? 'ai_service_account'
+                            : 'agent_sign_in',
+                    })),
                 },
+                aiServiceAccountCredentialsModel: slots,
                 queryHistoryModel: {
                     getDuckdbExecution: vi.fn(async () => null),
                 },
@@ -5348,6 +5367,8 @@ describe('AsyncQueryService', () => {
             vi.mocked(service.queryHistoryModel.get).mockResolvedValue(history);
             return {
                 service,
+                aiAccessService,
+                slots,
                 analytics,
                 resolve,
                 trackRefusal,
@@ -5372,6 +5393,132 @@ describe('AsyncQueryService', () => {
             queryCreatedAt: new Date(),
             displayTimezone: null,
         };
+
+        test.each(['unreadable', 'rejected login'] as const)(
+            'counts one ClickHouse %s refusal without falling back',
+            async (failure) => {
+                const { service, slots, analytics, markErrored } =
+                    setupRefusal(true);
+                const construct = vi.mocked(
+                    service.projectModel.getWarehouseClientFromCredentials,
+                );
+                const error = new WarehouseQueryError('Authentication failed');
+                error.cause = Object.assign(new Error('SDK failure'), {
+                    code: '516',
+                });
+                const execute = vi.fn().mockRejectedValue(error);
+                construct.mockClear();
+                if (failure === 'rejected login')
+                    vi.mocked(mockSshTunnel.connect).mockResolvedValueOnce(
+                        buildAiServiceAccountCredentials(
+                            clickhouseConnection,
+                            clickhouseSecrets,
+                        ),
+                    );
+                construct.mockImplementation((credentials) => ({
+                    ...warehouseClientMock,
+                    credentials,
+                    executeAsyncQuery: execute,
+                }));
+                if (failure === 'unreadable')
+                    slots.getSecrets.mockRejectedValue(
+                        new Error('invalid slot'),
+                    );
+                await service.runAsyncWarehouseQuery(executionArgs);
+                expect(markErrored).toHaveBeenCalledOnce();
+                expect(
+                    analytics.track.mock.calls.filter(
+                        ([event]) => event.event === 'query.refused',
+                    ),
+                ).toHaveLength(1);
+                expect(analytics.track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        properties: expect.objectContaining({
+                            warehouseType: WarehouseTypes.CLICKHOUSE,
+                            reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                        }),
+                    }),
+                );
+                if (failure === 'unreadable')
+                    expect(construct).not.toHaveBeenCalled();
+                else {
+                    expect(construct).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining(clickhouseSecrets),
+                        expect.objectContaining({ agentJobControls: true }),
+                    );
+                    expect(execute).toHaveBeenCalledOnce();
+                }
+            },
+        );
+
+        test('ordinary ClickHouse execution retains the project login', async () => {
+            const { service, slots, markErrored } = setupRefusal(true);
+            const projectCredentials = {
+                ...clickhouseConnection,
+                requireUserCredentials: false,
+            };
+            vi.mocked(
+                service.projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValue(projectCredentials);
+            vi.mocked(mockSshTunnel.connect).mockResolvedValueOnce(
+                projectCredentials,
+            );
+            const construct = vi.mocked(
+                service.projectModel.getWarehouseClientFromCredentials,
+            );
+            construct.mockClear();
+            construct.mockImplementation((credentials) => ({
+                ...warehouseClientMock,
+                credentials,
+            }));
+            await service.runAsyncWarehouseQuery({
+                ...executionArgs,
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+            });
+            expect(construct).toHaveBeenCalledWith(
+                expect.objectContaining(projectCredentials),
+                expect.objectContaining({ agentSession: false }),
+            );
+            expect(slots.getSecrets).not.toHaveBeenCalled();
+            expect(markErrored).not.toHaveBeenCalled();
+        });
+
+        test('rejects cached ClickHouse results after the slot generation changes', async () => {
+            const { service, aiAccessService, slots, history } =
+                setupRefusal(true);
+            history.status = QueryHistoryStatus.READY;
+            history.requestParameters = {
+                query: metricQueryMock,
+                aiSignInCredentialUuid: 'generation-a',
+            };
+            await expect(
+                aiAccessService.assertCanReadResults(
+                    sessionAccount,
+                    projectUuid,
+                    history,
+                ),
+            ).resolves.toMatchObject({ identityUuid: 'generation-a' });
+            slots.getSecrets.mockResolvedValue({
+                slot: { uuid: 'clickhouse-slot', identityUuid: 'generation-b' },
+                secrets: clickhouseSecrets,
+            });
+            const readPage = vi.spyOn(
+                service as AnyType,
+                'getResultsPageFromS3',
+            );
+            await expect(
+                service.getAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: history.queryUuid,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                },
+            });
+            expect(readPage).not.toHaveBeenCalled();
+        });
 
         test.each([
             [QueryExecutionContext.AI, QuerySurface.APP],
@@ -8600,6 +8747,13 @@ describe('AsyncQueryService', () => {
                 credentials: buildAiServiceAccountCredentials(
                     trinoConnection,
                     trinoSecrets,
+                ),
+            },
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: buildAiServiceAccountCredentials(
+                    clickhouseConnection,
+                    clickhouseSecrets,
                 ),
             },
             {

@@ -228,6 +228,7 @@ test.each([
     [WarehouseTypes.POSTGRES, 'ai_service_account'],
     [WarehouseTypes.REDSHIFT, 'ai_service_account'],
     [WarehouseTypes.TRINO, 'ai_service_account'],
+    [WarehouseTypes.CLICKHOUSE, 'ai_service_account'],
     [WarehouseTypes.ATHENA, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {
     const { controller, rules, account, req } = setup();
@@ -298,6 +299,7 @@ describe('projects without an AI service account', () => {
         WarehouseTypes.POSTGRES,
         WarehouseTypes.REDSHIFT,
         WarehouseTypes.TRINO,
+        WarehouseTypes.CLICKHOUSE,
         WarehouseTypes.ATHENA,
     ])(
         'returns the missing projects for an admin on %s without saving',
@@ -377,4 +379,23 @@ describe('projects without an AI service account', () => {
         expect(rules.set).not.toHaveBeenCalled();
         expect(analyticsMock.track).not.toHaveBeenCalled();
     });
+});
+
+test('rejects ClickHouse personal agent sign-in before writing', async () => {
+    const { controller, rules, account, req } = setup();
+    account.user.ability = new Ability<PossibleAbilities>([
+        {
+            action: 'manage',
+            subject: 'Organization',
+            conditions: {
+                organizationUuid: account.organization.organizationUuid,
+            },
+        },
+    ]);
+    await expect(
+        controller.updateRule(req, WarehouseTypes.CLICKHOUSE, {
+            source: 'agent_sign_in',
+        }),
+    ).rejects.toMatchObject({ name: 'ParameterError' });
+    expect(rules.set).not.toHaveBeenCalled();
 });

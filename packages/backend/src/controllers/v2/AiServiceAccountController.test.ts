@@ -12,6 +12,9 @@ import { buildAccount } from '../../auth/account/account.mock';
 import {
     athenaSecrets,
     athenaVerification,
+    clickhouseConnection,
+    clickhouseSecrets,
+    clickhouseVerification,
     postgresSecrets,
     postgresVerification,
     redshiftSecrets,
@@ -54,6 +57,7 @@ const setup = (enabled: boolean) => {
         upsert: vi.fn().mockResolvedValue({ uuid: 'slot' }),
         delete: vi.fn(),
         getVerification: vi.fn().mockResolvedValue(null),
+        getCredentialsReadable: vi.fn().mockResolvedValue(true),
         updateVerification: vi.fn(),
     };
     const load = vi.fn().mockResolvedValue({
@@ -66,6 +70,7 @@ const setup = (enabled: boolean) => {
     const getSummary = vi.fn().mockResolvedValue({
         organizationUuid: account.organization.organizationUuid,
     });
+    const probe = vi.fn().mockResolvedValue({ rows: [{ principal: 'agent' }] });
     const service = new AiServiceAccountService({
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
         projectModel: {
@@ -79,9 +84,7 @@ const setup = (enabled: boolean) => {
         },
         projectService: {
             warehouseClientFactory: {
-                withWarehouseClient: vi
-                    .fn()
-                    .mockResolvedValue({ rows: [{ principal: 'agent' }] }),
+                withWarehouseClient: probe,
             },
         },
     } as unknown as ConstructorParameters<typeof AiServiceAccountService>[0]);
@@ -93,6 +96,7 @@ const setup = (enabled: boolean) => {
         model,
         load,
         getSummary,
+        probe,
     };
 };
 
@@ -470,3 +474,130 @@ it.each([undefined, 'extra-connection'])(
         );
     },
 );
+
+it.each([undefined, 'extra-connection'])(
+    'returns ClickHouse save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: clickhouseVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: clickhouseVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert(
+                'project',
+                req,
+                clickhouseSecrets,
+                connection,
+            ),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: clickhouseVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            clickhouseSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: clickhouseVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+
+describe.each(['get', 'upsert', 'delete', 'test'] as const)(
+    'ClickHouse %s endpoint',
+    (route) => {
+        const prepare = (enabled: boolean) => {
+            const f = setup(enabled);
+            f.load.mockResolvedValue(clickhouseConnection);
+            f.model.getSecrets.mockResolvedValue({
+                slot: { uuid: 'slot', identityUuid: 'generation' },
+                secrets: clickhouseSecrets,
+            });
+            f.model.getReplaceableSecrets.mockResolvedValue(clickhouseSecrets);
+            f.model.getVerification.mockResolvedValue(clickhouseVerification);
+            f.probe.mockResolvedValue({
+                rows: [
+                    {
+                        principal: 'ai_agents',
+                        readonly: '2',
+                        use_query_cache: '0',
+                    },
+                ],
+            });
+            return f;
+        };
+        const call = (f: ReturnType<typeof prepare>) => {
+            if (route === 'upsert')
+                return f.controller.upsert('project', f.req, clickhouseSecrets);
+            if (route === 'test')
+                return f.controller.test('project', f.req, {
+                    credentials: clickhouseSecrets,
+                });
+            return f.controller[route]('project', f.req);
+        };
+        it('gates the route before reading secrets', async () => {
+            const f = prepare(false);
+            await expect(call(f)).rejects.toMatchObject({
+                statusCode: 403,
+                data: { code: 'feature_not_enabled' },
+            });
+            expect(f.load).not.toHaveBeenCalled();
+            for (const mock of Object.values(f.model))
+                expect(mock).not.toHaveBeenCalled();
+        });
+        it('returns a secret-free enabled envelope', async () => {
+            const f = prepare(true);
+            const result = await call(f);
+            expect(result).toMatchObject({ status: 'ok' });
+            expect(JSON.stringify(result)).not.toContain(
+                clickhouseSecrets.password,
+            );
+            if (route === 'test')
+                expect(result).toMatchObject({
+                    results: { ok: true, principal: 'ai_agents' },
+                });
+            if (route === 'upsert') {
+                expect(result).toMatchObject({
+                    verification: { ok: true, principal: 'ai_agents' },
+                });
+                expect(f.model.upsert).toHaveBeenCalledWith(
+                    'project',
+                    null,
+                    clickhouseSecrets,
+                    f.req.account!.user.id,
+                    expect.objectContaining({ ok: true }),
+                );
+            }
+        });
+    },
+);
+
+it('rejects mismatched ClickHouse input before reading a saved password', async () => {
+    const f = setup(true);
+    f.load.mockResolvedValue(clickhouseConnection);
+    await expect(
+        f.controller.upsert('project', f.req, postgresSecrets),
+    ).rejects.toMatchObject({ name: 'ParameterError' });
+    expect(f.model.getReplaceableSecrets).not.toHaveBeenCalled();
+    expect(f.model.upsert).not.toHaveBeenCalled();
+});

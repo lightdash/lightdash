@@ -201,6 +201,11 @@ test('defaults every missing actor and type and lists only enforceable warehouse
             projectsMissingAiServiceAccount: null,
         },
         {
+            warehouseType: WarehouseTypes.CLICKHOUSE,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
             warehouseType: WarehouseTypes.ATHENA,
             source: 'marked_person',
             projectsMissingAiServiceAccount: null,
@@ -538,6 +543,11 @@ test.each([true, false])(
                     projectsMissingAiServiceAccount: null,
                 },
                 {
+                    warehouseType: WarehouseTypes.CLICKHOUSE,
+                    source: 'marked_person',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
                     warehouseType: WarehouseTypes.ATHENA,
                     source: 'marked_person',
                     projectsMissingAiServiceAccount: null,
@@ -682,4 +692,42 @@ test('round 11 legacy saves return transaction change metadata', async () => {
         previousSource: 'agent_sign_in',
         changed: false,
     });
+});
+
+test('writes both ClickHouse actors without creating or changing legacy settings', async () => {
+    const { model, settings, organizationUuid } = await fixture();
+    const rule = { source: 'ai_service_account' } as const;
+    await model.set(organizationUuid, WarehouseTypes.CLICKHOUSE, rule);
+    expect(
+        await migrated
+            .database('organization_agent_identity_settings')
+            .where('organization_uuid', organizationUuid),
+    ).toHaveLength(0);
+    await Promise.all(
+        actors.map(async (actor) => {
+            expect(
+                await model.get(
+                    organizationUuid,
+                    WarehouseTypes.CLICKHOUSE,
+                    actor,
+                ),
+            ).toEqual(rule);
+        }),
+    );
+    await settings.upsert(organizationUuid, {
+        requireVerifiedAgentSessions: true,
+    });
+    const before = await migrated
+        .database('organization_agent_identity_settings')
+        .where('organization_uuid', organizationUuid)
+        .first();
+    await model.set(organizationUuid, WarehouseTypes.CLICKHOUSE, {
+        source: 'marked_person',
+    });
+    expect(
+        await migrated
+            .database('organization_agent_identity_settings')
+            .where('organization_uuid', organizationUuid)
+            .first(),
+    ).toEqual(before);
 });

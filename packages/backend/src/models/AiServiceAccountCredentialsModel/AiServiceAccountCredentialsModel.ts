@@ -86,8 +86,16 @@ const trinoCredentialsSchema = z
         password: z.string().min(1),
     })
     .strict();
+const clickhouseCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.CLICKHOUSE),
+        user: z.string().trim().min(1),
+        password: z.string().min(1),
+    })
+    .strict();
 const credentialsSchema = z.discriminatedUnion('type', [
     trinoCredentialsSchema,
+    clickhouseCredentialsSchema,
     redshiftCredentialsSchema,
     postgresCredentialsSchema,
     athenaCredentialsSchema,
@@ -133,6 +141,22 @@ const trinoPayloadSchema = trinoCredentialsSchema
     .extend({
         verification: trinoVerificationSchema.optional(),
     })
+    .strict();
+
+const clickhouseVerificationSchema = verificationBaseSchema
+    .extend({
+        observed: z
+            .object({
+                currentUser: nonEmptyIdentifier,
+                readonly: z.enum(['1', '2']),
+                useQueryCache: z.literal('0'),
+            })
+            .strict(),
+    })
+    .strict()
+    .refine((value) => value.principal === value.observed.currentUser);
+const clickhousePayloadSchema = clickhouseCredentialsSchema
+    .extend({ verification: clickhouseVerificationSchema.optional() })
     .strict();
 
 const databricksVerificationSchema = verificationBaseSchema.refine(
@@ -184,12 +208,15 @@ const parseVerification = (
         | WarehouseTypes.ATHENA
         | WarehouseTypes.POSTGRES
         | WarehouseTypes.REDSHIFT
-        | WarehouseTypes.TRINO,
+        | WarehouseTypes.TRINO
+        | WarehouseTypes.CLICKHOUSE,
     verification: AiServiceAccountTestResult,
 ) => {
     switch (warehouseType) {
         case WarehouseTypes.TRINO:
             return trinoVerificationSchema.parse(verification);
+        case WarehouseTypes.CLICKHOUSE:
+            return clickhouseVerificationSchema.parse(verification);
         case WarehouseTypes.REDSHIFT:
             return redshiftVerificationSchema.parse(verification);
         case WarehouseTypes.POSTGRES:
@@ -243,6 +270,7 @@ export const parseAiServiceAccountSecrets = (
             }
             return credentials;
         case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.DATABRICKS:
@@ -338,6 +366,8 @@ export class AiServiceAccountCredentialsModel {
                 switch (row.warehouse_type) {
                     case WarehouseTypes.TRINO:
                         return trinoPayloadSchema.parse(value);
+                    case WarehouseTypes.CLICKHOUSE:
+                        return clickhousePayloadSchema.parse(value);
                     case WarehouseTypes.REDSHIFT:
                         return redshiftPayloadSchema.parse(value);
                     case WarehouseTypes.POSTGRES:
@@ -349,7 +379,6 @@ export class AiServiceAccountCredentialsModel {
                     case WarehouseTypes.ATHENA:
                         return athenaPayloadSchema.parse(value);
                     case WarehouseTypes.BIGQUERY:
-                    case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
                         return null;
                     default:
@@ -369,7 +398,8 @@ export class AiServiceAccountCredentialsModel {
                 secrets.type !== row.warehouse_type ||
                 (secrets.type === WarehouseTypes.POSTGRES ||
                 secrets.type === WarehouseTypes.REDSHIFT ||
-                secrets.type === WarehouseTypes.TRINO
+                secrets.type === WarehouseTypes.TRINO ||
+                secrets.type === WarehouseTypes.CLICKHOUSE
                     ? 'password'
                     : secrets.authenticationType) !== row.authentication_method
             ) {
@@ -432,6 +462,7 @@ export class AiServiceAccountCredentialsModel {
     ): Promise<void> {
         z.union([
             trinoVerificationSchema,
+            clickhouseVerificationSchema,
             redshiftVerificationSchema,
             postgresVerificationSchema,
             athenaVerificationSchema,
@@ -606,7 +637,8 @@ export class AiServiceAccountCredentialsModel {
                 authentication_method:
                     secrets.type === WarehouseTypes.POSTGRES ||
                     secrets.type === WarehouseTypes.REDSHIFT ||
-                    secrets.type === WarehouseTypes.TRINO
+                    secrets.type === WarehouseTypes.TRINO ||
+                    secrets.type === WarehouseTypes.CLICKHOUSE
                         ? ('password' as const)
                         : secrets.authenticationType,
                 encrypted_credentials: this.args.encryptionUtil.encrypt(

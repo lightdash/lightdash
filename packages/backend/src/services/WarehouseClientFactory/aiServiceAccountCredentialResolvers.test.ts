@@ -9,6 +9,7 @@ import { isSupportedAiServiceAccountSlot } from './aiServiceAccountCredentialRes
 
 describe('isSupportedAiServiceAccountSlot', () => {
     test.each([
+        [WarehouseTypes.CLICKHOUSE, 'password'],
         [WarehouseTypes.POSTGRES, 'password'],
         [WarehouseTypes.REDSHIFT, 'password'],
         [WarehouseTypes.TRINO, 'password'],
@@ -25,6 +26,9 @@ describe('isSupportedAiServiceAccountSlot', () => {
     test.each([
         [WarehouseTypes.TRINO, 'oauth'],
         [WarehouseTypes.TRINO, 'jwt'],
+        [WarehouseTypes.CLICKHOUSE, DatabricksAuthenticationType.OAUTH_M2M],
+        [WarehouseTypes.CLICKHOUSE, BigqueryAuthenticationType.PRIVATE_KEY],
+        [WarehouseTypes.CLICKHOUSE, ''],
         [WarehouseTypes.BIGQUERY, DatabricksAuthenticationType.OAUTH_M2M],
         [WarehouseTypes.SNOWFLAKE, DatabricksAuthenticationType.OAUTH_M2M],
         [WarehouseTypes.DATABRICKS, BigqueryAuthenticationType.PRIVATE_KEY],
