@@ -2,6 +2,7 @@ import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import {
     getAgentAccess,
+    isUsingSharedAgentAccount,
     resolveAgentProject,
     type AgentOptions,
 } from './agentAccess';
@@ -16,6 +17,12 @@ export const agentStatusHandler = async (
     if (access.refusal === null && access.identity === 'connected_person') {
         console.error(
             `Agent connected${access.expiresAt ? `, expires ${new Date(access.expiresAt).toISOString()}` : ''}`,
+        );
+        return;
+    }
+    if (isUsingSharedAgentAccount(access)) {
+        console.error(
+            'Not needed: agents on this project use the shared agent account',
         );
         return;
     }

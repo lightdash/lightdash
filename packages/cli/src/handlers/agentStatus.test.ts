@@ -82,6 +82,46 @@ describe('agent status', () => {
         expect(openBrowser).not.toHaveBeenCalled();
     });
 
+    it.each(['organization', null] as const)(
+        'reports a shared agent account with requirement source %s',
+        async (requirementSource) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                ...agentAccess,
+                requirementSource,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                enabled: true,
+                refusal: null,
+            });
+            await agentStatusHandler({ verbose: false });
+            expect(console.error).toHaveBeenCalledExactlyOnceWith(
+                'Not needed: agents on this project use the shared agent account',
+            );
+            expect(process.exitCode).toBeUndefined();
+            expect(openBrowser).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reports a refusal for a shared agent account', async () => {
+        const message = 'Ask an admin to review the connection.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            identity: 'ai_service_account',
+            source: 'ai_service_account',
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+            },
+        });
+        await agentStatusHandler({ verbose: false });
+        expect(console.error).toHaveBeenCalledExactlyOnceWith(message);
+        expect(process.exitCode).toBe(1);
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('reports the optional expiry as an ISO date', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...connectedAgentAccess,
