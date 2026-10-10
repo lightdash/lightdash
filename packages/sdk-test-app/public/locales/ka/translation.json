@@ -390,6 +390,15 @@
         "metrics.compareMetricTooltip": "„{metric}“-ის სხვა მეტრიკასთან შედარება",
         "metrics.comparisonMetric": "შესადარებელი მეტრიკა",
         "filters.closeFacet": "{filter} ფილტრის დახურვა",
-        "metrics.ownerDetails": "მფლობელის დეტალები: {owner}"
+        "metrics.ownerDetails": "მფლობელის დეტალები: {owner}",
+        "agentAttribution.changedBy": "შეცვლილია აგენტის მიერ {person}-ის სახელით · {surface}",
+        "agentAttribution.serviceAccount": "სერვისის ანგარიში",
+        "agentAttribution.unknownPerson": "უცნობი პირი",
+        "agentAttribution.mcp": "MCP",
+        "agentAttribution.inApp": "აპლიკაციის აგენტი",
+        "agentAttribution.slack": "Slack-ის აგენტი",
+        "agentAttribution.cli": "CLI",
+        "agentAttribution.dataApp": "მონაცემთა აპლიკაცია",
+        "agentAttribution.aiSummary": "AI შეჯამება"
     }
 }

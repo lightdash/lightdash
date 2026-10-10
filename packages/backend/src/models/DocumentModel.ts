@@ -14,6 +14,7 @@ import {
     getUserAvatarUrl,
     isUserAvatarColorValue,
     matchDocumentChartKeys,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ParameterError,
     parseDocumentContent,
@@ -22,6 +23,7 @@ import {
     type AgentIdentityClaim,
     type DocumentLinkingChart,
     type DocumentSavedChartKind,
+    type StoredAgentIdentityClaim,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ContentVerificationTableName } from '../database/entities/contentVerification';
@@ -477,12 +479,14 @@ export class DocumentModel {
             .select<
                 Array<
                     UserDisplayRow & {
+                        agent_identity: StoredAgentIdentityClaim | null;
                         document_version_uuid: string;
                         version_number: number;
                         created_at: Date;
                     }
                 >
             >(
+                'document_versions.agent_identity',
                 'document_versions.document_version_uuid',
                 'document_versions.version_number',
                 'document_versions.created_at',
@@ -495,6 +499,7 @@ export class DocumentModel {
         const items: DocumentVersionSummary[] = rows
             .slice(0, limit)
             .map((row) => ({
+                agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
                 versionUuid: row.document_version_uuid,
                 versionNumber: row.version_number,
                 createdAt: row.created_at,
@@ -688,6 +693,9 @@ export class DocumentModel {
                   }
                 : null,
             version: {
+                agentIdentity: normalizeAgentIdentityClaim(
+                    version.agent_identity,
+                ),
                 versionUuid: version.document_version_uuid,
                 versionNumber: version.version_number,
                 schemaVersion: DOCUMENT_SCHEMA_VERSION,

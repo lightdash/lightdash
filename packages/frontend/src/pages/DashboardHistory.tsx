@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { formatTimestamp, TimeFrames } from '@lightdash/common';
+import { FeatureFlags, formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import AgentAttribution from '../components/common/AgentAttribution/AgentAttribution';
 import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
@@ -34,11 +35,14 @@ import {
 import { useContentAuthoringEnabled } from '../hooks/useContentAuthoringEnabled';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import NoTableIcon from '../svgs/emptystate-no-table.svg?react';
 import DashboardVersionComparison from './DashboardVersionComparison';
 
 const DashboardHistory = () => {
+    const agentIdentityEnabled =
+        useServerFeatureFlag(FeatureFlags.AgentIdentity).data?.enabled === true;
     const authoringEnabled = useContentAuthoringEnabled();
     const navigate = useNavigate();
     const projectUuid = useProjectUuid();
@@ -116,9 +120,17 @@ const DashboardHistory = () => {
                                     TimeFrames.SECOND,
                                 )}
                                 description={
-                                    version.createdBy
-                                        ? `Updated by: ${version.createdBy.firstName} ${version.createdBy.lastName}`
-                                        : 'Updated by: unknown'
+                                    agentIdentityEnabled &&
+                                    version.agentIdentity ? (
+                                        <AgentAttribution
+                                            claim={version.agentIdentity}
+                                            createdBy={version.createdBy}
+                                        />
+                                    ) : version.createdBy ? (
+                                        `Updated by: ${version.createdBy.firstName} ${version.createdBy.lastName}`
+                                    ) : (
+                                        'Updated by: unknown'
+                                    )
                                 }
                                 rightSection={
                                     <>

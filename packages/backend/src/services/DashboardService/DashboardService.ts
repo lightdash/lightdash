@@ -20,6 +20,7 @@ import {
     ExploreType,
     ExportContentPayload,
     ExportContentRequest,
+    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getDashboardDeleteAccess,
@@ -104,6 +105,7 @@ import {
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
@@ -133,8 +135,10 @@ import {
     assertCanMutateVerifiedContent,
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 
 type DashboardServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -364,7 +368,10 @@ export class DashboardService
 
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor({
+        featureFlagModel,
         agentActionLogModel,
         lightdashConfig,
         analytics,
@@ -391,6 +398,7 @@ export class DashboardService
         contentVerificationModel,
     }: DashboardServiceArguments) {
         super();
+        this.featureFlagModel = featureFlagModel;
         this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -3600,7 +3608,15 @@ export class DashboardService
             },
         });
 
-        return { history: versions };
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { organizationUuid: dashboardDao.organizationUuid },
+        });
+        return {
+            history: versions.map((version) =>
+                withVersionAgentIdentity(version, enabled),
+            ),
+        };
     }
 
     async getVersion(
@@ -3737,10 +3753,30 @@ export class DashboardService
             chartVersionDifferences.push(...versionChartDifferences);
         }
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { organizationUuid: dashboardDao.organizationUuid },
+        });
         return {
-            ...versionSummary,
+            ...withVersionAgentIdentity(versionSummary, enabled),
             dashboard: fullDashboard,
-            chartVersionDifferences,
+            chartVersionDifferences: chartVersionDifferences.map(
+                (difference) => ({
+                    ...difference,
+                    currentVersion: difference.currentVersion
+                        ? withVersionAgentIdentity(
+                              difference.currentVersion,
+                              enabled,
+                          )
+                        : difference.currentVersion,
+                    selectedVersion: difference.selectedVersion
+                        ? withVersionAgentIdentity(
+                              difference.selectedVersion,
+                              enabled,
+                          )
+                        : difference.selectedVersion,
+                }),
+            ),
         };
     }
 
@@ -3795,6 +3831,11 @@ export class DashboardService
             throw new NotFoundError('Dashboard version not found');
         }
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: dashboardDao.organizationUuid,
+        });
+
         // Rollback dashboard and all owned charts in a single transaction
         await this.savedChartModel.transaction(async (tx) => {
             // Rollback dashboard version
@@ -3810,6 +3851,7 @@ export class DashboardService
                 user,
                 dashboardDao.projectUuid,
                 tx,
+                agentIdentity,
             );
 
             // Only rollback charts that belong to the dashboard
@@ -3845,6 +3887,7 @@ export class DashboardService
                                 targetVersion.updatedAt,
                                 user,
                                 tx,
+                                agentIdentity,
                             );
 
                         if (result) {

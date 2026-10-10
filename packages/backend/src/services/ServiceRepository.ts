@@ -495,6 +495,7 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
@@ -1298,6 +1299,7 @@ export class ServiceRepository
             'savedChartService',
             () =>
                 new SavedChartService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),

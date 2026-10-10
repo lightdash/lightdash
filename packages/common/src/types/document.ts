@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from './agentIdentity';
 import type {
     ApiExecuteAsyncMetricQueryResults,
     ApiExecuteAsyncSqlQueryResults,
@@ -111,6 +112,7 @@ export type DocumentSummary = {
 };
 
 export type DocumentVersion = {
+    agentIdentity?: AgentIdentityClaim | null;
     versionUuid: string;
     versionNumber: number;
     schemaVersion: 2;
@@ -158,7 +160,7 @@ export type ApiDocumentListResponse = ApiSuccess<DocumentList>;
 /** One entry in a Document's immutable version history, newest first. */
 export type DocumentVersionSummary = Pick<
     DocumentVersion,
-    'versionUuid' | 'versionNumber' | 'createdAt'
+    'versionUuid' | 'versionNumber' | 'createdAt' | 'agentIdentity'
 > & {
     /** Who saved this version; null when the user was deleted or unknown. */
     createdBy: Pick<

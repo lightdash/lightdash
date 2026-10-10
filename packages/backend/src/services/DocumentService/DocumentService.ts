@@ -90,6 +90,7 @@ import {
     assertCanMutateVerifiedContent,
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 
 /** Who made a Document change, for analytics. */
 export type DocumentChangeContext = {
@@ -1900,11 +1901,21 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuidOrSlug,
         );
-        return this.dependencies.documentModel.listVersions(
+        const versions = await this.dependencies.documentModel.listVersions(
             projectUuid,
             document.documentUuid,
             { limit, offset },
         );
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { organizationUuid: document.organizationUuid },
+        });
+        return {
+            ...versions,
+            items: versions.items.map((version) =>
+                withVersionAgentIdentity(version, enabled),
+            ),
+        };
     }
 
     /**
@@ -1927,10 +1938,14 @@ export class DocumentService extends BaseService {
             document.documentUuid,
             versionUuid,
         );
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { organizationUuid: document.organizationUuid },
+        });
         return {
             ...document,
             version: {
-                ...historical.version,
+                ...withVersionAgentIdentity(historical.version, enabled),
                 content: await this.withReadableNames(
                     projectUuid,
                     historical.version.content,
@@ -2291,10 +2306,14 @@ export class DocumentService extends BaseService {
         ) {
             throw new NotFoundError('Document not found');
         }
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { organizationUuid: document.organizationUuid },
+        });
         return {
             ...document,
             version: {
-                ...document.version,
+                ...withVersionAgentIdentity(document.version, enabled),
                 content: await this.withReadableNames(
                     document.projectUuid,
                     document.version.content,

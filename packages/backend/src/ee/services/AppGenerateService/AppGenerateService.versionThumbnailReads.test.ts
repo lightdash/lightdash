@@ -1,9 +1,13 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ProjectType,
     SpaceMemberRole,
+    type AgentIdentityClaim,
     type SessionUser,
 } from '@lightdash/common';
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
@@ -107,8 +111,19 @@ const buildUser = (): SessionUser => {
     } as unknown as SessionUser;
 };
 
-const buildService = ({ canView }: { canView: boolean }) => {
-    const rows = VERSIONS.map(versionRow);
+const buildService = ({
+    canView,
+    agentIdentityEnabled = false,
+    agentIdentity = null,
+}: {
+    canView: boolean;
+    agentIdentityEnabled?: boolean;
+    agentIdentity?: AgentIdentityClaim | null;
+}) => {
+    const rows = VERSIONS.map((row) => ({
+        ...versionRow(row),
+        agent_identity: agentIdentity,
+    }));
     const appModel = {
         getApp: async () => app,
         getAppByUuidOrSlug: async () => app,
@@ -164,7 +179,12 @@ const buildService = ({ canView }: { canView: boolean }) => {
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: async () => ({ enabled: true }),
+            get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.AgentIdentity
+                        ? agentIdentityEnabled
+                        : true,
+            }),
         } as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
@@ -206,6 +226,35 @@ const buildService = ({ canView }: { canView: boolean }) => {
 };
 
 describe('AppGenerateService version thumbnails', () => {
+    it.each([true, false])(
+        'gates agent attribution when enabled=%s',
+        async (enabled) => {
+            const agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: USER_UUID },
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            });
+            const service = buildService({
+                canView: true,
+                agentIdentityEnabled: enabled,
+                agentIdentity,
+            });
+            const { versions } = await service.getAppVersions(
+                buildUser(),
+                PROJECT_UUID,
+                APP_UUID,
+                {},
+            );
+            for (const version of versions) {
+                if (enabled)
+                    expect(version).toHaveProperty(
+                        'agentIdentity',
+                        agentIdentity,
+                    );
+                else expect(version).not.toHaveProperty('agentIdentity');
+            }
+        },
+    );
     it('reports on each version whether it has a thumbnail to read', async () => {
         const service = buildService({ canView: true });
 

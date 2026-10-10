@@ -12,6 +12,17 @@
 // See packages/frontend/src/components/common/Filters/CLAUDE.md for the full
 // mandate on adding strings to embed-reachable surfaces.
 export const DEFAULT_UI_STRINGS = {
+    'agentAttribution.changedBy':
+        'Changed by an agent for {person} · {surface}',
+    'agentAttribution.serviceAccount': 'a service account',
+    'agentAttribution.unknownPerson': 'an unknown person',
+    'agentAttribution.mcp': 'MCP',
+    'agentAttribution.inApp': 'In-app agent',
+    'agentAttribution.slack': 'Slack agent',
+    'agentAttribution.cli': 'CLI',
+    'agentAttribution.dataApp': 'Data app',
+    'agentAttribution.aiSummary': 'AI summary',
+
     'aiAccess.settings': 'Review agent identity',
     'aiAccess.projectSettings': 'Open project agent settings',
     'aiAccess.loadError': 'Could not load AI access',

@@ -74,6 +74,7 @@ import {
     validateDataAppCode,
     validateDataAppDependencies,
     type Account,
+    type AgentIdentityClaim,
     type AnonymousAccount,
     type ApiDuplicateAppResponse,
     type ApiGetAppResponse,
@@ -9835,6 +9836,7 @@ export class AppGenerateService extends BaseService {
         views: number;
         currentThread: AppThread;
         versions: {
+            agentIdentity?: AgentIdentityClaim | null;
             version: number;
             threadUuid: string;
             threadNumber: number;
@@ -9899,6 +9901,11 @@ export class AppGenerateService extends BaseService {
             created_by_user_uuid: createdByUserUuid,
         });
 
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: { organizationUuid },
+            });
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
@@ -9927,6 +9934,9 @@ export class AppGenerateService extends BaseService {
                 createdAt: currentThread.created_at,
             },
             versions: versions.map((v) => ({
+                ...(agentIdentityEnabled
+                    ? { agentIdentity: v.agent_identity }
+                    : {}),
                 version: v.version,
                 threadUuid: v.app_thread_uuid,
                 threadNumber: v.thread_number,

@@ -6,6 +6,7 @@ import {
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
     generateSlug,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ProjectType,
     type AgentIdentityClaim,
@@ -1292,11 +1293,10 @@ export class AppModel {
             pinnedListOrder,
             currentThread,
             // getCurrentThread above created thread 1 if it was missing.
-            versions: versions
-                .slice(0, limit)
-                .map((v) =>
-                    resolveVersionThread(v, currentThread.app_thread_uuid),
-                ),
+            versions: versions.slice(0, limit).map((v) => ({
+                ...resolveVersionThread(v, currentThread.app_thread_uuid),
+                agent_identity: normalizeAgentIdentityClaim(v.agent_identity),
+            })),
             hasMore,
             registrySlug,
         };

@@ -39,6 +39,7 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricQuery,
+    normalizeAgentIdentityClaim,
     normalizeSavedMergeDefinition,
     NotFoundError,
     Organization,
@@ -59,6 +60,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     type AgentIdentityClaim,
+    type StoredAgentIdentityClaim,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -788,6 +790,7 @@ type SavedChartModelArguments = {
 };
 
 type VersionSummaryRow = {
+    agent_identity: StoredAgentIdentityClaim | null;
     saved_query_uuid: string;
     saved_queries_version_uuid: string;
     created_at: Date;
@@ -1149,6 +1152,7 @@ export class SavedChartModel {
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
         return {
+            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
             chartUuid: row.saved_query_uuid,
             versionUuid: row.saved_queries_version_uuid,
             createdAt: row.created_at,
@@ -1242,6 +1246,7 @@ export class SavedChartModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
                 `${SavedChartVersionsTableName}.created_at`,
+                `${SavedChartVersionsTableName}.agent_identity`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -3670,6 +3675,7 @@ export class SavedChartModel {
         targetTimestamp: Date,
         user: SessionUser,
         tx?: Knex,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<SavedChartDAO | undefined> {
         const version = await this.getVersionSummaryAtTimestamp(
             savedChartUuid,
@@ -3682,6 +3688,13 @@ export class SavedChartModel {
             savedChartUuid,
             version.versionUuid,
         );
-        return this.createVersion(savedChartUuid, chartVersion, user, tx);
+        return this.createVersion(
+            savedChartUuid,
+            chartVersion,
+            user,
+            tx,
+            undefined,
+            agentIdentity,
+        );
     }
 }

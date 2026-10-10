@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from './agentIdentity';
 import { type ContentDraftStaleness } from './contentAsCode/draftRebase';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
@@ -494,6 +495,7 @@ export type ApiCreateDashboardSchedulerResponse = {
 };
 
 export type DashboardVersionSummary = {
+    agentIdentity?: AgentIdentityClaim | null;
     dashboardUuid: string;
     versionUuid: string;
     createdAt: Date;

@@ -29,6 +29,7 @@ import {
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
     LightdashUser,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     sanitizeHtml,
     SavedChart,
@@ -42,6 +43,7 @@ import {
     type DashboardFilters,
     type DashboardParameters,
     type DashboardVersionSummary,
+    type StoredAgentIdentityClaim,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
@@ -2519,6 +2521,7 @@ export class DashboardModel {
         versionUuid: string,
     ): Promise<DashboardVersionSummary> {
         type VersionSummaryRow = {
+            agent_identity: StoredAgentIdentityClaim | null;
             dashboard_uuid: string;
             dashboard_version_uuid: string;
             created_at: Date;
@@ -2542,6 +2545,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardVersionsTableName}.dashboard_version_uuid`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.agent_identity`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -2558,6 +2562,7 @@ export class DashboardModel {
         }
 
         return {
+            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
             dashboardUuid: row.dashboard_uuid,
             versionUuid: row.dashboard_version_uuid,
             createdAt: row.created_at,
@@ -2575,6 +2580,7 @@ export class DashboardModel {
         dashboardUuid: string,
     ): Promise<DashboardVersionSummary[]> {
         type VersionSummaryRow = {
+            agent_identity: StoredAgentIdentityClaim | null;
             dashboard_uuid: string;
             dashboard_version_uuid: string;
             created_at: Date;
@@ -2598,6 +2604,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardVersionsTableName}.dashboard_version_uuid`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.agent_identity`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -2606,6 +2613,7 @@ export class DashboardModel {
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc');
 
         const mapRow = (row: VersionSummaryRow): DashboardVersionSummary => ({
+            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
             dashboardUuid: row.dashboard_uuid,
             versionUuid: row.dashboard_version_uuid,
             createdAt: row.created_at,
