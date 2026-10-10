@@ -2379,7 +2379,7 @@ describe('organization agent identity rules', () => {
             await expect(
                 service.getProjectsWithoutAiServiceAccount(
                     manager(),
-                    WarehouseTypes.CLICKHOUSE,
+                    WarehouseTypes.DUCKDB,
                 ),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
@@ -2528,9 +2528,9 @@ describe('organization agent identity rules', () => {
         [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
         [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
         [WarehouseTypes.ATHENA, 'agent_sign_in'],
-        [WarehouseTypes.CLICKHOUSE, 'marked_person'],
+        [WarehouseTypes.DUCKDB, 'marked_person'],
         [WarehouseTypes.POSTGRES, 'agent_sign_in'],
-        [WarehouseTypes.CLICKHOUSE, 'ai_service_account'],
+        [WarehouseTypes.DUCKDB, 'ai_service_account'],
     ] as const)(
         'rejects %s source %s without writing',
         async (type, source) => {

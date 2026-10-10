@@ -802,6 +802,112 @@ describe('Organisation agent identity settings', () => {
             }),
         );
     });
+    it('offers the ClickHouse AI service account rule without per-person sign-in', async () => {
+        currentOverview.rules.push({
+            warehouseType: WarehouseTypes.CLICKHOUSE,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        });
+        missingProjects = [
+            { projectUuid: 'clickhouse-project', name: 'ClickHouse reporting' },
+        ];
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('combobox', {
+                name: 'ClickHouse agent identity',
+            }),
+        );
+        expect(
+            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.getAllByRole('option')).toHaveLength(2);
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: identityLabels.ai_service_account.label,
+            }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Use the AI service account for ClickHouse?',
+        );
+        const confirm = screen.getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        await waitFor(() => expect(confirm).toBeEnabled());
+        expect(
+            screen.getByRole('link', { name: 'ClickHouse reporting' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/projectManagement/clickhouse-project/agentIdentity',
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+        fireEvent.click(confirm);
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/clickhouse',
+                method: 'PUT',
+                body: JSON.stringify({ source: 'ai_service_account' }),
+            }),
+        );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByRole('combobox', { name: 'ClickHouse agent identity' }),
+        ).toHaveValue(identityLabels.ai_service_account.label);
+    });
+    describe('ClickHouse rule visibility and failures', () => {
+        beforeEach(() => {
+            currentOverview.rules.push({
+                warehouseType: WarehouseTypes.CLICKHOUSE,
+                source: 'marked_person',
+                projectsMissingAiServiceAccount: null,
+            });
+        });
+        it.each(['flag', 'permission'])('hides controls for %s', (reason) => {
+            mocks.enabled = reason !== 'flag';
+            mocks.canManage = reason !== 'permission';
+            renderSection();
+            expect(
+                screen.queryByRole('combobox', {
+                    name: 'ClickHouse agent identity',
+                }),
+            ).not.toBeInTheDocument();
+            expect(lightdashApi).not.toHaveBeenCalled();
+        });
+        it('keeps the previous ClickHouse rule when saving fails', async () => {
+            vi.mocked(lightdashApi).mockImplementation((request) =>
+                request.method === 'PUT'
+                    ? Promise.reject({ error: { message: 'Save failed' } })
+                    : apiHandler(request),
+            );
+            renderSection();
+            fireEvent.click(
+                await screen.findByRole('combobox', {
+                    name: 'ClickHouse agent identity',
+                }),
+            );
+            fireEvent.click(
+                screen.getByRole('option', {
+                    name: identityLabels.ai_service_account.label,
+                }),
+            );
+            const confirm = await screen.findByRole('button', {
+                name: 'Use the AI service account',
+            });
+            await waitFor(() => expect(confirm).toBeEnabled());
+            fireEvent.click(confirm);
+            await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
+            expect(screen.getByRole('dialog')).toBeVisible();
+            expect(
+                screen.getByRole('combobox', {
+                    name: 'ClickHouse agent identity',
+                }),
+            ).toHaveValue(identityLabels.marked_person.label);
+        });
+    });
     it('shows no setup in the default state and enables the sign-in option with a hint', async () => {
         startUnconfigured();
         await screen.findAllByRole('combobox');

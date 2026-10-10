@@ -359,7 +359,7 @@ describe('projects without an AI service account', () => {
         await expect(
             controller.getProjectsWithoutAiServiceAccount(
                 req,
-                WarehouseTypes.CLICKHOUSE,
+                WarehouseTypes.DUCKDB,
             ),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();

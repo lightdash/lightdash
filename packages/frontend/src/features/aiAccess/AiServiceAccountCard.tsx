@@ -9,6 +9,7 @@ import {
     type PostgresCredentials,
     type RedshiftCredentials,
     type TrinoCredentials,
+    type ClickhouseCredentials,
     type AthenaCredentials,
     type BigqueryCredentials,
     type DatabricksCredentials,
@@ -38,6 +39,7 @@ import {
 } from './api';
 import { AthenaAgentSetup } from './AthenaAgentSetup';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
+import { ClickhouseAgentSetup } from './ClickhouseAgentSetup';
 import { DatabricksAgentSetup } from './DatabricksAgentSetup';
 import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
 import { PostgresAgentSetup } from './PostgresAgentSetup';
@@ -47,6 +49,7 @@ import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup
 import { TrinoAgentSetup } from './TrinoAgentSetup';
 
 type AiServiceAccountConnection =
+    | ClickhouseCredentials
     | RedshiftCredentials
     | TrinoCredentials
     | PostgresCredentials
@@ -358,6 +361,7 @@ const getAiPrincipalState = (
             ? getSnowflakeAiPrincipal(observation)
             : warehouseType === WarehouseTypes.TRINO ||
                 warehouseType === WarehouseTypes.REDSHIFT ||
+                warehouseType === WarehouseTypes.CLICKHOUSE ||
                 warehouseType === WarehouseTypes.POSTGRES ||
                 warehouseType === WarehouseTypes.DATABRICKS ||
                 warehouseType === WarehouseTypes.ATHENA
@@ -381,6 +385,14 @@ const AiServiceAccountSetup = ({
         case WarehouseTypes.TRINO:
             return (
                 <TrinoAgentSetup
+                    connection={connection}
+                    hasCredentials={hasKey}
+                    tested={tested}
+                />
+            );
+        case WarehouseTypes.CLICKHOUSE:
+            return (
+                <ClickhouseAgentSetup
                     connection={connection}
                     hasCredentials={hasKey}
                     tested={tested}

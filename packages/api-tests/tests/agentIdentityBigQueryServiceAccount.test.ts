@@ -181,6 +181,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                 [
                     WarehouseTypes.ATHENA,
                     WarehouseTypes.BIGQUERY,
+                    WarehouseTypes.CLICKHOUSE,
                     WarehouseTypes.DATABRICKS,
                     WarehouseTypes.POSTGRES,
                     WarehouseTypes.REDSHIFT,

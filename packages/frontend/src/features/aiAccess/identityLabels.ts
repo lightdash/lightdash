@@ -22,6 +22,7 @@ export const identityWarehouseNames = {
     [WarehouseTypes.POSTGRES]: 'Postgres',
     [WarehouseTypes.REDSHIFT]: 'Redshift',
     [WarehouseTypes.TRINO]: 'Trino',
+    [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
     [WarehouseTypes.BIGQUERY]: 'BigQuery',

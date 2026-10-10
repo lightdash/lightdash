@@ -123,7 +123,7 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
         });
         it('rejects unsupported connections', async () => {
             const f = setup(true);
-            f.load.mockResolvedValue({ type: WarehouseTypes.CLICKHOUSE });
+            f.load.mockResolvedValue({ type: WarehouseTypes.DUCKDB });
             await expect(call(f)).rejects.toMatchObject({
                 name: 'ParameterError',
             });
