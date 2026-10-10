@@ -14,14 +14,15 @@ import type {
     CredentialResolver,
     CredentialSaveInput,
     CredentialSelection,
+    DbtTargetResult,
     ValidatedCredential,
 } from '../CredentialResolver';
 import { pickRoutingFields } from './aiServiceAccountRoutingFields';
 
-interface Selection extends CredentialSelection<
+type Selection = CredentialSelection<
     CreateTrinoCredentials,
     AiServiceAccountSecrets
-> {}
+>;
 
 export class TrinoAiServiceAccountCredentialResolver implements CredentialResolver<
     CreateTrinoCredentials,
@@ -118,6 +119,13 @@ export class TrinoAiServiceAccountCredentialResolver implements CredentialResolv
             owner?.identityUuid ?? null,
             owner?.sourceProjectUuid ?? null,
         ];
+    }
+
+    toDbtTarget(): DbtTargetResult {
+        return {
+            kind: 'none',
+            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+        };
     }
 
     async dispose(): Promise<void> {}

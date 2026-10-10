@@ -42,6 +42,12 @@ const selection = (): CredentialSelection<
     aiPlan: null,
 });
 const resolver = new TrinoAiServiceAccountCredentialResolver();
+it('refuses to build a dbt target from AI service account credentials', () => {
+    expect(resolver.toDbtTarget()).toEqual({
+        kind: 'none',
+        reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+    });
+});
 it('validates preserve locally and rejects incorrect secret and connection discriminants', async () => {
     const input = selection();
     expect(
@@ -153,6 +159,27 @@ it('dispatches Trino AI credentials without a legacy fallback', async () => {
     ]);
     expect(legacy).not.toHaveBeenCalled();
 });
+
+it.each([false, true])(
+    'preserves the AI service account dbt refusal with explicit credentials %s',
+    async (explicitCredentials) => {
+        const registry = new CredentialResolverRegistry();
+        registerAiServiceAccountCredentialResolvers(registry);
+        const legacy = vi.fn();
+        const result = await registry.resolveCredentialSelection(
+            selection(),
+            legacy,
+            'ai_service_account',
+        );
+        expect(
+            registry.toDbtTarget(result, result, { explicitCredentials }),
+        ).toEqual({
+            kind: 'none',
+            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+        });
+        expect(legacy).not.toHaveBeenCalled();
+    },
+);
 
 it.each(['', '  '])('refuses a blank host %j', (host) => {
     expect(() =>
