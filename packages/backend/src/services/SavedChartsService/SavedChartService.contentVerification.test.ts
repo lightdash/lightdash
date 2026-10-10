@@ -159,6 +159,9 @@ vi.spyOn(analyticsMock, 'track');
 
 describe('SavedChartService - Content Verification', () => {
     const service = new SavedChartService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,

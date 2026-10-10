@@ -397,7 +397,11 @@ export class ContentReviewRequestService extends BaseService {
             itemUuid: string;
             targetSpaceUuid: string;
         },
-        moveOptions: { tx: Knex; checkForAccess: boolean; trackEvent: boolean },
+        moveOptions: {
+            tx: Knex.Transaction;
+            checkForAccess: boolean;
+            trackEvent: boolean;
+        },
     ): Promise<unknown> {
         switch (contentType) {
             case ContentReviewContentType.CHART:

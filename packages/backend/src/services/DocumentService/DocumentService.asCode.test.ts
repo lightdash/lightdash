@@ -214,6 +214,8 @@ describe('DocumentService.upsertAsCode', () => {
                 name: 'Review',
                 content: document.version.content,
             }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -233,6 +235,8 @@ describe('DocumentService.upsertAsCode', () => {
             documentUuid,
             expect.objectContaining({ baseVersionUuid: versionUuid, content }),
             userUuid,
+            null,
+            expect.any(Function),
         );
         expect(documentModel.updateMetadata).not.toHaveBeenCalled();
         expect(documentModel.moveToSpace).not.toHaveBeenCalled();

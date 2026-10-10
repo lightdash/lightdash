@@ -4,6 +4,7 @@ describeContentAsCodeSchemaContract({
     resource: 'chart',
     modelSchema: 'SavedChartDAO',
     documentSchema: 'ChartAsCode',
+    serverMetadataFields: ['agentIdentity', 'agent_identity'],
     skippedModelFields: [
         'colorPalette',
         'colorPaletteUuid',

@@ -1,4 +1,5 @@
 import {
+    type AgentIdentityClaim,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
@@ -113,6 +114,7 @@ export type AppsTable = Knex.CompositeTableType<
 >;
 
 export type DbAppVersion = {
+    agent_identity: AgentIdentityClaim | null;
     app_version_id: string;
     app_id: string;
     version: number;
@@ -226,7 +228,12 @@ export type AppVersionsTable = Knex.CompositeTableType<
     DbAppVersion,
     Pick<
         DbAppVersion,
-        'app_id' | 'version' | 'prompt' | 'status' | 'created_by_user_uuid'
+        | 'app_id'
+        | 'version'
+        | 'prompt'
+        | 'status'
+        | 'created_by_user_uuid'
+        | 'agent_identity'
     > &
         Partial<
             Pick<

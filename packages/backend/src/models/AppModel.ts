@@ -6,8 +6,10 @@ import {
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DEFAULT_DATA_APP_VIZ_LIST_SORT,
     generateSlug,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     ProjectType,
+    type AgentIdentityClaim,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
@@ -62,6 +64,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 import { getFullTextSearchFilterSql } from './SearchModel/utils/search';
 
 type AppModelArguments = {
@@ -167,6 +170,8 @@ export class AppModel {
             // Defaults to a builder-originated thread 1.
             thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ app: DbApp; version: DbAppVersion; thread: DbAppThread }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -225,6 +230,7 @@ export class AppModel {
             const [versionRow] = await trx(AppVersionsTableName)
                 .insert({
                     ...version,
+                    agent_identity: agentIdentity,
                     app_id: appRow.app_id,
                     app_thread_uuid: thread.app_thread_uuid,
                     status,
@@ -258,6 +264,11 @@ export class AppModel {
                         : null,
                 })
                 .returning('*');
+            await onVersionCreated?.(
+                trx,
+                versionRow.app_version_id,
+                appRow.app_id,
+            );
             return { app: appRow, version: versionRow, thread };
         });
     }
@@ -1059,6 +1070,7 @@ export class AppModel {
             appThreadUuid?: string;
             vizPreview?: DataAppVizPreview | null;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<DbAppVersion> {
         const appThreadUuid =
             opts?.appThreadUuid ??
@@ -1066,6 +1078,7 @@ export class AppModel {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
                 ...version,
+                agent_identity: agentIdentity,
                 app_id: appId,
                 app_thread_uuid: appThreadUuid,
                 status,
@@ -1287,11 +1300,10 @@ export class AppModel {
             pinnedListOrder,
             currentThread,
             // getCurrentThread above created thread 1 if it was missing.
-            versions: versions
-                .slice(0, limit)
-                .map((v) =>
-                    resolveVersionThread(v, currentThread.app_thread_uuid),
-                ),
+            versions: versions.slice(0, limit).map((v) => ({
+                ...resolveVersionThread(v, currentThread.app_thread_uuid),
+                agent_identity: normalizeAgentIdentityClaim(v.agent_identity),
+            })),
             hasMore,
             registrySlug,
         };

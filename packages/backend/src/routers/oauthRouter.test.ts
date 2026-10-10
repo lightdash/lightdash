@@ -586,6 +586,9 @@ describe('OAuth authorize redirects', () => {
             await import('@lightdash/common');
         const analytics = { track: vi.fn() };
         const aiAccessService = new AiAccessService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             analytics,
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),

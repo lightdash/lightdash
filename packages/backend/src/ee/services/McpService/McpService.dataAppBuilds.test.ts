@@ -79,6 +79,7 @@ const makeExtra = () => ({
 
 const makeMcpService = (createRuntime: () => unknown) =>
     new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: { createRuntime },
         aiOrganizationSettingsService: {},

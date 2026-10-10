@@ -147,7 +147,10 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import {
     aiExecutionPlanMock,
@@ -1208,6 +1211,9 @@ describe('AsyncQueryService', () => {
                 const flags = { get: vi.fn(async () => ({ enabled: true })) };
                 const slots = { getSecrets: vi.fn().mockResolvedValue(null) };
                 const aiAccessService = new AiAccessService({
+                    agentActionLogModel: {
+                        insert: vi.fn().mockResolvedValue(undefined),
+                    },
                     analytics,
                     lightdashConfig: lightdashConfigMock,
                     organizationAgentIdentityRulesModel: {
@@ -2561,7 +2567,15 @@ describe('AsyncQueryService', () => {
                     });
 
                 await (actor
-                    ? agentExecutionContext.run(actor, submit)
+                    ? agentExecutionContext.run(
+                          createAgentExecutionContext({
+                              account: sessionAccount,
+                              ...actor,
+                              agentUuid: null,
+                              agentIdentityEnabled: true,
+                          }),
+                          submit,
+                      )
                     : submit());
                 const created = vi.mocked(service.queryHistoryModel.create).mock
                     .calls[0][1];
@@ -5261,6 +5275,9 @@ describe('AsyncQueryService', () => {
                 AiAccessRefusalReason.SIGN_IN_EXPIRED,
             );
             const aiAccessService = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 analytics,
                 lightdashConfig: lightdashConfigMock,
                 featureFlagModel: {
@@ -5677,6 +5694,9 @@ describe('AsyncQueryService', () => {
             const connection =
                 aiServiceAccountPlanMock.credentials as CreateBigqueryCredentials;
             const aiAccessService = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 lightdashConfig: lightdashConfigMock,
                 analytics: { track: vi.fn() },
                 featureFlagModel: {
@@ -7931,6 +7951,9 @@ describe('AsyncQueryService', () => {
                     })),
                 };
                 const access = new AiAccessService({
+                    agentActionLogModel: {
+                        insert: vi.fn().mockResolvedValue(undefined),
+                    },
                     featureFlagModel: flags,
                     organizationAgentIdentityRulesModel: rules,
                     userModel: users,
@@ -15372,6 +15395,9 @@ describe('executeAsyncMergeQuery over a result source', () => {
         const analytics = { track: vi.fn() };
         const flags = { get: vi.fn().mockResolvedValue({ enabled: true }) };
         const aiAccessService = new AiAccessService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             analytics,
             featureFlagModel: flags,
             projectModel: {

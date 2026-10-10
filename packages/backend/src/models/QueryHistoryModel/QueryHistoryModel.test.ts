@@ -546,7 +546,14 @@ describe('QueryHistoryModel agent identity', () => {
             client_id: 'lightdash-chat',
         },
     } as AgentIdentityClaim;
-    test.each([claim, null, undefined])(
+    const claimCases = [
+        claim,
+        { ...claim, act: { ...claim.act, agent_uuid: null } },
+        { ...claim, act: { ...claim.act, agent_uuid: 'agent-uuid' } },
+        null,
+        undefined,
+    ];
+    test.each(claimCases)(
         'persists only a supplied claim (%j)',
         async (agentIdentity) => {
             const database = knex({ client: MockClient, dialect: 'pg' });
@@ -589,7 +596,7 @@ describe('QueryHistoryModel agent identity', () => {
             }
         },
     );
-    test.each([claim, null, undefined])(
+    test.each(claimCases)(
         'reads a stored claim or explicit null (%j)',
         async (agentIdentity) => {
             const database = knex({ client: MockClient, dialect: 'pg' });

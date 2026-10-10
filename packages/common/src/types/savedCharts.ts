@@ -1,5 +1,6 @@
 import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
+import { type AgentIdentityClaim } from './agentIdentity';
 import { type ViewStatistics } from './analytics';
 import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
@@ -1409,6 +1410,7 @@ export type ChartHistory = {
 };
 
 export type ChartVersion = {
+    agentIdentity?: AgentIdentityClaim | null;
     chartUuid: string;
     versionUuid: string;
     createdAt: Date;
@@ -1421,7 +1423,7 @@ export type ChartVersion = {
 
 export type ChartVersionSummary = Pick<
     ChartVersion,
-    'chartUuid' | 'versionUuid' | 'createdAt' | 'createdBy'
+    'chartUuid' | 'versionUuid' | 'createdAt' | 'createdBy' | 'agentIdentity'
 >;
 
 export type ApiGetChartHistoryResponse = {

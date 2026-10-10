@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     ApiKeyAccount,
     ForbiddenError,
     getErrorMessage,
@@ -28,6 +29,10 @@ import {
     type McpServerToolOptions,
 } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../services/AiAccessService/agentExecutionContext';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
 import { aliasMcpBearerPersonalAccessToken } from './mcpAuthentication';
 
@@ -510,7 +515,25 @@ mcpRouter.all(
                 }
 
                 const startedAt = Date.now();
-                await transport.handleRequest(authReq, res, req.body);
+                if (!req.account)
+                    throw new Error('Authenticated account not found');
+                await agentExecutionContext.run(
+                    createAgentExecutionContext({
+                        account: req.account,
+                        surface: AgentActorSurface.MCP,
+                        clientId: null,
+                        agentUuid: null,
+                        agentIdentityEnabled,
+                    }),
+                    async () => {
+                        await mcpService.recordDisabledToolRefusal(
+                            req.user!,
+                            req.body,
+                            toolOptions.featureAvailability,
+                        );
+                        return transport.handleRequest(authReq, res, req.body);
+                    },
+                );
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({
                         catalogue: toolOptions,

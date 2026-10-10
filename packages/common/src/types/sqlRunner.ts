@@ -14,6 +14,7 @@ import {
     type VizAggregationOptions,
     type VizColumn,
 } from '../visualizations/types';
+import { type AgentIdentityClaim } from './agentIdentity';
 import { type Dashboard } from './dashboard';
 import {
     type Organization,
@@ -230,6 +231,7 @@ export const isApiSqlRunnerJobPivotQuerySuccessResponse = (
     response.status === SchedulerJobStatus.COMPLETED;
 
 export type SqlChart = {
+    agentIdentity?: AgentIdentityClaim | null;
     savedSqlUuid: string;
     name: string;
     description: string | null;

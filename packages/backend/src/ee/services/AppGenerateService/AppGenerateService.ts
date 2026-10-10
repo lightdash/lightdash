@@ -74,6 +74,7 @@ import {
     validateDataAppCode,
     validateDataAppDependencies,
     type Account,
+    type AgentIdentityClaim,
     type AnonymousAccount,
     type ApiDuplicateAppResponse,
     type ApiGetAppResponse,
@@ -193,6 +194,7 @@ import {
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { setQueryAppVersion } from '../../../logging/winston';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
@@ -213,6 +215,8 @@ import {
     mintPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -447,6 +451,7 @@ type AppExternalConnectionDoc = {
 };
 
 type AppGenerateServiceDeps = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
@@ -824,7 +829,10 @@ export class AppGenerateService extends BaseService {
         Promise<PersistedDataAppDataReferences | null>
     >();
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         analyticsModel,
@@ -857,6 +865,7 @@ export class AppGenerateService extends BaseService {
         contentVerificationModel,
     }: AppGenerateServiceDeps) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.analyticsModel = analyticsModel;
@@ -1182,10 +1191,24 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
             });
         if (verificationAfterUpdate === null) {
-            await this.contentVerificationModel.unverify(
+            const removed = await this.contentVerificationModel.unverify(
                 ContentType.DATA_APP,
                 appUuid,
             );
+            if (removed) {
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'data_app',
+                    objectUuid: appUuid,
+                    versionUuid: null,
+                    action: 'unverify',
+                });
+            }
         }
     }
 
@@ -7540,6 +7563,10 @@ export class AppGenerateService extends BaseService {
             template && template !== 'custom' ? template : null;
         let slug: string;
         try {
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const created = await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
@@ -7557,6 +7584,18 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 undefined,
                 { thread },
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'data_app',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
             slug = created.app.slug;
         } catch (error) {
@@ -7799,7 +7838,11 @@ export class AppGenerateService extends BaseService {
             latestVersion?.dependencies,
         );
 
-        await this.appModel.createVersion(
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
+        const createdVersion = await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
@@ -7808,7 +7851,17 @@ export class AppGenerateService extends BaseService {
             carriedDependencies,
             undefined,
             { vizPreview: latestVersion?.viz_preview },
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid,
+            agentIdentity,
+            objectType: 'data_app',
+            objectUuid: appUuid,
+            versionUuid: createdVersion?.app_version_id ?? null,
+            action: 'update',
+        });
 
         await this.unverifyAppIfNotPreserved({
             user,
@@ -9799,6 +9852,7 @@ export class AppGenerateService extends BaseService {
         views: number;
         currentThread: AppThread;
         versions: {
+            agentIdentity?: AgentIdentityClaim | null;
             version: number;
             threadUuid: string;
             threadNumber: number;
@@ -9863,6 +9917,11 @@ export class AppGenerateService extends BaseService {
             created_by_user_uuid: createdByUserUuid,
         });
 
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: { organizationUuid, userUuid: user.userUuid },
+            });
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
@@ -9891,6 +9950,9 @@ export class AppGenerateService extends BaseService {
                 createdAt: currentThread.created_at,
             },
             versions: versions.map((v) => ({
+                ...(agentIdentityEnabled
+                    ? { agentIdentity: v.agent_identity }
+                    : {}),
                 version: v.version,
                 threadUuid: v.app_thread_uuid,
                 threadNumber: v.thread_number,

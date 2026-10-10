@@ -20,13 +20,22 @@ import {
     type DashboardDAO,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
-import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
@@ -52,6 +61,7 @@ import {
 } from './deliveryContext';
 
 type Dependencies = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
     schedulerService: SchedulerService;
     userModel: UserModel;
@@ -65,6 +75,8 @@ type Dependencies = {
 };
 
 export class SchedulerAiAugmentationService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
 
     private readonly schedulerService: SchedulerService;
@@ -87,6 +99,8 @@ export class SchedulerAiAugmentationService extends BaseService {
 
     constructor(dependencies: Dependencies) {
         super();
+        const { agentActionLogModel } = dependencies;
+        this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = dependencies.aiAccessService;
         this.projectModel = dependencies.projectModel;
         this.warehouseConnectionModel = dependencies.warehouseConnectionModel;
@@ -127,7 +141,21 @@ export class SchedulerAiAugmentationService extends BaseService {
                 schedulerUuid,
             );
         if (!(await this.aiAgentService.getIsCopilotEnabled(user))) {
-            throw new ForbiddenError('AI is not enabled for this organization');
+            const error = new ForbiddenError(
+                'AI is not enabled for this organization',
+            );
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: resource.projectUuid,
+                objectType: 'scheduler_ai_augmentation',
+                action: 'update',
+                policyLayer: 'organization_setting',
+                reasonCode: 'ai_copilot_disabled',
+                error,
+            });
+            throw error;
         }
         if (augmentation.prompt.trim().length === 0) {
             throw new ParameterError(
@@ -144,6 +172,16 @@ export class SchedulerAiAugmentationService extends BaseService {
                 resource.spaceUuid !== null &&
                 !hasAiAgentAccessToSpace(agent, resource.spaceUuid)
             ) {
+                await recordAgentRefusal({
+                    model: this.agentActionLogModel,
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                    projectUuid: resource.projectUuid,
+                    objectType: 'scheduler_ai_augmentation',
+                    action: 'update',
+                    policyLayer: 'agent_scope',
+                    reasonCode: 'content_outside_agent_scope',
+                });
                 throw new ParameterError(
                     `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
                 );
@@ -158,6 +196,18 @@ export class SchedulerAiAugmentationService extends BaseService {
             schedulerUuid,
             augmentation,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid: resource.projectUuid,
+            objectType: 'scheduler_ai_augmentation',
+            objectUuid: schedulerUuid,
+            versionUuid: null,
+            action: 'update',
+        });
         return augmentation;
     }
 
@@ -262,10 +312,13 @@ export class SchedulerAiAugmentationService extends BaseService {
             }),
         );
         return agentExecutionContext.run(
-            {
+            createAgentExecutionContext({
+                account,
                 surface: AgentActorSurface.AI_SUMMARY,
                 clientId: 'lightdash-ai-summary',
-            },
+                agentUuid: null,
+                agentIdentityEnabled: false,
+            }),
             () => {
                 switch (augmentation.type) {
                     case 'agent':

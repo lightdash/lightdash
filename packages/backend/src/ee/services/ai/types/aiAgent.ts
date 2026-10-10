@@ -357,6 +357,10 @@ export type AiAgentDependencies = {
     readContent: ReadContentFn;
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
+    recordSqlChartRefusal?: (
+        action: 'create' | 'update',
+        reasonCode: string,
+    ) => Promise<void>;
     createContent: CreateContentFn;
     createScheduledDelivery: CreateScheduledDeliveryFn;
     updateUserName: UpdateUserNameFn;

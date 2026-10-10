@@ -48,6 +48,7 @@ import {
     getRepositorySizeMb as getGitlabRepositorySizeMb,
 } from '../../../clients/gitlab/Gitlab';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
@@ -56,6 +57,14 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type { UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import {
+    agentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
@@ -231,6 +240,7 @@ type DbtTargetCandidate = {
 };
 
 type AiWritebackServiceDeps = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -466,6 +476,8 @@ const getRepoContextAnalyticsProperties = (repoContext: RepoContext | null) => {
 };
 
 export class AiWritebackService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -516,6 +528,7 @@ export class AiWritebackService extends BaseService {
     private sandboxManager: SandboxManager | undefined;
 
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         projectModel,
@@ -536,6 +549,7 @@ export class AiWritebackService extends BaseService {
         orgAiCopilotConfigResolver,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -591,6 +605,56 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid: string;
         prUrl: string;
     }): Promise<ClosePullRequestResult> {
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: args.user.userUuid,
+            organizationUuid: args.user.organizationUuid,
+        });
+        const run = agentIdentity
+            ? await this.aiWritebackRunModel.findLatestByProjectUuidAndPrUrl(
+                  args.projectUuid,
+                  args.prUrl,
+              )
+            : null;
+        const result = await this.closePullRequestWithProvider(args);
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity,
+            projectUuid: args.projectUuid,
+            objectType: 'ai_writeback_run',
+            objectUuid: run?.ai_writeback_run_uuid ?? null,
+            versionUuid: null,
+            action: 'close',
+        });
+        return result;
+    }
+
+    private async refuseWriteback(
+        user: SessionUser,
+        projectUuid: string,
+        action: 'update' | 'close',
+        reasonCode: string,
+        error: Error,
+    ): Promise<never> {
+        await recordAgentRefusal({
+            model: this.agentActionLogModel,
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            objectType: 'ai_writeback_run',
+            action,
+            policyLayer: 'writeback_policy',
+            reasonCode,
+            error,
+        });
+        throw error;
+    }
+
+    private async closePullRequestWithProvider(args: {
+        user: SessionUser;
+        projectUuid: string;
+        aiThreadUuid: string;
+        prUrl: string;
+    }): Promise<ClosePullRequestResult> {
         const { user, projectUuid, aiThreadUuid, prUrl } = args;
         const recorded = await this.pullRequestsModel.findByAiThreadUuidAndUrl(
             aiThreadUuid,
@@ -602,8 +666,14 @@ export class AiWritebackService extends BaseService {
                 prUrl,
             );
             if (projectPr) {
-                throw new ForbiddenError(
-                    'This pull request is not a workstream in the current conversation',
+                return this.refuseWriteback(
+                    user,
+                    projectUuid,
+                    'close',
+                    'conversation_binding_mismatch',
+                    new ForbiddenError(
+                        'This pull request is not a workstream in the current conversation',
+                    ),
                 );
             }
             return this.ciService.closePullRequest({
@@ -613,8 +683,14 @@ export class AiWritebackService extends BaseService {
             });
         }
         if (recorded.projectUuid !== projectUuid) {
-            throw new ForbiddenError(
-                'This pull request does not belong to the current project',
+            return this.refuseWriteback(
+                user,
+                projectUuid,
+                'close',
+                'project_binding_mismatch',
+                new ForbiddenError(
+                    'This pull request does not belong to the current project',
+                ),
             );
         }
 
@@ -625,7 +701,12 @@ export class AiWritebackService extends BaseService {
             );
         }
         const project = await this.projectModel.get(projectUuid);
-        this.assertCanManageSourceCode(user, project, projectUuid);
+        await this.assertCanManageSourceCode(
+            user,
+            project,
+            projectUuid,
+            'close',
+        );
 
         if (recorded.provider === PullRequestProvider.BITBUCKET) {
             const workstream =
@@ -634,8 +715,14 @@ export class AiWritebackService extends BaseService {
                     prUrl,
                 );
             if (!workstream) {
-                throw new ForbiddenError(
-                    'Cannot resolve the Bitbucket source for this conversation',
+                return this.refuseWriteback(
+                    user,
+                    projectUuid,
+                    'close',
+                    'conversation_source_missing',
+                    new ForbiddenError(
+                        'Cannot resolve the Bitbucket source for this conversation',
+                    ),
                 );
             }
             const candidates = await this.listDbtTargetCandidates(
@@ -650,8 +737,14 @@ export class AiWritebackService extends BaseService {
                 !source ||
                 source.connection.type !== DbtProjectType.BITBUCKET
             ) {
-                throw new ForbiddenError(
-                    'The Bitbucket source for this conversation is no longer configured',
+                return this.refuseWriteback(
+                    user,
+                    projectUuid,
+                    'close',
+                    'conversation_source_mismatch',
+                    new ForbiddenError(
+                        'The Bitbucket source for this conversation is no longer configured',
+                    ),
                 );
             }
             const connection = this.bitbucketProvider.resolveConnection(
@@ -1786,7 +1879,11 @@ export class AiWritebackService extends BaseService {
             );
         }
         const project = await this.projectModel.get(args.projectUuid);
-        this.assertCanManageSourceCode(args.user, project, args.projectUuid);
+        await this.assertCanManageSourceCode(
+            args.user,
+            project,
+            args.projectUuid,
+        );
         const runRow = await this.aiWritebackRunModel.create({
             organizationUuid: args.user.organizationUuid,
             projectUuid: args.projectUuid,
@@ -1795,6 +1892,18 @@ export class AiWritebackService extends BaseService {
             source: args.source,
             promptUuid: args.promptUuid,
             toolCallId: args.toolCallId,
+        });
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: args.user.userUuid,
+                organizationUuid: args.user.organizationUuid,
+            }),
+            projectUuid: args.projectUuid,
+            objectType: 'ai_writeback_run',
+            objectUuid: runRow.ai_writeback_run_uuid,
+            versionUuid: null,
+            action: 'enqueue',
         });
         return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
     }
@@ -1815,7 +1924,7 @@ export class AiWritebackService extends BaseService {
             );
         }
         const project = await this.projectModel.get(projectUuid);
-        this.assertCanManageSourceCode(user, project, projectUuid);
+        await this.assertCanManageSourceCode(user, project, projectUuid);
         const runRow = await this.aiWritebackRunModel.create({
             organizationUuid: user.organizationUuid,
             projectUuid,
@@ -1824,6 +1933,18 @@ export class AiWritebackService extends BaseService {
             source,
             promptUuid: null,
             toolCallId: null,
+        });
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'ai_writeback_run',
+            objectUuid: runRow.ai_writeback_run_uuid,
+            versionUuid: null,
+            action: 'enqueue',
         });
         await this.schedulerClient.aiWritebackPipeline({
             aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
@@ -2032,10 +2153,28 @@ export class AiWritebackService extends BaseService {
                 `Writeback run ${aiWritebackRunUuid} not found`,
             );
         }
-        this.assertCanManageSourceCode(user, project, runRow.project_uuid);
+        await this.assertCanManageSourceCode(
+            user,
+            project,
+            runRow.project_uuid,
+            'cancel',
+            runRow.ai_writeback_run_uuid,
+        );
         const cancelled =
             await this.aiWritebackRunModel.markCancelled(aiWritebackRunUuid);
         if (cancelled) {
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid: runRow.project_uuid,
+                objectType: 'ai_writeback_run',
+                objectUuid: runRow.ai_writeback_run_uuid,
+                versionUuid: null,
+                action: 'cancel',
+            });
             return { cancelled: true, status: 'cancelled' };
         }
         // Lost the race (or already terminal): report the settled status
@@ -2068,15 +2207,30 @@ export class AiWritebackService extends BaseService {
      */
     private async assertWritebackProviderSupported(
         organizationUuid: string | undefined,
+        action: 'enqueue' | 'update' = 'enqueue',
     ): Promise<void> {
         if (
             await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                 organizationUuid,
             )
         ) {
-            throw new ForbiddenError(
+            const scope = agentExecutionContext.getStore();
+            const error = new ForbiddenError(
                 'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
             );
+            if (scope)
+                await recordAgentRefusal({
+                    model: this.agentActionLogModel,
+                    userUuid: scope.writerUuid,
+                    organizationUuid,
+                    projectUuid: null,
+                    objectType: 'ai_writeback_run',
+                    action,
+                    policyLayer: 'writeback_policy',
+                    reasonCode: 'writeback_provider_unsupported',
+                    error,
+                });
+            throw error;
         }
     }
 
@@ -2084,7 +2238,10 @@ export class AiWritebackService extends BaseService {
         args: AiWritebackRunArgs,
         config: CodingAgentConfig,
     ): Promise<AiWritebackRunResult> {
-        await this.assertWritebackProviderSupported(args.user.organizationUuid);
+        await this.assertWritebackProviderSupported(
+            args.user.organizationUuid,
+            'update',
+        );
         const {
             user,
             projectUuid,
@@ -2535,6 +2692,7 @@ export class AiWritebackService extends BaseService {
                 prDescription,
                 prSummary,
                 workstream: config.mode,
+                aiWritebackRunUuid,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -2800,7 +2958,7 @@ export class AiWritebackService extends BaseService {
             warehouseType = resolved.warehouseType;
             dbtVersion = resolved.dbtVersion;
         } else {
-            this.assertCanManageSourceCode(user, project, projectUuid);
+            await this.assertCanManageSourceCode(user, project, projectUuid);
             // The thread's most-recent workstream row supplies the source
             // binding so a resume never retargets the cloned repo. A dbt thread
             // can now hold several workstreams; they all target the same project
@@ -2933,11 +3091,13 @@ export class AiWritebackService extends BaseService {
      * GitIntegrationService's PR-creating paths: writes open a PR from a fresh
      * feature branch, so `isProtectedBranch: false`.
      */
-    private assertCanManageSourceCode(
+    private async assertCanManageSourceCode(
         user: SessionUser,
         project: Awaited<ReturnType<ProjectModel['get']>>,
         projectUuid: string,
-    ): void {
+        action: 'enqueue' | 'cancel' | 'close' | 'update' = 'enqueue',
+        objectUuid: string | null = null,
+    ): Promise<void> {
         const canManage = this.createAuditedAbility(user).can(
             'manage',
             subject('SourceCode', {
@@ -2947,7 +3107,20 @@ export class AiWritebackService extends BaseService {
             }),
         );
         if (!canManage) {
-            throw new ForbiddenError();
+            const error = new ForbiddenError();
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                objectType: 'ai_writeback_run',
+                action,
+                objectUuid,
+                policyLayer: 'writeback_policy',
+                reasonCode: 'source_code_manage_forbidden',
+                error,
+            });
+            throw error;
         }
     }
 
@@ -3277,7 +3450,12 @@ export class AiWritebackService extends BaseService {
         project: Awaited<ReturnType<ProjectModel['get']>>;
         repoTarget: string | undefined;
     }): Promise<ResolvedTurnTarget> {
-        this.assertCanManageSourceCode(user, project, project.projectUuid);
+        await this.assertCanManageSourceCode(
+            user,
+            project,
+            project.projectUuid,
+            'update',
+        );
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
                 'no_org',
@@ -3288,9 +3466,15 @@ export class AiWritebackService extends BaseService {
         const { owner, repo } = parseOwnerRepo(repoTarget);
         const key = `${owner}/${repo}`;
         if (DENYLISTED_WRITE_REPOS.has(key.toLowerCase())) {
-            throw new WritebackAccessError(
-                'denied_repo',
-                `The repository ${key} cannot be edited`,
+            return this.refuseWriteback(
+                user,
+                project.projectUuid,
+                'update',
+                'repository_denied',
+                new WritebackAccessError(
+                    'denied_repo',
+                    `The repository ${key} cannot be edited`,
+                ),
             );
         }
 
@@ -3403,9 +3587,17 @@ export class AiWritebackService extends BaseService {
             const reason = inInstallation
                 ? `${key} is not accessible to your linked GitHub account`
                 : `${key} is not accessible to your organization's GitHub App installation`;
-            throw new WritebackAccessError(
-                inInstallation ? 'user_intersection' : 'installation',
-                reason,
+            return this.refuseWriteback(
+                user,
+                project.projectUuid,
+                'update',
+                inInstallation
+                    ? 'repository_user_access_denied'
+                    : 'repository_installation_access_denied',
+                new WritebackAccessError(
+                    inInstallation ? 'user_intersection' : 'installation',
+                    reason,
+                ),
             );
         }
 
@@ -3487,9 +3679,15 @@ export class AiWritebackService extends BaseService {
             [...writable].map((k) => k.toLowerCase()),
         );
         if (!writableLower.has(key.toLowerCase())) {
-            throw new WritebackAccessError(
-                'installation',
-                `${key} is not accessible to your organization's GitLab installation`,
+            return this.refuseWriteback(
+                user,
+                project.projectUuid,
+                'update',
+                'repository_installation_access_denied',
+                new WritebackAccessError(
+                    'installation',
+                    `${key} is not accessible to your organization's GitLab installation`,
+                ),
             );
         }
 
@@ -4480,7 +4678,10 @@ export class AiWritebackService extends BaseService {
      * written to the coding-agent write audit (allowed and denied alike).
      */
     async runEditRepo(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
-        await this.assertWritebackProviderSupported(args.user.organizationUuid);
+        await this.assertWritebackProviderSupported(
+            args.user.organizationUuid,
+            'update',
+        );
         this.logger.info('AI coding agent run requested', {
             event: 'ai_coding_agent.run.requested',
             projectUuid: args.projectUuid,
@@ -4730,6 +4931,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
         prSummary,
         workstream,
+        aiWritebackRunUuid,
     }: {
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -4745,6 +4947,7 @@ export class AiWritebackService extends BaseService {
         prDescription: string | null;
         prSummary: string | null;
         workstream: CodingAgentConfig['mode'];
+        aiWritebackRunUuid?: string;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -4760,6 +4963,22 @@ export class AiWritebackService extends BaseService {
                 deletions: null,
             };
         }
+
+        const onRemoteCommitted = async () => {
+            if (workstream !== 'general') return;
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'ai_writeback_run',
+                objectUuid: aiWritebackRunUuid ?? null,
+                versionUuid: null,
+                action: 'update',
+            });
+        };
 
         // Resume or pasted-link adoption: land onto the existing request's
         // branch (the sandbox is already on it) and refresh its title/body.
@@ -4784,6 +5003,7 @@ export class AiWritebackService extends BaseService {
                     ),
                     user,
                     setStage,
+                    onRemoteCommitted,
                 });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -4829,6 +5049,7 @@ export class AiWritebackService extends BaseService {
                 ),
                 user,
                 setStage,
+                onRemoteCommitted,
             });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,

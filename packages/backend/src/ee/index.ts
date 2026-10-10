@@ -433,6 +433,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             projectContextService: ({ models }) =>
                 new ProjectContextService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
@@ -447,6 +448,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 clients,
             }) =>
                 new AiWritebackService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
@@ -502,6 +504,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     projectModel: models.getProjectModel(),
                     githubAppInstallationsModel:
@@ -568,6 +571,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     analyticsModel: models.getAnalyticsModel(),
@@ -689,6 +693,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
                     appModel: models.getAppModel(),
@@ -1000,6 +1005,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     warehouseConnectionModel:
                         models.getWarehouseConnectionModel(),
@@ -1537,6 +1543,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             mcpService: ({ context, repository, models }) =>
                 new McpService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -1739,6 +1746,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                agentActionLogModel: context.models.getAgentActionLogModel(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 featureFlagModel: context.models.getFeatureFlagModel(),
                 lightdashConfig: context.lightdashConfig,

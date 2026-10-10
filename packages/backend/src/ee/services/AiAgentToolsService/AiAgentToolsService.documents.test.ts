@@ -13,6 +13,10 @@ import {
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
     AiAgentToolsService,
     type AiAgentToolsRuntimeContext,
 } from './AiAgentToolsService';
@@ -127,6 +131,7 @@ const setup = (spaceAccess: string[] | null = null) => {
             .mockResolvedValue({ projectUuid, slug: projectSlug }),
     };
     const service = new AiAgentToolsService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel,
         documentService,
         spaceModel,
@@ -1002,3 +1007,156 @@ describe('MCP Document runtime', () => {
         expect(runtime).not.toHaveProperty('editDocumentContent');
     });
 });
+
+describe.each(agentActionTestCases)(
+    'document scope ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each([
+            'content',
+            'metadata',
+            'personal',
+            'destination',
+            'destination-name',
+            'read',
+        ] as const)('%s records one deciding refusal', async (operation) => {
+            const { runtime, service, context, documentService, spaceModel } =
+                setup(['allowed']);
+            if (operation === 'personal')
+                documentService.getBySlug.mockResolvedValue({
+                    ...document,
+                    spaceUuid: null,
+                    createdByUserUuid: 'other',
+                });
+            if (operation === 'destination' || operation === 'destination-name')
+                documentService.getBySlug.mockResolvedValue({
+                    ...document,
+                    spaceUuid: null,
+                });
+            if (operation === 'destination-name')
+                spaceModel.find.mockResolvedValue([]);
+            const run = () =>
+                operation === 'read'
+                    ? runtime.readDocumentContent(document.slug, null)
+                    : runtime.editContent({
+                          type: 'document',
+                          slug: document.slug,
+                          documentEdit:
+                              operation === 'content'
+                                  ? {
+                                        type: 'content',
+                                        baseVersionUuid: versionUuid,
+                                        markdown: '',
+                                        charts: {},
+                                    }
+                                  : {
+                                        type: 'metadata',
+                                        name: 'private name',
+                                        ...([
+                                            'destination',
+                                            'destination-name',
+                                        ].includes(operation)
+                                            ? { spaceSlug: 'reports' }
+                                            : {}),
+                                    },
+                      });
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    run,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'document',
+                        object_uuid: document.documentUuid,
+                        action: operation === 'read' ? 'read' : 'update',
+                        outcome: 'denied',
+                        policy_layer: 'agent_scope',
+                        reason_code: {
+                            personal: 'personal_document_outside_agent_scope',
+                            destination:
+                                'document_destination_outside_agent_scope',
+                            'destination-name':
+                                'document_destination_outside_agent_scope',
+                            read: 'document_outside_agent_scope',
+                            content: 'document_outside_agent_scope',
+                            metadata: 'document_outside_agent_scope',
+                        }[operation],
+                    }),
+                );
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+            expect(documentService.updateMetadata).not.toHaveBeenCalled();
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+            expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                'private name',
+            );
+        });
+        test('missing destination remains a lookup failure', async () => {
+            const { runtime, service, context, documentService, spaceModel } =
+                setup(['allowed']);
+            documentService.getBySlug.mockResolvedValue({
+                ...document,
+                spaceUuid: null,
+            });
+            spaceModel.find.mockResolvedValue([]);
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    () =>
+                        runtime.editContent({
+                            type: 'document',
+                            slug: document.slug,
+                            documentEdit: {
+                                type: 'metadata',
+                                spaceSlug: 'missing',
+                            },
+                        }),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(
+                service['agentActionLogModel'].insert,
+            ).not.toHaveBeenCalled();
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+        });
+        test('missing document remains a lookup failure', async () => {
+            const { runtime, service, context, documentService } = setup([
+                'allowed',
+            ]);
+            documentService.getBySlug.mockRejectedValue(
+                new NotFoundError('Document not found'),
+            );
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    () =>
+                        runtime.editContent({
+                            type: 'document',
+                            slug: 'missing',
+                            documentEdit: { type: 'metadata', name: 'new' },
+                        }),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(
+                service['agentActionLogModel'].insert,
+            ).not.toHaveBeenCalled();
+        });
+    },
+);

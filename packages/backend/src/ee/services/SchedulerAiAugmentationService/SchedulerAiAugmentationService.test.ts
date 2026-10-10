@@ -6,6 +6,10 @@ import {
     type SendNowScheduler,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import { SchedulerAiAugmentationService } from './SchedulerAiAugmentationService';
 
@@ -40,6 +44,7 @@ const setup = (enabled: boolean) => {
         getAgent: vi.fn().mockResolvedValue({}),
     };
     const service = new SchedulerAiAugmentationService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),
             getWarehouseCredentialsForBinding: vi.fn().mockResolvedValue({}),
@@ -116,7 +121,7 @@ describe('SchedulerAiAugmentationService AI access', () => {
         const { service, asyncQueryService } = setup(true);
         asyncQueryService.executeSavedChartQueryAndGetResults.mockImplementation(
             async () => {
-                expect(agentExecutionContext.getStore()).toEqual({
+                expect(agentExecutionContext.getStore()).toMatchObject({
                     surface: AgentActorSurface.AI_SUMMARY,
                     clientId: 'lightdash-ai-summary',
                 });
@@ -133,7 +138,7 @@ describe('SchedulerAiAugmentationService AI access', () => {
     test('attributes the report agent own queries to the summary actor', async () => {
         const { service, aiAgentService } = setup(true);
         aiAgentService.generateScheduledReport.mockImplementation(async () => {
-            expect(agentExecutionContext.getStore()).toEqual({
+            expect(agentExecutionContext.getStore()).toMatchObject({
                 surface: AgentActorSurface.AI_SUMMARY,
                 clientId: 'lightdash-ai-summary',
             });
@@ -214,3 +219,92 @@ describe('SchedulerAiAugmentationService AI access', () => {
         },
     );
 });
+
+test.each(agentActionTestCases)(
+    'augmentation upsert: %s',
+    async (_, surface, enabled, count) => {
+        const { service } = setup(true);
+        Object.assign(service['schedulerService'], {
+            checkUserCanManageScheduler: vi.fn().mockResolvedValue({
+                resource: { projectUuid: 'project', spaceUuid: null },
+            }),
+        });
+        Object.assign(service['schedulerAiAugmentationModel'], {
+            upsert: vi.fn().mockResolvedValue(undefined),
+        });
+        await withAgentActionScope(defaultSessionUser, surface, enabled, () =>
+            service.upsertAugmentation(defaultSessionUser, 'scheduler', {
+                type: 'fast_model',
+                prompt: 'secret instructions',
+            }),
+        );
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'scheduler_ai_augmentation',
+                    object_uuid: 'scheduler',
+                    action: 'update',
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+    },
+);
+
+describe.each(agentActionTestCases)(
+    'augmentation refusal: %s',
+    (_, surface, enabled, count) => {
+        test.each(['organization_setting', 'agent_scope'] as const)(
+            '%s',
+            async (policyLayer) => {
+                const { service, aiAgentService } = setup(true);
+                Object.assign(service['schedulerService'], {
+                    checkUserCanManageScheduler: vi.fn().mockResolvedValue({
+                        resource: {
+                            projectUuid: 'project',
+                            spaceUuid: 'restricted-space',
+                        },
+                    }),
+                });
+                if (policyLayer === 'organization_setting')
+                    aiAgentService.getIsCopilotEnabled.mockResolvedValue(false);
+                else
+                    aiAgentService.getAgent.mockResolvedValue({
+                        spaceAccess: ['other-space'],
+                    });
+                await expect(
+                    withAgentActionScope(
+                        defaultSessionUser,
+                        surface,
+                        enabled,
+                        () =>
+                            service.upsertAugmentation(
+                                defaultSessionUser,
+                                'scheduler',
+                                {
+                                    type: 'agent',
+                                    agentUuid: 'agent',
+                                    sourceThreadUuid: null,
+                                    prompt: 'secret prompt',
+                                },
+                            ),
+                    ),
+                ).rejects.toThrow();
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                expect(insert).toHaveBeenCalledTimes(count);
+                if (count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            outcome: 'denied',
+                            policy_layer: policyLayer,
+                            object_type: 'scheduler_ai_augmentation',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'secret',
+                );
+            },
+        );
+    },
+);

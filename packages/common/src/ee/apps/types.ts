@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type AgentIdentityClaim } from '../../types/agentIdentity';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type ContentVerificationInfo } from '../../types/contentVerification';
@@ -531,6 +532,7 @@ export type AppThread = {
 };
 
 export type ApiAppVersionSummary = {
+    agentIdentity?: AgentIdentityClaim | null;
     version: number;
     // Thread the version's prompt was made in. Versions predating threads
     // read back under thread 1.

@@ -139,6 +139,7 @@ const buildService = (role: SpaceMemberRole) => {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(buildUser()),
     };
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             lightdashSecrets: {

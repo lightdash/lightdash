@@ -21,8 +21,14 @@ import {
     getInstallationToken,
     getLastCommit,
 } from '../../../clients/github/Github';
+import type { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { ProjectContextModel } from '../../models/ProjectContextModel';
 
@@ -68,6 +74,7 @@ type GithubAccess = {
 type SourceCodeAction = 'view' | 'manage';
 
 type ProjectContextServiceDeps = {
+    agentActionLogModel: AgentActionLogModel;
     projectModel: ProjectModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     projectContextModel: ProjectContextModel;
@@ -85,6 +92,7 @@ const parseWritebackEntry = (entry: AiAgentJudgeProjectContextEntry) => {
 };
 
 export class ProjectContextService extends BaseService {
+    private readonly agentActionLogModel: AgentActionLogModel;
     private readonly projectModel: ProjectModel;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -93,6 +101,7 @@ export class ProjectContextService extends BaseService {
 
     constructor(deps: ProjectContextServiceDeps) {
         super();
+        this.agentActionLogModel = deps.agentActionLogModel;
         this.projectModel = deps.projectModel;
         this.githubAppInstallationsModel = deps.githubAppInstallationsModel;
         this.projectContextModel = deps.projectContextModel;
@@ -132,7 +141,23 @@ export class ProjectContextService extends BaseService {
             ...(action === 'manage' ? { isProtectedBranch: false } : {}),
         });
         if (auditedAbility.cannot(action, sourceCodeSubject)) {
-            throw new ForbiddenError();
+            const error = new ForbiddenError();
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: project.organizationUuid,
+                projectUuid,
+                objectType: 'project_context',
+                objectUuid: projectUuid,
+                action: action === 'manage' ? 'update' : 'read',
+                policyLayer: 'writeback_policy',
+                reasonCode:
+                    action === 'manage'
+                        ? 'source_code_manage_forbidden'
+                        : 'source_code_view_forbidden',
+                error,
+            });
+            throw error;
         }
 
         const connection = ProjectContextService.resolveGithubConnection(
@@ -402,6 +427,19 @@ export class ProjectContextService extends BaseService {
             },
             installationId,
             token,
+        });
+
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: args.user.userUuid,
+                organizationUuid: args.user.organizationUuid,
+            }),
+            projectUuid: args.projectUuid,
+            objectType: 'project_context',
+            objectUuid: args.projectUuid,
+            versionUuid: null,
+            action: 'update',
         });
 
         const bodyLines = [

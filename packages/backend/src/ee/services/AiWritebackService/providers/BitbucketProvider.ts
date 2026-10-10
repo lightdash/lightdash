@@ -466,6 +466,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 username: 'x-bitbucket-api-token-auth',
                 password: installation.token,
             });
+            await args.onRemoteCommitted();
         } catch {
             throw new UnexpectedGitError(
                 'Could not push the Bitbucket writeback branch. Check repository access and branch restrictions.',

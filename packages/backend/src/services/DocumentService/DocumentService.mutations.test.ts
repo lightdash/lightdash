@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     assertUnreachable,
     ChartKind,
     ChartType,
@@ -18,6 +19,19 @@ import {
     type RegisteredAccount,
     type SemanticChartAsCode,
 } from '@lightdash/common';
+import { fromSession } from '../../auth/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import * as auditLogger from '../../logging/winston';
+import { type DocumentModel } from '../../models/DocumentModel';
+import {
+    agentActionTestCases,
+    runContentVersionCallback,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { DocumentService } from './DocumentService';
 
 const userUuid = 'document-author';
@@ -95,12 +109,15 @@ const merge: ChartBlock = {
     },
 };
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
+
 describe('Document as-code chart round-trip', () => {
     test.each([semantic, merge])(
         'preserves durable $content.source charts',
         async (cell) => {
             const content = toContent([markdown, cell]);
             const service = new DocumentService({
+                agentActionLogModel,
                 contentVerificationModel: {
                     getByContent: vi.fn().mockResolvedValue(null),
                     verify: vi.fn(),
@@ -193,9 +210,36 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
-        create: vi.fn().mockResolvedValue(document),
+        create: vi
+            .fn<DocumentModel['create']>()
+            .mockImplementation(async (_input, _identity, callback) => {
+                await runContentVersionCallback(
+                    callback,
+                    document.version.versionUuid,
+                    document.documentUuid,
+                );
+                return document;
+            }),
         updateMetadata: vi.fn().mockResolvedValue(document),
-        updateContent: vi.fn().mockResolvedValue(document),
+        updateContent: vi
+            .fn<DocumentModel['updateContent']>()
+            .mockImplementation(
+                async (
+                    _project,
+                    _document,
+                    _input,
+                    _user,
+                    _identity,
+                    callback,
+                ) => {
+                    await runContentVersionCallback(
+                        callback,
+                        document.version.versionUuid,
+                        document.documentUuid,
+                    );
+                    return document;
+                },
+            ),
     };
     const projectModel = {
         getSummary: vi
@@ -226,6 +270,7 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
         getOrganizationMemberByUuid: vi.fn().mockResolvedValue({}),
     };
     const service = new DocumentService({
+        agentActionLogModel,
         contentVerificationModel: {
             getByContent: vi.fn().mockResolvedValue(null),
             verify: vi.fn(),
@@ -412,14 +457,18 @@ describe('DocumentService mutations', () => {
                 source.slug,
                 input,
             );
-            expect(documentModel.create).toHaveBeenCalledWith({
-                ...input,
-                projectUuid,
-                createdByUserUuid: userUuid,
-                description: source.description,
-                schemaVersion: 2,
-                content: source.version.content,
-            });
+            expect(documentModel.create).toHaveBeenCalledWith(
+                {
+                    ...input,
+                    projectUuid,
+                    createdByUserUuid: userUuid,
+                    description: source.description,
+                    schemaVersion: 2,
+                    content: source.version.content,
+                },
+                null,
+                expect.any(Function),
+            );
             expect(source.version.versionNumber).toBe(5);
             expect(source.version.content).toEqual(toContent([markdown, cell]));
             expect(documentModel.updateMetadata).not.toHaveBeenCalled();
@@ -441,6 +490,8 @@ describe('DocumentService mutations', () => {
         });
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ description: '' }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -806,6 +857,8 @@ describe('DocumentService mutations', () => {
                 documentUuid,
                 { ...request, expectedSpaceUuid: spaceUuid },
                 userUuid,
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -816,11 +869,15 @@ describe('DocumentService mutations', () => {
         await expect(
             service.create(makeAccount(), projectUuid, createInput),
         ).resolves.toMatchObject(document);
-        expect(documentModel.create).toHaveBeenCalledWith({
-            ...createInput,
-            projectUuid,
-            createdByUserUuid: userUuid,
-        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...createInput,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
@@ -951,11 +1008,15 @@ describe('DocumentService mutations', () => {
             usePreAggregateCache: false,
         });
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
-        expect(documentModel.create).toHaveBeenCalledWith({
-            ...input,
-            projectUuid,
-            createdByUserUuid: userUuid,
-        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...input,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
     });
 
     test.each([
@@ -1234,12 +1295,16 @@ describe('DocumentService personal Documents', () => {
             userUuid,
             personalTarget,
         );
-        expect(documentModel.create).toHaveBeenCalledWith({
-            ...personalInput,
-            spaceUuid: null,
-            projectUuid,
-            createdByUserUuid: userUuid,
-        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...personalInput,
+                spaceUuid: null,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
     });
 
     test('authorizes edits to a personal Document through its creator', async () => {
@@ -1382,6 +1447,8 @@ describe('DocumentService ownership', () => {
                 createdByUserUuid: userUuid,
                 ownerUserUuid: ownerUuid,
             }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -1493,6 +1560,8 @@ describe('DocumentService SQL charts', () => {
         );
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ content: toContent([sqlChart]) }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -1570,6 +1639,8 @@ describe('DocumentService SQL charts', () => {
 
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ content: stored }),
+            null,
+            expect.any(Function),
         );
         expect(created.version.content.charts.c1).toEqual({
             source: 'sql',
@@ -1663,6 +1734,8 @@ describe('DocumentService saved chart links', () => {
                     `<saved-chart uuid="${chartUuid}" title="Live">`,
                 ),
             }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -1765,6 +1838,150 @@ describe('DocumentService saved chart links to deleted charts', () => {
                 },
             }),
             userUuid,
+            null,
+            expect.any(Function),
         );
     });
 });
+
+describe('document agent attribution', () => {
+    afterEach(() => vi.restoreAllMocks());
+    test.each([
+        [AgentActorSurface.MCP, true],
+        [AgentActorSurface.IN_APP_AGENT, true],
+        [AgentActorSurface.SLACK_AGENT, true],
+        [AgentActorSurface.IN_APP_AGENT, false],
+        [null, true],
+    ] as const)(
+        '%s enabled=%s attributes create and update after commit',
+        async (surface, enabled) => {
+            const { service, documentModel } = setup();
+            const account = makeAccount();
+            const scope = createAgentExecutionContext({
+                account: fromSession({
+                    ...defaultSessionUser,
+                    userUuid,
+                    organizationUuid,
+                }),
+                surface: surface ?? AgentActorSurface.IN_APP_AGENT,
+                clientId: 'trusted-client',
+                agentUuid: 'agent',
+                agentIdentityEnabled: enabled,
+            });
+            const claim = surface && enabled ? scope.claim : null;
+            agentActionLogModel.insert.mockClear();
+            const log = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            const run = async () => {
+                await service.create(account, projectUuid, createInput);
+                expect(documentModel.create).toHaveBeenLastCalledWith(
+                    expect.any(Object),
+                    claim,
+                    expect.any(Function),
+                );
+                expect(
+                    log.mock.calls.filter(
+                        ([event]) =>
+                            event.resource.metadata?.event ===
+                            'agent_content.write',
+                    ),
+                ).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'document',
+                            outcome: 'allowed',
+                        }),
+                        expect.any(Object),
+                    );
+                agentActionLogModel.insert.mockClear();
+                log.mockClear();
+                await service.updateContent(
+                    account,
+                    projectUuid,
+                    documentUuid,
+                    { baseVersionUuid, content: document.version.content },
+                );
+                expect(documentModel.updateContent).toHaveBeenLastCalledWith(
+                    projectUuid,
+                    documentUuid,
+                    expect.any(Object),
+                    userUuid,
+                    claim,
+                    expect.any(Function),
+                );
+                expect(
+                    log.mock.calls.filter(
+                        ([event]) =>
+                            event.resource.metadata?.event ===
+                            'agent_content.write',
+                    ),
+                ).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'document',
+                            outcome: 'allowed',
+                        }),
+                        expect.any(Object),
+                    );
+                agentActionLogModel.insert.mockClear();
+            };
+            if (surface) await agentExecutionContext.run(scope, run);
+            else await run();
+        },
+    );
+});
+
+describe.each(agentActionTestCases)(
+    'document metadata and move: %s',
+    (_, surface, enabled, count) => {
+        test.each(['update', 'move'] as const)('%s', async (action) => {
+            agentActionLogModel.insert.mockClear();
+            const { service, documentModel, spacePermissionService, context } =
+                setup();
+            Object.assign(spacePermissionService, {
+                resolveAccessBatch: vi
+                    .fn()
+                    .mockResolvedValue([{ context }, { context }]),
+            });
+            Object.assign(documentModel, {
+                moveToSpace: vi.fn().mockResolvedValue(undefined),
+            });
+            const user = { ...defaultSessionUser, userUuid, organizationUuid };
+            await withAgentActionScope(user, surface, enabled, () =>
+                action === 'update'
+                    ? service.updateMetadata(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          { name: 'new name' },
+                      )
+                    : service.moveToSpace(makeAccount(), {
+                          projectUuid,
+                          itemUuid: documentUuid,
+                          targetSpaceUuid: 'destination',
+                      }),
+            );
+            expect(agentActionLogModel.insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'document',
+                        object_uuid: documentUuid,
+                        action,
+                        outcome: 'allowed',
+                    }),
+                );
+        });
+    },
+);

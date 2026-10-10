@@ -146,12 +146,18 @@ import {
 } from '../../../auth/oauthScopes/mcpTools';
 import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
+import {
+    isAgentActionForbiddenError,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -427,6 +433,7 @@ const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
 
 type McpServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     aiAccessService: AiAccessService;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -548,6 +555,8 @@ export type McpServerToolOptions = {
 };
 
 export class McpService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private lightdashConfig: LightdashConfig;
 
     private aiAccessService: AiAccessService;
@@ -593,6 +602,7 @@ export class McpService extends BaseService {
     private mcpServer: McpServer;
 
     constructor({
+        agentActionLogModel,
         aiAccessService,
         lightdashConfig,
         analytics,
@@ -616,6 +626,7 @@ export class McpService extends BaseService {
         aiWritebackService,
     }: McpServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = aiAccessService;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
@@ -4996,6 +5007,82 @@ export class McpService extends BaseService {
         );
     }
 
+    public async recordDisabledToolRefusal(
+        user: SessionUser,
+        request: unknown,
+        availability: McpServerToolOptions['featureAvailability'],
+    ): Promise<void> {
+        if (
+            !getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            })
+        )
+            return;
+        const call = z
+            .object({
+                method: z.literal('tools/call'),
+                params: z.object({
+                    name: z.enum([
+                        'create_content',
+                        'edit_content',
+                        'create_scheduled_delivery',
+                        'generate_data_app',
+                        'iterate_data_app',
+                    ]),
+                }),
+            })
+            .safeParse(request);
+        if (!call.success) return;
+        const dataApp = ['generate_data_app', 'iterate_data_app'].includes(
+            call.data.params.name,
+        );
+        if (dataApp) {
+            if (availability.dataAppBuildsEnabled) return;
+            const { enabled } = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: null,
+                objectType: 'app',
+                action:
+                    call.data.params.name === 'iterate_data_app'
+                        ? 'update'
+                        : 'create',
+                policyLayer: enabled ? 'casl' : 'organization_setting',
+                reasonCode: enabled
+                    ? 'data_app_create_forbidden'
+                    : 'data_apps_disabled',
+            });
+            return;
+        }
+        const scheduler = call.data.params.name === 'create_scheduled_delivery';
+        if (
+            scheduler
+                ? availability.scheduledDeliveryEnabled
+                : availability.mcpContentWritesEnabled
+        )
+            return;
+        const settingEnabled = await this.isMcpContentWritesEnabled(user);
+        await recordAgentRefusal({
+            model: this.agentActionLogModel,
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid: null,
+            objectType: scheduler ? 'scheduler' : 'content',
+            action:
+                call.data.params.name === 'edit_content' ? 'update' : 'create',
+            policyLayer: settingEnabled ? 'casl' : 'organization_setting',
+            reasonCode: settingEnabled
+                ? 'content_write_forbidden'
+                : 'mcp_content_writes_disabled',
+        });
+    }
+
     public async isContentToolsEnabled(user: SessionUser): Promise<boolean> {
         const settingEnabled = await this.isMcpContentWritesEnabled(user);
         return (
@@ -5302,6 +5389,27 @@ export class McpService extends BaseService {
             });
     }
 
+    private static agentWriteTarget(
+        toolName: string,
+    ): { objectType: string; action: string } | null {
+        switch (toolName) {
+            case 'create_content':
+                return { objectType: 'content', action: 'create' };
+            case 'edit_content':
+                return { objectType: 'content', action: 'update' };
+            case 'create_scheduled_delivery':
+                return { objectType: 'scheduler', action: 'create' };
+            case 'generate_data_app':
+                return { objectType: 'app', action: 'create' };
+            case 'iterate_data_app':
+                return { objectType: 'app', action: 'update' };
+            case 'run_ai_writeback':
+                return { objectType: 'ai_writeback_run', action: 'enqueue' };
+            default:
+                return null;
+        }
+    }
+
     private wrapToolCallback<
         Callback extends (...cbArgs: AnyType[]) => AnyType,
     >(toolName: string, handler: Callback): Callback {
@@ -5356,6 +5464,22 @@ export class McpService extends BaseService {
                 });
                 return response;
             } catch (error) {
+                const target = McpService.agentWriteTarget(toolName);
+                if (target && isAgentActionForbiddenError(error)) {
+                    const { user, organizationUuid } = McpService.getAccount(
+                        getMcpContext(extra),
+                    );
+                    await recordAgentRefusal({
+                        model: this.agentActionLogModel,
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                        projectUuid: null,
+                        ...target,
+                        policyLayer: 'casl',
+                        reasonCode: 'content_write_forbidden',
+                        error,
+                    });
+                }
                 this.recordToolCall({
                     toolName,
                     toolArgs,

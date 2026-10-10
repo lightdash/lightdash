@@ -59,6 +59,7 @@ type Setup = {
 
 const buildService = ({ policies, members, groups }: Setup) =>
     new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as never,

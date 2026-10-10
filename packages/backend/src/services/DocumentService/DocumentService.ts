@@ -55,6 +55,7 @@ import type {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { AppModel } from '../../models/AppModel';
 import type { ContentVerificationModel } from '../../models/ContentVerificationModel';
@@ -68,6 +69,8 @@ import type { OrganizationMemberProfileModel } from '../../models/OrganizationMe
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
@@ -87,6 +90,7 @@ import {
     assertCanMutateVerifiedContent,
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 
 /** Who made a Document change, for analytics. */
 export type DocumentChangeContext = {
@@ -115,6 +119,7 @@ const getAccessTarget = (
           };
 
 type DocumentServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: Pick<AnalyticsModel, 'addDocumentViewEvent'>;
@@ -397,14 +402,32 @@ export class DocumentService extends BaseService {
                 copiedFrom &&
                 mapDocumentCharts(copiedFrom, DocumentService.toStoredChart),
         });
-        const created = await this.dependencies.documentModel.create({
-            ...input,
-            uniqueSlug,
-            spaceUuid: input.spaceUuid ?? null,
-            content,
-            projectUuid,
-            createdByUserUuid: account.user.userUuid,
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
         });
+        const created = await this.dependencies.documentModel.create(
+            {
+                ...input,
+                uniqueSlug,
+                spaceUuid: input.spaceUuid ?? null,
+                content,
+                projectUuid,
+                createdByUserUuid: account.user.userUuid,
+            },
+            agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.dependencies.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'document',
+                    objectUuid,
+                    versionUuid,
+                    action: 'create',
+                }),
+        );
         this.dependencies.analytics.track({
             event: 'document.created',
             userId: account.user.userUuid,
@@ -474,12 +497,26 @@ export class DocumentService extends BaseService {
             document.organizationUuid,
             input.ownerUserUuid,
         );
-        const updated = {
-            ...(await this.dependencies.documentModel.updateMetadata(
+        const savedMetadata =
+            await this.dependencies.documentModel.updateMetadata(
                 projectUuid,
                 documentUuid,
                 { ...input, expectedSpaceUuid: document.spaceUuid },
-            )),
+            );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'update',
+        });
+        const updated = {
+            ...savedMetadata,
             verification: await this.keepVerificationAfterUpdate(
                 account,
                 document,
@@ -561,13 +598,30 @@ export class DocumentService extends BaseService {
             previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const saved = await this.dependencies.documentModel.updateContent(
+            projectUuid,
+            documentUuid,
+            { ...input, content, expectedSpaceUuid: document.spaceUuid },
+            account.user.userUuid,
+            agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.dependencies.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'document',
+                    objectUuid,
+                    versionUuid,
+                    action: 'update',
+                }),
+        );
         const updated = {
-            ...(await this.dependencies.documentModel.updateContent(
-                projectUuid,
-                documentUuid,
-                { ...input, content, expectedSpaceUuid: document.spaceUuid },
-                account.user.userUuid,
-            )),
+            ...saved,
             verification: await this.keepVerificationAfterUpdate(
                 account,
                 document,
@@ -691,10 +745,25 @@ export class DocumentService extends BaseService {
             },
         );
         if (verification === null && document.verification !== null) {
-            await this.dependencies.contentVerificationModel.unverify(
-                ContentType.DOCUMENT,
-                document.documentUuid,
-            );
+            const removed =
+                await this.dependencies.contentVerificationModel.unverify(
+                    ContentType.DOCUMENT,
+                    document.documentUuid,
+                );
+            if (removed) {
+                await logAgentContentWrite({
+                    model: this.dependencies.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: account.user.userUuid,
+                        organizationUuid: document.organizationUuid,
+                    }),
+                    projectUuid: document.projectUuid,
+                    objectType: 'document',
+                    objectUuid: document.documentUuid,
+                    versionUuid: null,
+                    action: 'unverify',
+                });
+            }
         }
         return verification;
     }
@@ -825,7 +894,7 @@ export class DocumentService extends BaseService {
             trackEvent = true,
             change = API_CHANGE,
         }: {
-            tx?: Knex;
+            tx?: Knex.Transaction;
             checkForAccess?: boolean;
             trackEvent?: boolean;
             change?: DocumentChangeContext;
@@ -876,6 +945,19 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'move',
+            trx: tx,
+        });
         if (trackEvent) {
             this.trackMoved(account, document, targetSpaceUuid, change);
         }
@@ -897,7 +979,7 @@ export class DocumentService extends BaseService {
             documentUuid: string;
             targetSpaceUuid: string;
         },
-        { tx }: { tx?: Knex } = {},
+        { tx }: { tx?: Knex.Transaction } = {},
     ): Promise<void> {
         const document = await this.get(account, projectUuid, documentUuid);
         await this.assertCanMutateVerifiedDocument(account, document);
@@ -933,6 +1015,19 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'move',
+            trx: tx,
+        });
         this.trackMoved(account, document, targetSpaceUuid, API_CHANGE);
     }
 
@@ -1825,11 +1920,24 @@ export class DocumentService extends BaseService {
             projectUuid,
             documentUuidOrSlug,
         );
-        return this.dependencies.documentModel.listVersions(
+        const versions = await this.dependencies.documentModel.listVersions(
             projectUuid,
             document.documentUuid,
             { limit, offset },
         );
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
+        });
+        return {
+            ...versions,
+            items: versions.items.map((version) =>
+                withVersionAgentIdentity(version, enabled),
+            ),
+        };
     }
 
     /**
@@ -1852,10 +1960,17 @@ export class DocumentService extends BaseService {
             document.documentUuid,
             versionUuid,
         );
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
+        });
         return {
             ...document,
             version: {
-                ...historical.version,
+                ...withVersionAgentIdentity(historical.version, enabled),
                 content: await this.withReadableNames(
                     projectUuid,
                     historical.version.content,
@@ -2216,10 +2331,17 @@ export class DocumentService extends BaseService {
         ) {
             throw new NotFoundError('Document not found');
         }
+        const { enabled } = await this.dependencies.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
+        });
         return {
             ...document,
             version: {
-                ...document.version,
+                ...withVersionAgentIdentity(document.version, enabled),
                 content: await this.withReadableNames(
                     document.projectUuid,
                     document.version.content,

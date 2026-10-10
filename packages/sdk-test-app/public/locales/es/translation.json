@@ -390,6 +390,15 @@
         "metrics.compareMetricTooltip": "Comparar «{metric}» con otra métrica",
         "metrics.comparisonMetric": "Métrica de comparación",
         "filters.closeFacet": "Cerrar filtro {filter}",
-        "metrics.ownerDetails": "Detalles del propietario {owner}"
+        "metrics.ownerDetails": "Detalles del propietario {owner}",
+        "agentAttribution.changedBy": "Modificado por un agente en nombre de {person} · {surface}",
+        "agentAttribution.serviceAccount": "una cuenta de servicio",
+        "agentAttribution.unknownPerson": "una persona desconocida",
+        "agentAttribution.mcp": "MCP",
+        "agentAttribution.inApp": "Agente de la aplicación",
+        "agentAttribution.slack": "Agente de Slack",
+        "agentAttribution.cli": "CLI",
+        "agentAttribution.dataApp": "Aplicación de datos",
+        "agentAttribution.aiSummary": "Resumen de IA"
     }
 }

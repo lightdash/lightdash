@@ -1,17 +1,24 @@
 import { Ability } from '@casl/ability';
 import {
+    ForbiddenError,
     mcpToolDefinitions,
     type Account,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     isMcpToolAllowed,
     MCP_TOOL_SCOPE_MAP,
 } from '../../../auth/oauthScopes/mcpTools';
 import { getOAuthScopeContext } from '../../../auth/oauthScopes/scopedAbility';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import { recordAgentRefusal } from '../../../services/AiAccessService/logAgentContentWrite';
 import { McpService } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
 
@@ -255,3 +262,150 @@ describe('MCP scoped tool catalogue', () => {
         expect(isMcpToolAllowed(scopes, name)).toBe(allowed);
     });
 });
+describe.each(agentActionTestCases)(
+    'MCP agent refusal records: %s',
+    (_, surface, enabled, count) => {
+        test.each([
+            'create_content',
+            'edit_content',
+            'create_scheduled_delivery',
+        ])('hidden %s', async (name) => {
+            const service = createService();
+            const model = { insert: vi.fn().mockResolvedValue(undefined) };
+            Object.assign(service, { agentActionLogModel: model });
+            vi.spyOn(service, 'isMcpContentWritesEnabled').mockResolvedValue(
+                false,
+            );
+            await withAgentActionScope(
+                defaultSessionUser,
+                surface,
+                enabled,
+                () =>
+                    service.recordDisabledToolRefusal(
+                        defaultSessionUser,
+                        {
+                            method: 'tools/call',
+                            params: {
+                                name,
+                                arguments: {
+                                    sql: 'secret SQL',
+                                    uuid: 'caller-id',
+                                },
+                            },
+                        },
+                        {
+                            mcpContentWritesEnabled: false,
+                            scheduledDeliveryEnabled: false,
+                        } as never,
+                    ),
+            );
+            expect(model.insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(model.insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'organization_setting',
+                        reason_code: 'mcp_content_writes_disabled',
+                        object_uuid: null,
+                        project_uuid: null,
+                    }),
+                );
+            expect(JSON.stringify(model.insert.mock.calls)).not.toContain(
+                'secret',
+            );
+            expect(JSON.stringify(model.insert.mock.calls)).not.toContain(
+                'caller-id',
+            );
+        });
+    },
+);
+
+test('MCP catch/rethrow does not duplicate a lower policy refusal', async () => {
+    const service = createService();
+    const model = { insert: vi.fn().mockResolvedValue(undefined) };
+    Object.assign(service, {
+        agentActionLogModel: model,
+        recordToolCall: vi.fn(),
+    });
+    const error = new ForbiddenError('secret argument');
+    const handler = service['wrapToolCallback'](
+        'create_content',
+        async (_extra: unknown) => {
+            await recordAgentRefusal({
+                model,
+                userUuid: defaultSessionUser.userUuid,
+                organizationUuid: defaultSessionUser.organizationUuid,
+                projectUuid: null,
+                objectType: 'content',
+                action: 'create',
+                policyLayer: 'agent_scope',
+                reasonCode: 'content_outside_agent_scope',
+                error,
+            });
+            throw error;
+        },
+    );
+    await expect(
+        withAgentActionScope(
+            defaultSessionUser,
+            agentActionTestCases[0][1],
+            true,
+            () =>
+                handler({
+                    authInfo: {
+                        extra: {
+                            user: defaultSessionUser,
+                            account: fromSession(defaultSessionUser),
+                        },
+                    },
+                }),
+        ),
+    ).rejects.toBe(error);
+    expect(model.insert).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ policy_layer: 'agent_scope' }),
+    );
+});
+
+test.each(agentActionTestCases)(
+    'MCP dispatch CASL refusal: %s',
+    async (_, surface, enabled, count) => {
+        const service = createService();
+        const model = { insert: vi.fn().mockResolvedValue(undefined) };
+        Object.assign(service, {
+            agentActionLogModel: model,
+            recordToolCall: vi.fn(),
+        });
+        const error = new ForbiddenError('private permission details');
+        const handler = service['wrapToolCallback'](
+            'create_content',
+            async (_extra: unknown) => {
+                throw error;
+            },
+        );
+        await expect(
+            withAgentActionScope(defaultSessionUser, surface, enabled, () =>
+                handler({
+                    authInfo: {
+                        extra: {
+                            user: defaultSessionUser,
+                            account: fromSession(defaultSessionUser),
+                        },
+                    },
+                }),
+            ),
+        ).rejects.toBe(error);
+        expect(model.insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(model.insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'create',
+                    outcome: 'denied',
+                    policy_layer: 'casl',
+                    object_uuid: null,
+                }),
+            );
+        expect(JSON.stringify(model.insert.mock.calls)).not.toContain(
+            'private permission details',
+        );
+    },
+);

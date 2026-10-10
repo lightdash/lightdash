@@ -478,7 +478,9 @@ export class ContentReviewRequestModel {
             });
     }
 
-    async transaction<T>(callback: (tx: Knex) => Promise<T>): Promise<T> {
+    async transaction<T>(
+        callback: (tx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
         return this.database.transaction(callback);
     }
 

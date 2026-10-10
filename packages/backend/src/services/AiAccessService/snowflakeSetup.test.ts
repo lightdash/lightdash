@@ -70,6 +70,7 @@ const setup = (saved = true, testAccountUrlOrigin: string | null = null) => {
     };
     const analytics = { track: vi.fn() };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         organizationSnowflakeAgentClientModel: clients,
         analytics,
         lightdashConfig: config,

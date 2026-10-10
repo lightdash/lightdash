@@ -125,6 +125,7 @@ const buildService = (
         updateApp: vi.fn(async () => storedApp),
     };
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: { appRuntime: {} } as never, // pragma: allowlist secret
         analytics: analytics as never,

@@ -8,19 +8,28 @@ import {
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
+    type AgentIdentityClaim,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -103,6 +112,7 @@ const buildService = (
     ),
 ) =>
     new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -330,6 +340,8 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 expect.objectContaining({ slug: sqlChartAsCode.slug }),
                 undefined,
                 { slugMode: 'unique' },
+                null,
+                expect.any(Function),
             );
             expect(changes.charts[0].data).toMatchObject({
                 uuid: 'new-uuid',
@@ -492,6 +504,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
                 expect.objectContaining({ slug: sqlChartAsCode.slug }),
                 { kind: 'connection', warehouseConnectionUuid },
                 { slugMode: 'exact' },
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -512,6 +526,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
             expect(savedSqlModel.update).toHaveBeenCalledWith(
                 expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
                 { kind: 'connection', warehouseConnectionUuid },
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -527,6 +543,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -560,6 +578,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -572,6 +592,9 @@ describe('CoderService.upsertSqlChart - connections', () => {
         expect(error).toBeNull();
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            undefined,
+            null,
+            expect.any(Function),
         );
     });
 
@@ -585,6 +608,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
             expect.objectContaining({ slug: sqlChartAsCode.slug }),
             undefined,
             { slugMode: 'exact' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -685,3 +710,136 @@ describe('CoderService.getSqlCharts - connections', () => {
         );
     });
 });
+
+describe.each(agentActionTestCases)(
+    'SQL content-as-code ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each(['create', 'update'] as const)(
+            '%s records the model claim and version in the transaction',
+            async (operation) => {
+                const user = makeUser([{ subject: 'all', action: 'manage' }]);
+                const versions: {
+                    agentIdentity: AgentIdentityClaim | null;
+                    versionUuid: string;
+                }[] = [];
+                const modelWrite = async (
+                    agentIdentity: AgentIdentityClaim | null,
+                    onVersionCreated?: OnContentVersionCreated,
+                ) => {
+                    const trx =
+                        new EventEmitter() as unknown as Knex.Transaction;
+                    let commit!: () => void;
+                    trx.executionPromise = new Promise<unknown[]>((resolve) => {
+                        commit = () => resolve([]);
+                    });
+                    await onVersionCreated?.(
+                        trx,
+                        'sql-version-uuid',
+                        'sql-chart-uuid',
+                    );
+                    versions.push({
+                        agentIdentity,
+                        versionUuid: 'sql-version-uuid',
+                    });
+                    trx.emit('query', { sql: 'COMMIT;' });
+                    commit();
+                    await trx.executionPromise;
+                    return {
+                        savedSqlUuid: 'sql-chart-uuid',
+                        slug: sqlChartAsCode.slug,
+                        savedSqlVersionUuid: 'sql-version-uuid',
+                    };
+                };
+                const savedSqlModel = {
+                    find: vi.fn(async () =>
+                        operation === 'update' ? [existingRow()] : [],
+                    ),
+                    create: vi.fn(
+                        async (...args: Parameters<SavedSqlModel['create']>) =>
+                            modelWrite(args[5] ?? null, args[6]),
+                    ),
+                    update: vi.fn(
+                        async (...args: Parameters<SavedSqlModel['update']>) =>
+                            modelWrite(args[2] ?? null, args[3]),
+                    ),
+                };
+                const service = buildService(savedSqlModel);
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                stubSpace(service);
+                await withAgentActionScope(user, surface, enabled, async () => {
+                    const claim =
+                        surface && enabled
+                            ? agentExecutionContext.getStore()!.claim
+                            : null;
+                    await upsert(service, user);
+                    expect(versions).toEqual([
+                        {
+                            agentIdentity: claim,
+                            versionUuid: 'sql-version-uuid',
+                        },
+                    ]);
+                    expect(insert).toHaveBeenCalledTimes(count);
+                    if (count)
+                        expect(insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                agent_identity: claim,
+                                object_type: 'sql_chart',
+                                object_uuid: 'sql-chart-uuid',
+                                version_uuid: 'sql-version-uuid',
+                                action: operation,
+                                outcome: 'allowed',
+                            }),
+                            expect.any(EventEmitter),
+                        );
+                });
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'SELECT 1',
+                );
+            },
+        );
+    },
+);
+
+test.each(['create', 'update'] as const)(
+    'SQL %s does not commit a version when its ledger insert fails',
+    async (operation) => {
+        const user = makeUser([{ subject: 'all', action: 'manage' }]);
+        const versions: string[] = [];
+        const modelWrite = async (
+            onVersionCreated?: OnContentVersionCreated,
+        ) => {
+            const trx = new EventEmitter() as unknown as Knex.Transaction;
+            trx.executionPromise = Promise.resolve([]);
+            await onVersionCreated?.(trx, 'sql-version-uuid', 'sql-chart-uuid');
+            versions.push('sql-version-uuid');
+            return {
+                savedSqlUuid: 'sql-chart-uuid',
+                slug: sqlChartAsCode.slug,
+                savedSqlVersionUuid: 'sql-version-uuid',
+            };
+        };
+        const service = buildService({
+            find: vi.fn(async () =>
+                operation === 'update' ? [existingRow()] : [],
+            ),
+            create: vi.fn(
+                async (...args: Parameters<SavedSqlModel['create']>) =>
+                    modelWrite(args[6]),
+            ),
+            update: vi.fn(
+                async (...args: Parameters<SavedSqlModel['update']>) =>
+                    modelWrite(args[3]),
+            ),
+        });
+        stubSpace(service);
+        vi.mocked(service['agentActionLogModel'].insert).mockRejectedValueOnce(
+            new Error('ledger unavailable'),
+        );
+        await expect(
+            withAgentActionScope(user, agentActionTestCases[1][1], true, () =>
+                upsert(service, user),
+            ),
+        ).rejects.toThrow('ledger unavailable');
+        expect(versions).toEqual([]);
+    },
+);

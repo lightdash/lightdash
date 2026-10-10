@@ -428,6 +428,7 @@ export class ServiceRepository
             'documentService',
             () =>
                 new DocumentService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -494,6 +495,8 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
@@ -988,6 +991,7 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,
@@ -1295,6 +1299,7 @@ export class ServiceRepository
             'savedChartService',
             () =>
                 new SavedChartService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
@@ -1375,6 +1380,7 @@ export class ServiceRepository
             'shareService',
             () =>
                 new ShareService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),
@@ -1648,6 +1654,7 @@ export class ServiceRepository
             'coderService',
             () =>
                 new CoderService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1717,6 +1724,7 @@ export class ServiceRepository
             'promoteService',
             () =>
                 new PromoteService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1764,6 +1772,7 @@ export class ServiceRepository
             'savedSqlService',
             () =>
                 new SavedSqlService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),

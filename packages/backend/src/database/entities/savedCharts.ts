@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AnyType,
     BinGroup,
@@ -105,6 +106,7 @@ export type DbSavedChart = {
 };
 
 export type DbSavedChartVersion = {
+    agent_identity: AgentIdentityClaim | null;
     saved_queries_version_id: number;
     saved_queries_version_uuid: string;
     created_at: Date;
@@ -143,7 +145,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'parameters'
     | 'updated_by_user_uuid'
     | 'timezone'
->;
+> & { agent_identity: AgentIdentityClaim | null };
 
 export type DbSavedChartVersionField = {
     saved_queries_version_field_id: number;

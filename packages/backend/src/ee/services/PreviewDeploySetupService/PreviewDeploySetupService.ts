@@ -19,9 +19,12 @@ import { randomUUID } from 'crypto';
 // `githubClient` dep) so they can be faked in tests without module mocking.
 import type * as GithubClient from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import { VERSION } from '../../../version';
 import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
@@ -38,6 +41,7 @@ export type PreviewDeployGithubClient = Pick<
 >;
 
 type PreviewDeploySetupServiceDeps = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
@@ -109,6 +113,8 @@ const parseGithubTarget = (connection: DbtProjectConfig): GithubTarget => {
  * setup) stay cleanly separated. GitHub Actions only.
  */
 export class PreviewDeploySetupService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly projectModel: ProjectModel;
@@ -122,6 +128,7 @@ export class PreviewDeploySetupService extends BaseService {
     private readonly githubClient: PreviewDeployGithubClient;
 
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         projectModel,
         githubAppInstallationsModel,
@@ -130,6 +137,7 @@ export class PreviewDeploySetupService extends BaseService {
         githubClient,
     }: PreviewDeploySetupServiceDeps) {
         super({ serviceName: 'PreviewDeploySetupService' });
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.githubAppInstallationsModel = githubAppInstallationsModel;
@@ -360,6 +368,18 @@ export class PreviewDeploySetupService extends BaseService {
             prUrl: pr.html_url,
         });
 
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'preview_deploy',
+            objectUuid: projectUuid,
+            versionUuid: null,
+            action: 'create',
+        });
         this.logger.info('Preview-deploy setup PR opened', {
             event: 'preview_deploy_setup.pr_opened',
             projectUuid,

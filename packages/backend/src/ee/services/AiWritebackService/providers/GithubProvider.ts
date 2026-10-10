@@ -280,6 +280,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
         });
 
         setStage('pull_request');
@@ -329,6 +330,7 @@ export class GithubProvider implements GitProvider {
             description,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
         });
 
         setStage('pull_request');
@@ -455,6 +457,7 @@ export class GithubProvider implements GitProvider {
         description,
         user,
         setStage,
+        onRemoteCommitted,
     }: {
         sandbox: SandboxHandle;
         connection: GithubConnection;
@@ -465,6 +468,7 @@ export class GithubProvider implements GitProvider {
         description: string;
         user: SessionUser;
         setStage: SetStage;
+        onRemoteCommitted: () => Promise<void>;
     }): Promise<LandedCommit> {
         setStage('commit');
         const projectPaths =
@@ -508,6 +512,7 @@ export class GithubProvider implements GitProvider {
             fileChanges,
             ...githubAuth(installation),
         });
+        await onRemoteCommitted();
         return { commitSha: commit.oid, ...diffStat };
     }
 }

@@ -4,6 +4,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
+    ChartType,
     ContentType,
     DimensionType,
     Explore,
@@ -13,6 +14,7 @@ import {
     JobStatusType,
     NotFoundError,
     PossibleAbilities,
+    PromotionAction,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -27,8 +29,15 @@ import {
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
+import { EventEmitter } from 'events';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import { CoderService } from '../../../services/CoderService/CoderService';
+import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -165,6 +174,7 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
             getAiAgentSkill: vi.fn(),
@@ -233,6 +243,7 @@ const makeService = ({
         featureFlagService,
         previewDeploySetupService: {},
         shareService: {},
+        userService: {},
         asyncQueryService,
         querySourceService,
         appGenerateService,
@@ -4661,3 +4672,494 @@ describe('AiAgentToolsService listDataAppThemes', () => {
         expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
     });
 });
+
+describe.each(agentActionTestCases)(
+    'agent tool action logging: %s',
+    (_, surface, enabled, count) => {
+        test('compile enqueue is recorded even when compile subsequently fails', async () => {
+            const service = makeService({
+                jobModel: {
+                    get: vi.fn().mockResolvedValue({
+                        jobStatus: JobStatusType.ERROR,
+                        jobUuid: 'job-1',
+                        steps: [],
+                    }),
+                },
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null }),
+            );
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'project_compile',
+                        object_uuid: 'job-1',
+                        action: 'enqueue',
+                    }),
+                );
+        });
+        test('user name records no supplied name', async () => {
+            const service = makeService();
+            Object.assign(service['userService'], {
+                updateUser: vi.fn().mockResolvedValue(undefined),
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).updateUserName({
+                    firstName: 'secret-name',
+                    lastName: 'private-name',
+                }),
+            );
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'user',
+                        object_uuid: userUuid,
+                        action: 'update',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                'secret-name',
+            );
+        });
+        test.each(['chart', 'dashboard'] as const)(
+            'scheduled %s records before augmentation failure',
+            async (resourceType) => {
+                const resource = { uuid: 'resource', spaceUuid: 'space' };
+                const service = makeService({
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue(resource),
+                    },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(resource),
+                    },
+                    savedChartService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                    dashboardService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createScheduledDelivery({
+                        resourceType,
+                        resourceUuidOrSlug: 'resource',
+                        scheduler: {} as never,
+                        aiAugmentationPrompt: 'secret prompt',
+                    }),
+                );
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                expect(insert).toHaveBeenCalledTimes(count);
+                if (count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'scheduler',
+                            object_uuid: 'scheduler',
+                            action: 'create',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'secret prompt',
+                );
+            },
+        );
+        test('CASL denial at tool boundary is redacted', async () => {
+            const error = new ForbiddenError('secret details');
+            const service = makeService({
+                scheduleCompileProject: vi.fn().mockRejectedValue(error),
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(makeRuntimeContext())
+                        .syncDbtProject({ reason: null }),
+                ),
+            ).rejects.toBe(error);
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'casl',
+                        object_uuid: null,
+                        reason_code: 'content_write_forbidden',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+        });
+        test('space scope denial records the deciding layer', async () => {
+            const service = makeService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+                },
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service['assertContentSpaceInScope'](
+                        makeRuntimeContext({ spaceAccess: ['space'] }),
+                        'secret-path',
+                        'not found',
+                        'update',
+                    ),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'agent_scope',
+                        object_uuid: null,
+                    }),
+                );
+        });
+    },
+);
+
+test('generic tool failures are not policy refusals', async () => {
+    const service = makeService({
+        scheduleCompileProject: vi
+            .fn()
+            .mockRejectedValue(new Error('database unavailable')),
+    });
+    await expect(
+        withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
+            service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: null }),
+        ),
+    ).rejects.toThrow('database unavailable');
+    expect(service['agentActionLogModel'].insert).not.toHaveBeenCalled();
+});
+
+test.each(agentActionTestCases)(
+    'content write CASL refusal: %s',
+    async (_, surface, enabled, count) => {
+        const error = new ForbiddenError('private permission details');
+        const service = makeService({
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
+            coderService: { upsertDashboard: vi.fn().mockRejectedValue(error) },
+        });
+        await expect(
+            withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'dashboard',
+                    content: {
+                        slug: 'caller-slug',
+                        spaceSlug: 'space',
+                    } as never,
+                }),
+            ),
+        ).rejects.toBe(error);
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'create',
+                    outcome: 'denied',
+                    policy_layer: 'casl',
+                    object_uuid: null,
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('caller-slug');
+        expect(JSON.stringify(insert.mock.calls)).not.toContain(
+            'private permission details',
+        );
+    },
+);
+
+test.each(['read', 'update'] as const)(
+    'chart scope refusal preserves %s operation through the reader',
+    async (action) => {
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({
+                    charts: [{ slug: 'chart', spaceSlug: 'outside' }],
+                }),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+            spaceModel: {
+                hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed'] }),
+        );
+        await expect(
+            withAgentActionScope(user, agentActionTestCases[1][1], true, () =>
+                action === 'read'
+                    ? runtime.readContent({ type: 'chart', slug: 'chart' })
+                    : runtime.editContent({
+                          type: 'chart',
+                          slug: 'chart',
+                          patch: [],
+                      }),
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(
+            service['agentActionLogModel'].insert,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                action,
+                outcome: 'denied',
+                policy_layer: 'agent_scope',
+            }),
+        );
+    },
+);
+
+describe.each(agentActionTestCases)(
+    'content tool service wiring: %s',
+    (_, surface, enabled, count) => {
+        test.each(['chart', 'dashboard'] as const)(
+            'creates and edits %s through production services',
+            async (type) => {
+                const content = {
+                    name: 'Original',
+                    slug: 'content',
+                    spaceSlug: 'space',
+                    description: null,
+                    chartConfig: { type: ChartType.TABLE },
+                    metricQuery: {
+                        exploreName: 'orders',
+                        filters: {},
+                        dimensions: [],
+                        metrics: [],
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 100,
+                    },
+                    tiles: [],
+                    tabs: [],
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                const stored = {
+                    ...content,
+                    uuid: 'content-uuid',
+                    projectUuid,
+                    organizationUuid,
+                    spaceUuid: 'space-uuid',
+                    versionUuid: 'version-created',
+                    dashboardUuid: null,
+                };
+                const insert = vi.fn().mockResolvedValue(undefined);
+                const transaction = Object.assign(new EventEmitter(), {
+                    executionPromise: Promise.resolve(),
+                });
+                const create = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-created', stored.uuid);
+                    return stored;
+                });
+                const version = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-edited', stored.uuid);
+                    return { ...stored, versionUuid: 'version-edited' };
+                });
+                const model = {
+                    create,
+                    createVersion: version,
+                    addVersion: version,
+                    get: vi.fn().mockResolvedValue(stored),
+                    getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    find: vi.fn().mockResolvedValue([stored]),
+                    updateInTransaction: vi.fn(),
+                    update: vi.fn(),
+                    renameSlug: vi.fn(),
+                    transaction: vi.fn(
+                        async (run: (trx: unknown) => Promise<void>) =>
+                            run(transaction),
+                    ),
+                };
+                const changes = {
+                    charts: [],
+                    dashboards: [],
+                    spaces: [],
+                    [type === 'chart' ? 'charts' : 'dashboards']: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...stored,
+                                oldUuid: stored.uuid,
+                                spacePath: 'space',
+                            },
+                        },
+                    ],
+                };
+                const promoteService = new PromoteService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<
+                    typeof PromoteService
+                >[0]);
+                Object.assign(promoteService, {
+                    getPromoteCharts: vi.fn().mockResolvedValue({
+                        promotedChart: { chart: stored },
+                        upstreamChart: { chart: stored },
+                    }),
+                    getChartChanges: vi.fn().mockResolvedValue(changes),
+                    getPromotedDashboard: vi.fn().mockResolvedValue({
+                        promotedDashboard: { dashboard: stored },
+                        upstreamDashboard: { dashboard: stored },
+                    }),
+                    getPromotionDashboardChanges: vi
+                        .fn()
+                        .mockResolvedValue([changes, []]),
+                    getOrCreateDashboard: vi.fn(
+                        async (_user: unknown, value: unknown) => value,
+                    ),
+                });
+                const coderService = new CoderService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    promoteService,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<typeof CoderService>[0]);
+                Object.assign(coderService, {
+                    resolveSyncEnabled: vi.fn().mockResolvedValue(false),
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            projectUuid,
+                            organizationUuid,
+                        }),
+                    },
+                    prepareDirectAccessReplace: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                    findAccessibleSpace: vi
+                        .fn()
+                        .mockResolvedValue({ uuid: 'space-uuid' }),
+                    getOrCreateSpace: vi.fn().mockResolvedValue({
+                        space: { uuid: 'space-uuid' },
+                        created: false,
+                    }),
+                    assertContentAccessForMissingSpace: vi.fn(),
+                    assertSpaceContentAccess: vi.fn(),
+                    assertDashboardUpdateAccess: vi.fn(),
+                    assertTileChartsViewAccess: vi.fn(),
+                    spacePermissionService: {
+                        resolveAccessBatch: vi
+                            .fn()
+                            .mockResolvedValue(new Map()),
+                    },
+                    syncVerification: vi.fn(),
+                    syncDashboardOwner: vi.fn().mockResolvedValue([]),
+                    stampAppliedChartSnapshot: vi.fn(),
+                    stampAppliedDashboardSnapshot: vi.fn(),
+                    applyDirectAccessPolicy: vi.fn(),
+                    getChartsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ charts: [content] }),
+                    getDashboardsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ dashboards: [content] }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                });
+                const service = makeService({
+                    coderService: coderService as unknown as Record<
+                        string,
+                        unknown
+                    >,
+                    savedChartService: {
+                        get: vi.fn().mockResolvedValue(stored),
+                    },
+                    dashboardService: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    },
+                    aiAgentContentValidation: {
+                        validateNewContent: vi.fn(),
+                        validateContent: vi.fn(),
+                        validatePatch: vi.fn(),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createContent({ type, content } as never),
+                );
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.editContent({
+                        type,
+                        slug: content.slug,
+                        patch: [
+                            { op: 'replace', path: '/name', value: 'Edited' },
+                        ],
+                    }),
+                );
+                expect(create).toHaveBeenCalledOnce();
+                expect(version).toHaveBeenCalledOnce();
+                const createdClaim =
+                    create.mock.calls[0][type === 'chart' ? 3 : 4];
+                const editedClaim = version.mock.calls[0][5];
+                if (count) {
+                    expect(createdClaim).toMatchObject({
+                        subject: { uuid: userUuid },
+                        act: { surface },
+                    });
+                    expect(editedClaim).toEqual(createdClaim);
+                } else {
+                    expect(createdClaim).toBeNull();
+                    expect(editedClaim).toBeNull();
+                }
+                expect(insert).toHaveBeenCalledTimes(count * 2);
+                if (count) {
+                    expect(insert).toHaveBeenNthCalledWith(
+                        1,
+                        expect.objectContaining({
+                            agent_identity: createdClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-created',
+                            action: 'create',
+                        }),
+                        transaction,
+                    );
+                    expect(insert).toHaveBeenNthCalledWith(
+                        2,
+                        expect.objectContaining({
+                            agent_identity: editedClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-edited',
+                            action: 'update',
+                        }),
+                        transaction,
+                    );
+                }
+            },
+        );
+    },
+);

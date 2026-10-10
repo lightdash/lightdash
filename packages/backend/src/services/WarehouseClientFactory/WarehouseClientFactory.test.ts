@@ -229,6 +229,7 @@ const buildFixture = (
     };
     const analytics = { track: vi.fn() };
     const trackingService = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics,
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     const aiAccessService = {
@@ -3482,6 +3483,9 @@ describe('Snowflake revocation with a warm agent client', () => {
                 typeof AgentSignInResolverHarness
             >[0]);
             const aiAccessService = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 lightdashConfig: config,
                 analytics: { track: vi.fn() },
                 featureFlagModel: {

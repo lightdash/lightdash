@@ -240,6 +240,10 @@ describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
     const { uuid: dashboardUuid } = dashboard;
     const service = new DashboardService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
@@ -304,6 +308,8 @@ describe('DashboardService', () => {
                 slug: chart.slug,
                 dashboardUuid,
             }),
+            null,
+            expect.any(Function),
         );
     });
 

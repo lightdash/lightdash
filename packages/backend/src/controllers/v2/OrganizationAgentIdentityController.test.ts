@@ -63,6 +63,7 @@ const setup = () => {
     };
     const flags = { get: vi.fn(async () => ({ enabled: true })) };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         organizationSnowflakeAgentClientModel: {
             getWithSecret: vi.fn().mockResolvedValue({
                 organizationUuid: 'org',

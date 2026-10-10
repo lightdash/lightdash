@@ -33,6 +33,7 @@ export type AgentActorClaim = {
     sub: string;
     surface: AgentActorSurface;
     client_id: string | null;
+    agent_uuid: string | null;
 };
 export type AgentIdentityClaim = {
     sub: string;
@@ -44,10 +45,12 @@ export const buildAgentIdentityClaim = ({
     subject,
     surface,
     clientId,
+    agentUuid = null,
 }: {
     subject: AgentSubjectRef;
     surface: AgentActorSurface;
     clientId: string | null;
+    agentUuid?: string | null;
 }): AgentIdentityClaim => ({
     sub: `${subject.type}:${subject.uuid}`,
     subject,
@@ -55,8 +58,24 @@ export const buildAgentIdentityClaim = ({
         sub: `${surface}:${clientId ?? 'unknown'}`,
         surface,
         client_id: clientId,
+        agent_uuid: agentUuid,
     },
 });
+
+export type StoredAgentIdentityClaim = Omit<AgentIdentityClaim, 'act'> & {
+    act: Omit<AgentActorClaim, 'agent_uuid'> & { agent_uuid?: string | null };
+};
+
+export const normalizeAgentIdentityClaim = (
+    claim: StoredAgentIdentityClaim | null,
+): AgentIdentityClaim | null =>
+    claim === null
+        ? null
+        : {
+              ...claim,
+              subject: { ...claim.subject },
+              act: { ...claim.act, agent_uuid: claim.act.agent_uuid ?? null },
+          };
 
 export const getAgentClientLabel = (clientId: string | null): string => {
     if (clientId === null) return 'unknown';

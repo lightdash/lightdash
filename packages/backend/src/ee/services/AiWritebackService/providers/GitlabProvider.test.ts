@@ -103,6 +103,7 @@ describe('GitlabProvider.openPullRequest', () => {
             description: 'Adds revenue.',
             user: { userUuid: 'u1' } as never,
             setStage: vi.fn(),
+            onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
         });
 
         expect(result.prUrl).toBe(
@@ -148,6 +149,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 email: 'jane@acme.com',
             } as never,
             setStage: vi.fn(),
+            onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -176,6 +178,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 description: 'Adds CI.',
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
+                onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);
 

@@ -267,6 +267,7 @@ describe('AppModel threads PostgreSQL integration', () => {
         it('counts pre-thread versions towards thread 1 only', async () => {
             const { app, thread: first } = await createApp();
             await transaction(AppVersionsTableName).insert({
+                agent_identity: null,
                 app_id: app.app_id,
                 version: 2,
                 prompt: 'built by an old pod',
@@ -410,6 +411,7 @@ describe('AppModel threads PostgreSQL integration', () => {
     it('reads a version with no thread back under thread 1', async () => {
         const { app, thread } = await createApp();
         await transaction(AppVersionsTableName).insert({
+            agent_identity: null,
             app_id: app.app_id,
             version: 2,
             prompt: 'written by an old pod',
@@ -451,6 +453,7 @@ describe('AppModel threads PostgreSQL integration', () => {
             })
             .returning('*');
         await transaction(AppVersionsTableName).insert({
+            agent_identity: null,
             app_id: app.app_id,
             version: 1,
             prompt: 'pre-thread version',
@@ -476,6 +479,7 @@ describe('AppModel threads PostgreSQL integration', () => {
             })
             .returning('*');
         await transaction(AppVersionsTableName).insert({
+            agent_identity: null,
             app_id: app.app_id,
             version: 1,
             prompt: 'pre-thread version',
@@ -553,6 +557,7 @@ describe('AppModel threads PostgreSQL integration', () => {
         await transaction(AppVersionsTableName).insert(
             [liveApp, deletedApp].flatMap((app) =>
                 [1, 2].map((version) => ({
+                    agent_identity: null,
                     app_id: app.app_id,
                     version,
                     prompt: `v${version}`,

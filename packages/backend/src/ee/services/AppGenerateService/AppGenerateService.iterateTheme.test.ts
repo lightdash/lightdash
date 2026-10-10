@@ -1,3 +1,13 @@
+import { AgentActorSurface } from '@lightdash/common';
+import { fromSession } from '../../../auth/account';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import * as auditLogger from '../../../logging/winston';
+import { type AppModel } from '../../../models/AppModel';
+import { runContentVersionCallback } from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
@@ -13,6 +23,8 @@ vi.mock('ai', async (importOriginal) => ({
     generateText: vi.fn(),
 }));
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
+
 const USER = { userUuid: 'user-1', organizationUuid: 'org-1' } as never;
 const BRAND_THEME = {
     designUuid: 'design-brand',
@@ -22,7 +34,25 @@ const BRAND_THEME = {
 
 function buildService() {
     const appModel = {
-        createVersion: vi.fn().mockResolvedValue(undefined),
+        createWithVersion: vi
+            .fn<AppModel['createWithVersion']>()
+            .mockImplementation(async (...args) => {
+                const result = {
+                    app: { slug: 'new-app', app_id: 'new-app' },
+                    version: { app_version_id: 'version-1' },
+                };
+                await runContentVersionCallback(
+                    args[8],
+                    result.version.app_version_id,
+                    result.app.app_id,
+                );
+                return result as Awaited<
+                    ReturnType<AppModel['createWithVersion']>
+                >;
+            }),
+        createVersion: vi
+            .fn()
+            .mockResolvedValue({ app_version_id: 'version-2' }),
         getApp: vi.fn().mockResolvedValue({
             app_id: 'app-1',
             project_uuid: 'project-1',
@@ -45,6 +75,7 @@ function buildService() {
         appGeneratePipeline: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AppGenerateService({
+        agentActionLogModel,
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: { sampleDataEnabled: true },
@@ -58,6 +89,7 @@ function buildService() {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
         organizationDesignModel: {
+            getDefault: vi.fn().mockResolvedValue(null),
             findInOrganization: vi
                 .fn()
                 .mockImplementation(async (_org: string, uuid: string) =>
@@ -229,4 +261,124 @@ describe('AppGenerateService.iterateApp with a theme', () => {
         expect(pipelinePrompt(schedulerClient)).toBe('Add a region filter');
         expect(appModel.updateDesignUuid).not.toHaveBeenCalled();
     });
+});
+
+describe('data app agent attribution', () => {
+    afterEach(() => vi.restoreAllMocks());
+    test.each([
+        [AgentActorSurface.MCP, true],
+        [AgentActorSurface.IN_APP_AGENT, true],
+        [AgentActorSurface.SLACK_AGENT, true],
+        [AgentActorSurface.IN_APP_AGENT, false],
+        [null, true],
+    ] as const)(
+        '%s enabled=%s stamps before enqueue and audits once',
+        async (surface, enabled) => {
+            const { service, appModel, schedulerClient } = buildService();
+            const scope = createAgentExecutionContext({
+                account: fromSession({
+                    ...defaultSessionUser,
+                    userUuid: 'user-1',
+                    organizationUuid: 'org-1',
+                }),
+                surface: surface ?? AgentActorSurface.IN_APP_AGENT,
+                clientId: 'trusted-client',
+                agentUuid: 'agent',
+                agentIdentityEnabled: enabled,
+            });
+            const claim = surface && enabled ? scope.claim : null;
+            agentActionLogModel.insert.mockClear();
+            const log = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            const run = async () => {
+                await service.iterateApp(
+                    USER,
+                    'project-1',
+                    'app-1',
+                    'Add a region filter',
+                    [],
+                );
+                expect(appModel.createVersion.mock.calls[0].at(-1)).toEqual(
+                    claim,
+                );
+                const writes = log.mock.calls.filter(
+                    ([event]) =>
+                        event.resource.metadata?.event ===
+                        'agent_content.write',
+                );
+                expect(writes).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'data_app',
+                            outcome: 'allowed',
+                        }),
+                    );
+                agentActionLogModel.insert.mockClear();
+                if (claim)
+                    expect(writes[0][0].resource.metadata).toMatchObject({
+                        objectType: 'data_app',
+                        objectUuid: 'app-1',
+                        versionUuid: 'version-2',
+                        action: 'update',
+                    });
+                expect(
+                    appModel.createVersion.mock.invocationCallOrder[0],
+                ).toBeLessThan(
+                    schedulerClient.appGeneratePipeline.mock
+                        .invocationCallOrder[0],
+                );
+                log.mockClear();
+                await service.generateApp(
+                    USER,
+                    'project-1',
+                    'Create app',
+                    [],
+                    'new-app',
+                );
+                expect(appModel.createWithVersion.mock.calls[0].at(-2)).toEqual(
+                    claim,
+                );
+                const creates = log.mock.calls.filter(
+                    ([event]) =>
+                        event.resource.metadata?.event ===
+                        'agent_content.write',
+                );
+                expect(creates).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'data_app',
+                            outcome: 'allowed',
+                        }),
+                        expect.any(Object),
+                    );
+                agentActionLogModel.insert.mockClear();
+                if (claim)
+                    expect(creates[0][0].resource.metadata).toMatchObject({
+                        objectType: 'data_app',
+                        objectUuid: 'new-app',
+                        versionUuid: 'version-1',
+                        action: 'create',
+                    });
+                expect(
+                    appModel.createWithVersion.mock.invocationCallOrder[0],
+                ).toBeLessThan(
+                    schedulerClient.appGeneratePipeline.mock
+                        .invocationCallOrder[1],
+                );
+            };
+            if (surface) await agentExecutionContext.run(scope, run);
+            else await run();
+        },
+    );
 });

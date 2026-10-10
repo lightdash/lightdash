@@ -112,6 +112,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
@@ -121,6 +122,7 @@ import {
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -137,6 +139,11 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
@@ -199,6 +206,7 @@ type ContentAsCodeSpaceContentMetadata = {
 };
 
 type CoderServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -313,7 +321,10 @@ export class CoderService extends BaseService {
 
     directAccessService: DirectAccessService;
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         projectModel,
@@ -340,6 +351,7 @@ export class CoderService extends BaseService {
         warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -1407,6 +1419,18 @@ export class CoderService extends BaseService {
             resourceUuid,
             assignments,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'direct_access_policy',
+            objectUuid: resourceUuid,
+            versionUuid: null,
+            action: 'replace',
+        });
     }
 
     async upsertSpace(
@@ -3272,6 +3296,17 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                action: verified ? 'verify' : 'unverify',
+                policyLayer: 'casl',
+                reasonCode: 'content_verification_forbidden',
+            });
             // Warn and skip so CI pipelines run by non-admin deployers don't fail.
             this.logger.warn(
                 `User ${user.userUuid} cannot ${
@@ -3294,6 +3329,18 @@ export class CoderService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'verify',
+            });
             this.analytics.track({
                 event: 'content_verification.created',
                 userId: user.userUuid,
@@ -3309,6 +3356,18 @@ export class CoderService extends BaseService {
                 contentType,
                 contentUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'unverify',
+            });
             this.analytics.track({
                 event: 'content_verification.deleted',
                 userId: user.userUuid,
@@ -3713,11 +3772,15 @@ export class CoderService extends BaseService {
      * Returns warnings when the email does not match any organization member.
      */
     private async syncDashboardOwner({
+        user,
+        projectUuid,
         organizationUuid,
         dashboardUuid,
         currentOwnerUserUuid,
         ownerEmail,
     }: {
+        user: SessionUser;
+        projectUuid: string;
         organizationUuid: string;
         dashboardUuid: string;
         currentOwnerUserUuid: string | null;
@@ -3729,6 +3792,18 @@ export class CoderService extends BaseService {
             if (currentOwnerUserUuid !== null) {
                 await this.dashboardModel.update(dashboardUuid, {
                     ownerUserUuid: null,
+                });
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'dashboard_owner',
+                    objectUuid: dashboardUuid,
+                    versionUuid: null,
+                    action: 'update',
                 });
             }
             return [];
@@ -3747,6 +3822,18 @@ export class CoderService extends BaseService {
         if (member.userUuid !== currentOwnerUserUuid) {
             await this.dashboardModel.update(dashboardUuid, {
                 ownerUserUuid: member.userUuid,
+            });
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'dashboard_owner',
+                objectUuid: dashboardUuid,
+                versionUuid: null,
+                action: 'update',
             });
         }
         return [];
@@ -3920,6 +4007,10 @@ export class CoderService extends BaseService {
                         'Creating placeholder dashboard for chart within dashboard',
                         chartWithDefaults.slug,
                     );
+                    const agentIdentity = getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid ?? null,
+                    });
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
@@ -3931,6 +4022,18 @@ export class CoderService extends BaseService {
                         },
                         user,
                         projectUuid,
+                        agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid,
+                                agentIdentity,
+                                objectType: 'dashboard',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
 
                     dashboardUuid = newDashboard.uuid;
@@ -3969,10 +4072,26 @@ export class CoderService extends BaseService {
                 };
             }
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
                 createChart,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             await this.syncVerification({
@@ -4312,6 +4431,23 @@ export class CoderService extends BaseService {
         } = options;
         const project = await this.projectModel.get(projectUuid);
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+        });
+        const recordSqlWrite =
+            (action: string): OnContentVersionCreated =>
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'sql_chart',
+                    objectUuid,
+                    versionUuid,
+                    action,
+                });
         const auditedAbility = this.createAuditedAbility(user);
         const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
             {
@@ -4461,6 +4597,8 @@ export class CoderService extends BaseService {
                 sqlChartToCreate,
                 binding,
                 { slugMode: mode === 'create' ? 'unique' : 'exact' },
+                agentIdentity,
+                recordSqlWrite('create'),
             );
             const { savedSqlUuid, slug: createdSlug } = created;
 
@@ -4527,11 +4665,12 @@ export class CoderService extends BaseService {
                 },
             },
         };
-        if (binding === undefined) {
-            await this.savedSqlModel.update(sqlChartUpdate);
-        } else {
-            await this.savedSqlModel.update(sqlChartUpdate, binding);
-        }
+        await this.savedSqlModel.update(
+            sqlChartUpdate,
+            binding,
+            agentIdentity,
+            recordSqlWrite('update'),
+        );
 
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4970,6 +5109,18 @@ export class CoderService extends BaseService {
                 },
             );
 
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'space',
+                objectUuid: newSpace.uuid,
+                versionUuid: null,
+                action: 'create',
+            });
             if (!newSpace.inheritParentPermissions) {
                 if (parentSpaceUuid) {
                     const [ctx, groupsAccess] = await Promise.all([
@@ -5156,6 +5307,10 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
             });
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             let newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
@@ -5167,6 +5322,18 @@ export class CoderService extends BaseService {
                 },
                 user,
                 projectUuid,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'dashboard',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             if (hasChartsInDashboard(newDashboard)) {
@@ -5199,6 +5366,19 @@ export class CoderService extends BaseService {
                     { ...newDashboard, tiles: copiedTiles },
                     user,
                     projectUuid,
+                    undefined,
+                    agentIdentity,
+                    (trx, versionUuid, objectUuid) =>
+                        logAgentContentWrite({
+                            trx,
+                            model: this.agentActionLogModel,
+                            projectUuid,
+                            agentIdentity,
+                            objectType: 'dashboard',
+                            objectUuid,
+                            versionUuid,
+                            action: 'update',
+                        }),
                 );
             }
 
@@ -5212,6 +5392,8 @@ export class CoderService extends BaseService {
             });
 
             const createOwnerWarnings = await this.syncDashboardOwner({
+                user,
+                projectUuid,
                 organizationUuid: project.organizationUuid,
                 dashboardUuid: newDashboard.uuid,
                 currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
@@ -5394,6 +5576,8 @@ export class CoderService extends BaseService {
         });
 
         const ownerWarnings = await this.syncDashboardOwner({
+            user,
+            projectUuid,
             organizationUuid: project.organizationUuid,
             dashboardUuid: dashboard.uuid,
             currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,

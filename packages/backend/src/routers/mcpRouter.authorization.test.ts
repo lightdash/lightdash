@@ -1,11 +1,21 @@
+import { AgentActorSurface } from '@lightdash/common';
 import type { Account } from '@lightdash/common';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { request as httpRequest, type Server, type ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
+import {
+    fromApiKey,
+    fromOauth,
+    fromServiceAccount,
+} from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
 import { getOAuthScopeContext } from '../auth/oauthScopes/scopedAbility';
 import { McpService } from '../ee/services/McpService/McpService';
+import {
+    agentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../services/AiAccessService/agentExecutionContext';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
 
 vi.mock('../auth/oauthScopes/scopedAbility', () => ({
@@ -50,15 +60,24 @@ type TestAuthentication =
     | { type: 'pat' }
     | { type: 'service-account' };
 
-const createAccount = (authentication: TestAuthentication) =>
-    ({
-        authentication,
-        user: { ability: defaultSessionUser.ability },
-        isAuthenticated: () => true,
-        isOauthUser: () => authentication.type === 'oauth',
-        isPatUser: () => authentication.type === 'pat',
-        isServiceAccount: () => authentication.type === 'service-account',
-    }) as unknown as Account;
+const createAccount = (authentication: TestAuthentication): Account => {
+    const user = {
+        ...defaultSessionUser,
+        userUuid: 'user-uuid',
+        organizationUuid: 'organization-uuid',
+    };
+    if (authentication.type === 'oauth')
+        return fromOauth(user, {
+            accessToken: 'test-token',
+            scope: authentication.scopes,
+            client: { id: 'authenticated-client' },
+        });
+    if (authentication.type === 'pat') return fromApiKey(user, 'test-token');
+    return fromServiceAccount(
+        { ...user, serviceAccount: { uuid: 'user-uuid', description: 'test' } },
+        'test-token',
+    );
+};
 
 const createMcpService = (documentsEnabled: boolean) =>
     Object.assign(Object.create(McpService.prototype), {
@@ -67,6 +86,7 @@ const createMcpService = (documentsEnabled: boolean) =>
             projectUuid: PROJECT_UUID,
             agentUuid: 'agent-uuid',
         }),
+        recordDisabledToolRefusal: vi.fn().mockResolvedValue(undefined),
         isContentToolsEnabled: vi.fn().mockResolvedValue(false),
         isCreateScheduledDeliveryEnabled: vi.fn().mockResolvedValue(false),
         isEnabled: vi.fn().mockResolvedValue(true),
@@ -98,6 +118,9 @@ const sendHttpRequest = ({
                 headers: {
                     authorization: 'Bearer test-token',
                     'content-type': 'application/json',
+                    'x-agent-uuid': 'spoofed-agent',
+                    'x-client-id': 'spoofed-client',
+                    'user-agent': 'spoofed-agent',
                 },
                 hostname: '127.0.0.1',
                 method,
@@ -122,18 +145,26 @@ const sendHttpRequest = ({
 const requestMcp = async ({
     account,
     documentsEnabled = false,
+    agentIdentityEnabled = false,
+    configureService,
     method,
     path,
     requestBody,
 }: {
     account: Account;
     documentsEnabled?: boolean;
+    agentIdentityEnabled?: boolean;
+    configureService?: (service: McpService) => void;
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     requestBody?: Record<string, unknown>;
 }) => {
     const app = express();
     const mcpService = createMcpService(documentsEnabled);
+    configureService?.(mcpService);
+    vi.mocked(mcpService.isAgentIdentityEnabled).mockResolvedValue(
+        agentIdentityEnabled,
+    );
     app.use(express.json());
     app.use((request, _response, next) => {
         request.account = account;
@@ -466,3 +497,162 @@ describe('MCP call-time OAuth scope enforcement', () => {
         },
     );
 });
+
+describe('trusted MCP execution identity', () => {
+    test.each(['oauth', 'pat', 'service-account'] as const)(
+        '%s derives identity only from the authenticated account',
+        async (type) => {
+            const account = createAccount(
+                type === 'oauth'
+                    ? { type, scopes: ['mcp:read', 'mcp:write'] }
+                    : { type },
+            );
+            transport.handleRequest.mockImplementationOnce(
+                (_req: unknown, res: Response) => {
+                    expect(
+                        getContentWriteAgentIdentity({
+                            userUuid: 'user-uuid',
+                            organizationUuid: 'organization-uuid',
+                        }),
+                    ).toMatchObject({
+                        subject: {
+                            type:
+                                type === 'service-account'
+                                    ? 'service_account'
+                                    : 'user',
+                            uuid: 'user-uuid',
+                        },
+                        act: {
+                            surface: AgentActorSurface.MCP,
+                            client_id:
+                                type === 'oauth'
+                                    ? 'authenticated-client'
+                                    : null,
+                            agent_uuid: null,
+                        },
+                    });
+                    res.status(200).json({ ok: true });
+                },
+            );
+            const { response } = await requestMcp({
+                account,
+                agentIdentityEnabled: true,
+                method: 'POST',
+                requestBody: {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'tools/call',
+                    params: {
+                        name: 'create_content',
+                        clientInfo: { name: 'spoof' },
+                        arguments: {
+                            agentUuid: 'spoof',
+                            clientId: 'spoof',
+                            subject: 'spoof',
+                        },
+                    },
+                },
+            });
+            expect(response.status).toBe(200);
+            expect(transport.handleRequest).toHaveBeenCalledOnce();
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+        },
+    );
+    test('flag off leaves authenticated MCP writes unattributed', async () => {
+        transport.handleRequest.mockImplementationOnce(
+            (_req: unknown, res: Response) => {
+                expect(
+                    getContentWriteAgentIdentity({
+                        userUuid: 'user-uuid',
+                        organizationUuid: 'organization-uuid',
+                    }),
+                ).toBeNull();
+                res.status(200).json({ ok: true });
+            },
+        );
+        const { response } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            requestBody: { jsonrpc: '2.0', id: 1, method: 'tools/list' },
+        });
+        expect(response.status).toBe(200);
+    });
+});
+
+describe.each([true, false])(
+    'hidden data app dispatch refusals identity=%s',
+    (enabled) => {
+        describe.each([true, false])('data apps=%s', (dataAppsEnabled) => {
+            test.each([
+                ['generate_data_app', 'create'],
+                ['iterate_data_app', 'update'],
+            ])('%s is recorded before SDK dispatch', async (name, action) => {
+                const insert = vi.fn().mockResolvedValue(undefined);
+                transport.handleRequest.mockImplementationOnce(
+                    (_req: unknown, res: Response) => {
+                        expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                        res.status(200).json({
+                            error: { code: -32602, message: 'Tool not found' },
+                        });
+                    },
+                );
+                const { response } = await requestMcp({
+                    account: createAccount({
+                        type: 'oauth',
+                        scopes: ['mcp:write'],
+                    }),
+                    agentIdentityEnabled: enabled,
+                    method: 'POST',
+                    configureService: (service) =>
+                        Object.assign(service, {
+                            recordDisabledToolRefusal:
+                                McpService.prototype.recordDisabledToolRefusal,
+                            agentActionLogModel: { insert },
+                            featureFlagService: {
+                                get: vi.fn().mockResolvedValue({
+                                    enabled: dataAppsEnabled,
+                                }),
+                            },
+                        }),
+                    requestBody: {
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: {
+                            name,
+                            arguments: {
+                                prompt: 'private prompt',
+                                projectUuid: PROJECT_UUID,
+                            },
+                        },
+                    },
+                });
+                expect(response.status).toBe(200);
+                expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                if (enabled)
+                    expect(insert).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({
+                            action,
+                            object_type: 'app',
+                            outcome: 'denied',
+                            policy_layer: dataAppsEnabled
+                                ? 'casl'
+                                : 'organization_setting',
+                            reason_code: dataAppsEnabled
+                                ? 'data_app_create_forbidden'
+                                : 'data_apps_disabled',
+                            agent_identity: expect.objectContaining({
+                                act: expect.objectContaining({
+                                    surface: AgentActorSurface.MCP,
+                                    client_id: 'authenticated-client',
+                                }),
+                            }),
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'private prompt',
+                );
+            });
+        });
+    },
+);

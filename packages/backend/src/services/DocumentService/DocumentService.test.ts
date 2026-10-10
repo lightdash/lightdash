@@ -1,5 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
     ContentType,
     FeatureFlags,
     ForbiddenError,
@@ -287,6 +289,82 @@ describe('DocumentService views', () => {
 
 describe('DocumentService', () => {
     describe('version history', () => {
+        test.each([true, false])(
+            'uses the viewer override over the opposite org flag for all Document DTOs (%s)',
+            async (enabled) => {
+                const { service, documentModel, featureFlagModel } = setup();
+                featureFlagModel.get.mockImplementation(
+                    async ({ featureFlagId, user: viewer }) => {
+                        const viewerEnabled =
+                            viewer?.userUuid === userUuid ? enabled : !enabled;
+                        return {
+                            enabled:
+                                featureFlagId === FeatureFlags.AgentIdentity
+                                    ? viewerEnabled
+                                    : true,
+                        };
+                    },
+                );
+                const agentIdentity = buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: userUuid },
+                    surface: AgentActorSurface.MCP,
+                    clientId: null,
+                });
+                documentModel.get.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.getBySlug.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.getVersion.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.listVersions.mockResolvedValue({
+                    items: [
+                        { ...document.version, agentIdentity, createdBy: null },
+                    ],
+                    nextOffset: null,
+                });
+                const history = await service.listVersions(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                );
+                const historical = await service.getVersion(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                    'old-version',
+                );
+                const current = await service.getByIdOrSlug(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                );
+                const bySlug = await service.getBySlug(
+                    makeAccount(),
+                    projectUuid,
+                    document.slug,
+                );
+                for (const dto of [
+                    history.items[0],
+                    historical.version,
+                    current.version,
+                    bySlug.version,
+                ]) {
+                    if (enabled)
+                        expect(dto).toHaveProperty(
+                            'agentIdentity',
+                            agentIdentity,
+                        );
+                    else expect(dto).not.toHaveProperty('agentIdentity');
+                }
+            },
+        );
+
         test('lists versions for a reader through normal Document authorization', async () => {
             const { service, documentModel, spacePermissionService } = setup();
             await service.listVersions(
@@ -389,7 +467,10 @@ describe('DocumentService', () => {
                 documentUuid,
                 historicalVersion.versionUuid,
             );
-            expect(result.version).toEqual(historicalVersion);
+            expect(result.version).toEqual({
+                ...historicalVersion,
+                agentIdentity: null,
+            });
             expect(result.name).toBe(document.name);
             expect(result.access).toEqual([]);
         });

@@ -23,6 +23,7 @@ import {
     DimensionType,
     ExploreSplitError,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getAllReferences,
@@ -106,6 +107,7 @@ import {
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -113,6 +115,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -127,6 +130,7 @@ import {
     assertCanMutateVerifiedContent,
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
     assertChartDraftOverlay,
     mergeDraftIntoChart,
@@ -134,6 +138,7 @@ import {
 } from './chartDraftOverlay';
 
 type SavedChartServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
@@ -225,8 +230,11 @@ export class SavedChartService
 
     private readonly contentDraftModel: ContentDraftModel;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: SavedChartServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
@@ -2946,8 +2954,17 @@ export class SavedChartService
                 versionCount: versions.length,
             },
         });
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            history: versions,
+            history: versions.map((version) =>
+                withVersionAgentIdentity(version, enabled),
+            ),
         };
     }
 
@@ -2999,8 +3016,15 @@ export class SavedChartService
             },
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...chartVersionSummary,
+            ...withVersionAgentIdentity(chartVersionSummary, enabled),
             chart: {
                 ...savedChart,
                 inheritsFromOrgOrProject,
@@ -3033,6 +3057,10 @@ export class SavedChartService
                 dashboardUuid: savedChart.dashboardUuid ?? null,
                 spaceUuid: savedChart.spaceUuid,
             },
+            getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: savedChart.organizationUuid,
+            }),
         );
         this.analytics.track({
             event: 'saved_chart_version.rollback',
