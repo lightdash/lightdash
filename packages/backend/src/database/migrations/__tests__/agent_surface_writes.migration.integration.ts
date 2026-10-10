@@ -450,6 +450,7 @@ describe('trusted surface to persisted chart identity', () => {
             lightdashConfig: f.config,
             projectModel: f.projectModel,
             aiAgentToolsService: f.tools,
+            agentPermissionService: legacyAgentPermissionService,
             aiAgentModel: new AiAgentModel({
                 database: migrated.database,
                 lightdashConfig: f.config,
