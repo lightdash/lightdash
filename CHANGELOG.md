@@ -1,3 +1,11 @@
+# [2.539.0](https://github.com/lightdash/lightdash/compare/2.538.0...2.539.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Redshift agents run as a separate database user (AI service account) ([#30869](https://github.com/lightdash/lightdash/issues/30869)) ([961a0fa](https://github.com/lightdash/lightdash/commit/961a0fa4b9e48e8905f22bbf6a8305b235faadcd))
+* **oauth:** lock the OAuth server baseline behind agent-identity ([#30867](https://github.com/lightdash/lightdash/issues/30867)) ([5cbbe16](https://github.com/lightdash/lightdash/commit/5cbbe1690a07def3adc8a57bdba004a3291974ae))
+
 # [2.538.0](https://github.com/lightdash/lightdash/compare/2.537.1...2.538.0) (2026-10-10)
 
 

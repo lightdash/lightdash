@@ -1,14 +1,31 @@
 {
   "schemaVersion": "2",
-  "version": "2.538.0",
-  "previousVersion": "2.537.1",
-  "releaseDate": "2026-10-10T05:24:56.254Z",
+  "version": "2.539.0",
+  "previousVersion": "2.538.0",
+  "releaseDate": "2026-10-10T06:39:27.079Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261010231500_add_oauth_resource_and_family.ts",
+        "edition": "core",
+        "tables": [
+          "oauth2_access_tokens",
+          "oauth2_authorization_codes",
+          "oauth2_refresh_tokens",
+          "pg_class",
+          "pg_index"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

@@ -70591,6 +70591,22 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "RedshiftAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user", "password"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "PostgresAiServiceAccountCredentialInput": {
                 "properties": {
                     "type": {
@@ -70742,6 +70758,9 @@
             },
             "AiServiceAccountCredentialInput": {
                 "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/RedshiftAiServiceAccountCredentialInput"
+                    },
                     {
                         "$ref": "#/components/schemas/PostgresAiServiceAccountCredentialInput"
                     },
@@ -71081,7 +71100,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.538.0",
+        "version": "2.539.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
