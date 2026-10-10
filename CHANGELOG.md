@@ -1,3 +1,10 @@
+## [2.547.4](https://github.com/lightdash/lightdash/compare/2.547.3...2.547.4) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show the chat raw SQL refusal link to project admins ([#30880](https://github.com/lightdash/lightdash/issues/30880)) ([55ca3ea](https://github.com/lightdash/lightdash/commit/55ca3eacb4c29624318588735c3188019c5dbed9))
+
 ## [2.547.3](https://github.com/lightdash/lightdash/compare/2.547.2...2.547.3) (2026-10-10)
 
 
