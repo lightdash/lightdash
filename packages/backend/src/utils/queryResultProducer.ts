@@ -218,7 +218,10 @@ export const getResultEntitlementFingerprint = (
             : null;
     return fingerprint([
         Object.entries(controls.userAttributes)
-            .filter(([name]) => names === null || names.has(name))
+            .filter(
+                ([name, values]) =>
+                    values.length > 0 && (names === null || names.has(name)),
+            )
             .sort(([a], [b]) => a.localeCompare(b)),
         Object.entries(controls.intrinsicUserAttributes).sort(([a], [b]) =>
             a.localeCompare(b),

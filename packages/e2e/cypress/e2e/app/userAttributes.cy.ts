@@ -11,7 +11,6 @@ const apiUrl = '/api/v1';
 describe('User attributes', () => {
     const email = `user-attributes-${Date.now()}-${Cypress._.random(1_000_000)}@lightdash.com`;
     let userUuid: string | null = null;
-    const createdAttributeUuids = new Set<string>();
     const attributeNames = ['customer_id', 'is_admin'];
 
     const toAttributeBody = (
@@ -131,7 +130,6 @@ describe('User attributes', () => {
                         },
                     }).then((response) => {
                         expect(response.status).to.eq(201);
-                        createdAttributeUuids.add(response.body.results.uuid);
                     });
                 }
             });
@@ -157,20 +155,7 @@ describe('User attributes', () => {
                 payload.users = payload.users.filter(
                     (user) => user.userUuid !== userUuid,
                 );
-                if (
-                    createdAttributeUuids.has(attribute.uuid) &&
-                    payload.users.length === 0 &&
-                    payload.groups.length === 0 &&
-                    (payload.attributeDefaults ?? []).length === 0 &&
-                    !payload.description
-                ) {
-                    cy.request(
-                        'DELETE',
-                        `${apiUrl}/org/attributes/${attribute.uuid}`,
-                    )
-                        .its('status')
-                        .should('eq', 200);
-                } else if (payload.users.length !== attribute.users.length) {
+                if (payload.users.length !== attribute.users.length) {
                     cy.request({
                         url: `${apiUrl}/org/attributes/${attribute.uuid}`,
                         method: 'PUT',

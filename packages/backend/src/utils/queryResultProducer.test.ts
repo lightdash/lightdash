@@ -10,6 +10,7 @@ import {
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
+    type UserAccessControls,
 } from '@lightdash/common';
 import { QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
 import { aiServiceAccountPlanMock } from '../services/AiAccessService/AiAccessService.mock';
@@ -22,6 +23,7 @@ import { buildCacheHash } from './cacheUtils';
 import { replaceUserAttributesRaw } from './QueryBuilder/utils';
 import {
     getResultEntitlementFingerprint,
+    getSqlResultEntitlementFingerprint,
     getWarehouseIdentityFingerprint,
     isSameResultAgent,
     isSameResultCredentialOwner,
@@ -416,6 +418,88 @@ describe('warehouse result identity fingerprints', () => {
             );
         expect(scope('EU', '20')).toBe(scope('EU', '30'));
         expect(scope('EU', '20')).not.toBe(scope('US', '20'));
+    });
+
+    describe.each([
+        'requiredAttributes',
+        'anyAttributes',
+        'semantic fallback',
+        'SQL',
+        'SQL fallback',
+    ] as const)('%s empty attribute canonicalisation', (variant) => {
+        const scope = (
+            userAttributes: UserAccessControls['userAttributes'],
+        ) => {
+            const controls = {
+                userAttributes,
+                intrinsicUserAttributes: { email: 'person@example.test' },
+            };
+            if (variant === 'SQL' || variant === 'SQL fallback') {
+                return getSqlResultEntitlementFingerprint(
+                    controls,
+                    variant === 'SQL'
+                        ? { sql: 'SELECT ${ld.attr.region}' }
+                        : undefined,
+                );
+            }
+            const explore = structuredClone(validExplore);
+            if (variant !== 'semantic fallback') {
+                explore.tables.a.dimensions.dim1[variant] = { region: 'a' };
+            }
+            return getResultEntitlementFingerprint(
+                controls,
+                explore,
+                metricQueryMock,
+                variant === 'semantic fallback' ? null : undefined,
+            );
+        };
+
+        test.each<{
+            change: string;
+            before: UserAccessControls['userAttributes'];
+            after: UserAccessControls['userAttributes'];
+        }>([
+            { change: 'created', before: {}, after: { region: [] } },
+            { change: 'deleted', before: { region: [] }, after: {} },
+        ])(
+            'keeps the fingerprint when an empty definition is $change',
+            ({ before, after }) => {
+                expect(scope(after)).toBe(scope(before));
+            },
+        );
+
+        test.each<{
+            change: string;
+            before: UserAccessControls['userAttributes'];
+            after: UserAccessControls['userAttributes'];
+        }>([
+            {
+                change: 'changed',
+                before: { region: ['a'] },
+                after: { region: ['b'] },
+            },
+            {
+                change: 'added to empty',
+                before: { region: [] },
+                after: { region: ['a'] },
+            },
+            { change: 'added to absent', before: {}, after: { region: ['a'] } },
+            {
+                change: 'removed to empty',
+                before: { region: ['a'] },
+                after: { region: [] },
+            },
+            {
+                change: 'removed to absent',
+                before: { region: ['a'] },
+                after: {},
+            },
+        ])(
+            'changes the fingerprint when a value is $change',
+            ({ before, after }) => {
+                expect(scope(after)).not.toBe(scope(before));
+            },
+        );
     });
 
     test.each(

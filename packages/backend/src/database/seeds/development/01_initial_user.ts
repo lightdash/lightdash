@@ -145,6 +145,20 @@ export async function seed(knex: Knex): Promise<void> {
         },
     );
 
+    await Promise.all(
+        ['customer_id', 'is_admin'].map((name) =>
+            new UserAttributesModel({ database: knex }).create(
+                SEED_ORG_1.organization_uuid,
+                {
+                    name,
+                    attributeDefaults: null,
+                    users: [],
+                    groups: [],
+                },
+            ),
+        ),
+    );
+
     const { user } = await addUser(
         { organizationId, organizationUuid },
         SEED_ORG_1_ADMIN,
