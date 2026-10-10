@@ -76104,6 +76104,16 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ClickhouseAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.CLICKHOUSE', required: true },
+            user: { dataType: 'string', required: true },
+            password: { dataType: 'string', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     RedshiftAiServiceAccountCredentialInput: {
         dataType: 'refObject',
         properties: {
@@ -76222,6 +76232,7 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { ref: 'TrinoAiServiceAccountCredentialInput' },
+                { ref: 'ClickhouseAiServiceAccountCredentialInput' },
                 { ref: 'RedshiftAiServiceAccountCredentialInput' },
                 { ref: 'PostgresAiServiceAccountCredentialInput' },
                 { ref: 'AthenaAiServiceAccountCredentialInput' },

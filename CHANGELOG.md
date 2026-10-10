@@ -1,3 +1,10 @@
+# [2.544.0](https://github.com/lightdash/lightdash/compare/2.543.0...2.544.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let ClickHouse agents run as a separate read-only user (AI service account) ([#30873](https://github.com/lightdash/lightdash/issues/30873)) ([61e2d5a](https://github.com/lightdash/lightdash/commit/61e2d5a8339b5f94c9e13ad9caa1f5fd511f21b5))
+
 # [2.543.0](https://github.com/lightdash/lightdash/compare/2.542.0...2.543.0) (2026-10-10)
 
 
