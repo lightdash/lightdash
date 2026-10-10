@@ -258,8 +258,8 @@ const AgentPermissionsForm = ({
                     />
                 )}
                 <Text size="sm" c="dimmed">
-                    Personal access tokens are not limited. An AI that uses a
-                    person's token has that person's access.
+                    Personal access tokens are not limited. An agent that uses a
+                    person's personal access token has that person's access.
                 </Text>
             </Stack>
             {!conflict && modal === 'empty' && (

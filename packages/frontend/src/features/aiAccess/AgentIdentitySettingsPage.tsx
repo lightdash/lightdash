@@ -36,8 +36,8 @@ export const AgentIdentitySettingsPage = () => {
                 </>
             }
         >
-            <AgentPermissionsSection />
             <OrganizationAgentIdentitySection />
+            <AgentPermissionsSection />
         </SettingsPage>
     );
 };
