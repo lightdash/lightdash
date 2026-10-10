@@ -18,7 +18,7 @@ import {
     surfaceFromQueryContext,
 } from '../WarehouseClientFactory/ConnectionContext';
 
-type QueryAgentActor = {
+export type QueryAgentActor = {
     surface: AgentActorSurface;
     clientId: string | null;
     agentUuid?: string | null;
@@ -179,3 +179,11 @@ export const buildQueryAgentIdentity = (
           })
         : null;
 };
+
+export const withQueryAgentUuid = (
+    claim: AgentIdentityClaim | null | undefined,
+    actor: QueryAgentActor | null | undefined,
+): AgentIdentityClaim | null =>
+    claim && actor?.agentUuid != null
+        ? { ...claim, act: { ...claim.act, agent_uuid: actor.agentUuid } }
+        : (claim ?? null);

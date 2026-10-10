@@ -46,10 +46,12 @@ import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
+import type { QueryAgentActor } from '../AiAccessService/agentExecutionContext';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
+    agentActor?: QueryAgentActor | null;
     account: Account;
     projectUuid: string;
     invalidateCache?: boolean;

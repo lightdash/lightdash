@@ -279,7 +279,11 @@ import {
 } from '../../utils/sharedSignInExpiry';
 import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
-import { buildQueryAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import {
+    buildQueryAgentIdentity,
+    withQueryAgentUuid,
+    type QueryAgentActor,
+} from '../AiAccessService/agentExecutionContext';
 import { getQuerySourceParameters } from '../AiAccessService/queryResultLineage';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -6041,6 +6045,7 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
             context,
             querySurface,
+            agentActor,
             metricQuery: inputMetricQuery,
             invalidateCache,
             usePreAggregateCache,
@@ -6312,7 +6317,10 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns: undefined,
                 warehouseCredentials,
-                agentIdentity: aiPlan?.agentIdentity ?? null,
+                agentIdentity: withQueryAgentUuid(
+                    aiPlan?.agentIdentity,
+                    agentActor,
+                ),
                 inheritedFromProjectUuid:
                     aiPlan?.identity === 'ai_service_account'
                         ? aiPlan.inheritedFromProjectUuid
@@ -8567,6 +8575,7 @@ export class AsyncQueryService extends ProjectService {
         sql,
         context,
         querySurface,
+        agentActor,
         invalidateCache,
         pivotConfiguration,
         limit,
@@ -8687,7 +8696,10 @@ export class AsyncQueryService extends ProjectService {
                 queryComposer,
                 originalColumns,
                 warehouseCredentials,
-                agentIdentity: aiPlan?.agentIdentity ?? null,
+                agentIdentity: withQueryAgentUuid(
+                    aiPlan?.agentIdentity,
+                    agentActor,
+                ),
                 inheritedFromProjectUuid:
                     aiPlan?.identity === 'ai_service_account'
                         ? aiPlan.inheritedFromProjectUuid
@@ -8730,12 +8742,14 @@ export class AsyncQueryService extends ProjectService {
         references,
         context,
         querySurface,
+        agentActor,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
+        agentActor?: QueryAgentActor | null;
     }): Promise<AgentIdentityClaim | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
@@ -8802,10 +8816,13 @@ export class AsyncQueryService extends ProjectService {
                 ),
             },
             () => {
-                agentIdentity = buildQueryAgentIdentity(
-                    account,
-                    context,
-                    querySurface ?? null,
+                agentIdentity = withQueryAgentUuid(
+                    buildQueryAgentIdentity(
+                        account,
+                        context,
+                        querySurface ?? null,
+                    ),
+                    agentActor,
                 );
             },
             context,
@@ -9048,6 +9065,7 @@ export class AsyncQueryService extends ProjectService {
         sql,
         context,
         querySurface,
+        agentActor,
         limit,
         references,
         parameters,
@@ -9080,6 +9098,7 @@ export class AsyncQueryService extends ProjectService {
                   references: normalizedReferences,
                   context,
                   querySurface,
+                  agentActor,
               })
             : null;
 
@@ -10629,6 +10648,7 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery,
         context,
         querySurface,
+        agentActor,
         invalidateCache,
         parameters,
         mode,
@@ -10698,6 +10718,7 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery: effectiveMergeQuery,
             context,
             querySurface,
+            agentActor,
             invalidateCache,
             parameters,
             userAttributeOverrides,
@@ -10727,6 +10748,7 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery,
         context,
         querySurface,
+        agentActor,
         invalidateCache,
         parameters,
         userAttributeOverrides,
@@ -10741,6 +10763,7 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery: MergeQuery;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
+        agentActor?: QueryAgentActor | null;
         invalidateCache: boolean | undefined;
         parameters: ParametersValuesMap | undefined;
         userAttributeOverrides: UserAttributeValueMap | undefined;
@@ -10921,6 +10944,7 @@ export class AsyncQueryService extends ProjectService {
                     projectUuid,
                     context,
                     querySurface,
+                    agentActor,
                     queries: [...legNodes, joinNode],
                     parameters: parameters ?? {},
                     userAttributeOverrides: userAttributeOverrides ?? {},
