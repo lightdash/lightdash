@@ -1,6 +1,4 @@
 import { ForbiddenError } from '@lightdash/common';
-import { readdirSync, readFileSync } from 'node:fs';
-import path from 'node:path';
 import Logger from '../../logging/logger';
 import { UserService } from '../../services/UserService';
 import { fromOauth, fromSession, toSessionUser } from '../account/account';
@@ -97,36 +95,6 @@ it('guards email verification before looking up or consuming the code', async ()
         ),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(lookup).not.toHaveBeenCalled();
-});
-
-it('wires every swept route to its named guard', () => {
-    const root = path.resolve(__dirname, '../..');
-    const files = ['controllers', 'ee/controllers', 'routers'].flatMap(
-        (directory) =>
-            readdirSync(path.join(root, directory), {
-                recursive: true,
-                withFileTypes: true,
-            })
-                .filter(
-                    (entry) =>
-                        entry.isFile() &&
-                        entry.name.endsWith('.ts') &&
-                        !entry.name.endsWith('.test.ts'),
-                )
-                .map((entry) =>
-                    readFileSync(
-                        path.join(entry.parentPath, entry.name),
-                        'utf8',
-                    ),
-                ),
-    );
-    for (const operation of Object.keys(OAUTH_UNCHECKED_OPERATIONS).filter(
-        (key) => key !== 'UserService.verifyEmail',
-    )) {
-        expect(files.some((source) => source.includes(`'${operation}'`))).toBe(
-            true,
-        );
-    }
 });
 
 it('preserves anonymous access on routes with optional authentication', () => {

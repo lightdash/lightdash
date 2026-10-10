@@ -40,7 +40,13 @@ export class MobilePushNotificationController extends BaseController {
         return this.services.getMobilePushNotificationService<MobilePushNotificationService>();
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'MobilePushNotificationController.getMobilePushNotificationStatus',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/status')
     @OperationId('getMobilePushNotificationStatus')

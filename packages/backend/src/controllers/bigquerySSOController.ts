@@ -117,7 +117,11 @@ export class BigquerySSOController extends BaseController {
      * Check if user is authenticated with BigQuery
      * @summary Check BigQuery authentication
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('BigquerySSOController.get'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/is-authenticated')
     @OperationId('checkBigqueryAuthentication')

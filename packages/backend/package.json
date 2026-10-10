@@ -249,6 +249,7 @@
         "nodemon": "3.1.9",
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
-        "typescript": "7.0.2"
+        "typescript": "7.0.2",
+        "typescript-compiler-api": "npm:typescript@5.9.3"
     }
 }

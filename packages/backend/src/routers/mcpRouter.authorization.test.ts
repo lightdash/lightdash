@@ -53,6 +53,7 @@ type TestAuthentication =
 const createAccount = (authentication: TestAuthentication) =>
     ({
         authentication,
+        user: { ability: defaultSessionUser.ability },
         isAuthenticated: () => true,
         isOauthUser: () => authentication.type === 'oauth',
         isPatUser: () => authentication.type === 'pat',

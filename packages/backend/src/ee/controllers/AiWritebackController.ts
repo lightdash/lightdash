@@ -33,6 +33,7 @@ import {
 import express from 'express';
 import { z } from 'zod';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -76,6 +77,7 @@ export class AiWritebackController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiWritebackController.runAiWriteback'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/')

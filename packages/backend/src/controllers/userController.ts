@@ -79,7 +79,11 @@ export class UserController extends BaseController {
      * @summary Get authenticated user
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.getAuthenticatedUser'),
+    ])
     @Get('/')
     @OperationId('GetAuthenticatedUser')
     async getAuthenticatedUser(
@@ -190,7 +194,11 @@ export class UserController extends BaseController {
      * @param req express request
      * @param passcode the one-time passcode sent to the user's primary email
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserService.verifyEmail'),
+    ])
     @Get('/me/email/status')
     @OperationId('GetEmailVerificationStatus')
     async getEmailVerificationStatus(
@@ -214,7 +222,11 @@ export class UserController extends BaseController {
      * @summary Get onboarding
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.getUserOnboarding'),
+    ])
     @Get('/onboarding')
     @OperationId('GetUserOnboarding')
     async getUserOnboarding(
@@ -265,7 +277,11 @@ export class UserController extends BaseController {
      * @summary Get Learn progress
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.getUserLearnProgress'),
+    ])
     @Get('/learn-progress')
     @OperationId('GetUserLearnProgress')
     async getUserLearnProgress(
@@ -963,7 +979,11 @@ export class UserController extends BaseController {
      * Get account information
      * @summary Get account
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('UserController.getAccount'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/account')
     @OperationId('GetAccount')

@@ -79,7 +79,11 @@ export class OrganizationController extends BaseController {
      * @summary Get current organization
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getOrganization'),
+    ])
     @Get()
     @OperationId('GetMyOrganization')
     async getOrganization(
@@ -101,7 +105,11 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param body the new organization settings
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.createOrganization'),
+    ])
     @Put()
     @OperationId('CreateOrganization')
     async createOrganization(
@@ -270,7 +278,11 @@ export class OrganizationController extends BaseController {
      * @summary List organization projects
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getProjects'),
+    ])
     @Get('/projects')
     @OperationId('ListOrganizationProjects')
     async getProjects(
@@ -465,7 +477,13 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param userUuid the uuid of the user
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getUserSchedulersSummary',
+        ),
+    ])
     @Get('/user/{userUuid}/schedulers-summary')
     @OperationId('GetUserSchedulersSummary')
     async getUserSchedulersSummary(
@@ -521,7 +539,13 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param userUuid the uuid of the user
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getUserDashboardsSummary',
+        ),
+    ])
     @Get('/user/{userUuid}/dashboards-summary')
     @OperationId('GetUserDashboardsSummary')
     async getUserDashboardsSummary(
@@ -549,6 +573,9 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'OrganizationController.reassignUserDashboards',
+        ),
     ])
     @Patch('/user/{userUuid}/reassign-dashboards')
     @OperationId('ReassignUserDashboards')
@@ -649,7 +676,13 @@ export class OrganizationController extends BaseController {
      * @param req
      * @param includeMembers number of members to include
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.listGroupsInOrganization',
+        ),
+    ])
     @Get('/groups')
     @OperationId('ListGroupsInOrganization')
     async listGroupsInOrganization(
@@ -826,6 +859,7 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('OrganizationController.createProject'),
     ])
     @Post('/projects')
     @OperationId('CreateProject')
@@ -911,7 +945,11 @@ export class OrganizationController extends BaseController {
      * @summary Get Learn access
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('OrganizationController.getLearnAccess'),
+    ])
     @Get('/training-project/access')
     @OperationId('GetLearnAccess')
     async getLearnAccess(
@@ -931,7 +969,13 @@ export class OrganizationController extends BaseController {
      * @summary Get impersonation settings
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'OrganizationController.getImpersonationSettings',
+        ),
+    ])
     @Get('/impersonation')
     @OperationId('GetImpersonationSettings')
     async getImpersonationSettings(

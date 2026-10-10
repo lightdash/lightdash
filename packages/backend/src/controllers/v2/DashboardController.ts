@@ -24,6 +24,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     parseEnumList,
     parseWhitelistedList,
@@ -45,7 +46,13 @@ export class DashboardControllerV2 extends BaseController {
      * @param dashboardUuid The uuid of the dashboard
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DashboardControllerV2.exportDashboardContent',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/exports')
     @OperationId('exportDashboardContentV2')
@@ -74,7 +81,13 @@ export class DashboardControllerV2 extends BaseController {
      * @param searchQuery filter schedulers by name
      * @param includeLatestRun include the most recent run for each scheduler
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'DashboardControllerV2.getDashboardSchedulers',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
     @OperationId('getDashboardSchedulers')

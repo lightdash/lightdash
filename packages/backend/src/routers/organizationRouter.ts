@@ -38,6 +38,7 @@ organizationRouter.get(
 organizationRouter.post(
     '/projects/precompiled',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('organizationRouter POST /projects/precompiled'),
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>

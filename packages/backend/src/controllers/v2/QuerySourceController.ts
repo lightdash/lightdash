@@ -65,7 +65,13 @@ export class QuerySourceController extends BaseController {
      * references given to each query.
      * @summary Scan query source schema
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'QuerySourceController.scanQuerySourceSchema',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{sourceType}/schema')
     @OperationId('scanQuerySourceSchema')

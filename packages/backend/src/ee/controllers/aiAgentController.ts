@@ -126,7 +126,11 @@ const parseSuggestionContext = (context: string | undefined) => {
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgents'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('listAgents')
@@ -179,7 +183,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.setUserDefaultAgent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/preferences')
     @OperationId('updateUserAgentPreferences')
@@ -201,7 +209,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.deleteUserAgentPreferences',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/preferences')
     @OperationId('deleteUserAgentPreferences')
@@ -346,7 +360,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getGithubMcpAvailability',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/mcpServers/github/availability')
     @OperationId('getGithubMcpAvailability')
@@ -518,7 +538,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listProjectThreads'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/threads')
     @OperationId('listProjectThreads')
@@ -555,7 +579,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadLiveStatuses',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/threads/live-statuses')
     @OperationId('getAgentThreadLiveStatuses')
@@ -581,7 +611,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}')
     @OperationId('getAgent')
@@ -640,7 +674,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgentMcpServers'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/mcpServers')
     @OperationId('listAgentMcpServers')
@@ -713,7 +751,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getModelOptions'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/models')
     @OperationId('getModelOptions')
@@ -749,7 +791,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgentSuggestions'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/suggestions')
     @OperationId('getAgentSuggestions')
@@ -818,7 +864,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getVerifiedArtifacts'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/verified-artifacts')
     @OperationId('getVerifiedArtifacts')
@@ -1018,7 +1068,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgentThreads'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads')
     @OperationId('listAgentThreads')
@@ -1053,7 +1107,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}')
     @OperationId('getAgentThread')
@@ -1209,7 +1267,13 @@ export class AiAgentController extends BaseController {
      * agent opened in this thread, or the PR a verification thread verifies.
      * @summary Get AI agent thread pull request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadPullRequest',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}/pull-request')
     @OperationId('getAgentThreadPullRequest')
@@ -1237,7 +1301,13 @@ export class AiAgentController extends BaseController {
      * can drive several PRs across one or more repos.
      * @summary List AI agent thread pull requests
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.listAgentThreadWorkstreams',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}/pull-requests')
     @OperationId('listAgentThreadWorkstreams')
@@ -1259,7 +1329,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.createAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads')
     @OperationId('createAgentThread')
@@ -1296,7 +1370,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAgentThreadMessage',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages')
     @OperationId('createAgentThreadMessage')
@@ -1400,7 +1480,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.streamAgentThreadResponse',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/stream')
     @OperationId('streamAgentThreadResponse')
@@ -1491,7 +1577,13 @@ export class AiAgentController extends BaseController {
         req.on('aborted', handleClientDisconnect);
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.interruptAgentThreadMessage',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt')
     @OperationId('interruptAgentThreadMessage')
@@ -1513,7 +1605,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAgentThreadMessageSteer',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers')
     @OperationId('createAgentThreadMessageSteer')
@@ -1543,7 +1641,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.generateAgentThreadResponse',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/generate')
     @OperationId('generateAgentThreadResponse')
@@ -1574,7 +1678,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.generateAgentThreadTitle',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/generate-title')
     @OperationId('generateAgentThreadTitle')
@@ -1603,7 +1713,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.cloneAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/clone/{promptUuid}')
     @OperationId('cloneAgentThread')
@@ -1632,7 +1746,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateAgentThreadMessageSavedQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
@@ -1679,7 +1799,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.updatePromptFeedback'),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/feedback')
     @OperationId('updatePromptFeedback')
@@ -1753,7 +1877,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifact'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/artifacts/{artifactUuid}')
     @OperationId('getArtifact')
@@ -1790,7 +1918,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifactVersion'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}')
     @OperationId('getArtifactVersion')
@@ -1832,7 +1964,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifactVizQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-query',
@@ -1887,6 +2023,9 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAiAgentThreadShare',
+        ),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/threads/{threadUuid}/shares')
@@ -1990,7 +2129,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionSavedDashboard',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedDashboard',
@@ -2023,7 +2168,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionSavedSql',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedSql',
@@ -2097,6 +2248,9 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionVizConfig',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Patch(
@@ -2135,6 +2289,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.createEvaluation'),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/evaluations')
@@ -2165,6 +2320,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.runEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/run')
@@ -2191,7 +2347,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluations'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations')
     @OperationId('getEvaluations')
@@ -2215,7 +2375,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluation'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}')
     @OperationId('getEvaluation')
@@ -2241,7 +2405,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluationRuns'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}/runs')
     @OperationId('getEvaluationRuns')
@@ -2278,7 +2446,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluationRunResults'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}/runs/{runUuid}')
     @OperationId('getEvaluationRunResults')
@@ -2310,6 +2482,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.updateEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}/evaluations/{evalUuid}')
@@ -2343,6 +2516,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.appendToEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/append')
@@ -2375,6 +2549,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.deleteEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/{agentUuid}/evaluations/{evalUuid}')

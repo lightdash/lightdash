@@ -71,6 +71,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -405,7 +406,13 @@ export class AppGenerateController extends BaseController {
     /**
      * @summary Get data app visualization render metadata for a saved chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AppGenerateController.getChartDataAppVizRenderMetadata',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/render-metadata',
@@ -436,7 +443,13 @@ export class AppGenerateController extends BaseController {
     /**
      * @summary Get a data app visualization preview token for a saved chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AppGenerateController.getChartDataAppVizPreviewToken',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/versions/{version}/preview-token',
@@ -683,7 +696,11 @@ export class AppGenerateController extends BaseController {
      * Get an app with its version history, paginated backwards.
      * @summary Get app with versions
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getApp'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuidOrSlug}')
     @OperationId('getApp')
@@ -1095,7 +1112,11 @@ export class AppGenerateController extends BaseController {
      * Mints a short-lived JWT for accessing an app version preview in an iframe.
      * @summary Get preview token
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getPreviewToken'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuid}/versions/{version}/preview-token')
     @OperationId('getAppPreviewToken')
@@ -1150,7 +1171,11 @@ export class AppGenerateController extends BaseController {
      * Import source code for a data app version.
      * @summary Import app code
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.importAppCode'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/upload')
     @OperationId('importAppCode')
@@ -1322,7 +1347,11 @@ export class AppGenerateController extends BaseController {
      * @summary List app schedulers
      * @param includeLatestRun include the most recent run for each scheduler
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getAppSchedulers'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuid}/schedulers')
     @OperationId('getAppSchedulers')

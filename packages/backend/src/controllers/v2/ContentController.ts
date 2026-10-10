@@ -37,6 +37,7 @@ import {
     getEmbedContentListingSpaceUuids,
     toSessionUser,
 } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { ContentArgs } from '../../models/ContentModel/ContentModelTypes';
 import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
 import { BaseController } from '../baseController';
@@ -49,7 +50,11 @@ export class ContentController extends BaseController {
      * Get content (charts, dashboards, spaces)
      * @summary List content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.listContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('List content')
@@ -121,7 +126,11 @@ export class ContentController extends BaseController {
      * Move a single item (Chart, Dashboard, Space) to another space
      * @summary Move content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.moveContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/:projectUuid/move')
     @OperationId('Move content')
@@ -154,7 +163,11 @@ export class ContentController extends BaseController {
      * Move multiple items (Charts, Dashboards, Spaces) to another space
      * @summary Bulk move content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.bulkMoveContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/bulk-action/:projectUuid/move')
     @OperationId('Bulk move content')
@@ -188,7 +201,11 @@ export class ContentController extends BaseController {
      * instance has soft delete enabled, otherwise deletes permanently.
      * @summary Delete content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.deleteContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/:projectUuid/delete')
     @OperationId('Delete content')
@@ -217,7 +234,11 @@ export class ContentController extends BaseController {
      * cannot delete are skipped and reported in the response.
      * @summary Bulk delete content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.bulkDeleteContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/bulk-action/:projectUuid/delete')
     @OperationId('Bulk delete content')
@@ -289,7 +310,11 @@ export class ContentController extends BaseController {
      * Restore a soft-deleted item (chart, dashboard, etc.)
      * @summary Restore content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('ContentController.restoreContent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/:projectUuid/restore')
     @OperationId('Restore content')
@@ -310,7 +335,13 @@ export class ContentController extends BaseController {
      * Permanently delete a soft-deleted item (chart, dashboard, etc.)
      * @summary Permanently delete content
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'ContentController.permanentlyDeleteContent',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/:projectUuid/permanent')
     @OperationId('Permanently delete content')

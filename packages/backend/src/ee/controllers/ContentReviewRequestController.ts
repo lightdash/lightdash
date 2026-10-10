@@ -35,6 +35,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -84,6 +85,9 @@ export class ContentReviewRequestController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'ContentReviewRequestController.updateSettings',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/settings')
@@ -151,7 +155,13 @@ export class ContentReviewRequestController extends BaseController {
     }
 
     /** @summary Find related charts using names and query definitions */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'ContentReviewRequestController.compareSimilar',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/similar')
     @OperationId('compareSimilarContentForReview')
@@ -236,6 +246,7 @@ export class ContentReviewRequestController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ContentReviewRequestController.submit'),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/')
@@ -289,6 +300,7 @@ export class ContentReviewRequestController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ContentReviewRequestController.approve'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{requestUuid}/approve')
@@ -319,6 +331,7 @@ export class ContentReviewRequestController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ContentReviewRequestController.reject'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{requestUuid}/reject')
@@ -349,6 +362,7 @@ export class ContentReviewRequestController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('ContentReviewRequestController.cancel'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{requestUuid}/cancel')

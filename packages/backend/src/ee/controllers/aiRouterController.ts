@@ -28,6 +28,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -132,7 +133,11 @@ export class AiRouterController extends BaseController {
      * Route a user prompt to the best candidate agent in the current project.
      * @summary Route prompt
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiRouterController.route'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/route')
     @OperationId('routeAiAgent')
@@ -155,7 +160,11 @@ export class AiRouterController extends BaseController {
      * abandoned the flow.
      * @summary Commit router decision
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiRouterController.commit'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/decisions/{decisionUuid}/commit')
     @OperationId('commitAiRouterDecision')

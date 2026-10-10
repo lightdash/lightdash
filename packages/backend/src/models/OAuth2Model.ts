@@ -400,11 +400,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return `${AuthTokenPrefix.OAUTH_REFRESH}${nanoid(64)}`;
     }
 
-    async validateScope(
-        user: UserWithOrganizationUuid,
-        client: Client,
-        scope: string[] = [],
-    ): Promise<string[] | false> {
+    async getScopeMode(user: UserWithOrganizationUuid) {
         const storedUser = await this.database('users')
             .select('user_uuid')
             .where('user_id', user.userId)
@@ -412,10 +408,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (!storedUser) {
             throw new AuthorizationError('OAuth user not found');
         }
-        const mode = await resolveOAuthScopeMode(this.featureFlagModel, {
+        return resolveOAuthScopeMode(this.featureFlagModel, {
             organizationUuid: user.organizationUuid,
             userUuid: storedUser.user_uuid,
         });
+    }
+
+    async validateScope(
+        user: UserWithOrganizationUuid,
+        client: Client,
+        scope: string[] = [],
+    ): Promise<string[] | false> {
+        const mode = await this.getScopeMode(user);
         if (mode === null) return scope;
 
         const registeredScopes: string[] = client.scopes ?? [];

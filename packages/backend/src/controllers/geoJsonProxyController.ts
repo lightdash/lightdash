@@ -9,6 +9,7 @@ import {
     SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     secureFetch,
     SecureFetchError,
@@ -85,7 +86,11 @@ export class GeoJsonProxyController extends BaseController {
      * @param url the URL of the GeoJSON file
      * @summary Proxy GeoJSON
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('GeoJsonProxyController.get'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get()
     @OperationId('getGeoJson')

@@ -18,7 +18,7 @@ import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
-import { ScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
+import { createScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
 
 export enum OAuthScope {
     READ = 'read',
@@ -74,7 +74,11 @@ export class OAuthService extends BaseService {
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
             extendedGrantTypes: {
-                refresh_token: ScopeCheckedRefreshTokenGrant,
+                refresh_token: createScopeCheckedRefreshTokenGrant((user) =>
+                    this.oauthModel.getScopeMode(
+                        user as UserWithOrganizationUuid,
+                    ),
+                ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
                     ? {
                           [TOKEN_EXCHANGE_GRANT_TYPE]:

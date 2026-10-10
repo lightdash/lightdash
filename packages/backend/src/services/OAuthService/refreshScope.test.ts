@@ -311,3 +311,73 @@ it.each([null, 'log', 'enforce'] as const)(
         expect(Logger.warn).toHaveBeenCalledTimes(mode === null ? 0 : 1);
     },
 );
+
+it('matches upstream revocation and call order for a widened scope with the flag off', async () => {
+    flags.get.mockResolvedValue({ enabled: false });
+    vi.mocked(model.getRefreshToken).mockResolvedValue({
+        accessToken: '',
+        refreshToken: 'refresh',
+        scope: ['read'],
+        client,
+        user,
+    });
+    const upstream = new OAuth2Server({
+        model,
+        requireClientAuthentication: { refresh_token: false },
+    });
+    const request = () =>
+        tokenRequest({
+            grant_type: 'refresh_token',
+            refresh_token: 'refresh',
+            scope: 'write',
+        });
+    const calls: string[] = [];
+    vi.mocked(model.getRefreshToken).mockImplementation(async () => {
+        calls.push('getRefreshToken');
+        return {
+            accessToken: '',
+            refreshToken: 'refresh',
+            scope: ['read'],
+            client,
+            user,
+        };
+    });
+    vi.mocked(model.revokeToken).mockImplementation(async () => {
+        calls.push('revokeToken');
+        return true;
+    });
+    await expect(
+        upstream.token(request(), new OAuth2Server.Response({})),
+    ).rejects.toMatchObject({ name: 'invalid_scope' });
+    const upstreamCalls = [...calls];
+    const revocations = vi.mocked(model.revokeToken).mock.calls.length;
+    calls.length = 0;
+    vi.mocked(model.revokeToken).mockClear();
+    await expect(
+        service.token(request(), new OAuth2Server.Response({})),
+    ).rejects.toMatchObject({ name: 'invalid_scope' });
+    expect(calls).toEqual(upstreamCalls);
+    expect(model.revokeToken).toHaveBeenCalledTimes(revocations);
+    expect(revocations).toBe(1);
+});
+
+it.each([null, 'log', 'enforce'] as const)(
+    'preserves an undefined refresh scope in %s mode',
+    async (mode) => {
+        flags.get.mockImplementation(async ({ featureFlagId }) => ({
+            enabled:
+                featureFlagId === FeatureFlags.AgentIdentity
+                    ? mode !== null
+                    : mode === 'enforce',
+        }));
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            client,
+            user,
+        });
+        await expect(refresh()).resolves.toMatchObject({ scope: undefined });
+        expect(model.revokeToken).toHaveBeenCalledOnce();
+        expect(Logger.warn).not.toHaveBeenCalled();
+    },
+);

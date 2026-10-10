@@ -31,6 +31,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -52,7 +53,11 @@ export class AiAgentSkillController extends BaseController {
      * skills are included on request so one of their versions can be restored.
      * @summary List AI agent skills
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.listSkills'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('listAiAgentSkills')
@@ -77,7 +82,11 @@ export class AiAgentSkillController extends BaseController {
      * by path. Names filter the set; missing names are reported.
      * @summary Download AI agent skills as code
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.getSkillsAsCode'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/code')
     @OperationId('getAiAgentSkillsAsCode')
@@ -129,7 +138,11 @@ export class AiAgentSkillController extends BaseController {
      * warnings the editor and the CLI show.
      * @summary Validate an AI agent skill
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.validateSkill'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/validate')
     @OperationId('validateAiAgentSkill')
@@ -179,7 +192,11 @@ export class AiAgentSkillController extends BaseController {
      * skills are returned too, so their history stays reachable.
      * @summary Get an AI agent skill
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.getSkill'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{skillUuid}')
     @OperationId('getAiAgentSkill')
@@ -252,7 +269,11 @@ export class AiAgentSkillController extends BaseController {
      * Every version of the skill, newest first, without content.
      * @summary List an AI agent skill's versions
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.listVersions'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{skillUuid}/versions')
     @OperationId('listAiAgentSkillVersions')
@@ -275,7 +296,11 @@ export class AiAgentSkillController extends BaseController {
      * One version of the skill with its full content.
      * @summary Get one version of an AI agent skill
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentSkillController.getVersion'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{skillUuid}/versions/{versionNumber}')
     @OperationId('getAiAgentSkillVersion')

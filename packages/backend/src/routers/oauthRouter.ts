@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -489,6 +490,7 @@ oauthRouter.post('/register', async (req, res) => {
 oauthRouter.get(
     '/userinfo',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('oauthRouter GET /userinfo'),
     isAuthenticated,
     async (req, res) => {
         const user = req.user!;

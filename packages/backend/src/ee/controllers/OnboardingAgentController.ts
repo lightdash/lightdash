@@ -20,6 +20,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -143,6 +144,7 @@ export class OnboardingAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('OnboardingAgentController.cancelRun'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentOnboardingRunUuid}/cancel')

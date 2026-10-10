@@ -22,6 +22,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -69,6 +70,9 @@ export class SchedulerAiAugmentationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'SchedulerAiAugmentationController.upsertAugmentation',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Put('/')
@@ -98,6 +102,9 @@ export class SchedulerAiAugmentationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'SchedulerAiAugmentationController.deleteAugmentation',
+        ),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/')
