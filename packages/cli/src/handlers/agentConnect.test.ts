@@ -167,6 +167,48 @@ describe('agent connect', () => {
         expect(process.exitCode ?? 0).toBe(0);
     });
 
+    it.each(['organization', null] as const)(
+        'returns without a server for a shared agent account with requirement source %s',
+        async (requirementSource) => {
+            vi.mocked(lightdashApi).mockResolvedValue({
+                ...agentAccess,
+                requirementSource,
+                identity: 'ai_service_account',
+                source: 'ai_service_account',
+                enabled: true,
+                refusal: null,
+            });
+            await agentConnectHandler({ verbose: false });
+            expect(console.error).toHaveBeenCalledExactlyOnceWith(
+                'Not needed: agents on this project use the shared agent account',
+            );
+            expect(process.exitCode).toBeUndefined();
+            expect(http.Server.prototype.listen).not.toHaveBeenCalled();
+            expect(openBrowser).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reports a refusal for a shared agent account', async () => {
+        const message = 'Ask an admin to review the connection.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            identity: 'ai_service_account',
+            source: 'ai_service_account',
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.PRINCIPAL_FAILED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+            },
+        });
+        await agentConnectHandler({ verbose: false });
+        expect(console.error).toHaveBeenCalledExactlyOnceWith(message);
+        expect(process.exitCode).toBe(1);
+        expect(http.Server.prototype.listen).not.toHaveBeenCalled();
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('returns without a server when connection is not required', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...agentAccess,

@@ -8,6 +8,9 @@ export type AgentOptions = {
     verbose: boolean;
 };
 
+export const isUsingSharedAgentAccount = (access: AiAccessForUser): boolean =>
+    access.refusal === null && access.identity === 'ai_service_account';
+
 export const resolveAgentProject = async (
     project?: string,
 ): Promise<string> => {

@@ -12,6 +12,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
     getAgentAccess,
+    isUsingSharedAgentAccount,
     resolveAgentProject,
     type AgentOptions,
 } from './agentAccess';
@@ -57,6 +58,12 @@ export const agentConnectHandler = async (
     const access = await getAgentAccess(projectUuid);
     if (isConnected(access)) {
         console.error('Agent already connected');
+        return;
+    }
+    if (isUsingSharedAgentAccount(access)) {
+        console.error(
+            'Not needed: agents on this project use the shared agent account',
+        );
         return;
     }
     if (access.requirementSource === null) {
