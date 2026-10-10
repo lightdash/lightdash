@@ -4,14 +4,15 @@ import {
     AuthTokenPrefix,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
+    type LightdashUser,
     type OAuthClientSummary,
 } from '@lightdash/common';
-import type {
-    AuthorizationCode,
-    AuthorizationCodeModel,
-    Client,
-    Token,
-    User,
+import OAuth2Server, {
+    type AuthorizationCode,
+    type AuthorizationCodeModel,
+    type Client,
+    type Token,
+    type User,
 } from '@node-oauth/oauth2-server';
 import { Knex } from 'knex';
 import { nanoid } from 'nanoid';
@@ -21,10 +22,14 @@ import {
     resolveOAuthScopeMode,
     scopesForOAuthRecord,
 } from '../auth/oauthScopes/mode';
+import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
+import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
+import { resolveOAuthSecurityStrict } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
+import { matchesRedirectUriStrict } from './oauthStrictRedirectUri';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -126,7 +131,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             | 'scope'
             | 'codeChallenge'
             | 'codeChallengeMethod'
-        >,
+        > &
+            OAuthResourceBinding,
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<AuthorizationCode> {
@@ -142,6 +148,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             organization_uuid: user.organizationUuid,
             code_challenge: code.codeChallenge,
             code_challenge_method: code.codeChallengeMethod,
+            resource: code.resource ?? null,
         });
 
         return {
@@ -153,6 +160,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             user,
             codeChallenge: code.codeChallenge,
             codeChallengeMethod: code.codeChallengeMethod,
+            resource: code.resource ?? null,
         };
     }
 
@@ -193,6 +201,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             scope: result.scope,
             codeChallenge: result.code_challenge,
             codeChallengeMethod: result.code_challenge_method,
+            resource: result.resource ?? null,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
@@ -214,13 +223,115 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return result > 0;
     }
 
+    private async lockRefreshRotation(
+        database: Knex,
+        userId: number,
+    ): Promise<void> {
+        await database.raw(
+            "SELECT pg_advisory_xact_lock(hashtext('oauth_refresh_rotation'), ?)",
+            [userId],
+        );
+    }
+
+    private async revokeRefreshFamily(
+        database: Knex,
+        token: Token,
+        familyUuid: string | null,
+        reason: 'reused' | 'race',
+    ): Promise<void> {
+        if (familyUuid === null) return;
+        await database('oauth2_refresh_tokens')
+            .where('family_uuid', familyUuid)
+            .update({
+                revoked_at: database.raw('coalesce(revoked_at, now())'),
+            });
+        await database('oauth2_access_tokens')
+            .where('family_uuid', familyUuid)
+            .del();
+        Logger.warn('oauth_refresh_token_reuse', {
+            clientId: token.client.id,
+            userUuid: token.user.userUuid ?? null,
+            familyUuid,
+            reason,
+        });
+    }
+
+    private async consumeRefreshToken(
+        database: Knex,
+        token: Token,
+        familyUuid: string | null,
+    ): Promise<boolean> {
+        const consumed = await database('oauth2_refresh_tokens')
+            .whereNull('revoked_at')
+            .where('refresh_token', token.refreshToken)
+            .update({
+                revoked_at: database.fn.now(),
+                ...(familyUuid === null
+                    ? {}
+                    : {
+                          family_uuid: database.raw(
+                              'coalesce(family_uuid, ?)',
+                              [familyUuid],
+                          ),
+                      }),
+            });
+        if (consumed > 0) return true;
+        const parent = await database('oauth2_refresh_tokens')
+            .select('family_uuid')
+            .where('refresh_token', token.refreshToken)
+            .first();
+        await this.revokeRefreshFamily(
+            database,
+            token,
+            parent?.family_uuid ?? null,
+            'race',
+        );
+        return false;
+    }
+
     async saveToken(
+        token: Token & Partial<OAuthTokenBinding>,
+        client: Client,
+        user: UserWithOrganizationUuid,
+    ): Promise<Token> {
+        const { parentRefreshToken = null, ...issued } = token;
+        if (parentRefreshToken === null)
+            return this.persistToken(this.database, issued, client, user);
+        const saved = await this.database.transaction(async (database) => {
+            await this.lockRefreshRotation(database, user.userId);
+            const parent = {
+                ...issued,
+                refreshToken: parentRefreshToken,
+                client,
+                user,
+            };
+            if (
+                !(await this.consumeRefreshToken(
+                    database,
+                    parent,
+                    issued.familyUuid ?? null,
+                ))
+            )
+                return null;
+            return this.persistToken(database, issued, client, user);
+        });
+        if (saved === null)
+            throw new OAuth2Server.InvalidGrantError(
+                'Refresh token is already used',
+            );
+        return saved;
+    }
+
+    private async persistToken(
+        database: Knex,
         token: Token,
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<Token> {
-        await this.database('oauth2_access_tokens').insert({
+        await database('oauth2_access_tokens').insert({
             access_token: token.accessToken,
+            resource: token.resource ?? null,
+            family_uuid: token.familyUuid ?? null,
             expires_at: token.accessTokenExpiresAt,
             scope: Array.isArray(token.scope)
                 ? token.scope
@@ -231,8 +342,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
         });
 
         if (token.refreshToken) {
-            await this.database('oauth2_refresh_tokens').insert({
+            await database('oauth2_refresh_tokens').insert({
                 refresh_token: token.refreshToken,
+                resource: token.resource ?? null,
+                family_uuid: token.familyUuid ?? null,
                 expires_at: token.refreshTokenExpiresAt,
                 scope: Array.isArray(token.scope)
                     ? token.scope
@@ -242,17 +355,64 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organization_uuid: user.organizationUuid,
             });
 
-            await this.database('oauth2_refresh_tokens')
+            await database('oauth2_refresh_tokens')
                 .where('user_id', user.userId)
-                .where((query) =>
-                    query
-                        .where('expires_at', '<', this.database.fn.now())
-                        .orWhere(
-                            'revoked_at',
-                            '<',
-                            this.database.raw("now() - interval '1 day'"),
-                        ),
-                )
+                .where((query) => {
+                    if (
+                        token.familyUuid !== null &&
+                        token.familyUuid !== undefined
+                    ) {
+                        void query
+                            .where((legacy) =>
+                                legacy
+                                    .whereNull('family_uuid')
+                                    .where((expired) =>
+                                        expired
+                                            .where(
+                                                'expires_at',
+                                                '<',
+                                                database.fn.now(),
+                                            )
+                                            .orWhere(
+                                                'revoked_at',
+                                                '<',
+                                                database.raw(
+                                                    "now() - interval '1 day'",
+                                                ),
+                                            ),
+                                    ),
+                            )
+                            .orWhere((family) =>
+                                family
+                                    .whereNotNull('family_uuid')
+                                    .whereNotExists(
+                                        database(
+                                            'oauth2_refresh_tokens as live',
+                                        )
+                                            .select(database.raw('1'))
+                                            .where(
+                                                'live.family_uuid',
+                                                database.ref(
+                                                    'oauth2_refresh_tokens.family_uuid',
+                                                ),
+                                            )
+                                            .where(
+                                                'live.expires_at',
+                                                '>=',
+                                                database.fn.now(),
+                                            ),
+                                    ),
+                            );
+                    } else {
+                        void query
+                            .where('expires_at', '<', database.fn.now())
+                            .orWhere(
+                                'revoked_at',
+                                '<',
+                                database.raw("now() - interval '1 day'"),
+                            );
+                    }
+                })
                 .del();
         }
 
@@ -286,6 +446,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         return {
             accessToken: result.access_token,
+            resource: result.resource ?? null,
             accessTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
@@ -305,6 +466,17 @@ export class OAuth2Model implements AuthorizationCodeModel {
     async revokeToken(token: Token): Promise<boolean> {
         if (!token.refreshToken) {
             return false;
+        }
+
+        if (
+            await this.isSecurityStrictForOAuthUser(
+                token.user as UserWithOrganizationUuid,
+            )
+        ) {
+            return this.database.transaction(async (database) => {
+                await this.lockRefreshRotation(database, token.user.userId);
+                return this.consumeRefreshToken(database, token, null);
+            });
         }
 
         const result = await this.database('oauth2_refresh_tokens')
@@ -355,18 +527,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
             return false;
         }
 
-        if (
-            result.revoked_at !== null &&
-            result.revoked_at !== undefined &&
-            Date.now() - new Date(result.revoked_at).getTime() >
-                this.getRotationGraceMs()
-        ) {
-            return false;
-        }
-
-        return {
+        const token: Token = {
             accessToken: '',
             refreshToken: result.refresh_token,
+            resource: result.resource ?? null,
+            familyUuid: result.family_uuid ?? null,
             refreshTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
@@ -383,6 +548,37 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organizationUuid: result.organization_uuid,
             },
         };
+        const strict = await this.isSecurityStrictForOAuthUser(
+            token.user as UserWithOrganizationUuid,
+        );
+        if (
+            strict &&
+            result.revoked_at !== null &&
+            result.revoked_at !== undefined
+        ) {
+            if (token.familyUuid !== null) {
+                await this.database.transaction(async (database) => {
+                    await this.lockRefreshRotation(database, token.user.userId);
+                    await this.revokeRefreshFamily(
+                        database,
+                        token,
+                        token.familyUuid,
+                        'reused',
+                    );
+                });
+            }
+            return false;
+        }
+        if (
+            result.revoked_at !== null &&
+            result.revoked_at !== undefined &&
+            Date.now() - new Date(result.revoked_at).getTime() >
+                this.getRotationGraceMs()
+        ) {
+            return false;
+        }
+
+        return token;
     }
 
     async generateAccessToken(
@@ -412,6 +608,26 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return resolveOAuthScopeMode(this.featureFlagModel, {
             organizationUuid: user.organizationUuid,
             userUuid: storedUser.user_uuid,
+        });
+    }
+
+    async isSecurityStrict(
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'> | null,
+    ): Promise<boolean> {
+        return resolveOAuthSecurityStrict(this.featureFlagModel, user);
+    }
+
+    async isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
+        const storedUser = await this.database('users')
+            .select('user_uuid')
+            .where('user_id', user.userId)
+            .first();
+        if (!storedUser) throw new AuthorizationError('OAuth user not found');
+        return this.isSecurityStrict({
+            userUuid: storedUser.user_uuid,
+            organizationUuid: user.organizationUuid,
         });
     }
 
@@ -458,6 +674,18 @@ export class OAuth2Model implements AuthorizationCodeModel {
             Array.isArray(client.redirectUris) &&
             client.redirectUris.some((uri) =>
                 matchesRegisteredRedirectUri(redirectUri, uri),
+            )
+        );
+    }
+
+    async validateRedirectUriStrict(
+        redirectUri: string,
+        client: Client,
+    ): Promise<boolean> {
+        return (
+            Array.isArray(client.redirectUris) &&
+            client.redirectUris.some((uri) =>
+                matchesRedirectUriStrict(redirectUri, uri),
             )
         );
     }

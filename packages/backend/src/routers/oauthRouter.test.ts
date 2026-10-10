@@ -1,14 +1,21 @@
-import { ManagedSignInError } from '@lightdash/common';
+import {
+    generateOAuthRedirectPage,
+    ManagedSignInError,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { InvalidTargetError } from '../auth/oauthScopes/oauthResources';
 import { AiAccessService } from '../services/AiAccessService/AiAccessService';
 import type { OAuthService } from '../services/OAuthService/OAuthService';
 import { AgentCredentialResolutionError } from '../services/WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
-import oauthRouter from './oauthRouter';
+import oauthRouter, {
+    oauthConfig,
+    oauthProtectedResourceConfig,
+} from './oauthRouter';
 
 vi.mock('../logging/logger', () => ({
     default: {
@@ -25,6 +32,8 @@ type OAuthServiceStub = Pick<
     | 'getClientDisplayName'
     | 'getSiteUrl'
     | 'token'
+    | 'isSecurityStrict'
+    | 'getAuthorizationResource'
 >;
 
 const getRedirectUrl = (body: string): string => {
@@ -44,6 +53,12 @@ const getRedirectUrl = (body: string): string => {
 };
 
 const createOAuthService = () => ({
+    isSecurityStrict: vi
+        .fn<OAuthServiceStub['isSecurityStrict']>()
+        .mockResolvedValue(false),
+    getAuthorizationResource: vi
+        .fn<OAuthServiceStub['getAuthorizationResource']>()
+        .mockResolvedValue(null),
     authorize: vi.fn<OAuthServiceStub['authorize']>(),
     validateRedirectUri: vi.fn<OAuthServiceStub['validateRedirectUri']>(),
     getClientDisplayName: vi
@@ -173,6 +188,9 @@ const requestAuthorize = async ({
                     );
                 },
             );
+            request.setTimeout(500, () =>
+                request.destroy(new Error('OAuth route timed out')),
+            );
             request.on('error', reject);
             request.end(JSON.stringify(body));
         });
@@ -240,7 +258,7 @@ const requestAuthorizePage = async ({
     prompt?: Awaited<ReturnType<AiAccessService['getAgentConnectPrompt']>>;
     rawQuery?: string;
     aiAccessService?: AiAccessService;
-}): Promise<{ body: string; status: number }> => {
+}): Promise<{ body: string; headers: IncomingHttpHeaders; status: number }> => {
     const app = express();
     app.use(express.json());
     app.use((request, _response, next) => {
@@ -275,10 +293,14 @@ const requestAuthorizePage = async ({
                     response.on('end', () =>
                         resolve({
                             body: Buffer.concat(chunks).toString('utf8'),
+                            headers: response.headers,
                             status: response.statusCode ?? 0,
                         }),
                     );
                 },
+            );
+            request.setTimeout(500, () =>
+                request.destroy(new Error('OAuth route timed out')),
             );
             request.on('error', reject);
             request.end();
@@ -291,6 +313,36 @@ const requestAuthorizePage = async ({
 };
 
 describe('OAuth authorize redirects', () => {
+    it('refuses a strict invalid redirect before rendering consent', async () => {
+        const oauthService = createOAuthService();
+        oauthService.isSecurityStrict.mockResolvedValue(true);
+        oauthService.validateRedirectUri.mockResolvedValue(false);
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client',
+                redirect_uri: 'http://example.com/cb',
+            },
+            oauthService,
+        });
+        expect(response.status).toBe(400);
+        expect(response.body).toBe(
+            '{"error":"invalid_request","error_description":"Invalid client_id or redirect_uri"}',
+        );
+        expect(response.headers.location).toBeUndefined();
+        expect(response.body).not.toContain('http://example.com/cb');
+        expect(response.body).not.toContain('http-equiv="refresh"');
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
+        expect(oauthService.validateRedirectUri).toHaveBeenCalledWith(
+            'client',
+            'http://example.com/cb',
+            {
+                userId: authenticatedUser.userId,
+                organizationUuid: authenticatedUser.organizationUuid,
+            },
+        );
+    });
+
     it.each(['sso', 'local'])(
         'preserves the %s mobile login intent in the outer authorization request',
         async (intent) => {
@@ -337,6 +389,10 @@ describe('OAuth authorize redirects', () => {
             expect(oauthService.validateRedirectUri).toHaveBeenCalledWith(
                 'client-id',
                 redirectUri,
+                {
+                    userId: authenticatedUser.userId,
+                    organizationUuid: authenticatedUser.organizationUuid,
+                },
             );
         },
     );
@@ -814,4 +870,245 @@ describe('OAuth token errors', () => {
         expect(body).not.toHaveProperty('status');
         expect(body).not.toHaveProperty('results');
     });
+});
+
+describe('strict OAuth redirects and consent', () => {
+    it.each(['success', 'denied', 'invalid_target'] as const)(
+        'adds the issuer to %s redirects under strict',
+        async (outcome) => {
+            const oauthService = createOAuthService();
+            oauthService.getSiteUrl.mockReturnValue('https://server.example/');
+            oauthService.isSecurityStrict.mockResolvedValue(true);
+            oauthService.validateRedirectUri.mockResolvedValue(true);
+            if (outcome === 'invalid_target')
+                oauthService.authorize.mockRejectedValue(
+                    new InvalidTargetError(),
+                );
+            else
+                oauthService.authorize.mockResolvedValue({
+                    authorizationCode: 'code',
+                } as OAuth2Server.AuthorizationCode);
+            const response = await requestAuthorize({
+                body: {
+                    approve: outcome === 'denied' ? 'false' : 'true',
+                    client_id: 'client',
+                    redirect_uri: 'https://client.example/callback',
+                    state: 'state',
+                },
+                oauthService,
+            });
+            const redirect = new URL(getRedirectUrl(response.body));
+            const { issuer } = oauthConfig(oauthService.getSiteUrl(), true);
+            expect(redirect.searchParams.get('iss')).toBe(
+                'https://server.example',
+            );
+            expect(redirect.searchParams.get('iss')).toBe(issuer);
+            expect(
+                oauthProtectedResourceConfig(issuer).authorization_servers,
+            ).toEqual([issuer]);
+            expect(redirect.searchParams.get('state')).toBe('state');
+            if (outcome === 'success')
+                expect(redirect.searchParams.get('code')).toBe('code');
+            else
+                expect(redirect.searchParams.get('error')).toBe(
+                    outcome === 'denied' ? 'access_denied' : 'invalid_target',
+                );
+        },
+    );
+    it.each(['https://server.example', 'https://server.example/'])(
+        'preserves flag-off redirects byte for byte for %s',
+        async (siteUrl) => {
+            const oauthService = createOAuthService();
+            oauthService.getSiteUrl.mockReturnValue(siteUrl);
+            oauthService.validateRedirectUri.mockResolvedValue(true);
+            oauthService.authorize.mockResolvedValue({
+                authorizationCode: 'code',
+            } as OAuth2Server.AuthorizationCode);
+            const response = await requestAuthorize({
+                body: {
+                    approve: 'true',
+                    client_id: 'client',
+                    redirect_uri: 'https://client.example/callback',
+                },
+                oauthService,
+            });
+            expect(
+                new URL(getRedirectUrl(response.body)).searchParams.has('iss'),
+            ).toBe(false);
+            expect(response.body).toBe(
+                generateOAuthRedirectPage({
+                    redirectUrl: 'https://client.example/callback?code=code',
+                    message: 'Redirecting you back to your application...',
+                }),
+            );
+        },
+    );
+    it('preserves the canonical resource through the consent form POST', async () => {
+        const oauthService = createOAuthService();
+        const resource = 'https://eu1.lightdash.cloud/api/v1/mcp';
+        oauthService.getAuthorizationResource.mockResolvedValue(resource);
+        oauthService.isSecurityStrict.mockResolvedValue(true);
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.authorize.mockResolvedValue({
+            authorizationCode: 'code',
+        } as OAuth2Server.AuthorizationCode);
+        const page = await requestAuthorizePage({
+            query: {
+                client_id: 'client',
+                redirect_uri: 'https://client.example/callback',
+                resource: `${resource}/`,
+            },
+            oauthService,
+        });
+        const match = /name="resource" value="([^"]+)"/.exec(page.body);
+        expect(match?.[1]).toBe(resource);
+        await requestAuthorize({
+            body: {
+                approve: 'true',
+                client_id: 'client',
+                redirect_uri: 'https://client.example/callback',
+                resource: match![1],
+            },
+            oauthService,
+        });
+        expect(oauthService.authorize).toHaveBeenCalledWith(
+            expect.objectContaining({
+                body: expect.objectContaining({ resource }),
+            }),
+            expect.anything(),
+            expect.anything(),
+        );
+    });
+    it('refuses an invalid resource before showing the consent form', async () => {
+        const oauthService = createOAuthService();
+        oauthService.getAuthorizationResource.mockRejectedValue(
+            new InvalidTargetError(),
+        );
+        oauthService.isSecurityStrict.mockResolvedValue(true);
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client',
+                redirect_uri: 'https://client.example/callback',
+                resource: 'https://foreign.example',
+            },
+            oauthService,
+        });
+        const redirect = new URL(getRedirectUrl(response.body));
+        expect(redirect.searchParams.get('error')).toBe('invalid_target');
+        expect(redirect.searchParams.get('iss')).toBe(
+            oauthService.getSiteUrl(),
+        );
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
+    });
+    it('returns status 400 for invalid_target token errors', async () => {
+        expect(await requestToken(new InvalidTargetError())).toMatchObject({
+            status: 400,
+            body: { error: 'invalid_target' },
+        });
+    });
+});
+
+it.each(['GET', 'POST'])(
+    'forwards %s authorization flag failures to Express',
+    async (method) => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isSecurityStrict.mockRejectedValue(
+            new Error('flag lookup failed'),
+        );
+        const params = {
+            client_id: 'client',
+            redirect_uri: 'https://client.example/callback',
+            approve: 'false',
+        };
+        const response =
+            method === 'GET'
+                ? await requestAuthorizePage({ query: params, oauthService })
+                : await requestAuthorize({ body: params, oauthService });
+        expect(response.status).toBe(500);
+    },
+);
+
+it.each(['GET', 'POST'])(
+    'forwards %s missing-organization redirect flag failures to Express',
+    async (method) => {
+        const oauthService = createOAuthService();
+        oauthService.validateRedirectUri.mockResolvedValue(true);
+        oauthService.isSecurityStrict.mockRejectedValue(
+            new Error('flag lookup failed'),
+        );
+        const params = {
+            client_id: 'client',
+            redirect_uri: 'https://client.example/callback',
+        };
+        const response =
+            method === 'GET'
+                ? await requestAuthorizePage({
+                      query: params,
+                      oauthService,
+                      user: userWithoutOrganization,
+                  })
+                : await requestAuthorize({
+                      body: params,
+                      oauthService,
+                      user: userWithoutOrganization,
+                  });
+        expect(response.status).toBe(500);
+    },
+);
+
+it('forwards flag failures from the authorization error redirect to Express', async () => {
+    const oauthService = createOAuthService();
+    oauthService.validateRedirectUri.mockResolvedValue(true);
+    oauthService.authorize.mockRejectedValue(new Error('authorization failed'));
+    oauthService.isSecurityStrict.mockRejectedValue(
+        new Error('flag lookup failed'),
+    );
+    const response = await requestAuthorize({
+        body: {
+            client_id: 'client',
+            redirect_uri: 'https://client.example/callback',
+            approve: 'true',
+        },
+        oauthService,
+    });
+    expect(response.status).toBe(500);
+});
+
+it('forwards flag failures while sending an authorization page error redirect', async () => {
+    const oauthService = createOAuthService();
+    oauthService.validateRedirectUri.mockResolvedValue(true);
+    oauthService.getAuthorizationResource.mockRejectedValue(
+        new InvalidTargetError(),
+    );
+    oauthService.isSecurityStrict
+        .mockResolvedValueOnce(false)
+        .mockRejectedValue(new Error('flag lookup failed'));
+    const response = await requestAuthorizePage({
+        query: {
+            client_id: 'client',
+            redirect_uri: 'https://client.example/callback',
+        },
+        oauthService,
+    });
+    expect(response.status).toBe(500);
+});
+
+it('forwards flag failures while sending an authorization POST error redirect', async () => {
+    const oauthService = createOAuthService();
+    oauthService.validateRedirectUri.mockResolvedValue(true);
+    oauthService.authorize.mockRejectedValue(new Error('authorization failed'));
+    oauthService.isSecurityStrict
+        .mockResolvedValueOnce(false)
+        .mockRejectedValue(new Error('flag lookup failed'));
+    const response = await requestAuthorize({
+        body: {
+            client_id: 'client',
+            redirect_uri: 'https://client.example/callback',
+            approve: 'true',
+        },
+        oauthService,
+    });
+    expect(response.status).toBe(500);
 });

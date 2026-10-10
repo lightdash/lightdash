@@ -1,6 +1,13 @@
 // eslint-disable @typescript-eslint/dot-notation
-import { AnyType } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    AnyType,
+    ParameterError,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { fromSession } from '../../auth/account/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { UserModel } from '../../models/UserModel';
@@ -26,7 +33,11 @@ describe('OAuthService edge cases', () => {
             getSessionUserFromCacheOrDB: vi.fn(),
         } as AnyType;
         mockOAuthModel = {
+            createClient: vi.fn().mockResolvedValue({ clientId: 'created' }),
+            updateClient: vi.fn().mockResolvedValue({ clientId: 'updated' }),
             getAccessToken: vi.fn(),
+            isSecurityStrict: vi.fn().mockResolvedValue(false),
+            isSecurityStrictForOAuthUser: vi.fn().mockResolvedValue(false),
             getClient: vi.fn(),
             getRefreshToken: vi.fn(),
             revokeToken: vi.fn(),
@@ -244,6 +255,98 @@ describe('OAuthService edge cases', () => {
                 'access-token',
             );
         });
+    });
+
+    describe('registration redirect policy', () => {
+        const account = fromSession(
+            {
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            },
+            'cookie',
+        );
+        const register = {
+            dcr: (redirectUris: string[]) =>
+                oauthService.registerClient({
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+            'admin-create': (redirectUris: string[]) =>
+                oauthService.createAdminClient(account, {
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+            'admin-update': (redirectUris: string[]) =>
+                oauthService.updateClient(account, 'client', {
+                    clientName: 'Client',
+                    redirectUris,
+                }),
+        };
+
+        describe.each(['dcr', 'admin-create', 'admin-update'] as const)(
+            '%s',
+            (operation) => {
+                it('accepts strict native and loopback registration', async () => {
+                    mockOAuthModel.isSecurityStrict.mockResolvedValue(true);
+                    await expect(
+                        register[operation]([
+                            'https://app.example.com/cb',
+                            'http://localhost:*/callback',
+                            'com.lightdash.mobile:/oauth/callback',
+                        ]),
+                    ).resolves.toMatchObject({ clientId: expect.any(String) });
+                });
+
+                describe.each([false, true])('strict=%s', (strict) => {
+                    it.each([
+                        'http://example.com/cb',
+                        'https://app.example.com/*',
+                    ])(
+                        'checks every redirect and flag identity for %s',
+                        async (uri) => {
+                            mockOAuthModel.isSecurityStrict.mockResolvedValue(
+                                strict,
+                            );
+                            const result = register[operation]([
+                                'https://app.example.com/cb',
+                                uri,
+                            ]);
+                            if (strict) {
+                                await expect(result).rejects.toThrow(
+                                    new ParameterError(
+                                        `Invalid redirect URI ${uri}`,
+                                    ),
+                                );
+                                expect(
+                                    mockOAuthModel.createClient,
+                                ).not.toHaveBeenCalled();
+                                expect(
+                                    mockOAuthModel.updateClient,
+                                ).not.toHaveBeenCalled();
+                            } else {
+                                await expect(result).resolves.toMatchObject({
+                                    clientId: expect.any(String),
+                                });
+                            }
+                            expect(
+                                mockOAuthModel.isSecurityStrict,
+                            ).toHaveBeenCalledWith(
+                                operation === 'dcr'
+                                    ? null
+                                    : {
+                                          userUuid: account.user.id,
+                                          organizationUuid:
+                                              account.organization
+                                                  .organizationUuid,
+                                      },
+                            );
+                        },
+                    );
+                });
+            },
+        );
     });
 
     describe('registerClient', () => {

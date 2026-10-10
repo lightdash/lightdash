@@ -12,12 +12,19 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
+import {
+    oauthApiResource,
+    requestedOAuthResource,
+} from '../../auth/oauthScopes/oauthResources';
+import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
+import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
+import { createResourceBoundAuthorizationCodeGrant } from './ResourceBoundAuthorizationCodeGrant';
 import { createScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
 
 export enum OAuthScope {
@@ -74,16 +81,34 @@ export class OAuthService extends BaseService {
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
             extendedGrantTypes: {
-                refresh_token: createScopeCheckedRefreshTokenGrant((user) =>
-                    this.oauthModel.getScopeMode(
-                        user as UserWithOrganizationUuid,
-                    ),
+                authorization_code: createResourceBoundAuthorizationCodeGrant(
+                    (user) =>
+                        this.oauthModel.isSecurityStrictForOAuthUser(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    this.getSiteUrl(),
+                ) as unknown as typeof OAuth2Server.AbstractGrantType,
+                refresh_token: createScopeCheckedRefreshTokenGrant(
+                    (user) =>
+                        this.oauthModel.getScopeMode(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    (user) =>
+                        this.oauthModel.isSecurityStrictForOAuthUser(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    this.getSiteUrl(),
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 ...(getManagedSignInService
                     ? {
                           [TOKEN_EXCHANGE_GRANT_TYPE]:
                               createMicrosoftTokenExchangeGrantType(
                                   getManagedSignInService,
+                                  (user) =>
+                                      this.oauthModel.isSecurityStrictForOAuthUser(
+                                          user as UserWithOrganizationUuid,
+                                      ),
+                                  this.getSiteUrl(),
                               ),
                       }
                     : {}),
@@ -111,22 +136,85 @@ export class OAuthService extends BaseService {
         response: OAuth2Server.Response,
         user: UserWithOrganizationUuid,
     ): Promise<OAuth2Server.AuthorizationCode> {
-        return this.oauthServer.authorize(request, response, {
+        const resource = await this.getAuthorizationResource(request, user);
+        const model: OAuth2Server.AuthorizationCodeModel = Object.create(
+            this.oauthModel,
+        ) as OAuth2Server.AuthorizationCodeModel;
+        if (await this.isSecurityStrictForOAuthUser(user))
+            model.validateRedirectUri = (redirectUri, client) =>
+                this.oauthModel.validateRedirectUriStrict(redirectUri, client);
+        model.saveAuthorizationCode = (code, client, savedUser) =>
+            this.oauthModel.saveAuthorizationCode(
+                { ...code, resource },
+                client,
+                savedUser as UserWithOrganizationUuid,
+            );
+        const options = {
+            model,
             authenticateHandler: {
                 handle: () => user,
             },
-        });
+        };
+        return this.oauthServer.authorize(request, response, options);
+    }
+
+    public async getAuthorizationResource(
+        request: OAuth2Server.Request,
+        user: UserWithOrganizationUuid,
+    ): Promise<string | null> {
+        const strict = await this.isSecurityStrictForOAuthUser(user);
+        if (
+            strict &&
+            !(request.body.code_challenge || request.query?.code_challenge)
+        ) {
+            throw new OAuth2Server.InvalidRequestError(
+                'Missing parameter: `code_challenge`',
+            );
+        }
+        const method =
+            request.body?.code_challenge_method ||
+            request.query?.code_challenge_method;
+        if (strict && method && method !== 'S256')
+            throw new OAuth2Server.InvalidRequestError(
+                'Invalid parameter: `code_challenge_method`',
+            );
+        return strict
+            ? (requestedOAuthResource(this.getSiteUrl(), {
+                  body: request.body ?? {},
+                  query: request.query ?? null,
+              }) ?? oauthApiResource(this.getSiteUrl()))
+            : null;
+    }
+
+    public isSecurityStrict(
+        user: Parameters<OAuth2Model['isSecurityStrict']>[0],
+    ): Promise<boolean> {
+        return this.oauthModel.isSecurityStrict(user);
+    }
+
+    public isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
+        return this.oauthModel.isSecurityStrictForOAuthUser(user);
     }
 
     public async validateRedirectUri(
         clientId: string,
         redirectUri: string,
+        user: UserWithOrganizationUuid | null = null,
     ): Promise<boolean> {
         const client = await this.oauthModel.getClient(clientId);
-        return (
-            client !== false &&
-            this.oauthModel.validateRedirectUri(redirectUri, client)
-        );
+        if (client === false) return false;
+        const strict =
+            user === null
+                ? await this.isSecurityStrict(null)
+                : await this.isSecurityStrictForOAuthUser(user);
+        if (strict)
+            return this.oauthModel.validateRedirectUriStrict(
+                redirectUri,
+                client,
+            );
+        return this.oauthModel.validateRedirectUri(redirectUri, client);
     }
 
     public async token(
@@ -140,6 +228,30 @@ export class OAuthService extends BaseService {
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
     ): Promise<OAuth2Server.Token> {
+        if (request.query?.access_token !== undefined) {
+            const queryToken = request.query.access_token;
+            const headerToken =
+                /^Bearer\s+(\S+)$/i.exec(
+                    request.get('authorization') ?? '',
+                )?.[1] ?? null;
+            const candidates = new Set(
+                [queryToken, headerToken].filter(
+                    (token): token is string => typeof token === 'string',
+                ),
+            );
+            const refusals = await Promise.all(
+                [...candidates].map(async (candidate) => {
+                    const token =
+                        await this.oauthModel.getAccessToken(candidate);
+                    return token
+                        ? this.isSecurityStrictForOAuthUser(
+                              token.user as UserWithOrganizationUuid,
+                          )
+                        : false;
+                }),
+            );
+            if (refusals.some(Boolean)) throw new OAuthBearerRefusalError();
+        }
         return this.oauthServer.authenticate(request, response);
     }
 
@@ -175,8 +287,13 @@ export class OAuthService extends BaseService {
         grantTypes?: string[];
         scopes?: string[];
     }) {
+        const strict = await this.isSecurityStrict(null);
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -236,8 +353,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -278,8 +403,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }

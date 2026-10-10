@@ -11,8 +11,13 @@ import {
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
+import {
+    oauthApiResource,
+    oauthMcpResource,
+} from '../auth/oauthScopes/oauthResources';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
+    acceptAnyOAuthAudience,
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -43,6 +48,12 @@ const getValidatedRedirectUrl = async (
     const isRegistered = await getOAuthService(req).validateRedirectUri(
         clientId,
         redirectUri,
+        req.user?.userId && req.user.organizationUuid
+            ? {
+                  userId: req.user.userId,
+                  organizationUuid: req.user.organizationUuid,
+              }
+            : null,
     );
     if (!isRegistered) {
         return null;
@@ -61,11 +72,19 @@ const sendInvalidRedirectResponse = (res: express.Response) =>
         error_description: 'Invalid client_id or redirect_uri',
     });
 
-const sendOAuthRedirectResponse = (
+const sendOAuthRedirectResponse = async (
+    req: express.Request,
     res: express.Response,
     redirectUrl: URL,
     message: string,
 ) => {
+    const user =
+        req.user?.userId && req.user.organizationUuid ? req.user : null;
+    if (await getOAuthService(req).isSecurityStrict(user))
+        redirectUrl.searchParams.set(
+            'iss',
+            oauthApiResource(getOAuthService(req).getSiteUrl()),
+        );
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthRedirectPage({
@@ -127,205 +146,262 @@ const sendMissingOrganizationResponse = async (
     if (typeof params.state === 'string' && params.state !== '') {
         redirectUrl.searchParams.set('state', params.state);
     }
-    return sendOAuthRedirectResponse(res, redirectUrl, message);
+    return sendOAuthRedirectResponse(req, res, redirectUrl, message);
 };
 
 // Get authorization - use OAuth2Server
 oauthRouter.get('/authorize', async (req, res, next) => {
-    const loginUrl = `/login?redirect=${encodeURIComponent(
-        req.originalUrl || req.url,
-    )}`;
-    if (!req.user) {
-        return res.redirect(loginUrl);
-    }
-    const {
-        client_id,
-        redirect_uri,
-        scope,
-        state,
-        code_challenge,
-        code_challenge_method,
-    } = req.query;
-    if (!client_id || !redirect_uri) {
-        return res.status(400).send('Missing required parameters');
-    }
-
-    const identity = resolveOAuthIdentity(req.user);
-    if ('missingField' in identity) {
-        return sendMissingOrganizationResponse(req, res, {
-            missingField: identity.missingField,
-            clientId: client_id,
-            redirectUri: redirect_uri,
-            state,
-        });
-    }
-
-    // Render authorize page using Handlebars template
-    const scopeString = (scope as string) || '';
-    const clientName = await getOAuthService(req).getClientDisplayName(
-        client_id as string,
-    );
-    const prompt = await req.services
-        .getAiAccessService()
-        .getAgentConnectPrompt(req.user);
-    const authorizeUrl = new URL(
-        req.originalUrl || req.url,
-        getOAuthService(req).getSiteUrl(),
-    );
-    authorizeUrl.searchParams.delete('error');
-    const connectParams = new URLSearchParams({
-        redirect: authorizeUrl.href,
-        entryPoint: scopeString
-            .split(/\s+/)
-            .some(
-                (value) =>
-                    value === OAuthScope.MCP_READ ||
-                    value === OAuthScope.MCP_WRITE,
-            )
-            ? AgentIdentityConnectEntryPoint.MCP_CONSENT
-            : AgentIdentityConnectEntryPoint.OAUTH_CONSENT,
-    });
-    if (prompt.required) connectParams.set('project', prompt.projectUuid);
-    res.set('Content-Type', 'text/html');
-    return res.send(
-        generateOAuthAuthorizePage({
-            action: '/api/v1/oauth/authorize',
-            client_id: client_id as string,
-            client_name: clientName,
-            scope: scopeString,
-            scopes: parseScopeString(scopeString),
-            user: {
-                firstName: req.user.firstName,
-                lastName: req.user.lastName,
-                email: req.user.email ?? null,
-                organizationName: req.user.organizationName ?? '',
-            },
-            loginUrl,
-            agentConnect: prompt.required
-                ? {
-                      url: `/api/v1/login/snowflake-ai?${connectParams}`,
-                      reason: prompt.reason,
-                      error:
-                          typeof req.query.error === 'string'
-                              ? req.query.error
-                              : null,
-                  }
-                : null,
-            hiddenInputs: [
-                {
-                    name: 'response_type',
-                    value: (req.query.response_type ||
-                        req.body.response_type ||
-                        'code') as string,
-                },
-                {
-                    name: 'client_id',
-                    value: client_id as string,
-                },
-                {
-                    name: 'redirect_uri',
-                    value: redirect_uri as string,
-                },
-                {
-                    name: 'scope',
-                    value: scopeString,
-                },
-                {
-                    name: 'state',
-                    value: (state || '') as string,
-                },
-                {
-                    name: 'code_challenge',
-                    value: (code_challenge || '') as string,
-                },
-                {
-                    name: 'code_challenge_method',
-                    value: (code_challenge_method || '') as string,
-                },
-            ],
-        }),
-    );
-});
-
-oauthRouter.post('/authorize', async (req, res) => {
-    if (!req.user) {
-        return res.status(401).send('Unauthorized');
-    }
-    const identity = resolveOAuthIdentity(req.user);
-    if ('missingField' in identity) {
-        return sendMissingOrganizationResponse(req, res, {
-            missingField: identity.missingField,
-            clientId: req.body.client_id,
-            redirectUri: req.body.redirect_uri,
-            state: req.body.state,
-        });
-    }
-
-    const redirectUrl = await getValidatedRedirectUrl(req, {
-        clientId: req.body.client_id,
-        redirectUri: req.body.redirect_uri,
-    });
-    if (!redirectUrl) {
-        return sendInvalidRedirectResponse(res);
-    }
-
-    if (req.body.approve === 'false') {
-        redirectUrl.searchParams.set('error', 'access_denied');
-        if (req.body.state) {
-            redirectUrl.searchParams.set('state', req.body.state);
-        }
-        return sendOAuthRedirectResponse(
-            res,
-            redirectUrl,
-            'Access denied. Redirecting you back to your application...',
-        );
-    }
-
-    // Normalize scope parameter directly on the request object
-    if (req.body.scope && Array.isArray(req.body.scope)) {
-        req.body.scope = req.body.scope.join(' ');
-    }
-    if (req.query.scope && Array.isArray(req.query.scope)) {
-        req.query.scope = req.query.scope.join(' ');
-    }
-
-    const oauthService = getOAuthService(req);
-    const oauthReq = new OAuth2Server.Request(req);
-    const oauthRes = new OAuth2Server.Response(res);
     try {
-        const authorizationCode = await oauthService.authorize(
-            oauthReq,
-            oauthRes,
-            {
-                userId: identity.userId,
-                organizationUuid: identity.organizationUuid,
-            },
-        );
-        redirectUrl.searchParams.set(
-            'code',
-            authorizationCode.authorizationCode,
-        );
-        if (req.body.state) {
-            redirectUrl.searchParams.set('state', req.body.state);
+        const loginUrl = `/login?redirect=${encodeURIComponent(
+            req.originalUrl || req.url,
+        )}`;
+        if (!req.user) {
+            return res.redirect(loginUrl);
+        }
+        const {
+            client_id,
+            redirect_uri,
+            scope,
+            state,
+            code_challenge,
+            code_challenge_method,
+        } = req.query;
+        if (!client_id || !redirect_uri) {
+            return res.status(400).send('Missing required parameters');
         }
 
-        return sendOAuthRedirectResponse(
-            res,
-            redirectUrl,
-            'Redirecting you back to your application...',
+        const identity = resolveOAuthIdentity(req.user);
+        if ('missingField' in identity) {
+            return await sendMissingOrganizationResponse(req, res, {
+                missingField: identity.missingField,
+                clientId: client_id,
+                redirectUri: redirect_uri,
+                state,
+            });
+        }
+
+        if (
+            (await getOAuthService(req).isSecurityStrict(req.user)) &&
+            !(await getValidatedRedirectUrl(req, {
+                clientId: client_id,
+                redirectUri: redirect_uri,
+            }))
+        )
+            return sendInvalidRedirectResponse(res);
+
+        let resource: string | null;
+        try {
+            resource = await getOAuthService(req).getAuthorizationResource(
+                new OAuth2Server.Request(req),
+                identity,
+            );
+        } catch (error) {
+            const redirectUrl = await getValidatedRedirectUrl(req, {
+                clientId: client_id,
+                redirectUri: redirect_uri,
+            });
+            if (!redirectUrl) return sendInvalidRedirectResponse(res);
+            redirectUrl.searchParams.set(
+                'error',
+                error instanceof OAuth2Server.OAuthError
+                    ? error.name
+                    : 'server_error',
+            );
+            if (typeof state === 'string' && state !== '')
+                redirectUrl.searchParams.set('state', state);
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                redirectUrl,
+                'An error occurred. Redirecting you back to your application...',
+            );
+        }
+
+        // Render authorize page using Handlebars template
+        const scopeString = (scope as string) || '';
+        const clientName = await getOAuthService(req).getClientDisplayName(
+            client_id as string,
+        );
+        const prompt = await req.services
+            .getAiAccessService()
+            .getAgentConnectPrompt(req.user);
+        const authorizeUrl = new URL(
+            req.originalUrl || req.url,
+            getOAuthService(req).getSiteUrl(),
+        );
+        authorizeUrl.searchParams.delete('error');
+        const connectParams = new URLSearchParams({
+            redirect: authorizeUrl.href,
+            entryPoint: scopeString
+                .split(/\s+/)
+                .some(
+                    (value) =>
+                        value === OAuthScope.MCP_READ ||
+                        value === OAuthScope.MCP_WRITE,
+                )
+                ? AgentIdentityConnectEntryPoint.MCP_CONSENT
+                : AgentIdentityConnectEntryPoint.OAUTH_CONSENT,
+        });
+        if (prompt.required) connectParams.set('project', prompt.projectUuid);
+        res.set('Content-Type', 'text/html');
+        return res.send(
+            generateOAuthAuthorizePage({
+                action: '/api/v1/oauth/authorize',
+                client_id: client_id as string,
+                client_name: clientName,
+                scope: scopeString,
+                scopes: parseScopeString(scopeString),
+                user: {
+                    firstName: req.user.firstName,
+                    lastName: req.user.lastName,
+                    email: req.user.email ?? null,
+                    organizationName: req.user.organizationName ?? '',
+                },
+                loginUrl,
+                agentConnect: prompt.required
+                    ? {
+                          url: `/api/v1/login/snowflake-ai?${connectParams}`,
+                          reason: prompt.reason,
+                          error:
+                              typeof req.query.error === 'string'
+                                  ? req.query.error
+                                  : null,
+                      }
+                    : null,
+                hiddenInputs: [
+                    ...(resource === null
+                        ? []
+                        : [{ name: 'resource', value: resource }]),
+                    {
+                        name: 'response_type',
+                        value: (req.query.response_type ||
+                            req.body.response_type ||
+                            'code') as string,
+                    },
+                    {
+                        name: 'client_id',
+                        value: client_id as string,
+                    },
+                    {
+                        name: 'redirect_uri',
+                        value: redirect_uri as string,
+                    },
+                    {
+                        name: 'scope',
+                        value: scopeString,
+                    },
+                    {
+                        name: 'state',
+                        value: (state || '') as string,
+                    },
+                    {
+                        name: 'code_challenge',
+                        value: (code_challenge || '') as string,
+                    },
+                    {
+                        name: 'code_challenge_method',
+                        value: (code_challenge_method || '') as string,
+                    },
+                ],
+            }),
         );
     } catch (error) {
-        Logger.error(`Authorization error: ${error}`);
-        const errorUrl = new URL(req.body.redirect_uri);
-        errorUrl.searchParams.set('error', 'server_error');
-        if (req.body.state) {
-            errorUrl.searchParams.set('state', req.body.state);
+        return next(error);
+    }
+});
+
+oauthRouter.post('/authorize', async (req, res, next) => {
+    try {
+        if (!req.user) {
+            return res.status(401).send('Unauthorized');
         }
-        return sendOAuthRedirectResponse(
-            res,
-            errorUrl,
-            'An error occurred. Redirecting you back to your application...',
-        );
+        const identity = resolveOAuthIdentity(req.user);
+        if ('missingField' in identity) {
+            return await sendMissingOrganizationResponse(req, res, {
+                missingField: identity.missingField,
+                clientId: req.body.client_id,
+                redirectUri: req.body.redirect_uri,
+                state: req.body.state,
+            });
+        }
+
+        const redirectUrl = await getValidatedRedirectUrl(req, {
+            clientId: req.body.client_id,
+            redirectUri: req.body.redirect_uri,
+        });
+        if (!redirectUrl) {
+            return sendInvalidRedirectResponse(res);
+        }
+
+        if (req.body.approve === 'false') {
+            redirectUrl.searchParams.set('error', 'access_denied');
+            if (req.body.state) {
+                redirectUrl.searchParams.set('state', req.body.state);
+            }
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                redirectUrl,
+                'Access denied. Redirecting you back to your application...',
+            );
+        }
+
+        // Normalize scope parameter directly on the request object
+        if (req.body.scope && Array.isArray(req.body.scope)) {
+            req.body.scope = req.body.scope.join(' ');
+        }
+        if (req.query.scope && Array.isArray(req.query.scope)) {
+            req.query.scope = req.query.scope.join(' ');
+        }
+
+        const oauthService = getOAuthService(req);
+        const oauthReq = new OAuth2Server.Request(req);
+        const oauthRes = new OAuth2Server.Response(res);
+        try {
+            const authorizationCode = await oauthService.authorize(
+                oauthReq,
+                oauthRes,
+                {
+                    userId: identity.userId,
+                    organizationUuid: identity.organizationUuid,
+                },
+            );
+            redirectUrl.searchParams.set(
+                'code',
+                authorizationCode.authorizationCode,
+            );
+            if (req.body.state) {
+                redirectUrl.searchParams.set('state', req.body.state);
+            }
+
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                redirectUrl,
+                'Redirecting you back to your application...',
+            );
+        } catch (error) {
+            Logger.error(`Authorization error: ${error}`);
+            const errorUrl = new URL(req.body.redirect_uri);
+            const strict = await oauthService.isSecurityStrict(req.user);
+            errorUrl.searchParams.set(
+                'error',
+                strict && error instanceof OAuth2Server.OAuthError
+                    ? error.name
+                    : 'server_error',
+            );
+            if (req.body.state) {
+                errorUrl.searchParams.set('state', req.body.state);
+            }
+            return await sendOAuthRedirectResponse(
+                req,
+                res,
+                errorUrl,
+                'An error occurred. Redirecting you back to your application...',
+            );
+        }
+    } catch (error) {
+        return next(error);
     }
 });
 
@@ -358,12 +434,15 @@ oauthRouter.post('/token', async (req, res, next) => {
             error instanceof Error ? error.message : 'Unknown error';
 
         // Return 401 for authentication errors, 400 for other errors
-        const statusCode =
+        const isAuthenticationError =
+            !(
+                error instanceof OAuth2Server.OAuthError &&
+                error.name === 'invalid_target'
+            ) &&
             !isManagedSignInError(errorMessage) &&
             (errorMessage.includes('Invalid') ||
-                errorMessage.includes('required'))
-                ? 401
-                : 400;
+                errorMessage.includes('required'));
+        const statusCode = isAuthenticationError ? 401 : 400;
         res.status(statusCode).json(
             error instanceof OAuth2Server.OAuthError
                 ? { error: error.name, error_description: errorMessage }
@@ -489,6 +568,7 @@ oauthRouter.post('/register', async (req, res) => {
 // UserInfo endpoint (OpenID Connect)
 oauthRouter.get(
     '/userinfo',
+    acceptAnyOAuthAudience,
     allowApiKeyAuthentication,
     requireOAuthScopeOperation('oauthRouter GET /userinfo'),
     isAuthenticated,
@@ -585,24 +665,26 @@ oauthRouter.delete(
 
 // OAuth2 Discovery endpoint
 // This endpoint is used by MCP clients and other OAuth clients to discover the OAuth2 server
-export function oauthConfig(baseUrl: string) {
+export function oauthConfig(baseUrl: string, strict = false) {
+    const issuer = strict ? oauthApiResource(baseUrl) : baseUrl;
     return {
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
-        token_endpoint: `${baseUrl}/api/v1/oauth/token`,
-        introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
-        revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
-        registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
-        userinfo_endpoint: `${baseUrl}/api/v1/oauth/userinfo`,
+        issuer,
+        authorization_endpoint: `${issuer}/api/v1/oauth/authorize`,
+        token_endpoint: `${issuer}/api/v1/oauth/token`,
+        introspection_endpoint: `${issuer}/api/v1/oauth/introspect`,
+        revocation_endpoint: `${issuer}/api/v1/oauth/revoke`,
+        registration_endpoint: `${issuer}/api/v1/oauth/register`,
+        userinfo_endpoint: `${issuer}/api/v1/oauth/userinfo`,
         response_types_supported: ['code'],
         grant_types_supported: [
             'authorization_code',
             'refresh_token',
-            'client_credentials',
+            ...(strict ? [] : ['client_credentials']),
         ],
         token_endpoint_auth_methods_supported: [
             'client_secret_basic',
             'client_secret_post',
+            ...(strict ? ['none'] : []),
         ],
         code_challenge_methods_supported: ['S256'],
         scopes_supported: [
@@ -611,17 +693,30 @@ export function oauthConfig(baseUrl: string) {
             OAuthScope.MCP_READ,
             OAuthScope.MCP_WRITE,
         ],
-        pkce_required: false, // PKCE is optional but recommended
+        pkce_required: strict,
+        ...(strict
+            ? { authorization_response_iss_parameter_supported: true }
+            : {}),
     };
 }
 
 // Export the handler for reuse at root level
-export const oauthAuthorizationServerHandler = (
+export const oauthAuthorizationServerHandler = async (
     req: express.Request,
     res: express.Response,
+    next: express.NextFunction,
 ) => {
-    const baseUrl = getOAuthService(req).getSiteUrl();
-    res.json(oauthConfig(baseUrl));
+    try {
+        const baseUrl = getOAuthService(req).getSiteUrl();
+        return res.json(
+            oauthConfig(
+                baseUrl,
+                await getOAuthService(req).isSecurityStrict(null),
+            ),
+        );
+    } catch (error) {
+        return next(error);
+    }
 };
 
 oauthRouter.get(
@@ -660,12 +755,27 @@ export function oauthProtectedResourceConfig(baseUrl: string) {
 // This will be requested by the MCP client if authentication fails,
 // The endpoint is provided by the returnHeaderIfUnauthenticated method in mcpRouter.ts
 // Export the handler for reuse at root level
-export const oauthProtectedResourceHandler = (
+export const oauthProtectedResourceHandler = async (
     req: express.Request,
     res: express.Response,
+    next: express.NextFunction,
 ) => {
-    const baseUrl = getOAuthService(req).getSiteUrl();
-    res.json(oauthProtectedResourceConfig(baseUrl));
+    try {
+        const baseUrl = getOAuthService(req).getSiteUrl();
+        const strict = await getOAuthService(req).isSecurityStrict(null);
+        return res.json(
+            strict
+                ? {
+                      ...oauthProtectedResourceConfig(
+                          oauthApiResource(baseUrl),
+                      ),
+                      resource: oauthMcpResource(baseUrl),
+                  }
+                : oauthProtectedResourceConfig(baseUrl),
+        );
+    } catch (error) {
+        return next(error);
+    }
 };
 
 oauthRouter.get(

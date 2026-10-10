@@ -16,10 +16,54 @@ import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
+import {
+    oauthApiResource,
+    oauthMcpResource,
+} from '../../auth/oauthScopes/oauthResources';
 import { OAuthScopePolicy } from '../../auth/oauthScopes/scopedAbility';
+import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+
+const isMcpRequest = (req: Request): boolean =>
+    req.baseUrl.toLowerCase().endsWith('/mcp');
+
+const refuseOAuthToken = (
+    req: Request,
+    res: Parameters<RequestHandler>[1],
+): void => {
+    if (isMcpRequest(req)) {
+        const siteUrl = oauthApiResource(
+            req.services.getOauthService().getSiteUrl(),
+        );
+        res.set(
+            'WWW-Authenticate',
+            `Bearer resource_metadata="${siteUrl}/api/v1/oauth/.well-known/oauth-protected-resource", error="invalid_token"`,
+        );
+    }
+    res.status(401).json({ error: 'invalid_token' });
+};
+
+export const acceptAnyOAuthAudience: RequestHandler = (_req, res, next) => {
+    res.locals.acceptAnyOAuthAudience = true;
+    next();
+};
+
+const hasWrongOAuthAudience = (
+    req: Request,
+    token: OAuth2Server.Token,
+): boolean => {
+    if (token.resource === null || token.resource === undefined) return false;
+    if (req.res?.locals.acceptAnyOAuthAudience === true) return false;
+    const siteUrl = req.services.getOauthService().getSiteUrl();
+    return (
+        token.resource !==
+        (isMcpRequest(req)
+            ? oauthMcpResource(siteUrl)
+            : oauthApiResource(siteUrl))
+    );
+};
 
 const getOAuthScopePolicy = async (
     req: Request,
@@ -98,6 +142,10 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
+            if (hasWrongOAuthAudience(req, token)) {
+                refuseOAuthToken(req, res);
+                return;
+            }
             req.services
                 .getUserService()
                 .findSessionUser({
@@ -133,7 +181,11 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     next(userError);
                 });
         })
-        .catch(() => {
+        .catch((error) => {
+            if (error instanceof OAuthBearerRefusalError) {
+                refuseOAuthToken(req, res);
+                return;
+            }
             // Not an OAuth token — continue without authenticating
             next();
         });
@@ -205,6 +257,10 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
         .getOauthService()
         .authenticate(oauthReq, oauthRes)
         .then((token) => {
+            if (hasWrongOAuthAudience(req, token)) {
+                refuseOAuthToken(req, res);
+                return;
+            }
             req.services
                 .getUserService()
                 .findSessionUser({
@@ -241,7 +297,11 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     next(userError);
                 });
         })
-        .catch(() => {
+        .catch((error) => {
+            if (error instanceof OAuthBearerRefusalError) {
+                refuseOAuthToken(req, res);
+                return;
+            }
             // Not an OAuth token — try service account and PAT
             authenticateWithServiceAccountOrPat();
         });

@@ -25,6 +25,15 @@ const lightdashConfig = {
 
 const featureFlagModel = { get: vi.fn<FeatureFlagModel['get']>() };
 
+beforeEach(() => {
+    featureFlagModel.get.mockResolvedValue({ enabled: false } as Awaited<
+        ReturnType<FeatureFlagModel['get']>
+    >);
+    getTracker()
+        .on.select(/from "users"/)
+        .response({ user_uuid: 'user-uuid' });
+});
+
 const mobileRedirectUri = 'com.lightdash.mobile://oauth/callback';
 const cliRedirectUri = 'http://localhost:*/callback';
 
@@ -234,6 +243,46 @@ describe('OAuth2Model.validateRedirectUri', () => {
         );
         expect(result).toBe(false);
     });
+
+    it('accepts an exact registered redirect URI with a query', async () => {
+        const redirectUri = 'https://client.example/callback?flow=oauth';
+        await expect(
+            model.validateRedirectUri(redirectUri, {
+                id: 'client',
+                grants: ['authorization_code'],
+                redirectUris: [redirectUri],
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it.each([
+        ['host', 'https://other.example/callback?flow=oauth'],
+        ['path', 'https://client.example/other?flow=oauth'],
+        ['query', 'https://client.example/callback?flow=other'],
+    ])(
+        'rejects a redirect URI with a different %s',
+        async (_part, redirectUri) => {
+            await expect(
+                model.validateRedirectUri(redirectUri, {
+                    id: 'client',
+                    grants: ['authorization_code'],
+                    redirectUris: [
+                        'https://client.example/callback?flow=oauth',
+                    ],
+                }),
+            ).resolves.toBe(false);
+        },
+    );
+
+    it('accepts a loopback port for the seeded CLI redirect pattern', async () => {
+        await expect(
+            model.validateRedirectUri('http://localhost:53682/callback', {
+                id: 'lightdash-cli',
+                grants: ['authorization_code'],
+                redirectUris: [cliRedirectUri],
+            }),
+        ).resolves.toBe(true);
+    });
 });
 
 describe('isMobileOAuthClient', () => {
@@ -292,6 +341,7 @@ describe('OAuth2Model refresh token rotation', () => {
 
         const revoked = await model.revokeToken({
             refreshToken: 'refresh-token',
+            user: { userId: 42, organizationUuid: 'organization-uuid' },
         } as AnyType);
 
         expect(revoked).toBe(true);
@@ -304,8 +354,14 @@ describe('OAuth2Model refresh token rotation', () => {
     it('keeps the first revocation timestamp when a client retries', async () => {
         tracker.on.update('oauth2_refresh_tokens').response(1);
 
-        await model.revokeToken({ refreshToken: 'refresh-token' } as AnyType);
-        await model.revokeToken({ refreshToken: 'refresh-token' } as AnyType);
+        await model.revokeToken({
+            refreshToken: 'refresh-token',
+            user: { userId: 42, organizationUuid: 'organization-uuid' },
+        } as AnyType);
+        await model.revokeToken({
+            refreshToken: 'refresh-token',
+            user: { userId: 42, organizationUuid: 'organization-uuid' },
+        } as AnyType);
 
         expect(tracker.history.update).toHaveLength(2);
         tracker.history.update.forEach((query) => {
@@ -381,8 +437,10 @@ describe('OAuth2Model refresh token rotation', () => {
         const housekeeping = tracker.history.delete[0];
         expect(housekeeping.sql).toContain('"user_id" = $1');
         expect(housekeeping.sql).toContain('"expires_at" < CURRENT_TIMESTAMP');
-        expect(housekeeping.sql).toContain("now() - interval '1 day'");
-        expect(housekeeping.bindings).toContain(42);
+        expect(housekeeping.sql).toBe(
+            'delete from "oauth2_refresh_tokens" where "user_id" = $1 and ("expires_at" < CURRENT_TIMESTAMP or "revoked_at" < now() - interval \'1 day\')',
+        );
+        expect(housekeeping.bindings).toEqual([42]);
     });
 });
 
@@ -534,7 +592,7 @@ describe('OAuth2Model.validateScope', () => {
 
     beforeEach(() => {
         featureFlagModel.get.mockReset();
-        tracker.on.select('users').response({ user_uuid: 'user-uuid' });
+        tracker.on.select(/from "users"/).response({ user_uuid: 'user-uuid' });
         warn = vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
     });
 
@@ -555,7 +613,7 @@ describe('OAuth2Model.validateScope', () => {
 
     it('rejects a missing user before resolving flags', async () => {
         tracker.reset();
-        tracker.on.select('users').responseOnce(undefined);
+        tracker.on.select(/from "users"/).responseOnce(undefined);
         await expect(
             model.validateScope(user, client, ['read']),
         ).rejects.toBeInstanceOf(AuthorizationError);
@@ -765,5 +823,338 @@ describe('OAuth2Model.validateScope', () => {
             ),
         ).resolves.toEqual(['write']);
         expect(warn).toHaveBeenCalledTimes(3);
+    });
+});
+
+describe('OAuth2Model resource storage', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    afterEach(() => getTracker().reset());
+
+    it.each([null, 'https://server.example/api/v1/mcp'])(
+        'persists resource %s on codes and both tokens',
+        async (resource) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_authorization_codes').response([]);
+            tracker.on.insert('oauth2_access_tokens').response([]);
+            tracker.on.insert('oauth2_refresh_tokens').response([]);
+            tracker.on.delete('oauth2_refresh_tokens').response(0);
+            const client = { id: 'client', grants: ['authorization_code'] };
+            const user = { userId: 42, organizationUuid: 'org' };
+            const code = await model.saveAuthorizationCode(
+                {
+                    authorizationCode: 'code',
+                    expiresAt: new Date(),
+                    redirectUri: 'https://client.example',
+                    resource,
+                },
+                client,
+                user,
+            );
+            expect(code.resource).toBe(resource);
+            await model.saveToken(
+                {
+                    accessToken: 'access',
+                    refreshToken: 'refresh',
+                    client,
+                    user,
+                    resource,
+                },
+                client,
+                user,
+            );
+            expect(tracker.history.insert).toHaveLength(3);
+            tracker.history.insert.forEach((query) => {
+                expect(query.sql).toContain('"resource"');
+                expect(query.bindings).toContain(resource);
+                if (!query.sql.includes('authorization_codes')) {
+                    expect(query.sql).toContain('"family_uuid"');
+                    expect(query.bindings).toContain(null);
+                }
+            });
+        },
+    );
+
+    it.each([null, 'https://server.example/api/v1/mcp'])(
+        'returns stored resource %s from all credential lookups',
+        async (resource) => {
+            const tracker = getTracker();
+            const row = {
+                authorization_code: 'code',
+                access_token: 'access',
+                refresh_token: 'refresh',
+                expires_at: new Date(Date.now() + 60000),
+                revoked_at: null,
+                redirect_uri: 'https://client.example',
+                client_id: 'client',
+                user_id: 42,
+                organization_uuid: 'org',
+                resource,
+                family_uuid: null,
+            };
+            tracker.on.select('oauth2_authorization_codes').response(row);
+            tracker.on.select('oauth2_access_tokens').response(row);
+            tracker.on.select('oauth2_refresh_tokens').response(row);
+            expect(await model.getAuthorizationCode('code')).toMatchObject({
+                resource,
+            });
+            expect(await model.getAccessToken('access')).toMatchObject({
+                resource,
+            });
+            expect(await model.getRefreshToken('refresh')).toMatchObject({
+                resource,
+            });
+        },
+    );
+});
+
+describe('OAuth2Model strict refresh rotation', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const flags = {
+        get: vi.fn(
+            async ({
+                featureFlagId,
+            }: Parameters<FeatureFlagModel['get']>[0]) => ({
+                id: featureFlagId,
+                enabled: true,
+            }),
+        ),
+    };
+    const model = new OAuth2Model(database, lightdashConfig, flags);
+    const user = { userId: 42, organizationUuid: 'org' };
+    const client = { id: 'client', grants: ['refresh_token'] };
+    const familyUuid = '11111111-1111-4111-8111-111111111111';
+    const parent = {
+        accessToken: '',
+        refreshToken: 'secret-parent-token',
+        familyUuid,
+        client,
+        user,
+    };
+    beforeEach(() => {
+        const tracker = getTracker();
+        tracker.on.select(/from "users"/).response({ user_uuid: 'user-uuid' });
+        tracker.on.select('pg_advisory_xact_lock').response([]);
+        vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+    afterEach(() => {
+        getTracker().reset();
+        vi.restoreAllMocks();
+    });
+    it('consumes a strict parent only when it is not revoked', async () => {
+        const tracker = getTracker();
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(1);
+        await expect(model.revokeToken(parent)).resolves.toBe(true);
+        expect(tracker.history.update[0].sql).toContain('"revoked_at" is null');
+        expect(tracker.history.update[0].sql).not.toContain('coalesce');
+        expect(tracker.history.transactions[0].queries[0].sql).toContain(
+            'pg_advisory_xact_lock',
+        );
+    });
+    it('commits family revocation when atomic consumption loses the race', async () => {
+        const tracker = getTracker();
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(0);
+        tracker.on
+            .select('oauth2_refresh_tokens')
+            .responseOnce({ family_uuid: familyUuid });
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(2);
+        tracker.on.delete('oauth2_access_tokens').responseOnce(2);
+        await expect(model.revokeToken(parent)).resolves.toBe(false);
+        expect(tracker.history.update[1].sql).toContain(
+            'coalesce(revoked_at, now())',
+        );
+        expect(tracker.history.update[1].bindings).toEqual([familyUuid]);
+        expect(tracker.history.delete[0].bindings).toEqual([familyUuid]);
+        expect(
+            tracker.history.transactions.every(
+                (transaction) => transaction.state === 'committed',
+            ),
+        ).toBe(true);
+        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_refresh_token_reuse',
+            { clientId: client.id, userUuid: null, familyUuid, reason: 'race' },
+        );
+        expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
+            'secret-parent-token',
+        );
+    });
+    it.each([1000, 2 * 86400000])(
+        'refuses revoked family tokens after %s ms and commits revocation',
+        async (age) => {
+            const tracker = getTracker();
+            tracker.on.select('oauth2_refresh_tokens').responseOnce({
+                refresh_token: parent.refreshToken,
+                family_uuid: familyUuid,
+                revoked_at: new Date(Date.now() - age),
+                expires_at: new Date(Date.now() + 60000),
+                client_id: client.id,
+                user_id: user.userId,
+                organization_uuid: user.organizationUuid,
+            });
+            tracker.on.update('oauth2_refresh_tokens').response(2);
+            tracker.on.delete('oauth2_access_tokens').response(2);
+            await expect(
+                model.getRefreshToken(parent.refreshToken!),
+            ).resolves.toBe(false);
+            expect(tracker.history.transactions[0].state).toBe('committed');
+            expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'oauth_refresh_token_reuse',
+                expect.objectContaining({ reason: 'reused', familyUuid }),
+            );
+        },
+    );
+    it('refuses revoked legacy tokens without a family action', async () => {
+        const tracker = getTracker();
+        tracker.on.select('oauth2_refresh_tokens').responseOnce({
+            refresh_token: parent.refreshToken,
+            family_uuid: null,
+            revoked_at: new Date(),
+            client_id: client.id,
+            user_id: user.userId,
+            organization_uuid: user.organizationUuid,
+        });
+        await expect(model.getRefreshToken(parent.refreshToken!)).resolves.toBe(
+            false,
+        );
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.delete).toHaveLength(0);
+        expect(Logger.warn).not.toHaveBeenCalled();
+    });
+    it('rolls back parent consumption when saving the child fails', async () => {
+        const tracker = getTracker();
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(1);
+        tracker.on.insert('oauth2_access_tokens').responseOnce([]);
+        tracker.on
+            .insert('oauth2_refresh_tokens')
+            .simulateErrorOnce('insert failed');
+        await expect(
+            model.saveToken(
+                {
+                    accessToken: 'child-access',
+                    refreshToken: 'child-refresh',
+                    parentRefreshToken: parent.refreshToken,
+                    familyUuid,
+                    client,
+                    user,
+                },
+                client,
+                user,
+            ),
+        ).rejects.toThrow('insert failed');
+        const transaction = tracker.history.transactions[0];
+        expect(transaction.state).toBe('rolled back');
+        expect(transaction.queries.map((query) => query.method)).toEqual([
+            'select',
+            'update',
+            'insert',
+            'insert',
+        ]);
+        expect(Logger.warn).not.toHaveBeenCalled();
+    });
+    it('commits race revocation before saveToken throws invalid_grant', async () => {
+        const tracker = getTracker();
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(0);
+        tracker.on
+            .select('oauth2_refresh_tokens')
+            .responseOnce({ family_uuid: familyUuid });
+        tracker.on.update('oauth2_refresh_tokens').responseOnce(2);
+        tracker.on.delete('oauth2_access_tokens').responseOnce(2);
+        await expect(
+            model.saveToken(
+                {
+                    accessToken: 'child-access',
+                    refreshToken: 'child-refresh',
+                    parentRefreshToken: parent.refreshToken,
+                    familyUuid,
+                    client,
+                    user,
+                },
+                client,
+                user,
+            ),
+        ).rejects.toMatchObject({ name: 'invalid_grant' });
+        expect(tracker.history.transactions[0].state).toBe('committed');
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+    it('keeps family evidence until every refresh token in the family expires', async () => {
+        const tracker = getTracker();
+        tracker.on.insert('oauth2_access_tokens').response([]);
+        tracker.on.insert('oauth2_refresh_tokens').response([]);
+        tracker.on.delete('oauth2_refresh_tokens').response(0);
+        await model.saveToken(
+            {
+                accessToken: 'access',
+                refreshToken: 'refresh',
+                familyUuid,
+                client,
+                user,
+            },
+            client,
+            user,
+        );
+        const housekeeping = tracker.history.delete[0];
+        expect(housekeeping.sql).toBe(
+            'delete from "oauth2_refresh_tokens" where "user_id" = $1 and (("family_uuid" is null and ("expires_at" < CURRENT_TIMESTAMP or "revoked_at" < now() - interval \'1 day\')) or ("family_uuid" is not null and not exists (select 1 from "oauth2_refresh_tokens" as "live" where "live"."family_uuid" = "oauth2_refresh_tokens"."family_uuid" and "live"."expires_at" >= CURRENT_TIMESTAMP)))',
+        );
+        expect(housekeeping.bindings).toEqual([user.userId]);
+        tracker.history.insert.forEach((query) =>
+            expect(query.bindings).toContain(familyUuid),
+        );
+    });
+});
+
+describe('OAuth2Model explicit security methods', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    afterEach(() => {
+        getTracker().reset();
+        vi.restoreAllMocks();
+    });
+
+    it('resolves the stored UUID for an OAuth user before checking strict mode', async () => {
+        const resolve = vi
+            .spyOn(model, 'isSecurityStrict')
+            .mockResolvedValue(true);
+        await expect(
+            model.isSecurityStrictForOAuthUser({
+                userId: 42,
+                organizationUuid: 'org',
+            }),
+        ).resolves.toBe(true);
+        expect(getTracker().history.select[0].bindings).toEqual([42, 1]);
+        expect(resolve).toHaveBeenCalledExactlyOnceWith({
+            userUuid: 'user-uuid',
+            organizationUuid: 'org',
+        });
+    });
+
+    it('refuses an OAuth user missing from storage', async () => {
+        getTracker().reset();
+        getTracker().on.select('users').response([]);
+        const resolve = vi.spyOn(model, 'isSecurityStrict');
+        await expect(
+            model.isSecurityStrictForOAuthUser({
+                userId: 42,
+                organizationUuid: 'org',
+            }),
+        ).rejects.toBeInstanceOf(AuthorizationError);
+        expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('keeps strict redirect checks separate from legacy wildcard matching', async () => {
+        const client = {
+            id: 'client',
+            grants: ['authorization_code'],
+            redirectUris: ['https://example.com/*'],
+        };
+        await expect(
+            model.validateRedirectUriStrict(
+                'https://example.com/callback',
+                client,
+            ),
+        ).resolves.toBe(false);
+        await expect(
+            model.validateRedirectUri('https://example.com/callback', client),
+        ).resolves.toBe(true);
     });
 });
