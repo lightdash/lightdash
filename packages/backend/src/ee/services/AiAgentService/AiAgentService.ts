@@ -8093,7 +8093,10 @@ export class AiAgentService extends BaseService {
                     },
                 );
             } catch (error) {
-                if (!this.isShuttingDown) {
+                if (
+                    !this.isShuttingDown &&
+                    !(error instanceof AiAccessRefusedError)
+                ) {
                     this.inFlightStreamPrompts.delete(prompt.promptUuid);
                 }
                 throw error;
@@ -8108,7 +8111,10 @@ export class AiAgentService extends BaseService {
                 try {
                     await this.persistTrackedPromptUpdate({
                         promptUuid: trackedPromptUuid,
-                        errorMessage: getUserFacingErrorMessage(e),
+                        errorMessage:
+                            e instanceof AiAccessRefusedError
+                                ? e.refusal.message
+                                : getUserFacingErrorMessage(e),
                     });
                 } catch (persistError) {
                     this.inFlightStreamPrompts.delete(trackedPromptUuid);
@@ -8119,6 +8125,7 @@ export class AiAgentService extends BaseService {
                 }
             }
             Logger.error('Failed to generate agent thread response:', e);
+            if (e instanceof AiAccessRefusedError) throw e;
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
@@ -8791,6 +8798,7 @@ export class AiAgentService extends BaseService {
             execution?: GenerateAgentExecutionOptions;
         },
     ): Promise<string> {
+        let resolvedPromptUuid: string | null = null;
         try {
             const {
                 user: validatedUser,
@@ -8807,6 +8815,9 @@ export class AiAgentService extends BaseService {
                         ? execution.runUuid
                         : null,
                 aiCreditCheck,
+                onPromptResolved: (uuid) => {
+                    resolvedPromptUuid = uuid;
+                },
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -8849,6 +8860,25 @@ export class AiAgentService extends BaseService {
             return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
+            if (e instanceof AiAccessRefusedError) {
+                if (resolvedPromptUuid !== null) {
+                    try {
+                        await this.aiAgentModel.updateModelResponse(
+                            {
+                                promptUuid: resolvedPromptUuid,
+                                errorMessage: e.refusal.message,
+                            },
+                            { onlyIfPending: true },
+                        );
+                    } catch (persistError) {
+                        Logger.error(
+                            'Failed to persist agent access refusal:',
+                            persistError,
+                        );
+                    }
+                }
+                throw e;
+            }
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }

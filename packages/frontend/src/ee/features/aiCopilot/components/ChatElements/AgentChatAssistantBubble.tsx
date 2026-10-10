@@ -523,6 +523,9 @@ const AssistantBubbleContent: FC<{
         FeatureFlags.AgentIdentity,
     );
     const aiAccessRefusal = [
+        streamingState?.connection.status === 'refused'
+            ? streamingState.connection.refusal
+            : null,
         ...(streamingState?.parts ?? []).flatMap((part) =>
             part.type === 'toolCall'
                 ? [getAiAccessRefusal(part.toolResult)]
@@ -531,16 +534,19 @@ const AssistantBubbleContent: FC<{
         ...message.toolResults.map(getAiAccessRefusal),
     ].find((refusal) => refusal !== null);
 
+    const showAccessRefusal =
+        agentIdentityFlag?.enabled === true && !!aiAccessRefusal;
+
     return (
         <>
-            {agentIdentityFlag?.enabled === true && aiAccessRefusal && (
+            {showAccessRefusal && aiAccessRefusal && (
                 <AiAccessCallout
                     projectUuid={projectUuid}
                     refusal={aiAccessRefusal}
                     variant="inline"
                 />
             )}
-            {shouldShowRetry && (
+            {shouldShowRetry && !showAccessRefusal && (
                 <Paper withBorder radius="md" p="sm" bg="ldGray.0">
                     <Group gap="sm" wrap="nowrap" justify="space-between">
                         <Group gap="sm" wrap="nowrap" align="flex-start">
