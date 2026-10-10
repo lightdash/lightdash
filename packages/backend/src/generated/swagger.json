@@ -19854,6 +19854,7 @@
                 "enum": [
                     "in_app_agent",
                     "mcp",
+                    "api",
                     "slack_agent",
                     "cli",
                     "data_app",
@@ -30192,6 +30193,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -30486,6 +30543,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -30748,6 +30861,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -30843,6 +31012,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31254,6 +31479,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31466,6 +31747,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31661,6 +31998,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31727,6 +32120,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31791,6 +32240,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -31970,6 +32475,62 @@
                                                     },
                                                     {
                                                         "properties": {
+                                                            "refusal": {
+                                                                "properties": {
+                                                                    "projectUuid": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "policyVersion": {
+                                                                        "type": "number",
+                                                                        "format": "double"
+                                                                    },
+                                                                    "operation": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "policyLayer": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "capability": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "connectUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "settingsUrl": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "action": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
+                                                                    "message": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "reason": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "code": {
+                                                                        "type": "string",
+                                                                        "enum": [
+                                                                            "ai_access_refused"
+                                                                        ],
+                                                                        "nullable": false
+                                                                    }
+                                                                },
+                                                                "required": [
+                                                                    "connectUrl",
+                                                                    "settingsUrl",
+                                                                    "action",
+                                                                    "message",
+                                                                    "reason",
+                                                                    "code"
+                                                                ],
+                                                                "type": "object"
+                                                            },
                                                             "status": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -70913,6 +71474,18 @@
             },
             "AiAccessRefusalReason": {
                 "enum": [
+                    "agent_access_disabled",
+                    "agent_capability_denied",
+                    "agent_project_denied",
+                    "agent_raw_sql_unconfirmed",
+                    "agent_operation_unmapped",
+                    "agent_actor_unverified",
+                    "agent_setting_denied",
+                    "agent_user_not_allowed",
+                    "agent_grant_denied",
+                    "agent_grant_revoked",
+                    "agent_channel_denied",
+                    "agent_human_permission_denied",
                     "result_not_agent_produced",
                     "principal_failed",
                     "ai_service_account_missing",
@@ -70929,15 +71502,34 @@
                 "enum": ["sign_in", "ask_admin"],
                 "type": "string"
             },
+            "AgentCapability": {
+                "enum": [
+                    "read_discover",
+                    "query",
+                    "raw_sql",
+                    "content_write",
+                    "delete",
+                    "publish",
+                    "deploy_upload",
+                    "dbt_writeback",
+                    "export",
+                    "administration",
+                    "external_tools"
+                ],
+                "type": "string"
+            },
             "AiAccessRefusal": {
                 "properties": {
-                    "connectUrl": {
+                    "code": {
                         "type": "string",
-                        "nullable": true
+                        "enum": ["ai_access_refused"],
+                        "nullable": false
                     },
-                    "settingsUrl": {
-                        "type": "string",
-                        "nullable": true
+                    "reason": {
+                        "$ref": "#/components/schemas/AiAccessRefusalReason"
+                    },
+                    "message": {
+                        "type": "string"
                     },
                     "action": {
                         "allOf": [
@@ -70947,27 +71539,54 @@
                         ],
                         "nullable": true
                     },
-                    "message": {
+                    "settingsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "connectUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "capability": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentCapability"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "policyLayer": {
+                        "type": "string",
+                        "enum": [
+                            "org_ceiling",
+                            "project_scope",
+                            "organization_setting",
+                            "warehouse_identity",
+                            "unmapped"
+                        ]
+                    },
+                    "operation": {
                         "type": "string"
                     },
-                    "reason": {
-                        "$ref": "#/components/schemas/AiAccessRefusalReason"
+                    "policyVersion": {
+                        "type": "number",
+                        "format": "double"
                     },
-                    "code": {
+                    "projectUuid": {
                         "type": "string",
-                        "enum": ["ai_access_refused"],
-                        "nullable": false
+                        "nullable": true
                     }
                 },
                 "required": [
-                    "connectUrl",
-                    "settingsUrl",
-                    "action",
-                    "message",
+                    "code",
                     "reason",
-                    "code"
+                    "message",
+                    "action",
+                    "settingsUrl",
+                    "connectUrl"
                 ],
-                "type": "object"
+                "type": "object",
+                "additionalProperties": true
             },
             "AiAccessForUser": {
                 "properties": {
@@ -71101,6 +71720,304 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "Record_OrganizationMemberRole.AgentCapability-Array_": {
+                "properties": {
+                    "member": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "viewer": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "interactive_viewer": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "editor": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "developer": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "admin": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "member",
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AgentSystemRoleMatrix": {
+                "$ref": "#/components/schemas/Record_OrganizationMemberRole.AgentCapability-Array_"
+            },
+            "AgentCapabilityPolicyOverview": {
+                "properties": {
+                    "mode": {
+                        "type": "string",
+                        "enum": ["legacy", "managed"]
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "systemRoleMatrix": {
+                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    },
+                    "defaults": {
+                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    },
+                    "pilotPreset": {
+                        "properties": {
+                            "systemRoleMatrix": {
+                                "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                            },
+                            "description": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["systemRoleMatrix", "description"],
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "mode",
+                    "version",
+                    "allowedProjectUuids",
+                    "systemRoleMatrix",
+                    "defaults",
+                    "pilotPreset"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "Pick_AgentPolicyResponse.Exclude_keyofAgentPolicyResponse.results__": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "AgentPolicyOverviewResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentCapabilityPolicyOverview"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentCapabilityPolicy": {
+                "properties": {
+                    "mode": {
+                        "type": "string",
+                        "enum": ["legacy", "managed"]
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "allowedProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "systemRoleMatrix": {
+                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    }
+                },
+                "required": [
+                    "mode",
+                    "version",
+                    "allowedProjectUuids",
+                    "systemRoleMatrix"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentPolicyResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentCapabilityPolicy"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentCapabilityCeiling": {
+                "properties": {
+                    "allowedProjectUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "systemRoleMatrix": {
+                        "$ref": "#/components/schemas/AgentSystemRoleMatrix"
+                    }
+                },
+                "required": ["allowedProjectUuids", "systemRoleMatrix"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "PilotPresetRequest": {
+                "properties": {
+                    "allowedProjectUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    }
+                },
+                "required": ["allowedProjectUuids"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "AgentWarehouseRestrictionConfirmation": {
+                "properties": {
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "bindingFingerprint": {
+                        "type": "string"
+                    },
+                    "confirmedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "confirmedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "projectUuid",
+                    "bindingFingerprint",
+                    "confirmedByUserUuid",
+                    "confirmedAt"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "Pick_WarehouseConfirmationResponse.Exclude_keyofWarehouseConfirmationResponse.results__": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "WarehouseConfirmationStatusResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "properties": {
+                            "confirmed": {
+                                "type": "boolean"
+                            },
+                            "confirmation": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AgentWarehouseRestrictionConfirmation"
+                                    }
+                                ],
+                                "nullable": true
+                            }
+                        },
+                        "required": ["confirmed", "confirmation"],
+                        "type": "object"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "WarehouseConfirmationResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {
+                        "$ref": "#/components/schemas/AgentWarehouseRestrictionConfirmation"
+                    }
+                },
+                "required": ["status", "results"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DeleteConfirmationResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    },
+                    "results": {}
+                },
+                "required": ["status"],
+                "type": "object",
+                "additionalProperties": true
             }
         },
         "securitySchemes": {
@@ -71119,7 +72036,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.542.0",
+        "version": "2.543.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -114654,6 +115571,257 @@
                         "in": "query",
                         "name": "connection",
                         "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/org/agent-permissions": {
+            "get": {
+                "operationId": "getAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentPolicyOverviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "saveAgentCapabilityCeiling",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AgentCapabilityCeiling"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/org/agent-permissions/pilot-preset": {
+            "post": {
+                "operationId": "applyAgentCapabilityPilotPreset",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PilotPresetRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v2/org/agent-permissions/reset": {
+            "post": {
+                "operationId": "resetAgentCapabilityPolicy",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AgentPolicyResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation": {
+            "get": {
+                "operationId": "getAgentWarehouseRestrictionConfirmation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarehouseConfirmationStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "confirmAgentWarehouseRestrictions",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarehouseConfirmationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "deleteAgentWarehouseRestrictionConfirmation",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeleteConfirmationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }

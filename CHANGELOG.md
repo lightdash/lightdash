@@ -1,3 +1,10 @@
+# [2.543.0](https://github.com/lightdash/lightdash/compare/2.542.0...2.543.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** add an org ceiling of agent capabilities (backend) ([#30871](https://github.com/lightdash/lightdash/issues/30871)) ([2eee3db](https://github.com/lightdash/lightdash/commit/2eee3db5a47cb5cb4dffb140cea3b79f2a5ad7a9))
+
 # [2.542.0](https://github.com/lightdash/lightdash/compare/2.541.0...2.542.0) (2026-10-10)
 
 

@@ -1,14 +1,36 @@
 {
   "schemaVersion": "2",
-  "version": "2.542.0",
-  "previousVersion": "2.541.0",
-  "releaseDate": "2026-10-10T09:27:15.959Z",
+  "version": "2.543.0",
+  "previousVersion": "2.542.0",
+  "releaseDate": "2026-10-10T10:14:26.046Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261011000000_add_agent_capability_policies.ts",
+        "edition": "core",
+        "tables": [
+          "LATERAL",
+          "agent_action_log",
+          "agent_warehouse_restriction_confirmations",
+          "organization_agent_capability_policies",
+          "organization_agent_system_role_capabilities",
+          "organizations",
+          "projects",
+          "roles",
+          "scoped_roles",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +42,38 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/history — added the new `api` enum value to the `results/history/items/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid} — added the new `api` enum value to the `results/allOf[#/components/schemas/DashboardVersionSummary]/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid} — added the new `api` enum value to the `results/allOf[subschema #2]/chartVersionDifferences/items/currentVersion/allOf[#/components/schemas/ChartVersionSummary]/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/dashboards/{dashboardUuidOrSlug}/version/{versionUuid} — added the new `api` enum value to the `results/allOf[subschema #2]/chartVersionDifferences/items/selectedVersion/allOf[#/components/schemas/ChartVersionSummary]/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "PATCH /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug} — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuidOrSlug}/duplicate — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/promote — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new `api` enum value to the `results/items/items/allOf[#/components/schemas/Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt-or-agentIdentity_]/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/documents/{documentUuid}/versions/{versionUuid} — added the new `api` enum value to the `results/allOf[subschema #2]/version/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/slug/{slug} — added the new `api` enum value to the `results/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid} — added the new `api` enum value to the `results/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/sqlRunner/saved/{uuid}/promote — added the new `api` enum value to the `results/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/saved/{chartUuid}/history — added the new `api` enum value to the `results/history/items/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v1/saved/{chartUuid}/version/{versionUuid} — added the new `api` enum value to the `results/agentIdentity/allOf[#/components/schemas/AgentIdentityClaim]/act/surface` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_access_disabled` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_actor_unverified` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_capability_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_channel_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_grant_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_grant_revoked` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_human_permission_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_operation_unmapped` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_project_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_raw_sql_unconfirmed` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_setting_denied` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`",
+        "GET /api/v2/projects/{projectUuid}/ai-access/me — added the new `agent_user_not_allowed` enum value to the `results/refusal/allOf[#/components/schemas/AiAccessRefusal]/reason` response property for the response status `200`"
+      ],
+      "advisoryCount": 29
     },
     "mcp": {
       "checked": true,
