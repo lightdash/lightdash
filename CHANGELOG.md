@@ -1,3 +1,10 @@
+# [2.540.0](https://github.com/lightdash/lightdash/compare/2.539.0...2.540.0) (2026-10-10)
+
+
+### Features
+
+* **credentials:** enforce the personal credential allowlist behind agent-identity ([#30868](https://github.com/lightdash/lightdash/issues/30868)) ([1369ebc](https://github.com/lightdash/lightdash/commit/1369ebcb9d026d0d0a4e2f08daf98da606618c27))
+
 # [2.539.0](https://github.com/lightdash/lightdash/compare/2.538.0...2.539.0) (2026-10-10)
 
 
