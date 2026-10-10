@@ -92,6 +92,58 @@ const checkLinkLabel = (kind: AgentPermissionCheck['kind']) => {
             return 'Change';
     }
 };
+const isVisibleCheck = (row: AgentPermissionCheck) =>
+    row.status === 'refused' ||
+    row.status === 'setup_needed' ||
+    row.message !== 'Not needed for this action.';
+const checkTitle = (row: AgentPermissionCheck, person: string) => {
+    if (row.kind === 'person_permission') return `${person}'s permissions`;
+    if (row.kind === 'capability' && row.capability)
+        return getAgentCapabilityName(row.capability);
+    return row.label;
+};
+const resultSummary = (
+    result: AgentPermissionExplanation,
+    person: string,
+    project: string,
+    action: (typeof AGENT_ACCESS_PREVIEW_ACTIONS)[number],
+) => {
+    if (result.mode === 'legacy')
+        return "Limits are off. Agents follow each person's permissions.";
+    if (result.result === 'allowed') return 'Allowed by checked permissions.';
+    if (result.result === 'not_checked')
+        return 'Some permissions could not be checked.';
+    const actionPhrase =
+        action.group === 'capability'
+            ? `use ${action.label}`
+            : action.label.charAt(0).toLowerCase() + action.label.slice(1);
+    const suffix = result.result === 'setup_needed' ? ' yet' : '';
+    return `An agent cannot ${actionPhrase} for ${person} in ${project}${suffix}.`;
+};
+const CheckRow = ({
+    row,
+    person,
+}: {
+    row: AgentPermissionCheck;
+    person: string;
+}) => (
+    <Group align="flex-start" className={classes.checkRow}>
+        <StatusBadge status={row.status} />
+        <Stack gap={0}>
+            <Text size="sm" fw={500}>
+                {checkTitle(row, person)}
+            </Text>
+            <Text size="sm" c="dimmed">
+                {row.message}
+            </Text>
+        </Stack>
+        {row.settingsUrl && (
+            <Anchor component={Link} to={row.settingsUrl} size="sm">
+                {checkLinkLabel(row.kind)}
+            </Anchor>
+        )}
+    </Group>
+);
 const PreviewResult = ({
     result,
     person,
@@ -108,33 +160,20 @@ const PreviewResult = ({
         (row) => row.kind === 'person_permission' && row.status === 'refused',
     );
     const reason = result.mainReason?.message ?? personReason?.message;
-    const actionPhrase =
-        action.group === 'capability'
-            ? `use ${action.label}`
-            : action.label.charAt(0).toLowerCase() + action.label.slice(1);
-    const summary = legacy
-        ? "Limits are off. Agents follow each person's permissions."
-        : result.result === 'allowed'
-          ? 'Allowed by checked permissions.'
-          : result.result === 'not_checked'
-            ? 'Some permissions could not be checked.'
-            : `An agent cannot ${actionPhrase} for ${person} in ${project}${result.result === 'setup_needed' ? ' yet' : ''}.`;
+    const status = legacy ? 'not_checked' : result.result;
     return (
         <Stack gap="lg" role="region" aria-label="Agent access result">
             <Paper
                 p="md"
                 aria-live="polite"
                 className={classes.summary}
-                data-status={legacy ? 'not_checked' : result.result}
+                data-status={status}
             >
                 <Group align="flex-start" wrap="nowrap">
-                    <StatusBadge
-                        status={legacy ? 'not_checked' : result.result}
-                        legacy={legacy}
-                    />
+                    <StatusBadge status={status} legacy={legacy} />
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            {summary}
+                            {resultSummary(result, person, project, action)}
                         </Text>
                         {legacy && (
                             <Text size="sm" c="dimmed">
@@ -161,10 +200,7 @@ const PreviewResult = ({
             {groups.map((group) => {
                 const rows = result.checks.filter(
                     (row) =>
-                        group.kinds.includes(row.kind) &&
-                        (row.status === 'refused' ||
-                            row.status === 'setup_needed' ||
-                            row.message !== 'Not needed for this action.'),
+                        group.kinds.includes(row.kind) && isVisibleCheck(row),
                 );
                 if (!rows.length) return null;
                 return (
@@ -172,37 +208,11 @@ const PreviewResult = ({
                         <Title order={6}>{group.label}</Title>
                         <Stack gap="sm">
                             {rows.map((row) => (
-                                <Group
+                                <CheckRow
                                     key={row.id}
-                                    align="flex-start"
-                                    className={classes.checkRow}
-                                >
-                                    <StatusBadge status={row.status} />
-                                    <Stack gap={0}>
-                                        <Text size="sm" fw={500}>
-                                            {row.kind === 'person_permission'
-                                                ? `${person}'s permissions`
-                                                : row.capability &&
-                                                    row.kind === 'capability'
-                                                  ? getAgentCapabilityName(
-                                                        row.capability,
-                                                    )
-                                                  : row.label}
-                                        </Text>
-                                        <Text size="sm" c="dimmed">
-                                            {row.message}
-                                        </Text>
-                                    </Stack>
-                                    {row.settingsUrl && (
-                                        <Anchor
-                                            component={Link}
-                                            to={row.settingsUrl}
-                                            size="sm"
-                                        >
-                                            {checkLinkLabel(row.kind)}
-                                        </Anchor>
-                                    )}
-                                </Group>
+                                    row={row}
+                                    person={person}
+                                />
                             ))}
                         </Stack>
                     </Stack>
