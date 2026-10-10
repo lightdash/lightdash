@@ -777,9 +777,10 @@ describe('test-and-compile credential resolution', () => {
                         f.project.projectUuid,
                         stale,
                     );
-                    expect(
-                        f.projectModel.getSummary,
-                    ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
+                    expect(f.projectModel.getSummary).toHaveBeenCalledTimes(2);
+                    expect(f.projectModel.getSummary).toHaveBeenCalledWith(
+                        f.project.projectUuid,
+                    );
                     expect(featureFlagGet).toHaveBeenCalledWith({
                         user: { organizationUuid: f.project.organizationUuid },
                         featureFlagId: FeatureFlags.PreviewSsoCredentialSync,

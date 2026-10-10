@@ -1,6 +1,5 @@
 import {
     buildSafeDbtEnvironmentVariables,
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
 } from '@lightdash/common';
@@ -12,16 +11,18 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
-    profileFromCredentials,
+    profileFromTarget,
 } from '../dbt/profiles';
 import Logger from '../logging/logger';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DbtLocalProjectAdapter } from './dbtLocalProjectAdapter';
 
 type DbtLocalCredentialsProjectAdapterArgs = {
     warehouseClient: WarehouseClient;
     projectDir: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
     environmentVariableAllowlist: string[];
@@ -40,7 +41,8 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
     constructor({
         warehouseClient,
         projectDir,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         targetName,
         environment,
         environmentVariableAllowlist,
@@ -52,23 +54,12 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
         dbtDepsErrorHint,
         partialParseBaselinePath,
     }: DbtLocalCredentialsProjectAdapterArgs) {
-        const profilesDir = fs.mkdtempSync('/tmp/local_');
-        const profilesFilename = path.join(profilesDir, 'profiles.yml');
-
-        const {
-            profile,
-            environment: injectedEnvironment,
-            files,
-        } = profileFromCredentials(
-            warehouseCredentials,
-            profilesDir,
+        const { profile, environment: injectedEnvironment } = profileFromTarget(
+            dbtTarget,
             targetName,
         );
-        if (files) {
-            Object.entries(files).forEach(([filePath, content]) => {
-                writeFileSync(filePath, content);
-            });
-        }
+        const profilesDir = fs.mkdtempSync('/tmp/local_');
+        const profilesFilename = path.join(profilesDir, 'profiles.yml');
         writeFileSync(profilesFilename, profile);
         const { environment: safeEnvironment, blockedKeys } =
             buildSafeDbtEnvironmentVariables(environment);
@@ -91,6 +82,7 @@ export class DbtLocalCredentialsProjectAdapter extends DbtLocalProjectAdapter {
             projectDir,
             environment: updatedEnvironment,
             environmentVariableAllowlist,
+            explicitCredentials,
             cachedWarehouse,
             dbtVersion,
             selector,

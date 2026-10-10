@@ -476,6 +476,7 @@ import {
     type CredentialRefreshSource,
     type CredentialSelection,
     type CredentialSelectionSource,
+    type DbtTargetPolicy,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
 import {
@@ -6455,11 +6456,10 @@ export class ProjectService
         let adapter: ProjectAdapter | undefined;
         try {
             const organizationUuid =
-                user.organizationUuid ??
-                (projectUuid === null
-                    ? undefined
+                projectUuid === null
+                    ? user.organizationUuid
                     : (await this.projectModel.getSummary(projectUuid))
-                          .organizationUuid);
+                          .organizationUuid;
             if (organizationUuid === undefined) {
                 throw new ForbiddenError('User is not part of an organization');
             }
@@ -6535,6 +6535,9 @@ export class ProjectService
             const dbtPartialParse =
                 projectUuid !== null &&
                 (await this.isDbtPartialParseEnabled(user));
+            const dbtTargetPolicy =
+                await this.getDbtTargetPolicy(organizationUuid);
+            const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(
                 dbtConnection,
                 lease.warehouseClient,
@@ -6548,6 +6551,15 @@ export class ProjectService
                           dbtSourceUuid: null,
                       })
                     : null,
+                {
+                    resolve: () =>
+                        this.warehouseClientFactory.toDbtTarget(
+                            resolvedLease.warehouseCredentials,
+                            warehouseCredentials,
+                            dbtTargetPolicy,
+                        ),
+                    policy: dbtTargetPolicy,
+                },
                 this.analytics,
             );
             await adapter.test();
@@ -7333,6 +7345,9 @@ export class ProjectService
             dbtVersionOption,
             dbtPartialParse,
         } = await this.prepareCompileAdapter(projectUuid, user);
+        const dbtTargetPolicy = await this.getDbtTargetPolicy(
+            project.organizationUuid,
+        );
         return this.warehouseClientFactory.withWarehouseClient(
             { kind: 'compile', projectUuid, credentials: warehouseCredentials },
             connectionContextFromUser(
@@ -7357,6 +7372,15 @@ export class ProjectService
                               dbtSourceUuid: null,
                           })
                         : null,
+                    {
+                        resolve: () =>
+                            this.warehouseClientFactory.toDbtTarget(
+                                connection.warehouseCredentials,
+                                connection.connectionCredentials,
+                                dbtTargetPolicy,
+                            ),
+                        policy: dbtTargetPolicy,
+                    },
                     this.analytics,
                 );
                 try {
@@ -7422,6 +7446,7 @@ export class ProjectService
             shared.connection.connectionCredentials,
             warehouseLocation,
         );
+        const dbtTargetPolicy = await this.getDbtTargetPolicy(organizationUuid);
         return projectAdapterFromConfig(
             resolvedConnection,
             shared.connection.deriveClient(warehouseCredentials),
@@ -7430,8 +7455,31 @@ export class ProjectService
             shared.dbtVersionOption,
             this.lightdashConfig.dbt.environmentVariableAllowlist,
             partialParseBaselinePath,
+            {
+                resolve: () =>
+                    this.warehouseClientFactory.toDbtTarget(
+                        shared.connection.warehouseCredentials,
+                        warehouseCredentials,
+                        dbtTargetPolicy,
+                    ),
+                policy: dbtTargetPolicy,
+            },
             this.analytics,
         );
+    }
+
+    private async getDbtTargetPolicy(
+        organizationUuid: string | undefined,
+    ): Promise<DbtTargetPolicy> {
+        if (organizationUuid === undefined)
+            throw new ForbiddenError(
+                'Project organization is required to run dbt.',
+            );
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.DbtExplicitCredentials,
+        });
+        return { explicitCredentials: enabled };
     }
 
     private async isDbtPartialParseEnabled(
@@ -7775,7 +7823,8 @@ export class ProjectService
                 sourceAdapter = await this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
-                    organizationUuid,
+                    (await this.projectModel.getSummary(projectUuid))
+                        .organizationUuid,
                     shared,
                     primary.dbtPartialParse
                         ? getDbtPartialParseBaselinePath({
@@ -8005,6 +8054,7 @@ export class ProjectService
                 shared.dbtVersionOption,
                 this.lightdashConfig.dbt.environmentVariableAllowlist,
                 null,
+                null,
                 this.analytics,
                 // Keep the primary source's lightdash.config.yml / project_context.yml
                 // (spotlight categories, table_groups, parameters, AI context). The
@@ -8080,7 +8130,8 @@ export class ProjectService
                 const sourceAdapter = await this.buildSourceAdapter(
                     source.dbtConnection,
                     source.warehouseLocation,
-                    organizationUuid,
+                    (await this.projectModel.getSummary(projectUuid))
+                        .organizationUuid,
                     {
                         warehouseCredentials,
                         connection,

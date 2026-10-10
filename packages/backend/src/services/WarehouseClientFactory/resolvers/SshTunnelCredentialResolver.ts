@@ -6,12 +6,15 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { toDbtTarget } from '../../../dbt/targets';
 import type { SshKeyPairModel } from '../../../models/SshKeyPairModel';
 import type {
     CredentialResolution,
     CredentialResolver,
     CredentialSaveInput,
     CredentialSelection,
+    DbtTargetPolicy,
+    DbtTargetResult,
     ValidatedCredential,
 } from '../CredentialResolver';
 
@@ -119,6 +122,14 @@ export class SshTunnelCredentialResolver implements CredentialResolver<SshTunnel
             connection.host ?? null,
             connection.port === undefined ? null : String(connection.port),
         ];
+    }
+
+    toDbtTarget(
+        _resolved: CredentialResolution<SshTunnelCredentials>,
+        finalConnection: SshTunnelCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        return toDbtTarget(finalConnection, policy);
     }
 
     async dispose(_resolved: SshTunnelResolution): Promise<void> {}

@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import { toDbtTarget } from '../../../dbt/targets';
 import {
     assertValidPersistedBigquerySsoKeyfile,
     hydrateBigquerySsoKeyfile,
@@ -14,6 +15,8 @@ import type {
     CredentialResolver,
     CredentialSaveInput,
     CredentialSelection,
+    DbtTargetPolicy,
+    DbtTargetResult,
     ValidatedCredential,
 } from '../CredentialResolver';
 
@@ -114,6 +117,14 @@ export class BigquerySsoCredentialResolver implements CredentialResolver<CreateB
                 .update(input.stored.keyfileContents.refresh_token ?? '')
                 .digest('hex'),
         ];
+    }
+
+    toDbtTarget(
+        _resolved: CredentialResolution<CreateBigqueryCredentials>,
+        finalConnection: CreateBigqueryCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        return toDbtTarget(finalConnection, policy);
     }
 
     async dispose(): Promise<void> {}

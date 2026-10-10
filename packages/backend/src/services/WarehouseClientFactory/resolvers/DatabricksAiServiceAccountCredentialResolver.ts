@@ -16,6 +16,7 @@ import type {
     CredentialResolver,
     CredentialSaveInput,
     CredentialSelection,
+    DbtTargetResult,
     ValidatedCredential,
 } from '../CredentialResolver';
 import { pickRoutingFields } from './aiServiceAccountRoutingFields';
@@ -132,6 +133,13 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
             owner?.identityUuid ?? null,
             owner?.sourceProjectUuid ?? null,
         ];
+    }
+
+    toDbtTarget(): DbtTargetResult {
+        return {
+            kind: 'none',
+            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+        };
     }
 
     async dispose(): Promise<void> {}

@@ -17,7 +17,11 @@ import {
 export const createAgentSignInCredentialResolverRegistry = (
     resolver: Pick<
         SnowflakeAgentSignInCredentialResolver,
-        'resolve' | 'validateOnSave' | 'cacheKeyIdentity' | 'dispose'
+        | 'resolve'
+        | 'validateOnSave'
+        | 'toDbtTarget'
+        | 'cacheKeyIdentity'
+        | 'dispose'
     >,
 ): CredentialResolverRegistry => {
     const registry = new CredentialResolverRegistry();

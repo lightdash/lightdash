@@ -10,6 +10,7 @@ import path from 'path';
 import { simpleGit } from 'simple-git';
 import { getInstallationToken } from '../clients/github/Github';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import { toDbtTarget } from '../dbt/targets';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
@@ -63,6 +64,22 @@ describe('native GitHub server compilation', () => {
             SupportedDbtVersions.V1_10,
             [],
             null,
+            {
+                resolve: () =>
+                    toDbtTarget(
+                        {
+                            type: WarehouseTypes.POSTGRES,
+                            host: 'localhost',
+                            port: 5432,
+                            user: 'postgres',
+                            password: 'test',
+                            dbname: 'postgres',
+                            schema: 'public',
+                        },
+                        { explicitCredentials: false },
+                    ),
+                policy: { explicitCredentials: false },
+            },
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];
 

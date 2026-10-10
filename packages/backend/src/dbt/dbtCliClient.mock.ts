@@ -11,6 +11,7 @@ export const cliArgs = {
     dbtProfilesDirectory: 'dbtProfilesDirectory',
     environment: {},
     environmentVariableAllowlist: [],
+    explicitCredentials: false,
     profileName: 'profileName',
     target: 'target',
     partialParseBaselinePath: null,

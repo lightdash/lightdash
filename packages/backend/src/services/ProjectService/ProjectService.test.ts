@@ -12273,7 +12273,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).resolves.toBeDefined();
     });
 
-    it('compiles a source with its own warehouse location', async () => {
+    it('compiles a source with its own warehouse location and the project organization', async () => {
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
         ) as unknown as ProjectServiceInternals;
@@ -12317,7 +12317,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(buildSourceAdapter).toHaveBeenCalledWith(
             { type: DbtProjectType.NONE },
             warehouseLocation,
-            'org-uuid',
+            projectSummary.organizationUuid,
             expect.objectContaining({
                 warehouseCredentials: primary.warehouseCredentials,
             }),

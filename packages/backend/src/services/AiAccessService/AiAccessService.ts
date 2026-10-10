@@ -310,6 +310,7 @@ type AiAccessServiceArguments = {
         SnowflakeAgentSignInCredentialResolver,
         | 'resolve'
         | 'validateOnSave'
+        | 'toDbtTarget'
         | 'cacheKeyIdentity'
         | 'dispose'
         | 'inspect'
@@ -350,6 +351,7 @@ export class AiAccessService extends BaseService {
         SnowflakeAgentSignInCredentialResolver,
         | 'resolve'
         | 'validateOnSave'
+        | 'toDbtTarget'
         | 'cacheKeyIdentity'
         | 'dispose'
         | 'inspect'

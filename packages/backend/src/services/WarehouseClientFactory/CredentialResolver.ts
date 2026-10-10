@@ -85,10 +85,19 @@ export interface CredentialResolver<
         input: CredentialSelection<C, S>,
         resolved: CredentialResolution<C>,
     ): readonly (string | null)[];
+    toDbtTarget(
+        resolved: CredentialResolution<C>,
+        finalConnection: C,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult;
     dispose(resolved: CredentialResolution<C>): Promise<void>;
 }
 
 export type MaterializedCredential = {
+    toDbtTarget: (
+        finalConnection: CreateWarehouseCredentials,
+        policy: DbtTargetPolicy,
+    ) => DbtTargetResult;
     agentSignIn: AgentSignInResolutionMetadata | null;
     clientOptions: Partial<WarehouseClientOptions>;
     cacheable: boolean;
@@ -105,3 +114,20 @@ export const preparedCredentials = Symbol('preparedCredentials');
 export type PreparedCredentials = CreateWarehouseCredentials & {
     [preparedCredentials]?: true;
 };
+
+export interface DbtTargetPolicy {
+    explicitCredentials: boolean;
+}
+
+export type DbtTargetResult =
+    | {
+          kind: 'target';
+          target: Record<string, unknown>;
+          environment: Record<string, string>;
+      }
+    | { kind: 'none'; reason: string };
+
+export type DbtTargetCredentialResolver<
+    C extends CreateWarehouseCredentials,
+    S = C,
+> = CredentialResolver<C, S>;

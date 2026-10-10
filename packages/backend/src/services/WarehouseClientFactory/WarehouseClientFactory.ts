@@ -71,6 +71,8 @@ import {
     type CredentialOwner,
     type CredentialSelection,
     type CredentialSelectionSource,
+    type DbtTargetPolicy,
+    type DbtTargetResult,
     type MaterializedCredentials,
     type PreparedCredentials,
 } from './CredentialResolver';
@@ -522,6 +524,18 @@ export class WarehouseClientFactory {
         if (credentials.userWarehouseCredentialsUuid)
             return WarehouseCredentialKind.PERSONAL;
         return WarehouseCredentialKind.SHARED;
+    }
+
+    toDbtTarget(
+        credentials: MaterializedCredentials,
+        finalConnection: CreateWarehouseCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        return this.credentialResolvers.toDbtTarget(
+            credentials,
+            finalConnection,
+            policy,
+        );
     }
 
     async resolveWarehouseCredentials(

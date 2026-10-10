@@ -4,12 +4,15 @@ import {
     type CreateWarehouseCredentials,
     type WarehouseTypes,
 } from '@lightdash/common';
+import { toDbtTarget } from '../../dbt/targets';
 import {
     credentialResolution,
     preparedCredentials,
     type CredentialResolver,
     type CredentialSaveInput,
     type CredentialSelection,
+    type DbtTargetPolicy,
+    type DbtTargetResult,
     type MaterializedCredential,
     type MaterializedCredentials,
     type PreparedCredentials,
@@ -73,6 +76,12 @@ export class CredentialResolverRegistry {
                 return {
                     ...resolved.clientCredentials,
                     [credentialResolution]: {
+                        toDbtTarget: (finalConnection, policy) =>
+                            resolver.toDbtTarget(
+                                resolved,
+                                finalConnection as C,
+                                policy,
+                            ),
                         agentSignIn: resolved.agentSignIn,
                         clientOptions: resolved.clientOptions,
                         cacheable: resolved.cacheable,
@@ -115,6 +124,17 @@ export class CredentialResolverRegistry {
                   `${credentials.type}:${credentials.authenticationType}`,
               )
             : undefined;
+    }
+
+    toDbtTarget(
+        credentials: MaterializedCredentials,
+        finalConnection: CreateWarehouseCredentials,
+        policy: DbtTargetPolicy,
+    ): DbtTargetResult {
+        const resolution = credentials[credentialResolution];
+        return resolution
+            ? resolution.toDbtTarget(finalConnection, policy)
+            : toDbtTarget(finalConnection, policy);
     }
 
     has(credentials: CreateWarehouseCredentials): boolean {
@@ -209,6 +229,8 @@ export class CredentialResolverRegistry {
         const result: MaterializedCredentials = {
             ...transported,
             [credentialResolution]: {
+                toDbtTarget:
+                    modeResolution?.toDbtTarget ?? resolved.toDbtTarget,
                 agentSignIn: modeResolution?.agentSignIn ?? null,
                 clientOptions: {
                     ...modeResolution?.clientOptions,
