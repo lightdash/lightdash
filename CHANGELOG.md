@@ -1,3 +1,10 @@
+# [2.536.0](https://github.com/lightdash/lightdash/compare/2.535.0...2.536.0) (2026-10-10)
+
+
+### Features
+
+* **oauth:** enforce OAuth grant scopes for REST and MCP behind agent-identity ([#30861](https://github.com/lightdash/lightdash/issues/30861)) ([4ea6d4e](https://github.com/lightdash/lightdash/commit/4ea6d4e4d715ae3e161fedd9c99e1f58c2ef4fbf))
+
 # [2.535.0](https://github.com/lightdash/lightdash/compare/2.534.0...2.535.0) (2026-10-10)
 
 
