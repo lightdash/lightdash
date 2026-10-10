@@ -130,7 +130,7 @@ describe('GitlabProvider.openPullRequest', () => {
     });
 
     it.each(['open', 'update'] as const)(
-        'reuses the inspected staging for %s without resolving paths again',
+        'resolves and stages project paths before committing for %s',
         async (action) => {
             mockCreatePullRequest.mockResolvedValue({
                 html_url:
@@ -148,7 +148,6 @@ describe('GitlabProvider.openPullRequest', () => {
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
-                changesStaged: true,
             };
             if (action === 'open') await provider.openPullRequest(args);
             else
@@ -156,8 +155,13 @@ describe('GitlabProvider.openPullRequest', () => {
                     ...args,
                     prUrl: openMr.webUrl,
                 });
-            expect(sandbox.git.add).not.toHaveBeenCalled();
-            expect(sandbox.files.read).not.toHaveBeenCalled();
+            expect(sandbox.git.add).toHaveBeenCalledExactlyOnceWith(
+                '/home/user/repo',
+                { files: ['analytics/dbt'] },
+            );
+            expect(sandbox.files.read).toHaveBeenCalledWith(
+                '/home/user/repo/analytics/dbt/target/manifest.json',
+            );
             expect(sandbox.git.commit).toHaveBeenCalledOnce();
             expect(sandbox.git.push).toHaveBeenCalledOnce();
         },

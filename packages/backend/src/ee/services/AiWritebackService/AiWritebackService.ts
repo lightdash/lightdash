@@ -146,7 +146,7 @@ import { BitbucketProvider } from './providers/BitbucketProvider';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
-import { stageConnectionChanges } from './providers/sandboxGit';
+import { resolveConnectionPaths } from './providers/sandboxGit';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import {
@@ -2692,7 +2692,6 @@ export class AiWritebackService extends BaseService {
                 });
             }
 
-            let changesStaged = false;
             if (
                 hasChanges &&
                 args.agentPermissionsApply &&
@@ -2700,14 +2699,13 @@ export class AiWritebackService extends BaseService {
                     turn.organizationUuid,
                 ))
             ) {
-                await stageConnectionChanges(
+                const paths = await resolveConnectionPaths(
                     sandbox,
                     turn.gitConnection,
                     this.logger,
                 );
-                changesStaged = true;
                 const changes = await sandbox.commands.run(
-                    `git -C ${CWD} diff --cached --name-status --no-renames -z`,
+                    `git -C ${CWD} diff HEAD --name-status --no-renames -z -- ${paths.map(quoteShellArgument).join(' ')}`,
                 );
                 if (changes.exitCode !== 0) {
                     throw new UnexpectedServerError(
@@ -2752,7 +2750,6 @@ export class AiWritebackService extends BaseService {
 
             const applied = await this.applyAgentChanges({
                 sandbox,
-                changesStaged,
                 sandboxUuid,
                 installation,
                 hasChanges,
@@ -4992,7 +4989,6 @@ export class AiWritebackService extends BaseService {
      */
     private async applyAgentChanges({
         sandbox,
-        changesStaged,
         sandboxUuid,
         installation,
         hasChanges,
@@ -5009,7 +5005,6 @@ export class AiWritebackService extends BaseService {
         aiWritebackRunUuid,
     }: {
         sandbox: SandboxHandle;
-        changesStaged: boolean;
         sandboxUuid: string;
         installation: GitInstallation;
         hasChanges: boolean;
@@ -5068,7 +5063,6 @@ export class AiWritebackService extends BaseService {
             const { commitSha, additions, deletions } =
                 await turn.provider.updatePullRequest({
                     sandbox,
-                    changesStaged,
                     connection: turn.gitConnection,
                     installation,
                     prUrl: targetPrUrl,
@@ -5116,7 +5110,6 @@ export class AiWritebackService extends BaseService {
         const { prUrl, commitSha, additions, deletions } =
             await turn.provider.openPullRequest({
                 sandbox,
-                changesStaged,
                 connection: turn.gitConnection,
                 installation,
                 title: await this.resolvePrTitle(sandbox, prTitle, false),

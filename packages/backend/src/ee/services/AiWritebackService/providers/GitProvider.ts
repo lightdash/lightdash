@@ -15,7 +15,6 @@ import type {
 
 export type OpenPullRequestArgs = {
     sandbox: SandboxHandle;
-    changesStaged?: boolean;
     connection: GitConnection;
     installation: GitInstallation;
     title: string;

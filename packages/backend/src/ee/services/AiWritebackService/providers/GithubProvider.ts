@@ -64,7 +64,8 @@ import {
     collectDiffStat,
     collectFileChanges,
     commitLocal,
-    stageConnectionChanges,
+    resolveConnectionPaths,
+    stageChanges,
 } from './sandboxGit';
 
 const asGithubConnection = (connection: GitConnection): GithubConnection => {
@@ -280,7 +281,6 @@ export class GithubProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
-            changesStaged: args.changesStaged,
         });
 
         setStage('pull_request');
@@ -331,7 +331,6 @@ export class GithubProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
-            changesStaged: args.changesStaged,
         });
 
         setStage('pull_request');
@@ -459,10 +458,8 @@ export class GithubProvider implements GitProvider {
         user,
         setStage,
         onRemoteCommitted,
-        changesStaged,
     }: {
         sandbox: SandboxHandle;
-        changesStaged?: boolean;
         connection: GithubConnection;
         installation: GithubInstallation;
         branch: string;
@@ -474,9 +471,12 @@ export class GithubProvider implements GitProvider {
         onRemoteCommitted: () => Promise<void>;
     }): Promise<LandedCommit> {
         setStage('commit');
-        if (!changesStaged) {
-            await stageConnectionChanges(sandbox, connection, this.logger);
-        }
+        const paths = await resolveConnectionPaths(
+            sandbox,
+            connection,
+            this.logger,
+        );
+        await stageChanges(sandbox, paths, this.logger);
         const fileChanges = await collectFileChanges(sandbox);
         // Read the line stat while the change is still staged — the local commit
         // below clears the index.

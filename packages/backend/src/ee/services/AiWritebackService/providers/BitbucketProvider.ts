@@ -47,7 +47,8 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
-    stageConnectionChanges,
+    resolveConnectionPaths,
+    stageChanges,
 } from './sandboxGit';
 
 const asConnection = (connection: GitConnection): BitbucketConnection => {
@@ -430,9 +431,12 @@ export class BitbucketProvider extends BaseService implements GitProvider {
                 'Could not disable Bitbucket sandbox Git hooks',
             );
         }
-        if (!args.changesStaged) {
-            await stageConnectionChanges(args.sandbox, connection, this.logger);
-        }
+        const paths = await resolveConnectionPaths(
+            args.sandbox,
+            connection,
+            this.logger,
+        );
+        await stageChanges(args.sandbox, paths, this.logger);
         await assertStagedPathsAllowed(args.sandbox);
         const diffStat = await collectDiffStat(args.sandbox);
         const trailer = buildUserCoAuthorTrailer(args.user);

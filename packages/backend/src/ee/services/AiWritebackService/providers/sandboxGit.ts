@@ -203,22 +203,15 @@ export const stageChanges = async (
     );
 };
 
-export const stageConnectionChanges = async (
+export const resolveConnectionPaths = async (
     sandbox: SandboxHandle,
     connection: GitConnection,
     logger: Logger,
-): Promise<void> => {
-    const paths =
-        connection.provider !== PullRequestProvider.GITLAB &&
-        connection.semanticLayer === 'lightdash'
-            ? [connection.projectSubPath]
-            : await resolveDbtProjectPaths(
-                  sandbox,
-                  connection.projectSubPath,
-                  logger,
-              );
-    await stageChanges(sandbox, paths, logger);
-};
+): Promise<string[]> =>
+    connection.provider !== PullRequestProvider.GITLAB &&
+    connection.semanticLayer === 'lightdash'
+        ? [connection.projectSubPath]
+        : resolveDbtProjectPaths(sandbox, connection.projectSubPath, logger);
 
 /**
  * Read the staged changes out of the sandbox as a set of file additions and
