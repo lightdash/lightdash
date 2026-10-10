@@ -309,6 +309,44 @@ export const isRedshiftServiceAccountAuthError = (error: unknown): boolean => {
     );
 };
 
+const isPostgresPermissionError = (error: unknown): boolean =>
+    pgErrors(error).some((entry) => entry.code === '42501');
+
+const isTrinoPermissionError = (error: unknown): boolean =>
+    pgErrors(error).some((entry) => entry.errorName === 'PERMISSION_DENIED');
+
+const isClickhousePermissionError = (error: unknown): boolean =>
+    pgErrors(error).some(
+        (entry) =>
+            entry.code === 497 ||
+            entry.code === '497' ||
+            entry.type === 'ACCESS_DENIED',
+    );
+
+export const isAiServiceAccountPermissionError = (
+    warehouseType: WarehouseTypes | null,
+    error: unknown,
+): boolean => {
+    switch (warehouseType) {
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+            return isPostgresPermissionError(error);
+        case WarehouseTypes.TRINO:
+            return isTrinoPermissionError(error);
+        case WarehouseTypes.CLICKHOUSE:
+            return isClickhousePermissionError(error);
+        case WarehouseTypes.BIGQUERY:
+        case WarehouseTypes.SNOWFLAKE:
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.ATHENA:
+        case WarehouseTypes.DUCKDB:
+        case null:
+            return false;
+        default:
+            return assertUnreachable(warehouseType, 'Unknown warehouse type');
+    }
+};
+
 export const getRedshiftServiceAccountTestErrorMessage = (
     error: unknown,
 ): string => {
@@ -318,11 +356,11 @@ export const getRedshiftServiceAccountTestErrorMessage = (
     if (errors.some((entry) => entry.code === '3D000'))
         return 'The Redshift database does not exist. Check the connection database.';
     if (
+        isPostgresPermissionError(error) ||
         errors.some(
             (entry) =>
-                entry.code === '42501' ||
-                (typeof entry.message === 'string' &&
-                    /^permission denied\b/i.test(entry.message)),
+                typeof entry.message === 'string' &&
+                /^permission denied\b/i.test(entry.message),
         )
     )
         return 'The Redshift shared agent account lacks access. Ask an admin to check its grants.';
@@ -347,9 +385,7 @@ export const getTrinoServiceAccountTestErrorMessage = (
 ): string => {
     if (isTrinoServiceAccountAuthError(error))
         return 'Trino rejected the shared agent account credentials. Check the user and password.';
-    if (
-        pgErrors(error).some((entry) => entry.errorName === 'PERMISSION_DENIED')
-    )
+    if (isTrinoPermissionError(error))
         return 'The Trino shared agent account lacks access. Ask an admin to check its access control rules.';
     return 'Could not verify the shared agent account. Check the credentials and connection settings.';
 };
@@ -405,11 +441,8 @@ export const getClickhouseServiceAccountTestErrorMessage = (
     )
         return 'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.';
     if (
-        errors.some(
-            (entry) =>
-                clickhouseErrorCode(entry) === '497' ||
-                entry.type === 'ACCESS_DENIED',
-        )
+        isClickhousePermissionError(error) ||
+        errors.some((entry) => clickhouseErrorCode(entry) === '497')
     )
         return "ClickHouse denied access. Check the shared agent account's SELECT grants and connection database.";
     return 'Could not verify the shared agent account. Check the credentials and connection settings.';

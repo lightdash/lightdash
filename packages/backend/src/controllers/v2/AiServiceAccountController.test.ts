@@ -169,8 +169,8 @@ it.each([true, false])(
         f.model.getSecrets.mockRejectedValue(new Error('unreadable key'));
         await expect(f.controller.get('project', f.req)).resolves.toEqual({
             status: 'ok',
-            results: ownSlot,
-            credentialsReadable: ownSlot !== null,
+            results: null,
+            credentialsReadable: false,
             parent: {
                 credentialsReadable: false,
                 projectUuid: 'parent',
@@ -601,3 +601,37 @@ it('rejects mismatched ClickHouse input before reading a saved password', async 
     expect(f.model.getReplaceableSecrets).not.toHaveBeenCalled();
     expect(f.model.upsert).not.toHaveBeenCalled();
 });
+
+it.each([
+    { enabled: true, route: 'upsert' },
+    { enabled: false, route: 'upsert' },
+    { enabled: true, route: 'test' },
+    { enabled: false, route: 'test' },
+] as const)(
+    'refuses preview $route with flag enabled=$enabled before secrets',
+    async ({ enabled, route }) => {
+        const f = setup(enabled);
+        f.getSummary.mockResolvedValue({
+            organizationUuid: f.req.account!.organization.organizationUuid,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: 'parent',
+        });
+        await expect(
+            route === 'upsert'
+                ? f.controller.upsert('project', f.req, input)
+                : f.controller.test('project', f.req, { credentials: input }),
+        ).rejects.toMatchObject(
+            enabled
+                ? {
+                      statusCode: 400,
+                      message:
+                          'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+                  }
+                : { statusCode: 403, data: { code: 'feature_not_enabled' } },
+        );
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.probe).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+    },
+);

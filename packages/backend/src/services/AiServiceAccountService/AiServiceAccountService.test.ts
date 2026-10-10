@@ -818,8 +818,8 @@ it.each([true, false])(
                 : []),
         ]);
         expect(await f.service.getStatus(f.account, 'project', null)).toEqual({
-            results: { uuid: 'slot', identityUuid: 'generation-before' },
-            credentialsReadable: true,
+            results: null,
+            credentialsReadable: false,
             parent: {
                 credentialsReadable: true,
                 projectUuid: 'parent',
@@ -844,8 +844,8 @@ it.each([true, false])(
         await expect(
             f.service.getStatus(f.account, 'project', null),
         ).resolves.toEqual({
-            results: ownSlot,
-            credentialsReadable: ownSlot !== null,
+            results: null,
+            credentialsReadable: false,
             parent: {
                 projectUuid: 'parent',
                 projectName: 'Parent project',
@@ -854,7 +854,12 @@ it.each([true, false])(
                 credentialsReadable: false,
             },
         });
-        expect(f.model.getSlot).toHaveBeenLastCalledWith('parent', null);
+        expect(f.model.getSlot).toHaveBeenCalledExactlyOnceWith('parent', null);
+        expect(f.model.getSecrets).toHaveBeenCalledExactlyOnceWith(
+            'parent',
+            null,
+            true,
+        );
     },
 );
 it('propagates unexpected errors while loading parent status', async () => {
@@ -885,9 +890,29 @@ it('deletes only the preview slot when a parent key exists', async () => {
 });
 it('tests inherited secrets against preview connection settings', async () => {
     const f = previewFixture();
+    f.model.getSecrets.mockImplementation(async (uuid: string) => ({
+        slot: { uuid: `${uuid}-slot`, identityUuid: `${uuid}-generation` },
+        secrets:
+            uuid === 'parent'
+                ? secrets
+                : {
+                      ...secrets,
+                      keyfileContents: {
+                          ...secrets.keyfileContents,
+                          client_email: 'stale@example.com',
+                      },
+                  },
+    }));
     expect(
         await f.service.test(f.account, 'project', null, null),
     ).toMatchObject({ ok: true });
+    expect(f.model.getSlot).not.toHaveBeenCalled();
+    expect(f.model.getReplaceableSecrets).not.toHaveBeenCalled();
+    expect(f.model.getSecrets).toHaveBeenCalledExactlyOnceWith(
+        'parent',
+        null,
+        true,
+    );
     expect(f.withWarehouseClient.mock.calls[0][0]).toMatchObject({
         projectUuid: 'project',
         credentials: {
@@ -904,14 +929,24 @@ it('tests inherited secrets against preview connection settings', async () => {
         }),
     );
 });
-it('never merges submitted credentials with a parent key', async () => {
-    const f = previewFixture();
-    f.model.getReplaceableSecrets.mockResolvedValue(null);
-    await expect(
-        f.service.test(f.account, 'project', null, input),
-    ).rejects.toBeInstanceOf(ParameterError);
-    expect(f.model.getSecrets).not.toHaveBeenCalled();
-});
+it.each([input, secrets, snowflakeSecrets])(
+    'refuses submitted preview credentials before reading any secrets: $type',
+    async (credentials) => {
+        const f = previewFixture();
+        await expect(
+            f.service.test(f.account, 'project', null, credentials),
+        ).rejects.toMatchObject({
+            name: 'ParameterError',
+            message:
+                'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+        });
+        expect(f.getSummary).toHaveBeenCalledExactlyOnceWith('project');
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.getExtra).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+    },
+);
 
 it('records the parent generation when Test uses an inherited key', async () => {
     const f = previewFixture();
@@ -1148,7 +1183,7 @@ describe('Databricks identity verification', () => {
         expect(f.model.updateVerification).not.toHaveBeenCalled();
     });
     it.each([null, 'original', 'extra'])(
-        'allows preview writes and normalizes connection %s',
+        'refuses preview writes and still normalizes deletion connection %s',
         async (connectionUuid) => {
             const f = databricksFixture(true);
             if (connectionUuid === 'original')
@@ -1156,20 +1191,24 @@ describe('Databricks identity verification', () => {
                     isOriginal: true,
                     name: 'Original',
                 });
-            await f.service.upsert(
-                f.account,
-                'project',
-                connectionUuid,
-                databricksSecrets,
-            );
+            await expect(
+                f.service.upsert(
+                    f.account,
+                    'project',
+                    connectionUuid,
+                    databricksSecrets,
+                ),
+            ).rejects.toMatchObject({
+                statusCode: 400,
+                message:
+                    'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+            });
+            expect(f.load).not.toHaveBeenCalled();
+            expect(f.getExtra).not.toHaveBeenCalled();
+            for (const mock of Object.values(f.model))
+                expect(mock).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
             await f.service.delete(f.account, 'project', connectionUuid);
-            expect(f.model.upsert).toHaveBeenCalledWith(
-                'project',
-                connectionUuid === 'extra' ? 'extra' : null,
-                databricksSecrets,
-                f.account.user.id,
-                expect.objectContaining({ ok: true }),
-            );
             expect(f.model.delete).toHaveBeenCalledExactlyOnceWith(
                 'project',
                 connectionUuid === 'extra' ? 'extra' : null,
@@ -1230,7 +1269,9 @@ describe('Databricks identity verification', () => {
                 null,
             );
             expect(status).toMatchObject({
-                verification,
+                results: null,
+                credentialsReadable: false,
+                verification: null,
                 parent: {
                     projectUuid: 'parent',
                     projectName: canView ? 'Parent project' : null,
@@ -1239,14 +1280,7 @@ describe('Databricks identity verification', () => {
                     verification,
                 },
             });
-            expect(f.model.getVerification).toHaveBeenNthCalledWith(
-                1,
-                'project',
-                null,
-                'generation-before',
-            );
-            expect(f.model.getVerification).toHaveBeenNthCalledWith(
-                2,
+            expect(f.model.getVerification).toHaveBeenCalledExactlyOnceWith(
                 'parent',
                 null,
                 'parent-generation',
@@ -1553,7 +1587,9 @@ describe('Snowflake slots', () => {
                 'project',
                 null,
             );
-            expect(result.verification).toEqual(snowflakeVerification);
+            expect(result.verification).toEqual(
+                inherited ? null : snowflakeVerification,
+            );
             if (inherited)
                 expect(result.parent).toMatchObject({
                     principal: null,
@@ -1783,7 +1819,9 @@ describe('Athena identity verification', () => {
                 'project',
                 null,
             );
-            expect(status.verification).toEqual(athenaVerification);
+            expect(status.verification).toEqual(
+                preview ? null : athenaVerification,
+            );
             if (preview)
                 expect(status.parent?.verification).toEqual(athenaVerification);
             expect(STSClient).not.toHaveBeenCalled();
@@ -1947,7 +1985,9 @@ describe('Postgres identity verification', () => {
                 'project',
                 null,
             );
-            expect(status.verification).toEqual(postgresVerification);
+            expect(status.verification).toEqual(
+                preview ? null : postgresVerification,
+            );
             if (preview)
                 expect(status.parent?.verification).toEqual(
                     postgresVerification,
@@ -2166,7 +2206,9 @@ describe('Redshift identity verification', () => {
                 'project',
                 null,
             );
-            expect(status.verification).toEqual(redshiftVerification);
+            expect(status.verification).toEqual(
+                preview ? null : redshiftVerification,
+            );
             if (preview)
                 expect(status.parent?.verification).toEqual(
                     redshiftVerification,
@@ -2468,7 +2510,9 @@ describe('Trino identity verification', () => {
                 'project',
                 null,
             );
-            expect(status.verification).toEqual(trinoVerification);
+            expect(status.verification).toEqual(
+                preview ? null : trinoVerification,
+            );
             if (preview)
                 expect(status.parent?.verification).toEqual(trinoVerification);
             expect(JSON.stringify(status)).not.toMatch(
@@ -2692,7 +2736,9 @@ describe('ClickHouse identity verification', () => {
                 'project',
                 null,
             );
-            expect(status.verification).toEqual(clickhouseVerification);
+            expect(status.verification).toEqual(
+                preview ? null : clickhouseVerification,
+            );
             if (preview)
                 expect(status.parent?.verification).toEqual(
                     clickhouseVerification,
@@ -2945,3 +2991,100 @@ it.each([
         ).toMatchObject({ ok: false, principal: null, observed: {}, message });
     },
 );
+
+it.each([true, false])(
+    'hides preview status with own slot=%s across parent states',
+    async (hasOwn) => {
+        const f = previewFixture();
+        f.model.getSlot.mockResolvedValue(
+            hasOwn ? { uuid: 'stale', identityUuid: 'stale-generation' } : null,
+        );
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({
+            results: null,
+            credentialsReadable: false,
+            parent: { projectUuid: 'parent' },
+        });
+        f.model.getSecrets.mockResolvedValue(null);
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toEqual({
+            results: null,
+            credentialsReadable: false,
+            parent: null,
+        });
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.model.getCredentialsReadable).not.toHaveBeenCalled();
+        expect(f.model.getVerification).not.toHaveBeenCalled();
+    },
+);
+it.each([null, 'extra'])(
+    'refuses preview save before reading secrets on connection %s',
+    async (connectionUuid) => {
+        const f = previewFixture();
+        await expect(
+            f.service.upsert(f.account, 'project', connectionUuid, secrets),
+        ).rejects.toMatchObject({
+            statusCode: 400,
+            message:
+                'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.',
+        });
+        expect(f.getSummary).toHaveBeenCalledExactlyOnceWith('project');
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.getExtra).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    },
+);
+it('allows a preview without an upstream project to save its account', async () => {
+    const f = setup();
+    f.getSummary.mockResolvedValue({
+        organizationUuid: f.account.organization.organizationUuid,
+        type: ProjectType.PREVIEW,
+        upstreamProjectUuid: null,
+    });
+    await expect(
+        f.service.upsert(f.account, 'project', null, secrets),
+    ).resolves.toMatchObject({ results: { uuid: 'slot' } });
+    expect(f.model.upsert).toHaveBeenCalled();
+});
+
+it.each(['upsert', 'test'] as const)(
+    'checks preview authorization and flag before refusing %s',
+    async (operation) => {
+        const f = previewFixture();
+        f.account.user.ability = new Ability<PossibleAbilities>([]);
+        await expect(
+            f.service[operation](f.account, 'project', null, secrets),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(f.flag).not.toHaveBeenCalled();
+        f.account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'Project' },
+        ]);
+        f.flag.mockResolvedValue({ enabled: false });
+        await expect(
+            f.service[operation](f.account, 'project', null, secrets),
+        ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+        expect(f.load).not.toHaveBeenCalled();
+        for (const mock of Object.values(f.model))
+            expect(mock).not.toHaveBeenCalled();
+    },
+);
+
+it('tests submitted credentials on a preview without a parent', async () => {
+    const f = previewFixture();
+    f.getSummary.mockResolvedValue({
+        organizationUuid: f.account.organization.organizationUuid,
+        type: ProjectType.PREVIEW,
+        upstreamProjectUuid: null,
+    });
+    await expect(
+        f.service.test(f.account, 'project', null, input),
+    ).resolves.toMatchObject({ ok: true });
+    expect(f.model.getReplaceableSecrets).toHaveBeenCalledExactlyOnceWith(
+        'project',
+        null,
+    );
+});

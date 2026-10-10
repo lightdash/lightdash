@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     QueryExecutionContext,
     supportsAiServiceAccount,
     WarehouseTypes,
@@ -63,6 +64,23 @@ type Dependencies = {
     projectService: Pick<ProjectService, 'warehouseClientFactory'>;
 };
 
+type ManagedProject = {
+    organizationUuid: string;
+    projectName: string;
+    isPreview: boolean;
+};
+
+type ServiceAccountConnection = {
+    connection: CreateWarehouseCredentials;
+    warehouseConnectionUuid: string | null;
+    organizationUuid: string;
+    connectionName: string;
+    isPreview: boolean;
+};
+
+const previewAccountMessage =
+    'A preview uses the shared agent account of its parent project. Add or change the account on the parent project.';
+
 const verifiedWarehouseTypes = new Set<WarehouseTypes>([
     WarehouseTypes.CLICKHOUSE,
     WarehouseTypes.POSTGRES,
@@ -78,15 +96,17 @@ export class AiServiceAccountService extends BaseService {
         super();
     }
 
-    private async loadConnection(
+    private async loadManagedProject(
         account: Account,
         projectUuid: string,
-        connectionUuid: string | null,
-        resolveAuditName: boolean,
-    ) {
+    ): Promise<ManagedProject> {
         assertIsAccountWithOrg(account);
-        const { organizationUuid, name: projectName } =
-            await this.deps.projectModel.getSummary(projectUuid);
+        const {
+            organizationUuid,
+            name: projectName,
+            type,
+            upstreamProjectUuid,
+        } = await this.deps.projectModel.getSummary(projectUuid);
         if (
             this.createAuditedAbility(account).cannot(
                 'manage',
@@ -101,6 +121,16 @@ export class AiServiceAccountService extends BaseService {
         });
         if (!enabled)
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
+        const isPreview = type === ProjectType.PREVIEW && !!upstreamProjectUuid;
+        return { organizationUuid, projectName, isPreview };
+    }
+
+    private async loadConnection(
+        projectUuid: string,
+        connectionUuid: string | null,
+        { organizationUuid, projectName, isPreview }: ManagedProject,
+        resolveAuditName: boolean,
+    ): Promise<ServiceAccountConnection> {
         let warehouseConnectionUuid = connectionUuid;
         let connectionName = projectName;
         if (warehouseConnectionUuid !== null) {
@@ -143,6 +173,7 @@ export class AiServiceAccountService extends BaseService {
             );
         }
         return {
+            isPreview,
             connection,
             warehouseConnectionUuid,
             organizationUuid,
@@ -194,9 +225,9 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
     ): Promise<AiServiceAccountSlot | null> {
         const { warehouseConnectionUuid } = await this.loadConnection(
-            account,
             projectUuid,
             connectionUuid,
+            await this.loadManagedProject(account, projectUuid),
             false,
         );
         return this.deps.aiServiceAccountCredentialsModel.getSlot(
@@ -210,34 +241,41 @@ export class AiServiceAccountService extends BaseService {
         projectUuid: string,
         connectionUuid: string | null,
     ): Promise<Omit<ApiAiServiceAccountStatusResponse, 'status'>> {
-        const { warehouseConnectionUuid, organizationUuid, connection } =
-            await this.loadConnection(
-                account,
-                projectUuid,
-                connectionUuid,
-                false,
-            );
-        const results =
-            await this.deps.aiServiceAccountCredentialsModel.getSlot(
-                projectUuid,
-                warehouseConnectionUuid,
-            );
+        const {
+            warehouseConnectionUuid,
+            organizationUuid,
+            connection,
+            isPreview,
+        } = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+            await this.loadManagedProject(account, projectUuid),
+            false,
+        );
+        const results = isPreview
+            ? null
+            : await this.deps.aiServiceAccountCredentialsModel.getSlot(
+                  projectUuid,
+                  warehouseConnectionUuid,
+              );
         const credentialsReadable =
-            connection.type !== WarehouseTypes.BIGQUERY
+            !isPreview &&
+            (connection.type !== WarehouseTypes.BIGQUERY
                 ? await this.deps.aiServiceAccountCredentialsModel.getCredentialsReadable(
                       projectUuid,
                       warehouseConnectionUuid,
                       results?.identityUuid ?? null,
                   )
-                : results !== null;
+                : results !== null);
         const verification = verifiedWarehouseTypes.has(connection.type)
             ? {
-                  verification:
-                      await this.deps.aiServiceAccountCredentialsModel.getVerification(
-                          projectUuid,
-                          warehouseConnectionUuid,
-                          results?.identityUuid ?? null,
-                      ),
+                  verification: isPreview
+                      ? null
+                      : await this.deps.aiServiceAccountCredentialsModel.getVerification(
+                            projectUuid,
+                            warehouseConnectionUuid,
+                            results?.identityUuid ?? null,
+                        ),
               }
             : {};
         const resolver = new AiServiceAccountSlotResolver(this.deps);
@@ -310,17 +348,20 @@ export class AiServiceAccountService extends BaseService {
             database: this.deps.aiServiceAccountCredentialsModel.db,
             featureFlagModel: this.deps.featureFlagModel,
         });
+        const project = await this.loadManagedProject(account, projectUuid);
+        if (project.isPreview) throw new ParameterError(previewAccountMessage);
+        const loaded = await this.loadConnection(
+            projectUuid,
+            connectionUuid,
+            project,
+            true,
+        );
         const {
             connection,
             warehouseConnectionUuid,
             organizationUuid,
             connectionName,
-        } = await this.loadConnection(
-            account,
-            projectUuid,
-            connectionUuid,
-            true,
-        );
+        } = loaded;
         if (input.type !== connection.type)
             throw new ParameterError(
                 'The shared agent account must match the connection warehouse type.',
@@ -358,12 +399,7 @@ export class AiServiceAccountService extends BaseService {
             ? await this.testConnection(
                   account,
                   projectUuid,
-                  {
-                      connection,
-                      warehouseConnectionUuid,
-                      organizationUuid,
-                      connectionName,
-                  },
+                  loaded,
                   credentials,
               )
             : null;
@@ -430,9 +466,9 @@ export class AiServiceAccountService extends BaseService {
             organizationUuid,
             connectionName,
         } = await this.loadConnection(
-            account,
             projectUuid,
             connectionUuid,
+            await this.loadManagedProject(account, projectUuid),
             true,
         );
         const previous =
@@ -473,10 +509,13 @@ export class AiServiceAccountService extends BaseService {
         connectionUuid: string | null,
         input: AiServiceAccountCredentialInput | null,
     ): Promise<AiServiceAccountTestResult> {
+        const project = await this.loadManagedProject(account, projectUuid);
+        if (input !== null && project.isPreview)
+            throw new ParameterError(previewAccountMessage);
         const loaded = await this.loadConnection(
-            account,
             projectUuid,
             connectionUuid,
+            project,
             true,
         );
         if (input !== null && input.type !== loaded.connection.type)
@@ -746,7 +785,7 @@ export class AiServiceAccountService extends BaseService {
     private async testConnection(
         account: Account,
         projectUuid: string,
-        loaded: Awaited<ReturnType<AiServiceAccountService['loadConnection']>>,
+        loaded: ServiceAccountConnection,
         input: AiServiceAccountSecrets | null,
     ): Promise<AiServiceAccountTestResult> {
         const {
@@ -756,10 +795,12 @@ export class AiServiceAccountService extends BaseService {
             connectionName,
         } = loaded;
         let secrets = input;
-        const slot = await this.deps.aiServiceAccountCredentialsModel.getSlot(
-            projectUuid,
-            warehouseConnectionUuid,
-        );
+        const slot = loaded.isPreview
+            ? null
+            : await this.deps.aiServiceAccountCredentialsModel.getSlot(
+                  projectUuid,
+                  warehouseConnectionUuid,
+              );
         let sourceProjectUuid = projectUuid;
         let sourceConnection = warehouseConnectionUuid;
         let queryStarted = false;

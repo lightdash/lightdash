@@ -237,6 +237,7 @@ import {
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
+import { isAiServiceAccountPermissionError } from '../../utils/aiServiceAccountErrors';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import {
     getDuckdbPreAggregateSqlTable,
@@ -5050,9 +5051,17 @@ export class AsyncQueryService extends ProjectService {
                 queryTags,
                 queryCreatedAt,
                 queryUsage,
-                errorMessage: getErrorMessage(
-                    personaliseSharedSignInError(e, null),
-                ),
+                errorMessage:
+                    inheritedFromProjectUuid !== null &&
+                    !(e instanceof AiAccessRefusedError) &&
+                    isAiServiceAccountPermissionError(
+                        warehouseCredentialsType ?? null,
+                        e,
+                    )
+                        ? `This preview uses the parent's shared agent account, which can't read this preview's data. Ask an admin to grant it access. ${getErrorMessage(e)}`
+                        : getErrorMessage(
+                              personaliseSharedSignInError(e, null),
+                          ),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
                 warehouseConnectionUuid,

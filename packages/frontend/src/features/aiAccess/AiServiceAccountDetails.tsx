@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getProjectAgentIdentitySettingsPath,
     WarehouseTypes,
     type AiServiceAccountParent,
     type AiServiceAccountSlot,
@@ -72,20 +73,19 @@ export const AiServiceAccountDetails = ({
                 <Text size="sm">
                     Uses the shared agent account from{' '}
                     {parent.projectName !== null ? (
-                        <>
-                            <Anchor
-                                component={Link}
-                                to={`/generalSettings/projectManagement/${parent.projectUuid}/agentIdentity`}
-                                size="sm"
-                            >
-                                {parent.projectName}
-                            </Anchor>
-                            , the parent project
-                        </>
+                        <Anchor
+                            component={Link}
+                            to={getProjectAgentIdentitySettingsPath(
+                                parent.projectUuid,
+                            )}
+                            size="sm"
+                        >
+                            {parent.projectName}
+                        </Anchor>
                     ) : (
                         'the parent project'
                     )}
-                    . Changes there apply here on the next query.
+                    .
                 </Text>
             )}
             {principal ? (

@@ -3,12 +3,13 @@ import {
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
+import { type ReactNode } from 'react';
 import { identityWarehouseNames } from './identityLabels';
 
 export type AiServiceAccountStatusInfo = {
     badge: 'In use' | 'Not in use' | null;
     message: string | null;
-    alert: { color: 'red' | 'yellow'; message: string } | null;
+    alert: { color: 'red' | 'yellow'; message: ReactNode } | null;
 };
 
 export const getAiServiceAccountStatus = ({
@@ -16,6 +17,7 @@ export const getAiServiceAccountStatus = ({
     slot,
     parent,
     credentialsReadable,
+    isPreview,
 }: {
     rule: OrganizationAgentIdentityRule & {
         warehouseType: keyof typeof identityWarehouseNames;
@@ -23,11 +25,12 @@ export const getAiServiceAccountStatus = ({
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
     credentialsReadable: boolean;
+    isPreview: boolean;
 }): AiServiceAccountStatusInfo => {
     const required = rule.source === 'ai_service_account';
     const unreadableParent = !slot && parent?.credentialsReadable === false;
     const warehouse = identityWarehouseNames[rule.warehouseType];
-    const parentWarning = `This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;
+    const parentWarning = `This preview can't read the parent project's shared agent account. Ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;
     if (required && unreadableParent)
         return {
             badge: null,
@@ -43,8 +46,9 @@ export const getAiServiceAccountStatus = ({
             message: null,
             alert: {
                 color: 'yellow',
-                message:
-                    'Agents are refused on this project until you add a shared agent account.',
+                message: isPreview
+                    ? 'Agents are refused on this preview until the parent project has a shared agent account for this connection.'
+                    : 'Agents are refused on this project until you add a shared agent account.',
             },
         };
     return {
