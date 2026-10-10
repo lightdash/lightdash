@@ -1,8 +1,15 @@
-import { ForbiddenError, MergeJoinType } from '@lightdash/common';
+import {
+    AgentCapability,
+    ForbiddenError,
+    MergeJoinType,
+} from '@lightdash/common';
 import { fetchMiddlewares } from '@tsoa/runtime';
 import express from 'express';
 import { PassThrough } from 'stream';
 import { gunzipSync, gzipSync } from 'zlib';
+import { fromOauth } from '../auth/account/account';
+import { defaultSessionUser } from '../auth/account/account.mock';
+import { grantFixture } from '../auth/agentConnectionGrants/grant.mock';
 import { buildAccount } from '../services/ProjectService/ProjectService.mock';
 import { type ServiceRepository } from '../services/ServiceRepository';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
@@ -140,4 +147,42 @@ describe('ProjectController merge routes', () => {
             expect.objectContaining({ account, projectUuid: 'project-uuid' }),
         );
     });
+});
+
+it('refuses bound refresh sync before queuing work, while keeping compile-only refresh', async () => {
+    const scheduleCompileProject = vi.fn().mockResolvedValue({});
+    const controller = new ProjectController({
+        getProjectService: () => ({ scheduleCompileProject }),
+    } as unknown as ServiceRepository);
+    const grant = grantFixture();
+    const account = fromOauth(
+        defaultSessionUser,
+        { accessToken: 'token', client: { id: grant.clientId } },
+        null,
+        {
+            ...grant,
+            revision: 1,
+            approvedCapabilities: [AgentCapability.DeployUpload],
+        },
+    );
+    const req = { account, header: vi.fn() } as unknown as express.Request;
+    await expect(
+        controller.refresh(grant.approvedProjectUuids[0], req, {
+            syncContent: true,
+        }),
+    ).rejects.toThrow('sync');
+    expect(scheduleCompileProject).not.toHaveBeenCalled();
+    await expect(
+        controller.refresh(grant.approvedProjectUuids[0], req, {
+            syncContent: false,
+        }),
+    ).resolves.toMatchObject({ status: 'ok' });
+    expect(scheduleCompileProject).toHaveBeenCalledWith(
+        expect.anything(),
+        grant.approvedProjectUuids[0],
+        expect.anything(),
+        false,
+        false,
+        false,
+    );
 });

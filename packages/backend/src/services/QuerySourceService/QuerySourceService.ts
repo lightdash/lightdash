@@ -98,10 +98,7 @@ export class QuerySourceService extends BaseService {
         this.getAgentPermissionService = args.getAgentPermissionService;
     }
 
-    private async assertAgentSqlAccess(
-        account: Account,
-        projectUuid: string,
-    ): Promise<void> {
+    private static assertGrantSqlAccess(account: Account): void {
         const grant =
             account.authentication.type === 'oauth'
                 ? account.authentication.agentConnectionGrant
@@ -113,6 +110,13 @@ export class QuerySourceService extends BaseService {
             throw new ForbiddenError(
                 'This agent connection is not approved for Raw SQL.',
             );
+    }
+
+    private async assertAgentSqlAccess(
+        account: Account,
+        projectUuid: string,
+    ): Promise<void> {
+        QuerySourceService.assertGrantSqlAccess(account);
         const execution = agentExecutionContext.getStore();
         if (
             account.authentication.type !== 'oauth' &&
@@ -408,6 +412,14 @@ export class QuerySourceService extends BaseService {
         if (
             ordered.some(({ source }) =>
                 sourceRequiresRawSql(source.definition.sourceType),
+            )
+        ) {
+            QuerySourceService.assertGrantSqlAccess(account);
+        }
+        if (
+            ordered.some(
+                ({ source }) =>
+                    source.definition.sourceType === QuerySourceType.SQL,
             )
         ) {
             await this.assertAgentSqlAccess(account, projectUuid);

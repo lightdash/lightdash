@@ -27,6 +27,13 @@ export type GrantOperationContract =
           bodySchema: z.ZodType;
           overrides: 'body' | 'legacy_query';
       }
+    | {
+          kind: 'deployment_session';
+          param: 'projectUuid';
+          sessionParam: 'sessionUuid';
+          bodySchema: z.ZodType;
+      }
+    | { kind: 'refresh'; param: 'projectUuid'; bodySchema: z.ZodType }
     | { kind: 'content_upload'; param: 'projectUuid'; bodySchema: z.ZodType }
     | {
           kind: 'source_queries';
@@ -40,10 +47,16 @@ export type GrantOperationContract =
       };
 
 const pathProject = { kind: 'path_project', param: 'projectUuid' } as const;
+export const grantUploadBodySchema = z
+    .object({
+        access: z.never().optional(),
+        spaceSlug: z.string().min(1).optional(),
+    })
+    .passthrough();
 const upload = {
     kind: 'content_upload',
     param: 'projectUuid',
-    bodySchema: z.object({}).passthrough(),
+    bodySchema: grantUploadBodySchema.extend({ spaceSlug: z.string().min(1) }),
 } as const;
 const deployBodySchema = z
     .object({
@@ -86,7 +99,13 @@ const operationContracts = {
     },
     'ProjectController.getProject': pathProject,
     'ProjectController.GetDbtExposures': pathProject,
-    'ProjectController.refresh': pathProject,
+    'ProjectController.refresh': {
+        kind: 'refresh',
+        param: 'projectUuid',
+        bodySchema: z
+            .object({ syncContent: z.literal(false).optional() })
+            .passthrough(),
+    },
     'ProjectController.getSpacesInProject': pathProject,
     'ProjectController.getDashboards': pathProject,
     'ProjectController.replaceYamlTags': pathProject,
@@ -108,8 +127,18 @@ const operationContracts = {
     },
     'DeployController.deployExplores': deployBody,
     'DeployController.startDeploySession': deployBody,
-    'DeployController.addDeployBatch': deployBody,
-    'DeployController.finalizeDeploySession': deployBody,
+    'DeployController.addDeployBatch': {
+        kind: 'deployment_session',
+        param: 'projectUuid',
+        sessionParam: 'sessionUuid',
+        bodySchema: deployBodySchema,
+    },
+    'DeployController.finalizeDeploySession': {
+        kind: 'deployment_session',
+        param: 'projectUuid',
+        sessionParam: 'sessionUuid',
+        bodySchema: deployBodySchema,
+    },
     'QueryController.executeAsyncMetricQuery': pathProject,
     'QueryController.executeAsyncSqlQuery': pathProject,
     'QueryController.executeAsyncComposeSqlQuery': pathProject,
@@ -189,7 +218,10 @@ const operationContracts = {
     'ProjectCoderController.upsertChartAsCode': upload,
     'ProjectCoderController.upsertDashboardAsCode': upload,
     'ProjectCoderController.upsertSqlChartAsCode': upload,
-    'ProjectCoderController.upsertVirtualViewAsCode': upload,
+    'ProjectCoderController.upsertVirtualViewAsCode': {
+        ...upload,
+        bodySchema: grantUploadBodySchema,
+    },
 } satisfies Record<string, GrantOperationContract>;
 
 export type OperationKey = keyof typeof operationContracts;

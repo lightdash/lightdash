@@ -34,6 +34,10 @@ const setup = () => {
                 .mockImplementation(async (_org: string, id: string) =>
                     id === 'slug' ? grant.approvedProjectUuids[0] : id,
                 ),
+            resolveDeploySession: vi.fn().mockResolvedValue({
+                projectUuid: grant.approvedProjectUuids[0],
+                userUuid: grant.subjectUserUuid,
+            }),
             resolveResourceProjectUuid: vi
                 .fn()
                 .mockResolvedValue(grant.approvedProjectUuids[0]),
@@ -541,4 +545,125 @@ it('checks the export chart resource and capability', async () => {
             'SavedChartController.exportSavedChartImage',
         ),
     ).rejects.toThrow('project');
+});
+
+it.each(
+    [
+        'DeployController.addDeployBatch',
+        'DeployController.finalizeDeploySession',
+    ].flatMap((operation) =>
+        ['project', 'owner', 'valid'].map((binding) => ({
+            operation,
+            binding,
+        })),
+    ),
+)(
+    'resolves the stored project and owner for $operation with $binding binding',
+    async ({ operation, binding }) => {
+        const { service, token, user, grant, deps } = setup();
+        grant.approvedCapabilities = [AgentCapability.DeployUpload];
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        deps.resourceResolver.resolveDeploySession.mockResolvedValue({
+            projectUuid:
+                binding === 'project' ? 'other' : grant.approvedProjectUuids[0],
+            userUuid: binding === 'owner' ? 'other' : user.userUuid,
+        });
+        const result = service.assertRestOperation(
+            {
+                account,
+                method: 'POST',
+                query: {},
+                params: {
+                    projectUuid: grant.approvedProjectUuids[0],
+                    sessionUuid: 'session',
+                },
+                body: {},
+            },
+            operation,
+        );
+        if (binding === 'valid')
+            await expect(result).resolves.toEqual(grant.approvedProjectUuids);
+        else await expect(result).rejects.toThrow('deploy session');
+    },
+);
+it.each([
+    'ProjectCoderController.upsertChartAsCode',
+    'ProjectCoderController.upsertDashboardAsCode',
+    'ProjectCoderController.upsertSqlChartAsCode',
+    'ProjectCoderController.upsertVirtualViewAsCode',
+])(
+    'refuses access payloads even with every capability for %s',
+    async (operation) => {
+        const { service, token, user, grant } = setup();
+        grant.approvedCapabilities = Object.values(AgentCapability);
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        await Promise.all(
+            [
+                { users: [], groups: [] },
+                {
+                    users: [{ email: 'reader@example.com', role: 'viewer' }],
+                    groups: [],
+                },
+                null,
+            ].map(async (access) => {
+                await expect(
+                    service.assertRestOperation(
+                        {
+                            account,
+                            method: 'POST',
+                            query: {},
+                            params: {
+                                projectUuid: grant.approvedProjectUuids[0],
+                            },
+                            body: { access },
+                        },
+                        operation,
+                    ),
+                ).rejects.toThrow('request body');
+            }),
+        );
+    },
+);
+it('refuses refresh content sync but allows compile-only refresh', async () => {
+    const { service, token, user, grant } = setup();
+    grant.approvedCapabilities = [AgentCapability.DeployUpload];
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    const req = {
+        account,
+        method: 'POST',
+        query: {},
+        params: { projectUuid: grant.approvedProjectUuids[0] },
+        body: {},
+    };
+    await expect(
+        service.assertRestOperation(
+            { ...req, body: { syncContent: true } },
+            'ProjectController.refresh',
+        ),
+    ).rejects.toThrow('request body');
+    await Promise.all(
+        [{}, { syncContent: false }].map(async (body) => {
+            await expect(
+                service.assertRestOperation(
+                    { ...req, body },
+                    'ProjectController.refresh',
+                ),
+            ).resolves.toEqual(grant.approvedProjectUuids);
+        }),
+    );
 });

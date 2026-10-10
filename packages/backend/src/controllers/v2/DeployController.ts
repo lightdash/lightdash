@@ -142,6 +142,23 @@ export class DeployController extends BaseController {
             projectUuids: [projectUuid],
             deploymentOverrides: body,
         });
+        if (
+            req.account?.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant
+        ) {
+            await this.services
+                .getAgentConnectionGrantService()
+                .assertRestOperation(
+                    {
+                        account: req.account,
+                        method: req.method,
+                        query: req.query,
+                        params: { projectUuid, sessionUuid },
+                        body,
+                    },
+                    'DeployController.addDeployBatch',
+                );
+        }
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
@@ -190,6 +207,23 @@ export class DeployController extends BaseController {
             projectUuids: [projectUuid],
             deploymentOverrides: body,
         });
+        if (
+            req.account?.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant
+        ) {
+            await this.services
+                .getAgentConnectionGrantService()
+                .assertRestOperation(
+                    {
+                        account: req.account,
+                        method: req.method,
+                        query: req.query,
+                        params: { projectUuid, sessionUuid },
+                        body,
+                    },
+                    'DeployController.finalizeDeploySession',
+                );
+        }
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services

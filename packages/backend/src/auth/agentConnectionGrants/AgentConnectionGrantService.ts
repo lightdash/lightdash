@@ -212,6 +212,39 @@ export class AgentConnectionGrantService {
             case 'path_project':
                 projects.push(await resolveProject(req.params[contract.param]));
                 break;
+            case 'deployment_session': {
+                const projectUuid = await resolveProject(
+                    req.params[contract.param],
+                );
+                const sessionUuid = z
+                    .string()
+                    .min(1)
+                    .safeParse(req.params[contract.sessionParam]);
+                if (!sessionUuid.success)
+                    throw new ForbiddenError(
+                        "This agent connection can't resolve this deploy session.",
+                    );
+                const session = await resolver.resolveDeploySession(
+                    sessionUuid.data,
+                );
+                if (
+                    session.projectUuid !== projectUuid ||
+                    session.userUuid !== req.account.user.id
+                )
+                    throw new ForbiddenError(
+                        "This agent connection can't use this deploy session.",
+                    );
+                projects.push(await resolveProject(session.projectUuid));
+                deploymentOverrides = z
+                    .object({ target: z.unknown(), sourceUuid: z.unknown() })
+                    .partial()
+                    .parse(parseBody(contract.bodySchema));
+                break;
+            }
+            case 'refresh':
+                projects.push(await resolveProject(req.params[contract.param]));
+                parseBody(contract.bodySchema);
+                break;
             case 'deployment': {
                 projects.push(await resolveProject(req.params[contract.param]));
                 const body = parseBody(contract.bodySchema);

@@ -1190,3 +1190,77 @@ describe('bound grant SQL source effects', () => {
         },
     );
 });
+
+it.each(['duckdb', 'external', 'pipeline'] as const)(
+    'preserves unbound managed OAuth source dispatch: %s',
+    async (kind) => {
+        const { registry } = createRegistryWithFakes();
+        registry.register(createFakeSource(QuerySourceType.EXTERNAL));
+        const { service, mocks } = createService(registry);
+        mocks.permissions.isManaged.mockResolvedValue(true);
+        mocks.permissions.assertOperation.mockRejectedValue(
+            new ForbiddenError('Raw SQL disabled'),
+        );
+        const unbound = fromOauth(defaultSessionUser, {
+            accessToken: 'token',
+            client: { id: 'client' },
+        });
+        const queries: SourceQuery[] =
+            kind === 'external'
+                ? [
+                      {
+                          sourceType: QuerySourceType.EXTERNAL,
+                          sql: 'select 1',
+                          tables: [],
+                      },
+                  ]
+                : [
+                      ...(kind === 'pipeline'
+                          ? [
+                                {
+                                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                    nodeId: 'semantic',
+                                    exploreName: 'orders',
+                                    dimensions: [],
+                                    metrics: [],
+                                } satisfies SourceQuery,
+                            ]
+                          : []),
+                      {
+                          sourceType: QuerySourceType.DUCKDB,
+                          sql: 'select * from result',
+                          references: [
+                              kind === 'pipeline'
+                                  ? 'semantic'
+                                  : '22222222-2222-4222-8222-222222222222',
+                          ],
+                      },
+                  ];
+        await expect(
+            service.submitQueries({
+                ...executionContext,
+                account: unbound,
+                projectUuid,
+                queries,
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                plans: {},
+            }),
+        ).resolves.toBeDefined();
+        expect(mocks.permissions.isManaged).not.toHaveBeenCalled();
+        expect(mocks.permissions.assertOperation).not.toHaveBeenCalled();
+        for (const query of queries)
+            expect(
+                registry.get(query.sourceType).submitQuery,
+            ).toHaveBeenCalledOnce();
+        await expect(
+            service.submitQueries({
+                ...executionContext,
+                account: unbound,
+                projectUuid,
+                queries: [{ sourceType: QuerySourceType.SQL, sql: 'select 1' }],
+                context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                plans: {},
+            }),
+        ).rejects.toThrow('Raw SQL disabled');
+    },
+);

@@ -111,6 +111,7 @@ import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
+import { grantUploadBodySchema } from '../../auth/agentConnectionGrants/operationContracts';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
@@ -250,6 +251,7 @@ type SqlChartsAsCodeResult = {
 };
 
 type UpsertContentAsCodeOptions = {
+    account?: Account;
     skipSpaceCreate?: boolean;
     publicSpaceCreate?: boolean;
     force?: boolean;
@@ -413,6 +415,12 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
+        await this.assertAgentUploadAllowed(
+            account,
+            getAccountApiAccessContext(account).user,
+            projectUuid,
+            virtualView,
+        );
         return this.virtualViewCoder.upsert(
             account,
             projectUuid,
@@ -3866,6 +3874,35 @@ export class CoderService extends BaseService {
         return [];
     }
 
+    private async assertAgentUploadAllowed(
+        account: Account | null,
+        user: SessionUser,
+        projectUuid: string,
+        payload: unknown,
+    ): Promise<void> {
+        if (
+            account?.authentication.type !== 'oauth' ||
+            !account.authentication.agentConnectionGrant
+        )
+            return;
+        const parsed = grantUploadBodySchema.safeParse(payload);
+        if (!parsed.success)
+            throw new ForbiddenError(
+                "This agent connection can't upload an access policy or an unresolved space.",
+            );
+        if (
+            parsed.data.spaceSlug !== undefined &&
+            (await this.findAccessibleSpace(
+                projectUuid,
+                parsed.data.spaceSlug,
+                user,
+            )) === undefined
+        )
+            throw new ForbiddenError(
+                "This agent connection can't create a space during upload.",
+            );
+    }
+
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
@@ -3873,6 +3910,12 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            chartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -3886,13 +3929,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { canUploadAnyContent, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
             });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         const metricQuery = {
             ...chartAsCode.metricQuery,
             filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
@@ -4447,9 +4496,19 @@ export class CoderService extends BaseService {
         sqlChartAsCode: SqlChartAsCode,
         options: Pick<
             UpsertContentAsCodeOptions,
-            'skipSpaceCreate' | 'publicSpaceCreate' | 'spaceNames' | 'mode'
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'mode'
+            | 'account'
         > = {},
     ): Promise<PromotionChanges> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            sqlChartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -4476,14 +4535,19 @@ export class CoderService extends BaseService {
                     action,
                 });
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
             ...sqlChartAsCode,
@@ -5216,6 +5280,12 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            dashboardAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
@@ -5228,14 +5298,19 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
             ...dashboardAsCode,
