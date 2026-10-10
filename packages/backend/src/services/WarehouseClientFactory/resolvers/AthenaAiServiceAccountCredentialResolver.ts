@@ -98,6 +98,7 @@ export class AthenaAiServiceAccountCredentialResolver implements CredentialResol
             clientCredentials,
             clientOptions: {},
             cacheable: input.owner !== null && !clientCredentials.sessionToken,
+            agentSignIn: null,
         };
     }
 

@@ -59,6 +59,7 @@ it('takes exactly routing fields from the connection and identity from the slot'
         },
         clientOptions: {},
         cacheable: true,
+        agentSignIn: null,
     });
 });
 it.each([
