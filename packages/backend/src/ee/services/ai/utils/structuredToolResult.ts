@@ -19,13 +19,20 @@ export type ExecuteStructuredToolResult<
 };
 
 /** Failure envelope: `structuredContent` mirrors the error text as `{ error }`. */
-export type ExecuteToolErrorResult<TMetadata = { status: 'error' }> = {
+interface ToolErrorWithRefusal extends ToolErrorStructuredContent {
+    refusal: AiAccessRefusal | null;
+}
+
+interface ToolErrorMetadata extends Record<string, unknown> {
+    status: 'error';
+    refusal?: AiAccessRefusal;
+}
+
+export interface ExecuteToolErrorResult<TMetadata = ToolErrorMetadata> {
     result: string;
     metadata: TMetadata;
-    structuredContent: ToolErrorStructuredContent & {
-        refusal: AiAccessRefusal | null;
-    };
-};
+    structuredContent: ToolErrorWithRefusal;
+}
 
 /** A failure the model should read as plain text, with no access refusal. */
 export const toolFailure = (result: string): ExecuteToolErrorResult => ({

@@ -341,6 +341,10 @@ export type PerformanceMetrics = {
 export type OnAiAccessRefusal = (refusal: AiAccessRefusal) => void;
 
 export type AiAgentDependencies = {
+    assertToolOperation: (
+        kind: 'agent_tool' | 'connected_mcp_tool',
+        key: string,
+    ) => Promise<void>;
     onAiAccessRefusal?: OnAiAccessRefusal;
     chartExportArtifacts?: ArtifactChartExportAccess;
     listExplores: ListExploresFn;

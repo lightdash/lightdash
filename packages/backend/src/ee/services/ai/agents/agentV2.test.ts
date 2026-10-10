@@ -280,7 +280,9 @@ describe('MCP context preparation at the agent boundary', () => {
             );
             const getProjectContextDocument = vi.fn();
             const getAiAgentMemoryContextEntries = vi.fn();
+            const assertToolOperation = vi.fn().mockResolvedValue(undefined);
             Object.assign(dependencies, {
+                assertToolOperation,
                 consumePromptSteers: async () => [],
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 getProjectContextDocument,
@@ -340,9 +342,38 @@ describe('MCP context preparation at the agent boundary', () => {
             expect(firstStep.activeTools).not.toContain(
                 'generateVisualization',
             );
+            assertToolOperation.mockRejectedValueOnce(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                ),
+            );
+            await expect(
+                options.tools.loadAgentTools.execute(
+                    {},
+                    { toolCallId: 'denied-load', messages: options.messages },
+                ),
+            ).resolves.toMatchObject({
+                structuredContent: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                },
+            });
+            expect(
+                (
+                    await options.prepareStep({
+                        stepNumber: 1,
+                        messages: options.messages,
+                    })
+                ).activeTools,
+            ).not.toContain('generateVisualization');
             await options.tools.loadAgentTools.execute(
                 {},
                 { toolCallId: 'load', messages: options.messages },
+            );
+            expect(assertToolOperation).toHaveBeenCalledWith(
+                'agent_tool',
+                'loadAgentTools',
             );
             const nextStep = await options.prepareStep({
                 stepNumber: 1,

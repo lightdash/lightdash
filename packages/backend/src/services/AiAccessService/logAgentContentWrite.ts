@@ -1,5 +1,9 @@
 import { ForbiddenError as CaslForbiddenError } from '@casl/ability';
-import { ForbiddenError, type AgentIdentityClaim } from '@lightdash/common';
+import {
+    ForbiddenError,
+    type AgentCapability,
+    type AgentIdentityClaim,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 import { type AgentActionPolicyLayer } from '../../database/entities/agentActionLog';
 import { createAuditLogEvent } from '../../logging/auditLog';
@@ -20,6 +24,8 @@ type AgentActionTarget = {
     versionUuid: string | null;
     action: string;
     trx?: Knex.Transaction;
+    capability?: AgentCapability | null;
+    policyVersion?: number;
 };
 
 type AgentActionDecision =
@@ -43,6 +49,8 @@ export const recordAgentAction = async ({
     policyLayer,
     reasonCode,
     trx,
+    capability,
+    policyVersion,
 }: AgentActionTarget & {
     objectId: string | null;
 } & AgentActionDecision): Promise<void> => {
@@ -67,6 +75,10 @@ export const recordAgentAction = async ({
         outcome,
         policy_layer: policyLayer,
         reason_code: reasonCode,
+        ...(capability === undefined ? {} : { capability }),
+        ...(policyVersion === undefined
+            ? {}
+            : { policy_version: policyVersion }),
     };
     try {
         if (trx) await model.insert(entry, trx);
@@ -156,6 +168,9 @@ export const recordAgentRefusal = async ({
     policyLayer,
     reasonCode,
     objectUuid = null,
+    objectId = null,
+    capability,
+    policyVersion,
     error,
 }: {
     model: Pick<AgentActionLogModel, 'insert'>;
@@ -167,6 +182,9 @@ export const recordAgentRefusal = async ({
     policyLayer: AgentActionPolicyLayer;
     reasonCode: string;
     objectUuid?: string | null;
+    objectId?: string | null;
+    capability?: AgentCapability | null;
+    policyVersion?: number;
     error?: object;
 }): Promise<void> => {
     const agentIdentity = getContentWriteAgentIdentity({
@@ -183,7 +201,9 @@ export const recordAgentRefusal = async ({
         projectUuid,
         objectType,
         objectUuid,
-        objectId: null,
+        objectId,
+        capability,
+        policyVersion,
         versionUuid: null,
         action,
         outcome: 'denied',

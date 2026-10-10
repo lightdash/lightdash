@@ -131,6 +131,10 @@ const setup = (spaceAccess: string[] | null = null) => {
             .mockResolvedValue({ projectUuid, slug: projectSlug }),
     };
     const service = new AiAgentToolsService({
+        agentPermissionService: {
+            isManaged: vi.fn().mockResolvedValue(false),
+            assertOperation: vi.fn(),
+        },
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel,
         documentService,

@@ -994,6 +994,24 @@ export class ServiceRepository
             'agentPermissionService',
             () =>
                 new AgentPermissionService({
+                    resolveResourceProjectUuid: async ({ type, uuid }) => {
+                        const resolvers = {
+                            dashboard: () =>
+                                this.models
+                                    .getDashboardModel()
+                                    .getSummaryByUuid(uuid),
+                            saved_chart: () =>
+                                this.models
+                                    .getSavedChartModel()
+                                    .getSummary(uuid),
+                            space: () => this.models.getSpaceModel().get(uuid),
+                            query: () =>
+                                this.models
+                                    .getQueryHistoryModel()
+                                    .getByQueryUuid(uuid),
+                        };
+                        return (await resolvers[type]())?.projectUuid ?? null;
+                    },
                     isCustomRolesLicensed: () =>
                         this.getLicenseService().getLicenseStatus().valid,
                     featureFlagModel: this.models.getFeatureFlagModel(),

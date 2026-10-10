@@ -12,7 +12,7 @@ const defaultScopes = [
 
 export const classification = {
     kind: 'safe',
-    reason: 'Adds agent policy and warehouse confirmation tables and backfills four metadata scopes without changing existing permissions.',
+    reason: 'Adds agent policy and warehouse confirmation tables, nullable audit metadata, and four default capability scopes without changing existing permissions.',
 };
 
 export async function up(knex: Knex): Promise<void> {
@@ -103,10 +103,12 @@ export async function up(knex: Knex): Promise<void> {
             .notNullable()
             .defaultTo(knex.fn.now());
     });
-    try {
-        await knex.transaction(async (transaction) => {
-            await transaction.raw(
-                `
+    await knex.schema.alterTable('agent_action_log', (table) => {
+        table.text('capability').nullable();
+        table.integer('policy_version').nullable();
+    });
+    await knex.raw(
+        `
                 INSERT INTO scoped_roles (role_uuid, scope_name, granted_by)
                 SELECT roles.role_uuid, defaults.scope_name,
                     COALESCE(source.granted_by, roles.created_by)
@@ -121,18 +123,15 @@ export async function up(knex: Knex): Promise<void> {
                 WHERE roles.owner_type = 'user'
                 ON CONFLICT DO NOTHING
             `,
-                defaultScopes,
-            );
-        });
-    } catch {
-        process.stderr.write(
-            'Could not backfill agent capability scopes. Grant view:AgentReadDiscover, view:AgentQuery, view:AgentExport and view:AgentRawSql to existing custom roles through the role settings.\n',
-        );
-    }
+        defaultScopes,
+    );
 }
 
 export async function down(knex: Knex): Promise<void> {
     await knex.raw("SET LOCAL lock_timeout = '5s'");
+    await knex.schema.alterTable('agent_action_log', (table) => {
+        table.dropColumns('capability', 'policy_version');
+    });
     await knex('scoped_roles').whereIn('scope_name', defaultScopes).delete();
     await knex.schema.dropTable(confirmationTable);
     await knex.schema.dropTable(matrixTable);

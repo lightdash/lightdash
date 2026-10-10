@@ -31,6 +31,7 @@ const setup = () => {
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const deps = {
+        resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {

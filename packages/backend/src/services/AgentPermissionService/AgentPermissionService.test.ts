@@ -25,6 +25,7 @@ const setup = () => {
         systemRoleMatrix: { ...matrix, viewer: [AgentCapability.Query] },
     };
     const deps = {
+        resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
         isCustomRolesLicensed: vi.fn().mockReturnValue(true),
         featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
         agentCapabilityPolicyModel: {
@@ -118,7 +119,7 @@ test('does not use an admin manage:all ability to supply capabilities', async ()
     });
 });
 
-test('refuses unmapped operations and connected tools', async () => {
+test('refuses unmapped operations and requires external_tools for connected tools', async () => {
     const { service, operation } = setup();
     await expect(
         service.assertOperation({ ...operation, key: 'unknown' }),
@@ -135,7 +136,10 @@ test('refuses unmapped operations and connected tools', async () => {
             key: 'new/server/tool',
         }),
     ).rejects.toMatchObject({
-        refusal: { reason: AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED },
+        refusal: {
+            reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            capability: AgentCapability.ExternalTools,
+        },
     });
 });
 
@@ -242,6 +246,7 @@ test('pure evaluation is suitable for tool filtering', () => {
                 mcpAgentsEnabled: false,
                 mcpContentWritesEnabled: false,
                 warehouseConfirmed: false,
+                isOrganizationDiscovery: false,
             },
         ),
     ).toBeNull();
@@ -312,3 +317,123 @@ test('uses the organization remedy when custom roles cannot be edited without a 
         refusal: { settingsUrl: '/generalSettings/agentIdentity' },
     });
 });
+
+test('allows connected tools only with the external_tools capability', async () => {
+    const { service, policy, operation } = setup();
+    policy.systemRoleMatrix.viewer = [AgentCapability.ExternalTools];
+    await expect(
+        service.assertOperation({
+            ...operation,
+            kind: 'connected_mcp_tool',
+            key: 'server/tool',
+        }),
+    ).resolves.toBeUndefined();
+});
+
+test.each(['off', 'legacy', 'managed'] as const)(
+    'checks an unverified actor only in managed mode: %s',
+    async (mode) => {
+        const { service, policy, deps, operation } = setup();
+        if (mode === 'off')
+            deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+        else policy.mode = mode;
+        deps.userModel.getAgentRoleAssignments.mockRejectedValue(
+            new Error('unverified actor has no role assignments'),
+        );
+        const result = service.assertActorVerified({
+            ...operation,
+            surface: AgentActorSurface.SLACK_AGENT,
+            actorVerified: false,
+        });
+        if (mode === 'managed') {
+            await expect(result).rejects.toMatchObject({
+                refusal: {
+                    reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+            });
+            expect(deps.agentActionLogModel.insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    reason_code: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+                }),
+            );
+        } else {
+            await expect(result).resolves.toBeUndefined();
+            expect(deps.agentActionLogModel.insert).not.toHaveBeenCalled();
+        }
+    },
+);
+
+test('logs the capability, operation, policy, project and surface without arguments', async () => {
+    const { service, deps, operation } = setup();
+    await expect(service.assertOperation(operation)).rejects.toMatchObject({
+        refusal: { capability: AgentCapability.RawSql },
+    });
+    expect(deps.agentActionLogModel.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+            capability: AgentCapability.RawSql,
+            policy_version: 1,
+            policy_layer: 'org_ceiling',
+            object_id: operation.key,
+            project_uuid: operation.projectUuid,
+            agent_identity: expect.objectContaining({
+                act: expect.objectContaining({ surface: operation.surface }),
+            }),
+        }),
+    );
+});
+
+test.each(['off', 'legacy', 'managed'] as const)(
+    'resolves managed activation without role or project lookups: %s',
+    async (mode) => {
+        const { service, deps, policy, operation } = setup();
+        if (mode === 'off')
+            deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+        else policy.mode = mode;
+        await expect(
+            service.isManaged(operation.organizationUuid),
+        ).resolves.toBe(mode === 'managed');
+        expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
+        expect(deps.projectModel.getSummary).not.toHaveBeenCalled();
+        if (mode === 'off')
+            expect(deps.agentCapabilityPolicyModel.get).not.toHaveBeenCalled();
+    },
+);
+
+test('resolves a resource project using the trusted resource lookup', async () => {
+    const { service, deps } = setup();
+    deps.resolveResourceProjectUuid.mockResolvedValue('resolved-project');
+    await expect(
+        service.resolveResourceProjectUuid({
+            type: 'dashboard',
+            uuid: 'dashboard',
+        }),
+    ).resolves.toBe('resolved-project');
+    expect(deps.resolveResourceProjectUuid).toHaveBeenCalledExactlyOnceWith({
+        type: 'dashboard',
+        uuid: 'dashboard',
+    });
+});
+
+test.each([
+    ['rest_operation', 'SavedChartController.getChartHistory'],
+    ['mcp_tool', 'read_content'],
+    ['agent_tool', 'getMetadata'],
+] as const)(
+    'refuses unresolved project discovery for %s %s when projects are limited',
+    async (kind, key) => {
+        const { service, policy, operation } = setup();
+        policy.allowedProjectUuids = ['project'];
+        policy.systemRoleMatrix.viewer = [AgentCapability.ReadDiscover];
+        await expect(
+            service.assertOperation({
+                ...operation,
+                projectUuid: null,
+                kind,
+                key,
+            }),
+        ).rejects.toMatchObject({
+            refusal: { reason: AiAccessRefusalReason.AGENT_PROJECT_DENIED },
+        });
+    },
+);

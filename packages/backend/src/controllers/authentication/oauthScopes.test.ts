@@ -179,6 +179,10 @@ const start = async (
             }),
             getUserService: () => ({ findSessionUser: async () => user }),
             getFeatureFlagService: () => ({ get: getFlag }),
+            getAgentPermissionService: () => ({
+                isManaged: vi.fn().mockResolvedValue(false),
+                assertOperation: vi.fn(),
+            }),
         } as unknown as Request['services'];
         next();
     });

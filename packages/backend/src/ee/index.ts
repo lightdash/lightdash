@@ -693,6 +693,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
@@ -747,6 +749,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AiAgentService({
+                    agentPermissionService:
+                        repository.getAgentPermissionService(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),

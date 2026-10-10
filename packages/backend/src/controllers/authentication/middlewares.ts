@@ -1,7 +1,9 @@
 /// <reference path="../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../@types/express-session.d.ts" />
 import {
+    AgentActorSurface,
     ApiError,
+    assertRegisteredAccount,
     AuthorizationError,
     DeactivatedAccountError,
     InvalidUser,
@@ -20,8 +22,16 @@ import {
     oauthApiResource,
     oauthMcpResource,
 } from '../../auth/oauthScopes/oauthResources';
+import {
+    getOAuthRouteResource,
+    resolveOAuthRouteOperation,
+} from '../../auth/oauthScopes/routeOperation';
 import { OAuthScopePolicy } from '../../auth/oauthScopes/scopedAbility';
 import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
+import {
+    assertOAuthScopeOperation,
+    OAUTH_UNCHECKED_OPERATIONS,
+} from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
@@ -88,6 +98,47 @@ const getOAuthScopePolicy = async (
             };
         },
     };
+};
+
+const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
+    const { account } = req;
+    if (
+        account?.authentication.type !== 'oauth' ||
+        !account.organization.organizationUuid ||
+        isMcpRequest(req)
+    )
+        return;
+    assertRegisteredAccount(account);
+    const service = req.services.getAgentPermissionService();
+    if (!(await service.isManaged(account.organization.organizationUuid)))
+        return;
+    const operation = resolveOAuthRouteOperation(req);
+    if (
+        operation !== null &&
+        Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
+    ) {
+        assertOAuthScopeOperation(
+            account,
+            operation as keyof typeof OAUTH_UNCHECKED_OPERATIONS,
+        );
+    }
+    let projectUuid =
+        typeof req.params.projectUuid === 'string'
+            ? req.params.projectUuid
+            : null;
+    if (projectUuid === null && operation !== null) {
+        const resource = getOAuthRouteResource(req);
+        if (resource)
+            projectUuid = await service.resolveResourceProjectUuid(resource);
+    }
+    await service.assertOperation({
+        account,
+        organizationUuid: account.organization.organizationUuid,
+        projectUuid,
+        kind: 'rest_operation',
+        key: operation ?? 'unknown',
+        surface: AgentActorSurface.API,
+    });
 };
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -174,6 +225,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })
@@ -289,6 +341,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
+                        await assertOAuthAgentOperation(req);
                     }
                     next();
                 })

@@ -38,6 +38,7 @@ import {
     agentExecutionContext,
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
+import { recordAgentRefusal } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 
 export interface ResolvedAgentPolicy {
@@ -54,6 +55,7 @@ export interface AgentPolicyEvaluation {
     mcpAgentsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     warehouseConfirmed: boolean;
+    isOrganizationDiscovery: boolean;
 }
 
 export interface AgentPolicyDenial {
@@ -89,7 +91,8 @@ export const evaluate = (
     if (
         policy.allowedProjectUuids !== null &&
         (operation.projectUuid === null
-            ? operation.requiredCapabilities.some(
+            ? !operation.isOrganizationDiscovery ||
+              operation.requiredCapabilities.some(
                   (capability) => capability !== AgentCapability.ReadDiscover,
               )
             : !policy.allowedProjectUuids.includes(operation.projectUuid))
@@ -143,6 +146,45 @@ export type AgentPermissionOperationKind =
     | 'rest_operation'
     | 'connected_mcp_tool';
 
+const ORGANIZATION_DISCOVERY_OPERATIONS: Record<
+    AgentPermissionOperationKind,
+    readonly string[]
+> = {
+    mcp_tool: [
+        'connect_agent',
+        'get_lightdash_version',
+        'list_projects',
+        'get_context',
+        'get_current_project',
+    ],
+    agent_tool: ['listProjects'],
+    connected_mcp_tool: [],
+    rest_operation: [
+        'UserController.getAccount',
+        'UserController.getAuthenticatedUser',
+        'UserController.getEmailVerificationStatus',
+        'UserController.getOrganizationsUserCanJoin',
+        'UserController.getPersonalAccessTokens',
+        'UserController.getUserLearnProgress',
+        'UserController.getUserOnboarding',
+        'OrganizationController.getOrganization',
+        'OrganizationController.getProjects',
+        'OrganizationController.getColorPalettes',
+        'OrganizationController.getImpersonationSettings',
+        'OrganizationController.getLearnAccess',
+        'OrganizationController.getOrganizationBrand',
+        'OrganizationController.getOrganizationMemberByEmail',
+        'OrganizationController.getOrganizationMemberByUuid',
+        'OrganizationController.getOrganizationMembers',
+        'OrganizationController.listGroupsInOrganization',
+        'organizationRouter GET /access',
+        'organizationRouter GET /onboardingStatus',
+        'organizationRouter.getOnboarding',
+        'organizationRouter.getOrganizationAccess',
+        'apiV1Router GET /health',
+    ],
+};
+
 const requiredCapabilitiesForOperation = (
     kind: AgentPermissionOperationKind,
     key: string,
@@ -155,7 +197,7 @@ const requiredCapabilitiesForOperation = (
         case 'rest_operation':
             return getRequiredAgentCapabilities('rest', key);
         case 'connected_mcp_tool':
-            return null;
+            return [AgentCapability.ExternalTools];
         default:
             return assertUnreachable(kind, 'Unknown agent operation kind');
     }
@@ -173,7 +215,19 @@ interface AssertOperationArgs extends ResolvePolicyArgs {
     surface: AgentActorSurface;
 }
 
+interface AssertActorVerifiedArgs extends AssertOperationArgs {
+    actorVerified: boolean;
+}
+
+export interface AgentPermissionResource {
+    type: 'dashboard' | 'saved_chart' | 'space' | 'query';
+    uuid: string;
+}
+
 interface Dependencies {
+    resolveResourceProjectUuid: (
+        resource: AgentPermissionResource,
+    ) => Promise<string | null>;
     isCustomRolesLicensed: () => boolean;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     agentCapabilityPolicyModel: Pick<
@@ -224,6 +278,12 @@ export class AgentPermissionService extends BaseService {
         super();
     }
 
+    async resolveResourceProjectUuid(
+        resource: AgentPermissionResource,
+    ): Promise<string | null> {
+        return this.deps.resolveResourceProjectUuid(resource);
+    }
+
     async isEnabled(organizationUuid: string): Promise<boolean> {
         return (
             await this.deps.featureFlagModel.get({
@@ -231,6 +291,14 @@ export class AgentPermissionService extends BaseService {
                 featureFlagId: FeatureFlags.AgentIdentity,
             })
         ).enabled;
+    }
+
+    async isManaged(organizationUuid: string): Promise<boolean> {
+        if (!(await this.isEnabled(organizationUuid))) return false;
+        return (
+            (await this.deps.agentCapabilityPolicyModel.get(organizationUuid))
+                .mode === 'managed'
+        );
     }
 
     async resolvePolicy({
@@ -300,6 +368,29 @@ export class AgentPermissionService extends BaseService {
         };
     }
 
+    async assertActorVerified(args: AssertActorVerifiedArgs): Promise<void> {
+        if (
+            args.actorVerified ||
+            !(await this.isEnabled(args.organizationUuid))
+        )
+            return;
+        const policy = await this.deps.agentCapabilityPolicyModel.get(
+            args.organizationUuid,
+        );
+        if (policy.mode !== 'managed') return;
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+            {
+                policyLayer: 'organization_setting',
+                operation: args.key,
+                policyVersion: policy.version,
+                projectUuid: args.projectUuid,
+            },
+        );
+        await this.recordRefusal(args, error);
+        throw error;
+    }
+
     async assertOperation(args: AssertOperationArgs): Promise<void> {
         const policy = await this.resolvePolicy(args);
         if (policy.mode !== 'managed') return;
@@ -316,6 +407,9 @@ export class AgentPermissionService extends BaseService {
             mcpAgentsEnabled: settings?.mcpAgentsEnabled ?? true,
             mcpContentWritesEnabled: settings?.mcpContentWritesEnabled ?? true,
             warehouseConfirmed: false,
+            isOrganizationDiscovery: ORGANIZATION_DISCOVERY_OPERATIONS[
+                args.kind
+            ].includes(args.key),
         };
         let denial = evaluate(policy, operation);
         if (
@@ -358,7 +452,8 @@ export class AgentPermissionService extends BaseService {
         try {
             const activeContext = agentExecutionContext.getStore();
             const context =
-                activeContext?.writerUuid === args.account.user.id &&
+                activeContext?.agentIdentityEnabled &&
+                activeContext.writerUuid === args.account.user.id &&
                 activeContext.organizationUuid === args.organizationUuid
                     ? activeContext
                     : createAgentExecutionContext({
@@ -368,20 +463,22 @@ export class AgentPermissionService extends BaseService {
                           agentUuid: null,
                           agentIdentityEnabled: true,
                       });
-            if (context.claim)
-                await this.deps.agentActionLogModel.insert({
-                    organization_uuid: args.organizationUuid,
-                    project_uuid: args.projectUuid,
-                    agent_identity: context.claim,
-                    object_type: 'agent_operation',
-                    object_uuid: null,
-                    object_id: args.key,
-                    version_uuid: null,
+            await agentExecutionContext.run(context, () =>
+                recordAgentRefusal({
+                    model: this.deps.agentActionLogModel,
+                    userUuid: args.account.user.id,
+                    organizationUuid: args.organizationUuid,
+                    projectUuid: args.projectUuid,
+                    objectType: 'agent_operation',
+                    objectId: args.key,
                     action: args.kind,
-                    outcome: 'denied',
-                    policy_layer: error.refusal.policyLayer ?? 'org_ceiling',
-                    reason_code: error.refusal.reason,
-                });
+                    policyLayer: error.refusal.policyLayer ?? 'org_ceiling',
+                    reasonCode: error.refusal.reason,
+                    capability: error.refusal.capability ?? null,
+                    policyVersion: error.refusal.policyVersion,
+                    error,
+                }),
+            );
         } catch {
             this.logger.warn('Failed to record agent permission refusal', {
                 reason: error.refusal.reason,

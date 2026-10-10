@@ -5,6 +5,7 @@ import {
     MissingWarehouseCredentialsError,
     NotFoundError,
     toolErrorStructuredContentSchema,
+    toolRunSqlOutputSchema,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -136,4 +137,27 @@ describe('toolErrorOutput', () => {
                 .success,
         ).toBe(true);
     });
+});
+
+test('policy refusal tells the model not to retry and preserves typed data', () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        { settingsUrl: '/generalSettings/agentIdentity' },
+    );
+    const output = toolErrorOutput(error, 'Error running tool.');
+    expect(output.result).toContain('Do not retry');
+    expect(output.result).not.toContain('Try again');
+    expect(output.structuredContent.refusal).toEqual(error.refusal);
+});
+
+test('retains policy refusal in the metadata stored by the agent', () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    );
+    const output = toolErrorOutput(error, 'Access refused');
+    expect(output.metadata).toMatchObject({ refusal: error.refusal });
+    expect(toolRunSqlOutputSchema.parse(output)).toEqual(output);
+    expect(
+        toolErrorStructuredContentSchema.parse(output.structuredContent),
+    ).toEqual(output.structuredContent);
 });

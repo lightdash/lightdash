@@ -8,6 +8,7 @@ import {
     OauthAccount,
     ParameterError,
     ServiceAcctAccount,
+    SessionAccount,
     UserAttributeValueMap,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
@@ -458,6 +459,8 @@ mcpRouter.all(
                     const extra: ExtraContext = {
                         user: req.user,
                         account: oauthAuth,
+                        getAgentPermissionService: () =>
+                            req.services.getAgentPermissionService(),
                         headerUserAttributes,
                         headerProjectUuid: pinnedProjectUuid,
                         legacyContextInjected,
@@ -469,6 +472,30 @@ mcpRouter.all(
                         token: oauthAuth.authentication.token,
                         clientId: oauthAuth.authentication.clientId,
                         scopes: oauthAuth.authentication.scopes,
+                        extra,
+                    };
+                }
+
+                if (
+                    req.user &&
+                    req.account?.authentication.type === 'session'
+                ) {
+                    const extra: ExtraContext = {
+                        user: req.user,
+                        account: req.account as SessionAccount,
+                        getAgentPermissionService: () =>
+                            req.services.getAgentPermissionService(),
+                        headerUserAttributes,
+                        headerProjectUuid: pinnedProjectUuid,
+                        legacyContextInjected,
+                        userAgent,
+                        protocolVersion,
+                        sessionId,
+                    };
+                    authReq.auth = {
+                        token: '',
+                        clientId: 'Session',
+                        scopes: [],
                         extra,
                     };
                 }

@@ -84,6 +84,11 @@ describe('Document runtime access', () => {
         '$name passes effective access to discovery and authoring',
         async ({ slack, trusted, authorized, enabled, expected }) => {
             const service = new AiAgentService({
+                agentPermissionService: {
+                    isManaged: vi.fn().mockResolvedValue(false),
+                    assertOperation: vi.fn(),
+                    assertActorVerified: vi.fn(),
+                },
                 aiCreditService: {
                     assertAiCreditsAvailable: async () => undefined,
                 },

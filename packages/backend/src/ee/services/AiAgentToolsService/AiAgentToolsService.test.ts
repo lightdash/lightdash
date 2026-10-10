@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
@@ -67,7 +68,7 @@ const user = {
 const account = {
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
-    user: { id: userUuid },
+    user: { type: 'registered', id: userUuid },
 } as unknown as Account;
 
 const makeExplore = ({
@@ -105,6 +106,10 @@ const makeExplore = ({
     }) as unknown as Explore;
 
 const makeService = ({
+    agentPermissionService = {
+        assertOperation: vi.fn().mockResolvedValue(undefined),
+        isManaged: vi.fn().mockResolvedValue(false),
+    },
     explores = {},
     userAttributes = {},
     searchCatalog = vi.fn(),
@@ -142,6 +147,10 @@ const makeService = ({
     savedChartModel = {},
     dashboardModel = {},
 }: {
+    agentPermissionService?: {
+        assertOperation: import('vitest').Mock;
+        isManaged: import('vitest').Mock;
+    };
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: import('vitest').Mock;
@@ -174,6 +183,7 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        agentPermissionService,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
@@ -5163,3 +5173,79 @@ describe.each(agentActionTestCases)(
         );
     },
 );
+
+test.each([
+    'runSqlJob',
+    'runAsyncQuery',
+    'editContent',
+    'createContent',
+] as const)(
+    'checks current agent policy before the runtime %s effect',
+    async (method) => {
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        );
+        const assertOperation = vi.fn().mockRejectedValue(refusal);
+        const service = makeService({
+            agentPermissionService: {
+                assertOperation,
+                isManaged: vi.fn().mockResolvedValue(true),
+            },
+        });
+        const context = makeRuntimeContext();
+        const runtime = service.createRuntime(context);
+        await expect(
+            (runtime[method] as (args: unknown) => Promise<unknown>)({}),
+        ).rejects.toBe(refusal);
+        expect(assertOperation).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: 'agent_tool',
+                key: {
+                    runSqlJob: 'runSql',
+                    runAsyncQuery: 'runQuery',
+                    editContent: 'editContent',
+                    createContent: 'createContent',
+                }[method],
+                projectUuid,
+                surface: AgentActorSurface.IN_APP_AGENT,
+            }),
+        );
+    },
+);
+
+test('gates every runtime operation before its implementation runs', async () => {
+    const refusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    );
+    const assertOperation = vi.fn().mockRejectedValue(refusal);
+    const service = makeService({
+        agentPermissionService: {
+            assertOperation,
+            isManaged: vi.fn().mockResolvedValue(true),
+        },
+    });
+    const runtime = service.createRuntime(makeRuntimeContext());
+    await Promise.all(
+        Object.entries(runtime)
+            .filter(([name]) => name !== 'recordSqlChartRefusal')
+            .map(([, execute]) =>
+                expect(
+                    (execute as (args: unknown) => Promise<unknown>)({}),
+                ).rejects.toBe(refusal),
+            ),
+    );
+    expect(assertOperation).toHaveBeenCalledTimes(
+        Object.keys(runtime).length - 1,
+    );
+    for (const key of [
+        'createScheduledDelivery',
+        'syncDbtProject',
+        'setupPreviewDeploy',
+        'generateDataApp',
+        'updateUserName',
+    ]) {
+        expect(assertOperation).toHaveBeenCalledWith(
+            expect.objectContaining({ key, kind: 'agent_tool', projectUuid }),
+        );
+    }
+});

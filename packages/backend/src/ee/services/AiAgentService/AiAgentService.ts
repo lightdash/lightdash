@@ -13,6 +13,7 @@ import {
     AI_USER_THREAD_CREATED_FROM,
     AiAccessRefusal,
     AiAccessRefusalAction,
+    AiAccessRefusedError,
     AiAgent,
     AiAgentBattleProfile,
     AiAgentEvalRunJobPayload,
@@ -293,6 +294,7 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
+import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -829,6 +831,10 @@ type EmbedAiAgentRuntimeOptions = {
 };
 
 type AiAgentServiceDependencies = {
+    agentPermissionService: Pick<
+        AgentPermissionService,
+        'assertOperation' | 'assertActorVerified' | 'isManaged'
+    >;
     aiAgentModel: AiAgentModel;
     appModel: Pick<
         AppModel,
@@ -1138,6 +1144,7 @@ const catalogFieldKind = (basicType: string | undefined): FieldKind | null => {
 };
 
 export class AiAgentService extends BaseService {
+    private readonly agentPermissionService: AiAgentServiceDependencies['agentPermissionService'];
     private readonly aiAgentModel: AiAgentModel;
 
     private readonly appModel: Pick<
@@ -1787,6 +1794,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.agentPermissionService = dependencies.agentPermissionService;
         this.appModel = dependencies.appModel;
         this.organizationDesignModel = dependencies.organizationDesignModel;
         this.appGenerateService = dependencies.appGenerateService;
@@ -14669,6 +14677,43 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentIdentityEnabled,
             }),
             async (): Promise<string | AgentResponseStream> => {
+                if (isSlackPrompt(prompt)) {
+                    const actorContext = {
+                        account: fromSession(user),
+                        organizationUuid,
+                        projectUuid: agentSettings.projectUuid,
+                    };
+                    if (
+                        await this.agentPermissionService.isManaged(
+                            organizationUuid,
+                        )
+                    ) {
+                        const senderIdentity =
+                            await this.openIdIdentityModel.findIdentityByOpenId(
+                                OpenIdIdentityIssuerType.SLACK,
+                                prompt.slackUserId,
+                            );
+                        try {
+                            await this.agentPermissionService.assertActorVerified(
+                                {
+                                    ...actorContext,
+                                    kind: 'agent_tool',
+                                    key: 'slack_prompt',
+                                    surface: AgentActorSurface.SLACK_AGENT,
+                                    actorVerified:
+                                        !!slackInstallation?.aiRequireOAuth &&
+                                        senderIdentity?.userUuid ===
+                                            user.userUuid,
+                                },
+                            );
+                        } catch (error) {
+                            if (error instanceof AiAccessRefusedError) {
+                                options.onSlackAccessRefusal?.(error.refusal);
+                            }
+                            throw error;
+                        }
+                    }
+                }
                 const battleProfile = isSlackPrompt(prompt)
                     ? null
                     : prompt.battleProfile;
@@ -15825,6 +15870,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 };
 
                 const dependencies: AiAgentDependencies = {
+                    assertToolOperation: (kind, key) =>
+                        this.agentPermissionService.assertOperation({
+                            account: fromSession(user),
+                            organizationUuid,
+                            projectUuid: agentSettings.projectUuid,
+                            kind,
+                            key,
+                            surface: isSlackPrompt(prompt)
+                                ? AgentActorSurface.SLACK_AGENT
+                                : AgentActorSurface.IN_APP_AGENT,
+                        }),
                     onAiAccessRefusal: options.onSlackAccessRefusal,
                     recordMcpToolCall,
                     listExplores,

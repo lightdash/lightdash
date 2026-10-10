@@ -1,4 +1,32 @@
 import { z } from 'zod';
+import { AgentCapability } from '../../../types/agentPermissions';
+import {
+    AiAccessRefusalAction,
+    AiAccessRefusalReason,
+    type AiAccessRefusal,
+} from '../../../types/aiPrincipal';
+
+const toolAccessRefusalSchema = z.object({
+    code: z.literal('ai_access_refused'),
+    reason: z.enum(AiAccessRefusalReason),
+    message: z.string(),
+    action: z.enum(AiAccessRefusalAction).nullable(),
+    settingsUrl: z.string().nullable(),
+    connectUrl: z.string().nullable(),
+    capability: z.enum(AgentCapability).nullable().optional(),
+    policyLayer: z
+        .enum([
+            'org_ceiling',
+            'project_scope',
+            'organization_setting',
+            'warehouse_identity',
+            'unmapped',
+        ])
+        .optional(),
+    operation: z.string().optional(),
+    policyVersion: z.number().optional(),
+    projectUuid: z.string().nullable().optional(),
+}) satisfies z.ZodType<AiAccessRefusal>;
 
 export const baseOutputMetadataSchema = z.object({
     status: z.enum(['success', 'error']),
@@ -7,6 +35,7 @@ export const baseOutputMetadataSchema = z.object({
 export type BaseOutputMetadata = z.infer<typeof baseOutputMetadataSchema>;
 
 export const toolErrorStructuredContentSchema = z.object({
+    refusal: toolAccessRefusalSchema.nullable().optional(),
     error: z
         .string()
         .describe('Why the tool call failed; the same message as `result`.'),
@@ -61,7 +90,10 @@ export const structuredToolOutputSchema = <
             result: z.string(),
             metadata: z.intersection(
                 schemas.metadata,
-                z.object({ status: errorStatuses }),
+                z.object({
+                    status: errorStatuses,
+                    refusal: toolAccessRefusalSchema.optional(),
+                }),
             ),
             structuredContent: toolErrorStructuredContentSchema,
         }),
