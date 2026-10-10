@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     AdditionalMetric,
+    AgentCapability,
     AiAccessRefusedError,
     allowsOptionalUserCredentials,
     AlreadyExistsError,
@@ -8362,6 +8363,63 @@ export class ProjectService
         return { explore, fieldSqlKeys };
     }
 
+    public async assertAgentCustomSqlAuthorizedForQuery({
+        account,
+        projectUuid,
+        exploreName,
+        metricQuery,
+    }: {
+        account: Account;
+        projectUuid: UUID;
+        exploreName: string;
+        metricQuery: Pick<
+            MetricQuery,
+            'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+        >;
+    }): Promise<NonNullable<MetricQuery['additionalMetrics']> | null> {
+        const sqlTableCalculations = (
+            metricQuery.tableCalculations ?? []
+        ).filter(isSqlTableCalculation);
+        const sqlCustomDimensions = (metricQuery.customDimensions ?? []).filter(
+            isCustomSqlDimension,
+        );
+        const additionalMetrics = metricQuery.additionalMetrics ?? [];
+        const grant =
+            account.authentication.type === 'oauth'
+                ? account.authentication.agentConnectionGrant
+                : null;
+        const needsGrantSqlCheck =
+            grant != null &&
+            !grant.approvedCapabilities.includes(AgentCapability.RawSql);
+        let unmodelledAdditionalMetrics: typeof additionalMetrics | null = null;
+        if (needsGrantSqlCheck) {
+            if (additionalMetrics.length > 0) {
+                const { explore, fieldSqlKeys } =
+                    await this.getExploreFieldSqlKeys(
+                        account,
+                        projectUuid,
+                        exploreName,
+                    );
+                unmodelledAdditionalMetrics = resolveAdditionalMetricsSql(
+                    additionalMetrics,
+                    explore.tables,
+                ).filter(
+                    (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
+                );
+            }
+            if (
+                sqlTableCalculations.length > 0 ||
+                sqlCustomDimensions.length > 0 ||
+                (unmodelledAdditionalMetrics?.length ?? 0) > 0
+            )
+                throw new ForbiddenError(
+                    'This agent connection is not approved for Raw SQL.',
+                );
+        }
+
+        return unmodelledAdditionalMetrics;
+    }
+
     /**
      * Custom SQL table calculations, custom SQL dimensions, and custom metrics are
      * authoring features gated behind manage:CustomSqlTableCalculations (table
@@ -8421,6 +8479,14 @@ export class ProjectService
             return;
         }
 
+        const unmodelledAdditionalMetrics =
+            await this.assertAgentCustomSqlAuthorizedForQuery({
+                account,
+                projectUuid,
+                exploreName,
+                metricQuery,
+            });
+
         const auditedAbility = this.createAuditedAbility(account);
         const canAuthorTableCalculations = auditedAbility.can(
             'manage',
@@ -8444,17 +8510,22 @@ export class ProjectService
         // allowed; only hand-authored SQL needs the scope or a provenance match.
         let additionalMetricsToAuthorize: typeof additionalMetrics = [];
         if (additionalMetrics.length > 0 && !canAuthorCustomFields) {
-            const { explore, fieldSqlKeys } = await this.getExploreFieldSqlKeys(
-                account,
-                projectUuid,
-                exploreName,
-            );
-            additionalMetricsToAuthorize = resolveAdditionalMetricsSql(
-                additionalMetrics,
-                explore.tables,
-            ).filter(
-                (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
-            );
+            if (unmodelledAdditionalMetrics !== null) {
+                additionalMetricsToAuthorize = unmodelledAdditionalMetrics;
+            } else {
+                const { explore, fieldSqlKeys } =
+                    await this.getExploreFieldSqlKeys(
+                        account,
+                        projectUuid,
+                        exploreName,
+                    );
+                additionalMetricsToAuthorize = resolveAdditionalMetricsSql(
+                    additionalMetrics,
+                    explore.tables,
+                ).filter(
+                    (metric) => !fieldSqlKeys.has(getCustomSqlFieldKey(metric)),
+                );
+            }
         }
         if (
             tableCalculationsToAuthorize.length === 0 &&

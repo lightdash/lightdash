@@ -1010,6 +1010,7 @@ export class ProjectCoderController extends BaseController {
                 slug,
                 { ...chart, description: chart.description ?? undefined },
                 {
+                    account: req.account,
                     skipSpaceCreate: chart.skipSpaceCreate,
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
@@ -1052,6 +1053,7 @@ export class ProjectCoderController extends BaseController {
                 slug,
                 { ...sqlChart, description: sqlChart.description ?? null },
                 {
+                    account: req.account,
                     skipSpaceCreate: sqlChart.skipSpaceCreate,
                     publicSpaceCreate: sqlChart.publicSpaceCreate,
                     spaceNames: sqlChart.spaceNames,
@@ -1096,6 +1098,7 @@ export class ProjectCoderController extends BaseController {
                     description: dashboard.description ?? undefined,
                 },
                 {
+                    account: req.account,
                     skipSpaceCreate: dashboard.skipSpaceCreate,
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,

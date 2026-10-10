@@ -2,6 +2,7 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentMarkerLevel,
@@ -67,6 +68,8 @@ import {
     SnowflakeTokenError,
     SshTunnelError,
     SupportedDbtAdapter,
+    TableCalculation,
+    TableCalculationTemplateType,
     UserWarehouseCredentialPurpose,
     VizAggregationOptions,
     VizIndexType,
@@ -126,6 +129,7 @@ import { Readable } from 'stream';
 import { gunzipSync } from 'zlib';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromJwt, fromOauth, fromSession } from '../../auth/account/account';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -13988,7 +13992,7 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
         dataAppPreviewToken?: string;
         customSqlProvenanceChartUuid?: string;
         metricQuery: {
-            tableCalculations?: (typeof sqlTableCalculation)[];
+            tableCalculations?: TableCalculation[];
             customDimensions?: (typeof sqlCustomDimension)[];
             additionalMetrics?: {
                 name: string;
@@ -14553,6 +14557,111 @@ describe('assertCustomSqlAuthorizedForQuery', () => {
             .spyOn(service, 'getExplore')
             .mockClear()
             .mockResolvedValue(exploreWithFieldSql as unknown as Explore);
+
+    it.each([
+        'tableCalculations',
+        'customDimensions',
+        'additionalMetrics',
+    ] as const)(
+        'requires Raw SQL for bound custom %s even with author rights',
+        async (field) => {
+            spyExplore();
+            const boundAccount = accountWithAbility(
+                [{ subject: 'all', action: 'manage' }],
+                { accountType: 'oauth' },
+            );
+            if (boundAccount.authentication.type !== 'oauth')
+                throw new Error('Expected OAuth');
+            boundAccount.authentication.agentConnectionGrant = {
+                ...grantFixture(),
+                revision: 1,
+            };
+            const values = {
+                tableCalculations: [sqlTableCalculation],
+                customDimensions: [sqlCustomDimension],
+                additionalMetrics: [sqlAdditionalMetric],
+            };
+            const args = {
+                ...baseArgs,
+                account: boundAccount,
+                metricQuery: { [field]: values[field] },
+            };
+            await expect(assertCustomSql(service, args)).rejects.toThrow(
+                'Raw SQL',
+            );
+            boundAccount.authentication.agentConnectionGrant.approvedCapabilities.push(
+                AgentCapability.RawSql,
+            );
+            await expect(
+                assertCustomSql(service, args),
+            ).resolves.toBeUndefined();
+        },
+    );
+    it('keeps semantic, formula and template queries available to query-only grants', async () => {
+        const boundAccount = accountWithAbility(
+            [{ subject: 'Project', action: 'view' }],
+            { accountType: 'oauth' },
+        );
+        if (boundAccount.authentication.type !== 'oauth')
+            throw new Error('Expected OAuth');
+        boundAccount.authentication.agentConnectionGrant = {
+            ...grantFixture(),
+            revision: 1,
+        };
+        const calculations: TableCalculation[] = [
+            { name: 'formula', displayName: 'Formula', formula: 'SUM(a.dim1)' },
+            {
+                name: 'template',
+                displayName: 'Template',
+                template: {
+                    type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                    fieldId: 'a_dim1',
+                },
+            },
+        ];
+        await Promise.all(
+            [[], calculations].map(async (tableCalculations) => {
+                await expect(
+                    assertCustomSql(service, {
+                        ...baseArgs,
+                        account: boundAccount,
+                        metricQuery: { tableCalculations },
+                    }),
+                ).resolves.toBeUndefined();
+            }),
+        );
+        expect(savedChartModel.findCustomSqlProvenance).not.toHaveBeenCalled();
+    });
+
+    it('keeps modelled custom metric references available to query-only grants', async () => {
+        spyExplore();
+        const boundAccount = accountWithAbility(
+            [
+                { subject: 'Project', action: 'view' },
+                { subject: 'Space', action: 'view' },
+            ],
+            { accountType: 'oauth' },
+        );
+        if (boundAccount.authentication.type !== 'oauth')
+            throw new Error('Expected OAuth');
+        boundAccount.authentication.agentConnectionGrant = {
+            ...grantFixture(),
+            revision: 1,
+        };
+        await Promise.all(
+            [fieldRefSql, '${a.dim1}'].map(async (sql) => {
+                await expect(
+                    assertCustomSql(service, {
+                        ...baseArgs,
+                        account: boundAccount,
+                        metricQuery: {
+                            additionalMetrics: additionalMetric(sql),
+                        },
+                    }),
+                ).resolves.toBeUndefined();
+            }),
+        );
+    });
 
     it('allows a custom metric whose SQL is a modelled field, without scope or provenance', async () => {
         spyExplore();

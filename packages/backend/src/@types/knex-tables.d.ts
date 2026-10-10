@@ -9,6 +9,10 @@ import {
     AgentSystemRoleCapabilitiesTableName,
 } from '../database/entities/agentCapabilityPolicies';
 import {
+    AgentConnectionGrantsTable,
+    AgentConnectionGrantsTableName,
+} from '../database/entities/agentConnectionGrants';
+import {
     AgentWarehouseRestrictionConfirmationsTable,
     AgentWarehouseRestrictionConfirmationsTableName,
 } from '../database/entities/agentWarehouseRestrictionConfirmations';
@@ -749,6 +753,7 @@ import {
 declare module 'knex/types/tables' {
     interface Tables {
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
+        [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
         [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
         [AgentWarehouseRestrictionConfirmationsTableName]: AgentWarehouseRestrictionConfirmationsTable;
         [AgentActionLogTableName]: AgentActionLogTable;

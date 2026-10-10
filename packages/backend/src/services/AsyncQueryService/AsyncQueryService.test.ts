@@ -3,6 +3,7 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     Account,
     AgentActorSurface,
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
@@ -103,6 +104,7 @@ import {
     defaultJwtToken,
     defaultSessionUser,
 } from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -5791,6 +5793,97 @@ describe('AsyncQueryService', () => {
                               }
                             : {}),
                     });
+            },
+        );
+
+        test.each(['direct', 'semantic_source'] as const)(
+            'refuses read-scoped query-only custom SQL via %s',
+            async (entry) => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const grant = grantFixture();
+                const account = fromOauth(
+                    {
+                        ...defaultSessionUser,
+                        ability: new Ability<PossibleAbilities>([
+                            { action: 'manage', subject: 'all' },
+                        ]),
+                    },
+                    {
+                        accessToken: 'token',
+                        scope: ['read'],
+                        client: { id: grant.clientId },
+                    },
+                    {
+                        mode: 'enforce',
+                        getRequest: () => ({
+                            method: 'POST',
+                            routeTemplate: null,
+                        }),
+                    },
+                    {
+                        ...grant,
+                        revision: 1,
+                        approvedCapabilities: [
+                            AgentCapability.ReadDiscover,
+                            AgentCapability.Query,
+                        ],
+                    },
+                );
+                const auditedAbility = (
+                    service as AnyType
+                ).createAuditedAbility(account);
+                expect(
+                    auditedAbility.can('manage', 'CustomSqlTableCalculations'),
+                ).toBe(true);
+                const run = vi
+                    .spyOn(
+                        service as AnyType,
+                        'runAsyncMetricQueryWithoutPermissionCheck',
+                    )
+                    .mockResolvedValue({
+                        queryUuid: 'query',
+                        cacheMetadata: { cacheHit: false },
+                    });
+                const tableCalculations = [
+                    {
+                        name: 'probe',
+                        displayName: 'Probe',
+                        sql: '(select count(*) from another_table)',
+                    },
+                ];
+                const source = new SemanticLayerQuerySource({
+                    asyncQueryService: service,
+                    projectService: {} as ProjectService,
+                });
+                const result =
+                    entry === 'direct'
+                        ? service.executeAsyncMetricQuery({
+                              account,
+                              projectUuid,
+                              context: QueryExecutionContext.EXPLORE,
+                              metricQuery: {
+                                  ...metricQueryMock,
+                                  tableCalculations,
+                              },
+                          })
+                        : source.submitQuery({
+                              account,
+                              projectUuid,
+                              context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                              query: {
+                                  sourceType: QuerySourceType.SEMANTIC_LAYER,
+                                  ...metricQueryMock,
+                                  tableCalculations,
+                              },
+                              parameters: {},
+                              userAttributeOverrides: {},
+                              invalidateCache: false,
+                              resolvedReferences: {},
+                              pivotConfiguration: null,
+                              plan: null,
+                          });
+                await expect(result).rejects.toThrow('Raw SQL');
+                expect(run).not.toHaveBeenCalled();
             },
         );
 
@@ -12593,69 +12686,116 @@ describe('AsyncQueryService', () => {
             chartConfig: { type: ChartType.BIG_NUMBER },
         };
 
-        test('passes savedChart.pivotConfig.columns as pivotDimensions to prepareMetricQueryAsyncQueryArgs', async () => {
-            const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
-                    get: vi.fn(async () => bigNumberChart),
-                } as unknown as SavedChartModel,
-                analyticsModel: {
-                    addChartViewEvent: vi.fn(async () => {}),
-                } as unknown as AnalyticsModel,
-            });
-
-            service.getExploreWithUserAccessControls = vi
-                .fn()
-                .mockResolvedValue({
-                    explore: validExplore,
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
+        test.each([false, true])(
+            'passes saved chart query and pivot layout by reference with bound=$bound',
+            async (bound) => {
+                const stored = bound
+                    ? {
+                          ...bigNumberChart,
+                          metricQuery: {
+                              ...metricQueryMock,
+                              tableCalculations: [
+                                  {
+                                      name: 'saved',
+                                      displayName: 'Saved',
+                                      sql: '(select count(*) from another_table)',
+                                  },
+                              ],
+                          },
+                      }
+                    : bigNumberChart;
+                const grant = grantFixture();
+                const account = bound
+                    ? fromOauth(
+                          {
+                              ...defaultSessionUser,
+                              ability: authorizedAccount.user.ability,
+                          },
+                          {
+                              accessToken: 'token',
+                              scope: ['read'],
+                              client: { id: grant.clientId },
+                          },
+                          {
+                              mode: 'enforce',
+                              getRequest: () => ({
+                                  method: 'POST',
+                                  routeTemplate: null,
+                              }),
+                          },
+                          { ...grant, revision: 1 },
+                      )
+                    : authorizedAccount;
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        savedChartModel: {
+                            get: vi.fn(async () => stored),
+                        } as unknown as SavedChartModel,
+                        analyticsModel: {
+                            addChartViewEvent: vi.fn(async () => {}),
+                        } as unknown as AnalyticsModel,
                     },
+                );
+
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore: validExplore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                (service as AnyType).getWarehouseCredentials = vi
+                    .fn()
+                    .mockResolvedValue(warehouseClientMock.credentials);
+                service.combineParameters = vi
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service as AnyType).getMetricQueryFields = vi
+                    .fn()
+                    .mockResolvedValue({ fields: {} });
+
+                const prepareSpy = vi.fn().mockResolvedValue(
+                    createQueryComposerMock({
+                        sql: 'SELECT 1',
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
+                );
+                (service as AnyType).prepareMetricQueryAsyncQueryArgs =
+                    prepareSpy;
+
+                service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                    queryUuid: 'queryUuid',
+                    cacheMetadata: { cacheHit: false },
                 });
-            (service as AnyType).getWarehouseCredentials = vi
-                .fn()
-                .mockResolvedValue(warehouseClientMock.credentials);
-            service.combineParameters = vi.fn().mockResolvedValue(undefined);
-            (service as AnyType).getMetricQueryFields = vi
-                .fn()
-                .mockResolvedValue({ fields: {} });
 
-            const prepareSpy = vi.fn().mockResolvedValue(
-                createQueryComposerMock({
-                    sql: 'SELECT 1',
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                }),
-            );
-            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+                await service.executeAsyncSavedChartQuery({
+                    account,
+                    projectUuid,
+                    chartUuid: bigNumberChart.uuid,
+                    versionUuid: undefined,
+                    context: QueryExecutionContext.CHART,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                    filterOverrides: undefined,
+                });
 
-            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
-                queryUuid: 'queryUuid',
-                cacheMetadata: { cacheHit: false },
-            });
-
-            await service.executeAsyncSavedChartQuery({
-                account: authorizedAccount,
-                projectUuid,
-                chartUuid: bigNumberChart.uuid,
-                versionUuid: undefined,
-                context: QueryExecutionContext.CHART,
-                invalidateCache: false,
-                limit: undefined,
-                parameters: undefined,
-                pivotResults: false,
-                filterOverrides: undefined,
-            });
-
-            expect(prepareSpy).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    pivotDimensions: [pivotColumn],
-                }),
-            );
-        });
+                expect(prepareSpy).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        pivotDimensions: [pivotColumn],
+                        metricQuery: stored.metricQuery,
+                    }),
+                );
+            },
+        );
 
         test('uses an explicit pivot configuration instead of the saved chart layout', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {

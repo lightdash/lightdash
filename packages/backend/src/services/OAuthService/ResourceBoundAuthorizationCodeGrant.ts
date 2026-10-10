@@ -24,6 +24,7 @@ export const createResourceBoundAuthorizationCodeGrant = (
             const binding: OAuthTokenBinding = {
                 resource: null,
                 familyUuid: null,
+                agentConnectionGrantUuid: null,
                 parentRefreshToken: null,
             };
             const boundOptions = {
@@ -39,9 +40,13 @@ export const createResourceBoundAuthorizationCodeGrant = (
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.AuthorizationCode> {
             const code = await super.getAuthorizationCode(request, client);
-            this.strict = await resolveStrict(code.user);
+            this.binding.agentConnectionGrantUuid =
+                code.agentConnectionGrantUuid ?? null;
+            this.strict =
+                this.binding.agentConnectionGrantUuid !== null ||
+                (await resolveStrict(code.user));
             if (this.strict) {
-                this.binding.familyUuid = randomUUID();
+                this.binding.familyUuid = code.familyUuid ?? randomUUID();
                 this.binding.resource = resolveGrantedOAuthResource(
                     siteUrl,
                     request,
