@@ -135,7 +135,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
     },
-    [WarehouseTypes.CLICKHOUSE]: markedOnly,
+    [WarehouseTypes.CLICKHOUSE]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.ATHENA]: {
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
@@ -282,8 +285,15 @@ export interface TrinoAiServiceAccountCredentialInput {
     password: string;
 }
 
+export interface ClickhouseAiServiceAccountCredentialInput {
+    type: WarehouseTypes.CLICKHOUSE;
+    user: string;
+    password: string;
+}
+
 export type AiServiceAccountCredentialInput =
     | TrinoAiServiceAccountCredentialInput
+    | ClickhouseAiServiceAccountCredentialInput
     | RedshiftAiServiceAccountCredentialInput
     | PostgresAiServiceAccountCredentialInput
     | AthenaAiServiceAccountCredentialInput

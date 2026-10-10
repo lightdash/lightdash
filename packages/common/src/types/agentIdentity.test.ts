@@ -57,6 +57,7 @@ describe('identity source map', () => {
                         type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
                         type === WarehouseTypes.ATHENA ||
+                        type === WarehouseTypes.CLICKHOUSE ||
                         type === WarehouseTypes.SNOWFLAKE,
                 );
             }
@@ -67,6 +68,7 @@ describe('identity source map', () => {
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
+                    type === WarehouseTypes.CLICKHOUSE ||
                     type === WarehouseTypes.SNOWFLAKE,
             );
             expect(sources.person).toEqual(sources.service_account);
@@ -77,6 +79,7 @@ describe('identity source map', () => {
                 [WarehouseTypes.REDSHIFT]: 2,
                 [WarehouseTypes.TRINO]: 2,
                 [WarehouseTypes.DATABRICKS]: 2,
+                [WarehouseTypes.CLICKHOUSE]: 2,
                 [WarehouseTypes.ATHENA]: 2,
             };
             expect(sources.person).toHaveLength(
@@ -150,6 +153,7 @@ describe('organization identity rules', () => {
             WarehouseTypes.REDSHIFT,
             WarehouseTypes.DATABRICKS,
             WarehouseTypes.TRINO,
+            WarehouseTypes.CLICKHOUSE,
             WarehouseTypes.ATHENA,
         ]);
     });
@@ -172,8 +176,18 @@ describe('organization identity rules', () => {
                     type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
+                    type === WarehouseTypes.CLICKHOUSE ||
                     type === WarehouseTypes.SNOWFLAKE,
             );
+        },
+    );
+
+    it.each(['person', 'service_account'] as const)(
+        'permits only marked-person and AI service account identities for ClickHouse %s',
+        (actor) => {
+            expect(
+                AGENT_IDENTITY_SOURCES[WarehouseTypes.CLICKHOUSE][actor],
+            ).toEqual(['marked_person', 'ai_service_account']);
         },
     );
 

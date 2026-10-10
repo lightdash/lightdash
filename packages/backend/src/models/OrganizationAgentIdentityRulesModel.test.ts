@@ -15,6 +15,7 @@ test.each([
     [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
     [WarehouseTypes.ATHENA, 'agent_sign_in'],
     [WarehouseTypes.POSTGRES, 'agent_sign_in'],
+    [WarehouseTypes.CLICKHOUSE, 'agent_sign_in'],
 ] as const)(
     'rejects %s source %s before opening a transaction',
     async (type, source) => {
@@ -28,6 +29,7 @@ test.each([
 test.each([
     WarehouseTypes.POSTGRES,
     WarehouseTypes.REDSHIFT,
+    WarehouseTypes.CLICKHOUSE,
     WarehouseTypes.DATABRICKS,
     WarehouseTypes.TRINO,
     WarehouseTypes.ATHENA,

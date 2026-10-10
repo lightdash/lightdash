@@ -120,6 +120,20 @@ const credentialCases: {
     observed: AiServiceAccountTestResult['observed'];
 }[] = [
     {
+        name: 'ClickHouse',
+        credentials: {
+            type: WarehouseTypes.CLICKHOUSE,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: {
+            currentUser: 'principal-id',
+            readonly: '2',
+            useQueryCache: '0',
+        },
+    },
+    {
         name: 'Redshift',
         credentials: {
             type: WarehouseTypes.REDSHIFT,

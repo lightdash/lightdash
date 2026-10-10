@@ -44,6 +44,7 @@ import {
     getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
+    isClickhouseServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isPostgresServiceAccountAuthError,
     isRedshiftServiceAccountAuthError,
@@ -1146,6 +1147,8 @@ export class WarehouseClientFactory {
                     isTrinoServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.REDSHIFT &&
                     isRedshiftServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.CLICKHOUSE &&
+                    isClickhouseServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.POSTGRES &&
                     isPostgresServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.ATHENA &&
@@ -1188,7 +1191,8 @@ export class WarehouseClientFactory {
                 ...redactCredentialError(error),
                 ...(credentials.type === WarehouseTypes.POSTGRES ||
                 credentials.type === WarehouseTypes.REDSHIFT ||
-                credentials.type === WarehouseTypes.TRINO
+                credentials.type === WarehouseTypes.TRINO ||
+                credentials.type === WarehouseTypes.CLICKHOUSE
                     ? {
                           errorMessage:
                               getUserPasswordServiceAccountTestErrorMessage(

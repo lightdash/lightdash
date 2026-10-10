@@ -3,6 +3,7 @@ import { ParameterError } from '../types/errors';
 import {
     buildAthenaAiServiceAccountCommands,
     buildBigQueryAiServiceAccountCommands,
+    buildClickhouseAiServiceAccountCommands,
     buildDatabricksAiServiceAccountCommands,
     buildPostgresAiServiceAccountCommands,
     buildRedshiftAiServiceAccountCommands,
@@ -466,5 +467,56 @@ GRANT ai_agents_read TO USER "us""er";`);
         });
         expect(grantReadAccess).toContain('"<catalog>"."<schema>"."<table>"');
         expect(grantReadAccess).toContain('TO USER "<user>";');
+    });
+});
+
+describe('ClickHouse AI service account commands', () => {
+    it('creates a read-only user and grants access to the project database', () => {
+        expect(
+            buildClickhouseAiServiceAccountCommands({ schema: 'analytics' }),
+        ).toEqual({
+            createUser: `CREATE USER ai_agents
+  IDENTIFIED WITH sha256_password
+  BY '<choose-a-strong-password>'
+  SETTINGS readonly = 2;`,
+            grantReadAccess: `GRANT SELECT ON \`analytics\`.*
+  TO ai_agents;`,
+            rowPolicy: `CREATE ROW POLICY ai_agents_rows
+  ON \`analytics\`.\`<table>\`
+  FOR SELECT USING <condition>
+  TO ai_agents;`,
+        });
+    });
+
+    it.each([null, ''])(
+        'quotes placeholders for missing database %s',
+        (schema) => {
+            const commands = buildClickhouseAiServiceAccountCommands({
+                schema,
+            });
+            expect(commands.grantReadAccess).toBe(
+                'GRANT SELECT ON `<database>`.*\n  TO ai_agents;',
+            );
+            expect(commands.rowPolicy).toBe(
+                'CREATE ROW POLICY ai_agents_rows\n  ON `<database>`.`<table>`\n  FOR SELECT USING <condition>\n  TO ai_agents;',
+            );
+        },
+    );
+
+    it.each([
+        ['a"b', 'a"b'],
+        ["a'b", "a'b"],
+        ['a`b', 'a\\`b'],
+        ['a\\b', 'a\\\\b'],
+        ['a\nb', 'a\\nb'],
+        ['a\rb', 'a\\rb'],
+        ['a\tb', 'a\\tb'],
+        ['a\\`\nb', 'a\\\\\\`\\nb'],
+    ])('escapes the database identifier %j', (schema, escaped) => {
+        const commands = buildClickhouseAiServiceAccountCommands({ schema });
+        expect(commands.grantReadAccess).toBe(
+            `GRANT SELECT ON \`${escaped}\`.*\n  TO ai_agents;`,
+        );
+        expect(commands.rowPolicy).toContain(`ON \`${escaped}\`.\`<table>\``);
     });
 });

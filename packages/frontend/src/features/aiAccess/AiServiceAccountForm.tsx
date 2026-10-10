@@ -116,6 +116,7 @@ const BigqueryAiServiceAccountForm = ({
 
 interface WarehouseAiServiceAccountFormProps extends AiServiceAccountFormProps {
     warehouseType:
+        | WarehouseTypes.CLICKHOUSE
         | WarehouseTypes.POSTGRES
         | WarehouseTypes.REDSHIFT
         | WarehouseTypes.TRINO
@@ -136,6 +137,14 @@ export const AiServiceAccountForm = ({
                     {...props}
                     warehouseType={warehouseType}
                     userDescription="The Trino login for agents"
+                />
+            );
+        case WarehouseTypes.CLICKHOUSE:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The ClickHouse user for agents"
                 />
             );
         case WarehouseTypes.REDSHIFT:

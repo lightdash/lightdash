@@ -13,6 +13,7 @@ import type {
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { AthenaAiServiceAccountCredentialResolver } from './resolvers/AthenaAiServiceAccountCredentialResolver';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
+import { ClickhouseAiServiceAccountCredentialResolver } from './resolvers/ClickhouseAiServiceAccountCredentialResolver';
 import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
 import { PostgresAiServiceAccountCredentialResolver } from './resolvers/PostgresAiServiceAccountCredentialResolver';
 import { RedshiftAiServiceAccountCredentialResolver } from './resolvers/RedshiftAiServiceAccountCredentialResolver';
@@ -27,8 +28,11 @@ const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
 const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
+const clickhouseResolver = new ClickhouseAiServiceAccountCredentialResolver();
+
 const entries = [
     { warehouseType: WarehouseTypes.TRINO, resolver: trinoResolver },
+    { warehouseType: WarehouseTypes.CLICKHOUSE, resolver: clickhouseResolver },
     { warehouseType: WarehouseTypes.REDSHIFT, resolver: redshiftResolver },
     { warehouseType: WarehouseTypes.POSTGRES, resolver: postgresResolver },
     { warehouseType: WarehouseTypes.ATHENA, resolver: athenaResolver },
@@ -90,6 +94,7 @@ export const buildAiServiceAccountCredentials = (
         case WarehouseTypes.ATHENA:
             return athenaResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.CLICKHOUSE:
+            return clickhouseResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.DUCKDB:
             throw new ParameterError(
                 'This warehouse does not support an AI service account.',

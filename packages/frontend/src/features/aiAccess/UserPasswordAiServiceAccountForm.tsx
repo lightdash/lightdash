@@ -31,7 +31,8 @@ interface UserPasswordAiServiceAccountFormProps extends UserPasswordAiServiceAcc
     warehouseType:
         | WarehouseTypes.POSTGRES
         | WarehouseTypes.REDSHIFT
-        | WarehouseTypes.TRINO;
+        | WarehouseTypes.TRINO
+        | WarehouseTypes.CLICKHOUSE;
     userDescription: string;
 }
 

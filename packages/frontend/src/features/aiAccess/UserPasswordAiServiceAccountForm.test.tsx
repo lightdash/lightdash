@@ -29,6 +29,7 @@ describe.each([
     [WarehouseTypes.POSTGRES, 'The Postgres login role for agents'],
     [WarehouseTypes.REDSHIFT, 'The Redshift database user for agents'],
     [WarehouseTypes.TRINO, 'The Trino login for agents'],
+    [WarehouseTypes.CLICKHOUSE, 'The ClickHouse user for agents'],
 ] as const)('%s AI service account form', (warehouseType, userDescription) => {
     const slot: AiServiceAccountSlot = {
         uuid: 'slot',
@@ -248,6 +249,37 @@ describe.each([
             'Access denied.',
         );
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+    it.each(
+        warehouseType === WarehouseTypes.CLICKHOUSE
+            ? [
+                  'This ClickHouse user is not read-only. Set readonly to 2 before using it for agents.',
+                  'ClickHouse blocked the query settings. Use readonly = 2, or allow the required settings in the read-only profile.',
+              ]
+            : [],
+    )('keeps failed ClickHouse verification open: %s', async (message) => {
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...verification,
+            ok: false,
+            principal: null,
+            observed: {},
+            message,
+        });
+        vi.mocked(lightdashApiResponse).mockRejectedValue({
+            error: { message },
+        });
+        const { onSaved, onClose } = setup();
+        fill();
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(message);
+        fireEvent.change(screen.getByLabelText(/^Password/), {
+            target: { value: 'replacement' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));
+        expect(await screen.findByRole('alert')).toHaveTextContent(message);
+        expect(screen.getByRole('dialog')).toBeVisible();
+        expect(onSaved).not.toHaveBeenCalled();
+        expect(onClose).not.toHaveBeenCalled();
     });
     it('clears inputs and mutations on Cancel', async () => {
         const { onClose, client } = setup();
