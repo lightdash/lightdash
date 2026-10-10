@@ -1,7 +1,9 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
+    AgentCapability,
     AnyType,
     ChartAsCode,
+    ChartKind,
     ContentType,
     CustomDimensionType,
     DashboardAsCode,
@@ -16,10 +18,18 @@ import {
     PromotionAction,
     SessionUser,
     SpaceMemberRole,
+    SqlChartAsCode,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { toSessionUser } from '../../auth/account';
+import { fromOauth } from '../../auth/account/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ProjectCoderController } from '../../controllers/ProjectCoderController';
 import { dashboard as dashboardMock } from '../DashboardService/DashboardService.mock';
+import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -1781,3 +1791,238 @@ describe.each(['create', 'upsert'] as const)(
         });
     },
 );
+
+describe('bound grant upload effects', () => {
+    const setupBound = () => {
+        const service = buildService();
+        Object.assign(service.projectModel, {
+            getConnectionRoute: vi.fn().mockResolvedValue('original'),
+        });
+        const grant = grantFixture();
+        const account = fromOauth(
+            {
+                ...defaultSessionUser,
+                organizationUuid: ORG_UUID,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            },
+            { accessToken: 'token', client: { id: grant.clientId } },
+            null,
+            {
+                ...grant,
+                revision: 1,
+                approvedProjectUuids: [PROJECT_UUID],
+                approvedCapabilities: Object.values(AgentCapability),
+            },
+        );
+        const user = toSessionUser(account);
+        const prepare = vi
+            .spyOn(service, 'prepareDirectAccessReplace')
+            .mockResolvedValue(null);
+        const apply = vi
+            .spyOn(service, 'applyDirectAccessPolicy')
+            .mockResolvedValue(undefined);
+        const space = vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        const call = (
+            kind: 'chart' | 'dashboard' | 'sql',
+            payload: Record<string, unknown>,
+            publicSpaceCreate = false,
+        ) => {
+            const options = { account, syncEnabled: false, publicSpaceCreate };
+            if (kind === 'chart')
+                return service.upsertChart(
+                    user,
+                    PROJECT_UUID,
+                    'chart',
+                    { ...chartAsCode, ...payload },
+                    options,
+                );
+            if (kind === 'dashboard')
+                return service.upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    'dashboard',
+                    { ...dashboardAsCode, ...payload },
+                    options,
+                );
+            return service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                'sql',
+                {
+                    name: 'SQL',
+                    slug: 'sql',
+                    spaceSlug: 'space',
+                    sql: 'select 1',
+                    ...payload,
+                } as SqlChartAsCode,
+                options,
+            );
+        };
+        return { service, account, call, prepare, apply, space };
+    };
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses assigning and clearing access before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [
+                    { users: [], groups: [] },
+                    {
+                        users: [
+                            {
+                                email: 'reader@example.com',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                        groups: [],
+                    },
+                ].map(async (access) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    const result = await call(kind, { access }).catch(
+                        (error) => error,
+                    );
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('access');
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses private and public destination space creation before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [false, true].map(async (publicSpaceCreate) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    vi.mocked(service.spaceModel.find).mockResolvedValue([]);
+                    const result = await call(
+                        kind,
+                        { spaceSlug: 'missing' },
+                        publicSpaceCreate,
+                    ).catch((error) => error);
+                    expect(space).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('space');
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'retains the bound account through the %s upload controller',
+        async (kind) => {
+            const { service, account, prepare, space } = setupBound();
+            const controller = new ProjectCoderController({
+                getCoderService: () => service,
+            } as unknown as ServiceRepository);
+            const req = { account } as unknown as Request;
+            const access = { users: [], groups: [] };
+            const uploaders = {
+                chart: () =>
+                    controller.upsertChartAsCode(
+                        PROJECT_UUID,
+                        'chart',
+                        { ...chartAsCode, access },
+                        req,
+                    ),
+                dashboard: () =>
+                    controller.upsertDashboardAsCode(
+                        PROJECT_UUID,
+                        'dashboard',
+                        { ...dashboardAsCode, access },
+                        req,
+                    ),
+                sql: () =>
+                    controller.upsertSqlChartAsCode(
+                        PROJECT_UUID,
+                        'sql',
+                        {
+                            name: 'SQL',
+                            slug: 'sql',
+                            spaceSlug: 'space',
+                            sql: 'select 1',
+                            description: null,
+                            limit: 500,
+                            config: {
+                                type: ChartKind.TABLE,
+                                metadata: { version: 1 },
+                                columns: {},
+                                display: undefined,
+                            },
+                            chartKind: ChartKind.TABLE,
+                            version: 1,
+                            access,
+                        },
+                        req,
+                    ),
+            };
+            const result = uploaders[kind]();
+            await expect(result).rejects.toThrow('access');
+            expect(prepare).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'keeps a simple %s upload into an existing space',
+        async (kind) => {
+            const { service, call } = setupBound();
+            vi.mocked(service.savedChartModel.create).mockResolvedValue({
+                uuid: 'created-chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            const createSql = vi.fn().mockResolvedValue({
+                savedSqlUuid: 'created-sql',
+                slug: 'sql',
+            });
+            Object.assign(service.savedSqlModel, { create: createSql });
+            await expect(call(kind, {})).resolves.toBeDefined();
+            const creators = {
+                chart: service.savedChartModel.create,
+                dashboard: service.dashboardModel.create,
+                sql: createSql,
+            };
+            expect(creators[kind]).toHaveBeenCalledOnce();
+            expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
+        },
+    );
+});

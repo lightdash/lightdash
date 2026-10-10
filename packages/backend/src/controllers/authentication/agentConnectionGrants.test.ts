@@ -51,6 +51,10 @@ const setup = () => {
             })),
         },
         resourceResolver: {
+            resolveDeploySession: vi.fn().mockResolvedValue({
+                projectUuid: grant.approvedProjectUuids[0],
+                userUuid: user.userUuid,
+            }),
             resolveProjectUuid: vi
                 .fn()
                 .mockImplementation(async (_org, uuid) => uuid),
@@ -66,6 +70,11 @@ const setup = () => {
     const handler = Object.defineProperty(() => {}, 'name', {
         value: 'ProjectController_getProject',
     });
+    const oauth = {
+        authenticate: vi.fn().mockResolvedValue(token),
+        getSiteUrl: () => grant.resource,
+        isAccessTokenBoundToGrant: vi.fn().mockResolvedValue(false),
+    };
     const req = {
         headers: { authorization: 'Bearer token' },
         method: 'GET',
@@ -79,10 +88,7 @@ const setup = () => {
         },
         isAuthenticated: () => false,
         services: {
-            getOauthService: () => ({
-                authenticate: async () => token,
-                getSiteUrl: () => grant.resource,
-            }),
+            getOauthService: () => oauth,
             getUserService: () => ({ findSessionUser: async () => user }),
             getFeatureFlagService: () => deps.featureFlags,
             getAgentPermissionService: () => permissions,
@@ -107,7 +113,7 @@ const setup = () => {
                 middleware(req, res, (error) => resolve({ status, error }));
             },
         );
-    return { grant, user, token, deps, permissions, req, run };
+    return { grant, user, token, deps, permissions, req, run, oauth };
 };
 beforeEach(() => vi.clearAllMocks());
 it.each([allowApiKeyAuthentication, allowOauthAuthentication])(
@@ -210,6 +216,7 @@ it('a normal PAT account remains unchanged', async () => {
 it('enforces OAuth wire scopes on a bound unchecked operation in legacy/log mode', async () => {
     const { req, grant, token, run } = setup();
     grant.approvedCapabilities = [AgentCapability.DeployUpload];
+    req.params.sessionUuid = 'session';
     token.scope = ['read'];
     req.route.stack[0].handle = Object.defineProperty(() => {}, 'name', {
         value: 'DeployController_addDeployBatch',
@@ -346,4 +353,64 @@ it.each([
     expect((await run(middleware)).error).toBeUndefined();
     expect(req.account.authentication.type).toBe('pat');
     expect(lookup).not.toHaveBeenCalled();
+});
+
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])(
+    'refuses an expired bound bearer with a live session',
+    async (middleware) => {
+        const { req, user, run, oauth } = setup();
+        req.account = fromApiKey(user, 'pat');
+        req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+        oauth.authenticate.mockRejectedValue(
+            new Error('Access token has expired'),
+        );
+        oauth.isAccessTokenBoundToGrant.mockResolvedValue(true);
+        expect(await run(middleware)).toEqual({
+            status: 401,
+            body: { error: 'invalid_token' },
+        });
+        expect(oauth.isAccessTokenBoundToGrant).toHaveBeenCalledExactlyOnceWith(
+            'token',
+        );
+        expect(passport.authenticate).not.toHaveBeenCalled();
+        expect(authenticateServiceAccount).not.toHaveBeenCalled();
+    },
+);
+it.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])(
+    'preserves a session after unknown, invalid and expired unbound bearer failures',
+    async (middleware) => {
+        await Promise.all(
+            ['Unknown token', 'Invalid token', 'Access token has expired'].map(
+                async (reason) => {
+                    const { req, user, run, oauth } = setup();
+                    req.account = fromApiKey(user, 'pat');
+                    req.isAuthenticated = (() =>
+                        true) as Request['isAuthenticated'];
+                    oauth.authenticate.mockRejectedValue(new Error(reason));
+                    expect(await run(middleware)).toEqual({
+                        status: 200,
+                        error: undefined,
+                    });
+                    expect(req.account.authentication.type).toBe('pat');
+                    expect(
+                        oauth.isAccessTokenBoundToGrant,
+                    ).toHaveBeenCalledExactlyOnceWith('token');
+                },
+            ),
+        );
+    },
+);
+it('does no binding lookup on an OAuth failure without a session', async () => {
+    const { run, oauth } = setup();
+    oauth.authenticate.mockRejectedValue(new Error('Invalid token'));
+    await run(allowOauthAuthentication);
+    expect(oauth.isAccessTokenBoundToGrant).not.toHaveBeenCalled();
 });

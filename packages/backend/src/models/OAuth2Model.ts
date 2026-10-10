@@ -590,6 +590,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return { ...issued, client, user };
     }
 
+    async isAccessTokenBoundToGrant(accessToken: string): Promise<boolean> {
+        const row = await this.database('oauth2_access_tokens')
+            .select('agent_connection_grant_uuid')
+            .where('access_token', accessToken)
+            .first();
+        return row?.agent_connection_grant_uuid != null;
+    }
+
     async getAccessToken(accessToken: string): Promise<Token | false> {
         const result = await this.database('oauth2_access_tokens')
             .select(

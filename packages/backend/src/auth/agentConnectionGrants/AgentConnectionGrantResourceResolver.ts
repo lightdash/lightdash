@@ -1,6 +1,7 @@
 import { assertUnreachable, ForbiddenError } from '@lightdash/common';
 import { validate as isUuid } from 'uuid';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import type { DeploySessionModel } from '../../models/DeploySessionModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedChartModel } from '../../models/SavedChartModel';
@@ -15,12 +16,13 @@ export type GrantResourceReference = {
 };
 export type GrantResourceResolver = Pick<
     AgentConnectionGrantResourceResolver,
-    'resolveProjectUuid' | 'resolveResourceProjectUuid'
+    'resolveProjectUuid' | 'resolveResourceProjectUuid' | 'resolveDeploySession'
 >;
 
 export class AgentConnectionGrantResourceResolver {
     constructor(
         private readonly deps: {
+            deploySessionModel: Pick<DeploySessionModel, 'getSession'>;
             projectModel: Pick<ProjectModel, 'getUuidBySlug' | 'getSummary'>;
             savedSqlModel: Pick<SavedSqlModel, 'getByUuid' | 'getBySlug'>;
             savedChartModel: Pick<SavedChartModel, 'get' | 'getSummary'>;
@@ -49,6 +51,12 @@ export class AgentConnectionGrantResourceResolver {
                 'Project does not belong to this organization',
             );
         return uuid;
+    }
+
+    async resolveDeploySession(
+        sessionUuid: string,
+    ): Promise<{ projectUuid: string; userUuid: string }> {
+        return this.deps.deploySessionModel.getSession(sessionUuid);
     }
 
     async resolveResourceProjectUuid(

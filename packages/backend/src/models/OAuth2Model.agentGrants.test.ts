@@ -560,3 +560,31 @@ it('refuses a known bound token if lifecycle validation fails', async () => {
         name: 'invalid_token',
     });
 });
+
+it.each([null, 'grant'])(
+    'classifies stored expired access-token binding %s without grant validation',
+    async (binding) => {
+        flags.get.mockClear().mockResolvedValue({ enabled: false });
+        getTracker()
+            .on.select('oauth2_access_tokens')
+            .response(
+                row({
+                    expires_at: new Date(0),
+                    agent_connection_grant_uuid: binding,
+                }),
+            );
+        await expect(model.isAccessTokenBoundToGrant('access')).resolves.toBe(
+            binding !== null,
+        );
+        expect(flags.get).not.toHaveBeenCalled();
+        expect(
+            AgentConnectionGrantModel.prototype.findActive,
+        ).not.toHaveBeenCalled();
+    },
+);
+it('treats an unknown stored bearer as unbound', async () => {
+    getTracker().on.select('oauth2_access_tokens').response(undefined);
+    await expect(model.isAccessTokenBoundToGrant('unknown')).resolves.toBe(
+        false,
+    );
+});

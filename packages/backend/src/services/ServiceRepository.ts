@@ -1000,6 +1000,7 @@ export class ServiceRepository
                     model: this.models.getAgentConnectionGrantModel(),
                     featureFlags: this.models.getFeatureFlagModel(),
                     resourceResolver: new AgentConnectionGrantResourceResolver({
+                        deploySessionModel: this.models.getDeploySessionModel(),
                         projectModel: this.models.getProjectModel(),
                         savedSqlModel: this.models.getSavedSqlModel(),
                         savedChartModel: this.models.getSavedChartModel(),

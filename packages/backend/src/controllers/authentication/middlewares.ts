@@ -11,7 +11,12 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
-import { ErrorRequestHandler, Request, RequestHandler } from 'express';
+import {
+    ErrorRequestHandler,
+    Request,
+    RequestHandler,
+    Response,
+} from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
@@ -204,6 +209,22 @@ const hasSessionAndBearer = (req: Request): boolean =>
     req.isAuthenticated() &&
     /^Bearer\s+\S+$/i.test(req.headers.authorization ?? '');
 
+const refuseFailedBoundBearer = async (
+    req: Request,
+    res: Response,
+): Promise<boolean> => {
+    if (!hasSessionAndBearer(req)) return false;
+    const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.authorization!)![1];
+    if (
+        !(await req.services
+            .getOauthService()
+            .isAccessTokenBoundToGrant(bearer))
+    )
+        return false;
+    refuseOAuthToken(req, res);
+    return true;
+};
+
 /*
 This middleware allows ONLY OAuth bearer token authentication (no PAT, no service account).
 Used for endpoints that intentionally exclude PAT auth, e.g. creating a PAT from an OAuth token.
@@ -287,9 +308,15 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     next(userError);
                 });
         })
-        .catch((error) => {
+        .catch(async (error) => {
             if (error instanceof OAuthBearerRefusalError) {
                 refuseOAuthToken(req, res);
+                return;
+            }
+            try {
+                if (await refuseFailedBoundBearer(req, res)) return;
+            } catch (bindingError) {
+                next(bindingError);
                 return;
             }
             // Not an OAuth token — continue without authenticating
@@ -430,9 +457,15 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     next(userError);
                 });
         })
-        .catch((error) => {
+        .catch(async (error) => {
             if (error instanceof OAuthBearerRefusalError) {
                 refuseOAuthToken(req, res);
+                return;
+            }
+            try {
+                if (await refuseFailedBoundBearer(req, res)) return;
+            } catch (bindingError) {
+                next(bindingError);
                 return;
             }
             // Not an OAuth token — try service account and PAT

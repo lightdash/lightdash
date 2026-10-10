@@ -166,6 +166,7 @@ const start = async (
         }
         req.services = {
             getOauthService: () => ({
+                isAccessTokenBoundToGrant: vi.fn().mockResolvedValue(false),
                 authenticate: async () => {
                     if (authentication !== 'oauth')
                         throw new Error('Not an OAuth token');

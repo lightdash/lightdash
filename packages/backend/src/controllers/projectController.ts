@@ -126,6 +126,7 @@ import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
+import { assertAgentConnectionGrantOperation } from '../auth/agentConnectionGrants/evaluateGrant';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DbTagUpdate } from '../database/entities/tags';
 import Logger from '../logging/logger';
@@ -1941,6 +1942,19 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Body() body?: ApiRefreshBody,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
         assertRegisteredAccount(req.account);
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'ProjectController.refresh',
+            projectUuids: [projectUuid],
+        });
+        if (
+            req.account.authentication.type === 'oauth' &&
+            req.account.authentication.agentConnectionGrant &&
+            body?.syncContent === true
+        )
+            throw new ForbiddenError(
+                "This agent connection can't sync content during refresh.",
+            );
         this.setStatus(200);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),
