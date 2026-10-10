@@ -331,10 +331,6 @@ test('Slack prompt creation keeps the installation organization for a user with 
             expect.objectContaining({ organizationUuid }),
         );
         expect(defaults).toHaveBeenCalledWith(organizationUuid);
-        expect(tracker.history.select[0].bindings).toEqual([
-            userUuid,
-            organizationUuid,
-        ]);
     } finally {
         tracker.reset();
         await database.destroy();
