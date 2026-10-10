@@ -70591,6 +70591,22 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "TrinoAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.TRINO"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user", "password"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "RedshiftAiServiceAccountCredentialInput": {
                 "properties": {
                     "type": {
@@ -70758,6 +70774,9 @@
             },
             "AiServiceAccountCredentialInput": {
                 "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/TrinoAiServiceAccountCredentialInput"
+                    },
                     {
                         "$ref": "#/components/schemas/RedshiftAiServiceAccountCredentialInput"
                     },
@@ -71100,7 +71119,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.541.0",
+        "version": "2.542.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

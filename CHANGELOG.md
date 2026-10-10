@@ -1,3 +1,10 @@
+# [2.542.0](https://github.com/lightdash/lightdash/compare/2.541.0...2.542.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Trino agents run as a separate user (AI service account) ([#30870](https://github.com/lightdash/lightdash/issues/30870)) ([9ef1e93](https://github.com/lightdash/lightdash/commit/9ef1e93648a1942fd5b57284d74c32c11ae9a0b8))
+
 # [2.541.0](https://github.com/lightdash/lightdash/compare/2.540.0...2.541.0) (2026-10-10)
 
 
