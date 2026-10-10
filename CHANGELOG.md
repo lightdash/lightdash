@@ -1,3 +1,10 @@
+## [2.551.1](https://github.com/lightdash/lightdash/compare/2.551.0...2.551.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** allow a person's stored result after an empty attribute is created or deleted ([#30889](https://github.com/lightdash/lightdash/issues/30889)) ([0976f9a](https://github.com/lightdash/lightdash/commit/0976f9af56b96899e989002c86f16c43b1d877fe))
+
 # [2.551.0](https://github.com/lightdash/lightdash/compare/2.550.0...2.551.0) (2026-10-10)
 
 
