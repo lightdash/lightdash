@@ -140,7 +140,10 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import {
+    assertHumanManagedMutation,
+    getManagedAgentPolicy,
+} from '../AgentPermissionService/assertHumanManagedMutation';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import {
     logAgentContentWrite,
@@ -1479,6 +1482,34 @@ export class CoderService extends BaseService {
             );
         }
 
+        const managedMutationContext = {
+            organizationUuid: project.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: new FeatureFlagModel({
+                database: this.groupsModel.database,
+                lightdashConfig: this.lightdashConfig,
+            }),
+        };
+        if (!existingSpace) {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        metadata: { spaceName: desiredSpace.spaceName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create space "${desiredSpace.slug}"`,
+                );
+            }
+            await assertHumanManagedMutation(managedMutationContext);
+        }
+
         const parentPath = path.includes('.')
             ? path.slice(0, path.lastIndexOf('.'))
             : null;
@@ -1580,35 +1611,19 @@ export class CoderService extends BaseService {
                     `You don't have permission to manage space "${desiredSpace.slug}"`,
                 );
             }
-        } else {
-            if (
-                auditedAbility.cannot(
-                    'create',
-                    subject('Space', {
-                        organizationUuid: project.organizationUuid,
-                        projectUuid,
-                        metadata: { spaceName: desiredSpace.spaceName },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create space "${desiredSpace.slug}"`,
-                );
-            }
-            if (
-                parentSpaceUuid !== null &&
-                !(await this.spacePermissionService.can(
-                    'manage',
-                    user,
-                    parentSpaceUuid,
-                ))
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
-                        parentPath!,
-                    )}"`,
-                );
-            }
+        } else if (
+            parentSpaceUuid !== null &&
+            !(await this.spacePermissionService.can(
+                'manage',
+                user,
+                parentSpaceUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                    parentPath!,
+                )}"`,
+            );
         }
 
         const rawAccess = existingSpace
@@ -1664,20 +1679,16 @@ export class CoderService extends BaseService {
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
         if (accessChanged) {
-            await assertHumanManagedMutation({
-                organizationUuid: project.organizationUuid,
-                ability: user.ability,
-                oauth: account.authentication.type === 'oauth',
-                database: this.groupsModel.database,
-                featureFlagModel: new FeatureFlagModel({
-                    database: this.groupsModel.database,
-                    lightdashConfig: this.lightdashConfig,
-                }),
-            });
+            await assertHumanManagedMutation(managedMutationContext);
         }
         if (existingSpace && !metadataChanged && !accessChanged) {
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
+
+        const omitUnchangedAccess =
+            !accessChanged &&
+            desiredSpace.access !== undefined &&
+            (await getManagedAgentPolicy(managedMutationContext)) !== null;
 
         const applyInput = {
             projectUuid,
@@ -1697,7 +1708,9 @@ export class CoderService extends BaseService {
             ...(desiredSpace.access === undefined && parentSpaceUuid !== null
                 ? { copyParentAccessOnLegacyCreate: true }
                 : {}),
-            ...(desiredSpace.access ? { access: desiredSpace.access } : {}),
+            ...(desiredSpace.access && !omitUnchangedAccess
+                ? { access: desiredSpace.access }
+                : {}),
         };
         await this.spaceModel.applySpaceAsCode(applyInput, {
             beforeMutation: async (trx, { userAccess }) => {
@@ -1775,13 +1788,13 @@ export class CoderService extends BaseService {
                         )}"`,
                     );
                 }
-                if (desiredSpace.access) {
+                if (applyInput.access) {
                     await this.assertSpaceUploaderRetainsManage({
                         user: currentUser,
                         auditedAbility: currentAbility,
                         project,
                         parentSpaceUuid,
-                        access: desiredSpace.access!,
+                        access: applyInput.access,
                         trx,
                         resolvedUserAccess: userAccess,
                     });

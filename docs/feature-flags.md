@@ -277,11 +277,14 @@ membership, space or direct access grants, agent policy, identity or AI-access
 settings, warehouse confirmations, personal tokens, service accounts or OAuth
 clients, even with the administration capability. Role, project membership,
 organization membership, invite creation or resend, and group mutation services
-also reject managed OAuth and agent execution contexts. Space updates and
-spaces-as-code imports reject changes to inheritance, project-member access,
-or user and group grants at the service boundary. Metadata-only space edits
-remain under `content_write`; resubmitting unchanged access is allowed. Ordinary
-human and PAT administration keeps its existing behavior.
+also reject managed OAuth and agent execution contexts. Space creation, including
+spaces-as-code imports and missing ancestors, is human-only in managed mode.
+Space updates and spaces-as-code imports reject changes to inheritance,
+project-member access, or user and group grants at the service boundary.
+Metadata-only space edits remain under `content_write`; resubmitting unchanged
+access is allowed, but managed OAuth and agent writes omit those access fields
+so they cannot restore a concurrent human revocation. Ordinary human and PAT
+administration keeps its existing behavior.
 
 ### Snowflake silent agent refresh
 

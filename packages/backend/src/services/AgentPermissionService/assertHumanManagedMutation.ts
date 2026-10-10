@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     FeatureFlags,
+    type AgentCapabilityPolicy,
     type MemberAbility,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
@@ -11,35 +12,44 @@ import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyMo
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 
-export const assertHumanManagedMutation = async ({
-    organizationUuid,
-    ability,
-    oauth,
-    database,
-    featureFlagModel,
-}: {
+interface HumanManagedMutationContext {
     organizationUuid: string | null | undefined;
     ability: MemberAbility;
     oauth: boolean;
     database: Knex;
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
-}): Promise<void> => {
+}
+
+export const getManagedAgentPolicy = async ({
+    organizationUuid,
+    ability,
+    oauth,
+    database,
+    featureFlagModel,
+}: HumanManagedMutationContext): Promise<AgentCapabilityPolicy | null> => {
     if (
         !organizationUuid ||
         (!oauth &&
             getOAuthScopeContext(ability) === null &&
             !agentExecutionContext.getStore())
     )
-        return;
+        return null;
     const flag = await featureFlagModel.get({
         featureFlagId: FeatureFlags.AgentIdentity,
         user: { organizationUuid },
     });
-    if (!flag.enabled) return;
+    if (!flag.enabled) return null;
     const policy = await new AgentCapabilityPolicyModel({ database }).get(
         organizationUuid,
     );
-    if (policy.mode !== 'managed') return;
+    return policy.mode === 'managed' ? policy : null;
+};
+
+export const assertHumanManagedMutation = async (
+    context: HumanManagedMutationContext,
+): Promise<void> => {
+    const policy = await getManagedAgentPolicy(context);
+    if (!policy) return;
     throw new AiAccessRefusedError(
         AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
         {

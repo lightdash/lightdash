@@ -36,7 +36,10 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel, type CascadedDocument } from '../../models/SpaceModel';
-import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import {
+    assertHumanManagedMutation,
+    getManagedAgentPolicy,
+} from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import type { DashboardService } from '../DashboardService/DashboardService';
 import type { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -472,7 +475,25 @@ export class SpaceService
             await this.assertHumanAccessMutation(user, space.organizationUuid);
         }
 
-        const { inheritParentPermissions } = updateSpace;
+        const spaceUpdate = {
+            ...updateSpace,
+            inheritParentPermissions: updateSpace.inheritParentPermissions,
+        };
+        if (
+            (updateSpace.inheritParentPermissions !== undefined ||
+                updateSpace.projectMemberAccessRole !== undefined) &&
+            (await getManagedAgentPolicy({
+                organizationUuid: space.organizationUuid,
+                ability: user.ability,
+                oauth: false,
+                database: this.spaceModel.database,
+                featureFlagModel: this.featureFlagModel,
+            })) !== null
+        ) {
+            delete spaceUpdate.inheritParentPermissions;
+            delete spaceUpdate.projectMemberAccessRole;
+        }
+        const { inheritParentPermissions } = spaceUpdate;
 
         // When switching from inherit to not-inherit, copy inherited permissions
         // as direct access entries so users don't lose access.
@@ -516,15 +537,12 @@ export class SpaceService
             }
             await this.spaceModel.updateWithCopiedPermissions(
                 spaceUuid,
-                { ...updateSpace, inheritParentPermissions },
+                spaceUpdate,
                 userAccessEntries,
                 groupAccessEntries,
             );
         } else {
-            await this.spaceModel.update(spaceUuid, {
-                ...updateSpace,
-                inheritParentPermissions,
-            });
+            await this.spaceModel.update(spaceUuid, spaceUpdate);
         }
 
         const updatedSpace = await this.assembleFullSpace(spaceUuid, user);

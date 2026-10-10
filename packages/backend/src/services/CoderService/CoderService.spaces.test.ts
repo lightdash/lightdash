@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
     AnyType,
     ContentAsCodeType,
     ForbiddenError,
@@ -894,7 +895,155 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
     'managed spaces as code: %s',
     (operation) => {
         afterEach(() => vi.restoreAllMocks());
-        test.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+        test('managed metadata retains a direct-grant uploader without replacing access', async () => {
+            vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                enabled: true,
+            } as never);
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedProjectUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([]),
+            });
+            const user = makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Space',
+                    action: 'manage',
+                    conditions: {
+                        projectUuid: PROJECT_UUID,
+                        access: {
+                            $elemMatch: {
+                                userUuid: USER_UUID,
+                                role: SpaceMemberRole.ADMIN,
+                            },
+                        },
+                    },
+                },
+            ]);
+            const { service, spaceModel, spacePermissionService } =
+                buildService({ refreshedUser: user });
+            const controller = new ProjectCoderController({
+                getCoderService: () => service,
+            } as unknown as ServiceRepository);
+            await expect(
+                controller[operation](
+                    PROJECT_UUID,
+                    spaceAsCode({ spaceName: 'Renamed' }),
+                    {
+                        account: fromOauth(user, {
+                            accessToken: 'token',
+                            client: { id: 'agent' },
+                        }),
+                    } as Request,
+                ),
+            ).resolves.toMatchObject({
+                results: { action: SpaceAsCodeAction.UPDATE },
+            });
+            expect(
+                spaceModel.applySpaceAsCode.mock.calls[0][0],
+            ).not.toHaveProperty('access');
+            expect(spacePermissionService.can).toHaveBeenCalledTimes(2);
+        });
+        test.each([
+            'managed',
+            'agent',
+            'legacy',
+            'off',
+            'pat',
+            'session',
+        ] as const)(
+            '%s gates implicit creation before writing any ancestor',
+            async (mode) => {
+                vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                    enabled: mode !== 'off',
+                } as never);
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    mode: mode === 'legacy' ? 'legacy' : 'managed',
+                    version: 1,
+                    allowedProjectUuids: null,
+                    systemRoleMatrix: agentSystemRoleMatrix([]),
+                });
+                const user = makeSessionUser();
+                let account: Account = fromSession(user);
+                if (mode === 'pat') account = fromApiKey(user, 'token');
+                else if (mode !== 'session' && mode !== 'agent')
+                    account = fromOauth(user, {
+                        accessToken: 'token',
+                        client: { id: 'agent' },
+                    });
+                await Promise.all(
+                    [
+                        {
+                            slug: 'finance',
+                            publicSpaceCreate: false,
+                            writes: 1,
+                        },
+                        { slug: 'finance', publicSpaceCreate: true, writes: 1 },
+                        {
+                            slug: 'company/finance/reports',
+                            publicSpaceCreate: false,
+                            writes: 3,
+                        },
+                    ].map(async ({ slug, publicSpaceCreate, writes }) => {
+                        const { service, spaceModel } = buildService({
+                            spaces: [],
+                        });
+                        const controller = new ProjectCoderController({
+                            getCoderService: () => service,
+                        } as unknown as ServiceRepository);
+                        const result = withAgentActionScope(
+                            user,
+                            mode === 'agent'
+                                ? AgentActorSurface.IN_APP_AGENT
+                                : null,
+                            true,
+                            () =>
+                                controller[operation](
+                                    PROJECT_UUID,
+                                    {
+                                        contentType: ContentAsCodeType.SPACE,
+                                        spaceName: 'Finance',
+                                        slug,
+                                    },
+                                    { account } as Request,
+                                    false,
+                                    publicSpaceCreate,
+                                ),
+                        );
+                        if (mode === 'managed' || mode === 'agent') {
+                            await expect(result).rejects.toMatchObject({
+                                refusal: { reason: 'agent_capability_denied' },
+                            });
+                            expect(
+                                spaceModel.applySpaceAsCode,
+                            ).not.toHaveBeenCalled();
+                        } else {
+                            await expect(result).resolves.toMatchObject({
+                                results: { action: SpaceAsCodeAction.CREATE },
+                            });
+                            expect(
+                                spaceModel.applySpaceAsCode,
+                            ).toHaveBeenCalledTimes(writes);
+                        }
+                    }),
+                );
+            },
+        );
+        test.each([
+            'managed',
+            'agent',
+            'legacy',
+            'off',
+            'pat',
+            'session',
+        ] as const)(
             '%s permits metadata and gates changed access',
             async (mode) => {
                 vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
@@ -912,7 +1061,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 const user = makeSessionUser();
                 let account: Account = fromSession(user);
                 if (mode === 'pat') account = fromApiKey(user, 'token');
-                else if (mode !== 'session')
+                else if (mode !== 'session' && mode !== 'agent')
                     account = fromOauth(user, {
                         accessToken: 'token',
                         client: { id: 'agent' },
@@ -923,13 +1072,44 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 } as unknown as ServiceRepository);
                 const upsert = async (space: SpaceAsCode) =>
                     (
-                        await controller[operation](PROJECT_UUID, space, {
-                            account,
-                        } as Request)
+                        await withAgentActionScope(
+                            user,
+                            mode === 'agent'
+                                ? AgentActorSurface.IN_APP_AGENT
+                                : null,
+                            true,
+                            () =>
+                                controller[operation](PROJECT_UUID, space, {
+                                    account,
+                                } as Request),
+                        )
                     ).results;
+                let persistedAccess = spaceAsCode().access;
+                const apply =
+                    spaceModel.applySpaceAsCode.getMockImplementation()!;
+                spaceModel.applySpaceAsCode.mockImplementationOnce(
+                    async (input, options) => {
+                        persistedAccess = {
+                            ...spaceAsCode().access!,
+                            users: [],
+                        };
+                        const result = await apply(input, options);
+                        if (input.access) persistedAccess = input.access;
+                        return result;
+                    },
+                );
                 await expect(
                     upsert(spaceAsCode({ spaceName: 'Renamed' })),
                 ).resolves.toEqual({ action: SpaceAsCodeAction.UPDATE });
+                const [metadataWrite] =
+                    spaceModel.applySpaceAsCode.mock.calls[0];
+                if (mode === 'managed' || mode === 'agent') {
+                    expect(metadataWrite).not.toHaveProperty('access');
+                    expect(persistedAccess?.users).toEqual([]);
+                } else {
+                    expect(metadataWrite.access).toEqual(spaceAsCode().access);
+                    expect(persistedAccess).toEqual(spaceAsCode().access);
+                }
                 spaceModel.applySpaceAsCode.mockClear();
                 const changed = spaceAsCode({
                     spaceName: 'Renamed',
@@ -940,7 +1120,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                         groups: [],
                     },
                 });
-                if (mode === 'managed') {
+                if (mode === 'managed' || mode === 'agent') {
                     await expect(upsert(changed)).rejects.toMatchObject({
                         refusal: { reason: 'agent_capability_denied' },
                     });
