@@ -1,3 +1,12 @@
+## [2.547.6](https://github.com/lightdash/lightdash/compare/2.547.5...2.547.6) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** record the agent on chat chart re-runs ([#30883](https://github.com/lightdash/lightdash/issues/30883)) ([61bed44](https://github.com/lightdash/lightdash/commit/61bed44594bf2ab2570c37661f47fa71a9f9093f))
+* **agent-identity:** recover the agent permissions form after a stale save ([#30885](https://github.com/lightdash/lightdash/issues/30885)) ([8a0888b](https://github.com/lightdash/lightdash/commit/8a0888b4312a4d5f4d9c60a1e9ad874e1c592da5))
+* **agent-identity:** report the shared agent account in CLI agent status ([#30884](https://github.com/lightdash/lightdash/issues/30884)) ([abf8287](https://github.com/lightdash/lightdash/commit/abf8287d919153d8755538372c001b18dee30fa0))
+
 ## [2.547.5](https://github.com/lightdash/lightdash/compare/2.547.4...2.547.5) (2026-10-10)
 
 
