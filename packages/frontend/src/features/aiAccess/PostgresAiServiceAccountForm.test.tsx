@@ -64,7 +64,7 @@ const setup = () => {
 };
 const fill = () => {
     fireEvent.change(screen.getByLabelText('User', { exact: false }), {
-        target: { value: credentials.user },
+        target: { value: `  ${credentials.user}  ` },
     });
     fireEvent.change(screen.getByLabelText(/^Password/), {
         target: { value: credentials.password },
@@ -84,6 +84,7 @@ describe('Postgres AI service account form', () => {
     });
     it('requires a user and non-empty password and masks the secret', () => {
         setup();
+        expect(screen.getByRole('button', { name: 'Test' })).toBeDisabled();
         expect(
             screen.getByRole('button', { name: 'Test and save' }),
         ).toBeDisabled();
@@ -96,6 +97,7 @@ describe('Postgres AI service account form', () => {
             screen.getByLabelText('User', { exact: false }),
         ).toHaveAccessibleDescription('The Postgres login role for agents');
         fill();
+        expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expect(
             screen.getByRole('button', { name: 'Test and save' }),
         ).toBeEnabled();
@@ -105,7 +107,24 @@ describe('Postgres AI service account form', () => {
             screen.getByRole('button', { name: 'Test and save' }),
         ).toBeDisabled();
     });
-    it('tests unsaved credentials and clears the result and cached secrets on edit', async () => {
+    it.each([
+        { user: '', password: credentials.password },
+        { user: credentials.user, password: '' },
+        { user: '   ', password: credentials.password },
+    ])('disables both actions for invalid inputs %j', ({ user, password }) => {
+        setup();
+        fireEvent.change(screen.getByLabelText('User', { exact: false }), {
+            target: { value: user },
+        });
+        fireEvent.change(screen.getByLabelText(/^Password/), {
+            target: { value: password },
+        });
+        expect(screen.getByRole('button', { name: 'Test' })).toBeDisabled();
+        expect(
+            screen.getByRole('button', { name: 'Test and save' }),
+        ).toBeDisabled();
+    });
+    it('tests only the type, trimmed user and unchanged password and clears cached results on edit', async () => {
         const { client } = setup();
         fill();
         fireEvent.click(screen.getByRole('button', { name: 'Test' }));
@@ -125,7 +144,7 @@ describe('Postgres AI service account form', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
         expect(client.getMutationCache().getAll()).toHaveLength(0);
     });
-    it('saves the current inputs with the verification returned by Save', async () => {
+    it('saves only the type, trimmed user and unchanged password with verification', async () => {
         const { onSaved, onClose, client } = setup();
         fill();
         fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));

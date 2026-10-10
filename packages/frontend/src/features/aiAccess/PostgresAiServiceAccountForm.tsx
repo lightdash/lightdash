@@ -6,8 +6,15 @@ import {
 } from '@lightdash/common';
 import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
+import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
+import { z } from 'zod';
 import MantineModal from '../../components/common/MantineModal';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
+
+const formSchema = z.object({
+    user: z.string().trim().min(1),
+    password: z.string().min(1),
+});
 
 export const PostgresAiServiceAccountForm = ({
     projectUuid,
@@ -24,15 +31,16 @@ export const PostgresAiServiceAccountForm = ({
 }) => {
     const form = useForm({
         initialValues: { user: '', password: '' },
+        validate: zodResolver(formSchema),
     });
     const save = useSaveAiServiceAccount(projectUuid);
     const test = useTestAiServiceAccount(projectUuid);
     const busy = save.isLoading || test.isLoading;
-    const valid =
-        form.values.user.trim().length > 0 && form.values.password.length > 0;
+    const valid = formSchema.safeParse(form.values).success;
     const credentials: PostgresAiServiceAccountCredentialInput = {
         type: WarehouseTypes.POSTGRES,
-        ...form.values,
+        user: form.values.user.trim(),
+        password: form.values.password,
     };
     const close = () => {
         form.reset();
