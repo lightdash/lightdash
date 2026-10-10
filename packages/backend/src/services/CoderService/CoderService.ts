@@ -111,7 +111,10 @@ import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
-import { grantUploadBodySchema } from '../../auth/agentConnectionGrants/operationContracts';
+import {
+    grantUploadBodySchema,
+    uploadEffectCapabilities,
+} from '../../auth/agentConnectionGrants/operationContracts';
 import { LightdashConfig } from '../../config/parseConfig';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
@@ -3885,10 +3888,20 @@ export class CoderService extends BaseService {
             !account.authentication.agentConnectionGrant
         )
             return;
+        const grant = account.authentication.agentConnectionGrant;
         const parsed = grantUploadBodySchema.safeParse(payload);
         if (!parsed.success)
             throw new ForbiddenError(
                 "This agent connection can't upload an access policy or an unresolved space.",
+            );
+        if (
+            uploadEffectCapabilities(parsed.data).some(
+                (capability) =>
+                    !grant.approvedCapabilities.includes(capability),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Publish and share.',
             );
         if (
             parsed.data.spaceSlug !== undefined &&

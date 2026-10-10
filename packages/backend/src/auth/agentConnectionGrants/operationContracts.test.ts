@@ -1,5 +1,8 @@
+import { AgentCapability } from '@lightdash/common';
 import path from 'node:path';
 import ts from 'typescript-compiler-api';
+import { fromOauth } from '../account/account';
+import { defaultSessionUser } from '../account/account.mock';
 import { REST_OPERATION_CAPABILITIES } from '../agentPermissions/capabilityMap';
 import {
     collectOAuthRoutesFromSources,
@@ -7,7 +10,9 @@ import {
     parseSource,
     sourceFiles,
 } from '../oauthScopes/testing/routeInventory';
+import { AgentConnectionGrantService } from './AgentConnectionGrantService';
 import { CLI_GRANT_OPERATION_INVENTORY } from './cliOperationInventory';
+import { grantFixture } from './grant.mock';
 import {
     GRANT_MCP_TOOL_CONTRACTS,
     GRANT_OPERATION_CONTRACTS,
@@ -130,3 +135,85 @@ it('maps every API inventory operation to a reviewed capability key or a bootstr
             expect(entry.operations.length).toBeGreaterThan(0);
     }
 });
+
+it.each(
+    [
+        'ProjectCoderController.upsertChartAsCode',
+        'ProjectCoderController.upsertDashboardAsCode',
+    ].flatMap((operation) =>
+        [true, false].flatMap((verified) =>
+            [true, false].map((publish) => ({ operation, verified, publish })),
+        ),
+    ),
+)(
+    'requires Publish for $operation with verified=$verified and publish=$publish',
+    async ({ operation, verified, publish }) => {
+        const grant = grantFixture();
+        grant.approvedCapabilities = [
+            AgentCapability.ContentWrite,
+            AgentCapability.DeployUpload,
+            ...(publish ? [AgentCapability.Publish] : []),
+        ];
+        const user = {
+            ...defaultSessionUser,
+            userUuid: grant.subjectUserUuid,
+            organizationUuid: grant.organizationUuid,
+        };
+        const service = new AgentConnectionGrantService({
+            model: {
+                findActive: async () => grant,
+                touchLastUsed: async () => {},
+            },
+            featureFlags: { get: vi.fn().mockResolvedValue({ enabled: true }) },
+            resourceResolver: {
+                resolveProjectUuid: async (_org, id) => id,
+                resolveResourceProjectUuid: async () => null,
+                resolveDeploySession: async () => ({
+                    projectUuid: grant.approvedProjectUuids[0],
+                    userUuid: user.userUuid,
+                }),
+            },
+        });
+        const token = {
+            accessToken: 'token',
+            agentConnectionGrantUuid: grant.grantUuid,
+            familyUuid: grant.refreshFamilyUuid,
+            resource: grant.resource,
+            client: {
+                id: grant.clientId,
+                grants: ['authorization_code', 'refresh_token'],
+            },
+            user,
+        };
+        const account = fromOauth(
+            user,
+            token,
+            null,
+            await service.authenticate(token, user),
+        );
+        const request = {
+            account,
+            method: 'POST',
+            params: { projectUuid: grant.approvedProjectUuids[0] },
+            query: {},
+            body: { spaceSlug: 'space', verified },
+        };
+        if (publish)
+            await expect(
+                service.assertRestOperation(request, operation),
+            ).resolves.toEqual(grant.approvedProjectUuids);
+        else
+            await expect(
+                service.assertRestOperation(request, operation),
+            ).rejects.toThrow('Publish');
+        request.body = { spaceSlug: 'space' } as typeof request.body;
+        await expect(
+            service.assertRestOperation(request, operation),
+        ).resolves.toEqual(grant.approvedProjectUuids);
+        request.account = fromOauth(user, token);
+        request.body = { spaceSlug: 'space', verified };
+        await expect(
+            service.assertRestOperation(request, operation),
+        ).resolves.toEqual([]);
+    },
+);

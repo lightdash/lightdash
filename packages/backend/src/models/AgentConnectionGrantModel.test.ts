@@ -238,7 +238,7 @@ test('revokes only bound tokens and preserves the first revocation on repeat', a
         tracker.history.delete.filter((query) =>
             query.sql.includes('oauth2_access_tokens'),
         ),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
     expect(
         tracker.history.delete.filter((query) =>
             query.sql.includes('oauth2_authorization_codes'),
@@ -286,6 +286,11 @@ test('also revokes every token in the bound refresh family', async () => {
             query.sql.includes('oauth2_access_tokens'),
         ),
     ).toBe(true);
+    expect(
+        familyQueries.find((query) =>
+            query.sql.includes('oauth2_access_tokens'),
+        )?.sql,
+    ).toContain('"agent_connection_grant_uuid" is null');
 });
 
 test('does not revoke tokens when the grant is outside the organization', async () => {
@@ -342,7 +347,10 @@ test('replaces the grant, revokes its tokens and links to the replacement', asyn
     expect(tracker.history.update.at(-1)?.sql).toContain(
         '"replaced_by_grant_uuid"',
     );
-    expect(tracker.history.delete).toHaveLength(2);
+    expect(tracker.history.delete).toHaveLength(1);
+    expect(tracker.history.delete[0].sql).toContain(
+        'oauth2_authorization_codes',
+    );
     expect(tracker.history.transactions).toHaveLength(1);
     expect(tracker.history.transactions[0].state).toBe('committed');
     expect(tracker.history.transactions[0].queries).toHaveLength(
@@ -410,7 +418,7 @@ test('rolls back revocation when token cleanup fails', async () => {
         .update('agent_connection_grants')
         .response([{ ...row, revoked_at: now }]);
     tracker.on
-        .delete('oauth2_access_tokens')
+        .delete('oauth2_authorization_codes')
         .simulateError(new Error('token cleanup failed'));
     await expect(
         model.revoke({
@@ -431,7 +439,7 @@ test('rolls back the replacement when revoking the old tokens fails', async () =
         .update('agent_connection_grants')
         .response([{ ...row, revoked_at: now }]);
     tracker.on
-        .delete('oauth2_access_tokens')
+        .delete('oauth2_authorization_codes')
         .simulateError(new Error('token cleanup failed'));
     await expect(
         model.replace({

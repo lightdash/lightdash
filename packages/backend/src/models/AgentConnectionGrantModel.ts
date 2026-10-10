@@ -197,12 +197,6 @@ export class AgentConnectionGrantModel {
             })
             .returning('*');
         if (!grant) throw new NotFoundError('Agent connection grant not found');
-        await database('oauth2_access_tokens')
-            .where(
-                'agent_connection_grant_uuid',
-                grant.agent_connection_grant_uuid,
-            )
-            .delete();
         await database('oauth2_authorization_codes')
             .where(
                 'agent_connection_grant_uuid',
@@ -225,6 +219,7 @@ export class AgentConnectionGrantModel {
                 });
             await database('oauth2_access_tokens')
                 .where('family_uuid', grant.refresh_family_uuid)
+                .whereNull('agent_connection_grant_uuid')
                 .delete();
         }
     }

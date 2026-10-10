@@ -24,6 +24,7 @@ import {
 import {
     getGrantOperationContract,
     sourceEffectCapabilities,
+    uploadEffectCapabilities,
 } from './operationContracts';
 
 export type GrantRestRequest = Pick<
@@ -274,11 +275,15 @@ export class AgentConnectionGrantService {
                 }
                 break;
             }
-            case 'content_upload':
+            case 'content_upload': {
                 projects.push(await resolveProject(req.params[contract.param]));
-                parseBody(contract.bodySchema);
-                additionalCapabilities = [AgentCapability.DeployUpload];
+                const body = parseBody(contract.bodySchema);
+                additionalCapabilities = [
+                    AgentCapability.DeployUpload,
+                    ...uploadEffectCapabilities(body),
+                ];
                 break;
+            }
             case 'source_queries': {
                 projects.push(await resolveProject(req.params[contract.param]));
                 const body = parseBody(contract.bodySchema);

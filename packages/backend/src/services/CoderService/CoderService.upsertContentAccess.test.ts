@@ -1793,7 +1793,7 @@ describe.each(['create', 'upsert'] as const)(
 );
 
 describe('bound grant upload effects', () => {
-    const setupBound = () => {
+    const setupBound = (publish = true, bound = true) => {
         const service = buildService();
         Object.assign(service.projectModel, {
             getConnectionRoute: vi.fn().mockResolvedValue('original'),
@@ -1813,9 +1813,13 @@ describe('bound grant upload effects', () => {
                 ...grant,
                 revision: 1,
                 approvedProjectUuids: [PROJECT_UUID],
-                approvedCapabilities: Object.values(AgentCapability),
+                approvedCapabilities: Object.values(AgentCapability).filter(
+                    (capability) =>
+                        publish || capability !== AgentCapability.Publish,
+                ),
             },
         );
+        if (!bound) account.authentication.agentConnectionGrant = null;
         const user = toSessionUser(account);
         const prepare = vi
             .spyOn(service, 'prepareDirectAccessReplace')
@@ -1865,6 +1869,199 @@ describe('bound grant upload effects', () => {
         };
         return { service, account, call, prepare, apply, space };
     };
+    const prepareVerificationUpload = (
+        service: CoderService,
+        kind: 'chart' | 'dashboard',
+        mode: 'create' | 'update',
+        verified: boolean | undefined,
+    ) => {
+        Object.assign(service.contentVerificationModel, {
+            getByContent: vi.fn().mockResolvedValue(
+                verified === false
+                    ? {
+                          verifiedBy: { userUuid: 'user' },
+                          verifiedAt: new Date(),
+                      }
+                    : null,
+            ),
+            verify: vi.fn().mockResolvedValue(undefined),
+            unverify: vi.fn().mockResolvedValue(undefined),
+        });
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
+        vi.mocked(service.dashboardModel.create).mockResolvedValue({
+            ...dashboardAsCode,
+            uuid: 'dashboard-uuid',
+        } as AnyType);
+        if (mode === 'create') return;
+        if (kind === 'chart') {
+            const chart = {
+                ...chartAsCode,
+                uuid: 'chart-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                chart,
+            ] as AnyType);
+            vi.mocked(
+                service.promoteService.getPromoteCharts,
+            ).mockResolvedValue({
+                promotedChart: { chart },
+                upstreamChart: { chart: { ...chart } },
+            } as AnyType);
+            vi.mocked(service.promoteService.getChartChanges).mockResolvedValue(
+                {
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: chart.uuid },
+                        },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as AnyType,
+            );
+        } else {
+            const dashboard = {
+                ...dashboardAsCode,
+                uuid: 'dashboard-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard,
+            ] as AnyType);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard as AnyType,
+            );
+            const promotion = {
+                dashboard,
+                projectUuid: PROJECT_UUID,
+                space: { name: 'Space' },
+                spaceAccessContext: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    access: [],
+                },
+            };
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockResolvedValue({
+                promotedDashboard: promotion,
+                upstreamDashboard: {
+                    ...promotion,
+                    dashboard: { ...dashboard },
+                },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotionDashboardChanges,
+            ).mockResolvedValue([
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: dashboard.uuid },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [],
+            ] as AnyType);
+        }
+    };
+    const verificationCases = (['chart', 'dashboard'] as const).flatMap(
+        (kind) =>
+            (['create', 'update'] as const).flatMap((mode) =>
+                [true, false].map((verified) => ({ kind, mode, verified })),
+            ),
+    );
+    it.each(verificationCases)(
+        'refuses $kind $mode with verified=$verified without Publish before any write',
+        async ({ kind, mode, verified }) => {
+            const { service, call, space, prepare, apply } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, verified);
+            const result = await call(kind, { verified }).catch(
+                (error) => error,
+            );
+            expect(service.savedChartModel.create).not.toHaveBeenCalled();
+            expect(service.dashboardModel.create).not.toHaveBeenCalled();
+            expect(service.promoteService.upsertCharts).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.getOrCreateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.updateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentAsCodeSnapshotModel.upsert,
+            ).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+            expect(prepare).not.toHaveBeenCalled();
+            expect(apply).not.toHaveBeenCalled();
+            expect(result).toBeInstanceOf(ForbiddenError);
+            expect(result.message).toContain('Publish');
+        },
+    );
+    it.each(
+        verificationCases.flatMap((entry) =>
+            ['approved', 'unbound'].map((authorization) => ({
+                ...entry,
+                authorization,
+            })),
+        ),
+    )(
+        'allows $authorization $kind $mode with verified=$verified',
+        async ({ kind, mode, verified, authorization }) => {
+            const { service, call } = setupBound(
+                authorization === 'approved',
+                authorization !== 'unbound',
+            );
+            prepareVerificationUpload(service, kind, mode, verified);
+            await expect(call(kind, { verified })).resolves.toBeDefined();
+            if (mode === 'create') {
+                expect(
+                    kind === 'chart'
+                        ? service.savedChartModel.create
+                        : service.dashboardModel.create,
+                ).toHaveBeenCalledOnce();
+            } else {
+                expect(
+                    kind === 'chart'
+                        ? service.promoteService.upsertCharts
+                        : service.promoteService.updateDashboard,
+                ).toHaveBeenCalledOnce();
+            }
+            const verificationWrite = verified
+                ? service.contentVerificationModel.verify
+                : service.contentVerificationModel.unverify;
+            expect(verificationWrite).toHaveBeenCalledOnce();
+        },
+    );
+    it.each(
+        (['chart', 'dashboard'] as const).flatMap((kind) =>
+            (['create', 'update'] as const).map((mode) => ({ kind, mode })),
+        ),
+    )(
+        'allows $kind $mode without a verified field or Publish',
+        async ({ kind, mode }) => {
+            const { service, call } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, undefined);
+            await expect(call(kind, {})).resolves.toBeDefined();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+        },
+    );
     it.each(['chart', 'dashboard', 'sql'] as const)(
         'refuses assigning and clearing access before any %s write',
         async (kind) => {
