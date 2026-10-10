@@ -4,6 +4,7 @@ import {
     AgentIdentityConnectEntryPoint,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
+    getProjectAgentIdentitySettingsPath,
     type AiAccessRefusal,
 } from '@lightdash/common';
 import {
@@ -23,6 +24,40 @@ import { useSnowflakeAiLoginPopup } from '../../../../../hooks/useSnowflake';
 import useApp from '../../../../../providers/App/useApp';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 
+const getRefusalSettings = (
+    refusal: AiAccessRefusal,
+    projectUuid: string,
+): {
+    isProjectSettings: boolean;
+    targetProjectUuid: string;
+    settingsUrl: string;
+} => {
+    const targetProjectUuid = refusal.projectUuid ?? projectUuid;
+    const settingsUrl = refusal.settingsUrl ?? AGENT_IDENTITY_SETTINGS_PATH;
+    let settingsPath: string | null = null;
+    try {
+        const url = new URL(settingsUrl, window.location.origin);
+        if (url.origin === window.location.origin) {
+            settingsPath = url.pathname;
+        }
+    } catch {
+        settingsPath = null;
+    }
+    return {
+        isProjectSettings:
+            refusal.reason ===
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
+            refusal.reason ===
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID ||
+            (refusal.reason ===
+                AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED &&
+                settingsPath ===
+                    getProjectAgentIdentitySettingsPath(targetProjectUuid)),
+        targetProjectUuid,
+        settingsUrl: settingsPath ?? settingsUrl,
+    };
+};
+
 const AiAccessSettingsLink = ({
     refusal,
     projectUuid,
@@ -32,27 +67,22 @@ const AiAccessSettingsLink = ({
 }) => {
     const { user } = useApp();
     const t = useUiStrings();
-    const isProjectServiceAccountRefusal =
-        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
-        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;
-    const canUpdate = isProjectServiceAccountRefusal
+    const { isProjectSettings, targetProjectUuid, settingsUrl } =
+        getRefusalSettings(refusal, projectUuid);
+    const canUpdate = isProjectSettings
         ? user.data?.ability.can(
               'manage',
               subject('Project', {
                   organizationUuid: user.data.organizationUuid,
-                  projectUuid,
+                  projectUuid: targetProjectUuid,
               }),
           )
         : user.data?.ability.can('manage', 'Organization');
     if (!canUpdate) return null;
     return (
-        <Anchor
-            component={Link}
-            to={refusal.settingsUrl ?? AGENT_IDENTITY_SETTINGS_PATH}
-            size="sm"
-        >
+        <Anchor component={Link} to={settingsUrl} size="sm">
             {t(
-                isProjectServiceAccountRefusal
+                isProjectSettings
                     ? 'aiAccess.projectSettings'
                     : 'aiAccess.settings',
             )}
