@@ -1,3 +1,10 @@
+# [2.535.0](https://github.com/lightdash/lightdash/compare/2.534.0...2.535.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Athena agents run as a separate IAM role (AI service account) ([#30859](https://github.com/lightdash/lightdash/issues/30859)) ([fb65aec](https://github.com/lightdash/lightdash/commit/fb65aec135450736f625a7b5b66b957d4fa2cad0))
+
 # [2.534.0](https://github.com/lightdash/lightdash/compare/2.533.0...2.534.0) (2026-10-09)
 
 

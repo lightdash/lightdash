@@ -71830,6 +71830,29 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'AthenaAuthenticationType.ACCESS_KEY': {
+        dataType: 'refEnum',
+        enums: ['access_key'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AthenaAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.ATHENA', required: true },
+            authenticationType: {
+                ref: 'AthenaAuthenticationType.ACCESS_KEY',
+                required: true,
+            },
+            accessKeyId: { dataType: 'string', required: true },
+            secretAccessKey: { dataType: 'string', required: true },
+            sessionToken: { dataType: 'string' },
+            workGroup: { dataType: 'string', required: true },
+            s3StagingDir: { dataType: 'string', required: true },
+            s3DataDir: { dataType: 'string' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'BigqueryAuthenticationType.PRIVATE_KEY': {
         dataType: 'refEnum',
         enums: ['private_key'],
@@ -71904,6 +71927,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { ref: 'AthenaAiServiceAccountCredentialInput' },
                 { ref: 'BigqueryAiServiceAccountCredentialInput' },
                 { ref: 'DatabricksAiServiceAccountCredentialInput' },
                 { ref: 'SnowflakeAiServiceAccountCredentialInput' },
