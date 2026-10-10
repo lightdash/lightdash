@@ -268,7 +268,15 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         f.deps.warehouseConnectionModel.getOwnCredentials.mockResolvedValue(
             current,
         );
-        await f.resolver.resolve({ ...f.input, owner });
+        await f.resolver.resolve({
+            ...f.input,
+            owner,
+            refreshSource: {
+                credentials: f.input.connection,
+                fallback: f.input.connection,
+                personalCredentialPolicy: { strictPersonalOverlay: false },
+            },
+        });
         expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
             credentials.serverHostName,
             'config-client',
@@ -949,4 +957,54 @@ test('rejects removal of a personal client when it changes the effective client'
         }),
     ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
     expect(f.lockedExchange).not.toHaveBeenCalled();
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test.each([true, false])(
+        'provider matching uses the composed client instead of the connection M2M client (policy supplied: %s)',
+        async (supplied) => {
+            const f = setup(true, DatabricksAuthenticationType.OAUTH_U2M);
+            const selected = {
+                ...f.input.connection,
+                oauthClientId: undefined,
+            };
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                {
+                    credentials: {
+                        ...selected,
+                        oauthClientId: 'connection-client',
+                    },
+                },
+            );
+            await expect(
+                f.resolver.resolve({
+                    ...f.input,
+                    connection: selected,
+                    stored: selected,
+                    owner: {
+                        kind: 'user',
+                        uuid: 'personal',
+                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    },
+                    refreshSource: {
+                        credentials: selected,
+                        fallback: {
+                            ...selected,
+                            authenticationType:
+                                DatabricksAuthenticationType.OAUTH_M2M,
+                            oauthClientId: 'connection-client',
+                        },
+                        ...(supplied
+                            ? {
+                                  personalCredentialPolicy: {
+                                      strictPersonalOverlay: true,
+                                  },
+                              }
+                            : {}),
+                    },
+                }),
+            ).rejects.toBeInstanceOf(RefreshTokenSourceChangedError);
+            expect(f.lockedExchange).not.toHaveBeenCalled();
+        },
+    );
 });

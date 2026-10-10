@@ -1,6 +1,7 @@
 import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
+    FeatureFlags,
     UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type CreateDatabricksCredentials,
@@ -94,7 +95,13 @@ const setup = (
         projectModel,
         organizationWarehouseCredentialsModel,
         userWarehouseCredentialsModel,
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+        featureFlagModel: {
+            get: vi.fn(async ({ featureFlagId }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.WarehouseOAuthRefreshLock &&
+                    enabled,
+            })),
+        },
     } as unknown as ProjectServiceArguments);
     const probe = service as unknown as {
         _resolveWarehouseClientCredentials: (

@@ -384,6 +384,7 @@ import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { UserOAuthGrantsModel } from '../../models/UserOAuthGrantsModel';
+import type { PersonalCredentialPersistencePolicy } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { type WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
@@ -475,6 +476,11 @@ import {
     type CredentialSelection,
 } from '../WarehouseClientFactory/CredentialResolver';
 import { createCredentialResolverRegistry } from '../WarehouseClientFactory/credentialResolvers';
+import {
+    composePersonalWarehouseCredentials,
+    projectPersonalWarehouseCredentials,
+} from '../WarehouseClientFactory/personalCredentialOverlay';
+import { resolvePersonalCredentialPolicy } from '../WarehouseClientFactory/personalCredentialPolicy';
 import { prepareWarehouseOAuthCredentials } from '../WarehouseClientFactory/preparedOAuthCredentials';
 import { DatabricksOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/DatabricksOAuthCredentialResolver';
 import { SnowflakeOAuthCredentialResolver } from '../WarehouseClientFactory/resolvers/SnowflakeOAuthCredentialResolver';
@@ -1675,6 +1681,7 @@ export class ProjectService
         args: T,
         userUuid: string,
         source: RefreshTokenRotationSource,
+        refreshSource?: CredentialSelection<CreateWarehouseCredentials>['refreshSource'],
     ): Promise<T> {
         if (
             (args.type === WarehouseTypes.SNOWFLAKE &&
@@ -1693,6 +1700,7 @@ export class ProjectService
             const selection = {
                 connection: args,
                 stored: args,
+                refreshSource,
                 owner,
                 context: {
                     organizationUuid: null,
@@ -2030,12 +2038,14 @@ export class ProjectService
         userUuid,
         warehouseType,
         requireUserCredentials,
+        policy,
     }: {
         projectUuid: string;
         warehouseConnectionUuid: string;
         userUuid: string;
         warehouseType: WarehouseTypes;
         requireUserCredentials: boolean;
+        policy: PersonalCredentialPersistencePolicy;
     }): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
         const lookup = {
             userUuid,
@@ -2065,10 +2075,16 @@ export class ProjectService
         if (userWarehouseCredentialsUuid === null) {
             return undefined;
         }
-        const userWarehouseCredentials =
-            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                userWarehouseCredentialsUuid,
-            );
+        const userWarehouseCredentials = policy.strictPersonalOverlay
+            ? await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                  userWarehouseCredentialsUuid,
+                  undefined,
+                  policy,
+              )
+            : await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                  userWarehouseCredentialsUuid,
+              );
+        if (policy.strictPersonalOverlay) return userWarehouseCredentials;
         const validationError =
             UserWarehouseCredentialsModel.getQueryTimeValidationError(
                 userWarehouseCredentials.credentials,
@@ -2240,6 +2256,7 @@ export class ProjectService
                     credentials,
                     userUuid,
                     source,
+                    refreshSource,
                 ),
             refreshSource,
         );
@@ -2297,6 +2314,12 @@ export class ProjectService
             allowsOptionalUserCredentials(credentials);
 
         if (isRegisteredUser) {
+            const policy = shouldFetchUserCredentials
+                ? await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                      organizationUuid: project.organizationUuid,
+                      userUuid: userId,
+                  })
+                : { strictPersonalOverlay: false };
             const userWarehouseCredentials = shouldFetchUserCredentials
                 ? await this.findUserCredentialsForExtraConnection({
                       projectUuid,
@@ -2305,10 +2328,12 @@ export class ProjectService
                       warehouseType: credentials.type,
                       requireUserCredentials:
                           credentials.requireUserCredentials === true,
+                      policy,
                   })
                 : undefined;
 
             const userCredHost =
+                !policy.strictPersonalOverlay &&
                 userWarehouseCredentials?.credentials.type ===
                     WarehouseTypes.DATABRICKS &&
                 'serverHostName' in userWarehouseCredentials.credentials
@@ -2317,21 +2342,33 @@ export class ProjectService
                       )
                     : undefined;
             const projectHost =
+                !policy.strictPersonalOverlay &&
                 credentials.type === WarehouseTypes.DATABRICKS
                     ? normalizeDatabricksHostLenient(credentials.serverHostName)
                     : undefined;
             const hostMismatch =
-                userCredHost && projectHost && userCredHost !== projectHost;
+                !policy.strictPersonalOverlay &&
+                userCredHost &&
+                projectHost &&
+                userCredHost !== projectHost;
 
             if (userWarehouseCredentials && !hostMismatch) {
                 const refreshSource = {
                     credentials: userWarehouseCredentials.credentials,
                     fallback: credentials,
+                    personalCredentialPolicy: policy,
                 };
-                credentials = mergePersonalWarehouseCredentials(
-                    credentials,
-                    userWarehouseCredentials,
-                );
+                credentials = policy.strictPersonalOverlay
+                    ? composePersonalWarehouseCredentials(
+                          credentials,
+                          projectPersonalWarehouseCredentials(
+                              userWarehouseCredentials.credentials,
+                          ),
+                      )
+                    : mergePersonalWarehouseCredentials(
+                          credentials,
+                          userWarehouseCredentials,
+                      );
                 credentials = await this.materializeSelectedCredentials(
                     base,
                     context,
@@ -2827,13 +2864,38 @@ export class ProjectService
                     DatabricksAuthenticationType.OAUTH_U2M &&
                 !credentials.refreshToken
             ) {
+                const policy = await resolvePersonalCredentialPolicy(
+                    this.featureFlagModel,
+                    {
+                        organizationUuid:
+                            base.organizationUuid ??
+                            (await this.projectModel.getSummary(projectUuid))
+                                .organizationUuid,
+                        userUuid: person.userUuid,
+                    },
+                );
                 const userCredentials =
                     await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
                         projectUuid,
                         person.userUuid,
                         WarehouseTypes.DATABRICKS,
+                        ...(policy.strictPersonalOverlay ? [policy] : []),
                     );
-                if (
+                if (policy.strictPersonalOverlay && userCredentials) {
+                    refreshSource = {
+                        credentials: userCredentials.credentials,
+                        fallback: credentials,
+                        personalCredentialPolicy: policy,
+                    };
+                    credentials = composePersonalWarehouseCredentials(
+                        credentials,
+                        projectPersonalWarehouseCredentials(
+                            userCredentials.credentials,
+                        ),
+                    );
+                    userWarehouseCredentialsUuid = userCredentials.uuid;
+                    source = { kind: 'user', userWarehouseCredentialsUuid };
+                } else if (
                     userCredentials?.credentials.type ===
                         WarehouseTypes.DATABRICKS &&
                     userCredentials.credentials.authenticationType ===
@@ -2854,6 +2916,7 @@ export class ProjectService
                     refreshSource = {
                         credentials: userCredentials.credentials,
                         fallback: credentials,
+                        personalCredentialPolicy: policy,
                     };
                     credentials = {
                         ...credentials,
@@ -3237,15 +3300,26 @@ export class ProjectService
             allowsOptionalUserCredentials(credentials);
 
         if (isRegisteredUser) {
+            const policy = shouldFetchUserCredentials
+                ? await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                      organizationUuid:
+                          base.organizationUuid ??
+                          (await this.projectModel.getSummary(projectUuid))
+                              .organizationUuid,
+                      userUuid: userId,
+                  })
+                : { strictPersonalOverlay: false };
             const userWarehouseCredentials = shouldFetchUserCredentials
                 ? await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
                       projectUuid,
                       userId,
                       credentials.type,
+                      ...(policy.strictPersonalOverlay ? [policy] : []),
                   )
                 : undefined;
 
             const userCredHost =
+                !policy.strictPersonalOverlay &&
                 userWarehouseCredentials?.credentials.type ===
                     WarehouseTypes.DATABRICKS &&
                 'serverHostName' in userWarehouseCredentials.credentials
@@ -3254,21 +3328,33 @@ export class ProjectService
                       )
                     : undefined;
             const projectHost =
+                !policy.strictPersonalOverlay &&
                 credentials.type === WarehouseTypes.DATABRICKS
                     ? normalizeDatabricksHostLenient(credentials.serverHostName)
                     : undefined;
             const hostMismatch =
-                userCredHost && projectHost && userCredHost !== projectHost;
+                !policy.strictPersonalOverlay &&
+                userCredHost &&
+                projectHost &&
+                userCredHost !== projectHost;
 
             if (userWarehouseCredentials && !hostMismatch) {
                 const refreshSource = {
                     credentials: userWarehouseCredentials.credentials,
                     fallback: credentials,
+                    personalCredentialPolicy: policy,
                 };
-                credentials = mergePersonalWarehouseCredentials(
-                    credentials,
-                    userWarehouseCredentials,
-                );
+                credentials = policy.strictPersonalOverlay
+                    ? composePersonalWarehouseCredentials(
+                          credentials,
+                          projectPersonalWarehouseCredentials(
+                              userWarehouseCredentials.credentials,
+                          ),
+                      )
+                    : mergePersonalWarehouseCredentials(
+                          credentials,
+                          userWarehouseCredentials,
+                      );
 
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
@@ -4551,6 +4637,13 @@ export class ProjectService
                 switch (warehouseType) {
                     case WarehouseTypes.DATABRICKS: {
                         if (!warehouseConnection.refreshToken) break;
+                        const policy = await resolvePersonalCredentialPolicy(
+                            this.featureFlagModel,
+                            {
+                                organizationUuid: user.organizationUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
                         const userWarehouseCredentialsUuid =
                             await this.userWarehouseCredentialsModel.create(
                                 user.userUuid,
@@ -4564,9 +4657,15 @@ export class ProjectService
                                             warehouseConnection.refreshToken,
                                         oauthClientId:
                                             warehouseConnection.oauthClientId,
+                                        ...(policy.strictPersonalOverlay
+                                            ? {
+                                                  serverHostName:
+                                                      warehouseConnection.serverHostName,
+                                              }
+                                            : {}),
                                     },
                                 },
-                                { strictPersonalOverlay: false },
+                                policy,
                                 projectUuid,
                             );
                         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
@@ -7100,13 +7199,43 @@ export class ProjectService
                     DatabricksAuthenticationType.OAUTH_U2M &&
                 !selected.refreshToken
             ) {
+                const policy = await resolvePersonalCredentialPolicy(
+                    this.featureFlagModel,
+                    {
+                        organizationUuid: project.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                );
                 const userCreds =
                     await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
                         projectUuid,
                         user.userUuid,
                         WarehouseTypes.DATABRICKS,
+                        ...(policy.strictPersonalOverlay ? [policy] : []),
                     );
-                if (
+                if (policy.strictPersonalOverlay && userCreds) {
+                    refreshSource = {
+                        credentials: userCreds.credentials,
+                        fallback: selected,
+                        personalCredentialPolicy: policy,
+                    };
+                    const composed = composePersonalWarehouseCredentials(
+                        selected,
+                        projectPersonalWarehouseCredentials(
+                            userCreds.credentials,
+                        ),
+                    );
+                    if (composed.type !== WarehouseTypes.DATABRICKS)
+                        throw new ParameterError(
+                            'Personal warehouse credentials do not match this connection.',
+                        );
+                    selected = composed;
+                    owner = {
+                        kind: 'user',
+                        uuid: userCreds.uuid,
+                        purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                    };
+                } else if (
                     userCreds?.credentials.type === WarehouseTypes.DATABRICKS &&
                     userCreds.credentials.authenticationType ===
                         DatabricksAuthenticationType.OAUTH_U2M &&
@@ -7115,6 +7244,7 @@ export class ProjectService
                     refreshSource = {
                         credentials: userCreds.credentials,
                         fallback: selected,
+                        personalCredentialPolicy: policy,
                     };
                     selected = {
                         ...selected,
@@ -15594,6 +15724,30 @@ export class ProjectService
             )
         ) {
             throw new ForbiddenError();
+        }
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: project.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        );
+        if (policy.strictPersonalOverlay) {
+            const connection =
+                await this.projectModel.getWarehouseCredentialsForBinding(
+                    projectUuid,
+                    { kind: 'original' },
+                );
+            if (
+                (userWarehouseCredentials.project !== null &&
+                    userWarehouseCredentials.project.projectUuid !==
+                        projectUuid) ||
+                userWarehouseCredentials.credentials.type !== connection.type
+            ) {
+                throw new ParameterError(
+                    'Personal warehouse credentials must match the project and warehouse type.',
+                );
+            }
         }
         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
             user.userUuid,

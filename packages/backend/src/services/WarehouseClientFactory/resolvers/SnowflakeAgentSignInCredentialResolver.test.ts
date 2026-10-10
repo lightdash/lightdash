@@ -1,6 +1,7 @@
 import {
     AiAccessRefusalReason,
     AiAgentMarkerLevel,
+    FeatureFlags,
     SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
@@ -68,7 +69,7 @@ const assurances: AiAssurance[] = [
     { kind: 'agent_session_active' },
     { kind: 'result_cache_off' },
 ];
-const setup = () => {
+const setup = (strictPersonalOverlay = false) => {
     const config = {
         ...lightdashConfigMock,
         siteUrl: 'https://lightdash.example.test',
@@ -107,7 +108,12 @@ const setup = () => {
     });
     const provider = new AgentSignInResolverHarness({
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: false }),
+            get: vi.fn(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId === FeatureFlags.AgentIdentity &&
+                    strictPersonalOverlay,
+            })),
         },
         refreshTokenRotation: { run: vi.fn() },
         snowflakeAgentClientResolver: resolver,
@@ -1221,4 +1227,61 @@ describe('agent sign-in registry materialization', () => {
             refreshModule.exchangeSnowflakeRefreshToken,
         ).not.toHaveBeenCalled();
     });
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    beforeEach(() => {
+        vi.mocked(checkSnowflakeAgentSessionWithToken).mockResolvedValue({
+            agentActivated: true,
+            currentRole: 'role',
+            activeRestrictedSessionScopes: 'scope',
+        });
+        vi.spyOn(
+            refreshModule,
+            'exchangeSnowflakeRefreshToken',
+        ).mockResolvedValue({
+            accessToken: 'access',
+            refreshToken: 'refresh',
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: null,
+        });
+    });
+    afterEach(() => vi.restoreAllMocks());
+    test.each([true, false])(
+        'Snowflake agent sign-in composes routing only when enabled (%s)',
+        async (enabled) => {
+            const { provider, model } = setup(enabled);
+            model.findAiCredentialWithSecrets.mockResolvedValue({
+                ...credential,
+                credentials: {
+                    ...credential.credentials,
+                    account: 'redirect-account',
+                    warehouse: 'redirect-warehouse',
+                },
+            } as never);
+            const selection = provider.selection(mintArgs);
+            const result = await provider.resolver.resolve({
+                ...selection,
+                context: {
+                    ...selection.context,
+                    organizationUuid: 'resource-org',
+                },
+            });
+            expect(
+                provider.resolver['deps'].featureFlagModel.get,
+            ).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: 'resource-org',
+                    userUuid: mintArgs.person.userUuid,
+                },
+            });
+            expect(result.clientCredentials).toMatchObject({
+                account: enabled ? connection.account : 'redirect-account',
+                warehouse: enabled
+                    ? connection.warehouse
+                    : 'redirect-warehouse',
+            });
+        },
+    );
 });

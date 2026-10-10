@@ -4,7 +4,6 @@ import {
     DatabricksTokenError,
     DuckdbConnectionType,
     MissingWarehouseCredentialsError,
-    UnexpectedServerError,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
@@ -701,7 +700,7 @@ test('rejects a warehouse type mismatch', () => {
                 password: '',
             }),
         ),
-    ).toThrow(UnexpectedServerError);
+    ).toThrow(DatabricksTokenError);
 });
 test.each([
     {

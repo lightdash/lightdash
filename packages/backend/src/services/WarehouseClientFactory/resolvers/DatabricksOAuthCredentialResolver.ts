@@ -82,6 +82,12 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
                 return true;
             },
             matchesIdentity: (current, selected, source) => {
+                if (source?.personalCredentialPolicy?.strictPersonalOverlay) {
+                    const selectedIdentity = this.providerIdentity(selected);
+                    return this.providerIdentity(current).every(
+                        (value, index) => value === selectedIdentity[index],
+                    );
+                }
                 const selectedCredentials = source?.credentials ?? selected;
                 const fallback = source?.fallback;
                 if (

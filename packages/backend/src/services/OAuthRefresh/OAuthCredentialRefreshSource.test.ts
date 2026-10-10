@@ -108,7 +108,13 @@ describe.each(owners)('$kind source', (owner) => {
         const readArgs =
             owner.kind === 'warehouseConnection'
                 ? [f.project, owner.uuid, trx]
-                : [owner.uuid, trx];
+                : [
+                      owner.uuid,
+                      trx,
+                      ...(owner.kind === 'user'
+                          ? [{ strictPersonalOverlay: true }]
+                          : []),
+                  ];
         const writeArgs = {
             project: [owner.uuid, 'current', 'rotated', trx],
             organization: [owner.uuid, 'current', 'rotated', trx],
@@ -424,4 +430,46 @@ describe('AI-purpose user policy', () => {
             f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
         ).not.toHaveBeenCalled();
     });
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test.each([true, false])(
+        'locked personal reread uses the resource org and person and keeps legacy input when disabled (%s)',
+        async (enabled) => {
+            const f = setup();
+            f.deps.featureFlagModel.get.mockResolvedValue({ enabled });
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                {
+                    credentials: {
+                        ...credentials,
+                        httpPath: '/redirect',
+                        database: 'redirect',
+                    },
+                },
+            );
+            await expect(
+                f.source.readCurrentRefreshToken(f.input, owners[2], trx),
+            ).resolves.toBe('current');
+            expect(f.matchesIdentity.mock.calls[0][0]).toMatchObject({
+                httpPath: enabled ? credentials.httpPath : '/redirect',
+                database: enabled ? credentials.database : 'redirect',
+            });
+            expect(f.deps.featureFlagModel.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: { organizationUuid: 'org', userUuid: 'person' },
+            });
+        },
+    );
+    test.each(['', undefined, 'other-workspace'])(
+        'locked reread refuses a Databricks binding of %s',
+        async (serverHostName) => {
+            const f = setup();
+            f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                { credentials: { ...credentials, serverHostName } },
+            );
+            await expect(
+                f.source.readCurrentRefreshToken(f.input, owners[2], trx),
+            ).rejects.toThrow('Reconnect your credentials');
+        },
+    );
 });

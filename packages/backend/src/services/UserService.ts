@@ -167,6 +167,7 @@ import {
 } from './AiAccessService/SnowflakeAgentClientResolver';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+import { resolvePersonalCredentialPolicy } from './WarehouseClientFactory/personalCredentialPolicy';
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
@@ -3618,6 +3619,10 @@ export class UserService extends BaseService {
             refreshToken,
             expiresAt,
             binding,
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: binding.organizationUuid,
+                userUuid: user.userUuid,
+            }),
         );
     }
 
@@ -4037,7 +4042,10 @@ export class UserService extends BaseService {
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
-                { strictPersonalOverlay: false },
+                await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                    organizationUuid: user.organizationUuid!,
+                    userUuid: user.userUuid,
+                }),
                 projectUuid,
             );
         this.analytics.track({
@@ -4062,7 +4070,10 @@ export class UserService extends BaseService {
             user.userUuid,
             userWarehouseCredentialsUuid,
             data,
-            { strictPersonalOverlay: false },
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: user.organizationUuid!,
+                userUuid: user.userUuid,
+            }),
         );
         this.analytics.track({
             userId: user.userUuid,

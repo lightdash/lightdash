@@ -29,6 +29,7 @@ import {
 } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type {
     AiUserWarehouseCredentials,
+    PersonalCredentialPersistencePolicy,
     UserWarehouseCredentialsModel,
 } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import {
@@ -56,6 +57,11 @@ import type {
     CredentialSelection,
     ValidatedCredential,
 } from '../CredentialResolver';
+import {
+    composePersonalWarehouseCredentials,
+    projectPersonalWarehouseCredentials,
+} from '../personalCredentialOverlay';
+import { resolvePersonalCredentialPolicy } from '../personalCredentialPolicy';
 import { AgentCredentialResolutionError } from './AgentCredentialResolutionError';
 
 export type AgentSignInRefreshEvent =
@@ -201,7 +207,21 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
     ): Promise<CredentialResolution<CreateSnowflakeCredentials>> {
         const { person, silentRefresh } = input.stored;
         const { client, credential } = await this.read(person, silentRefresh);
-        const refreshed = await this.refresh(input, credential, client, true);
+        const policy = await resolvePersonalCredentialPolicy(
+            this.deps.featureFlagModel,
+            {
+                organizationUuid:
+                    input.context.organizationUuid ?? person.organizationUuid,
+                userUuid: person.userUuid,
+            },
+        );
+        const refreshed = await this.refresh(
+            input,
+            credential,
+            client,
+            true,
+            policy,
+        );
         const credentials: CreateSnowflakeCredentials = {
             ...refreshed.merged,
             token: refreshed.tokens.accessToken,
@@ -239,6 +259,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         credential: AiUserWarehouseCredentials,
         client: ResolvedSnowflakeAgentClient,
         retryRotation: boolean,
+        policy: PersonalCredentialPersistencePolicy,
     ): Promise<{
         credential: AiUserWarehouseCredentials;
         merged: CreateSnowflakeCredentials;
@@ -247,10 +268,12 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         const { person, silentRefresh, onRefresh } = input.stored;
         validateCredential(credential, client, silentRefresh);
         let currentCredential = credential;
-        const merged = mergePersonalWarehouseCredentials(
-            input.connection,
-            credential,
-        );
+        const merged = policy.strictPersonalOverlay
+            ? composePersonalWarehouseCredentials(
+                  input.connection,
+                  projectPersonalWarehouseCredentials(credential.credentials),
+              )
+            : mergePersonalWarehouseCredentials(input.connection, credential);
         if (
             merged.type !== WarehouseTypes.SNOWFLAKE ||
             merged.authenticationType !== SnowflakeAuthenticationType.SSO ||
@@ -284,10 +307,17 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                         throw new RefreshTokenSourceChangedError();
                     validateCredential(current, client, silentRefresh);
                     currentCredential = current;
-                    return mergePersonalWarehouseCredentials(
-                        input.connection,
-                        current,
-                    );
+                    return policy.strictPersonalOverlay
+                        ? composePersonalWarehouseCredentials(
+                              input.connection,
+                              projectPersonalWarehouseCredentials(
+                                  current.credentials,
+                              ),
+                          )
+                        : mergePersonalWarehouseCredentials(
+                              input.connection,
+                              current,
+                          );
                 },
             },
         );
@@ -419,18 +449,27 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
                     person.userUuid,
                     sentToken,
                     3,
+                    policy,
                 );
-                if (current) return this.refresh(input, current, client, false);
+                if (current)
+                    return this.refresh(input, current, client, false, policy);
             }
             throw new AgentCredentialResolutionError(
                 { kind: 'refresh', classification: failure.kind },
                 cause,
             );
         }
-        const currentMerged = mergePersonalWarehouseCredentials(
-            input.connection,
-            currentCredential,
-        );
+        const currentMerged = policy.strictPersonalOverlay
+            ? composePersonalWarehouseCredentials(
+                  input.connection,
+                  projectPersonalWarehouseCredentials(
+                      currentCredential.credentials,
+                  ),
+              )
+            : mergePersonalWarehouseCredentials(
+                  input.connection,
+                  currentCredential,
+              );
         if (currentMerged.type !== WarehouseTypes.SNOWFLAKE)
             throw new AgentCredentialResolutionError({
                 kind: 'credential',
@@ -444,14 +483,20 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
         userUuid: string,
         oldRefreshToken: string,
         remainingReads: number,
+        policy: PersonalCredentialPersistencePolicy,
     ): Promise<AiUserWarehouseCredentials | null> {
         const current =
             await this.deps.userWarehouseCredentialsModel.findAiCredentialWithSecrets(
                 { userUuid, warehouseType: WarehouseTypes.SNOWFLAKE },
             );
-        const latest = current
-            ? mergePersonalWarehouseCredentials(connection, current)
-            : null;
+        const latest =
+            current &&
+            (policy.strictPersonalOverlay
+                ? composePersonalWarehouseCredentials(
+                      connection,
+                      projectPersonalWarehouseCredentials(current.credentials),
+                  )
+                : mergePersonalWarehouseCredentials(connection, current));
         if (
             current &&
             latest?.type === WarehouseTypes.SNOWFLAKE &&
@@ -469,6 +514,7 @@ export class SnowflakeAgentSignInCredentialResolver implements CredentialResolve
             userUuid,
             oldRefreshToken,
             remainingReads - 1,
+            policy,
         );
     }
 

@@ -1,3 +1,5 @@
+import { SSOClient } from '@aws-sdk/client-sso';
+import { SSOOIDCClient } from '@aws-sdk/client-sso-oidc';
 import { Ability } from '@casl/ability';
 import {
     AnyType,
@@ -5802,7 +5804,7 @@ describe('UserService', () => {
                         refreshToken: 'new-refresh-token',
                     }),
                 }),
-                { strictPersonalOverlay: false },
+                { strictPersonalOverlay: true },
             );
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
@@ -5823,7 +5825,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'sso-credentials-uuid',
                 expect.objectContaining({ name: 'My Snowflake login' }),
-                { strictPersonalOverlay: false },
+                { strictPersonalOverlay: true },
             );
         });
 
@@ -5864,7 +5866,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'newest-sso-credentials-uuid',
                 expect.anything(),
-                { strictPersonalOverlay: false },
+                { strictPersonalOverlay: true },
             );
         });
 
@@ -6183,6 +6185,217 @@ describe('warehouse credential agent client status', () => {
             expect(await service.getWarehouseCredentials(sessionUser)).toEqual([
                 { ...result, agentClientCurrent: false },
             ]);
+        },
+    );
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test.each([true, false])(
+        'create and update resolve the saving person policy (%s)',
+        async (enabled) => {
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn(async () => 'credential'),
+                update: vi.fn(async () => 'credential'),
+                getByUuid: vi.fn(),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            const data = {
+                name: 'Personal',
+                credentials: {
+                    type: WarehouseTypes.POSTGRES as const,
+                    user: 'person',
+                    password: '',
+                },
+            };
+            await service.createWarehouseCredentials(sessionUser, data);
+            await service.updateWarehouseCredentials(
+                sessionUser,
+                'credential',
+                data,
+            );
+            expect(model.create).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                data,
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(model.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'credential',
+                data,
+                { strictPersonalOverlay: enabled },
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    userUuid: sessionUser.userUuid,
+                    organizationUuid: sessionUser.organizationUuid,
+                },
+            });
+        },
+    );
+
+    test.each([true, false])(
+        'SSO callbacks use the saving person policy and Databricks keeps its host (%s)',
+        async (enabled) => {
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn<UserWarehouseCredentialsModel['create']>(
+                    async () => 'credential',
+                ),
+                getByUuid: vi.fn(),
+                getAllByUserUuid: vi.fn(async () => []),
+                deleteAllByUserAndWarehouseType: vi.fn(),
+                findDatabricksOauthU2mForHostWithSecrets: vi.fn(),
+                upsertAiSnowflakeCredential: vi.fn(
+                    async () => 'agent-credential',
+                ),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            await service.createBigqueryWarehouseCredentials(
+                sessionUser,
+                'google-refresh',
+            );
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'snowflake-refresh',
+            );
+            await service.createDatabricksWarehouseCredentials(
+                sessionUser,
+                'databricks-refresh',
+                {
+                    serverHostName: 'workspace.example.com',
+                    oauthClientId: 'person-client',
+                },
+            );
+            await service.upsertAiSnowflakeCredential(
+                sessionUser,
+                'agent-refresh',
+                null,
+                { organizationUuid: 'resource-org', clientVersion: 'version' },
+            );
+            expect(model.create).toHaveBeenCalledTimes(3);
+            for (const call of model.create.mock.calls)
+                expect(call[2]).toEqual({ strictPersonalOverlay: enabled });
+            expect(model.create).toHaveBeenLastCalledWith(
+                sessionUser.userUuid,
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        serverHostName: 'workspace.example.com',
+                        refreshToken: 'databricks-refresh',
+                    }),
+                }),
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(model.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'agent-refresh',
+                null,
+                { organizationUuid: 'resource-org', clientVersion: 'version' },
+                { strictPersonalOverlay: enabled },
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: sessionUser.organizationUuid,
+                    userUuid: sessionUser.userUuid,
+                },
+            });
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: 'resource-org',
+                    userUuid: sessionUser.userUuid,
+                },
+            });
+        },
+    );
+
+    afterEach(() => vi.restoreAllMocks());
+    test.each([true, false])(
+        'Redshift AWS SSO callback passes the resolved save policy (%s)',
+        async (enabled) => {
+            vi.spyOn(SSOOIDCClient.prototype, 'send').mockResolvedValue({
+                accessToken: 'access-token',
+            } as never);
+            vi.spyOn(SSOClient.prototype, 'send').mockResolvedValue({
+                roleCredentials: {
+                    accessKeyId: 'person-key',
+                    secretAccessKey: 'person-secret',
+                    sessionToken: 'session-token',
+                },
+            } as never);
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn<UserWarehouseCredentialsModel['create']>(
+                    async () => 'credential',
+                ),
+                getByUuid: vi.fn(),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            await service.completeRedshiftAwsSsoDeviceAuthorization(
+                sessionUser,
+                {
+                    clientId: 'client',
+                    clientSecret: 'secret',
+                    deviceCode: 'code',
+                    region: 'eu-west-1',
+                    startUrl: 'https://sso.example.test/start',
+                    expiresAt: Date.now() + 60000,
+                },
+                { accountId: '123456789012', roleName: 'analyst' },
+            );
+            expect(model.create).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        type: WarehouseTypes.REDSHIFT,
+                        accessKeyId: 'person-key',
+                        secretAccessKey: 'person-secret',
+                    }),
+                }),
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: sessionUser.organizationUuid,
+                    userUuid: sessionUser.userUuid,
+                },
+            });
         },
     );
 });

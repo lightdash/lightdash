@@ -24,6 +24,11 @@ import type {
     CredentialOwner,
     CredentialSelection,
 } from '../WarehouseClientFactory/CredentialResolver';
+import {
+    composePersonalWarehouseCredentials,
+    projectPersonalWarehouseCredentials,
+} from '../WarehouseClientFactory/personalCredentialOverlay';
+import { resolvePersonalCredentialPolicy } from '../WarehouseClientFactory/personalCredentialPolicy';
 
 export type OAuthCredentialOwner = Exclude<
     CredentialOwner,
@@ -138,6 +143,7 @@ export class OAuthCredentialRefreshSource<
     ): Promise<string | null> {
         try {
             let credentials: OAuthRefreshSourceCredentials;
+            let { refreshSource } = input;
             switch (owner.kind) {
                 case 'project':
                     credentials =
@@ -174,12 +180,54 @@ export class OAuthCredentialRefreshSource<
                             throw new RefreshTokenSourceChangedError();
                         break;
                     }
-                    credentials = (
-                        await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
-                            owner.uuid,
-                            trx,
-                        )
-                    ).credentials;
+                    {
+                        let personalPolicy =
+                            input.refreshSource?.personalCredentialPolicy;
+                        if (!personalPolicy) {
+                            const { person } = input.context.actor;
+                            const organizationUuid =
+                                input.context.organizationUuid ??
+                                (input.projectUuid
+                                    ? (
+                                          await this.deps.projectModel.getSummary(
+                                              input.projectUuid,
+                                          )
+                                      ).organizationUuid
+                                    : null);
+                            if (!person || !organizationUuid)
+                                throw new RefreshTokenSourceChangedError();
+                            personalPolicy =
+                                await resolvePersonalCredentialPolicy(
+                                    this.deps.featureFlagModel,
+                                    {
+                                        organizationUuid,
+                                        userUuid: person.userUuid,
+                                    },
+                                );
+                        }
+                        if (refreshSource)
+                            refreshSource = {
+                                ...refreshSource,
+                                personalCredentialPolicy: personalPolicy,
+                            };
+                        const current =
+                            await this.deps.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                                owner.uuid,
+                                trx,
+                                ...(personalPolicy.strictPersonalOverlay
+                                    ? [personalPolicy]
+                                    : []),
+                            );
+                        credentials = personalPolicy.strictPersonalOverlay
+                            ? composePersonalWarehouseCredentials(
+                                  input.refreshSource?.fallback ??
+                                      (input.connection as CreateWarehouseCredentials),
+                                  projectPersonalWarehouseCredentials(
+                                      current.credentials,
+                                  ),
+                              )
+                            : current.credentials;
+                    }
                     break;
                 case 'warehouseConnection': {
                     const project = await this.getConnectionProject(input, trx);
@@ -203,7 +251,7 @@ export class OAuthCredentialRefreshSource<
                 !this.policy.matchesIdentity(
                     credentials,
                     input.connection,
-                    input.refreshSource,
+                    refreshSource,
                 )
             ) {
                 throw new RefreshTokenSourceChangedError();

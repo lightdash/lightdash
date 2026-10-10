@@ -10,7 +10,6 @@ import {
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     strictPersonalWarehouseCredentialsSchema,
-    UnexpectedServerError,
     WarehouseTypes,
     type CreateDuckdbCredentials,
     type CreateWarehouseCredentials,
@@ -290,7 +289,7 @@ const omitConnectionAuthFields = <
         ),
     ) as ConnectionFields<T, Classification>;
 
-const refusedPersonalCredentials = (type: WarehouseTypes) =>
+export const refusedPersonalCredentials = (type: `${WarehouseTypes}`) =>
     type === WarehouseTypes.DATABRICKS
         ? new DatabricksTokenError(PERSONAL_CREDENTIAL_RECONNECT_MESSAGE)
         : new MissingWarehouseCredentialsError(
@@ -371,9 +370,7 @@ export const composePersonalWarehouseCredentials = (
     personal: StrictPersonalWarehouseCredentials,
 ): CreateWarehouseCredentials => {
     if (connection.type !== personal.type) {
-        throw new UnexpectedServerError(
-            'Personal credentials do not match the connection type.',
-        );
+        throw refusedPersonalCredentials(connection.type);
     }
     switch (personal.type) {
         case WarehouseTypes.POSTGRES:
@@ -528,7 +525,5 @@ export const composePersonalWarehouseCredentials = (
                 'Unknown personal credential type',
             );
     }
-    throw new UnexpectedServerError(
-        'Personal credentials do not match the connection type.',
-    );
+    throw refusedPersonalCredentials(connection.type);
 };

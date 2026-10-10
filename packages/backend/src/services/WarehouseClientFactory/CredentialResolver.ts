@@ -6,6 +6,7 @@ import type {
     UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
 import type { WarehouseClientOptions } from '@lightdash/warehouses';
+import type { PersonalCredentialPersistencePolicy } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type { WarehouseCredentialKind } from './ConnectionContext';
 import type { WarehouseCredentialResolutionContext } from './WarehouseCredentialSource';
 
@@ -29,6 +30,7 @@ export type CredentialSelection<C, S = C> = {
             | CreateWarehouseCredentials
             | UserWarehouseCredentialsWithSecrets['credentials'];
         fallback: CreateWarehouseCredentials;
+        personalCredentialPolicy?: PersonalCredentialPersistencePolicy;
     };
     owner: CredentialOwner | null;
     context: WarehouseCredentialResolutionContext;

@@ -12,6 +12,7 @@ import {
     LightdashError,
     NotFoundError,
     ParameterError,
+    personalCredentialIdentityFields,
     ProjectType,
     RedshiftAuthenticationType,
     redshiftIamUserCredentialsSchema,
@@ -40,6 +41,10 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import Logger from '../../logging/logger';
+import {
+    projectPersonalWarehouseCredentials,
+    refusedPersonalCredentials,
+} from '../../services/WarehouseClientFactory/personalCredentialOverlay';
 import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 
@@ -106,9 +111,18 @@ export class UserWarehouseCredentialsModel {
 
     private convertToUserWarehouseCredentialsWithSecrets(
         data: DbUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy = {
+            strictPersonalOverlay: false,
+        },
     ): UserWarehouseCredentialsWithSecrets {
         const { aiClientBinding, ...credentials } =
             this.decryptCredentials(data);
+        if (
+            policy.strictPersonalOverlay &&
+            credentials.type !== data.warehouse_type
+        ) {
+            throw refusedPersonalCredentials(data.warehouse_type);
+        }
         return {
             uuid: data.user_warehouse_credentials_uuid,
             expiresAt: data.expires_at,
@@ -326,19 +340,34 @@ export class UserWarehouseCredentialsModel {
         refreshToken: string,
         expiresAt: Date | null,
         aiClientBinding: SnowflakeAiClientBinding,
+        policy: PersonalCredentialPersistencePolicy = {
+            strictPersonalOverlay: false,
+        },
     ): Promise<string> {
         if (!refreshToken) {
             throw new ParameterError(
                 'Snowflake AI sign-in requires a refresh token',
             );
         }
-        const credentials: StoredWarehouseCredentials = {
+        let credentials: StoredWarehouseCredentials = {
             type: WarehouseTypes.SNOWFLAKE,
             user: userUuid,
             authenticationType: SnowflakeAuthenticationType.SSO,
             refreshToken,
             aiClientBinding,
         };
+        if (policy.strictPersonalOverlay) {
+            const { aiClientBinding: binding, ...identity } = credentials;
+            const normalized =
+                UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                    { name: 'Personal', credentials: identity },
+                    policy,
+                );
+            credentials = {
+                ...normalized.credentials,
+                aiClientBinding: binding,
+            };
+        }
         const encryptedCredentials = this.encryptionUtil.encrypt(
             JSON.stringify(credentials),
         );
@@ -439,6 +468,9 @@ export class UserWarehouseCredentialsModel {
     async getByUuidWithSecrets(
         uuid: string,
         trx?: Knex,
+        policy: PersonalCredentialPersistencePolicy = {
+            strictPersonalOverlay: false,
+        },
     ): Promise<UserWarehouseCredentialsWithSecrets> {
         const row = await (trx ?? this.database)(
             UserWarehouseCredentialsTableName,
@@ -448,6 +480,16 @@ export class UserWarehouseCredentialsModel {
             .first();
         if (!row) {
             throw new NotFoundError('Warehouse credentials not found');
+        }
+        if (policy.strictPersonalOverlay) {
+            try {
+                return this.convertToUserWarehouseCredentialsWithSecrets(
+                    row,
+                    policy,
+                );
+            } catch {
+                throw refusedPersonalCredentials(row.warehouse_type);
+            }
         }
         return this.convertToUserWarehouseCredentialsWithSecrets(row);
     }
@@ -531,36 +573,50 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        policy: PersonalCredentialPersistencePolicy = {
+            strictPersonalOverlay: false,
+        },
     ): Promise<
         Array<{
             row: DbUserWarehouseCredentialsWithProject;
             isPreferred: boolean;
         }>
     > {
-        const projectPreferredCredentials: DbUserWarehouseCredentialsWithProject =
-            await this.baseSelectWithProject()
-                .leftJoin(
-                    ProjectUserWarehouseCredentialPreferenceTableName,
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid`,
-                    `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
-                )
-                .where(
-                    `${UserWarehouseCredentialsTableName}.warehouse_type`,
-                    warehouseType,
-                )
-                .andWhere(
-                    `${UserWarehouseCredentialsTableName}.purpose`,
-                    UserWarehouseCredentialPurpose.DEFAULT,
-                )
-                .andWhere(
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
-                    projectUuid,
-                )
-                .andWhere(
-                    `${ProjectUserWarehouseCredentialPreferenceTableName}.user_uuid`,
-                    userUuid,
-                )
-                .first();
+        let projectPreferredCredentials:
+            | DbUserWarehouseCredentialsWithProject
+            | undefined = await this.baseSelectWithProject()
+            .leftJoin(
+                ProjectUserWarehouseCredentialPreferenceTableName,
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_warehouse_credentials_uuid`,
+                `${UserWarehouseCredentialsTableName}.user_warehouse_credentials_uuid`,
+            )
+            .where(
+                `${UserWarehouseCredentialsTableName}.warehouse_type`,
+                warehouseType,
+            )
+            .andWhere(
+                `${UserWarehouseCredentialsTableName}.purpose`,
+                UserWarehouseCredentialPurpose.DEFAULT,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.project_uuid`,
+                projectUuid,
+            )
+            .andWhere(
+                `${ProjectUserWarehouseCredentialPreferenceTableName}.user_uuid`,
+                userUuid,
+            )
+            .first();
+
+        if (
+            policy.strictPersonalOverlay &&
+            projectPreferredCredentials &&
+            (projectPreferredCredentials.user_uuid !== userUuid ||
+                (projectPreferredCredentials.project_uuid !== null &&
+                    projectPreferredCredentials.project_uuid !== projectUuid))
+        ) {
+            projectPreferredCredentials = undefined;
+        }
 
         // Fallback: prefer credential assigned to this project, else unassigned
         const fallbackRows: DbUserWarehouseCredentialsWithProject[] =
@@ -695,12 +751,34 @@ export class UserWarehouseCredentialsModel {
         projectUuid: string,
         userUuid: string,
         warehouseType: WarehouseTypes,
+        policy: PersonalCredentialPersistencePolicy = {
+            strictPersonalOverlay: false,
+        },
     ): Promise<UserWarehouseCredentialsWithSecrets | undefined> {
         const candidates = await this._findProjectCredentialCandidates(
             projectUuid,
             userUuid,
             warehouseType,
+            policy,
         );
+
+        if (policy.strictPersonalOverlay) {
+            const row = candidates[0]?.row;
+            if (!row) return undefined;
+            let credential: UserWarehouseCredentialsWithSecrets;
+            try {
+                credential = this.convertToUserWarehouseCredentialsWithSecrets(
+                    row,
+                    policy,
+                );
+            } catch {
+                throw refusedPersonalCredentials(warehouseType);
+            }
+            if (credential.credentials.type !== warehouseType)
+                throw refusedPersonalCredentials(warehouseType);
+            projectPersonalWarehouseCredentials(credential.credentials);
+            return credential;
+        }
 
         let firstError: LightdashError | undefined;
         for (const { row, isPreferred } of candidates) {
@@ -781,23 +859,56 @@ export class UserWarehouseCredentialsModel {
         policy: PersonalCredentialPersistencePolicy,
     ): UpsertUserWarehouseCredentials {
         if (policy.strictPersonalOverlay) {
-            const credentials =
-                data.credentials.type === WarehouseTypes.SNOWFLAKE
-                    ? {
-                          ...data.credentials,
-                          authenticationType:
-                              data.credentials.authenticationType ??
-                              SnowflakeAuthenticationType.PASSWORD,
-                      }
-                    : data.credentials;
-            const result =
-                strictPersonalWarehouseCredentialsSchema.safeParse(credentials);
-            if (!result.success) {
+            const allowed: readonly string[] =
+                personalCredentialIdentityFields[data.credentials.type];
+            const unknownKeys = Object.keys(data.credentials).filter(
+                (key) => key !== 'type' && !allowed.includes(key),
+            );
+            if (unknownKeys.length)
                 throw new ParameterError(
-                    'Personal warehouse credentials must contain only valid identity fields.',
+                    `Personal warehouse credentials cannot set: ${unknownKeys.join(', ')}. Only sign-in fields can be saved.`,
+                );
+            const credentials = Object.fromEntries(
+                Object.entries(data.credentials).filter(([key, value]) => {
+                    const requiredPassword =
+                        key === 'password' &&
+                        [
+                            WarehouseTypes.POSTGRES,
+                            WarehouseTypes.TRINO,
+                            WarehouseTypes.CLICKHOUSE,
+                        ].includes(data.credentials.type);
+                    return value !== '' || requiredPassword;
+                }),
+            );
+            if (
+                data.credentials.type === WarehouseTypes.SNOWFLAKE &&
+                credentials.authenticationType === undefined
+            )
+                credentials.authenticationType =
+                    SnowflakeAuthenticationType.PASSWORD;
+            if (
+                data.credentials.type === WarehouseTypes.REDSHIFT &&
+                (credentials.authenticationType ===
+                    RedshiftAuthenticationType.IAM ||
+                    credentials.authenticationType ===
+                        RedshiftAuthenticationType.IAM_BROWSER) &&
+                (!credentials.accessKeyId || !credentials.secretAccessKey)
+            ) {
+                throw new ParameterError(
+                    'Redshift IAM credentials need your own AWS access key ID and secret access key.',
                 );
             }
-            return { ...data, credentials };
+            const result =
+                strictPersonalWarehouseCredentialsSchema.safeParse(credentials);
+            if (!result.success)
+                throw new ParameterError(
+                    'Personal warehouse credentials need valid sign-in fields.',
+                );
+            return {
+                ...data,
+                credentials:
+                    result.data as UpsertUserWarehouseCredentials['credentials'],
+            };
         }
         if (data.credentials.type === WarehouseTypes.BIGQUERY) {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
@@ -975,8 +1086,9 @@ export class UserWarehouseCredentialsModel {
     ): Promise<string> {
         let dataToPersist = data;
         if (
-            data.credentials.type === WarehouseTypes.ATHENA &&
-            !data.credentials.secretAccessKey
+            policy.strictPersonalOverlay ||
+            (data.credentials.type === WarehouseTypes.ATHENA &&
+                !data.credentials.secretAccessKey)
         ) {
             const existingRow = await this.database(
                 UserWarehouseCredentialsTableName,
@@ -992,6 +1104,17 @@ export class UserWarehouseCredentialsModel {
                 throw new UnexpectedServerError('Could not save credentials.');
             }
 
+            if (
+                policy.strictPersonalOverlay &&
+                (existingRow.warehouse_type !== data.credentials.type ||
+                    this.convertToUserWarehouseCredentialsWithSecrets(
+                        existingRow,
+                    ).credentials.type !== data.credentials.type)
+            ) {
+                throw new ParameterError(
+                    'Personal warehouse credentials cannot change warehouse type.',
+                );
+            }
             dataToPersist =
                 UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
                     data,
