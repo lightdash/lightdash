@@ -27,6 +27,7 @@ const setup = () => {
     const policy = {
         mode: 'legacy' as const,
         version: 0,
+        allowedUserUuids: null,
         allowedProjectUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
@@ -65,12 +66,19 @@ const operations = [
     (c: AgentPermissionController, req: Request) => c.getPolicy(req),
     (c: AgentPermissionController, req: Request) =>
         c.saveCeiling(req, {
+            version: 0,
+            allowedUserUuids: null,
             allowedProjectUuids: null,
             systemRoleMatrix: agentSystemRoleMatrix([]),
         }),
     (c: AgentPermissionController, req: Request) =>
-        c.applyPilotPreset(req, { allowedProjectUuids: ['project'] }),
-    (c: AgentPermissionController, req: Request) => c.resetToLegacy(req),
+        c.applyPilotPreset(req, {
+            version: 0,
+            allowedProjectUuids: ['project'],
+            allowedUserUuids: null,
+        }),
+    (c: AgentPermissionController, req: Request) =>
+        c.resetToLegacy(req, { version: 0 }),
     (c: AgentPermissionController, req: Request) =>
         c.getWarehouseConfirmation(req, 'project'),
     (c: AgentPermissionController, req: Request) =>
@@ -157,12 +165,15 @@ test('saves the full ceiling as managed and preserves an empty project list', as
     const { controller, req, deps } = setup();
     const matrix = agentSystemRoleMatrix([AgentCapability.Query]);
     await controller.saveCeiling(req, {
+        version: 0,
+        allowedUserUuids: null,
         allowedProjectUuids: [],
         systemRoleMatrix: matrix,
     });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({
             mode: 'managed',
+            allowedUserUuids: null,
             allowedProjectUuids: [],
             systemRoleMatrix: matrix,
         }),
@@ -176,6 +187,8 @@ test('rejects cross-org policy projects and confirmation projects', async () => 
     });
     await expect(
         controller.applyPilotPreset(req, {
+            version: 0,
+            allowedUserUuids: null,
             allowedProjectUuids: ['other-project'],
         }),
     ).rejects.toMatchObject({ name: 'ParameterError' });
@@ -230,15 +243,19 @@ test('a project connection admin can confirm without organization admin rights',
     ).toHaveBeenCalledOnce();
 });
 
-test('the pilot replaces only the system-role matrix and project limit', async () => {
+test('the preset replaces the system-role matrix and admission limits', async () => {
     const { controller, req, deps } = setup();
     await controller.applyPilotPreset(req, {
+        version: 0,
+        allowedUserUuids: null,
         allowedProjectUuids: ['project'],
     });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith({
+        version: 0,
         organizationUuid: req.account!.organization.organizationUuid,
         updatedByUserUuid: req.account!.user.id,
         mode: 'managed',
+        allowedUserUuids: null,
         allowedProjectUuids: ['project'],
         systemRoleMatrix: agentSystemRoleMatrix([
             AgentCapability.ReadDiscover,
@@ -249,17 +266,121 @@ test('the pilot replaces only the system-role matrix and project limit', async (
     expect(deps.userModel.getAgentRoleAssignments).not.toHaveBeenCalled();
 });
 
-test('reset preserves grants and project limits while restoring legacy mode', async () => {
+test('reset preserves grants and admission limits while restoring legacy mode', async () => {
     const { controller, req, deps } = setup();
     const policy = {
         mode: 'managed',
         version: 7,
+        allowedUserUuids: ['allowed-user'],
         allowedProjectUuids: ['project'],
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     deps.agentCapabilityPolicyModel.get.mockResolvedValue(policy);
-    await controller.resetToLegacy(req);
+    await controller.resetToLegacy(req, { version: 7 });
     expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
         expect.objectContaining({ ...policy, mode: 'legacy' }),
+    );
+});
+
+test('reset passes the requested version instead of adopting a newer saved version', async () => {
+    const { controller, req, deps } = setup();
+    deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+        mode: 'managed',
+        version: 8,
+        allowedUserUuids: [],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([]),
+    });
+    await controller.resetToLegacy(req, { version: 7 });
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 7, mode: 'legacy' }),
+    );
+});
+
+test.each([null, [], ['allowed-user']])(
+    'round-trips user admission %j through ceiling, preset and GET',
+    async (allowedUserUuids) => {
+        const { controller, req, deps } = setup();
+        deps.agentCapabilityPolicyModel.save.mockImplementation(
+            async (policy) => {
+                const saved = { ...policy, version: 2 };
+                deps.agentCapabilityPolicyModel.get.mockResolvedValue(saved);
+                return saved;
+            },
+        );
+        const ceiling = {
+            version: 0,
+            allowedProjectUuids: ['project'],
+            allowedUserUuids,
+            systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
+        };
+        expect(
+            (await controller.saveCeiling(req, ceiling)).results,
+        ).toMatchObject({ ...ceiling, version: 2 });
+        expect((await controller.getPolicy(req)).results).toMatchObject({
+            ...ceiling,
+            version: 2,
+        });
+        expect(
+            (
+                await controller.applyPilotPreset(req, {
+                    version: 0,
+                    allowedProjectUuids: ['project'],
+                    allowedUserUuids,
+                })
+            ).results,
+        ).toMatchObject({ allowedUserUuids, allowedProjectUuids: ['project'] });
+        expect(
+            (await controller.getPolicy(req)).results.allowedUserUuids,
+        ).toEqual(allowedUserUuids);
+    },
+);
+
+test.each(['saveCeiling', 'applyPilotPreset'] as const)(
+    '%s passes an omitted people list through so the stored list is not rewritten',
+    async (method) => {
+        const { controller, req, deps } = setup();
+        deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+            mode: 'managed',
+            version: 3,
+            allowedUserUuids: ['allowed-user'],
+            allowedProjectUuids: null,
+            systemRoleMatrix: agentSystemRoleMatrix([]),
+        });
+        if (method === 'saveCeiling') {
+            await controller.saveCeiling(req, {
+                allowedProjectUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([
+                    AgentCapability.Query,
+                ]),
+            });
+        } else {
+            await controller.applyPilotPreset(req, {
+                allowedProjectUuids: null,
+            });
+        }
+        expect(
+            deps.agentCapabilityPolicyModel.save.mock.calls[0][0]
+                .allowedUserUuids,
+        ).toBeUndefined();
+    },
+);
+
+test('an explicit empty people list is kept, not replaced by the stored list', async () => {
+    const { controller, req, deps } = setup();
+    deps.agentCapabilityPolicyModel.get.mockResolvedValue({
+        mode: 'managed',
+        version: 3,
+        allowedUserUuids: ['allowed-user'],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([]),
+    });
+    await controller.saveCeiling(req, {
+        allowedUserUuids: [],
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
+    });
+    expect(deps.agentCapabilityPolicyModel.save).toHaveBeenCalledWith(
+        expect.objectContaining({ allowedUserUuids: [] }),
     );
 });

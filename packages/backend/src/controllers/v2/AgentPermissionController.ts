@@ -60,8 +60,13 @@ interface DeleteConfirmationResponse extends Omit<
 > {
     results: undefined;
 }
+interface ResetPolicyRequest {
+    version?: number;
+}
 interface PilotPresetRequest {
+    version?: number;
     allowedProjectUuids: UUID[] | null;
+    allowedUserUuids?: UUID[] | null;
 }
 
 @Route('/api/v2/org/agent-permissions')
@@ -109,7 +114,12 @@ export class AgentPermissionController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getAgentPermissionService()
-                .applyPilotPreset(req.account, body.allowedProjectUuids),
+                .applyPilotPreset(
+                    req.account,
+                    body.allowedProjectUuids,
+                    body.allowedUserUuids,
+                    body.version,
+                ),
         };
     }
 
@@ -117,13 +127,14 @@ export class AgentPermissionController extends BaseController {
     @OperationId('resetAgentCapabilityPolicy')
     async resetToLegacy(
         @Request() req: express.Request,
+        @Body() body?: ResetPolicyRequest,
     ): Promise<AgentPolicyResponse> {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getAgentPermissionService()
-                .resetToLegacy(req.account),
+                .resetToLegacy(req.account, body?.version),
         };
     }
 

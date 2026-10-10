@@ -1,5 +1,10 @@
 import {
     FeatureFlags,
+    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
+    type AgentCapabilityCeiling,
+    type AgentWarehouseConfirmationStatus,
+    type AgentWarehouseRestrictionConfirmation,
     type ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
     type WarehouseTypes,
     type ApiAiServiceAccountStatusResponse,
@@ -392,3 +397,106 @@ export const useSnowflakeAgentVerify = (enabled: boolean) => {
         refetchOnWindowFocus: false,
     });
 };
+
+const agentPolicyUrl = '/org/agent-permissions';
+const warehouseConfirmationUrl = (projectUuid: string) =>
+    `${agentPolicyUrl}/projects/${encodeURIComponent(projectUuid)}/warehouse-confirmation`;
+
+export const useAgentCapabilityPolicy = () => {
+    const { user } = useApp();
+    const { data: flag } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    return useQuery<AgentCapabilityPolicyOverview, ApiError>({
+        queryKey: [
+            'ai-access',
+            'org',
+            user.data?.organizationUuid,
+            'agent-permissions',
+        ],
+        queryFn: () =>
+            lightdashApi<AgentCapabilityPolicyOverview>({
+                version: 'v2',
+                url: agentPolicyUrl,
+                method: 'GET',
+                body: undefined,
+            }),
+        enabled: flag?.enabled === true,
+    });
+};
+
+export const agentPolicyMutationKey = ['agent-permissions', 'policy-write'];
+
+const useAgentPermissionMutation = <
+    TResult extends ApiResponse['results'],
+    TRequest,
+>(
+    url: string,
+    method: 'PUT' | 'POST' | 'DELETE',
+    errorTitle: string,
+    onSaved?: (result: TResult) => void,
+    mutationKey?: string[],
+) => {
+    const client = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<TResult, ApiError, TRequest>({
+        mutationKey,
+        mutationFn: (request) =>
+            lightdashApi<TResult>({
+                version: 'v2',
+                url,
+                method,
+                body:
+                    request === undefined ? undefined : JSON.stringify(request),
+            }),
+        onSuccess: async (result) => {
+            onSaved?.(result);
+            await client.invalidateQueries(['ai-access']);
+        },
+        onError: ({ error }) =>
+            showToastApiError({ title: errorTitle, apiError: error }),
+    });
+};
+
+export const useSaveAgentCapabilityCeiling = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
+    useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
+        agentPolicyUrl,
+        'PUT',
+        'Could not save agent permissions.',
+        onSaved,
+        agentPolicyMutationKey,
+    );
+export const useResetAgentCapabilityPolicy = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
+    useAgentPermissionMutation<
+        AgentCapabilityPolicy,
+        Pick<AgentCapabilityPolicy, 'version'>
+    >(
+        `${agentPolicyUrl}/reset`,
+        'POST',
+        'Could not turn off limits.',
+        onSaved,
+        agentPolicyMutationKey,
+    );
+export const useAgentWarehouseConfirmation = (projectUuid: string) =>
+    useAccessQuery(projectUuid, null, 'warehouse-confirmation', () =>
+        lightdashApi<AgentWarehouseConfirmationStatus>({
+            version: 'v2',
+            url: warehouseConfirmationUrl(projectUuid),
+            method: 'GET',
+            body: undefined,
+        }),
+    );
+export const useConfirmAgentWarehouse = (projectUuid: string) =>
+    useAgentPermissionMutation<AgentWarehouseRestrictionConfirmation, void>(
+        warehouseConfirmationUrl(projectUuid),
+        'PUT',
+        'Could not confirm warehouse restrictions.',
+    );
+export const useDeleteAgentWarehouseConfirmation = (projectUuid: string) =>
+    useAgentPermissionMutation<undefined, void>(
+        warehouseConfirmationUrl(projectUuid),
+        'DELETE',
+        'Could not remove the warehouse confirmation.',
+    );

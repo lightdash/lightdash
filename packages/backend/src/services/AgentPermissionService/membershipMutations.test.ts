@@ -47,6 +47,7 @@ const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([
             AgentCapability.Administration,
             AgentCapability.Publish,

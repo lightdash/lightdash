@@ -60,6 +60,7 @@ const setup = (
         mode: 'managed',
         version: 1,
         allowedProjectUuids: [projectUuid],
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
     };
     const deps = {
@@ -188,6 +189,20 @@ describe.each(['oauth', 'session'] as const)(
                 ).not.toContain('private');
             },
         );
+
+        test('refuses unlisted users before dispatch', async () => {
+            const { call, handler, policy } = setup(authentication);
+            policy.allowedUserUuids = [];
+            expect(await call('run_metric_query')).toMatchObject({
+                isError: true,
+                structuredContent: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    },
+                },
+            });
+            expect(handler).not.toHaveBeenCalled();
+        });
 
         test('pilot allows run_metric_query', async () => {
             const { call, handler } = setup(authentication);
@@ -455,6 +470,22 @@ describe('MCP resource protocol permissions', () => {
             }
         },
     );
+
+    test.each(resourceUris)('refuses %s for an unlisted user', async (uri) => {
+        const { client, policy } = await setupResourceProtocol();
+        policy.allowedUserUuids = [];
+        try {
+            await expect(client.readResource({ uri })).rejects.toMatchObject({
+                data: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    },
+                },
+            });
+        } finally {
+            await client.close();
+        }
+    });
 
     test.each(resourceUris)('allows %s with discovery', async (uri) => {
         const { client } = await setupResourceProtocol();

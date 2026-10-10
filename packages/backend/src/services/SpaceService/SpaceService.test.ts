@@ -2134,6 +2134,7 @@ describe('managed space updates', () => {
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedProjectUuids: null,
+                allowedUserUuids: null,
                 systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = createTestUser({
@@ -2223,6 +2224,7 @@ describe('space metadata updates after a human revocation', () => {
                 mode: mode === 'legacy' ? 'legacy' : 'managed',
                 version: 1,
                 allowedProjectUuids: null,
+                allowedUserUuids: null,
                 systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = createTestUser({

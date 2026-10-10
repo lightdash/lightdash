@@ -21,6 +21,7 @@ const setup = () => {
         mode: 'managed',
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([]),
     };
     const confirmations = {
@@ -302,4 +303,20 @@ test('a namespace collision cannot inherit another server approval', async () =>
         },
     });
     expect(unlisted).not.toHaveBeenCalled();
+});
+
+test('agent tool execution refuses unlisted users before running SQL', async () => {
+    const h = setup();
+    h.policy.allowedUserUuids = [];
+    h.policy.systemRoleMatrix.viewer = [AgentCapability.RawSql];
+    h.confirmations.get.mockResolvedValue({ bindingFingerprint: 'current' });
+    await expect(
+        executeTool(h.buildTools().runSql, { sql: 'SELECT 1', limit: 1 }),
+    ).resolves.toMatchObject({
+        metadata: { status: 'error' },
+        structuredContent: {
+            refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+        },
+    });
+    expect(h.runSqlJob).not.toHaveBeenCalled();
 });

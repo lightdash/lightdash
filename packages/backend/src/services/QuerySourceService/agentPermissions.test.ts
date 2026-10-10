@@ -60,6 +60,7 @@ const setup = (
         mode: mode === 'off' ? 'managed' : mode,
         version: 1,
         allowedProjectUuids: [projectUuid],
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
     };
     const featureFlagModel = {

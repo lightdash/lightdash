@@ -42,6 +42,7 @@ const setup = ({
     scopes = ['write'],
     projectUuid = 'project',
     allowedProjectUuids = null,
+    allowedUserUuids = null,
 }: {
     mode?: 'off' | 'legacy' | 'managed';
     operation?: string;
@@ -49,6 +50,7 @@ const setup = ({
     scopes?: string[];
     projectUuid?: string | null;
     allowedProjectUuids?: string[] | null;
+    allowedUserUuids?: string[] | null;
 } = {}) => {
     const ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
@@ -62,6 +64,7 @@ const setup = ({
         mode: mode === 'managed' ? 'managed' : 'legacy',
         version: 1,
         allowedProjectUuids,
+        allowedUserUuids,
         systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
     });
     const resolveResourceProjectUuid = vi.fn().mockResolvedValue(null);
@@ -390,7 +393,10 @@ describe.each([
 it.each(['pat', 'session'] as const)(
     'leaves %s outside the agent policy',
     async (authentication) => {
-        const { run, assertOperation, getPolicy } = setup({ authentication });
+        const { run, assertOperation, getPolicy } = setup({
+            authentication,
+            allowedUserUuids: [],
+        });
         await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
         expect(assertOperation).not.toHaveBeenCalled();
         expect(getPolicy).not.toHaveBeenCalled();
@@ -415,6 +421,7 @@ it.each([
             mode: 'managed',
             version: 1,
             allowedProjectUuids: null,
+            allowedUserUuids: null,
             systemRoleMatrix: agentSystemRoleMatrix([
                 AgentCapability.Administration,
                 AgentCapability.Publish,
@@ -464,6 +471,7 @@ it('allows managed OAuth space metadata edits with content_write', async () => {
         mode: 'managed',
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
     });
     await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
@@ -477,6 +485,7 @@ it('checks access changes after allowing the OAuth space REST operation', async 
         mode: 'managed' as const,
         version: 1,
         allowedProjectUuids: null,
+        allowedUserUuids: null,
         systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
     };
     getPolicy.mockResolvedValue(policy);
@@ -543,3 +552,32 @@ it('checks access changes after allowing the OAuth space REST operation', async 
         assemble.mockRestore();
     }
 });
+
+it.each([null, [], [defaultSessionUser.userUuid], ['another-user']])(
+    'OAuth REST enforces named users %j',
+    async (allowedUserUuids) => {
+        const { run } = setup({
+            operation: 'UserController_getAccount',
+            scopes: ['read'],
+            allowedUserUuids,
+            projectUuid: null,
+        });
+        if (
+            allowedUserUuids === null ||
+            allowedUserUuids.includes(defaultSessionUser.userUuid)
+        ) {
+            await expect(
+                run(allowApiKeyAuthentication),
+            ).resolves.toBeUndefined();
+        } else {
+            await expect(run(allowApiKeyAuthentication)).resolves.toMatchObject(
+                {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    },
+                },
+            );
+        }
+    },
+);

@@ -4,11 +4,12 @@ import {
     supportsAiServiceAccount,
     type Project,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { AgentWarehouseConfirmationCard } from './AgentWarehouseConfirmationCard';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 import { useOrganizationAgentIdentitySettings } from './api';
 
@@ -43,19 +44,23 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
         )
     )
         return null;
-    if (
-        !project.warehouseConnection ||
-        !supportsAiServiceAccount(project.warehouseConnection.type)
-    )
-        return (
-            <Text size="sm" c="dimmed">
-                Agent identity is not available for this warehouse.
-            </Text>
-        );
     return (
-        <ProjectAgentIdentityContent
-            key={project.projectUuid}
-            project={project}
-        />
+        <Stack gap="lg">
+            <AgentWarehouseConfirmationCard
+                key={project.projectUuid}
+                projectUuid={project.projectUuid}
+            />
+            {project.warehouseConnection &&
+            supportsAiServiceAccount(project.warehouseConnection.type) ? (
+                <ProjectAgentIdentityContent
+                    key={project.projectUuid}
+                    project={project}
+                />
+            ) : (
+                <Text size="sm" c="dimmed">
+                    Agent identity is not available for this warehouse.
+                </Text>
+            )}
+        </Stack>
     );
 };

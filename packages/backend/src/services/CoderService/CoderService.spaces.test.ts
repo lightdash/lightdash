@@ -906,6 +906,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 mode: 'managed',
                 version: 1,
                 allowedProjectUuids: null,
+                allowedUserUuids: null,
                 systemRoleMatrix: agentSystemRoleMatrix([]),
             });
             const user = makeSessionUser([
@@ -968,6 +969,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
                     allowedProjectUuids: null,
+                    allowedUserUuids: null,
                     systemRoleMatrix: agentSystemRoleMatrix([]),
                 });
                 const user = makeSessionUser();
@@ -1056,6 +1058,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     mode: mode === 'legacy' ? 'legacy' : 'managed',
                     version: 1,
                     allowedProjectUuids: null,
+                    allowedUserUuids: null,
                     systemRoleMatrix: agentSystemRoleMatrix([]),
                 });
                 const user = makeSessionUser();
