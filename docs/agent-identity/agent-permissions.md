@@ -50,7 +50,7 @@ Refusals and settings use the plain name. Never show the key to people.
 |---|---|---|---|
 | `read_discover` | Read | Read and discover | Find and read projects, data models, content, context and existing query results. |
 | `query` | Query | Query data | Run queries through data models and run saved semantic content. |
-| `raw_sql` | Raw SQL | Raw SQL | List warehouse tables and write or run SQL directly. Also needs the project's warehouse confirmation. |
+| `raw_sql` | Raw SQL | Raw SQL | List warehouse tables and write or run SQL directly. |
 | `content_write` | Create / edit | Create and edit content | Create or edit charts, dashboards, documents and data apps. It does not change access, create spaces or share. |
 | `delete` | Delete | Delete content | Delete content, files and objects. Other capabilities may also be needed. |
 | `publish` | Publish | Publish and share | Publish, share or deliver content. |
@@ -59,6 +59,8 @@ Refusals and settings use the plain name. Never show the key to people.
 | `export` | Export | Export results | Download results, render charts and export to supported destinations. |
 | `administration` | Admin | Administration | Administrative actions mapped for agents. Changes reserved for people (see below) stay with people. |
 | `external_tools` | External tools | External tools | Call tools enabled on a connected external service. It does not grant what those tools do downstream. |
+
+Raw SQL for agents needs the person's own permission and the Raw SQL capability, and no project confirmation.
 
 `get_query_result` is Read, not Query: it reads a result that already exists.
 Warehouse table discovery is Raw SQL, because it reaches past the data models.
@@ -149,7 +151,6 @@ cancel another.
 | The OAuth grant and token scopes, when OAuth enforcement is on | `fromOauth`, `scopedAbility.ts`, `mcpTools.ts` |
 | Who can use agents, projects, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate` |
 | Project, data and destination limits (pinned project, agent tags, SQL scope) | MCP, agent tools and data services |
-| Raw SQL warehouse confirmation for the current binding | `AgentPermissionService.evaluate` |
 | Legacy switches | See the inventory below |
 | Operations only a person can do | `humanOnlyInManaged.ts`, `assertHumanManagedMutation.ts` |
 

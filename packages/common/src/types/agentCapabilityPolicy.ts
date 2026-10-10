@@ -26,13 +26,6 @@ export interface AgentCapabilityPolicySave extends Omit<
     updatedByUserUuid: string | null;
 }
 
-export interface AgentWarehouseRestrictionConfirmation {
-    projectUuid: string;
-    bindingFingerprint: string;
-    confirmedByUserUuid: string | null;
-    confirmedAt: Date;
-}
-
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     defaults: AgentSystemRoleMatrix;
     groupsAvailable: boolean;
@@ -52,8 +45,3 @@ export type AgentAccessSelection = Pick<
     AgentCapabilityCeiling,
     'version' | 'allowedProjectUuids' | 'allowedUserUuids'
 >;
-
-export interface AgentWarehouseConfirmationStatus {
-    confirmation: AgentWarehouseRestrictionConfirmation | null;
-    confirmed: boolean;
-}

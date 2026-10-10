@@ -1050,8 +1050,6 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     agentCapabilityPolicyModel:
                         this.models.getAgentCapabilityPolicyModel(),
-                    agentWarehouseRestrictionConfirmationModel:
-                        this.models.getAgentWarehouseRestrictionConfirmationModel(),
                     userModel: this.models.getUserModel(),
                     projectModel: this.models.getProjectModel(),
                     getOrganizationSettings: (organizationUuid) =>

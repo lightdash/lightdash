@@ -42,12 +42,6 @@ const setup = () => {
             get: vi.fn().mockResolvedValue(policy),
             save: vi.fn().mockResolvedValue(policy),
         },
-        agentWarehouseRestrictionConfirmationModel: {
-            get: vi.fn().mockResolvedValue(null),
-            upsert: vi.fn(),
-            delete: vi.fn(),
-            getCurrentBindingFingerprint: vi.fn().mockResolvedValue('binding'),
-        },
         userModel: { getAgentRoleAssignments: vi.fn() },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({
@@ -77,12 +71,6 @@ const operations = [
         }),
     (c: AgentPermissionController, req: Request) =>
         c.resetToLegacy(req, { version: 0 }),
-    (c: AgentPermissionController, req: Request) =>
-        c.getWarehouseConfirmation(req, 'project'),
-    (c: AgentPermissionController, req: Request) =>
-        c.confirmWarehouse(req, 'project'),
-    (c: AgentPermissionController, req: Request) =>
-        c.deleteWarehouseConfirmation(req, 'project'),
 ];
 
 test.each(operations)('rejects non-admin callers', async (operation) => {
@@ -92,9 +80,6 @@ test.each(operations)('rejects non-admin callers', async (operation) => {
         ForbiddenError,
     );
     expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
-    expect(
-        deps.agentWarehouseRestrictionConfirmationModel.upsert,
-    ).not.toHaveBeenCalled();
 });
 
 test.each(operations)(
@@ -180,7 +165,7 @@ test('saves the full ceiling as managed and preserves an empty project list', as
     );
 });
 
-test('rejects cross-org policy projects and confirmation projects', async () => {
+test('rejects cross-org policy projects', async () => {
     const { controller, req, deps } = setup();
     deps.projectModel.getSummary.mockResolvedValue({
         organizationUuid: 'other',
@@ -194,55 +179,7 @@ test('rejects cross-org policy projects and confirmation projects', async () => 
             systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.Query]),
         }),
     ).rejects.toMatchObject({ name: 'ParameterError' });
-    await expect(
-        controller.confirmWarehouse(req, 'other-project'),
-    ).rejects.toBeInstanceOf(ForbiddenError);
     expect(deps.agentCapabilityPolicyModel.save).not.toHaveBeenCalled();
-    expect(
-        deps.agentWarehouseRestrictionConfirmationModel.upsert,
-    ).not.toHaveBeenCalled();
-});
-
-test('confirmation stores the current fingerprint and reads report stale bindings', async () => {
-    const { controller, req, deps } = setup();
-    await controller.confirmWarehouse(req, 'project');
-    expect(
-        deps.agentWarehouseRestrictionConfirmationModel.upsert,
-    ).toHaveBeenCalledWith({
-        projectUuid: 'project',
-        bindingFingerprint: 'binding',
-        confirmedByUserUuid: req.account!.user.id,
-    });
-    deps.agentWarehouseRestrictionConfirmationModel.get.mockResolvedValue({
-        bindingFingerprint: 'old',
-    });
-    expect(
-        (await controller.getWarehouseConfirmation(req, 'project')).results
-            .confirmed,
-    ).toBe(false);
-});
-
-test('a project connection admin can confirm without organization admin rights', async () => {
-    const { controller, req, account, deps } = setup();
-    account.user.ability = new Ability<PossibleAbilities>([
-        {
-            action: 'manage',
-            subject: 'Project',
-            conditions: {
-                organizationUuid: account.organization.organizationUuid,
-                projectUuid: 'project',
-            },
-        },
-    ]);
-    await expect(
-        controller.confirmWarehouse(req, 'project'),
-    ).resolves.toMatchObject({ status: 'ok' });
-    await expect(controller.getPolicy(req)).rejects.toBeInstanceOf(
-        ForbiddenError,
-    );
-    expect(
-        deps.agentWarehouseRestrictionConfirmationModel.upsert,
-    ).toHaveBeenCalledOnce();
 });
 
 test('reset preserves grants and admission limits while restoring legacy mode', async () => {
@@ -442,4 +379,12 @@ test('reset omits the group column so even an all-deleted restriction is preserv
     expect(
         deps.agentCapabilityPolicyModel.save.mock.calls[0][0].allowedGroupUuids,
     ).toBeUndefined();
+});
+
+test.each([
+    'getWarehouseConfirmation',
+    'confirmWarehouse',
+    'deleteWarehouseConfirmation',
+])('does not expose %s', (method) => {
+    expect(AgentPermissionController.prototype).not.toHaveProperty(method);
 });

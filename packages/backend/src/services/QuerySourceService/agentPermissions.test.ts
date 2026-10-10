@@ -74,12 +74,6 @@ const setup = (
     const projectModel = {
         getSummary: vi.fn().mockResolvedValue({ organizationUuid }),
     };
-    const confirmation = {
-        get: vi.fn().mockResolvedValue(null),
-        getCurrentBindingFingerprint: vi.fn().mockResolvedValue('binding'),
-        upsert: vi.fn(),
-        delete: vi.fn(),
-    };
     const groupsModel = { findUserInGroups: vi.fn().mockResolvedValue([]) };
     const permissions = new AgentPermissionService({
         featureFlagModel,
@@ -88,7 +82,6 @@ const setup = (
             get: vi.fn().mockResolvedValue(policy),
             save: vi.fn(),
         },
-        agentWarehouseRestrictionConfirmationModel: confirmation,
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.DEVELOPER],
@@ -199,7 +192,6 @@ const setup = (
     return {
         groupsModel,
         policy,
-        confirmation,
         composer,
         controller,
         request,
@@ -212,39 +204,26 @@ const setup = (
 describe.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
     '%s composer SQL ceiling',
     (surface) => {
-        it.each([
-            [false, false, AiAccessRefusalReason.AGENT_CAPABILITY_DENIED],
-            [true, false, AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED],
-        ] as const)(
-            'refuses before any node or cache access (grant=%s, confirmed=%s)',
-            async (grant, confirmed, reason) => {
-                const { policy, composer, asyncQueryService } = setup();
-                if (grant)
-                    policy.systemRoleMatrix.developer.push(
-                        AgentCapability.RawSql,
-                    );
-                await expect(
-                    composer(surface, [semanticQuery, sqlQuery]),
-                ).rejects.toMatchObject({ refusal: { reason } });
-                expect(
-                    asyncQueryService.executeAsyncSqlQuery,
-                ).not.toHaveBeenCalled();
-                expect(
-                    asyncQueryService.executeAsyncMetricQuery,
-                ).not.toHaveBeenCalled();
-                expect(
-                    asyncQueryService.getAsyncQueryResults,
-                ).not.toHaveBeenCalled();
-            },
-        );
+        it('refuses without the SQL grant before any node or cache access', async () => {
+            const { composer, asyncQueryService } = setup();
+            const reason = AiAccessRefusalReason.AGENT_CAPABILITY_DENIED;
+            await expect(
+                composer(surface, [semanticQuery, sqlQuery]),
+            ).rejects.toMatchObject({ refusal: { reason } });
+            expect(
+                asyncQueryService.executeAsyncSqlQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.getAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+        });
 
-        it('dispatches SQL with its grant and current binding confirmation', async () => {
-            const { policy, confirmation, composer, asyncQueryService } =
-                setup();
+        it('dispatches SQL with its grant and no project confirmation', async () => {
+            const { policy, composer, asyncQueryService } = setup();
             policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
-            confirmation.get.mockResolvedValue({
-                bindingFingerprint: 'binding',
-            });
             await composer(surface, [semanticQuery, sqlQuery]);
             expect(
                 asyncQueryService.executeAsyncSqlQuery,
@@ -255,33 +234,20 @@ describe.each([AgentActorSurface.MCP, AgentActorSurface.IN_APP_AGENT])(
         });
 
         it('dispatches semantic-only with query and no warehouse confirmation', async () => {
-            const { composer, asyncQueryService, confirmation } = setup();
+            const { composer, asyncQueryService } = setup();
             await composer(surface, [semanticQuery]);
             expect(
                 asyncQueryService.executeAsyncMetricQuery,
             ).toHaveBeenCalledOnce();
-            expect(confirmation.get).not.toHaveBeenCalled();
         });
     },
 );
 
 describe('OAuth REST source dispatch', () => {
-    it('allows SQL execution with both grants and current confirmation', async () => {
-        const { controller, request, policy, confirmation, asyncQueryService } =
-            setup();
+    it('allows SQL execution with both grants and no project confirmation', async () => {
+        const { controller, request, policy, asyncQueryService } = setup();
         policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
-        await expect(
-            controller.executeSourceQueries(
-                { queries: [sqlQuery] },
-                projectUuid,
-                request,
-            ),
-        ).rejects.toMatchObject({
-            refusal: {
-                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-            },
-        });
-        confirmation.get.mockResolvedValue({ bindingFingerprint: 'binding' });
+
         await controller.executeSourceQueries(
             { queries: [sqlQuery] },
             projectUuid,
@@ -291,8 +257,7 @@ describe('OAuth REST source dispatch', () => {
     });
 
     it('allows semantic-only execution with query and no confirmation', async () => {
-        const { controller, request, confirmation, asyncQueryService } =
-            setup();
+        const { controller, request, asyncQueryService } = setup();
         await controller.executeSourceQueries(
             { queries: [semanticQuery] },
             projectUuid,
@@ -301,7 +266,6 @@ describe('OAuth REST source dispatch', () => {
         expect(
             asyncQueryService.executeAsyncMetricQuery,
         ).toHaveBeenCalledOnce();
-        expect(confirmation.get).not.toHaveBeenCalled();
     });
     it('refuses SQL submissions and schema scans before dispatch', async () => {
         const { controller, request, asyncQueryService, projectService } =
@@ -328,22 +292,9 @@ describe('OAuth REST source dispatch', () => {
         expect(projectService.getWarehouseTables).not.toHaveBeenCalled();
     });
 
-    it('requires confirmation for SQL scans and accepts the current binding', async () => {
-        const { controller, request, policy, confirmation, projectService } =
-            setup();
+    it('allows SQL scans with the SQL grant and no project confirmation', async () => {
+        const { controller, request, policy, projectService } = setup();
         policy.systemRoleMatrix.developer.push(AgentCapability.RawSql);
-        await expect(
-            controller.scanQuerySourceSchema(
-                projectUuid,
-                QuerySourceType.SQL,
-                request,
-            ),
-        ).rejects.toMatchObject({
-            refusal: {
-                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-            },
-        });
-        confirmation.get.mockResolvedValue({ bindingFingerprint: 'binding' });
         await controller.scanQuerySourceSchema(
             projectUuid,
             QuerySourceType.SQL,
@@ -419,7 +370,6 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
                 request,
                 asyncQueryService,
                 projectService,
-                confirmation,
             } = setup('managed', account);
             const scan = () =>
                 agentExecutionContext.run(
@@ -465,7 +415,6 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
                 expect(
                     projectService.getWarehouseTables,
                 ).toHaveBeenCalledOnce();
-                expect(confirmation.get).not.toHaveBeenCalled();
             }
         });
     },

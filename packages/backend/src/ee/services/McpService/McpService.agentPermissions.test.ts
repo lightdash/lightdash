@@ -81,12 +81,6 @@ const setup = (
             get: vi.fn().mockResolvedValue(policy),
             save: vi.fn(),
         },
-        agentWarehouseRestrictionConfirmationModel: {
-            get: vi.fn(),
-            upsert: vi.fn(),
-            delete: vi.fn(),
-            getCurrentBindingFingerprint: vi.fn(),
-        },
         userModel: {
             getAgentRoleAssignments: vi.fn().mockResolvedValue({
                 systemRoles: [OrganizationMemberRole.DEVELOPER],
@@ -176,7 +170,7 @@ describe.each(['oauth', 'session'] as const)(
                     },
                 });
                 expect(result.content[0].text).toBe(
-                    `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}\n\n${name === 'run_sql' ? 'Also needed: warehouse confirmation for this project\n' : ''}See why: https://lightdash.example/generalSettings/myAgentConnections`,
+                    `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}\n\nSee why: https://lightdash.example/generalSettings/myAgentConnections`,
                 );
                 expect(handler).not.toHaveBeenCalled();
                 expect(assertOperation).toHaveBeenCalledExactlyOnceWith(

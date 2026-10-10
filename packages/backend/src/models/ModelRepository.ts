@@ -6,7 +6,6 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AgentActionLogModel } from './AgentActionLogModel';
 import { AgentCapabilityPolicyModel } from './AgentCapabilityPolicyModel';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
-import { AgentWarehouseRestrictionConfirmationModel } from './AgentWarehouseRestrictionConfirmationModel';
 import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
@@ -218,7 +217,6 @@ export type ModelManifest = {
     agentActionLogModel: AgentActionLogModel;
     agentCapabilityPolicyModel: AgentCapabilityPolicyModel;
     agentConnectionGrantModel: AgentConnectionGrantModel;
-    agentWarehouseRestrictionConfirmationModel: AgentWarehouseRestrictionConfirmationModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
@@ -1045,16 +1043,6 @@ export class ModelRepository
         return this.getModel(
             'agentCapabilityPolicyModel',
             () => new AgentCapabilityPolicyModel({ database: this.database }),
-        );
-    }
-
-    public getAgentWarehouseRestrictionConfirmationModel(): AgentWarehouseRestrictionConfirmationModel {
-        return this.getModel(
-            'agentWarehouseRestrictionConfirmationModel',
-            () =>
-                new AgentWarehouseRestrictionConfirmationModel({
-                    database: this.database,
-                }),
         );
     }
 

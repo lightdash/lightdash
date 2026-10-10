@@ -223,8 +223,6 @@ describe('AI service account card', () => {
                         },
                     ],
                 };
-            if (url.endsWith('/warehouse-confirmation'))
-                return { confirmation: null, confirmed: false };
             if (url === '/org/users') return { data: [] };
             if (url.endsWith('/test'))
                 return warehouseType === WarehouseTypes.SNOWFLAKE

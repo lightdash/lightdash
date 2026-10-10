@@ -2010,7 +2010,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                             projectUuid: 'p1',
                             mcpAgentsEnabled: true,
                             mcpContentWritesEnabled: false,
-                            warehouseConfirmed: false,
                             isOrganizationDiscovery: false,
                         },
                     );

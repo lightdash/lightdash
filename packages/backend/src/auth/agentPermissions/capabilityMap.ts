@@ -140,15 +140,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AgentPermissionController.getPolicy': [AgentCapability.Administration],
     'AgentPermissionController.saveCeiling': [AgentCapability.Administration],
     'AgentPermissionController.resetToLegacy': [AgentCapability.Administration],
-    'AgentPermissionController.getWarehouseConfirmation': [
-        AgentCapability.Administration,
-    ],
-    'AgentPermissionController.confirmWarehouse': [
-        AgentCapability.Administration,
-    ],
-    'AgentPermissionController.deleteWarehouseConfirmation': [
-        AgentCapability.Administration,
-    ],
 
     'AiAccessController.getCapabilities': [AgentCapability.ReadDiscover],
     'AiAccessController.getMyAccess': [AgentCapability.ReadDiscover],

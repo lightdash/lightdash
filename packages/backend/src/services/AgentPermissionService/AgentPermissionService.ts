@@ -27,7 +27,6 @@ import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInMa
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { type AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
-import { type AgentWarehouseRestrictionConfirmationModel } from '../../models/AgentWarehouseRestrictionConfirmationModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type GroupsModel } from '../../models/GroupsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -60,7 +59,6 @@ export interface AgentPolicyEvaluation {
     projectUuid: string | null;
     mcpAgentsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
-    warehouseConfirmed: boolean;
     isOrganizationDiscovery: boolean;
 }
 
@@ -187,10 +185,6 @@ interface Dependencies {
     agentCapabilityPolicyModel: Pick<
         AgentCapabilityPolicyModel,
         'get' | 'save'
-    >;
-    agentWarehouseRestrictionConfirmationModel: Pick<
-        AgentWarehouseRestrictionConfirmationModel,
-        'get' | 'upsert' | 'delete' | 'getCurrentBindingFingerprint'
     >;
     userModel: Pick<UserModel, 'getAgentRoleAssignments'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
@@ -386,7 +380,6 @@ export class AgentPermissionService extends BaseService {
                 HUMAN_ONLY_IN_MANAGED.has(args.key),
             mcpAgentsEnabled: true,
             mcpContentWritesEnabled: true,
-            warehouseConfirmed: false,
             isOrganizationDiscovery: ORGANIZATION_DISCOVERY_OPERATIONS[
                 args.kind
             ].includes(args.key),
@@ -395,7 +388,6 @@ export class AgentPermissionService extends BaseService {
         const checks: AgentPermissionCheck[] = [];
         let membershipPromise: Promise<void> | undefined;
         let settingsPromise: Promise<void> | undefined;
-        let confirmationPromise: Promise<void> | undefined;
         const readCheck = async (step: (typeof steps)[number]) => {
             if (
                 step.kind === 'agent_admission' &&
@@ -427,27 +419,6 @@ export class AgentPermissionService extends BaseService {
                     });
                 await settingsPromise;
             }
-            if (
-                step.kind === 'warehouse_confirmation' &&
-                requiredCapabilities?.includes(AgentCapability.RawSql) &&
-                args.projectUuid !== null
-            ) {
-                confirmationPromise ??= Promise.all([
-                    this.deps.agentWarehouseRestrictionConfirmationModel.get(
-                        args.projectUuid,
-                    ),
-                    this.deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint(
-                        args.projectUuid,
-                    ),
-                ]).then(([confirmation, fingerprint]) => {
-                    operation.warehouseConfirmed =
-                        confirmation != null &&
-                        confirmation.bindingFingerprint === fingerprint;
-                    operation.warehouseStale =
-                        confirmation != null && !operation.warehouseConfirmed;
-                });
-                await confirmationPromise;
-            }
             const check = step.evaluate();
             checks.push(check);
             return check;
@@ -456,18 +427,12 @@ export class AgentPermissionService extends BaseService {
             stopAtRefusal: boolean,
             options: {
                 signal?: AbortSignal;
-                skipWarehouseConfirmation?: boolean;
             } = {},
             index = checks.length,
         ): Promise<AgentPermissionCheck | null> => {
             options.signal?.throwIfAborted();
             const step = steps[index];
             if (!step) return null;
-            if (
-                options.skipWarehouseConfirmation &&
-                step.kind === 'warehouse_confirmation'
-            )
-                return readChecks(stopAtRefusal, options, index + 1);
             const check = await readCheck(step);
             if (stopAtRefusal && check.reason !== null) return check;
             return readChecks(stopAtRefusal, options, index + 1);
@@ -527,7 +492,6 @@ export class AgentPermissionService extends BaseService {
             await Promise.race([
                 evaluation.readChecks(false, {
                     signal: diagnosticAbort.signal,
-                    skipWarehouseConfirmation: hiddenProject,
                 }),
                 new Promise<never>((_, reject) => {
                     diagnosticTimeout = setTimeout(() => {
@@ -553,12 +517,9 @@ export class AgentPermissionService extends BaseService {
                 .filter(
                     (blocker) =>
                         !hiddenProject ||
-                        (blocker.checkId !== 'warehouse_confirmation' &&
-                            (blocker.checkId === primary.id ||
-                                (blocker.checkId !== 'project_scope' &&
-                                    !blocker.checkId.startsWith(
-                                        'capability:',
-                                    )))),
+                        blocker.checkId === primary.id ||
+                        (blocker.checkId !== 'project_scope' &&
+                            !blocker.checkId.startsWith('capability:')),
                 )
                 .map((blocker) => {
                     if (blocker.checkId === primary.id) return blocker;
@@ -661,29 +622,6 @@ export class AgentPermissionService extends BaseService {
         return organizationUuid;
     }
 
-    private async assertProjectAdmin(
-        account: Account,
-        projectUuid: string,
-    ): Promise<string> {
-        const organizationUuid = await this.assertHuman(account);
-        const project = await this.deps.projectModel.getSummary(projectUuid);
-        if (
-            project.organizationUuid !== organizationUuid ||
-            this.createAuditedAbility(account).cannot(
-                'manage',
-                subject('Project', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Only a project admin can confirm warehouse restrictions',
-            );
-        }
-        return organizationUuid;
-    }
-
     private async validateProjects(
         organizationUuid: string,
         projectUuids: string[] | null,
@@ -771,43 +709,5 @@ export class AgentPermissionService extends BaseService {
             mode: 'legacy',
             updatedByUserUuid: account.user.id,
         });
-    }
-
-    async getWarehouseConfirmation(account: Account, projectUuid: string) {
-        await this.assertProjectAdmin(account, projectUuid);
-        const [confirmation, fingerprint] = await Promise.all([
-            this.deps.agentWarehouseRestrictionConfirmationModel.get(
-                projectUuid,
-            ),
-            this.deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint(
-                projectUuid,
-            ),
-        ]);
-        return {
-            confirmation,
-            confirmed: confirmation?.bindingFingerprint === fingerprint,
-        };
-    }
-
-    async confirmWarehouse(account: Account, projectUuid: string) {
-        await this.assertProjectAdmin(account, projectUuid);
-        return this.deps.agentWarehouseRestrictionConfirmationModel.upsert({
-            projectUuid,
-            bindingFingerprint:
-                await this.deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint(
-                    projectUuid,
-                ),
-            confirmedByUserUuid: account.user.id,
-        });
-    }
-
-    async deleteWarehouseConfirmation(
-        account: Account,
-        projectUuid: string,
-    ): Promise<void> {
-        await this.assertProjectAdmin(account, projectUuid);
-        await this.deps.agentWarehouseRestrictionConfirmationModel.delete(
-            projectUuid,
-        );
     }
 }

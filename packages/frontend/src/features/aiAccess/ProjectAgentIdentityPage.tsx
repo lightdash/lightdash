@@ -7,7 +7,6 @@ import {
 import { Stack, Text } from '@mantine/core';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { AgentWarehouseConfirmationCard } from './AgentWarehouseConfirmationCard';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 
 export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
@@ -26,10 +25,6 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
         return null;
     return (
         <Stack gap="lg">
-            <AgentWarehouseConfirmationCard
-                key={project.projectUuid}
-                projectUuid={project.projectUuid}
-            />
             {project.warehouseConnection &&
             supportsAiServiceAccount(project.warehouseConnection.type) ? (
                 <AiServiceAccountCard

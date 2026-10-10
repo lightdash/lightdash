@@ -13,10 +13,6 @@ import {
     AgentConnectionGrantsTableName,
 } from '../database/entities/agentConnectionGrants';
 import {
-    AgentWarehouseRestrictionConfirmationsTable,
-    AgentWarehouseRestrictionConfirmationsTableName,
-} from '../database/entities/agentWarehouseRestrictionConfirmations';
-import {
     AiAgentReasoningTable,
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
@@ -755,7 +751,6 @@ declare module 'knex/types/tables' {
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;
         [AgentSystemRoleCapabilitiesTableName]: AgentSystemRoleCapabilitiesTable;
-        [AgentWarehouseRestrictionConfirmationsTableName]: AgentWarehouseRestrictionConfirmationsTable;
         [AgentActionLogTableName]: AgentActionLogTable;
         [CredentialBindingsTableName]: CredentialBindingsTable;
         [CredentialTokenStateTableName]: CredentialTokenStateTable;

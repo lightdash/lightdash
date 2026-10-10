@@ -163,22 +163,6 @@ exports[`existing refusal snapshot: human 1`] = `
 
 exports[`existing refusal snapshot: legacy 1`] = `null`;
 
-exports[`existing refusal snapshot: missing 1`] = `
-{
-  "action": "ask_admin",
-  "capability": "raw_sql",
-  "code": "ai_access_refused",
-  "connectUrl": null,
-  "message": "Raw SQL needs a warehouse restriction confirmation. Ask a project admin to confirm the current agent connection.",
-  "operation": "SqlRunnerController.runSql",
-  "policyLayer": "warehouse_identity",
-  "policyVersion": 1,
-  "projectUuid": "project",
-  "reason": "agent_raw_sql_unconfirmed",
-  "settingsUrl": "/generalSettings/projectManagement/project/agentIdentity",
-}
-`;
-
 exports[`existing refusal snapshot: off 1`] = `null`;
 
 exports[`existing refusal snapshot: project 1`] = `
@@ -258,22 +242,6 @@ exports[`existing refusal snapshot: read_discover 1`] = `
   "projectUuid": "project",
   "reason": "agent_capability_denied",
   "settingsUrl": "/generalSettings/agentIdentity",
-}
-`;
-
-exports[`existing refusal snapshot: stale 1`] = `
-{
-  "action": "ask_admin",
-  "capability": "raw_sql",
-  "code": "ai_access_refused",
-  "connectUrl": null,
-  "message": "Raw SQL needs a warehouse restriction confirmation. Ask a project admin to confirm the current agent connection.",
-  "operation": "SqlRunnerController.runSql",
-  "policyLayer": "warehouse_identity",
-  "policyVersion": 1,
-  "projectUuid": "project",
-  "reason": "agent_raw_sql_unconfirmed",
-  "settingsUrl": "/generalSettings/projectManagement/project/agentIdentity",
 }
 `;
 

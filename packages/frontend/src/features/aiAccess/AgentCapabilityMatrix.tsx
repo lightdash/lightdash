@@ -136,8 +136,5 @@ export const AgentCapabilityMatrix = ({
                 </Table.Tbody>
             </Table>
         </Table.ScrollContainer>
-        <Text size="sm" c="dimmed">
-            Raw SQL also needs the project warehouse confirmation.
-        </Text>
     </Stack>
 );
