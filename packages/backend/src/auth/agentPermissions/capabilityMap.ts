@@ -139,9 +139,6 @@ export type AgentToolEffect = keyof typeof AGENT_TOOL_EFFECT_CAPABILITIES;
 export const REST_OPERATION_CAPABILITIES = {
     'AgentPermissionController.getPolicy': [AgentCapability.Administration],
     'AgentPermissionController.saveCeiling': [AgentCapability.Administration],
-    'AgentPermissionController.applyPilotPreset': [
-        AgentCapability.Administration,
-    ],
     'AgentPermissionController.resetToLegacy': [AgentCapability.Administration],
     'AgentPermissionController.getWarehouseConfirmation': [
         AgentCapability.Administration,

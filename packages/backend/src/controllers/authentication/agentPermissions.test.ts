@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    AGENT_PILOT_CAPABILITIES,
     AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
@@ -35,6 +34,12 @@ vi.mock('../../ee/authentication', () => ({
     authenticateServiceAccount: vi.fn(),
 }));
 
+const restrictedCapabilities = [
+    AgentCapability.ReadDiscover,
+    AgentCapability.Query,
+    AgentCapability.Export,
+] as const;
+
 const setup = ({
     mode = 'managed',
     operation = 'ProjectController_createDashboard',
@@ -65,7 +70,7 @@ const setup = ({
         version: 1,
         allowedProjectUuids,
         allowedUserUuids,
-        systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
+        systemRoleMatrix: agentSystemRoleMatrix(restrictedCapabilities),
     });
     const resolveResourceProjectUuid = vi.fn().mockResolvedValue(null);
     const service = new AgentPermissionService({

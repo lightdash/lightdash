@@ -145,9 +145,3 @@ export const AGENT_CAPABILITY_DEFAULTS = [
     AgentCapability.Export,
     AgentCapability.RawSql,
 ] as const;
-
-export const AGENT_PILOT_CAPABILITIES = [
-    AgentCapability.ReadDiscover,
-    AgentCapability.Query,
-    AgentCapability.Export,
-] as const;

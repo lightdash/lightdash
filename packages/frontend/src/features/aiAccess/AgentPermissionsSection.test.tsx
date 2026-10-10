@@ -1,6 +1,5 @@
 import {
     AGENT_CAPABILITY_DEFAULTS,
-    AGENT_PILOT_CAPABILITIES,
     AgentCapability,
     OrganizationMemberRole,
     type AgentSystemRoleMatrix,
@@ -75,10 +74,6 @@ const legacy = () => ({
     allowedUserUuids: null as string[] | null,
     systemRoleMatrix: matrix([]),
     defaults: matrix(AGENT_CAPABILITY_DEFAULTS),
-    pilotPreset: {
-        description: 'Restricted capabilities',
-        systemRoleMatrix: matrix(AGENT_PILOT_CAPABILITIES),
-    },
 });
 let policy = legacy();
 const renderSection = () => {

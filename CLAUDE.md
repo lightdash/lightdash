@@ -202,7 +202,7 @@ refresh/restart behavior, and remove temporary ENV overrides after rollout.
 For REST or MCP changes with no external callers, add an advisory declaration:
 
 - Use it only for a surface behind a feature flag that is off by default, or called only by a Lightdash client.
-- Set `requiredStop: false`. Add `impact: { "kind": "no-external-callers", "featureFlag": "agent-identity", "covers": { "rest": ["POST /api/v2/org/agent-permissions/pilot-preset"], "mcp": [] } }`. Use a `FeatureFlags` enum value, not its key. List exact REST operations or MCP tool names in `covers`.
+- Set `requiredStop: false`. Add `impact: { "kind": "no-external-callers", "featureFlag": "agent-identity", "covers": { "rest": ["DELETE /api/v2/example/{exampleUuid}"], "mcp": [] } }`. Use a `FeatureFlags` enum value, not its key. List exact REST operations or MCP tool names in `covers`.
 - Supply exactly one evidence field: `featureFlag` or a substantive `firstPartyOnly` statement that names the only Lightdash client.
 - With `featureFlag`, the reason must say whether the flag is off by default on Cloud and on self-hosted. Off by default is a reviewed claim; release-safety checks that the flag exists, not its defaults or endpoint gating.
 - With `firstPartyOnly`, the reason must say what an old UI pod, browser tab or client sees during a rolling update. For example: "the old settings page shows an error until refresh". Explain why the accepted behaviour is safe.

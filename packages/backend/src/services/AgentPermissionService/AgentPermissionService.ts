@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AGENT_CAPABILITY_DEFAULTS,
     AGENT_CAPABILITY_SCOPES,
-    AGENT_PILOT_CAPABILITIES,
     AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
@@ -270,10 +269,6 @@ interface Dependencies {
 
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     defaults: AgentSystemRoleMatrix;
-    pilotPreset: {
-        description: string;
-        systemRoleMatrix: AgentSystemRoleMatrix;
-    };
 }
 
 export interface AgentCapabilityCeiling {
@@ -628,13 +623,6 @@ export class AgentPermissionService extends BaseService {
                 organizationUuid,
             )),
             defaults: agentSystemRoleMatrix(AGENT_CAPABILITY_DEFAULTS),
-            pilotPreset: {
-                description:
-                    'Allow discovery, semantic queries and exports for the selected projects. Custom roles keep their existing scopes.',
-                systemRoleMatrix: agentSystemRoleMatrix(
-                    AGENT_PILOT_CAPABILITIES,
-                ),
-            },
         };
     }
 
@@ -670,20 +658,6 @@ export class AgentPermissionService extends BaseService {
             organizationUuid,
             mode: 'managed',
             updatedByUserUuid: account.user.id,
-        });
-    }
-
-    async applyPilotPreset(
-        account: Account,
-        allowedProjectUuids: string[] | null,
-        allowedUserUuids: string[] | null | undefined,
-        version: number | undefined,
-    ): Promise<AgentCapabilityPolicy> {
-        return this.saveCeiling(account, {
-            version,
-            allowedProjectUuids,
-            allowedUserUuids,
-            systemRoleMatrix: agentSystemRoleMatrix(AGENT_PILOT_CAPABILITIES),
         });
     }
 

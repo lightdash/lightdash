@@ -33,10 +33,6 @@ export interface AgentWarehouseRestrictionConfirmation {
 
 export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
     defaults: AgentSystemRoleMatrix;
-    pilotPreset: {
-        description: string;
-        systemRoleMatrix: AgentSystemRoleMatrix;
-    };
 }
 
 export interface AgentCapabilityCeiling extends Pick<

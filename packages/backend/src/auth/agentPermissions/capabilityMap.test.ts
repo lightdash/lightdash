@@ -1,6 +1,5 @@
 import {
     AGENT_CAPABILITY_DEFAULTS,
-    AGENT_PILOT_CAPABILITIES,
     AgentCapability,
     agentToolDefinitionsByName,
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
@@ -383,18 +382,13 @@ it('requires external_tools for connected MCP tools regardless of their names', 
     ]);
 });
 
-it('keeps the defaults and pilot preset explicit', () => {
+it('keeps the defaults explicit', () => {
     expect(Object.values(AgentCapability)).toHaveLength(11);
     expect(AGENT_CAPABILITY_DEFAULTS).toEqual([
         AgentCapability.ReadDiscover,
         AgentCapability.Query,
         AgentCapability.Export,
         AgentCapability.RawSql,
-    ]);
-    expect(AGENT_PILOT_CAPABILITIES).toEqual([
-        AgentCapability.ReadDiscover,
-        AgentCapability.Query,
-        AgentCapability.Export,
     ]);
 });
 
