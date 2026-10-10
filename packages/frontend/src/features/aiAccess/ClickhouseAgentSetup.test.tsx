@@ -19,11 +19,7 @@ const connection: ClickhouseCredentials = {
 describe('ClickHouse agent setup', () => {
     it('shows three steps, read-only guidance and row policy limits', () => {
         renderWithProviders(
-            <ClickhouseAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <ClickhouseAgentSetup connection={connection} tested={false} />,
         );
         for (const title of [
             'Create the account in ClickHouse',
@@ -52,11 +48,7 @@ describe('ClickHouse agent setup', () => {
             value: { writeText },
         });
         renderWithProviders(
-            <ClickhouseAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <ClickhouseAgentSetup connection={connection} tested={false} />,
         );
         const buttons = screen.getAllByRole('button', { name: 'Copy SQL' });
         const commands = buildClickhouseAiServiceAccountCommands(connection);
@@ -81,34 +73,25 @@ describe('ClickHouse agent setup', () => {
         }
     });
     it('uses placeholders when connection settings are empty', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <ClickhouseAgentSetup
                 connection={{ ...connection, schema: '' }}
-                hasCredentials={false}
                 tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '`<database>`.`<table>`',
-        );
+        expect(container).toHaveTextContent('`<database>`.`<table>`');
     });
-    it('collapses saved setup and marks only the tested step complete', async () => {
+    it('hides the steps after a successful Test', () => {
         renderWithProviders(
-            <ClickhouseAgentSetup
-                connection={connection}
-                hasCredentials
-                tested
-            />,
+            <ClickhouseAgentSetup connection={connection} tested />,
         );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
-        expect(screen.queryByLabelText('Step 1 done')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('Step 2 done')).not.toBeInTheDocument();
+        for (const number of [1, 2, 3]) {
+            expect(
+                screen.queryByLabelText(`Step ${number}`),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByLabelText(`Step ${number} done`),
+            ).not.toBeInTheDocument();
+        }
     });
 });

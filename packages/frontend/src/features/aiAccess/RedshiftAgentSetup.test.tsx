@@ -19,11 +19,7 @@ const connection: RedshiftCredentials = {
 describe('Redshift agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
         renderWithProviders(
-            <RedshiftAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <RedshiftAgentSetup connection={connection} tested={false} />,
         );
         for (const title of [
             'Create the account in Redshift',
@@ -62,11 +58,7 @@ describe('Redshift agent setup', () => {
             value: { writeText },
         });
         renderWithProviders(
-            <RedshiftAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <RedshiftAgentSetup connection={connection} tested={false} />,
         );
         const buttons = screen.getAllByRole('button', { name: 'Copy SQL' });
         const commands = buildRedshiftAiServiceAccountCommands(connection);
@@ -85,32 +77,25 @@ describe('Redshift agent setup', () => {
         }
     });
     it('uses placeholders when connection settings are empty', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <RedshiftAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                hasCredentials={false}
                 tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '"<schema>"."<table>"',
-        );
+        expect(container).toHaveTextContent('"<schema>"."<table>"');
     });
-    it('collapses saved setup and marks only the tested step complete', async () => {
+    it('hides the steps after a successful Test', () => {
         renderWithProviders(
-            <RedshiftAgentSetup
-                connection={connection}
-                hasCredentials
-                tested
-            />,
+            <RedshiftAgentSetup connection={connection} tested />,
         );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+        for (const number of [1, 2, 3]) {
+            expect(
+                screen.queryByLabelText(`Step ${number}`),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByLabelText(`Step ${number} done`),
+            ).not.toBeInTheDocument();
+        }
     });
 });

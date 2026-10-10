@@ -8,11 +8,9 @@ import { AiServiceAccountSetupGuide } from './AiServiceAccountSetupGuide';
 
 export const PostgresAgentSetup = ({
     connection,
-    hasCredentials,
     tested,
 }: {
     connection: PostgresCredentials;
-    hasCredentials: boolean;
     tested: boolean;
 }) => {
     const commands = buildPostgresAiServiceAccountCommands({
@@ -22,7 +20,6 @@ export const PostgresAgentSetup = ({
     return (
         <AiServiceAccountSetupGuide
             warehouseName="Postgres"
-            hasAccount={hasCredentials}
             tested={tested}
             createContent={
                 <Stack gap="xs">

@@ -20,11 +20,7 @@ const connection: TrinoCredentials = {
 describe('Trino agent setup', () => {
     it('shows three steps, login prerequisites and row and column policy limits', () => {
         renderWithProviders(
-            <TrinoAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <TrinoAgentSetup connection={connection} tested={false} />,
         );
         for (const title of [
             'Create or choose the Trino login',
@@ -60,11 +56,7 @@ describe('Trino agent setup', () => {
             value: { writeText },
         });
         renderWithProviders(
-            <TrinoAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <TrinoAgentSetup connection={connection} tested={false} />,
         );
         const buttons = [
             screen.getByRole('button', { name: 'Copy rules.json' }),
@@ -84,28 +76,23 @@ describe('Trino agent setup', () => {
         }
     });
     it('uses placeholders when connection settings are empty', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <TrinoAgentSetup
                 connection={{ ...connection, dbname: '', schema: '' }}
-                hasCredentials={false}
                 tested={false}
             />,
         );
-        expect(screen.getByRole('region')).toHaveTextContent(
-            '"<schema>"."<table>"',
-        );
+        expect(container).toHaveTextContent('"<schema>"."<table>"');
     });
-    it('collapses saved setup and marks only the tested step complete', async () => {
-        renderWithProviders(
-            <TrinoAgentSetup connection={connection} hasCredentials tested />,
-        );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+    it('hides the steps after a successful Test', () => {
+        renderWithProviders(<TrinoAgentSetup connection={connection} tested />);
+        for (const number of [1, 2, 3]) {
+            expect(
+                screen.queryByLabelText(`Step ${number}`),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByLabelText(`Step ${number} done`),
+            ).not.toBeInTheDocument();
+        }
     });
 });

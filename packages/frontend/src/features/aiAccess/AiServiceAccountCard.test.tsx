@@ -244,6 +244,24 @@ describe('AI service account card', () => {
             ...project,
             warehouseConnection: { ...project.warehouseConnection, type },
         } as Project;
+        const stepTitles =
+            type === WarehouseTypes.TRINO
+                ? [
+                      'Create or choose the Trino login',
+                      'Limit what the login can read',
+                      'Enter the user and password',
+                  ]
+                : [
+                      `Create the account in ${name}`,
+                      'Grant it only the data agents may read',
+                      'Add it here and select Test',
+                  ];
+        const expectSteps = (visible: boolean) => {
+            for (const title of stepTitles) {
+                if (visible) expect(screen.getByText(title)).toBeVisible();
+                else expect(screen.queryByText(title)).not.toBeInTheDocument();
+            }
+        };
         const missing =
             'Agents are refused on this project until you add a shared agent account.';
         const unused = `Agents on this project use each person's own ${name} credentials. The organization rule decides this.`;
@@ -264,6 +282,52 @@ describe('AI service account card', () => {
         beforeEach(() => {
             warehouseType = type;
         });
+        it('shows all three steps without a section control when no account exists', async () => {
+            setup(props);
+            await screen.findByRole('button', {
+                name: 'Add shared agent account',
+            });
+            expectSteps(true);
+            expect(
+                screen.queryByRole('button', {
+                    name: 'How to set up the shared agent account',
+                }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('How to set up the shared agent account'),
+            ).not.toBeInTheDocument();
+        });
+        it('shows untested account steps and removes them after Test in the same render', async () => {
+            slot = { ...savedSlot, warehouseType: type };
+            setup(props);
+            const test = await screen.findByRole('button', { name: 'Test' });
+            expectSteps(true);
+            fireEvent.click(test);
+            await waitFor(() => expectSteps(false));
+        });
+        it.each(['own', 'inherited'] as const)(
+            'uses persisted %s verification for step visibility after reload',
+            async (owner) => {
+                if (owner === 'own')
+                    slot = { ...savedSlot, warehouseType: type };
+                else parent = parentAccount;
+                const first = setup(props);
+                fireEvent.click(
+                    await screen.findByRole('button', { name: 'Test' }),
+                );
+                await waitFor(() => expectSteps(false));
+                first.unmount();
+                if (owner === 'own') verification = snowflakeVerification;
+                else
+                    parent = {
+                        ...parentAccount,
+                        verification: snowflakeVerification,
+                    };
+                setup(props);
+                await screen.findByRole('button', { name: 'Test' });
+                expectSteps(type === WarehouseTypes.BIGQUERY);
+            },
+        );
         it.each(scenarios)(
             'renders %s with status first and guide last',
             async (scenario) => {
@@ -296,10 +360,8 @@ describe('AI service account card', () => {
                     ...props,
                     type: inherited ? ProjectType.PREVIEW : ProjectType.DEFAULT,
                 });
-                const guide = await screen.findByRole('button', {
-                    name: 'How to set up the shared agent account',
-                });
-                expect(guide).toHaveAttribute('aria-expanded', String(empty));
+                const guide = await screen.findByText(stepTitles[0]);
+                expectSteps(true);
                 const refused =
                     scenario === 'missing required' ||
                     scenario === 'unreadable parent required';
@@ -386,17 +448,8 @@ describe('AI service account card', () => {
                             .map((button) => button.textContent),
                     ).toEqual(
                         inherited
-                            ? [
-                                  'Test',
-                                  "Add this preview's own account",
-                                  'How to set up the shared agent account',
-                              ]
-                            : [
-                                  'Test',
-                                  'Replace',
-                                  'Remove',
-                                  'How to set up the shared agent account',
-                              ],
+                            ? ['Test', "Add this preview's own account"]
+                            : ['Test', 'Replace', 'Remove'],
                     );
                     if (scenario === 'inherited') {
                         expect(
@@ -413,7 +466,6 @@ describe('AI service account card', () => {
                             '/generalSettings/projectManagement/parent-project/agentIdentity',
                         );
                     }
-                    fireEvent.click(guide);
                 }
                 expect(
                     screen.getByText(
@@ -454,15 +506,12 @@ describe('AI service account card', () => {
             },
         );
         it.each(['failure', 'error'] as const)(
-            'completes step 3 only after a passed Test and reports %s in an Alert',
+            'hides the steps only after a passed Test and reports %s in an Alert',
             async (failure) => {
                 slot = { ...savedSlot, warehouseType: type };
                 setup(props);
-                fireEvent.click(
-                    await screen.findByRole('button', {
-                        name: 'How to set up the shared agent account',
-                    }),
-                );
+                await screen.findByRole('button', { name: 'Test' });
+                expectSteps(true);
                 expect(
                     screen.queryByLabelText('Step 3 done'),
                 ).not.toBeInTheDocument();
@@ -485,9 +534,7 @@ describe('AI service account card', () => {
                     screen.queryByLabelText('Step 3 done'),
                 ).not.toBeInTheDocument();
                 fireEvent.click(screen.getByRole('button', { name: 'Test' }));
-                expect(
-                    await screen.findByLabelText('Step 3 done'),
-                ).toBeInTheDocument();
+                await waitFor(() => expectSteps(false));
                 expect(screen.getByText(/^Tested /)).toHaveTextContent(
                     `Tested ${formatAiServiceAccountDate(type === WarehouseTypes.SNOWFLAKE ? snowflakeVerification.checkedAt : new Date())}. Added ${formatAiServiceAccountDate(savedSlot.updatedAt)}.`,
                 );
@@ -527,7 +574,6 @@ describe('AI service account card', () => {
                 'Replace',
                 "Use the parent's account",
                 'Remove',
-                'How to set up the shared agent account',
             ]);
             fireEvent.click(
                 screen.getByRole('button', {
@@ -564,22 +610,15 @@ describe('AI service account card', () => {
         it('shows passed observations and dates without treating a BigQuery parent principal as a passed Test', async () => {
             parent = { ...parentAccount, verification: snowflakeVerification };
             setup(props);
-            const guide = await screen.findByRole('button', {
-                name: 'How to set up the shared agent account',
-            });
-            fireEvent.click(guide);
+            await screen.findByRole('button', { name: 'Test' });
             if (type === WarehouseTypes.BIGQUERY) {
                 expect(
                     screen.getByText('Signs in as parent@example.test'),
                 ).toBeVisible();
-                expect(
-                    screen.queryByLabelText('Step 3 done'),
-                ).not.toBeInTheDocument();
+                expectSteps(true);
                 expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
             } else {
-                expect(
-                    screen.getByLabelText('Step 3 done'),
-                ).toBeInTheDocument();
+                expectSteps(false);
                 expect(
                     screen.getByText(
                         `Tested ${formatAiServiceAccountDate(snowflakeVerification.checkedAt)}.`,
@@ -675,7 +714,7 @@ describe('AI service account card', () => {
             ).toBeVisible();
         },
     );
-    it('keeps an initially open guide open after BigQuery Save without Test', async () => {
+    it('keeps the steps visible after BigQuery Save without Test', async () => {
         setup();
         const dialog = await openForm();
         upload();
@@ -684,10 +723,8 @@ describe('AI service account card', () => {
         fireEvent.click(save);
         await screen.findByRole('button', { name: 'Replace' });
         expect(
-            screen.getByRole('button', {
-                name: 'How to set up the shared agent account',
-            }),
-        ).toHaveAttribute('aria-expanded', 'true');
+            screen.getByText('Create the account in BigQuery'),
+        ).toBeVisible();
         expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
         expect(screen.queryByText(/^Tested /)).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalledWith(
@@ -705,12 +742,9 @@ describe('AI service account card', () => {
                 'Not tested yet. Select Test to see who it signs in as.',
             ),
         ).toBeVisible();
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'How to set up the shared agent account',
-            }),
-        );
-        expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Create the account in BigQuery'),
+        ).not.toBeInTheDocument();
     });
     it('derives own-slot precedence and readable unknown-parent status without mutation', () => {
         const rule = {
@@ -1954,7 +1988,7 @@ describe('AI service account card', () => {
                 screen.queryByText('Signs in as ai_agents'),
             ).not.toBeInTheDocument();
         });
-        it('retains saved verification after remount and shows the ClickHouse guide', async () => {
+        it('retains saved verification after remount and hides the ClickHouse guide', async () => {
             const first = setup(clickhouseProject);
             expect(
                 await screen.findByText('Signs in as ai_agents'),
@@ -1964,19 +1998,9 @@ describe('AI service account card', () => {
             expect(
                 await screen.findByText('Signs in as ai_agents'),
             ).toBeVisible();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'How to set up the shared agent account',
-                }),
-            );
-            await waitFor(() =>
-                expect(
-                    screen.getByText('Create the account in ClickHouse'),
-                ).toBeVisible(),
-            );
             expect(
-                screen.getByText(/Run as a user with CREATE USER/),
-            ).toHaveTextContent('readonly = 2');
+                screen.queryByText('Create the account in ClickHouse'),
+            ).not.toBeInTheDocument();
         });
         it('does not invent a principal for an unverified slot', async () => {
             verification = null;
@@ -2197,10 +2221,8 @@ describe('AI service account card', () => {
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expect(
-            screen.getByRole('button', {
-                name: 'How to set up the shared agent account',
-            }),
-        ).toHaveAttribute('aria-expanded', 'false');
+            screen.getByText('Create the account in BigQuery'),
+        ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', {
                 name: "Add this preview's own account",
@@ -2248,12 +2270,9 @@ describe('AI service account card', () => {
         const { client } = setup();
         fireEvent.click(await screen.findByRole('button', { name: 'Test' }));
         await screen.findByText('Signs in as tested-principal');
-        fireEvent.click(
-            screen.getByRole('button', {
-                name: 'How to set up the shared agent account',
-            }),
-        );
-        expect(screen.getByLabelText('Step 3 done')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Create the account in BigQuery'),
+        ).not.toBeInTheDocument();
 
         parent = {
             ...parentAccount,
@@ -2269,6 +2288,9 @@ describe('AI service account card', () => {
                 screen.queryByLabelText('Step 3 done'),
             ).not.toBeInTheDocument();
         });
+        expect(
+            screen.getByText('Create the account in BigQuery'),
+        ).toBeVisible();
         expect(
             screen.getByText('Signs in as parent@example.test'),
         ).toBeVisible();
@@ -2431,19 +2453,6 @@ describe('AI service account card', () => {
         expect(
             screen.getByText(/gcloud projects add-iam-policy-binding/),
         ).not.toHaveTextContent('bq query');
-    });
-    it('collapses setup for a saved key and marks only a successful Test done', async () => {
-        slot = savedSlot;
-        setup();
-        const control = await screen.findByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(control).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(control);
-        expect(screen.queryByLabelText('Step 2 done')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('Step 3 done')).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
-        expect(await screen.findByLabelText('Step 3 done')).toBeInTheDocument();
     });
     it('shows an empty slot without repeating the organization rule', async () => {
         setup();
@@ -3257,10 +3266,7 @@ describe('AI service account card', () => {
             (gate) => {
                 mocks.enabled = gate !== 'flag';
                 mocks.canManage = gate !== 'permission';
-                const { container } = setup(snowflakeProject);
-                expect(
-                    container.querySelector('.mantine-Accordion-root'),
-                ).toBeNull();
+                setup(snowflakeProject);
                 expect(
                     screen.queryByText('Shared agent account'),
                 ).not.toBeInTheDocument();

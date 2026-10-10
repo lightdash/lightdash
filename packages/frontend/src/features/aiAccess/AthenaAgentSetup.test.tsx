@@ -20,11 +20,7 @@ const connection: AthenaCredentials = {
 describe('Athena agent setup', () => {
     it('uses the shared three steps and explains identity, expiry and data grants', () => {
         renderWithProviders(
-            <AthenaAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+            <AthenaAgentSetup connection={connection} tested={false} />,
         );
         for (const title of [
             'Create the account in Athena',
@@ -59,12 +55,8 @@ describe('Athena agent setup', () => {
             configurable: true,
             value: { writeText },
         });
-        renderWithProviders(
-            <AthenaAgentSetup
-                connection={connection}
-                hasCredentials={false}
-                tested={false}
-            />,
+        const { container } = renderWithProviders(
+            <AthenaAgentSetup connection={connection} tested={false} />,
         );
         const commands = buildAthenaAiServiceAccountCommands({
             region: 'eu-west-1',
@@ -83,15 +75,11 @@ describe('Athena agent setup', () => {
             );
         }
         expect(writeText).toHaveBeenCalledTimes(4);
-        expect(screen.getByRole('region')).not.toHaveTextContent(
-            'human-workgroup',
-        );
-        expect(screen.getByRole('region')).not.toHaveTextContent(
-            'human-results',
-        );
+        expect(container).not.toHaveTextContent('human-workgroup');
+        expect(container).not.toHaveTextContent('human-results');
     });
     it('uses placeholders for unknown routing fields', () => {
-        renderWithProviders(
+        const { container } = renderWithProviders(
             <AthenaAgentSetup
                 connection={{
                     ...connection,
@@ -99,26 +87,25 @@ describe('Athena agent setup', () => {
                     database: '',
                     schema: '',
                 }}
-                hasCredentials={false}
                 tested={false}
             />,
         );
-        const guide = screen.getByRole('region');
+        const guide = container;
         expect(guide).toHaveTextContent('<region>');
         expect(guide).toHaveTextContent('<catalog>');
         expect(guide).toHaveTextContent('<glue-database>');
     });
-    it('collapses saved setup and marks a verified account complete', async () => {
+    it('hides the steps after a successful Test', () => {
         renderWithProviders(
-            <AthenaAgentSetup connection={connection} hasCredentials tested />,
+            <AthenaAgentSetup connection={connection} tested />,
         );
-        const button = screen.getByRole('button', {
-            name: 'How to set up the shared agent account',
-        });
-        expect(button).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.click(button);
-        await waitFor(() =>
-            expect(screen.getByLabelText('Step 3 done')).toBeVisible(),
-        );
+        for (const number of [1, 2, 3]) {
+            expect(
+                screen.queryByLabelText(`Step ${number}`),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByLabelText(`Step ${number} done`),
+            ).not.toBeInTheDocument();
+        }
     });
 });

@@ -374,77 +374,38 @@ const getAiPrincipalState = (
 
 const AiServiceAccountSetup = ({
     connection,
-    hasKey,
     tested,
 }: {
     connection: AiServiceAccountConnection;
-    hasKey: boolean;
     tested: boolean;
 }) => {
     switch (connection.type) {
         case WarehouseTypes.TRINO:
-            return (
-                <TrinoAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
-            );
+            return <TrinoAgentSetup connection={connection} tested={tested} />;
         case WarehouseTypes.CLICKHOUSE:
             return (
-                <ClickhouseAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
+                <ClickhouseAgentSetup connection={connection} tested={tested} />
             );
         case WarehouseTypes.REDSHIFT:
             return (
-                <RedshiftAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
+                <RedshiftAgentSetup connection={connection} tested={tested} />
             );
         case WarehouseTypes.POSTGRES:
             return (
-                <PostgresAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
+                <PostgresAgentSetup connection={connection} tested={tested} />
             );
         case WarehouseTypes.ATHENA:
-            return (
-                <AthenaAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
-            );
+            return <AthenaAgentSetup connection={connection} tested={tested} />;
         case WarehouseTypes.BIGQUERY:
             return (
-                <BigQueryAgentSetup
-                    connection={connection}
-                    hasKey={hasKey}
-                    tested={tested}
-                />
+                <BigQueryAgentSetup connection={connection} tested={tested} />
             );
         case WarehouseTypes.DATABRICKS:
             return (
-                <DatabricksAgentSetup
-                    connection={connection}
-                    hasCredentials={hasKey}
-                    tested={tested}
-                />
+                <DatabricksAgentSetup connection={connection} tested={tested} />
             );
         case WarehouseTypes.SNOWFLAKE:
-            return (
-                <SnowflakeAiServiceAccountSetup
-                    hasKey={hasKey}
-                    tested={tested}
-                />
-            );
+            return <SnowflakeAiServiceAccountSetup tested={tested} />;
         default:
             return assertUnreachable(connection, 'Unknown warehouse type');
     }
@@ -505,7 +466,6 @@ const AiServiceAccountSettingsBody = ({
             />
             <AiServiceAccountSetup
                 connection={connection}
-                hasKey={!!slot || !!parent}
                 tested={principal !== null}
             />
             {editing && (
