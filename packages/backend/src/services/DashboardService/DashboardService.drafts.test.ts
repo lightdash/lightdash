@@ -100,6 +100,7 @@ const buildService = (overrides: Overrides = {}) => {
             })),
     );
     const service = new DashboardService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: {
             ...lightdashConfigMock,
             softDelete: {

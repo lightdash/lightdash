@@ -72,6 +72,7 @@ const dashboardAsCode = {
 
 const buildService = () =>
     new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -1769,6 +1770,8 @@ describe.each(['create', 'upsert'] as const)(
                 expect.objectContaining({ tiles: updatedTiles }),
                 user,
                 PROJECT_UUID,
+                undefined,
+                null,
             );
             expect(result.dashboards[0].data.tiles).toEqual(updatedTiles);
             expect(tiles[0].properties).toMatchObject({

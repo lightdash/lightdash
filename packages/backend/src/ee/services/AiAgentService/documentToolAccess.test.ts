@@ -1,4 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -164,7 +165,11 @@ describe('Document runtime access', () => {
             const dependencies = vi
                 .spyOn(privateService, 'getAiAgentDependencies')
                 .mockRejectedValue(stopAtDependencies);
-            const user = { organizationUuid: 'organization', userUuid: 'user' };
+            const user = {
+                ...defaultSessionUser,
+                organizationUuid: 'organization',
+                userUuid: 'user',
+            };
             const prompt = {
                 organizationUuid: 'organization',
                 projectUuid: 'project',

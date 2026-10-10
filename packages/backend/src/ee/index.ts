@@ -568,6 +568,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     analyticsModel: models.getAnalyticsModel(),
@@ -1739,6 +1740,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                agentActionLogModel: context.models.getAgentActionLogModel(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 featureFlagModel: context.models.getFeatureFlagModel(),
                 lightdashConfig: context.lightdashConfig,

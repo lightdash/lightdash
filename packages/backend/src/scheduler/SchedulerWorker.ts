@@ -27,6 +27,7 @@ import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
@@ -51,6 +52,7 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
     featureFlagModel: FeatureFlagModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
@@ -190,8 +192,11 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly dailyJobRetryBackoffMs: readonly [number, number];
 
+    private readonly agentActionLogModel: AgentActionLogModel;
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
+        this.agentActionLogModel = schedulerWorkerArgs.agentActionLogModel;
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
         this.resolveOrganizationName =
@@ -1884,6 +1889,17 @@ export class SchedulerWorker extends SchedulerTask {
                     Logger.error('Error during query history cleanup:', error);
                     throw error;
                 }
+
+                const actionCleanup =
+                    await this.agentActionLogModel.cleanupBatch(
+                        cutoffDate,
+                        cleanupConfig.batchSize,
+                        cleanupConfig.delayMs,
+                        cleanupConfig.maxBatches,
+                    );
+                Logger.info(
+                    `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,
+                );
 
                 // Also clean up pre-aggregate daily stats (3-day retention)
                 try {

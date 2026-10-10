@@ -3,6 +3,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStatsModel';
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
+import { AgentActionLogModel } from './AgentActionLogModel';
 import { AiServiceAccountCredentialsModel } from './AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { AiUsageLedgerModel } from './AiUsageLedgerModel';
 import { AnalyticsModel } from './AnalyticsModel';
@@ -211,6 +212,7 @@ export type ModelManifest = {
     featureFlagModel: FeatureFlagModel;
     spotlightTableConfigModel: SpotlightTableConfigModel;
     queryHistoryModel: QueryHistoryModel;
+    agentActionLogModel: AgentActionLogModel;
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
@@ -1334,6 +1336,13 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
+        );
+    }
+
+    public getAgentActionLogModel(): AgentActionLogModel {
+        return this.getModel(
+            'agentActionLogModel',
+            () => new AgentActionLogModel({ database: this.database }),
         );
     }
 

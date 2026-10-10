@@ -147,7 +147,10 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
-import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import {
     aiExecutionPlanMock,
@@ -2561,7 +2564,15 @@ describe('AsyncQueryService', () => {
                     });
 
                 await (actor
-                    ? agentExecutionContext.run(actor, submit)
+                    ? agentExecutionContext.run(
+                          createAgentExecutionContext({
+                              account: sessionAccount,
+                              ...actor,
+                              agentUuid: null,
+                              agentIdentityEnabled: true,
+                          }),
+                          submit,
+                      )
                     : submit());
                 const created = vi.mocked(service.queryHistoryModel.create).mock
                     .calls[0][1];

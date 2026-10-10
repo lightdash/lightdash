@@ -124,6 +124,7 @@ const buildService = (
         updateVirtualView: vi.fn(async () => ({ name: asCode.slug })),
     };
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as never,

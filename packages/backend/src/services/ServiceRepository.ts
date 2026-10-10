@@ -428,6 +428,7 @@ export class ServiceRepository
             'documentService',
             () =>
                 new DocumentService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
@@ -494,6 +495,7 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
@@ -1648,6 +1650,7 @@ export class ServiceRepository
             'coderService',
             () =>
                 new CoderService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),
@@ -1717,6 +1720,7 @@ export class ServiceRepository
             'promoteService',
             () =>
                 new PromoteService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),

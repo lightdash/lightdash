@@ -68,7 +68,10 @@ import {
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AgentCredentialResolutionError } from '../WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
 import { AgentSignInResolverHarness } from '../WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver.mock';
-import { agentExecutionContext } from './agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from './agentExecutionContext';
 import {
     AiSessionFailureReason,
     type AiSessionProbeResult,
@@ -426,18 +429,27 @@ describe('AiAccessService', () => {
         'uses async-scoped %s client %s only after enablement',
         async (surface, clientId) => {
             const { service, flags } = setup();
-            await agentExecutionContext.run({ surface, clientId }, async () => {
-                const plan = await service.resolvePlan(args);
-                expect(plan?.agentIdentity).toEqual(
-                    buildAgentIdentityClaim({
-                        subject: { type: 'user', uuid: 'user' },
-                        surface,
-                        clientId,
-                    }),
-                );
-                flags.get.mockResolvedValue({ enabled: false });
-                expect(await service.resolvePlan(args)).toBeNull();
-            });
+            await agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: buildAccount(),
+                    surface,
+                    clientId,
+                    agentUuid: null,
+                    agentIdentityEnabled: true,
+                }),
+                async () => {
+                    const plan = await service.resolvePlan(args);
+                    expect(plan?.agentIdentity).toEqual(
+                        buildAgentIdentityClaim({
+                            subject: { type: 'user', uuid: 'user' },
+                            surface,
+                            clientId,
+                        }),
+                    );
+                    flags.get.mockResolvedValue({ enabled: false });
+                    expect(await service.resolvePlan(args)).toBeNull();
+                },
+            );
             expect(agentExecutionContext.getStore()).toBeUndefined();
         },
     );
@@ -463,6 +475,7 @@ describe('AiAccessService', () => {
                 sub: 'in_app_agent:lightdash-chat',
                 surface: 'in_app_agent',
                 client_id: 'lightdash-chat',
+                agent_uuid: null,
             },
         });
         expect(flags.get).toHaveBeenCalledOnce();
@@ -554,6 +567,7 @@ describe('AiAccessService', () => {
             sub: 'mcp:oauth-client',
             surface: AgentActorSurface.MCP,
             client_id: 'oauth-client',
+            agent_uuid: null,
         });
         const info = vi
             .spyOn(service['logger'], 'info')
@@ -3497,7 +3511,15 @@ describe('bounded stored result lineage', () => {
                 );
             const result =
                 actor.surface === AgentActorSurface.AI_SUMMARY
-                    ? agentExecutionContext.run(actor, submit)
+                    ? agentExecutionContext.run(
+                          createAgentExecutionContext({
+                              account: submittingAccount,
+                              ...actor,
+                              agentUuid: null,
+                              agentIdentityEnabled: true,
+                          }),
+                          submit,
+                      )
                     : submit();
             await expect(result).rejects.toMatchObject({
                 refusal: {
@@ -3510,7 +3532,9 @@ describe('bounded stored result lineage', () => {
             expect(analytics.track).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: 'query.refused',
-                    properties: expect.objectContaining({ actor }),
+                    properties: expect.objectContaining({
+                        actor: expect.objectContaining(actor),
+                    }),
                 }),
             );
             expect(

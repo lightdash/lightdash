@@ -8,6 +8,7 @@ import {
     generateSlug,
     NotFoundError,
     ProjectType,
+    type AgentIdentityClaim,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
@@ -167,6 +168,7 @@ export class AppModel {
             // Defaults to a builder-originated thread 1.
             thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<{ app: DbApp; version: DbAppVersion; thread: DbAppThread }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -225,6 +227,7 @@ export class AppModel {
             const [versionRow] = await trx(AppVersionsTableName)
                 .insert({
                     ...version,
+                    agent_identity: agentIdentity,
                     app_id: appRow.app_id,
                     app_thread_uuid: thread.app_thread_uuid,
                     status,
@@ -1059,6 +1062,7 @@ export class AppModel {
             appThreadUuid?: string;
             vizPreview?: DataAppVizPreview | null;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<DbAppVersion> {
         const appThreadUuid =
             opts?.appThreadUuid ??
@@ -1066,6 +1070,7 @@ export class AppModel {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
                 ...version,
+                agent_identity: agentIdentity,
                 app_id: appId,
                 app_thread_uuid: appThreadUuid,
                 status,

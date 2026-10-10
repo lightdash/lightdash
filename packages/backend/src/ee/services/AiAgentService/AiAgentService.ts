@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AGENT_CLIENT_IDS,
     AgentActorSurface,
     AgentSuggestion,
     AgentSummaryContext,
@@ -294,7 +295,7 @@ import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import {
     agentExecutionContext,
-    fillScopedSlackAppId,
+    createAgentExecutionContext,
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
@@ -14640,235 +14641,340 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 user,
             );
 
+        const { organizationUuid } = user;
         const agentSettings = await this.getAgentSettings(user, prompt);
-        const battleProfile = isSlackPrompt(prompt)
-            ? null
-            : prompt.battleProfile;
-        const decisionClient = await this.getPromptDecisionClient(user, {
-            battleProfile,
-            enableFastDecisions: options.enableFastDecisions ?? true,
-            agentCredentialUuid: agentSettings.providerCredentialUuid,
-        });
-        const decisionUsage = decisionClient
-            ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
-            : undefined;
-        const shadowClient =
-            decisionClient?.provider === 'jev' &&
-            this.lightdashConfig.ai.lunaShadowEnabled
-                ? await this.getDecisionClient(user, 'luna')
-                : undefined;
-        const decisions = decisionUsage
-            ? decisionClient?.withUsage(decisionUsage).withShadow(
-                  shadowClient
-                      ? {
-                            client: shadowClient,
-                            record: (entry) =>
-                                this.recordDecisionShadow(
-                                    prompt.promptUuid,
-                                    entry,
-                                ),
-                        }
-                      : undefined,
+        const slackInstallation = isSlackPrompt(prompt)
+            ? await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                  user.organizationUuid,
               )
-            : undefined;
-        // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
-        const fastExperienceEnabled = decisions !== undefined;
-        let forceChartMutationRouting = false;
-        let chartMutationContext: AiSemanticChartArtifactConfig | undefined;
-        const [chartTurn, documentTurn] = await Promise.all([
-            decisions &&
-            stream &&
-            !isSlackPrompt(prompt) &&
-            responseExecution.mode === 'standard' &&
-            !options.runtimeOptions &&
-            !options.toolHints?.length &&
-            !compactionSummary &&
-            !responseExecution.toolAllowlist &&
-            agentSettings.enableDataAccess &&
-            decisionHistory.length > 1 &&
-            resolveStandardToolAllowlist(
-                prompt.threadCreatedFrom,
-                undefined,
-            ) === undefined
-                ? this.loadChartTurnContext({
-                      user,
-                      prompt,
-                      agent: agentSettings,
-                  }).catch(() => null)
-                : null,
-            decisions &&
-            stream &&
-            !isSlackPrompt(prompt) &&
-            responseExecution.mode === 'standard' &&
-            !options.runtimeOptions &&
-            !options.toolHints?.length &&
-            !responseExecution.toolAllowlist
-                ? this.loadDocumentTurnContext({
-                      user,
-                      prompt,
-                      agent: agentSettings,
-                  }).catch(() => null)
-                : null,
-        ]);
-        // Asked alongside the turn decision, with its own usage so its service time is recorded apart.
-        const documentDecisionUsage: AiDecisionUsage = {
-            inputTokens: 0,
-            outputTokens: 0,
-            serviceMs: null,
-        };
-        const documentDecisionStartedAt = performance.now();
-        const documentDecision =
-            decisionClient && documentTurn
-                ? decideDocumentEdit({
-                      decisions: decisionClient.withUsage(
-                          documentDecisionUsage,
-                      ),
-                      prompt: prompt.prompt,
-                      conversation: decisionHistory.slice(-3),
-                      context: documentTurn.context,
-                  })
-                      .then((decision) => ({
-                          decision,
-                          latencyMs:
-                              performance.now() - documentDecisionStartedAt,
-                      }))
-                      .catch(() => null)
-                : null;
-        const decisionStartedAt = performance.now();
-        // A click on a choice from the previous turn applies its stored edit without asking JEV again.
-        const chosenIntent =
-            decisions && chartTurn
-                ? matchChartChoice(
-                      parseStoredChoices(
-                          await this.aiAgentModel
-                              .findPreviousClarifyChoices(
-                                  prompt.threadUuid,
-                                  prompt.promptUuid,
-                              )
-                              .catch(() => null),
-                      ),
-                      prompt.prompt,
-                  )
-                : null;
-        const choiceTurn = chosenIntent
-            ? {
-                  decision: {
-                      simpleDataAnswer: false,
-                      chart: { type: 'intent' as const, intent: chosenIntent },
-                      instantReply: null,
-                      correction: null,
-                  },
-                  answers: {},
-              }
             : null;
-        const turn =
-            choiceTurn ??
-            (decisions
-                ? await decideTurn({
-                      decisions,
-                      prompt: prompt.prompt,
-                      instructions: agentSettings.instruction,
-                      conversation: decisionHistory.slice(-3),
-                      context: chartTurn?.intentContext ?? null,
-                  })
-                : null);
-        const decisionLatencyMs = performance.now() - decisionStartedAt;
-        const decisionServiceMs = decisionUsage?.serviceMs ?? null;
-        const documentEdit = await documentDecision;
-        if (
-            decisions &&
-            documentTurn &&
-            documentEdit &&
-            !isSlackPrompt(prompt)
-        ) {
-            const reply = await this.tryApplyDocumentEdit({
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagService.get({
                 user,
-                prompt,
-                agent: agentSettings,
-                decisions,
-                document: documentTurn,
-                decision: documentEdit.decision,
-                latencyMs: documentEdit.latencyMs,
-                serviceMs: documentDecisionUsage.serviceMs,
-                responseStartedAt,
-                decisionUsage: () => ({
-                    inputTokens:
-                        (decisionUsage?.inputTokens ?? 0) +
-                        documentDecisionUsage.inputTokens,
-                    outputTokens:
-                        (decisionUsage?.outputTokens ?? 0) +
-                        documentDecisionUsage.outputTokens,
-                }),
-            }).catch((error) => {
-                Logger.warn(`Fast Document edit failed: ${String(error)}`);
-                return null;
+                featureFlagId: FeatureFlags.AgentIdentity,
             });
-            if (reply) {
-                return reply;
-            }
-        }
-        const turnDecision = turn?.decision ?? null;
-        const chartResolution = turnDecision?.chart ?? null;
-        let chartEditFallbackReason: string | null = null;
-        if (
-            decisions &&
-            chartTurn &&
-            chartResolution &&
-            !isSlackPrompt(prompt)
-        ) {
-            if (chartResolution.type === 'clarify') {
-                const clarification = await this.respondWithStaticText({
+        return agentExecutionContext.run(
+            createAgentExecutionContext({
+                account: fromSession(user),
+                surface: isSlackPrompt(prompt)
+                    ? AgentActorSurface.SLACK_AGENT
+                    : AgentActorSurface.IN_APP_AGENT,
+                clientId: isSlackPrompt(prompt)
+                    ? (agentExecutionContext.getStore()?.clientId ??
+                      slackInstallation?.appId ??
+                      null)
+                    : AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+                agentUuid: agentSettings.uuid,
+                agentIdentityEnabled,
+            }),
+            async (): Promise<string | AgentResponseStream> => {
+                const battleProfile = isSlackPrompt(prompt)
+                    ? null
+                    : prompt.battleProfile;
+                const decisionClient = await this.getPromptDecisionClient(
                     user,
-                    prompt,
-                    agent: agentSettings,
-                    text: `${chartResolution.question}\n\n${chartResolution.options
-                        .map(({ prompt: option }) => `- ${option}`)
-                        .join('\n')}`,
-                    pendingText: Promise.resolve(null),
-                    responseStartedAt,
-                    decisionUsage: () => ({
-                        inputTokens: decisionUsage?.inputTokens ?? 0,
-                        outputTokens: decisionUsage?.outputTokens ?? 0,
-                    }),
-                });
-                if (turn)
-                    await this.recordTurnDecision({
+                    {
+                        battleProfile,
+                        enableFastDecisions:
+                            options.enableFastDecisions ?? true,
+                        agentCredentialUuid:
+                            agentSettings.providerCredentialUuid,
+                    },
+                );
+                const decisionUsage = decisionClient
+                    ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
+                    : undefined;
+                const shadowClient =
+                    decisionClient?.provider === 'jev' &&
+                    this.lightdashConfig.ai.lunaShadowEnabled
+                        ? await this.getDecisionClient(user, 'luna')
+                        : undefined;
+                const decisions = decisionUsage
+                    ? decisionClient?.withUsage(decisionUsage).withShadow(
+                          shadowClient
+                              ? {
+                                    client: shadowClient,
+                                    record: (entry) =>
+                                        this.recordDecisionShadow(
+                                            prompt.promptUuid,
+                                            entry,
+                                        ),
+                                }
+                              : undefined,
+                      )
+                    : undefined;
+                // AiAgentFastDecisions is the master gate; battle mode and Fast mode can only disable it.
+                const fastExperienceEnabled = decisions !== undefined;
+                let forceChartMutationRouting = false;
+                let chartMutationContext:
+                    | AiSemanticChartArtifactConfig
+                    | undefined;
+                const [chartTurn, documentTurn] = await Promise.all([
+                    decisions &&
+                    stream &&
+                    !isSlackPrompt(prompt) &&
+                    responseExecution.mode === 'standard' &&
+                    !options.runtimeOptions &&
+                    !options.toolHints?.length &&
+                    !compactionSummary &&
+                    !responseExecution.toolAllowlist &&
+                    agentSettings.enableDataAccess &&
+                    decisionHistory.length > 1 &&
+                    resolveStandardToolAllowlist(
+                        prompt.threadCreatedFrom,
+                        undefined,
+                    ) === undefined
+                        ? this.loadChartTurnContext({
+                              user,
+                              prompt,
+                              agent: agentSettings,
+                          }).catch(() => null)
+                        : null,
+                    decisions &&
+                    stream &&
+                    !isSlackPrompt(prompt) &&
+                    responseExecution.mode === 'standard' &&
+                    !options.runtimeOptions &&
+                    !options.toolHints?.length &&
+                    !responseExecution.toolAllowlist
+                        ? this.loadDocumentTurnContext({
+                              user,
+                              prompt,
+                              agent: agentSettings,
+                          }).catch(() => null)
+                        : null,
+                ]);
+                // Asked alongside the turn decision, with its own usage so its service time is recorded apart.
+                const documentDecisionUsage: AiDecisionUsage = {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    serviceMs: null,
+                };
+                const documentDecisionStartedAt = performance.now();
+                const documentDecision =
+                    decisionClient && documentTurn
+                        ? decideDocumentEdit({
+                              decisions: decisionClient.withUsage(
+                                  documentDecisionUsage,
+                              ),
+                              prompt: prompt.prompt,
+                              conversation: decisionHistory.slice(-3),
+                              context: documentTurn.context,
+                          })
+                              .then((decision) => ({
+                                  decision,
+                                  latencyMs:
+                                      performance.now() -
+                                      documentDecisionStartedAt,
+                              }))
+                              .catch(() => null)
+                        : null;
+                const decisionStartedAt = performance.now();
+                // A click on a choice from the previous turn applies its stored edit without asking JEV again.
+                const chosenIntent =
+                    decisions && chartTurn
+                        ? matchChartChoice(
+                              parseStoredChoices(
+                                  await this.aiAgentModel
+                                      .findPreviousClarifyChoices(
+                                          prompt.threadUuid,
+                                          prompt.promptUuid,
+                                      )
+                                      .catch(() => null),
+                              ),
+                              prompt.prompt,
+                          )
+                        : null;
+                const choiceTurn = chosenIntent
+                    ? {
+                          decision: {
+                              simpleDataAnswer: false,
+                              chart: {
+                                  type: 'intent' as const,
+                                  intent: chosenIntent,
+                              },
+                              instantReply: null,
+                              correction: null,
+                          },
+                          answers: {},
+                      }
+                    : null;
+                const turn =
+                    choiceTurn ??
+                    (decisions
+                        ? await decideTurn({
+                              decisions,
+                              prompt: prompt.prompt,
+                              instructions: agentSettings.instruction,
+                              conversation: decisionHistory.slice(-3),
+                              context: chartTurn?.intentContext ?? null,
+                          })
+                        : null);
+                const decisionLatencyMs = performance.now() - decisionStartedAt;
+                const decisionServiceMs = decisionUsage?.serviceMs ?? null;
+                const documentEdit = await documentDecision;
+                if (
+                    decisions &&
+                    documentTurn &&
+                    documentEdit &&
+                    !isSlackPrompt(prompt)
+                ) {
+                    const reply = await this.tryApplyDocumentEdit({
+                        user,
                         prompt,
+                        agent: agentSettings,
                         decisions,
-                        turn,
-                        latencyMs: decisionLatencyMs,
-                        serviceMs: decisionServiceMs,
-                        applied: false,
-                        fallbackReason: null,
-                        instantReply: null,
+                        document: documentTurn,
+                        decision: documentEdit.decision,
+                        latencyMs: documentEdit.latencyMs,
+                        serviceMs: documentDecisionUsage.serviceMs,
+                        responseStartedAt,
+                        decisionUsage: () => ({
+                            inputTokens:
+                                (decisionUsage?.inputTokens ?? 0) +
+                                documentDecisionUsage.inputTokens,
+                            outputTokens:
+                                (decisionUsage?.outputTokens ?? 0) +
+                                documentDecisionUsage.outputTokens,
+                        }),
+                    }).catch((error) => {
+                        Logger.warn(
+                            `Fast Document edit failed: ${String(error)}`,
+                        );
+                        return null;
                     });
-                return clarification;
-            }
-            if (
-                chartResolution.type === 'intent' ||
-                chartResolution.type === 'needs_values' ||
-                chartResolution.type === 'compound'
-            ) {
-                const editResult = await this.tryApplyChartEdit({
-                    user,
-                    prompt,
-                    agent: agentSettings,
-                    decisions,
-                    chart: chartTurn,
-                    resolution: chartResolution,
-                    responseStartedAt,
-                    decisionUsage: () => ({
-                        inputTokens: decisionUsage?.inputTokens ?? 0,
-                        outputTokens: decisionUsage?.outputTokens ?? 0,
-                    }),
-                }).catch((error) => {
-                    Logger.warn(
-                        `Fast chart edit failed; falling back to the agent: ${String(error)}`,
-                    );
-                    return { type: 'fallback' as const, reason: 'error' };
-                });
-                if (editResult.type === 'applied') {
-                    if (turn)
+                    if (reply) {
+                        return reply;
+                    }
+                }
+                const turnDecision = turn?.decision ?? null;
+                const chartResolution = turnDecision?.chart ?? null;
+                let chartEditFallbackReason: string | null = null;
+                if (
+                    decisions &&
+                    chartTurn &&
+                    chartResolution &&
+                    !isSlackPrompt(prompt)
+                ) {
+                    if (chartResolution.type === 'clarify') {
+                        const clarification = await this.respondWithStaticText({
+                            user,
+                            prompt,
+                            agent: agentSettings,
+                            text: `${chartResolution.question}\n\n${chartResolution.options
+                                .map(({ prompt: option }) => `- ${option}`)
+                                .join('\n')}`,
+                            pendingText: Promise.resolve(null),
+                            responseStartedAt,
+                            decisionUsage: () => ({
+                                inputTokens: decisionUsage?.inputTokens ?? 0,
+                                outputTokens: decisionUsage?.outputTokens ?? 0,
+                            }),
+                        });
+                        if (turn)
+                            await this.recordTurnDecision({
+                                prompt,
+                                decisions,
+                                turn,
+                                latencyMs: decisionLatencyMs,
+                                serviceMs: decisionServiceMs,
+                                applied: false,
+                                fallbackReason: null,
+                                instantReply: null,
+                            });
+                        return clarification;
+                    }
+                    if (
+                        chartResolution.type === 'intent' ||
+                        chartResolution.type === 'needs_values' ||
+                        chartResolution.type === 'compound'
+                    ) {
+                        const editResult = await this.tryApplyChartEdit({
+                            user,
+                            prompt,
+                            agent: agentSettings,
+                            decisions,
+                            chart: chartTurn,
+                            resolution: chartResolution,
+                            responseStartedAt,
+                            decisionUsage: () => ({
+                                inputTokens: decisionUsage?.inputTokens ?? 0,
+                                outputTokens: decisionUsage?.outputTokens ?? 0,
+                            }),
+                        }).catch((error) => {
+                            Logger.warn(
+                                `Fast chart edit failed; falling back to the agent: ${String(error)}`,
+                            );
+                            return {
+                                type: 'fallback' as const,
+                                reason: 'error',
+                            };
+                        });
+                        if (editResult.type === 'applied') {
+                            if (turn)
+                                await this.recordTurnDecision({
+                                    prompt,
+                                    decisions,
+                                    turn,
+                                    latencyMs: decisionLatencyMs,
+                                    serviceMs: decisionServiceMs,
+                                    applied: true,
+                                    fallbackReason: null,
+                                    instantReply: null,
+                                });
+                            return editResult.stream;
+                        }
+                        chartEditFallbackReason = editResult.reason;
+                    }
+                    // JEV identified a chart edit the reducer could not apply, so the agent mutates the active chart.
+                    if (isChartEditAttempt(chartResolution)) {
+                        forceChartMutationRouting = true;
+                        chartMutationContext = chartTurn.chartConfig;
+                    }
+                }
+                const instantReply = turnDecision?.instantReply ?? null;
+                if (
+                    decisions &&
+                    turn &&
+                    instantReply &&
+                    stream &&
+                    !isSlackPrompt(prompt) &&
+                    responseExecution.mode === 'standard' &&
+                    !options.runtimeOptions &&
+                    !options.toolHints?.length &&
+                    !responseExecution.toolAllowlist &&
+                    decisionHistory.length > 1
+                ) {
+                    const text = composeInstantReply({
+                        kind: instantReply,
+                        chart: chartTurn
+                            ? {
+                                  exploreLabel: chartTurn.explore.label,
+                                  context: chartTurn.intentContext,
+                              }
+                            : null,
+                        canDownload: this.createAuditedAbility(user).can(
+                            'manage',
+                            subject('ExportCsv', {
+                                organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                metadata: { promptUuid: prompt.promptUuid },
+                            }),
+                        ),
+                    });
+                    if (text) {
+                        const reply = await this.respondWithStaticText({
+                            user,
+                            prompt,
+                            agent: agentSettings,
+                            text,
+                            pendingText: Promise.resolve(null),
+                            responseStartedAt,
+                            decisionUsage: () => ({
+                                inputTokens: decisionUsage?.inputTokens ?? 0,
+                                outputTokens: decisionUsage?.outputTokens ?? 0,
+                            }),
+                        });
                         await this.recordTurnDecision({
                             prompt,
                             decisions,
@@ -14877,1347 +14983,1363 @@ Use your existing tools to inspect them when relevant to the user's question (re
                             serviceMs: decisionServiceMs,
                             applied: true,
                             fallbackReason: null,
-                            instantReply: null,
+                            instantReply,
                         });
-                    return editResult.stream;
+                        return reply;
+                    }
                 }
-                chartEditFallbackReason = editResult.reason;
-            }
-            // JEV identified a chart edit the reducer could not apply, so the agent mutates the active chart.
-            if (isChartEditAttempt(chartResolution)) {
-                forceChartMutationRouting = true;
-                chartMutationContext = chartTurn.chartConfig;
-            }
-        }
-        const instantReply = turnDecision?.instantReply ?? null;
-        if (
-            decisions &&
-            turn &&
-            instantReply &&
-            stream &&
-            !isSlackPrompt(prompt) &&
-            responseExecution.mode === 'standard' &&
-            !options.runtimeOptions &&
-            !options.toolHints?.length &&
-            !responseExecution.toolAllowlist &&
-            decisionHistory.length > 1
-        ) {
-            const text = composeInstantReply({
-                kind: instantReply,
-                chart: chartTurn
-                    ? {
-                          exploreLabel: chartTurn.explore.label,
-                          context: chartTurn.intentContext,
-                      }
-                    : null,
-                canDownload: this.createAuditedAbility(user).can(
-                    'manage',
-                    subject('ExportCsv', {
-                        organizationUuid: user.organizationUuid,
-                        projectUuid: prompt.projectUuid,
-                        metadata: { promptUuid: prompt.promptUuid },
-                    }),
-                ),
-            });
-            if (text) {
-                const reply = await this.respondWithStaticText({
-                    user,
-                    prompt,
-                    agent: agentSettings,
-                    text,
-                    pendingText: Promise.resolve(null),
-                    responseStartedAt,
-                    decisionUsage: () => ({
-                        inputTokens: decisionUsage?.inputTokens ?? 0,
-                        outputTokens: decisionUsage?.outputTokens ?? 0,
-                    }),
-                });
-                await this.recordTurnDecision({
-                    prompt,
-                    decisions,
-                    turn,
-                    latencyMs: decisionLatencyMs,
-                    serviceMs: decisionServiceMs,
-                    applied: true,
-                    fallbackReason: null,
-                    instantReply,
-                });
-                return reply;
-            }
-        }
-        if (decisions && turn)
-            await this.recordTurnDecision({
-                prompt,
-                decisions,
-                turn,
-                latencyMs: decisionLatencyMs,
-                serviceMs: decisionServiceMs,
-                applied: false,
-                fallbackReason: chartEditFallbackReason,
-                instantReply: null,
-            });
-        const messageHistory = await conversation.resolveMessageHistory();
-        const enableSqlMode =
-            options.enableSqlMode ?? agentSettings.enableSqlMode;
+                if (decisions && turn)
+                    await this.recordTurnDecision({
+                        prompt,
+                        decisions,
+                        turn,
+                        latencyMs: decisionLatencyMs,
+                        serviceMs: decisionServiceMs,
+                        applied: false,
+                        fallbackReason: chartEditFallbackReason,
+                        instantReply: null,
+                    });
+                const messageHistory =
+                    await conversation.resolveMessageHistory();
+                const enableSqlMode =
+                    options.enableSqlMode ?? agentSettings.enableSqlMode;
 
-        // Permission-sensitive tools need the prompt actor to be the real
-        // sender. Web prompts always are; Slack prompts are only trusted when
-        // Slack OAuth is required, otherwise the actor is the workspace
-        // installer.
-        let hasTrustedPromptUserIdentity = true;
-        let slackLinksOnly = false;
-        if (isSlackPrompt(prompt) && user.organizationUuid) {
-            const slackSettings =
-                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
-                    user.organizationUuid,
+                // Permission-sensitive tools need the prompt actor to be the real
+                // sender. Web prompts always are; Slack prompts are only trusted when
+                // Slack OAuth is required, otherwise the actor is the workspace
+                // installer.
+                let hasTrustedPromptUserIdentity = true;
+                let slackLinksOnly = false;
+                if (isSlackPrompt(prompt) && user.organizationUuid) {
+                    const slackSettings = slackInstallation;
+                    hasTrustedPromptUserIdentity =
+                        !!slackSettings?.aiRequireOAuth;
+                    slackLinksOnly = !!slackSettings?.aiLinksOnly;
+                }
+                const promptProject = await this.projectModel.get(
+                    prompt.projectUuid,
                 );
-            fillScopedSlackAppId(slackSettings?.appId ?? null);
-            hasTrustedPromptUserIdentity = !!slackSettings?.aiRequireOAuth;
-            slackLinksOnly = !!slackSettings?.aiLinksOnly;
-        }
-        const promptProject = await this.projectModel.get(prompt.projectUuid);
 
-        // The preflight snapshot is an upper bound, not a lasting grant. Read
-        // the org policy again when the queued run actually builds its tools,
-        // so disabling raw SQL before execution takes effect immediately.
-        const canUseRawSql =
-            responseExecution.mode === 'standard' ||
-            (await this.resolveDeepResearchRawSqlExecutionAccess(user, {
-                organizationUuid: promptProject.organizationUuid,
-                projectUuid: promptProject.projectUuid,
-                agentUuid: agentSettings.uuid,
-                threadUuid: prompt.threadUuid,
-                preflightCanUseRawSql: responseExecution.canUseRawSql,
-            }));
-        let canRunSql = enableSqlMode && canUseRawSql;
-        // Fail closed when CASL would evaluate against the installer.
-        if (canRunSql && !hasTrustedPromptUserIdentity) {
-            this.logger.info(
-                `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-            );
-            canRunSql = false;
-        }
-
-        // Require the same CASL ability the SQL Runner page uses. The check
-        // also fires deep in AsyncQueryService.executeAsyncSqlQuery, but
-        // gating here means the tool isn't even registered with the model
-        // for users without the scope — cleaner UX than a ForbiddenError
-        // mid-tool-call.
-        if (canRunSql) {
-            const auditedAbility = this.createAuditedAbility(user);
-            if (
-                auditedAbility.cannot(
-                    'manage',
-                    subject('SqlRunner', {
+                // The preflight snapshot is an upper bound, not a lasting grant. Read
+                // the org policy again when the queued run actually builds its tools,
+                // so disabling raw SQL before execution takes effect immediately.
+                const canUseRawSql =
+                    responseExecution.mode === 'standard' ||
+                    (await this.resolveDeepResearchRawSqlExecutionAccess(user, {
                         organizationUuid: promptProject.organizationUuid,
                         projectUuid: promptProject.projectUuid,
-                        metadata: {
-                            promptUuid: prompt.promptUuid,
-                            threadUuid: prompt.threadUuid,
-                            agentUuid: prompt.agentUuid,
-                        },
-                    }),
-                )
-            ) {
-                canRunSql = false;
-            }
-        }
-
-        // Same reasoning as runSql above: a user who cannot save a dashboard
-        // anywhere should not have the agent build one for them, only to be
-        // refused at the save step.
-        const canCreateDashboards = hasTrustedPromptUserIdentity
-            ? await this.canCreateDashboardsInProject(user, {
-                  organizationUuid: promptProject.organizationUuid,
-                  projectUuid: promptProject.projectUuid,
-              })
-            : false;
-
-        const warehouseCredentials = canRunSql
-            ? await this.projectModel.getWarehouseCredentialsForBinding(
-                  prompt.projectUuid,
-                  { kind: 'connection', warehouseConnectionUuid: null },
-              )
-            : null;
-        const warehouseType = warehouseCredentials?.type ?? null;
-        const warehouseSchema = warehouseCredentials
-            ? ('schema' in warehouseCredentials &&
-                  warehouseCredentials.schema) ||
-              ('dataset' in warehouseCredentials &&
-                  'project' in warehouseCredentials &&
-                  `${warehouseCredentials.project}.${warehouseCredentials.dataset}`) ||
-              ('database' in warehouseCredentials &&
-                  warehouseCredentials.database) ||
-              null
-            : null;
-
-        const agentSqlScope = canRunSql
-            ? await this.projectModel.getAgentSqlScope(prompt.projectUuid)
-            : null;
-        const hyphenatedIdentifiers = isSqlScopeConfigured(agentSqlScope)
-            ? (
-                  await this.featureFlagService.get({
-                      user,
-                      featureFlagId:
-                          FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-                  })
-              ).enabled
-            : false;
-
-        const [knowledgeDocuments, threadDeepResearchRuns, mcpServers] =
-            await Promise.all([
-                this.aiAgentDocumentModel.findAllContextForAgent({
-                    organizationUuid: user.organizationUuid,
-                    agentUuid: agentSettings.uuid,
-                    projectUuid: prompt.projectUuid,
-                }),
-                responseExecution.mode === 'standard'
-                    ? this.aiDeepResearchRunModel.findAgentContextByThreadScoped(
-                          {
-                              aiThreadUuid: prompt.threadUuid,
-                              organizationUuid: prompt.organizationUuid,
-                              projectUuid: prompt.projectUuid,
-                              createdByUserUuid: user.userUuid,
-                          },
-                      )
-                    : Promise.resolve([]),
-                this.getAgentRuntimeMcpServers({
-                    user,
-                    projectUuid: prompt.projectUuid,
-                    agentUuid: agentSettings.uuid,
-                    includeAttachedMcpServers: shouldIncludeAttachedMcpServers(
-                        responseExecution.mode,
-                        responseExecution.mode === 'deep_research'
-                            ? responseExecution.research?.role
-                            : undefined,
-                    ),
-                }),
-            ]);
-        const researchDocuments = await findAiDeepResearchRunDocuments(
-            this.aiAgentModel,
-            threadDeepResearchRuns,
-        );
-        const deepResearchContextRuns =
-            AiAgentService.selectDeepResearchContextRuns(
-                threadDeepResearchRuns.map((run) => ({
-                    ...run,
-                    has_report:
-                        run.has_report ||
-                        researchDocuments.has(run.ai_deep_research_run_uuid),
-                })),
-            );
-        const latestDeepResearchProgress =
-            await this.aiDeepResearchRunModel.findLatestProgressByRunUuids(
-                deepResearchContextRuns.map(
-                    ({ ai_deep_research_run_uuid: uuid }) => uuid,
-                ),
-            );
-        const deepResearchRuns = AiAgentService.createDeepResearchRunContext(
-            deepResearchContextRuns,
-            latestDeepResearchProgress,
-        );
-        const { enabled: mergeQueriesEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.MergeQueries,
-            });
-        // Web-chat composer requires both orchestration and execution flags.
-        const [
-            { enabled: multiSourceQueryEnabled },
-            { enabled: composeSqlRunnerEnabled },
-        ] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.MultiSourceQuery,
-            }),
-            this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.ComposeSqlRunner,
-            }),
-        ]);
-        const enableComposerQueries =
-            multiSourceQueryEnabled &&
-            composeSqlRunnerEnabled &&
-            agentSettings.enableDataAccess &&
-            !isSlackPrompt(prompt) &&
-            responseExecution.mode !== 'deep_research';
-        const { enabled: filterExpressionsEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiFilterExpressions,
-            });
-        let aiWritebackEnabled = hasTrustedPromptUserIdentity;
-        if (!aiWritebackEnabled) {
-            this.logger.info(
-                `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-            );
-        }
-        const writebackConnectionSupport = getWritebackConnectionSupport(
-            promptProject.dbtConnection,
-        );
-        if (aiWritebackEnabled && !writebackConnectionSupport.editDbtProject) {
-            aiWritebackEnabled = false;
-        }
-
-        // General coding agent (editRepo): gated by the CodingAgent flag,
-        // independent of AiWriteback, with the same Slack trusted-identity guard.
-        // It still requires a GitHub/GitLab connection on the project (the host
-        // follows the project's connection), but the agent can target ANY repo
-        // that installation can write — the per-repo write authz (manage:SourceCode
-        // + denylist + user∩installation) is enforced in AiWritebackService.
-        let { enabled: codingAgentEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.CodingAgent,
-            },
-        );
-        if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
-            this.logger.info(
-                `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-            );
-            codingAgentEnabled = false;
-        }
-        if (codingAgentEnabled && !writebackConnectionSupport.editRepo) {
-            codingAgentEnabled = false;
-        }
-
-        // Advisory signal of which GitHub identity a writeback PR would be
-        // attributed to, so the prompt can tell the user and nudge unlinked
-        // users to link their personal GitHub. GitHub-only (GitLab uses a
-        // project PAT, no personal linking) and only when the org has the app
-        // installed. Wrapped in try/catch and degraded to null so an attribution
-        // lookup can never block a chat turn.
-        let writebackAttribution: AiWritebackAttribution | null = null;
-        if (
-            aiWritebackEnabled &&
-            promptProject.dbtConnection.type === DbtProjectType.GITHUB &&
-            user.organizationUuid
-        ) {
-            try {
-                const installationId =
-                    await this.githubAppInstallationsModel.findInstallationId(
-                        user.organizationUuid,
-                    );
-                if (installationId) {
-                    writebackAttribution =
-                        await this.githubAppService.getAiWritebackAttribution(
-                            user,
-                        );
-                }
-            } catch (error) {
-                this.logger.warn(
-                    `Failed to resolve AI writeback attribution for prompt ${prompt.promptUuid}; continuing without it. ${getErrorMessage(
-                        error,
-                    )}`,
-                );
-                writebackAttribution = null;
-            }
-        }
-
-        const projectContextEnabled =
-            aiWritebackEnabled &&
-            writebackConnectionSupport.editRepo &&
-            (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
-                user,
-            ));
-        const projectContext = projectContextEnabled
-            ? await this.projectContextModel.getDocument(prompt.projectUuid)
-            : [];
-
-        // Preview-deploy setup rides the writeback infra, so it requires both
-        // the writeback flag (and trusted identity, applied above) and its own
-        // ai-preview-deploy-setup flag.
-        const { enabled: aiPreviewDeploySetupFlag } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-            });
-        const aiPreviewDeploySetupEnabled =
-            aiWritebackEnabled &&
-            writebackConnectionSupport.editRepo &&
-            aiPreviewDeploySetupFlag;
-
-        // exploreRepo/discoverRepos read repo source and the view:SourceCode
-        // check evaluates against the resolved user. On Slack without
-        // aiRequireOAuth that user is the app installer, not the requester — so
-        // disable it, exactly as runSql and writeback do above.
-        const threadHasAttachments =
-            (await this.aiThreadFileModel.findForThread(prompt.threadUuid))
-                .length > 0;
-
-        const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
-        if (!repoDiscoveryEnabled) {
-            this.logger.info(
-                `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
-            );
-        }
-
-        // The dbt project's root within the repo, so the prompt can point the
-        // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
-        // the connection's project_sub_path: '.' = repo root, else a
-        // subdirectory. null when repo discovery is off or not git-backed.
-        let repoFsRoot: string | null = null;
-        if (
-            repoDiscoveryEnabled &&
-            'project_sub_path' in promptProject.dbtConnection
-        ) {
-            const raw = (promptProject.dbtConnection.project_sub_path ?? '')
-                .trim()
-                .replace(/^\/+/, '')
-                .replace(/\/+$/, '');
-            repoFsRoot = raw === '' ? '.' : raw;
-        }
-        // GitLab's repo source has no server-side code search, so the prompt
-        // must steer the agent off `search` (it returns nothing) toward a
-        // scoped single-repo grep. GitHub supports it.
-        const repoFsSupportsCodeSearch =
-            promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
-
-        const canUseContentTools =
-            hasTrustedPromptUserIdentity &&
-            this.canUseContentTools(user, agentSettings, {
-                organizationUuid: promptProject.organizationUuid,
-                projectUuid: promptProject.projectUuid,
-                promptUuid: prompt.promptUuid,
-                threadUuid: prompt.threadUuid,
-            });
-        const enableGenerateDataApp =
-            canUseContentTools &&
-            (await this.aiAgentToolsService.canGenerateDataApp({
-                user,
-                projectUuid: promptProject.projectUuid,
-            }));
-        const { enabled: documentsEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.Documents,
-            },
-        );
-        const {
-            listExplores,
-            getExplore,
-            getProjectParameterDefinitions,
-            getProjectContextDocument,
-            getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
-            resolveThreadMemoryOwnerUuid,
-            listContent,
-            findContent,
-            readContent,
-            generateDataApp,
-            iterateDataApp,
-            listDataAppThemes,
-            resolveUrl,
-            editContent,
-            createContent,
-            createScheduledDelivery,
-            updateUserName,
-            validateContent,
-            getDashboardCharts,
-            findExplores,
-            listCustomChartTypes,
-            findCustomChartTypes,
-            resolveCustomChartType,
-            chartExportArtifacts,
-            getVerifiedFieldUsage,
-            searchSemanticLayer,
-            analyzeFieldImpact,
-            syncDbtProject,
-            updateProgress,
-            getPrompt,
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            runSavedChartQuery,
-            runSqlJob,
-            runComposerQueries,
-            listWarehouseTables,
-            describeWarehouseTable,
-            listKnowledgeDocuments,
-            getKnowledgeDocumentContent,
-            getSavedChart,
-            sendFile,
-            deferSlackVisualization,
-            exportCustomChartTypeImage,
-            sendSlackBlocks,
-            updateSlackMessage,
-            storeToolCall,
-            storeToolCallError,
-            storeToolResults,
-            storeReasoning,
-            isPromptInterrupted,
-            consumePromptSteers,
-            searchFieldValues,
-            editDbtProject,
-            editProjectContext,
-            editRepo,
-            setupPreviewDeploy,
-            exploreRepo,
-            readAttachments,
-            discoverRepos,
-            listWorkstreams,
-            closePullRequest,
-            getPullRequestDiff,
-            listProjects,
-            getProjectInfo,
-        } = await this.getAiAgentDependencies(user, prompt, {
-            onStepProgress:
-                options.onSlackStepProgress ??
-                (stepProgressEmitter
-                    ? (progress, toolName, progressId, progressStatus) => {
-                          stepProgressEmitter.emit('stepProgress', {
-                              message: progress,
-                              toolName,
-                              progressId,
-                              progressStatus,
-                          });
-                      }
-                    : undefined),
-            runtimeOptions: options.runtimeOptions,
-            suppressWritebackPreview: options.suppressWritebackPreview,
-            dbtSourceUuid: options.dbtSourceUuid,
-            onWarehouseQuery: responseExecution.onWarehouseQuery,
-            enableDocuments: canUseContentTools && documentsEnabled,
-            enableRuntimeCache: !!decisions,
-            // Battle sides must not warm one another's result cache. Normal
-            // threads retain production cache behavior.
-            invalidateQueryCache: battleProfile !== null,
-        });
-
-        const builtInSkills = canUseContentTools
-            ? await this.aiAgentToolsService.listAgentSkills()
-            : [];
-        const modelServableSkills = (
-            await this.aiAgentSkillModel.findBoundToAgent(agentSettings.uuid)
-        ).filter(AiAgentService.isModelServable);
-        const availableSkills = [
-            ...builtInSkills,
-            ...modelServableSkills.map((skill) => ({
-                name: skill.name,
-                description: getAiAgentSkillListingText(
-                    skill.parsed.frontmatter,
-                    AI_AGENT_SKILL_LISTING_MAX_CHARS,
-                ),
-                resources: skill.parsed.resources.map((resource) => ({
-                    name: resource.name,
-                    description: resource.description,
-                })),
-                source: 'custom' as const,
-            })),
-        ];
-        const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig({
-                organizationUuid: promptProject.organizationUuid,
-                projectUuid: prompt.projectUuid,
-                credentialUuid: agentSettings.providerCredentialUuid,
-            });
-        // A pinned agent whose effective model runs on another provider would
-        // make the pin inert and send the prompt outside the pinned region.
-        // Save-time validation catches the direct cases; this guards drift
-        // (e.g. the org default model changing after the pin was saved).
-        const effectiveProvider =
-            prompt.modelConfig?.modelProvider ?? copilotConfig.defaultProvider;
-        if (
-            agentSettings.providerCredentialUuid &&
-            effectiveProvider !== 'bedrock'
-        ) {
-            throw new MissingConfigError(
-                `This agent is pinned to a Bedrock credential, but its model would run on ${effectiveProvider}. Pick a Bedrock model for the agent or clear its credential pin.`,
-            );
-        }
-        let modelProperties = getModel(copilotConfig, {
-            enableReasoning: prompt.modelConfig?.reasoning,
-            modelName: prompt.modelConfig?.modelName,
-            provider: prompt.modelConfig?.modelProvider as AnyType,
-        });
-        const initialModelId = modelProperties.model.modelId;
-
-        // AiAgentFastDecisions is the single switch for bounded decisions,
-        // query refinements, fast tool calls and adaptive model selection.
-        const canUseFastToolModel =
-            !!decisions &&
-            responseExecution.mode === 'standard' &&
-            prompt.modelConfig?.reasoning !== true &&
-            !options.toolHints?.length;
-        const adaptiveModels = canUseFastToolModel
-            ? { enabled: fastExperienceEnabled }
-            : null;
-        let toolCallModel: AiAgentArgs['toolCallModel'];
-        if (canUseFastToolModel) {
-            try {
-                const fastModel =
-                    await this.orgAiCopilotConfigResolver.resolveFastModel(
-                        copilotConfig,
-                        { enableReasoning: false },
-                    );
-                toolCallModel = {
-                    model: fastModel.model,
-                    providerOptions: fastModel.providerOptions,
-                    keyManagement: fastModel.keyManagement,
-                };
-            } catch (error) {
-                Logger.warn(
-                    `Unable to resolve fast tool-call model; keeping the selected agent model: ${String(error)}`,
-                );
-            }
-        }
-
-        const simpleDataAnswer =
-            canUseFastToolModel &&
-            !compactionSummary &&
-            mcpServers.length === 0 &&
-            adaptiveModels?.enabled === true &&
-            turnDecision?.simpleDataAnswer === true;
-        const enableDataAnswerFastResponse = simpleDataAnswer;
-
-        if (
-            canUseFastToolModel &&
-            !prompt.modelConfig?.modelName &&
-            !prompt.modelConfig?.modelProvider &&
-            !compactionSummary &&
-            messageHistory.filter((message) => message.role === 'user')
-                .length === 1
-        ) {
-            if (adaptiveModels?.enabled && simpleDataAnswer) {
-                modelProperties = getModel(copilotConfig, {
-                    useFastModel: true,
-                    enableReasoning: false,
-                });
-            }
-        }
-
-        // editProjectContext is scoped to review-remediation work threads, so a
-        // normal chat never exposes it. Resolve from the thread (not just the
-        // explicit option) so user-driven follow-ups in the workspace — where
-        // people actually change the PR — also get the tool.
-        const isReviewRemediationWorkThread =
-            options.isReviewRemediationWorkThread ??
-            (isSlackPrompt(prompt)
-                ? false
-                : !!(await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
-                      {
-                          organizationUuid: user.organizationUuid,
-                          workThreadUuid: prompt.threadUuid,
-                      },
-                  )));
-
-        // Slack without aiRequireOAuth resolves the actor to the workspace
-        // installer, not the requester — omit rather than describe the wrong person.
-        let requestingUser: AiAgentRequestingUser | null = null;
-        if (
-            agentSettings.enableUserContext &&
-            hasTrustedPromptUserIdentity &&
-            user.organizationUuid
-        ) {
-            const userGroups = await this.groupsModel.findUserGroups({
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-            });
-            // A custom org role stores 'member' as a placeholder in user.role,
-            // so resolve the real role (and its register) from roleUuid first.
-            let role: AiAgentRequestingUserRole | null = null;
-            if (user.roleUuid) {
-                const customRole =
-                    await this.rolesModel.getRoleWithScopesByUuid(
-                        user.roleUuid,
-                    );
-                role = requestingUserRoleFromCustomRole(customRole);
-            } else if (user.role) {
-                role = requestingUserRoleFromSystemRole(user.role);
-            }
-            requestingUser = {
-                name: [user.firstName, user.lastName].filter(Boolean).join(' '),
-                role,
-                groups: userGroups.map((group) => group.name),
-            };
-        }
-
-        let execution: AiAgentExecutionConfig;
-        if (responseExecution.mode === 'deep_research') {
-            // Steps are budgeted directly now; the executor separately counts
-            // tool calls, warehouse queries, tokens, and elapsed time.
-            const getMaxSteps = () => responseExecution.budget.maxSteps;
-            execution = {
-                mode: 'deep_research',
-                runUuid: responseExecution.runUuid,
-                phase: responseExecution.phase,
-                maxSteps: getMaxSteps(),
-                budget: responseExecution.budget,
-                // Use the current CASL result as well as the current org
-                // policy. MCP run_sql is filtered from this same capability.
-                canUseRawSql: canRunSql,
-                initialTokenUsage: responseExecution.initialTokenUsage ?? 0,
-                resumeContext: responseExecution.resumeContext,
-                onStepUsage: responseExecution.onStepUsage,
-                onExecutionContextResolved:
-                    responseExecution.onExecutionContextResolved,
-                research: responseExecution.research,
-                parentToolCallId: responseExecution.parentToolCallId ?? null,
-            };
-        } else {
-            execution = {
-                mode: 'standard',
-                maxSteps: responseExecution.maxSteps ?? DEFAULT_AGENT_MAX_STEPS,
-                toolAllowlist: resolveStandardToolAllowlist(
-                    prompt.threadCreatedFrom,
-                    responseExecution.toolAllowlist,
-                ),
-            };
-        }
-
-        const standardMaxContextRows = decisions
-            ? 100
-            : Number.POSITIVE_INFINITY;
-        Logger.info('AI agent execution configuration', {
-            event: 'ai_agent.execution_config',
-            promptId: prompt.promptUuid,
-            threadId: prompt.threadUuid,
-            organizationId: user.organizationUuid,
-            projectId: prompt.projectUuid,
-            surface: isSlackPrompt(prompt) ? 'slack' : 'web',
-            executionMode: responseExecution.mode,
-            fastDecisionsEnabled: !!decisions,
-            adaptiveModelsEnabled: adaptiveModels?.enabled ?? false,
-            adaptiveModelSelected:
-                modelProperties.model.modelId !== initialModelId,
-            dataAnswerFastResponseEnabled: enableDataAnswerFastResponse,
-            mainModel: modelProperties.model.modelId,
-            toolCallModel: toolCallModel?.model.modelId ?? null,
-        });
-        const args: AiAgentArgs = {
-            decisions,
-            decisionUsage,
-            recordPromptDecision: decisions
-                ? (decision) =>
-                      this.recordPromptDecision({
-                          promptUuid: prompt.promptUuid,
-                          decisions,
-                          decision,
-                      })
-                : undefined,
-            toolCallModel,
-            enableDataAnswerFastResponse,
-            forceChartMutationRouting,
-            chartMutationContext,
-            userQuestion: prompt.prompt,
-            organizationId: user.organizationUuid,
-            userId: user.userUuid,
-
-            ...modelProperties,
-
-            agentSettings,
-            requestingUser,
-            knowledgeDocuments,
-            deepResearchRuns,
-            projectContext,
-            projectContextEnabled,
-            aiAgentMemoryEnabled,
-            mcpServers,
-
-            compactionSummary,
-            messageHistory,
-            threadUuid: prompt.threadUuid,
-            promptUuid: prompt.promptUuid,
-            ...getPromptUsageAttribution(prompt),
-
-            debugLoggingEnabled:
-                this.lightdashConfig.ai.copilot.debugLoggingEnabled,
-            telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
-            enableDataAccess: agentSettings.enableDataAccess,
-            enableSelfImprovement: agentSettings.enableSelfImprovement,
-            enableContentTools: canUseContentTools,
-            enableDocuments: canUseContentTools && documentsEnabled,
-            enableGenerateDataApp,
-            enableAiWriteback: aiWritebackEnabled,
-            enableEditProjectContext: isReviewRemediationWorkThread,
-            writebackAttribution,
-            enableCodingAgent: codingAgentEnabled,
-            enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
-            enableRepoDiscovery: repoDiscoveryEnabled,
-            enableReadAttachments: threadHasAttachments,
-            enableMergeQueries: mergeQueriesEnabled,
-            enableFilterExpressions: filterExpressionsEnabled,
-            repoFsRoot,
-            repoFsSupportsCodeSearch,
-            canRunSql,
-            enableComposerQueries,
-            canCreateDashboards,
-            autoApproveSql: options.autoApproveSql ?? false,
-            autoApproveSqlUserUuid: options.autoApproveSql
-                ? user.userUuid
-                : null,
-            useSlackStreamCard: Boolean(options.onSlackStepProgress),
-            slackChannelId: isSlackPrompt(prompt)
-                ? prompt.slackChannelId
-                : null,
-            slackLinksOnly,
-            warehouseType,
-            warehouseSchema,
-            sqlScope: agentSqlScope,
-            hyphenatedIdentifiers,
-            availableSkills,
-            modelReasoningEnabled: prompt.modelConfig?.reasoning ?? null,
-
-            toolDescriptionMaxChars:
-                this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-            getDashboardChartsPageSize: 20,
-            maxQueryLimit:
-                responseExecution.mode === 'deep_research'
-                    ? Math.min(
-                          this.lightdashConfig.ai.copilot.maxQueryLimit,
-                          responseExecution.budget.maxResultRows,
-                      )
-                    : this.lightdashConfig.ai.copilot.maxQueryLimit,
-            runSqlMaxLimit:
-                responseExecution.mode === 'deep_research'
-                    ? Math.min(
-                          this.lightdashConfig.ai.copilot.runSqlMaxLimit,
-                          responseExecution.budget.maxResultRows,
-                      )
-                    : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
-            // Keep full result sets server-side and tell the model explicitly
-            // when its context is truncated.
-            maxContextRows:
-                responseExecution.mode === 'deep_research'
-                    ? AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS
-                    : standardMaxContextRows,
-            siteUrl: this.lightdashConfig.siteUrl,
-            canManageAgent: options.canManageAgent,
-            toolHints: options.toolHints ?? [],
-            forceToolHints: options.forceToolHints ?? false,
-            execution,
-        };
-
-        const mcpToolSetup: AgentMcpToolSetup =
-            await this.aiAgentMcpRuntimeClient.resolveTools({
-                decisions,
-                mcpServers,
-                userUuid: user.userUuid,
-                debugLoggingEnabled:
-                    this.lightdashConfig.ai.copilot.debugLoggingEnabled,
-            });
-
-        if (
-            isSlackPrompt(prompt) &&
-            hasTrustedPromptUserIdentity &&
-            'threadMessages' in options &&
-            options.threadMessages.length <= 1
-        ) {
-            void this.postSlackMcpOAuthLoginMessages({
-                user,
-                prompt,
-                mcpServers,
-                mcpToolSetup,
-            }).catch((error) => {
-                Logger.error(
-                    'Failed to post Slack MCP OAuth login messages',
-                    error,
-                );
-            });
-        }
-
-        const recordMcpToolCall: RecordMcpToolCallFn = async (data) => {
-            const mcpServer = mcpServers.find(
-                (server) => server.uuid === data.mcpServerUuid,
-            );
-            await this.mcpToolCallModel.createToolCall({
-                organization_uuid: prompt.organizationUuid,
-                user_uuid: user.userUuid,
-                project_uuid: prompt.projectUuid,
-                agent_uuid: agentSettings.uuid,
-                tool_name: data.toolName,
-                tool_args: data.toolArgs,
-                status: data.status,
-                error_message: data.errorMessage,
-                duration_ms: data.durationMs,
-                result_metadata: null,
-                client_name: null,
-                client_version: null,
-                user_agent: null,
-                auth_type: mcpServer?.authType ?? 'unknown',
-                protocol_version: null,
-                // A conversation groups its outbound calls like an MCP session
-                mcp_session_id: prompt.threadUuid,
-                direction: 'outbound',
-                ai_mcp_server_uuid: data.mcpServerUuid,
-            });
-        };
-
-        const dependencies: AiAgentDependencies = {
-            onAiAccessRefusal: options.onSlackAccessRefusal,
-            recordMcpToolCall,
-            listExplores,
-            getExplore,
-            getProjectParameterDefinitions,
-            getProjectContextDocument,
-            getAiAgentMemoryContextEntries,
-            incrementAiAgentMemoryPulls,
-            listContent,
-            findContent,
-            readContent,
-            generateDataApp,
-            iterateDataApp,
-            listDataAppThemes,
-            resolveUrl,
-            editContent,
-            createContent,
-            createScheduledDelivery,
-            updateUserName,
-            validateContent,
-            getDashboardCharts,
-            findExplores,
-            listCustomChartTypes,
-            findCustomChartTypes,
-            resolveCustomChartType,
-            chartExportArtifacts,
-            getVerifiedFieldUsage,
-            searchSemanticLayer,
-            analyzeFieldImpact,
-            syncDbtProject,
-            runAsyncQuery,
-            runAsyncMergeQuery,
-            runSavedChartQuery,
-            runSqlJob,
-            runComposerQueries,
-            listWarehouseTables,
-            describeWarehouseTable,
-            listKnowledgeDocuments,
-            getKnowledgeDocumentContent,
-            // Only conversations pinned as context on this thread are
-            // readable — the pin is the capability grant.
-            readPinnedThread: async ({ threadUuid }) => {
-                const pinnedThreadUuids =
-                    await this.aiAgentModel.findPinnedThreadContextUuids(
-                        prompt.threadUuid,
-                    );
-                if (!pinnedThreadUuids.includes(threadUuid)) {
-                    throw new ForbiddenError(
-                        'This conversation is not attached as context on this thread',
-                    );
-                }
-                const messages = await this.aiAgentModel.findThreadMessages({
-                    organizationUuid: user.organizationUuid!,
-                    threadUuid,
-                });
-                return messages.map((message) => ({
-                    role: message.role,
-                    message: message.message ?? '',
-                    createdAt: message.createdAt,
-                }));
-            },
-            getSavedChart,
-            getPrompt,
-            sendFile,
-            deferSlackVisualization,
-            exportCustomChartTypeImage,
-            sendSlackBlocks,
-            updateSlackMessage,
-            storeToolCall,
-            storeToolCallError,
-            storeToolResults,
-            storeReasoning,
-            isPromptInterrupted,
-            consumePromptSteers,
-            searchFieldValues,
-            editDbtProject,
-            editProjectContext,
-            editRepo,
-            setupPreviewDeploy,
-            exploreRepo,
-            readAttachments,
-            discoverRepos,
-            listWorkstreams,
-            closePullRequest,
-            getPullRequestDiff,
-            listProjects,
-            getProjectInfo,
-            updateProgress: (progress, toolName, progressId, progressStatus) =>
-                updateProgress(progress, toolName, progressId, progressStatus),
-            updatePrompt: (
-                update: UpdateSlackResponse | UpdateWebAppResponse,
-            ) => {
-                // Generation saves step and terminal responses before Slack
-                // delivery. Keep presentation markers out of stored history and
-                // classifiers while returning the original text for selection.
-                const visibleUpdate =
-                    isSlackPrompt(prompt) && update.response !== undefined
-                        ? {
-                              ...update,
-                              response: stripSlackVisualizationSelection(
-                                  update.response,
-                              ),
-                          }
-                        : update;
-                const updatePromise = this.persistTrackedPromptUpdate(
-                    visibleUpdate,
-                    {
-                        organizationUuid: agentSettings.organizationUuid,
-                        projectUuid: prompt.projectUuid,
                         agentUuid: agentSettings.uuid,
                         threadUuid: prompt.threadUuid,
-                        userUuid: user.userUuid,
-                    },
-                );
-                if (!updatePromise) {
-                    return Promise.resolve();
+                        preflightCanUseRawSql: responseExecution.canUseRawSql,
+                    }));
+                let canRunSql = enableSqlMode && canUseRawSql;
+                // Fail closed when CASL would evaluate against the installer.
+                if (canRunSql && !hasTrustedPromptUserIdentity) {
+                    this.logger.info(
+                        `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                    );
+                    canRunSql = false;
                 }
-                const updateWithCitationTelemetryPromise =
-                    aiAgentMemoryEnabled &&
-                    update.response !== undefined &&
-                    update.tokenUsage !== undefined
-                        ? updatePromise.then(async () => {
-                              const { slugs, citationCounts, malformedCount } =
-                                  parseMemoryCitations(update.response ?? '');
-                              if (malformedCount > 0) {
-                                  this.logger.warn(
-                                      `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${update.promptUuid}`,
-                                  );
-                              }
-                              if (slugs.length === 0) return;
 
-                              try {
-                                  const ownerUserUuid =
-                                      await resolveThreadMemoryOwnerUuid();
-                                  if (!ownerUserUuid) return;
-                                  const citedMemories =
-                                      await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
-                                          {
-                                              projectUuid: prompt.projectUuid,
-                                              userUuid: ownerUserUuid,
-                                              slugs,
-                                          },
-                                      );
-                                  const cited = new Set(
-                                      citedMemories.map(({ slug }) => slug),
-                                  );
-                                  const dropped = slugs.filter(
-                                      (slug) => !cited.has(slug),
-                                  );
-                                  if (dropped.length > 0) {
-                                      this.logger.warn(
-                                          `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
-                                      );
-                                  }
-                                  if (citedMemories.length > 0) {
-                                      this.prometheusMetrics?.incrementAiAgentMemoryCited(
-                                          citedMemories.length,
-                                      );
-                                      citedMemories.forEach(
-                                          ({ memoryId, slug }) =>
-                                              this.analytics.track<AiAgentMemoryCitedEvent>(
-                                                  {
-                                                      event: 'ai_agent_memory.cited',
-                                                      userId: user.userUuid,
-                                                      properties: {
-                                                          organizationId:
-                                                              prompt.organizationUuid,
-                                                          projectId:
-                                                              prompt.projectUuid,
-                                                          agentId:
-                                                              agentSettings.uuid,
-                                                          memoryId,
-                                                          citationCount:
-                                                              citationCounts[
-                                                                  slug
-                                                              ] ?? 0,
-                                                          channel:
-                                                              isSlackPrompt(
-                                                                  prompt,
-                                                              )
-                                                                  ? 'slack'
-                                                                  : 'web',
-                                                      },
-                                                  },
-                                              ),
-                                      );
-                                  }
-                              } catch (error) {
-                                  this.logger.error(
-                                      `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
-                                      error,
-                                  );
-                              }
+                // Require the same CASL ability the SQL Runner page uses. The check
+                // also fires deep in AsyncQueryService.executeAsyncSqlQuery, but
+                // gating here means the tool isn't even registered with the model
+                // for users without the scope — cleaner UX than a ForbiddenError
+                // mid-tool-call.
+                if (canRunSql) {
+                    const auditedAbility = this.createAuditedAbility(user);
+                    if (
+                        auditedAbility.cannot(
+                            'manage',
+                            subject('SqlRunner', {
+                                organizationUuid:
+                                    promptProject.organizationUuid,
+                                projectUuid: promptProject.projectUuid,
+                                metadata: {
+                                    promptUuid: prompt.promptUuid,
+                                    threadUuid: prompt.threadUuid,
+                                    agentUuid: prompt.agentUuid,
+                                },
+                            }),
+                        )
+                    ) {
+                        canRunSql = false;
+                    }
+                }
+
+                // Same reasoning as runSql above: a user who cannot save a dashboard
+                // anywhere should not have the agent build one for them, only to be
+                // refused at the save step.
+                const canCreateDashboards = hasTrustedPromptUserIdentity
+                    ? await this.canCreateDashboardsInProject(user, {
+                          organizationUuid: promptProject.organizationUuid,
+                          projectUuid: promptProject.projectUuid,
+                      })
+                    : false;
+
+                const warehouseCredentials = canRunSql
+                    ? await this.projectModel.getWarehouseCredentialsForBinding(
+                          prompt.projectUuid,
+                          { kind: 'connection', warehouseConnectionUuid: null },
+                      )
+                    : null;
+                const warehouseType = warehouseCredentials?.type ?? null;
+                const warehouseSchema = warehouseCredentials
+                    ? ('schema' in warehouseCredentials &&
+                          warehouseCredentials.schema) ||
+                      ('dataset' in warehouseCredentials &&
+                          'project' in warehouseCredentials &&
+                          `${warehouseCredentials.project}.${warehouseCredentials.dataset}`) ||
+                      ('database' in warehouseCredentials &&
+                          warehouseCredentials.database) ||
+                      null
+                    : null;
+
+                const agentSqlScope = canRunSql
+                    ? await this.projectModel.getAgentSqlScope(
+                          prompt.projectUuid,
+                      )
+                    : null;
+                const hyphenatedIdentifiers = isSqlScopeConfigured(
+                    agentSqlScope,
+                )
+                    ? (
+                          await this.featureFlagService.get({
+                              user,
+                              featureFlagId:
+                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
                           })
-                        : updatePromise;
+                      ).enabled
+                    : false;
 
-                if (shouldEnqueueReviewClassifierForPromptUpdate(update)) {
-                    void updatePromise
-                        .then(() => {
-                            this.enqueueReviewClassifierEvent({
-                                eventType: 'response_saved',
-                                organizationUuid: user.organizationUuid,
-                                projectUuid: prompt.projectUuid,
-                                agentUuid: agentSettings.uuid,
-                                threadUuid: prompt.threadUuid,
-                                promptUuid: update.promptUuid,
-                                userUuid: user.userUuid,
-                            });
-                        })
-                        .catch((error) => {
-                            Logger.error(
-                                'Failed to enqueue AI agent review classifier after response save',
-                                error,
-                            );
-                        });
-                }
-
-                // Error-only updates add no distillable content — distill only
-                // after a successful terminal turn write.
-                if (
-                    aiAgentMemoryEnabled &&
-                    update.response !== undefined &&
-                    update.tokenUsage !== undefined
-                ) {
-                    void updatePromise
-                        .then(() => {
-                            this.enqueueMemoryDistillEvent({
-                                eventType: 'response_saved',
-                                organizationUuid: user.organizationUuid,
-                                projectUuid: prompt.projectUuid,
-                                threadUuid: prompt.threadUuid,
-                                userUuid: user.userUuid,
-                            });
-                        })
-                        .catch((error) => {
-                            Logger.error(
-                                'Failed to enqueue AI agent memory distill after response save',
-                                error,
-                            );
-                        });
-                }
-
-                return updateWithCitationTelemetryPromise.then(() => undefined);
-            },
-            trackEvent: (event) => this.analytics.track(event),
-
-            createOrUpdateArtifact: async (data) => {
-                const artifact =
-                    await this.aiAgentModel.createOrUpdateArtifact(data);
-
-                if (decisions) {
-                    stepProgressEmitter?.emit('artifactReady', {
-                        promptUuid: prompt.promptUuid,
-                        artifactUuid: artifact.artifactUuid,
-                        versionUuid: artifact.versionUuid,
+                const [knowledgeDocuments, threadDeepResearchRuns, mcpServers] =
+                    await Promise.all([
+                        this.aiAgentDocumentModel.findAllContextForAgent({
+                            organizationUuid,
+                            agentUuid: agentSettings.uuid,
+                            projectUuid: prompt.projectUuid,
+                        }),
+                        responseExecution.mode === 'standard'
+                            ? this.aiDeepResearchRunModel.findAgentContextByThreadScoped(
+                                  {
+                                      aiThreadUuid: prompt.threadUuid,
+                                      organizationUuid: prompt.organizationUuid,
+                                      projectUuid: prompt.projectUuid,
+                                      createdByUserUuid: user.userUuid,
+                                  },
+                              )
+                            : Promise.resolve([]),
+                        this.getAgentRuntimeMcpServers({
+                            user,
+                            projectUuid: prompt.projectUuid,
+                            agentUuid: agentSettings.uuid,
+                            includeAttachedMcpServers:
+                                shouldIncludeAttachedMcpServers(
+                                    responseExecution.mode,
+                                    responseExecution.mode === 'deep_research'
+                                        ? responseExecution.research?.role
+                                        : undefined,
+                                ),
+                        }),
+                    ]);
+                const researchDocuments = await findAiDeepResearchRunDocuments(
+                    this.aiAgentModel,
+                    threadDeepResearchRuns,
+                );
+                const deepResearchContextRuns =
+                    AiAgentService.selectDeepResearchContextRuns(
+                        threadDeepResearchRuns.map((run) => ({
+                            ...run,
+                            has_report:
+                                run.has_report ||
+                                researchDocuments.has(
+                                    run.ai_deep_research_run_uuid,
+                                ),
+                        })),
+                    );
+                const latestDeepResearchProgress =
+                    await this.aiDeepResearchRunModel.findLatestProgressByRunUuids(
+                        deepResearchContextRuns.map(
+                            ({ ai_deep_research_run_uuid: uuid }) => uuid,
+                        ),
+                    );
+                const deepResearchRuns =
+                    AiAgentService.createDeepResearchRunContext(
+                        deepResearchContextRuns,
+                        latestDeepResearchProgress,
+                    );
+                const { enabled: mergeQueriesEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.MergeQueries,
                     });
+                // Web-chat composer requires both orchestration and execution flags.
+                const [
+                    { enabled: multiSourceQueryEnabled },
+                    { enabled: composeSqlRunnerEnabled },
+                ] = await Promise.all([
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.MultiSourceQuery,
+                    }),
+                    this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.ComposeSqlRunner,
+                    }),
+                ]);
+                const enableComposerQueries =
+                    multiSourceQueryEnabled &&
+                    composeSqlRunnerEnabled &&
+                    agentSettings.enableDataAccess &&
+                    !isSlackPrompt(prompt) &&
+                    responseExecution.mode !== 'deep_research';
+                const { enabled: filterExpressionsEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.AiFilterExpressions,
+                    });
+                let aiWritebackEnabled = hasTrustedPromptUserIdentity;
+                if (!aiWritebackEnabled) {
+                    this.logger.info(
+                        `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                    );
+                }
+                const writebackConnectionSupport =
+                    getWritebackConnectionSupport(promptProject.dbtConnection);
+                if (
+                    aiWritebackEnabled &&
+                    !writebackConnectionSupport.editDbtProject
+                ) {
+                    aiWritebackEnabled = false;
                 }
 
-                return artifact;
-            },
+                // General coding agent (editRepo): gated by the CodingAgent flag,
+                // independent of AiWriteback, with the same Slack trusted-identity guard.
+                // It still requires a GitHub/GitLab connection on the project (the host
+                // follows the project's connection), but the agent can target ANY repo
+                // that installation can write — the per-repo write authz (manage:SourceCode
+                // + denylist + user∩installation) is enforced in AiWritebackService.
+                let { enabled: codingAgentEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.CodingAgent,
+                    });
+                if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
+                    this.logger.info(
+                        `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                    );
+                    codingAgentEnabled = false;
+                }
+                if (
+                    codingAgentEnabled &&
+                    !writebackConnectionSupport.editRepo
+                ) {
+                    codingAgentEnabled = false;
+                }
 
-            listThreadComposerPipelines: async (threadUuid) =>
-                (
-                    await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
-                        threadUuid,
+                // Advisory signal of which GitHub identity a writeback PR would be
+                // attributed to, so the prompt can tell the user and nudge unlinked
+                // users to link their personal GitHub. GitHub-only (GitLab uses a
+                // project PAT, no personal linking) and only when the org has the app
+                // installed. Wrapped in try/catch and degraded to null so an attribution
+                // lookup can never block a chat turn.
+                let writebackAttribution: AiWritebackAttribution | null = null;
+                if (
+                    aiWritebackEnabled &&
+                    promptProject.dbtConnection.type ===
+                        DbtProjectType.GITHUB &&
+                    user.organizationUuid
+                ) {
+                    try {
+                        const installationId =
+                            await this.githubAppInstallationsModel.findInstallationId(
+                                user.organizationUuid,
+                            );
+                        if (installationId) {
+                            writebackAttribution =
+                                await this.githubAppService.getAiWritebackAttribution(
+                                    user,
+                                );
+                        }
+                    } catch (error) {
+                        this.logger.warn(
+                            `Failed to resolve AI writeback attribution for prompt ${prompt.promptUuid}; continuing without it. ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                        writebackAttribution = null;
+                    }
+                }
+
+                const projectContextEnabled =
+                    aiWritebackEnabled &&
+                    writebackConnectionSupport.editRepo &&
+                    (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                        user,
+                    ));
+                const projectContext = projectContextEnabled
+                    ? await this.projectContextModel.getDocument(
+                          prompt.projectUuid,
+                      )
+                    : [];
+
+                // Preview-deploy setup rides the writeback infra, so it requires both
+                // the writeback flag (and trusted identity, applied above) and its own
+                // ai-preview-deploy-setup flag.
+                const { enabled: aiPreviewDeploySetupFlag } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                    });
+                const aiPreviewDeploySetupEnabled =
+                    aiWritebackEnabled &&
+                    writebackConnectionSupport.editRepo &&
+                    aiPreviewDeploySetupFlag;
+
+                // exploreRepo/discoverRepos read repo source and the view:SourceCode
+                // check evaluates against the resolved user. On Slack without
+                // aiRequireOAuth that user is the app installer, not the requester — so
+                // disable it, exactly as runSql and writeback do above.
+                const threadHasAttachments =
+                    (
+                        await this.aiThreadFileModel.findForThread(
+                            prompt.threadUuid,
+                        )
+                    ).length > 0;
+
+                const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
+                if (!repoDiscoveryEnabled) {
+                    this.logger.info(
+                        `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                    );
+                }
+
+                // The dbt project's root within the repo, so the prompt can point the
+                // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
+                // the connection's project_sub_path: '.' = repo root, else a
+                // subdirectory. null when repo discovery is off or not git-backed.
+                let repoFsRoot: string | null = null;
+                if (
+                    repoDiscoveryEnabled &&
+                    'project_sub_path' in promptProject.dbtConnection
+                ) {
+                    const raw = (
+                        promptProject.dbtConnection.project_sub_path ?? ''
                     )
-                ).filter(isAiComposerChartArtifactConfig),
+                        .trim()
+                        .replace(/^\/+/, '')
+                        .replace(/\/+$/, '');
+                    repoFsRoot = raw === '' ? '.' : raw;
+                }
+                // GitLab's repo source has no server-side code search, so the prompt
+                // must steer the agent off `search` (it returns nothing) toward a
+                // scoped single-repo grep. GitHub supports it.
+                const repoFsSupportsCodeSearch =
+                    promptProject.dbtConnection.type !== DbtProjectType.GITLAB;
 
-            waitForSqlApproval: (toolCallId, timeoutMs) =>
-                this.aiAgentModel.waitForSqlApproval(toolCallId, timeoutMs),
-            recordSqlApproval: ({
-                toolCallId,
-                toolName,
-                decidedByUserUuid,
-                source,
-            }) =>
-                this.recordSqlApprovalDecision({
-                    organizationUuid: prompt.organizationUuid,
-                    projectUuid: prompt.projectUuid,
-                    agentUuid: agentSettings.uuid,
-                    threadUuid: prompt.threadUuid,
-                    toolCallId,
-                    toolName,
-                    decision: 'approved',
-                    source,
-                    userUuid: decidedByUserUuid,
-                }),
-            isThreadSqlAutoApproved: (threadUuid) =>
-                this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
-            listSqlApprovalDecisions: (promptUuid) =>
-                this.aiAgentModel.findSqlApprovalDecisionsForPrompt(promptUuid),
-            loadSkill: async (name, loadOptions) => {
-                const builtIn =
-                    await this.aiAgentToolsService.loadAgentSkill(name);
-                if (builtIn) {
-                    return {
-                        ...builtIn,
-                        body: AiAgentService.renderSkillBody(
-                            builtIn.body,
-                            loadOptions.arguments,
-                            [],
+                const canUseContentTools =
+                    hasTrustedPromptUserIdentity &&
+                    this.canUseContentTools(user, agentSettings, {
+                        organizationUuid: promptProject.organizationUuid,
+                        projectUuid: promptProject.projectUuid,
+                        promptUuid: prompt.promptUuid,
+                        threadUuid: prompt.threadUuid,
+                    });
+                const enableGenerateDataApp =
+                    canUseContentTools &&
+                    (await this.aiAgentToolsService.canGenerateDataApp({
+                        user,
+                        projectUuid: promptProject.projectUuid,
+                    }));
+                const { enabled: documentsEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.Documents,
+                    });
+                const {
+                    listExplores,
+                    getExplore,
+                    getProjectParameterDefinitions,
+                    getProjectContextDocument,
+                    getAiAgentMemoryContextEntries,
+                    incrementAiAgentMemoryPulls,
+                    resolveThreadMemoryOwnerUuid,
+                    listContent,
+                    findContent,
+                    readContent,
+                    generateDataApp,
+                    iterateDataApp,
+                    listDataAppThemes,
+                    resolveUrl,
+                    editContent,
+                    createContent,
+                    createScheduledDelivery,
+                    updateUserName,
+                    validateContent,
+                    getDashboardCharts,
+                    findExplores,
+                    listCustomChartTypes,
+                    findCustomChartTypes,
+                    resolveCustomChartType,
+                    chartExportArtifacts,
+                    getVerifiedFieldUsage,
+                    searchSemanticLayer,
+                    analyzeFieldImpact,
+                    syncDbtProject,
+                    updateProgress,
+                    getPrompt,
+                    runAsyncQuery,
+                    runAsyncMergeQuery,
+                    runSavedChartQuery,
+                    runSqlJob,
+                    runComposerQueries,
+                    listWarehouseTables,
+                    describeWarehouseTable,
+                    listKnowledgeDocuments,
+                    getKnowledgeDocumentContent,
+                    getSavedChart,
+                    sendFile,
+                    deferSlackVisualization,
+                    exportCustomChartTypeImage,
+                    sendSlackBlocks,
+                    updateSlackMessage,
+                    storeToolCall,
+                    storeToolCallError,
+                    storeToolResults,
+                    storeReasoning,
+                    isPromptInterrupted,
+                    consumePromptSteers,
+                    searchFieldValues,
+                    editDbtProject,
+                    editProjectContext,
+                    editRepo,
+                    setupPreviewDeploy,
+                    exploreRepo,
+                    readAttachments,
+                    discoverRepos,
+                    listWorkstreams,
+                    closePullRequest,
+                    getPullRequestDiff,
+                    listProjects,
+                    getProjectInfo,
+                } = await this.getAiAgentDependencies(user, prompt, {
+                    onStepProgress:
+                        options.onSlackStepProgress ??
+                        (stepProgressEmitter
+                            ? (
+                                  progress,
+                                  toolName,
+                                  progressId,
+                                  progressStatus,
+                              ) => {
+                                  stepProgressEmitter.emit('stepProgress', {
+                                      message: progress,
+                                      toolName,
+                                      progressId,
+                                      progressStatus,
+                                  });
+                              }
+                            : undefined),
+                    runtimeOptions: options.runtimeOptions,
+                    suppressWritebackPreview: options.suppressWritebackPreview,
+                    dbtSourceUuid: options.dbtSourceUuid,
+                    onWarehouseQuery: responseExecution.onWarehouseQuery,
+                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableRuntimeCache: !!decisions,
+                    // Battle sides must not warm one another's result cache. Normal
+                    // threads retain production cache behavior.
+                    invalidateQueryCache: battleProfile !== null,
+                });
+
+                const builtInSkills = canUseContentTools
+                    ? await this.aiAgentToolsService.listAgentSkills()
+                    : [];
+                const modelServableSkills = (
+                    await this.aiAgentSkillModel.findBoundToAgent(
+                        agentSettings.uuid,
+                    )
+                ).filter(AiAgentService.isModelServable);
+                const availableSkills = [
+                    ...builtInSkills,
+                    ...modelServableSkills.map((skill) => ({
+                        name: skill.name,
+                        description: getAiAgentSkillListingText(
+                            skill.parsed.frontmatter,
+                            AI_AGENT_SKILL_LISTING_MAX_CHARS,
+                        ),
+                        resources: skill.parsed.resources.map((resource) => ({
+                            name: resource.name,
+                            description: resource.description,
+                        })),
+                        source: 'custom' as const,
+                    })),
+                ];
+                const copilotConfig =
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig({
+                        organizationUuid: promptProject.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                        credentialUuid: agentSettings.providerCredentialUuid,
+                    });
+                // A pinned agent whose effective model runs on another provider would
+                // make the pin inert and send the prompt outside the pinned region.
+                // Save-time validation catches the direct cases; this guards drift
+                // (e.g. the org default model changing after the pin was saved).
+                const effectiveProvider =
+                    prompt.modelConfig?.modelProvider ??
+                    copilotConfig.defaultProvider;
+                if (
+                    agentSettings.providerCredentialUuid &&
+                    effectiveProvider !== 'bedrock'
+                ) {
+                    throw new MissingConfigError(
+                        `This agent is pinned to a Bedrock credential, but its model would run on ${effectiveProvider}. Pick a Bedrock model for the agent or clear its credential pin.`,
+                    );
+                }
+                let modelProperties = getModel(copilotConfig, {
+                    enableReasoning: prompt.modelConfig?.reasoning,
+                    modelName: prompt.modelConfig?.modelName,
+                    provider: prompt.modelConfig?.modelProvider as AnyType,
+                });
+                const initialModelId = modelProperties.model.modelId;
+
+                // AiAgentFastDecisions is the single switch for bounded decisions,
+                // query refinements, fast tool calls and adaptive model selection.
+                const canUseFastToolModel =
+                    !!decisions &&
+                    responseExecution.mode === 'standard' &&
+                    prompt.modelConfig?.reasoning !== true &&
+                    !options.toolHints?.length;
+                const adaptiveModels = canUseFastToolModel
+                    ? { enabled: fastExperienceEnabled }
+                    : null;
+                let toolCallModel: AiAgentArgs['toolCallModel'];
+                if (canUseFastToolModel) {
+                    try {
+                        const fastModel =
+                            await this.orgAiCopilotConfigResolver.resolveFastModel(
+                                copilotConfig,
+                                { enableReasoning: false },
+                            );
+                        toolCallModel = {
+                            model: fastModel.model,
+                            providerOptions: fastModel.providerOptions,
+                            keyManagement: fastModel.keyManagement,
+                        };
+                    } catch (error) {
+                        Logger.warn(
+                            `Unable to resolve fast tool-call model; keeping the selected agent model: ${String(error)}`,
+                        );
+                    }
+                }
+
+                const simpleDataAnswer =
+                    canUseFastToolModel &&
+                    !compactionSummary &&
+                    mcpServers.length === 0 &&
+                    adaptiveModels?.enabled === true &&
+                    turnDecision?.simpleDataAnswer === true;
+                const enableDataAnswerFastResponse = simpleDataAnswer;
+
+                if (
+                    canUseFastToolModel &&
+                    !prompt.modelConfig?.modelName &&
+                    !prompt.modelConfig?.modelProvider &&
+                    !compactionSummary &&
+                    messageHistory.filter((message) => message.role === 'user')
+                        .length === 1
+                ) {
+                    if (adaptiveModels?.enabled && simpleDataAnswer) {
+                        modelProperties = getModel(copilotConfig, {
+                            useFastModel: true,
+                            enableReasoning: false,
+                        });
+                    }
+                }
+
+                // editProjectContext is scoped to review-remediation work threads, so a
+                // normal chat never exposes it. Resolve from the thread (not just the
+                // explicit option) so user-driven follow-ups in the workspace — where
+                // people actually change the PR — also get the tool.
+                const isReviewRemediationWorkThread =
+                    options.isReviewRemediationWorkThread ??
+                    (isSlackPrompt(prompt)
+                        ? false
+                        : !!(await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                              {
+                                  organizationUuid,
+                                  workThreadUuid: prompt.threadUuid,
+                              },
+                          )));
+
+                // Slack without aiRequireOAuth resolves the actor to the workspace
+                // installer, not the requester — omit rather than describe the wrong person.
+                let requestingUser: AiAgentRequestingUser | null = null;
+                if (
+                    agentSettings.enableUserContext &&
+                    hasTrustedPromptUserIdentity &&
+                    user.organizationUuid
+                ) {
+                    const userGroups = await this.groupsModel.findUserGroups({
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                    });
+                    // A custom org role stores 'member' as a placeholder in user.role,
+                    // so resolve the real role (and its register) from roleUuid first.
+                    let role: AiAgentRequestingUserRole | null = null;
+                    if (user.roleUuid) {
+                        const customRole =
+                            await this.rolesModel.getRoleWithScopesByUuid(
+                                user.roleUuid,
+                            );
+                        role = requestingUserRoleFromCustomRole(customRole);
+                    } else if (user.role) {
+                        role = requestingUserRoleFromSystemRole(user.role);
+                    }
+                    requestingUser = {
+                        name: [user.firstName, user.lastName]
+                            .filter(Boolean)
+                            .join(' '),
+                        role,
+                        groups: userGroups.map((group) => group.name),
+                    };
+                }
+
+                let execution: AiAgentExecutionConfig;
+                if (responseExecution.mode === 'deep_research') {
+                    // Steps are budgeted directly now; the executor separately counts
+                    // tool calls, warehouse queries, tokens, and elapsed time.
+                    const getMaxSteps = () => responseExecution.budget.maxSteps;
+                    execution = {
+                        mode: 'deep_research',
+                        runUuid: responseExecution.runUuid,
+                        phase: responseExecution.phase,
+                        maxSteps: getMaxSteps(),
+                        budget: responseExecution.budget,
+                        // Use the current CASL result as well as the current org
+                        // policy. MCP run_sql is filtered from this same capability.
+                        canUseRawSql: canRunSql,
+                        initialTokenUsage:
+                            responseExecution.initialTokenUsage ?? 0,
+                        resumeContext: responseExecution.resumeContext,
+                        onStepUsage: responseExecution.onStepUsage,
+                        onExecutionContextResolved:
+                            responseExecution.onExecutionContextResolved,
+                        research: responseExecution.research,
+                        parentToolCallId:
+                            responseExecution.parentToolCallId ?? null,
+                    };
+                } else {
+                    execution = {
+                        mode: 'standard',
+                        maxSteps:
+                            responseExecution.maxSteps ??
+                            DEFAULT_AGENT_MAX_STEPS,
+                        toolAllowlist: resolveStandardToolAllowlist(
+                            prompt.threadCreatedFrom,
+                            responseExecution.toolAllowlist,
                         ),
                     };
                 }
-                const custom = modelServableSkills.find(
-                    (skill) => skill.name === name.trim().toLowerCase(),
-                );
-                if (!custom) return undefined;
-                return AiAgentService.toServedSkill(
-                    custom,
-                    custom.currentVersion,
-                    AiAgentService.renderSkillBody(
-                        custom.parsed.body,
-                        loadOptions.arguments,
-                        custom.parsed.frontmatter.arguments,
-                    ),
-                );
-            },
 
-            perf: {
-                measureGenerateResponseTime: (durationMs) => {
-                    this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
-                        durationMs,
-                    );
-                },
-                measureStreamResponseTime: (durationMs) => {
-                    this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
-                        durationMs,
-                    );
-                },
-                measureStreamFirstChunk: (durationMs) => {
-                    this.prometheusMetrics?.aiAgentStreamFirstChunkHistogram?.observe(
-                        durationMs,
-                    );
-                },
-                measureTTFT: (durationMs, model, mode) => {
-                    this.prometheusMetrics?.aiAgentTTFTHistogram?.observe(
-                        { model, mode },
-                        durationMs,
-                    );
-                },
-            },
-        };
-
-        if (!stream) {
-            return generateAgentResponse({
-                args,
-                onSlackTableResults: options.onSlackTableResults,
-                dependencies,
-                mcpToolSetup,
-                abortSignal:
-                    responseExecution.mode === 'deep_research' ||
-                    responseExecution.mode === 'standard'
-                        ? responseExecution.abortSignal
+                const standardMaxContextRows = decisions
+                    ? 100
+                    : Number.POSITIVE_INFINITY;
+                Logger.info('AI agent execution configuration', {
+                    event: 'ai_agent.execution_config',
+                    promptId: prompt.promptUuid,
+                    threadId: prompt.threadUuid,
+                    organizationId: organizationUuid,
+                    projectId: prompt.projectUuid,
+                    surface: isSlackPrompt(prompt) ? 'slack' : 'web',
+                    executionMode: responseExecution.mode,
+                    fastDecisionsEnabled: !!decisions,
+                    adaptiveModelsEnabled: adaptiveModels?.enabled ?? false,
+                    adaptiveModelSelected:
+                        modelProperties.model.modelId !== initialModelId,
+                    dataAnswerFastResponseEnabled: enableDataAnswerFastResponse,
+                    mainModel: modelProperties.model.modelId,
+                    toolCallModel: toolCallModel?.model.modelId ?? null,
+                });
+                const args: AiAgentArgs = {
+                    decisions,
+                    decisionUsage,
+                    recordPromptDecision: decisions
+                        ? (decision) =>
+                              this.recordPromptDecision({
+                                  promptUuid: prompt.promptUuid,
+                                  decisions,
+                                  decision,
+                              })
                         : undefined,
-            });
-        }
+                    toolCallModel,
+                    enableDataAnswerFastResponse,
+                    forceChartMutationRouting,
+                    chartMutationContext,
+                    userQuestion: prompt.prompt,
+                    organizationId: organizationUuid,
+                    userId: user.userUuid,
 
-        const result = await streamAgentResponse({
-            args,
-            dependencies,
-            mcpToolSetup,
-        });
-        // Heartbeat handle for the SSE keepalive (see STREAM_KEEPALIVE_INTERVAL_MS).
-        // Cleared in onFinish, and defensively if a write lands after the stream
-        // has closed.
-        let keepaliveInterval: ReturnType<typeof setInterval> | undefined;
-        const clearKeepalive = () => {
-            if (keepaliveInterval) {
-                clearInterval(keepaliveInterval);
-                keepaliveInterval = undefined;
-            }
-        };
-        const uiMessageStream = createUIMessageStream({
-            execute: ({ writer }) => {
-                // Keep the connection warm during long, output-silent tool
-                // calls so an idle-timeout proxy can't cut the stream (see
-                // STREAM_KEEPALIVE_INTERVAL_MS). `transient: true` → never
-                // persisted; the client drops unknown transient data parts, so
-                // this is invisible. Best-effort: a write after close throws,
-                // which just tears the heartbeat down.
-                keepaliveInterval = setInterval(() => {
-                    try {
-                        writer.write({
-                            type: 'data-keepalive',
-                            data: { ts: Date.now() },
-                            transient: true,
-                        });
-                    } catch {
-                        clearKeepalive();
+                    ...modelProperties,
+
+                    agentSettings,
+                    requestingUser,
+                    knowledgeDocuments,
+                    deepResearchRuns,
+                    projectContext,
+                    projectContextEnabled,
+                    aiAgentMemoryEnabled,
+                    mcpServers,
+
+                    compactionSummary,
+                    messageHistory,
+                    threadUuid: prompt.threadUuid,
+                    promptUuid: prompt.promptUuid,
+                    ...getPromptUsageAttribution(prompt),
+
+                    debugLoggingEnabled:
+                        this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+                    telemetryEnabled:
+                        this.lightdashConfig.ai.copilot.telemetryEnabled,
+                    enableDataAccess: agentSettings.enableDataAccess,
+                    enableSelfImprovement: agentSettings.enableSelfImprovement,
+                    enableContentTools: canUseContentTools,
+                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableGenerateDataApp,
+                    enableAiWriteback: aiWritebackEnabled,
+                    enableEditProjectContext: isReviewRemediationWorkThread,
+                    writebackAttribution,
+                    enableCodingAgent: codingAgentEnabled,
+                    enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
+                    enableRepoDiscovery: repoDiscoveryEnabled,
+                    enableReadAttachments: threadHasAttachments,
+                    enableMergeQueries: mergeQueriesEnabled,
+                    enableFilterExpressions: filterExpressionsEnabled,
+                    repoFsRoot,
+                    repoFsSupportsCodeSearch,
+                    canRunSql,
+                    enableComposerQueries,
+                    canCreateDashboards,
+                    autoApproveSql: options.autoApproveSql ?? false,
+                    autoApproveSqlUserUuid: options.autoApproveSql
+                        ? user.userUuid
+                        : null,
+                    useSlackStreamCard: Boolean(options.onSlackStepProgress),
+                    slackChannelId: isSlackPrompt(prompt)
+                        ? prompt.slackChannelId
+                        : null,
+                    slackLinksOnly,
+                    warehouseType,
+                    warehouseSchema,
+                    sqlScope: agentSqlScope,
+                    hyphenatedIdentifiers,
+                    availableSkills,
+                    modelReasoningEnabled:
+                        prompt.modelConfig?.reasoning ?? null,
+
+                    toolDescriptionMaxChars:
+                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                    getDashboardChartsPageSize: 20,
+                    maxQueryLimit:
+                        responseExecution.mode === 'deep_research'
+                            ? Math.min(
+                                  this.lightdashConfig.ai.copilot.maxQueryLimit,
+                                  responseExecution.budget.maxResultRows,
+                              )
+                            : this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    runSqlMaxLimit:
+                        responseExecution.mode === 'deep_research'
+                            ? Math.min(
+                                  this.lightdashConfig.ai.copilot
+                                      .runSqlMaxLimit,
+                                  responseExecution.budget.maxResultRows,
+                              )
+                            : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+                    // Keep full result sets server-side and tell the model explicitly
+                    // when its context is truncated.
+                    maxContextRows:
+                        responseExecution.mode === 'deep_research'
+                            ? AI_DEEP_RESEARCH_MAX_CONTEXT_ROWS
+                            : standardMaxContextRows,
+                    siteUrl: this.lightdashConfig.siteUrl,
+                    canManageAgent: options.canManageAgent,
+                    toolHints: options.toolHints ?? [],
+                    forceToolHints: options.forceToolHints ?? false,
+                    execution,
+                };
+
+                const mcpToolSetup: AgentMcpToolSetup =
+                    await this.aiAgentMcpRuntimeClient.resolveTools({
+                        decisions,
+                        mcpServers,
+                        userUuid: user.userUuid,
+                        debugLoggingEnabled:
+                            this.lightdashConfig.ai.copilot.debugLoggingEnabled,
+                    });
+
+                if (
+                    isSlackPrompt(prompt) &&
+                    hasTrustedPromptUserIdentity &&
+                    'threadMessages' in options &&
+                    options.threadMessages.length <= 1
+                ) {
+                    void this.postSlackMcpOAuthLoginMessages({
+                        user,
+                        prompt,
+                        mcpServers,
+                        mcpToolSetup,
+                    }).catch((error) => {
+                        Logger.error(
+                            'Failed to post Slack MCP OAuth login messages',
+                            error,
+                        );
+                    });
+                }
+
+                const recordMcpToolCall: RecordMcpToolCallFn = async (data) => {
+                    const mcpServer = mcpServers.find(
+                        (server) => server.uuid === data.mcpServerUuid,
+                    );
+                    await this.mcpToolCallModel.createToolCall({
+                        organization_uuid: prompt.organizationUuid,
+                        user_uuid: user.userUuid,
+                        project_uuid: prompt.projectUuid,
+                        agent_uuid: agentSettings.uuid,
+                        tool_name: data.toolName,
+                        tool_args: data.toolArgs,
+                        status: data.status,
+                        error_message: data.errorMessage,
+                        duration_ms: data.durationMs,
+                        result_metadata: null,
+                        client_name: null,
+                        client_version: null,
+                        user_agent: null,
+                        auth_type: mcpServer?.authType ?? 'unknown',
+                        protocol_version: null,
+                        // A conversation groups its outbound calls like an MCP session
+                        mcp_session_id: prompt.threadUuid,
+                        direction: 'outbound',
+                        ai_mcp_server_uuid: data.mcpServerUuid,
+                    });
+                };
+
+                const dependencies: AiAgentDependencies = {
+                    onAiAccessRefusal: options.onSlackAccessRefusal,
+                    recordMcpToolCall,
+                    listExplores,
+                    getExplore,
+                    getProjectParameterDefinitions,
+                    getProjectContextDocument,
+                    getAiAgentMemoryContextEntries,
+                    incrementAiAgentMemoryPulls,
+                    listContent,
+                    findContent,
+                    readContent,
+                    generateDataApp,
+                    iterateDataApp,
+                    listDataAppThemes,
+                    resolveUrl,
+                    editContent,
+                    createContent,
+                    createScheduledDelivery,
+                    updateUserName,
+                    validateContent,
+                    getDashboardCharts,
+                    findExplores,
+                    listCustomChartTypes,
+                    findCustomChartTypes,
+                    resolveCustomChartType,
+                    chartExportArtifacts,
+                    getVerifiedFieldUsage,
+                    searchSemanticLayer,
+                    analyzeFieldImpact,
+                    syncDbtProject,
+                    runAsyncQuery,
+                    runAsyncMergeQuery,
+                    runSavedChartQuery,
+                    runSqlJob,
+                    runComposerQueries,
+                    listWarehouseTables,
+                    describeWarehouseTable,
+                    listKnowledgeDocuments,
+                    getKnowledgeDocumentContent,
+                    // Only conversations pinned as context on this thread are
+                    // readable — the pin is the capability grant.
+                    readPinnedThread: async ({ threadUuid }) => {
+                        const pinnedThreadUuids =
+                            await this.aiAgentModel.findPinnedThreadContextUuids(
+                                prompt.threadUuid,
+                            );
+                        if (!pinnedThreadUuids.includes(threadUuid)) {
+                            throw new ForbiddenError(
+                                'This conversation is not attached as context on this thread',
+                            );
+                        }
+                        const messages =
+                            await this.aiAgentModel.findThreadMessages({
+                                organizationUuid,
+                                threadUuid,
+                            });
+                        return messages.map((message) => ({
+                            role: message.role,
+                            message: message.message ?? '',
+                            createdAt: message.createdAt,
+                        }));
+                    },
+                    getSavedChart,
+                    getPrompt,
+                    sendFile,
+                    deferSlackVisualization,
+                    exportCustomChartTypeImage,
+                    sendSlackBlocks,
+                    updateSlackMessage,
+                    storeToolCall,
+                    storeToolCallError,
+                    storeToolResults,
+                    storeReasoning,
+                    isPromptInterrupted,
+                    consumePromptSteers,
+                    searchFieldValues,
+                    editDbtProject,
+                    editProjectContext,
+                    editRepo,
+                    setupPreviewDeploy,
+                    exploreRepo,
+                    readAttachments,
+                    discoverRepos,
+                    listWorkstreams,
+                    closePullRequest,
+                    getPullRequestDiff,
+                    listProjects,
+                    getProjectInfo,
+                    updateProgress: (
+                        progress,
+                        toolName,
+                        progressId,
+                        progressStatus,
+                    ) =>
+                        updateProgress(
+                            progress,
+                            toolName,
+                            progressId,
+                            progressStatus,
+                        ),
+                    updatePrompt: (
+                        update: UpdateSlackResponse | UpdateWebAppResponse,
+                    ) => {
+                        // Generation saves step and terminal responses before Slack
+                        // delivery. Keep presentation markers out of stored history and
+                        // classifiers while returning the original text for selection.
+                        const visibleUpdate =
+                            isSlackPrompt(prompt) &&
+                            update.response !== undefined
+                                ? {
+                                      ...update,
+                                      response:
+                                          stripSlackVisualizationSelection(
+                                              update.response,
+                                          ),
+                                  }
+                                : update;
+                        const updatePromise = this.persistTrackedPromptUpdate(
+                            visibleUpdate,
+                            {
+                                organizationUuid:
+                                    agentSettings.organizationUuid,
+                                projectUuid: prompt.projectUuid,
+                                agentUuid: agentSettings.uuid,
+                                threadUuid: prompt.threadUuid,
+                                userUuid: user.userUuid,
+                            },
+                        );
+                        if (!updatePromise) {
+                            return Promise.resolve();
+                        }
+                        const updateWithCitationTelemetryPromise =
+                            aiAgentMemoryEnabled &&
+                            update.response !== undefined &&
+                            update.tokenUsage !== undefined
+                                ? updatePromise.then(async () => {
+                                      const {
+                                          slugs,
+                                          citationCounts,
+                                          malformedCount,
+                                      } = parseMemoryCitations(
+                                          update.response ?? '',
+                                      );
+                                      if (malformedCount > 0) {
+                                          this.logger.warn(
+                                              `Dropped ${malformedCount} malformed memory citation marker(s) for prompt ${update.promptUuid}`,
+                                          );
+                                      }
+                                      if (slugs.length === 0) return;
+
+                                      try {
+                                          const ownerUserUuid =
+                                              await resolveThreadMemoryOwnerUuid();
+                                          if (!ownerUserUuid) return;
+                                          const citedMemories =
+                                              await this.aiAgentMemoryModel.incrementCitedForActiveMemories(
+                                                  {
+                                                      projectUuid:
+                                                          prompt.projectUuid,
+                                                      userUuid: ownerUserUuid,
+                                                      slugs,
+                                                  },
+                                              );
+                                          const cited = new Set(
+                                              citedMemories.map(
+                                                  ({ slug }) => slug,
+                                              ),
+                                          );
+                                          const dropped = slugs.filter(
+                                              (slug) => !cited.has(slug),
+                                          );
+                                          if (dropped.length > 0) {
+                                              this.logger.warn(
+                                                  `Dropped ${dropped.length} unknown or inactive memory citation(s) for prompt ${update.promptUuid}`,
+                                              );
+                                          }
+                                          if (citedMemories.length > 0) {
+                                              this.prometheusMetrics?.incrementAiAgentMemoryCited(
+                                                  citedMemories.length,
+                                              );
+                                              citedMemories.forEach(
+                                                  ({ memoryId, slug }) =>
+                                                      this.analytics.track<AiAgentMemoryCitedEvent>(
+                                                          {
+                                                              event: 'ai_agent_memory.cited',
+                                                              userId: user.userUuid,
+                                                              properties: {
+                                                                  organizationId:
+                                                                      prompt.organizationUuid,
+                                                                  projectId:
+                                                                      prompt.projectUuid,
+                                                                  agentId:
+                                                                      agentSettings.uuid,
+                                                                  memoryId,
+                                                                  citationCount:
+                                                                      citationCounts[
+                                                                          slug
+                                                                      ] ?? 0,
+                                                                  channel:
+                                                                      isSlackPrompt(
+                                                                          prompt,
+                                                                      )
+                                                                          ? 'slack'
+                                                                          : 'web',
+                                                              },
+                                                          },
+                                                      ),
+                                              );
+                                          }
+                                      } catch (error) {
+                                          this.logger.error(
+                                              `Failed to update memory citation telemetry for prompt ${update.promptUuid}`,
+                                              error,
+                                          );
+                                      }
+                                  })
+                                : updatePromise;
+
+                        if (
+                            shouldEnqueueReviewClassifierForPromptUpdate(update)
+                        ) {
+                            void updatePromise
+                                .then(() => {
+                                    this.enqueueReviewClassifierEvent({
+                                        eventType: 'response_saved',
+                                        organizationUuid,
+                                        projectUuid: prompt.projectUuid,
+                                        agentUuid: agentSettings.uuid,
+                                        threadUuid: prompt.threadUuid,
+                                        promptUuid: update.promptUuid,
+                                        userUuid: user.userUuid,
+                                    });
+                                })
+                                .catch((error) => {
+                                    Logger.error(
+                                        'Failed to enqueue AI agent review classifier after response save',
+                                        error,
+                                    );
+                                });
+                        }
+
+                        // Error-only updates add no distillable content — distill only
+                        // after a successful terminal turn write.
+                        if (
+                            aiAgentMemoryEnabled &&
+                            update.response !== undefined &&
+                            update.tokenUsage !== undefined
+                        ) {
+                            void updatePromise
+                                .then(() => {
+                                    this.enqueueMemoryDistillEvent({
+                                        eventType: 'response_saved',
+                                        organizationUuid,
+                                        projectUuid: prompt.projectUuid,
+                                        threadUuid: prompt.threadUuid,
+                                        userUuid: user.userUuid,
+                                    });
+                                })
+                                .catch((error) => {
+                                    Logger.error(
+                                        'Failed to enqueue AI agent memory distill after response save',
+                                        error,
+                                    );
+                                });
+                        }
+
+                        return updateWithCitationTelemetryPromise.then(
+                            () => undefined,
+                        );
+                    },
+                    trackEvent: (event) => this.analytics.track(event),
+
+                    createOrUpdateArtifact: async (data) => {
+                        const artifact =
+                            await this.aiAgentModel.createOrUpdateArtifact(
+                                data,
+                            );
+
+                        if (decisions) {
+                            stepProgressEmitter?.emit('artifactReady', {
+                                promptUuid: prompt.promptUuid,
+                                artifactUuid: artifact.artifactUuid,
+                                versionUuid: artifact.versionUuid,
+                            });
+                        }
+
+                        return artifact;
+                    },
+
+                    listThreadComposerPipelines: async (threadUuid) =>
+                        (
+                            await this.aiAgentModel.findChartArtifactConfigsByThreadUuid(
+                                threadUuid,
+                            )
+                        ).filter(isAiComposerChartArtifactConfig),
+
+                    waitForSqlApproval: (toolCallId, timeoutMs) =>
+                        this.aiAgentModel.waitForSqlApproval(
+                            toolCallId,
+                            timeoutMs,
+                        ),
+                    recordSqlApproval: ({
+                        toolCallId,
+                        toolName,
+                        decidedByUserUuid,
+                        source,
+                    }) =>
+                        this.recordSqlApprovalDecision({
+                            organizationUuid: prompt.organizationUuid,
+                            projectUuid: prompt.projectUuid,
+                            agentUuid: agentSettings.uuid,
+                            threadUuid: prompt.threadUuid,
+                            toolCallId,
+                            toolName,
+                            decision: 'approved',
+                            source,
+                            userUuid: decidedByUserUuid,
+                        }),
+                    isThreadSqlAutoApproved: (threadUuid) =>
+                        this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
+                    listSqlApprovalDecisions: (promptUuid) =>
+                        this.aiAgentModel.findSqlApprovalDecisionsForPrompt(
+                            promptUuid,
+                        ),
+                    loadSkill: async (name, loadOptions) => {
+                        const builtIn =
+                            await this.aiAgentToolsService.loadAgentSkill(name);
+                        if (builtIn) {
+                            return {
+                                ...builtIn,
+                                body: AiAgentService.renderSkillBody(
+                                    builtIn.body,
+                                    loadOptions.arguments,
+                                    [],
+                                ),
+                            };
+                        }
+                        const custom = modelServableSkills.find(
+                            (skill) => skill.name === name.trim().toLowerCase(),
+                        );
+                        if (!custom) return undefined;
+                        return AiAgentService.toServedSkill(
+                            custom,
+                            custom.currentVersion,
+                            AiAgentService.renderSkillBody(
+                                custom.parsed.body,
+                                loadOptions.arguments,
+                                custom.parsed.frontmatter.arguments,
+                            ),
+                        );
+                    },
+
+                    perf: {
+                        measureGenerateResponseTime: (durationMs) => {
+                            this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
+                                durationMs,
+                            );
+                        },
+                        measureStreamResponseTime: (durationMs) => {
+                            this.prometheusMetrics?.aiAgentStreamResponseDurationHistogram?.observe(
+                                durationMs,
+                            );
+                        },
+                        measureStreamFirstChunk: (durationMs) => {
+                            this.prometheusMetrics?.aiAgentStreamFirstChunkHistogram?.observe(
+                                durationMs,
+                            );
+                        },
+                        measureTTFT: (durationMs, model, mode) => {
+                            this.prometheusMetrics?.aiAgentTTFTHistogram?.observe(
+                                { model, mode },
+                                durationMs,
+                            );
+                        },
+                    },
+                };
+
+                if (!stream) {
+                    return generateAgentResponse({
+                        args,
+                        onSlackTableResults: options.onSlackTableResults,
+                        dependencies,
+                        mcpToolSetup,
+                        abortSignal:
+                            responseExecution.mode === 'deep_research' ||
+                            responseExecution.mode === 'standard'
+                                ? responseExecution.abortSignal
+                                : undefined,
+                    });
+                }
+
+                const result = await streamAgentResponse({
+                    args,
+                    dependencies,
+                    mcpToolSetup,
+                });
+                // Heartbeat handle for the SSE keepalive (see STREAM_KEEPALIVE_INTERVAL_MS).
+                // Cleared in onFinish, and defensively if a write lands after the stream
+                // has closed.
+                let keepaliveInterval:
+                    | ReturnType<typeof setInterval>
+                    | undefined;
+                const clearKeepalive = () => {
+                    if (keepaliveInterval) {
+                        clearInterval(keepaliveInterval);
+                        keepaliveInterval = undefined;
                     }
-                }, STREAM_KEEPALIVE_INTERVAL_MS);
-
-                // Forward step-progress events from tools (`updateProgress`,
-                // `editDbtProject`) to the client. `transient: true` so
-                // they don't get persisted as part of the message; they're
-                // ephemeral status updates the bubble surfaces as the
-                // active step under the running tool group until the next
-                // event lands or the stream ends. `toolName` lets the client
-                // scope the row to the active tool so a concurrently running
-                // tool's progress can't surface under another tool's header.
-                if (stepProgressEmitter) {
-                    stepProgressEmitter.on(
-                        'artifactReady',
-                        (data: {
-                            promptUuid: string;
-                            artifactUuid: string;
-                            versionUuid: string;
-                        }) => {
+                };
+                const uiMessageStream = createUIMessageStream({
+                    execute: ({ writer }) => {
+                        // Keep the connection warm during long, output-silent tool
+                        // calls so an idle-timeout proxy can't cut the stream (see
+                        // STREAM_KEEPALIVE_INTERVAL_MS). `transient: true` → never
+                        // persisted; the client drops unknown transient data parts, so
+                        // this is invisible. Best-effort: a write after close throws,
+                        // which just tears the heartbeat down.
+                        keepaliveInterval = setInterval(() => {
                             try {
                                 writer.write({
-                                    type: 'data-artifact-ready',
-                                    data,
+                                    type: 'data-keepalive',
+                                    data: { ts: Date.now() },
                                     transient: true,
                                 });
                             } catch {
-                                // The persisted artifact remains available after disconnect.
+                                clearKeepalive();
                             }
-                        },
-                    );
-                    stepProgressEmitter.on(
-                        'stepProgress',
-                        (event: {
-                            message: string;
-                            toolName?: string;
-                            progressId?: string;
-                            progressStatus?:
-                                | 'in_progress'
-                                | 'complete'
-                                | 'error';
-                        }) => {
-                            writer.write({
-                                type: 'data-step-progress',
-                                data: {
-                                    message: event.message,
-                                    toolName: event.toolName ?? null,
-                                    progressId: event.progressId ?? null,
-                                    progressStatus:
-                                        event.progressStatus ?? null,
+                        }, STREAM_KEEPALIVE_INTERVAL_MS);
+
+                        // Forward step-progress events from tools (`updateProgress`,
+                        // `editDbtProject`) to the client. `transient: true` so
+                        // they don't get persisted as part of the message; they're
+                        // ephemeral status updates the bubble surfaces as the
+                        // active step under the running tool group until the next
+                        // event lands or the stream ends. `toolName` lets the client
+                        // scope the row to the active tool so a concurrently running
+                        // tool's progress can't surface under another tool's header.
+                        if (stepProgressEmitter) {
+                            stepProgressEmitter.on(
+                                'artifactReady',
+                                (data: {
+                                    promptUuid: string;
+                                    artifactUuid: string;
+                                    versionUuid: string;
+                                }) => {
+                                    try {
+                                        writer.write({
+                                            type: 'data-artifact-ready',
+                                            data,
+                                            transient: true,
+                                        });
+                                    } catch {
+                                        // The persisted artifact remains available after disconnect.
+                                    }
                                 },
-                                transient: true,
-                            });
-                        },
-                    );
-                }
+                            );
+                            stepProgressEmitter.on(
+                                'stepProgress',
+                                (event: {
+                                    message: string;
+                                    toolName?: string;
+                                    progressId?: string;
+                                    progressStatus?:
+                                        | 'in_progress'
+                                        | 'complete'
+                                        | 'error';
+                                }) => {
+                                    writer.write({
+                                        type: 'data-step-progress',
+                                        data: {
+                                            message: event.message,
+                                            toolName: event.toolName ?? null,
+                                            progressId:
+                                                event.progressId ?? null,
+                                            progressStatus:
+                                                event.progressStatus ?? null,
+                                        },
+                                        transient: true,
+                                    });
+                                },
+                            );
+                        }
 
-                writer.merge(
-                    options.redactToolOutputs
-                        ? redactStreamToolOutputs(result.toUIMessageStream())
-                        : result.toUIMessageStream(),
-                );
-            },
-            onFinish: () => {
-                clearKeepalive();
-                stepProgressEmitter?.removeAllListeners('artifactReady');
-            },
-        });
-
-        return {
-            pipeUIMessageStreamToResponse: (response) => {
-                // Resolves once the stream is fully written; a client that
-                // disconnects mid-stream must not surface as an unhandled rejection.
-                void pipeUIMessageStreamToResponse({
-                    response,
-                    stream: uiMessageStream,
-                }).catch((error) => {
-                    this.logger.error(
-                        `Failed to pipe AI agent stream to response: ${getErrorMessage(
-                            error,
-                        )}`,
-                    );
+                        writer.merge(
+                            options.redactToolOutputs
+                                ? redactStreamToolOutputs(
+                                      result.toUIMessageStream(),
+                                  )
+                                : result.toUIMessageStream(),
+                        );
+                    },
+                    onFinish: () => {
+                        clearKeepalive();
+                        stepProgressEmitter?.removeAllListeners(
+                            'artifactReady',
+                        );
+                    },
                 });
+
+                return {
+                    pipeUIMessageStreamToResponse: (response) => {
+                        // Resolves once the stream is fully written; a client that
+                        // disconnects mid-stream must not surface as an unhandled rejection.
+                        void pipeUIMessageStreamToResponse({
+                            response,
+                            stream: uiMessageStream,
+                        }).catch((error) => {
+                            this.logger.error(
+                                `Failed to pipe AI agent stream to response: ${getErrorMessage(
+                                    error,
+                                )}`,
+                            );
+                        });
+                    },
+                    consumeStream: result.consumeStream.bind(result),
+                };
             },
-            consumeStream: result.consumeStream.bind(result),
-        };
+        );
     }
 
     // TODO: user permissions
@@ -17955,15 +18077,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        await agentExecutionContext.run(
-            { surface: AgentActorSurface.SLACK_AGENT, clientId: slackAppId },
-            () => this.generateSlackPromptReply(promptUuid, slackPrompt),
+        await this.generateSlackPromptReply(
+            promptUuid,
+            slackPrompt,
+            slackAppId,
         );
     }
 
     private async generateSlackPromptReply(
         promptUuid: string,
         initialSlackPrompt: SlackPrompt,
+        slackAppId: string | null,
     ): Promise<void> {
         const slackPrompt: SlackPrompt = initialSlackPrompt;
         const accessRefusalState: SlackAiAccessRefusalState = {
@@ -18028,59 +18152,87 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agent = await this.getAgent(user, thread.agentUuid);
             }
 
-            if (slackPrompt.prompt.trim().length === 0) {
-                await this.editPlaceholderOrPost(
-                    slackPrompt,
-                    AiAgentService.EMPTY_PROMPT_WELCOME,
-                );
-                return;
-            }
-
-            const pendingRejectedSqlApprovalResults: Parameters<StoreToolResultsFn>[0] =
-                [];
-            const chatHistoryMessages =
-                await this.getChatHistoryFromThreadMessages(threadMessages, {
-                    organizationUuid: slackPrompt.organizationUuid,
-                    projectUuid: slackPrompt.projectUuid,
-                    agentUuid: agent?.uuid!,
-                    retrieveRelevantArtifacts:
-                        agent !== undefined &&
-                        this.getIsVerifiedArtifactsEnabled(),
-                    currentPromptUuid: promptUuid,
-                    userUuid: user.userUuid,
-                    fastDecisionsEnabled:
-                        !!(await this.getDecisionClient(user)),
-                    pendingRejectedSqlApprovalResults,
-                    threadUuid: slackPrompt.threadUuid,
+            const installation =
+                slackAppId === null
+                    ? await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                          slackPrompt.organizationUuid,
+                      )
+                    : null;
+            const { enabled: agentIdentityEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
                 });
-
-            const replyDelivered = await this.replyToSlackPromptWithStatus({
-                user,
-                slackPrompt,
-                threadMessages,
-                agent,
-                chatHistoryMessages,
-                canManageAgent,
-                accessRefusalState,
-            });
-            if (
-                replyDelivered &&
-                pendingRejectedSqlApprovalResults.length > 0
-            ) {
-                // Persist only after the regenerated answer reaches Slack.
-                // Earlier persistence would make hasResult block a retry when
-                // generation or delivery fails partway through the resume.
-                // Best-effort: the answer is already delivered, so a failed
-                // write must not post an error; it only re-opens the
-                // duplicate-resume window, which is safe to retry.
-                await this.aiAgentModel
-                    .createToolResults(pendingRejectedSqlApprovalResults)
-                    .catch((error) => {
-                        this.logger.warn(
-                            `Failed to persist rejected SQL approval results for prompt ${slackPrompt.promptUuid}: ${getErrorMessage(error)}`,
+            await agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: fromSession(user),
+                    surface: AgentActorSurface.SLACK_AGENT,
+                    clientId: slackAppId ?? installation?.appId ?? null,
+                    agentUuid: agent?.uuid ?? null,
+                    agentIdentityEnabled,
+                }),
+                async () => {
+                    if (slackPrompt.prompt.trim().length === 0) {
+                        await this.editPlaceholderOrPost(
+                            slackPrompt,
+                            AiAgentService.EMPTY_PROMPT_WELCOME,
                         );
-                    });
-            }
+                        return;
+                    }
+
+                    const pendingRejectedSqlApprovalResults: Parameters<StoreToolResultsFn>[0] =
+                        [];
+                    const chatHistoryMessages =
+                        await this.getChatHistoryFromThreadMessages(
+                            threadMessages,
+                            {
+                                organizationUuid: slackPrompt.organizationUuid,
+                                projectUuid: slackPrompt.projectUuid,
+                                agentUuid: agent?.uuid!,
+                                retrieveRelevantArtifacts:
+                                    agent !== undefined &&
+                                    this.getIsVerifiedArtifactsEnabled(),
+                                currentPromptUuid: promptUuid,
+                                userUuid: user.userUuid,
+                                fastDecisionsEnabled:
+                                    !!(await this.getDecisionClient(user)),
+                                pendingRejectedSqlApprovalResults,
+                                threadUuid: slackPrompt.threadUuid,
+                            },
+                        );
+
+                    const replyDelivered =
+                        await this.replyToSlackPromptWithStatus({
+                            user,
+                            slackPrompt,
+                            threadMessages,
+                            agent,
+                            chatHistoryMessages,
+                            canManageAgent,
+                            accessRefusalState,
+                        });
+                    if (
+                        replyDelivered &&
+                        pendingRejectedSqlApprovalResults.length > 0
+                    ) {
+                        // Persist only after the regenerated answer reaches Slack.
+                        // Earlier persistence would make hasResult block a retry when
+                        // generation or delivery fails partway through the resume.
+                        // Best-effort: the answer is already delivered, so a failed
+                        // write must not post an error; it only re-opens the
+                        // duplicate-resume window, which is safe to retry.
+                        await this.aiAgentModel
+                            .createToolResults(
+                                pendingRejectedSqlApprovalResults,
+                            )
+                            .catch((error) => {
+                                this.logger.warn(
+                                    `Failed to persist rejected SQL approval results for prompt ${slackPrompt.promptUuid}: ${getErrorMessage(error)}`,
+                                );
+                            });
+                    }
+                },
+            );
         } catch (e) {
             const userFacingMessage = await this.getPromptErrorMessage(
                 {

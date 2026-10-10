@@ -153,6 +153,7 @@ function buildService(
     };
 
     const svc = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             softDelete: { enabled: true },

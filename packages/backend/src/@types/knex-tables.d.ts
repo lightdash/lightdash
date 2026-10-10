@@ -1,4 +1,8 @@
 import {
+    AgentActionLogTable,
+    AgentActionLogTableName,
+} from '../database/entities/agentActionLog';
+import {
     AiAgentReasoningTable,
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
@@ -734,6 +738,7 @@ import {
 
 declare module 'knex/types/tables' {
     interface Tables {
+        [AgentActionLogTableName]: AgentActionLogTable;
         [CredentialBindingsTableName]: CredentialBindingsTable;
         [CredentialTokenStateTableName]: CredentialTokenStateTable;
         [CredentialsTableName]: CredentialsTable;

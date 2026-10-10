@@ -192,6 +192,7 @@ const buildService = ({
         findSessionUserAndOrgByUuid: vi.fn(async () => refreshedUser),
     };
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,

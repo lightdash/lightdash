@@ -289,6 +289,9 @@ describe('CoderService', () => {
             updatedAt: new Date('2026-08-27T00:00:00Z'),
         };
         const service = new CoderService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             directAccessService: {} as AnyType,
             savedChartModel: {
                 get: vi.fn().mockResolvedValue(publishedChart),
@@ -1125,6 +1128,9 @@ describe('CoderService', () => {
     describe('convertTileWithSlugsToUuids', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1216,6 +1222,9 @@ describe('CoderService', () => {
 
         it('warns when a chart tile slug does not resolve in the project', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1286,6 +1295,9 @@ describe('CoderService', () => {
 
         it('resolves portable tab slugs and still accepts legacy tab UUIDs', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1351,6 +1363,9 @@ describe('CoderService', () => {
         const buildServiceWithApps = (apps: AppRow[]) => {
             appModelMock = buildAppModelMock(apps);
             return new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1476,6 +1491,9 @@ describe('CoderService', () => {
 
         it('resolves a chart tile and a data app tile together (main return path)', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1551,6 +1569,9 @@ describe('CoderService', () => {
 
         it('resolves a historical chart slug to the existing chart UUID', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1869,6 +1890,9 @@ describe('CoderService', () => {
 
         it('ignores the read-only chart query when tiles are written back', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {} as AnyType,
@@ -2612,6 +2636,7 @@ describe('content-as-code access split', () => {
     } as AnyType;
 
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         projectModel: {
             get: vi.fn().mockResolvedValue({

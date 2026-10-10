@@ -3,9 +3,10 @@ import {
     type AiAgent,
     type SlackPrompt,
 } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     agentExecutionContext,
-    fillScopedSlackAppId,
+    getContentWriteAgentIdentity,
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAgentService } from './AiAgentService';
 
@@ -34,60 +35,70 @@ describe('Slack agent identity', () => {
             expect.objectContaining({ slackAppId: 'A123' }),
         );
     });
+
     test.each(['A123', null])(
-        'scopes app id %s to the running prompt',
+        'resolves person and agent before scoping app id %s',
         async (slackAppId) => {
-            const prompt = { promptUuid: 'prompt' } as SlackPrompt;
-            const findSlackPrompt = vi.fn().mockResolvedValue(prompt);
+            const user = defaultSessionUser;
+            const prompt = {
+                promptUuid: 'prompt',
+                prompt: '',
+                createdByUserUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: 'project',
+                threadUuid: 'thread',
+            } as SlackPrompt;
             const service = new AiAgentService({
-                aiAgentModel: { findSlackPrompt },
+                aiAgentModel: {
+                    findSlackPrompt: vi.fn().mockResolvedValue(prompt),
+                    findThread: vi
+                        .fn()
+                        .mockResolvedValue({ agentUuid: 'stored-agent' }),
+                    getThreadMessages: vi.fn().mockResolvedValue([]),
+                },
+                userModel: {
+                    findSessionUserAndOrgByUuid: vi
+                        .fn()
+                        .mockResolvedValue(user),
+                },
+                featureFlagService: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                slackAuthenticationModel: {
+                    getInstallationFromOrganizationUuid: vi
+                        .fn()
+                        .mockResolvedValue({ appId: 'installed-app' }),
+                },
                 lightdashConfig: { ai: {} },
             } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
-            const generate = vi
+            vi.spyOn(service, 'getAgent').mockResolvedValue({
+                uuid: 'stored-agent',
+            } as AiAgent);
+            const reply = vi
                 .spyOn(
                     service as unknown as {
-                        generateSlackPromptReply: (
-                            promptUuid: string,
-                            slackPrompt: SlackPrompt,
-                        ) => Promise<void>;
+                        editPlaceholderOrPost: () => Promise<void>;
                     },
-                    'generateSlackPromptReply',
+                    'editPlaceholderOrPost',
                 )
                 .mockImplementation(async () => {
-                    expect(agentExecutionContext.getStore()).toEqual({
-                        surface: AgentActorSurface.SLACK_AGENT,
-                        clientId: slackAppId,
+                    expect(
+                        getContentWriteAgentIdentity({
+                            userUuid: user.userUuid,
+                            organizationUuid: user.organizationUuid,
+                        }),
+                    ).toMatchObject({
+                        subject: { type: 'user', uuid: user.userUuid },
+                        act: {
+                            surface: AgentActorSurface.SLACK_AGENT,
+                            client_id: slackAppId ?? 'installed-app',
+                            agent_uuid: 'stored-agent',
+                        },
                     });
                 });
             await service.replyToSlackPrompt('prompt', slackAppId);
-            expect(generate).toHaveBeenCalledWith('prompt', prompt);
-            expect(findSlackPrompt).toHaveBeenCalledOnce();
+            expect(reply).toHaveBeenCalledOnce();
             expect(agentExecutionContext.getStore()).toBeUndefined();
         },
     );
-    test('fills a missing Slack app id from the loaded installation', () => {
-        const actor = {
-            surface: AgentActorSurface.SLACK_AGENT,
-            clientId: null,
-        };
-        agentExecutionContext.run(actor, () => fillScopedSlackAppId('A123'));
-        expect(actor.clientId).toBe('A123');
-    });
-    test('keeps a Slack app id that the job already carries', () => {
-        const actor = {
-            surface: AgentActorSurface.SLACK_AGENT,
-            clientId: 'A-job' as string | null,
-        };
-        agentExecutionContext.run(actor, () => fillScopedSlackAppId('A123'));
-        expect(actor.clientId).toBe('A-job');
-    });
-    test('leaves other surfaces and unscoped work alone', () => {
-        const actor = {
-            surface: AgentActorSurface.IN_APP_AGENT,
-            clientId: null as string | null,
-        };
-        agentExecutionContext.run(actor, () => fillScopedSlackAppId('A123'));
-        expect(actor.clientId).toBeNull();
-        expect(() => fillScopedSlackAppId('A123')).not.toThrow();
-    });
 });

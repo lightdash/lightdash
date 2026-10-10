@@ -19,6 +19,7 @@ import {
     parseDocumentContent,
     parseStoredDocumentContent,
     UpdateDocumentContentRequest,
+    type AgentIdentityClaim,
     type DocumentLinkingChart,
     type DocumentSavedChartKind,
 } from '@lightdash/common';
@@ -824,7 +825,10 @@ export class DocumentModel {
         }));
     }
 
-    async create(input: CreateDocument): Promise<Document> {
+    async create(
+        input: CreateDocument,
+        agentIdentity: AgentIdentityClaim | null = null,
+    ): Promise<Document> {
         const { content, nextChartNumber } = assignDocumentChartIds(
             parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
             1,
@@ -893,6 +897,7 @@ export class DocumentModel {
             const [version] = await transaction(DocumentVersionsTableName)
                 .insert({
                     document_id: document.document_id,
+                    agent_identity: agentIdentity,
                     version_number: 1,
                     schema_version: DOCUMENT_SCHEMA_VERSION,
                     markdown: content.markdown,
@@ -920,6 +925,7 @@ export class DocumentModel {
             expectedSpaceUuid: string | null;
         },
         createdByUserUuid: string,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<Document> {
         return this.database.transaction(async (transaction) => {
             const row = await this.activeDocuments(transaction, projectUuid)
@@ -958,6 +964,7 @@ export class DocumentModel {
             const [version] = await transaction(DocumentVersionsTableName)
                 .insert({
                     document_id: row.document_id,
+                    agent_identity: agentIdentity,
                     version_number: document.version.versionNumber + 1,
                     schema_version: DOCUMENT_SCHEMA_VERSION,
                     markdown: content.markdown,

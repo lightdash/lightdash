@@ -25,7 +25,10 @@ import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
-import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { type AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
@@ -262,10 +265,13 @@ export class SchedulerAiAugmentationService extends BaseService {
             }),
         );
         return agentExecutionContext.run(
-            {
+            createAgentExecutionContext({
+                account,
                 surface: AgentActorSurface.AI_SUMMARY,
                 clientId: 'lightdash-ai-summary',
-            },
+                agentUuid: null,
+                agentIdentityEnabled: false,
+            }),
             () => {
                 switch (augmentation.type) {
                     case 'agent':

@@ -155,6 +155,7 @@ const buildService = ({ canView }: { canView: boolean }) => {
         directOnly: false,
     };
     return new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: { appRuntime: {} } as never,
         analytics: { track: vi.fn() } as never,

@@ -55,6 +55,7 @@ import type {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { AppModel } from '../../models/AppModel';
 import type { ContentVerificationModel } from '../../models/ContentVerificationModel';
@@ -68,6 +69,8 @@ import type { OrganizationMemberProfileModel } from '../../models/OrganizationMe
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SpaceModel } from '../../models/SpaceModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { resolveDataAppVizBinding } from '../CoderService/dataAppVizBinding';
 import { normalizeFilterIds } from '../CoderService/filterIds';
@@ -115,6 +118,7 @@ const getAccessTarget = (
           };
 
 type DocumentServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: Pick<AnalyticsModel, 'addDocumentViewEvent'>;
@@ -397,13 +401,29 @@ export class DocumentService extends BaseService {
                 copiedFrom &&
                 mapDocumentCharts(copiedFrom, DocumentService.toStoredChart),
         });
-        const created = await this.dependencies.documentModel.create({
-            ...input,
-            uniqueSlug,
-            spaceUuid: input.spaceUuid ?? null,
-            content,
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const created = await this.dependencies.documentModel.create(
+            {
+                ...input,
+                uniqueSlug,
+                spaceUuid: input.spaceUuid ?? null,
+                content,
+                projectUuid,
+                createdByUserUuid: account.user.userUuid,
+            },
+            agentIdentity,
+        );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
             projectUuid,
-            createdByUserUuid: account.user.userUuid,
+            agentIdentity,
+            objectType: 'document',
+            objectUuid: created.documentUuid,
+            versionUuid: created.version.versionUuid,
+            action: 'create',
         });
         this.dependencies.analytics.track({
             event: 'document.created',
@@ -561,13 +581,28 @@ export class DocumentService extends BaseService {
             previous,
         );
         await this.validateCharts(account, projectUuid, content, previous);
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const saved = await this.dependencies.documentModel.updateContent(
+            projectUuid,
+            documentUuid,
+            { ...input, content, expectedSpaceUuid: document.spaceUuid },
+            account.user.userUuid,
+            agentIdentity,
+        );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            projectUuid,
+            agentIdentity,
+            objectType: 'document',
+            objectUuid: saved.documentUuid,
+            versionUuid: saved.version.versionUuid,
+            action: 'update',
+        });
         const updated = {
-            ...(await this.dependencies.documentModel.updateContent(
-                projectUuid,
-                documentUuid,
-                { ...input, content, expectedSpaceUuid: document.spaceUuid },
-                account.user.userUuid,
-            )),
+            ...saved,
             verification: await this.keepVerificationAfterUpdate(
                 account,
                 document,

@@ -59,6 +59,9 @@ function buildService() {
     };
     return {
         service: new AppGenerateService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             aiCreditService: {
                 assertAiCreditsAvailable: async () => undefined,
             },

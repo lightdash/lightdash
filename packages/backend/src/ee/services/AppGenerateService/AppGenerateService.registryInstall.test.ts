@@ -251,6 +251,7 @@ function buildService(overrides: {
     };
 
     const svc = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: { track: analyticsTrackSpy } as never,

@@ -48,6 +48,7 @@ const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
     });
     const replacePolicy = vi.fn(async () => {});
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as never,

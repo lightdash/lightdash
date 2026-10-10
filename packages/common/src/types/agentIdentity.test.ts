@@ -8,6 +8,7 @@ import {
     getAgentIdentityWarehouseTypes,
     getWarehouseServiceAuthMethods,
     isAllowedAgentIdentitySource,
+    normalizeAgentIdentityClaim,
     supportsAiServiceAccount,
     type OrganizationAgentIdentityRule,
     type UpdateOrganizationAgentIdentityRule,
@@ -264,6 +265,7 @@ describe('buildAgentIdentityClaim', () => {
                     sub: 'in_app_agent:lightdash-chat',
                     surface: 'in_app_agent',
                     client_id: 'lightdash-chat',
+                    agent_uuid: null,
                 },
             });
         },
@@ -275,7 +277,12 @@ describe('buildAgentIdentityClaim', () => {
                 surface: AgentActorSurface.MCP,
                 clientId: null,
             }).act,
-        ).toEqual({ sub: 'mcp:unknown', surface: 'mcp', client_id: null });
+        ).toEqual({
+            sub: 'mcp:unknown',
+            surface: 'mcp',
+            client_id: null,
+            agent_uuid: null,
+        });
     });
 });
 
@@ -308,5 +315,40 @@ describe('getAgentClientLabel', () => {
             `${'a'.repeat(60)}b`,
         ];
         expect(new Set(ids.map(getAgentClientLabel)).size).toBe(ids.length);
+    });
+});
+
+describe('agent identity history', () => {
+    test('normalizes historical claims without changing their actor', () => {
+        const historical = {
+            sub: 'user:person',
+            subject: { type: 'user' as const, uuid: 'person' },
+            act: {
+                sub: 'mcp:client',
+                surface: AgentActorSurface.MCP,
+                client_id: 'client',
+            },
+        };
+        expect(normalizeAgentIdentityClaim(historical)).toEqual({
+            ...historical,
+            act: { ...historical.act, agent_uuid: null },
+        });
+        expect(historical.act).not.toHaveProperty('agent_uuid');
+        expect(normalizeAgentIdentityClaim(null)).toBeNull();
+    });
+    test('retains a known runtime agent without changing actor sub', () => {
+        const claim = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'person' },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'agent',
+        });
+        expect(claim.act).toEqual({
+            sub: 'in_app_agent:lightdash-chat',
+            surface: AgentActorSurface.IN_APP_AGENT,
+            client_id: 'lightdash-chat',
+            agent_uuid: 'agent',
+        });
+        expect(normalizeAgentIdentityClaim(claim)).toEqual(claim);
     });
 });

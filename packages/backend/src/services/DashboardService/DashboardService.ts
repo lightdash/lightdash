@@ -89,6 +89,7 @@ import {
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 // CaslAuditWrapper is now used via this.createAuditedAbility() from BaseService
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -114,6 +115,8 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createDashboardChartTiles } from '../../utils/dashboardTileUtils';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -132,6 +135,7 @@ import {
 } from '../verifiedContentGuards';
 
 type DashboardServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
@@ -358,7 +362,10 @@ export class DashboardService
         return { jobId };
     }
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         dashboardModel,
@@ -384,6 +391,7 @@ export class DashboardService
         contentVerificationModel,
     }: DashboardServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
@@ -690,6 +698,10 @@ export class DashboardService
                 'We cannot duplicate a chart that is not part of a dashboard',
             );
         }
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
         const duplicatedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
@@ -704,7 +716,17 @@ export class DashboardService
                 },
                 slug: chartToDuplicate.slug,
             },
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid,
+            agentIdentity,
+            objectType: 'chart',
+            objectUuid: duplicatedChart.uuid,
+            versionUuid: null,
+            action: 'create',
+        });
 
         // Best effort: the chart has already been duplicated at this point, so
         // missing explore metadata should not fail the parent dashboard copy.

@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AllVizChartConfig,
     ConflictError,
@@ -355,6 +356,7 @@ export class SavedSqlModel {
             sql: string;
             limit: number;
             binding?: SqlChartVersionBinding;
+            agentIdentity: AgentIdentityClaim | null;
         },
     ): Promise<string> {
         const warehouseConnectionUuid =
@@ -387,6 +389,7 @@ export class SavedSqlModel {
             SavedSqlVersionsTableName,
         ).insert(
             {
+                agent_identity: data.agentIdentity,
                 saved_sql_uuid: data.savedSqlUuid,
                 sql: data.sql,
                 limit: data.limit,
@@ -416,6 +419,7 @@ export class SavedSqlModel {
         binding?: SqlChartConnectionBinding,
         // 'unique' treats data.slug as a base and appends -1, -2… on conflict.
         { slugMode }: { slugMode: 'exact' | 'unique' } = { slugMode: 'exact' },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<{
         savedSqlUuid: string;
         slug: string;
@@ -462,6 +466,7 @@ export class SavedSqlModel {
                         sql: data.sql,
                         limit: data.limit,
                         binding,
+                        agentIdentity,
                     },
                 );
                 return { savedSqlUuid, slug, savedSqlVersionUuid };
@@ -481,6 +486,7 @@ export class SavedSqlModel {
             sqlChart: UpdateSqlChart;
         },
         binding?: SqlChartVersionBinding,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
         return this.database.transaction(async (trx) => {
             if (data.sqlChart.unversionedData) {
@@ -502,6 +508,7 @@ export class SavedSqlModel {
                     sql: data.sqlChart.versionedData.sql,
                     limit: data.sqlChart.versionedData.limit,
                     binding,
+                    agentIdentity,
                 });
             }
 

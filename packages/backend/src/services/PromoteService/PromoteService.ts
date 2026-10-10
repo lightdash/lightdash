@@ -46,6 +46,7 @@ import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -55,6 +56,8 @@ import {
     type SqlChartConnectionBinding,
 } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import {
     getContentConnectionName,
@@ -128,6 +131,7 @@ type PromotedSqlChartChange = {
 };
 
 type PromoteServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -232,8 +236,11 @@ export class PromoteService extends BaseService {
         | AppGenerateService
         | undefined;
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor(args: PromoteServiceArguments) {
         super();
+        this.agentActionLogModel = args.agentActionLogModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.savedChartModel = args.savedChartModel;
@@ -982,6 +989,10 @@ export class PromoteService extends BaseService {
         promotionChanges: PromotionChanges,
         promotedDashboardUuid?: string, // dashboard uuid if chart belongs to dashboard
     ): Promise<PromotionChanges> {
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
         const { charts } = promotionChanges;
 
         const existingCharts = charts.filter(
@@ -1043,6 +1054,8 @@ export class PromoteService extends BaseService {
                         chartData,
                         user,
                         transaction,
+                        undefined,
+                        agentIdentity,
                     );
                 });
 
@@ -1051,6 +1064,15 @@ export class PromoteService extends BaseService {
                     undefined,
                     { projectUuid: changeChart.projectUuid },
                 );
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    projectUuid: changeChart.projectUuid,
+                    agentIdentity,
+                    objectType: 'chart',
+                    objectUuid: updatedChart.uuid,
+                    versionUuid: null,
+                    action: 'update',
+                });
                 return {
                     ...updatedChart,
                     oldUuid: changeChart.oldUuid,
@@ -1093,7 +1115,17 @@ export class PromoteService extends BaseService {
                             ...chartData,
                             forceSlug: true,
                         },
+                        agentIdentity,
                     );
+                    await logAgentContentWrite({
+                        model: this.agentActionLogModel,
+                        projectUuid: changeChart.projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid: createdChart.uuid,
+                        versionUuid: null,
+                        action: 'create',
+                    });
 
                     return {
                         ...createdChart,
@@ -1172,6 +1204,10 @@ export class PromoteService extends BaseService {
             SqlChartConnectionBinding | undefined
         > = new Map(),
     ): Promise<PromotionChanges> {
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
         if (promotedSqlCharts.length === 0) {
             return promotionChanges;
         }
@@ -1199,7 +1235,7 @@ export class PromoteService extends BaseService {
         await Promise.all(
             sqlChangesWithResolvedSpaces
                 .filter((change) => change.action === PromotionAction.UPDATE)
-                .map((sqlChartChange) => {
+                .map(async (sqlChartChange) => {
                     const sqlChartUpdate = {
                         userUuid: user.userUuid,
                         savedSqlUuid: sqlChartChange.data.uuid,
@@ -1210,34 +1246,52 @@ export class PromoteService extends BaseService {
                         },
                     };
                     const binding = bindings.get(sqlChartChange.data.oldUuid);
-                    return binding === undefined
-                        ? this.savedSqlModel.update(sqlChartUpdate)
-                        : this.savedSqlModel.update(sqlChartUpdate, binding);
+                    const updated = await this.savedSqlModel.update(
+                        sqlChartUpdate,
+                        binding,
+                        agentIdentity,
+                    );
+                    await logAgentContentWrite({
+                        model: this.agentActionLogModel,
+                        projectUuid: sqlChartChange.data.projectUuid,
+                        agentIdentity,
+                        objectType: 'sql_chart',
+                        objectUuid: updated.savedSqlUuid,
+                        versionUuid: updated.savedSqlVersionUuid,
+                        action: 'update',
+                    });
+                    return updated;
                 }),
         );
 
         const createdSqlCharts = await Promise.all(
             sqlChangesWithResolvedSpaces
                 .filter((change) => change.action === PromotionAction.CREATE)
-                .map((sqlChartChange) => {
+                .map(async (sqlChartChange) => {
                     const sqlChartToCreate = {
                         ...sqlChartChange.data.unversionedData,
                         ...sqlChartChange.data.versionedData,
                         slug: sqlChartChange.data.slug,
                     };
                     const binding = bindings.get(sqlChartChange.data.oldUuid);
-                    return binding === undefined
-                        ? this.savedSqlModel.create(
-                              user.userUuid,
-                              sqlChartChange.data.projectUuid,
-                              sqlChartToCreate,
-                          )
-                        : this.savedSqlModel.create(
-                              user.userUuid,
-                              sqlChartChange.data.projectUuid,
-                              sqlChartToCreate,
-                              binding,
-                          );
+                    const created = await this.savedSqlModel.create(
+                        user.userUuid,
+                        sqlChartChange.data.projectUuid,
+                        sqlChartToCreate,
+                        binding,
+                        { slugMode: 'exact' },
+                        agentIdentity,
+                    );
+                    await logAgentContentWrite({
+                        model: this.agentActionLogModel,
+                        projectUuid: sqlChartChange.data.projectUuid,
+                        agentIdentity,
+                        objectType: 'sql_chart',
+                        objectUuid: created.savedSqlUuid,
+                        versionUuid: created.savedSqlVersionUuid,
+                        action: 'create',
+                    });
+                    return created;
                 }),
         );
 
@@ -1878,6 +1932,10 @@ export class PromoteService extends BaseService {
             return promotionChanges;
         }
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
         const promotedDashboard = dashboardChange.data;
         // Update dashboard with new space if it was created
         const newDashboard = await this.dashboardModel.create(
@@ -1889,7 +1947,17 @@ export class PromoteService extends BaseService {
             },
             user,
             promotedDashboard.projectUuid,
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid: promotedDashboard.projectUuid,
+            agentIdentity,
+            objectType: 'dashboard',
+            objectUuid: newDashboard.uuid,
+            versionUuid: newDashboard.versionUuid,
+            action: 'create',
+        });
 
         // Update charts within dashboards with the new dashboard uuid
         const updatedCharts = promotionChanges.charts.map((chartChange) => {
@@ -1934,6 +2002,10 @@ export class PromoteService extends BaseService {
             return promotionChanges;
         }
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
         const promotedDashboard = dahsboardChange.data;
 
         if (dahsboardChange.action === PromotionAction.UPDATE) {
@@ -1964,7 +2036,18 @@ export class PromoteService extends BaseService {
             promotedDashboard,
             user,
             promotedDashboard.projectUuid,
+            undefined,
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid: promotedDashboard.projectUuid,
+            agentIdentity,
+            objectType: 'dashboard',
+            objectUuid: updatedDashboard.uuid,
+            versionUuid: updatedDashboard.versionUuid,
+            action: 'update',
+        });
 
         return {
             ...promotionChanges,

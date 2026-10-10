@@ -2,6 +2,7 @@ import {
     DashboardConfig,
     DashboardFilters,
     DashboardTileTypes,
+    type AgentIdentityClaim,
     type DashboardParameters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -38,6 +39,7 @@ export type DbDashboard = {
 };
 
 type DbDashboardVersion = {
+    agent_identity: AgentIdentityClaim | null;
     dashboard_version_id: number;
     dashboard_version_uuid: string;
     dashboard_id: number;
@@ -105,7 +107,7 @@ export type DashboardVersionTable = Knex.CompositeTableType<
     DbDashboardVersion,
     Pick<
         DbDashboardVersion,
-        'dashboard_id' | 'updated_by_user_uuid' | 'config'
+        'dashboard_id' | 'updated_by_user_uuid' | 'config' | 'agent_identity'
     > &
         Partial<Pick<DbDashboardVersion, 'dashboard_version_uuid'>>
 >;

@@ -7,11 +7,15 @@ import {
     SEED_PROJECT,
     SpaceMemberRole,
 } from '@lightdash/common';
-import knex, { Knex } from 'knex';
+import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { DirectAccessModel } from '../../../models/DirectAccessModel';
 import { DocumentAccessModel } from '../../../models/DocumentAccessModel';
 import { CreateDocument, DocumentModel } from '../../../models/DocumentModel';
+import {
+    createMigratedDatabase,
+    type MigratedDatabase,
+} from '../../../testing/migratedDatabase';
 import {
     DocumentsTableName,
     DocumentVersionsTableName,
@@ -67,26 +71,19 @@ const FUTURE_DOCUMENT_CONTENT = {
 };
 
 describe('DocumentModel PostgreSQL integration', () => {
+    let migrated: MigratedDatabase;
     let database: Knex;
     let transaction: Knex.Transaction;
     let model: DocumentModel;
     let input: CreateDocument & { spaceUuid: string };
 
-    beforeAll(() => {
-        database = knex({
-            client: 'pg',
-            connection: process.env.PGCONNECTIONURI ?? {
-                host: process.env.PGHOST,
-                port: Number(process.env.PGPORT ?? 5432),
-                user: process.env.PGUSER,
-                password: process.env.PGPASSWORD,
-                database: process.env.PGDATABASE,
-            },
-        });
+    beforeAll(async () => {
+        migrated = await createMigratedDatabase();
+        database = migrated.database;
     });
 
     afterAll(async () => {
-        await database.destroy();
+        await migrated?.destroy();
     });
 
     beforeEach(async () => {
@@ -120,6 +117,12 @@ describe('DocumentModel PostgreSQL integration', () => {
         await ownerUp(transaction);
         await markdownUp(transaction);
         await personalUp(transaction);
+        await transaction.schema.alterTable(
+            DocumentVersionsTableName,
+            (table) => {
+                table.jsonb('agent_identity').nullable();
+            },
+        );
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -792,6 +795,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         }
         const documentId = row.document_id;
         await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
             document_id: documentId,
             version_number: 2,
             schema_version: 2,
@@ -1468,6 +1472,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             throw new Error('Document missing');
         }
         await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
             document_id: row.document_id,
             version_number: 2,
             schema_version: 2,
@@ -1668,6 +1673,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             throw new Error('Document missing');
         }
         await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
             document_id: row.document_id,
             version_number: 2,
             schema_version: 99,
@@ -1931,6 +1937,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         await expect(
             transaction.transaction(async (savepoint) => {
                 await savepoint(DocumentVersionsTableName).insert({
+                    agent_identity: null,
                     document_id: row.document_id,
                     version_number: 1,
                     schema_version: 2,

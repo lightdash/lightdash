@@ -36,6 +36,7 @@ import {
     UnexpectedServerError,
     UpdateMultipleDashboards,
     UserDashboardsSummary,
+    type AgentIdentityClaim,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardConfig,
     type DashboardFilters,
@@ -202,6 +203,7 @@ export class DashboardModel {
         trx: Transaction,
         dashboardId: number,
         version: DashboardVersionedFields,
+        agentIdentity: AgentIdentityClaim | null,
     ): Promise<void> {
         // Narrow date-zoom control tileTargets to tiles present in this version,
         // mirroring the filter tileTargets narrowing below. This drops targets
@@ -230,6 +232,7 @@ export class DashboardModel {
 
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
+                agent_identity: agentIdentity,
                 dashboard_id: dashboardId,
                 dashboard_version_uuid: uuidv4(),
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
@@ -1709,6 +1712,7 @@ export class DashboardModel {
         spaceId: number,
         dashboard: CreateDashboard & { slug: string },
         user: Pick<SessionUser, 'userUuid'>,
+        agentIdentity: AgentIdentityClaim | null,
     ): Promise<string> {
         const [revived] = await trx(DashboardsTableName)
             .update({
@@ -1737,11 +1741,16 @@ export class DashboardModel {
                 );
         }
 
-        await DashboardModel.createVersion(trx, revived.dashboard_id, {
-            ...dashboard,
-            tabs: dashboard.tabs || [],
-            updatedByUser: user,
-        });
+        await DashboardModel.createVersion(
+            trx,
+            revived.dashboard_id,
+            {
+                ...dashboard,
+                tabs: dashboard.tabs || [],
+                updatedByUser: user,
+            },
+            agentIdentity,
+        );
 
         return revived.dashboard_uuid;
     }
@@ -1751,6 +1760,7 @@ export class DashboardModel {
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
@@ -1789,6 +1799,7 @@ export class DashboardModel {
                     space.space_id,
                     dashboard,
                     user,
+                    agentIdentity,
                 );
             }
 
@@ -1809,11 +1820,16 @@ export class DashboardModel {
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
-            await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
-                ...dashboard,
-                tabs: dashboard.tabs || [],
-                updatedByUser: user,
-            });
+            await DashboardModel.createVersion(
+                trx,
+                newDashboard.dashboard_id,
+                {
+                    ...dashboard,
+                    tabs: dashboard.tabs || [],
+                    updatedByUser: user,
+                },
+                agentIdentity,
+            );
 
             return newDashboard.dashboard_uuid;
         });
@@ -2148,6 +2164,7 @@ export class DashboardModel {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         tx?: Knex.Transaction,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<DashboardDAO> {
         const db = tx || this.database;
         const [dashboard] = await db(DashboardsTableName)
@@ -2160,11 +2177,16 @@ export class DashboardModel {
         }
 
         const doWork = async (trx: Knex.Transaction) => {
-            await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
-                ...version,
-                tabs: version.tabs || [],
-                updatedByUser: user,
-            });
+            await DashboardModel.createVersion(
+                trx,
+                dashboard.dashboard_id,
+                {
+                    ...version,
+                    tabs: version.tabs || [],
+                    updatedByUser: user,
+                },
+                agentIdentity,
+            );
         };
 
         if (tx) {

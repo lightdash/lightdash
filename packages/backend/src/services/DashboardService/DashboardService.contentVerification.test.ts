@@ -92,6 +92,7 @@ vi.spyOn(analyticsMock, 'track');
 
 describe('DashboardService - Content Verification', () => {
     const service = new DashboardService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,

@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const DocumentsTableName = 'documents';
@@ -58,6 +59,7 @@ export type DocumentsTable = Knex.CompositeTableType<
 >;
 
 export type DbDocumentVersion = {
+    agent_identity: AgentIdentityClaim | null;
     document_version_id: number;
     document_version_uuid: string;
     document_id: number;
@@ -81,6 +83,6 @@ export type DocumentVersionsTable = Knex.CompositeTableType<
         | 'markdown'
         | 'chart_data'
         | 'created_by_user_uuid'
-    >,
+    > & { agent_identity: AgentIdentityClaim | null },
     never
 >;

@@ -112,6 +112,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
@@ -137,6 +138,8 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
@@ -199,6 +202,7 @@ type ContentAsCodeSpaceContentMetadata = {
 };
 
 type CoderServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -313,7 +317,10 @@ export class CoderService extends BaseService {
 
     directAccessService: DirectAccessService;
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         projectModel,
@@ -340,6 +347,7 @@ export class CoderService extends BaseService {
         warehouseConnectionModel,
     }: CoderServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -3920,6 +3928,10 @@ export class CoderService extends BaseService {
                         'Creating placeholder dashboard for chart within dashboard',
                         chartWithDefaults.slug,
                     );
+                    const agentIdentity = getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid ?? null,
+                    });
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
@@ -3931,7 +3943,17 @@ export class CoderService extends BaseService {
                         },
                         user,
                         projectUuid,
+                        agentIdentity,
                     );
+                    await logAgentContentWrite({
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'dashboard',
+                        objectUuid: newDashboard.uuid,
+                        versionUuid: newDashboard.versionUuid,
+                        action: 'create',
+                    });
 
                     dashboardUuid = newDashboard.uuid;
                 } else {
@@ -3969,11 +3991,25 @@ export class CoderService extends BaseService {
                 };
             }
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
                 createChart,
+                agentIdentity,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                projectUuid,
+                agentIdentity,
+                objectType: 'chart',
+                objectUuid: newChart.uuid,
+                versionUuid: null,
+                action: 'create',
+            });
 
             await this.syncVerification({
                 user,
@@ -5156,6 +5192,10 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
             });
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             let newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
@@ -5167,7 +5207,17 @@ export class CoderService extends BaseService {
                 },
                 user,
                 projectUuid,
+                agentIdentity,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                projectUuid,
+                agentIdentity,
+                objectType: 'dashboard',
+                objectUuid: newDashboard.uuid,
+                versionUuid: newDashboard.versionUuid,
+                action: 'create',
+            });
 
             if (hasChartsInDashboard(newDashboard)) {
                 const copiedTiles = await Promise.all(
@@ -5199,7 +5249,18 @@ export class CoderService extends BaseService {
                     { ...newDashboard, tiles: copiedTiles },
                     user,
                     projectUuid,
+                    undefined,
+                    agentIdentity,
                 );
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'dashboard',
+                    objectUuid: newDashboard.uuid,
+                    versionUuid: newDashboard.versionUuid,
+                    action: 'update',
+                });
             }
 
             await this.syncVerification({

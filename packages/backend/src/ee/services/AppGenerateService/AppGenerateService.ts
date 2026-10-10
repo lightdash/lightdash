@@ -193,6 +193,7 @@ import {
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { setQueryAppVersion } from '../../../logging/winston';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
@@ -213,6 +214,8 @@ import {
     mintPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -447,6 +450,7 @@ type AppExternalConnectionDoc = {
 };
 
 type AppGenerateServiceDeps = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
@@ -824,7 +828,10 @@ export class AppGenerateService extends BaseService {
         Promise<PersistedDataAppDataReferences | null>
     >();
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         analyticsModel,
@@ -857,6 +864,7 @@ export class AppGenerateService extends BaseService {
         contentVerificationModel,
     }: AppGenerateServiceDeps) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.analyticsModel = analyticsModel;
@@ -7540,6 +7548,10 @@ export class AppGenerateService extends BaseService {
             template && template !== 'custom' ? template : null;
         let slug: string;
         try {
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const created = await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
@@ -7557,7 +7569,17 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 undefined,
                 { thread },
+                agentIdentity,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                projectUuid,
+                agentIdentity,
+                objectType: 'data_app',
+                objectUuid: appUuid,
+                versionUuid: created.version.app_version_id,
+                action: 'create',
+            });
             slug = created.app.slug;
         } catch (error) {
             this.logger.error(
@@ -7799,7 +7821,11 @@ export class AppGenerateService extends BaseService {
             latestVersion?.dependencies,
         );
 
-        await this.appModel.createVersion(
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
+        const createdVersion = await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
@@ -7808,7 +7834,17 @@ export class AppGenerateService extends BaseService {
             carriedDependencies,
             undefined,
             { vizPreview: latestVersion?.viz_preview },
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid,
+            agentIdentity,
+            objectType: 'data_app',
+            objectUuid: appUuid,
+            versionUuid: createdVersion?.app_version_id ?? null,
+            action: 'update',
+        });
 
         await this.unverifyAppIfNotPreserved({
             user,

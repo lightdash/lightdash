@@ -68,6 +68,7 @@ function buildService() {
     const getCatalogItemsSummary = vi.fn().mockResolvedValue(CATALOG_ITEMS);
     const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: { sampleDataEnabled: true },

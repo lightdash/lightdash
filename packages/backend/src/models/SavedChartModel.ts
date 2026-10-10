@@ -58,6 +58,7 @@ import {
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
+    type AgentIdentityClaim,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -334,6 +335,7 @@ const createSavedChartVersion = async (
         updatedByUser,
         merge,
     }: CreateSavedChartVersion,
+    agentIdentity: AgentIdentityClaim | null,
 ): Promise<void> => {
     await db.transaction(async (trx) => {
         // Only save overrides for existing metrics
@@ -354,6 +356,7 @@ const createSavedChartVersion = async (
                 : null;
         const [version] = await trx('saved_queries_versions')
             .insert({
+                agent_identity: agentIdentity,
                 row_limit: limit,
                 metric_overrides: validMetricOverrides || null,
                 dimension_overrides: storedDimensionOverrides,
@@ -628,6 +631,7 @@ export const createSavedChart = async (
         slug: string;
         forceSlug?: boolean;
     },
+    agentIdentity: AgentIdentityClaim | null = null,
 ): Promise<string> => {
     for (let attempt = 1; attempt <= MaxChartSlugCreateAttempts; attempt += 1) {
         try {
@@ -753,6 +757,7 @@ export const createSavedChart = async (
                         updatedByUser,
                         merge,
                     },
+                    agentIdentity,
                 );
                 return newSavedChart.saved_query_uuid;
             });
@@ -1305,12 +1310,14 @@ export class SavedChartModel {
             slug: string;
             forceSlug?: boolean;
         },
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
             projectUuid,
             userUuid,
             data,
+            agentIdentity,
         );
         return this.get(newSavedChartUuid);
     }
@@ -1321,6 +1328,7 @@ export class SavedChartModel {
         user: SessionUser | undefined,
         tx?: Knex,
         expectedLocation?: SavedChartLocation,
+        agentIdentity: AgentIdentityClaim | null = null,
     ): Promise<SavedChartDAO> {
         const doWork = async (trx: Knex) => {
             const chartQuery = this.getChartMutationQuery(
@@ -1342,10 +1350,15 @@ export class SavedChartModel {
                 throw new NotFoundError('Saved chart not found');
             }
 
-            await createSavedChartVersion(trx, savedChart.saved_query_id, {
-                ...data,
-                updatedByUser: user,
-            });
+            await createSavedChartVersion(
+                trx,
+                savedChart.saved_query_id,
+                {
+                    ...data,
+                    updatedByUser: user,
+                },
+                agentIdentity,
+            );
 
             await trx(SavedChartsTableName)
                 .update({
