@@ -12,6 +12,7 @@ import {
     getReferencedMetric,
     getUserAttributeRegex,
     lightdashVariablePattern,
+    normalizeAgentIdentityClaim,
     parameterRegex,
     WarehouseTypes,
     type AgentIdentityClaim,
@@ -643,6 +644,20 @@ const getResultAgentId = (
     }
 };
 
+const isSameAgentConnection = (
+    stored: AgentIdentityClaim,
+    current: AgentIdentityClaim,
+): boolean => {
+    const storedConnection =
+        normalizeAgentIdentityClaim(stored)!.act.agent_connection_grant;
+    const currentConnection =
+        normalizeAgentIdentityClaim(current)!.act.agent_connection_grant;
+    return storedConnection === null || currentConnection === null
+        ? storedConnection === currentConnection
+        : storedConnection.grantUuid === currentConnection.grantUuid &&
+              storedConnection.revision === currentConnection.revision;
+};
+
 export const isSameResultAgent = (
     stored: AgentIdentityClaim | null,
     current: AgentIdentityClaim,
@@ -660,7 +675,8 @@ export const isSameResultAgent = (
     stored.act.sub === current.act.sub &&
     stored.act.surface === current.act.surface &&
     stored.act.client_id === current.act.client_id &&
-    (stored.act.agent_uuid ?? null) === (current.act.agent_uuid ?? null);
+    (stored.act.agent_uuid ?? null) === (current.act.agent_uuid ?? null) &&
+    isSameAgentConnection(stored, current);
 
 export const isSameResultReader = (
     stored: QueryResultProducer,
@@ -687,6 +703,15 @@ export const isSameResultProducerOwner = (
     stored: QueryResultProducer,
     current: QueryResultProducer,
 ): boolean =>
+    ((stored.agentIdentity?.act.agent_connection_grant == null &&
+        current.agentIdentity?.act.agent_connection_grant == null) ||
+        (current.agentIdentity !== null &&
+            isSameResultAgent(
+                stored.agentIdentity,
+                current.agentIdentity,
+                stored.authMethod,
+                current.authMethod,
+            ))) &&
     stored.version === current.version &&
     stored.authMethod === current.authMethod &&
     stored.warehouseConnectionUuid === current.warehouseConnectionUuid &&

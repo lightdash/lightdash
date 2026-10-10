@@ -1,6 +1,7 @@
 /// <reference path="../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../@types/express-session.d.ts" />
 import {
+    AGENT_CLIENT_IDS,
     AgentActorSurface,
     ApiError,
     assertRegisteredAccount,
@@ -13,6 +14,7 @@ import {
 import OAuth2Server from '@node-oauth/oauth2-server';
 import {
     ErrorRequestHandler,
+    NextFunction,
     Request,
     RequestHandler,
     Response,
@@ -40,6 +42,10 @@ import {
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../services/AiAccessService/agentExecutionContext';
 
 const isMcpRequest = (req: Request): boolean =>
     req.baseUrl.toLowerCase().endsWith('/mcp');
@@ -158,7 +164,7 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
                         projectUuid,
                         kind: 'rest_operation',
                         key: operation ?? 'unknown',
-                        surface: AgentActorSurface.API,
+                        surface: AgentActorSurface.CLI,
                     }),
             ),
         );
@@ -180,6 +186,42 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
         kind: 'rest_operation',
         key: operation ?? 'unknown',
         surface: AgentActorSurface.API,
+    });
+};
+
+const continueOAuthAuthentication = async (
+    req: Request,
+    next: NextFunction,
+): Promise<void> => {
+    const { account } = req;
+    if (
+        account?.authentication.type !== 'oauth' ||
+        account.authentication.agentConnectionGrant == null
+    ) {
+        await assertOAuthAgentOperation(req);
+        next();
+        return;
+    }
+    const grant = account.authentication.agentConnectionGrant;
+    if (
+        grant.clientId !== AGENT_CLIENT_IDS[AgentActorSurface.CLI] ||
+        account.authentication.clientId !== grant.clientId
+    )
+        throw new OAuthBearerRefusalError();
+    const scope = createAgentExecutionContext({
+        account,
+        surface: AgentActorSurface.CLI,
+        clientId: grant.clientId,
+        agentUuid: null,
+        agentConnectionGrant: {
+            grantUuid: grant.grantUuid,
+            revision: grant.revision,
+        },
+        agentIdentityEnabled: true,
+    });
+    await agentExecutionContext.run(scope, async () => {
+        await assertOAuthAgentOperation(req);
+        next();
     });
 };
 
@@ -309,7 +351,8 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await assertOAuthAgentOperation(req);
+                        await continueOAuthAuthentication(req, next);
+                        return;
                     }
                     next();
                 })
@@ -457,7 +500,8 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await assertOAuthAgentOperation(req);
+                        await continueOAuthAuthentication(req, next);
+                        return;
                     }
                     next();
                 })

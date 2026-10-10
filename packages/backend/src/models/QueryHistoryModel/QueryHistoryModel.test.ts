@@ -1,4 +1,5 @@
 import {
+    normalizeAgentIdentityClaim,
     QueryExecutionContext,
     QueryHistoryStatus,
     type AgentIdentityClaim,
@@ -613,7 +614,9 @@ describe('QueryHistoryModel agent identity', () => {
                     'project',
                     buildAccount(),
                 );
-                expect(row.agentIdentity).toEqual(agentIdentity ?? null);
+                expect(row.agentIdentity).toEqual(
+                    normalizeAgentIdentityClaim(agentIdentity ?? null),
+                );
             } finally {
                 tracker.reset();
                 await database.destroy();
@@ -621,6 +624,66 @@ describe('QueryHistoryModel agent identity', () => {
         },
     );
 });
+
+test.each([null, 'history', 'producer'] as const)(
+    'normalizes both stored history and nested producer claims (malformed=%s)',
+    async (malformed) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const claim = {
+            sub: 'user:person',
+            subject: { type: 'user' as const, uuid: 'person' },
+            act: {
+                sub: 'cli:lightdash-cli',
+                surface: 'cli',
+                client_id: 'lightdash-cli',
+            },
+        };
+        const malformedClaim = {
+            ...claim,
+            act: {
+                ...claim.act,
+                agent_connection_grant: { grantUuid: 'partial' },
+            },
+        };
+        const producer = {
+            version: 1,
+            warehouseConnectionUuid: 'shared',
+            credentialOwner: { kind: 'shared_connection' },
+            agentIdentity: malformed === 'producer' ? malformedClaim : claim,
+        };
+        tracker.on.select('query_history').response({
+            query_uuid: 'query',
+            created_by_user_uuid: buildAccount().user.id,
+            agent_identity: malformed === 'history' ? malformedClaim : claim,
+            request_parameters: { resultProducer: producer },
+        });
+        try {
+            const result = new QueryHistoryModel({ database }).get(
+                'query',
+                'project',
+                buildAccount(),
+            );
+            if (malformed) await expect(result).rejects.toThrow();
+            else {
+                const row = await result;
+                for (const identity of [
+                    row.agentIdentity,
+                    row.requestParameters.resultProducer?.agentIdentity,
+                ])
+                    expect(identity?.act).toMatchObject({
+                        agent_uuid: null,
+                        agent_connection_grant: null,
+                    });
+                expect(claim.act).not.toHaveProperty('agent_connection_grant');
+            }
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    },
+);
 
 describe('result identity cache partition', () => {
     const identifiers = { sql: 'SELECT 1', userUuid: 'user', timezone: 'UTC' };

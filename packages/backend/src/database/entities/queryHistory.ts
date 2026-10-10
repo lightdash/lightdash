@@ -12,13 +12,24 @@ import type {
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
+    QueryResultProducer,
     ResultColumns,
+    StoredAgentIdentityClaim,
     WarehouseQueryMetadata,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
+type StoredQueryRequestParameters<T = QueryHistory['requestParameters']> =
+    T extends QueryHistory['requestParameters']
+        ? Omit<T, 'resultProducer'> & {
+              resultProducer?: Omit<QueryResultProducer, 'agentIdentity'> & {
+                  agentIdentity: StoredAgentIdentityClaim | null;
+              };
+          }
+        : never;
+
 export type DbQueryHistory = {
-    agent_identity: AgentIdentityClaim | null;
+    agent_identity: StoredAgentIdentityClaim | null;
     warehouse_connection_uuid?: string | null;
     query_uuid: string;
     created_at: Date;
@@ -34,7 +45,7 @@ export type DbQueryHistory = {
     warehouse_query_metadata: WarehouseQueryMetadata | null;
     metric_query: MetricQuery;
     fields: ItemsMap;
-    request_parameters: QueryHistory['requestParameters'];
+    request_parameters: StoredQueryRequestParameters;
     used_parameters: ParametersValuesMap | null;
     total_row_count: number | null;
     warehouse_execution_time_ms: number | null;
@@ -60,10 +71,15 @@ export type DbQueryHistory = {
 
 export type DbQueryHistoryIn = Omit<
     DbQueryHistory,
-    'query_uuid' | 'created_at' | 'created_by_actor_type' | 'agent_identity'
+    | 'query_uuid'
+    | 'created_at'
+    | 'created_by_actor_type'
+    | 'agent_identity'
+    | 'request_parameters'
 > & {
     created_by_actor_type: AuthType;
     agent_identity?: AgentIdentityClaim;
+    request_parameters: QueryHistory['requestParameters'];
     warehouse_connection_uuid?: string | null;
 };
 

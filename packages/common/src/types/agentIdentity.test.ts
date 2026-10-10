@@ -295,6 +295,7 @@ describe('buildAgentIdentityClaim', () => {
                     surface: 'in_app_agent',
                     client_id: 'lightdash-chat',
                     agent_uuid: null,
+                    agent_connection_grant: null,
                 },
             });
         },
@@ -311,6 +312,7 @@ describe('buildAgentIdentityClaim', () => {
             surface: 'mcp',
             client_id: null,
             agent_uuid: null,
+            agent_connection_grant: null,
         });
     });
 });
@@ -360,7 +362,11 @@ describe('agent identity history', () => {
         };
         expect(normalizeAgentIdentityClaim(historical)).toEqual({
             ...historical,
-            act: { ...historical.act, agent_uuid: null },
+            act: {
+                ...historical.act,
+                agent_uuid: null,
+                agent_connection_grant: null,
+            },
         });
         expect(historical.act).not.toHaveProperty('agent_uuid');
         expect(normalizeAgentIdentityClaim(null)).toBeNull();
@@ -377,6 +383,7 @@ describe('agent identity history', () => {
             surface: AgentActorSurface.IN_APP_AGENT,
             client_id: 'lightdash-chat',
             agent_uuid: 'agent',
+            agent_connection_grant: null,
         });
         expect(normalizeAgentIdentityClaim(claim)).toEqual(claim);
     });
@@ -394,5 +401,54 @@ test('records OAuth REST as its own agent surface', () => {
         surface: 'api',
         client_id: 'oauth-client',
         agent_uuid: null,
+        agent_connection_grant: null,
+    });
+});
+
+describe('agent connection references', () => {
+    const input = {
+        subject: { type: 'user' as const, uuid: 'person' },
+        surface: AgentActorSurface.CLI,
+        clientId: 'lightdash-cli',
+    };
+    test('builds explicit null and exact connection references', () => {
+        expect(
+            buildAgentIdentityClaim(input).act.agent_connection_grant,
+        ).toBeNull();
+        const reference = { grantUuid: 'grant', revision: 2 };
+        expect(
+            buildAgentIdentityClaim({
+                ...input,
+                agentConnectionGrant: reference,
+            }).act.agent_connection_grant,
+        ).toEqual(reference);
+    });
+    test('normalizes legacy absence without mutating the stored claim', () => {
+        const claim = buildAgentIdentityClaim(input);
+        const { agent_connection_grant: ignored, ...act } = claim.act;
+        const legacy = { ...claim, act };
+        expect(
+            normalizeAgentIdentityClaim(legacy)?.act.agent_connection_grant,
+        ).toBeNull();
+        expect(legacy.act).not.toHaveProperty('agent_connection_grant');
+    });
+    test.each([
+        {},
+        { grantUuid: 'grant' },
+        { revision: 1 },
+        { grantUuid: '', revision: 1 },
+        { grantUuid: 2, revision: 1 },
+        { grantUuid: 'grant', revision: 0 },
+        { grantUuid: 'grant', revision: 1.5 },
+        { grantUuid: 'grant', revision: '1' },
+        'grant',
+    ])('rejects malformed stored reference %j', (reference) => {
+        const claim = buildAgentIdentityClaim(input);
+        expect(() =>
+            normalizeAgentIdentityClaim({
+                ...claim,
+                act: { ...claim.act, agent_connection_grant: reference },
+            } as never),
+        ).toThrow();
     });
 });

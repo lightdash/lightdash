@@ -1,23 +1,29 @@
 import {
+    AgentActorSurface,
     AgentCapability,
     FeatureFlags,
     LightdashMode,
 } from '@lightdash/common';
-import { type Request, type RequestHandler, type Response } from 'express';
+import { type Request } from 'express';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import passport from 'passport';
+import { fromSession } from '../../auth/account';
 import { fromApiKey } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { AgentConnectionGrantService } from '../../auth/agentConnectionGrants/AgentConnectionGrantService';
-import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OAuth2Model } from '../../models/OAuth2Model';
 import { type UserModel } from '../../models/UserModel';
+import {
+    agentExecutionContext,
+    buildResultReader,
+} from '../../services/AiAccessService/agentExecutionContext';
 import { OAuthService } from '../../services/OAuthService/OAuthService';
+import { setupGrantAuthentication } from './agentConnectionGrants.mock';
 import {
     allowApiKeyAuthentication,
     allowApiKeyAuthenticationIfPresent,
@@ -28,111 +34,12 @@ vi.mock('passport', () => ({ default: { authenticate: vi.fn() } }));
 vi.mock('../../ee/authentication', () => ({
     authenticateServiceAccount: vi.fn(),
 }));
-const setup = () => {
-    const grant = grantFixture();
-    const user = {
+const setup = () =>
+    setupGrantAuthentication({
         ...defaultSessionUser,
         userUuid: 'user',
         organizationUuid: 'org',
-    };
-    const token = {
-        accessToken: 'token',
-        scope: ['read'],
-        agentConnectionGrantUuid: 'grant',
-        familyUuid: 'family',
-        resource: grant.resource,
-        client: { id: 'client' },
-        user,
-    };
-    const deps = {
-        model: {
-            findActive: vi.fn().mockResolvedValue(grant),
-            touchLastUsed: vi.fn().mockResolvedValue(undefined),
-        },
-        featureFlags: {
-            get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
-                enabled: featureFlagId === FeatureFlags.AgentIdentity,
-            })),
-        },
-        resourceResolver: {
-            resolveDeploySession: vi.fn().mockResolvedValue({
-                projectUuid: grant.approvedProjectUuids[0],
-                userUuid: user.userUuid,
-            }),
-            resolveProjectUuid: vi
-                .fn()
-                .mockImplementation(async (_org, uuid) => uuid),
-            resolveResourceProjectUuid: vi.fn().mockResolvedValue(null),
-        },
-    };
-    const service = new AgentConnectionGrantService(deps);
-    const permissions = {
-        getEnforcementMode: vi.fn().mockResolvedValue('off'),
-        assertOperation: vi.fn(),
-        resolveResourceProjectUuid: vi.fn(),
-    };
-    const handler = Object.defineProperty(() => {}, 'name', {
-        value: 'ProjectController_getProject',
     });
-    const oauth = {
-        authenticate: vi.fn().mockResolvedValue(token),
-        getSiteUrl: () => grant.resource,
-        isAccessTokenBoundToGrant: vi.fn().mockResolvedValue(false),
-    };
-    const req = {
-        headers: { authorization: 'Bearer token' },
-        method: 'GET',
-        query: {},
-        body: {},
-        params: { projectUuid: grant.approvedProjectUuids[0] },
-        baseUrl: '',
-        route: {
-            path: '/api/v1/projects/:projectUuid',
-            stack: [{ handle: handler }],
-        },
-        isAuthenticated: () => false,
-        services: {
-            getOauthService: () => oauth,
-            getUserService: () => ({ findSessionUser: async () => user }),
-            getFeatureFlagService: () => deps.featureFlags,
-            getAgentPermissionService: () => permissions,
-            getAgentConnectionGrantService: () => service,
-        },
-    } as unknown as Request;
-    const downstream = vi.fn();
-    let status = 200;
-    const run = (middleware: RequestHandler) =>
-        new Promise<{ status: number; body?: unknown; error?: unknown }>(
-            (resolve) => {
-                status = 200;
-                const res = {
-                    locals: {},
-                    status: (value: number) => {
-                        status = value;
-                        return res;
-                    },
-                    json: (body: unknown) => resolve({ status, body }),
-                    set: vi.fn(),
-                } as unknown as Response;
-                req.res = res;
-                middleware(req, res, (error) => {
-                    if (error === undefined) downstream();
-                    resolve({ status, error });
-                });
-            },
-        );
-    return {
-        grant,
-        user,
-        token,
-        deps,
-        permissions,
-        req,
-        run,
-        oauth,
-        downstream,
-    };
-};
 beforeEach(() => vi.clearAllMocks());
 it.each([allowApiKeyAuthentication, allowOauthAuthentication])(
     'fails closed without fallback when disabled',
@@ -743,4 +650,188 @@ describe('revoked bound bearer lifecycle with a live session', () => {
             }
         },
     );
+});
+
+describe.each([
+    allowApiKeyAuthentication,
+    allowOauthAuthentication,
+    allowApiKeyAuthenticationIfPresent,
+])('trusted connection continuation through %s', (middleware) => {
+    it.each([false, true])(
+        'keeps the validated scope through next and a later callback (cookie=%s)',
+        async (cookie) => {
+            const f = setup();
+            f.req.body = { surface: 'mcp', agentIdentity: { sub: 'forged' } };
+            if (cookie) {
+                f.req.account = fromSession({
+                    ...f.user,
+                    userUuid: 'another-person',
+                });
+                f.req.isAuthenticated = (() =>
+                    true) as Request['isAuthenticated'];
+            }
+            f.permissions.isManaged.mockResolvedValue(true);
+            f.downstream.mockImplementation(async () => {
+                const scope = agentExecutionContext.getStore();
+                expect(scope).toMatchObject({
+                    surface: AgentActorSurface.CLI,
+                    organizationUuid: 'org',
+                    writerUuid: 'user',
+                    agentIdentityEnabled: true,
+                    claim: {
+                        sub: 'user:user',
+                        subject: { type: 'user', uuid: 'user' },
+                        act: {
+                            sub: 'cli:lightdash-cli',
+                            client_id: 'lightdash-cli',
+                            agent_uuid: null,
+                            agent_connection_grant: {
+                                grantUuid: 'grant',
+                                revision: 1,
+                            },
+                        },
+                    },
+                });
+                await new Promise<void>((resolve) => {
+                    setImmediate(resolve);
+                });
+                expect(agentExecutionContext.getStore()).toBe(scope);
+                expect(buildResultReader(f.req.account!)).toMatchObject({
+                    kind: 'agent',
+                    claim: scope!.claim,
+                });
+            });
+            expect(await f.run(middleware)).toEqual({
+                status: 200,
+                error: undefined,
+            });
+            expect(f.downstream).toHaveBeenCalledOnce();
+            expect(f.permissions.assertOperation).toHaveBeenCalledWith(
+                expect.objectContaining({ surface: AgentActorSurface.CLI }),
+            );
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+        },
+    );
+    it.each(['oauth', 'pat', 'session'] as const)(
+        'ignores forged CLI fields for ordinary %s credentials',
+        async (kind) => {
+            const f = setup();
+            f.token.agentConnectionGrantUuid = null as unknown as string;
+            f.req.body = {
+                surface: 'cli',
+                agentIdentity: {
+                    act: {
+                        agent_connection_grant: {
+                            grantUuid: 'forged',
+                            revision: 1,
+                        },
+                    },
+                },
+            };
+            f.req.headers['x-agent-surface'] = 'cli';
+            if (kind !== 'oauth') {
+                f.req.account =
+                    kind === 'pat'
+                        ? fromApiKey(f.user, 'pat')
+                        : fromSession(f.user);
+                f.req.isAuthenticated = (() =>
+                    true) as Request['isAuthenticated'];
+                f.req.headers.authorization =
+                    kind === 'pat' ? 'ApiKey pat' : undefined;
+            }
+            f.downstream.mockImplementation(() => {
+                expect(agentExecutionContext.getStore()).toBeUndefined();
+                expect(buildResultReader(f.req.account!)).toMatchObject({
+                    kind: 'person',
+                });
+            });
+            expect((await f.run(middleware)).error).toBeUndefined();
+            expect(f.downstream).toHaveBeenCalledOnce();
+        },
+    );
+    it.each([
+        'subject flag',
+        'org flag',
+        'inactive',
+        'unsupported client',
+        'failed bound bearer',
+    ] as const)('never enters a scope for %s', async (failure) => {
+        const f = setup();
+        const run = vi.spyOn(agentExecutionContext, 'run');
+        if (failure === 'inactive')
+            f.deps.model.findActive.mockResolvedValue(null);
+        if (failure === 'unsupported client') {
+            f.grant.clientId = 'other';
+            f.token.client.id = 'other';
+        }
+        if (failure === 'subject flag' || failure === 'org flag')
+            f.deps.featureFlags.get.mockImplementation(async ({ user }) => ({
+                enabled:
+                    failure === 'subject flag'
+                        ? user.userUuid === undefined
+                        : user.userUuid !== undefined,
+            }));
+        if (failure === 'failed bound bearer') {
+            f.req.account = fromSession({
+                ...f.user,
+                userUuid: 'another-person',
+            });
+            f.req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            f.oauth.authenticate.mockRejectedValue(new Error('Expired'));
+            f.oauth.isAccessTokenBoundToGrant.mockResolvedValue(true);
+        }
+        try {
+            expect((await f.run(middleware)).status).toBe(401);
+            expect(run).not.toHaveBeenCalled();
+            expect(f.downstream).not.toHaveBeenCalled();
+            expect(passport.authenticate).not.toHaveBeenCalled();
+            expect(authenticateServiceAccount).not.toHaveBeenCalled();
+        } finally {
+            run.mockRestore();
+        }
+    });
+    it('keeps the connection on a refused permission check without running downstream', async () => {
+        const f = setup();
+        f.permissions.isManaged.mockResolvedValue(true);
+        const refusal = new Error('Permission refused');
+        f.permissions.assertOperation.mockImplementation(async () => {
+            expect(
+                agentExecutionContext.getStore()?.claim?.act
+                    .agent_connection_grant,
+            ).toEqual({ grantUuid: 'grant', revision: 1 });
+            throw refusal;
+        });
+        expect((await f.run(middleware)).error).toBe(refusal);
+        expect(f.downstream).not.toHaveBeenCalled();
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
+    it('isolates concurrent connection requests', async () => {
+        const a = setup();
+        const b = setup();
+        b.grant.grantUuid = 'second';
+        b.token.agentConnectionGrantUuid = 'second';
+        let release: () => void = () => {};
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        a.downstream.mockImplementation(async () => {
+            await gate;
+            expect(
+                agentExecutionContext.getStore()?.claim?.act
+                    .agent_connection_grant?.grantUuid,
+            ).toBe('grant');
+        });
+        b.downstream.mockImplementation(async () => {
+            try {
+                expect(
+                    agentExecutionContext.getStore()?.claim?.act
+                        .agent_connection_grant?.grantUuid,
+                ).toBe('second');
+            } finally {
+                release();
+            }
+        });
+        await Promise.all([a.run(middleware), b.run(middleware)]);
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+    });
 });

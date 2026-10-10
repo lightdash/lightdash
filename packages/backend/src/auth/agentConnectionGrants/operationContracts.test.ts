@@ -217,3 +217,16 @@ it.each(
         ).resolves.toEqual([]);
     },
 );
+
+it('explicitly refuses PNG export because its person cookie and public preview cannot retain the connection', () => {
+    expect(GRANT_OPERATION_CONTRACTS).not.toHaveProperty(
+        'SavedChartController.exportSavedChartImage',
+    );
+    const entry = CLI_GRANT_OPERATION_INVENTORY.find(({ operations }) =>
+        operations.includes('SavedChartController.exportSavedChartImage'),
+    );
+    expect(entry).toMatchObject({
+        disposition: 'refused',
+        reason: expect.stringMatching(/person.*public/i),
+    });
+});

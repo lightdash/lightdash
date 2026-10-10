@@ -439,11 +439,12 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ['AppGenerateController.importAppCode'],
             'App authoring, uploads and cross-project references need reviewed destination and effect contracts.',
         ),
-        allowed(
+        refused(
             'handlers/exportChartImage.ts:41',
             'POST',
             '`/api/v1/saved/${chartUuidOrSlug}/export${projectQuery}`',
             ['SavedChartController.exportSavedChartImage'],
+            'PNG export uses a person cookie and a public preview URL that cannot retain or revalidate the agent connection.',
         ),
         external(
             'handlers/exportChartImage.ts:55',

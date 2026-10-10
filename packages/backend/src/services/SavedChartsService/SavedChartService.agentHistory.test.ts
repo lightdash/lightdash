@@ -9,6 +9,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import { fromSession } from '../../auth/account';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -318,3 +320,43 @@ describe('version history agent identity', () => {
         expect(legacy.act).not.toHaveProperty('agent_uuid');
     });
 });
+
+it.each([true, false])(
+    'chart history returns the persisted connection claim from authentication (bound=%s)',
+    async (bound) => {
+        const f = setup(true);
+        const auth = setupGrantAuthentication(user);
+        if (!bound)
+            auth.token.agentConnectionGrantUuid = null as unknown as string;
+        auth.downstream.mockImplementation(async () => {
+            const stored = agentExecutionContext.getStore()?.claim ?? null;
+            f.savedChartModel.getVersionSummary.mockResolvedValue({
+                ...summary,
+                chartUuid: chart.uuid,
+                agentIdentity: stored,
+            } as never);
+            const version = await f.chartService.getVersion(
+                user,
+                chart.uuid,
+                'old-version',
+            );
+            expect(version.agentIdentity).toEqual(
+                bound
+                    ? expect.objectContaining({
+                          subject: { type: 'user', uuid: user.userUuid },
+                          act: expect.objectContaining({
+                              agent_connection_grant: {
+                                  grantUuid: 'grant',
+                                  revision: 1,
+                              },
+                          }),
+                      })
+                    : null,
+            );
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+    },
+);

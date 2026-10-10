@@ -12,6 +12,7 @@ import {
     isJwtUser,
     KnexPaginateArgs,
     KnexPaginatedData,
+    normalizeAgentIdentityClaim,
     NotFoundError,
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
@@ -47,12 +48,34 @@ export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
 };
 
+function normalizeRequestParameters(
+    parameters: DbQueryHistory['request_parameters'],
+): QueryHistory['requestParameters'] {
+    if (!parameters) return parameters;
+    const { resultProducer: producer, ...requestParameters } = parameters;
+    return {
+        ...requestParameters,
+        ...(producer
+            ? {
+                  resultProducer: {
+                      ...producer,
+                      agentIdentity: normalizeAgentIdentityClaim(
+                          producer.agentIdentity,
+                      ),
+                  },
+              }
+            : {}),
+    };
+}
+
 function convertDbQueryHistoryToQueryHistory(
     queryHistory: DbQueryHistory,
 ): QueryHistoryWithLineage {
     return {
         queryUuid: queryHistory.query_uuid,
-        agentIdentity: queryHistory.agent_identity ?? null,
+        agentIdentity: normalizeAgentIdentityClaim(
+            queryHistory.agent_identity ?? null,
+        ),
         duckdbExecutionReferences:
             queryHistory.duckdb_execution?.references ?? null,
         createdAt: queryHistory.created_at,
@@ -69,7 +92,9 @@ function convertDbQueryHistoryToQueryHistory(
         context: queryHistory.context,
         metricQuery: queryHistory.metric_query,
         fields: queryHistory.fields,
-        requestParameters: queryHistory.request_parameters,
+        requestParameters: normalizeRequestParameters(
+            queryHistory.request_parameters,
+        ),
         usedParameters: queryHistory.used_parameters,
         warehouseQueryId: queryHistory.warehouse_query_id,
         warehouseQueryMetadata: queryHistory.warehouse_query_metadata,
@@ -535,10 +560,12 @@ export class QueryHistoryModel {
             return undefined;
         }
 
+        const queryHistory = convertDbQueryHistoryToQueryHistory(result);
         return {
             queryUuid: result.query_uuid,
-            queryHistory: convertDbQueryHistoryToQueryHistory(result),
-            resultProducer: result.request_parameters?.resultProducer ?? null,
+            queryHistory,
+            resultProducer:
+                queryHistory.requestParameters?.resultProducer ?? null,
             totalRowCount: result.total_row_count,
             cacheKey: result.cache_key,
             pivotValuesColumns: result.pivot_values_columns,
@@ -1121,7 +1148,7 @@ export function mapQueryHistoryRowToListItem(
         exploreName,
         metricQuery:
             language === QueryLanguage.SEMANTIC ? row.metric_query : null,
-        requestParameters: row.request_parameters,
+        requestParameters: normalizeRequestParameters(row.request_parameters),
         chartName: row.chart_name,
         chartUuid:
             row.request_parameters && 'chartUuid' in row.request_parameters

@@ -2,6 +2,7 @@ import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AgentCapability,
     AnyType,
+    assertRegisteredAccount,
     ChartAsCode,
     ChartKind,
     ContentType,
@@ -30,9 +31,12 @@ import { fromOauth } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { ProjectCoderController } from '../../controllers/ProjectCoderController';
 import { dashboard as dashboardMock } from '../DashboardService/DashboardService.mock';
 import { ProjectService } from '../ProjectService/ProjectService';
+import { PromoteService } from '../PromoteService/PromoteService';
 import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
@@ -1990,6 +1994,213 @@ describe('bound grant upload effects', () => {
             ] as AnyType);
         }
     };
+    it.each(
+        (['chart', 'dashboard', 'sql'] as const).flatMap((kind) =>
+            (['create', 'update'] as const).flatMap((mode) =>
+                [true, false].map((bound) => ({ kind, mode, bound })),
+            ),
+        ),
+    )(
+        'persists $kind $mode upload identity through authentication (bound=$bound)',
+        async ({ kind, mode, bound }) => {
+            const { service } = setupBound();
+            const auth = setupGrantAuthentication({
+                ...defaultSessionUser,
+                organizationUuid: ORG_UUID,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            });
+            auth.grant.approvedProjectUuids = [PROJECT_UUID];
+            auth.grant.approvedCapabilities = Object.values(AgentCapability);
+            auth.token.scope = ['read', 'write'];
+            if (!bound)
+                auth.token.agentConnectionGrantUuid = null as unknown as string;
+            auth.req.params = { projectUuid: PROJECT_UUID };
+            auth.req.method = 'POST';
+            auth.req.route.stack[0].handle = Object.defineProperty(
+                () => {},
+                'name',
+                {
+                    value: {
+                        chart: 'ProjectCoderController_upsertChartAsCode',
+                        dashboard:
+                            'ProjectCoderController_upsertDashboardAsCode',
+                        sql: 'ProjectCoderController_upsertSqlChartAsCode',
+                    }[kind],
+                },
+            );
+            auth.req.body = {
+                chart: chartAsCode,
+                dashboard: dashboardAsCode,
+                sql: {
+                    name: 'SQL',
+                    slug: 'sql',
+                    spaceSlug: 'space',
+                    sql: 'select 1',
+                },
+            }[kind];
+            if (kind !== 'sql')
+                prepareVerificationUpload(service, kind, mode, undefined);
+            const chartRow = {
+                ...chartAsCode,
+                uuid: 'chart-uuid',
+                projectUuid: PROJECT_UUID,
+                spaceUuid: SPACE_UUID,
+            };
+            const dashboardRow = {
+                ...dashboardAsCode,
+                uuid: 'dashboard-uuid',
+                projectUuid: PROJECT_UUID,
+                spaceUuid: SPACE_UUID,
+            };
+            Object.assign(service.savedChartModel, {
+                transaction: vi.fn(async (fn) => fn('transaction')),
+                updateInTransaction: vi.fn(),
+                createVersion: vi.fn(),
+                renameSlug: vi.fn(),
+            });
+            Object.assign(service.dashboardModel, {
+                addVersion: vi.fn().mockResolvedValue(dashboardRow),
+            });
+            Object.assign(service.savedSqlModel, {
+                create: vi.fn().mockResolvedValue({
+                    savedSqlUuid: 'sql-uuid',
+                    slug: 'sql',
+                }),
+                update: vi.fn(),
+            });
+            if (mode === 'update' && kind === 'sql')
+                vi.mocked(service.savedSqlModel.find).mockResolvedValue([
+                    {
+                        saved_sql_uuid: 'sql-uuid',
+                        space_uuid: SPACE_UUID,
+                        sql: 'select 1',
+                        slug: 'sql',
+                    },
+                ] as AnyType);
+            if (mode === 'update' && kind === 'chart') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue(
+                    chartRow as AnyType,
+                );
+                vi.mocked(
+                    service.promoteService.getChartChanges,
+                ).mockResolvedValue({
+                    charts: [
+                        { action: PromotionAction.UPDATE, data: chartRow },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as AnyType);
+                service.promoteService.upsertCharts =
+                    PromoteService.prototype.upsertCharts.bind({
+                        savedChartModel: service.savedChartModel,
+                    } as unknown as PromoteService);
+            }
+            if (mode === 'update' && kind === 'dashboard') {
+                vi.mocked(
+                    service.promoteService.getPromotionDashboardChanges,
+                ).mockResolvedValue([
+                    {
+                        charts: [],
+                        spaces: [],
+                        dashboards: [
+                            {
+                                action: PromotionAction.UPDATE,
+                                data: dashboardRow,
+                            },
+                        ],
+                    },
+                    [],
+                ] as AnyType);
+                service.promoteService.updateDashboard =
+                    PromoteService.prototype.updateDashboard.bind({
+                        dashboardModel: service.dashboardModel,
+                    } as unknown as PromoteService);
+            }
+            auth.downstream.mockImplementation(async () => {
+                assertRegisteredAccount(auth.req.account!);
+                const user = toSessionUser(auth.req.account!);
+                const options = {
+                    account: auth.req.account!,
+                    syncEnabled: false,
+                };
+                if (kind === 'chart')
+                    await service.upsertChart(
+                        user,
+                        PROJECT_UUID,
+                        'chart',
+                        chartAsCode,
+                        options,
+                    );
+                else if (kind === 'dashboard')
+                    await service.upsertDashboard(
+                        user,
+                        PROJECT_UUID,
+                        'dashboard',
+                        dashboardAsCode,
+                        options,
+                    );
+                else
+                    await service.upsertSqlChart(
+                        user,
+                        PROJECT_UUID,
+                        'sql',
+                        auth.req.body as SqlChartAsCode,
+                        options,
+                    );
+            });
+            expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+                status: 200,
+                error: undefined,
+            });
+            const persistedClaims = {
+                chart: {
+                    create: () =>
+                        vi.mocked(service.savedChartModel.create).mock
+                            .calls[0][3],
+                    update: () =>
+                        vi.mocked(service.savedChartModel.createVersion).mock
+                            .calls[0][5],
+                },
+                dashboard: {
+                    create: () =>
+                        vi.mocked(service.dashboardModel.create).mock
+                            .calls[0][4],
+                    update: () =>
+                        vi.mocked(service.dashboardModel.addVersion).mock
+                            .calls[0][5],
+                },
+                sql: {
+                    create: () =>
+                        vi.mocked(service.savedSqlModel.create).mock
+                            .calls[0][5],
+                    update: () =>
+                        vi.mocked(service.savedSqlModel.update).mock
+                            .calls[0][2],
+                },
+            };
+            const persisted = persistedClaims[kind][mode]();
+            expect(persisted).toEqual(
+                bound
+                    ? {
+                          sub: `user:${auth.user.userUuid}`,
+                          subject: { type: 'user', uuid: auth.user.userUuid },
+                          act: {
+                              sub: 'cli:lightdash-cli',
+                              surface: 'cli',
+                              client_id: 'lightdash-cli',
+                              agent_uuid: null,
+                              agent_connection_grant: {
+                                  grantUuid: auth.grant.grantUuid,
+                                  revision: 1,
+                              },
+                          },
+                      }
+                    : null,
+            );
+        },
+    );
     const sqlQuery = (
         kind: 'calculation' | 'dimension' | 'metric',
         sql: string,

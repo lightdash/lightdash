@@ -179,3 +179,54 @@ test.each([
         });
     },
 );
+
+test('connection query, reader and write claims share an immutable reference across nested scopes', async () => {
+    const account = fromSession(defaultSessionUser);
+    const reference = { grantUuid: 'grant', revision: 1 };
+    const parent = createAgentExecutionContext({
+        account,
+        surface: AgentActorSurface.CLI,
+        clientId: 'lightdash-cli',
+        agentUuid: null,
+        agentConnectionGrant: reference,
+        agentIdentityEnabled: true,
+    });
+    await agentExecutionContext.run(parent, async () => {
+        expect(parent.claim?.act.agent_connection_grant).toEqual(reference);
+        expect(Object.isFrozen(parent.claim?.act.agent_connection_grant)).toBe(
+            true,
+        );
+        reference.revision = 9;
+        expect(parent.claim?.act.agent_connection_grant?.revision).toBe(1);
+        expect(
+            buildQueryAgentIdentity(
+                account,
+                QueryExecutionContext.CLI,
+                QuerySurface.CLI,
+            ),
+        ).toBe(parent.claim);
+        expect(buildResultReader(account)).toMatchObject({
+            kind: 'agent',
+            claim: parent.claim,
+        });
+        expect(getContentWriteAgentIdentity(writer)).toBe(parent.claim);
+        expect(
+            getContentWriteAgentIdentity({ ...writer, userUuid: 'other' }),
+        ).toBeNull();
+        expect(
+            getContentWriteAgentIdentity({
+                ...writer,
+                organizationUuid: 'other',
+            }),
+        ).toBeNull();
+        await agentExecutionContext.run(scope('child'), async () => {
+            await Promise.resolve();
+            expect(
+                getContentWriteAgentIdentity(writer)?.act
+                    .agent_connection_grant,
+            ).toBeNull();
+        });
+        expect(getContentWriteAgentIdentity(writer)).toBe(parent.claim);
+    });
+    expect(buildResultReader(account)).toMatchObject({ kind: 'person' });
+});

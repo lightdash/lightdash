@@ -27,6 +27,8 @@ import {
     getWarehouseIdentityFingerprint,
     isSameResultAgent,
     isSameResultCredentialOwner,
+    isSameResultProducerOwner,
+    isSameResultReader,
 } from './queryResultProducer';
 import { withNewWarehouseCredentialVersion } from './warehouseCredentialVersion';
 
@@ -964,4 +966,103 @@ test('round 18 configured summary agents cannot read each other results', () => 
     expect(
         isSameResultAgent(summary('a'), summary('b'), 'session', 'session'),
     ).toBe(false);
+});
+
+describe('connection result identity', () => {
+    const claim = (reference: { grantUuid: string; revision: number } | null) =>
+        buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'user' },
+            surface: AgentActorSurface.CLI,
+            clientId: 'lightdash-cli',
+            agentConnectionGrant: reference,
+        });
+    const producer = (agentIdentity: ReturnType<typeof claim> | null) =>
+        WarehouseClientFactory.getResultProducer(
+            {
+                warehouseCredentials: postgres,
+                warehouseConnectionUuid: 'shared',
+                aiPlan: null,
+            },
+            'user',
+            agentIdentity,
+            null,
+            'oauth',
+        );
+    test.each([
+        { grantUuid: 'other', revision: 1 },
+        { grantUuid: 'grant', revision: 2 },
+        null,
+    ])(
+        'separates connection %j in both directions despite the shared warehouse owner',
+        (reference) => {
+            const a = claim({ grantUuid: 'grant', revision: 1 });
+            const b = claim(reference);
+            for (const [stored, current] of [
+                [a, b],
+                [b, a],
+            ]) {
+                expect(
+                    isSameResultAgent(stored, current, 'oauth', 'oauth'),
+                ).toBe(false);
+                expect(
+                    isSameResultReader(producer(stored), {
+                        kind: 'agent',
+                        claim: current,
+                        authMethod: 'oauth',
+                    }),
+                ).toBe(false);
+                expect(
+                    isSameResultProducerOwner(
+                        producer(stored),
+                        producer(current),
+                    ),
+                ).toBe(false);
+            }
+        },
+    );
+    test('the same connection matches after token refresh and person comparisons remain isolated', () => {
+        const a = claim({ grantUuid: 'grant', revision: 1 });
+        const refreshed = claim({ grantUuid: 'grant', revision: 1 });
+        expect(isSameResultAgent(a, refreshed, 'oauth', 'oauth')).toBe(true);
+        expect(
+            isSameResultProducerOwner(producer(a), producer(refreshed)),
+        ).toBe(true);
+        expect(
+            isSameResultReader(producer(a), {
+                kind: 'person',
+                authMethod: 'oauth',
+            }),
+        ).toBe(false);
+        expect(
+            isSameResultReader(producer(null), {
+                kind: 'agent',
+                claim: a,
+                authMethod: 'oauth',
+            }),
+        ).toBe(false);
+        expect(isSameResultProducerOwner(producer(a), producer(null))).toBe(
+            false,
+        );
+        expect(isSameResultProducerOwner(producer(null), producer(a))).toBe(
+            false,
+        );
+        expect(
+            isSameResultProducerOwner(producer(null), producer(claim(null))),
+        ).toBe(true);
+    });
+    test('cache keys distinguish connections and revisions', () => {
+        const key = (grantUuid: string, revision: number) =>
+            QueryHistoryModel.getCacheKey('project', {
+                sql: 'SELECT 1',
+                userUuid: null,
+                resultIdentity: {
+                    organizationUuid: 'org',
+                    producer: producer(claim({ grantUuid, revision })),
+                },
+            });
+        expect(key('grant', 1)).toBe(key('grant', 1));
+        expect(
+            new Set([key('grant', 1), key('other', 1), key('grant', 2)]).size,
+        ).toBe(3);
+    });
 });

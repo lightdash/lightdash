@@ -1,4 +1,5 @@
 import { v5 as uuidv5 } from 'uuid';
+import { z } from 'zod';
 import {
     WarehouseTypes,
     type AthenaAuthenticationType,
@@ -31,11 +32,22 @@ export type AgentSubjectRef = {
     type: 'user' | 'service_account';
     uuid: string;
 };
+export type AgentConnectionGrantRef = {
+    grantUuid: string;
+    revision: number;
+};
+
+const agentConnectionGrantRefSchema = z.object({
+    grantUuid: z.string().min(1),
+    revision: z.number().int().positive(),
+});
+
 export type AgentActorClaim = {
     sub: string;
     surface: AgentActorSurface;
     client_id: string | null;
     agent_uuid: string | null;
+    agent_connection_grant: AgentConnectionGrantRef | null;
 };
 export type AgentIdentityClaim = {
     sub: string;
@@ -48,11 +60,13 @@ export const buildAgentIdentityClaim = ({
     surface,
     clientId,
     agentUuid = null,
+    agentConnectionGrant = null,
 }: {
     subject: AgentSubjectRef;
     surface: AgentActorSurface;
     clientId: string | null;
     agentUuid?: string | null;
+    agentConnectionGrant?: AgentConnectionGrantRef | null;
 }): AgentIdentityClaim => ({
     sub: `${subject.type}:${subject.uuid}`,
     subject,
@@ -61,11 +75,18 @@ export const buildAgentIdentityClaim = ({
         surface,
         client_id: clientId,
         agent_uuid: agentUuid,
+        agent_connection_grant:
+            agentConnectionGrant === null
+                ? null
+                : agentConnectionGrantRefSchema.parse(agentConnectionGrant),
     },
 });
 
 export type StoredAgentIdentityClaim = Omit<AgentIdentityClaim, 'act'> & {
-    act: Omit<AgentActorClaim, 'agent_uuid'> & { agent_uuid?: string | null };
+    act: Omit<AgentActorClaim, 'agent_uuid' | 'agent_connection_grant'> & {
+        agent_uuid?: string | null;
+        agent_connection_grant?: AgentConnectionGrantRef | null;
+    };
 };
 
 export const normalizeAgentIdentityClaim = (
@@ -76,7 +97,16 @@ export const normalizeAgentIdentityClaim = (
         : {
               ...claim,
               subject: { ...claim.subject },
-              act: { ...claim.act, agent_uuid: claim.act.agent_uuid ?? null },
+              act: {
+                  ...claim.act,
+                  agent_uuid: claim.act.agent_uuid ?? null,
+                  agent_connection_grant:
+                      claim.act.agent_connection_grant == null
+                          ? null
+                          : agentConnectionGrantRefSchema.parse(
+                                claim.act.agent_connection_grant,
+                            ),
+              },
           };
 
 export const getAgentClientLabel = (clientId: string | null): string => {

@@ -4,6 +4,7 @@ import {
     QueryExecutionContext,
     QuerySurface,
     type Account,
+    type AgentConnectionGrantRef,
     type AgentIdentityClaim,
     type QueryResultReader,
 } from '@lightdash/common';
@@ -33,12 +34,14 @@ export const createAgentExecutionContext = ({
     clientId,
     agentUuid,
     agentIdentityEnabled,
+    agentConnectionGrant = null,
 }: {
     account: Account;
     surface: AgentActorSurface;
     clientId: string | null;
     agentUuid: string | null;
     agentIdentityEnabled: boolean;
+    agentConnectionGrant?: AgentConnectionGrantRef | null;
 }): AgentExecutionContext => {
     const facts = {
         oauthClientId:
@@ -70,9 +73,12 @@ export const createAgentExecutionContext = ({
                   surface,
                   clientId: resolvedClientId,
                   agentUuid: resolvedAgentUuid,
+                  agentConnectionGrant,
               })
             : null;
     if (claim) {
+        if (claim.act.agent_connection_grant)
+            Object.freeze(claim.act.agent_connection_grant);
         Object.freeze(claim.subject);
         Object.freeze(claim.act);
         Object.freeze(claim);

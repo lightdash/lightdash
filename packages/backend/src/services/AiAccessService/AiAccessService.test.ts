@@ -46,6 +46,8 @@ import { buildAccount } from '../../auth/account/account.mock';
 import { snowflakeOAuthRefreshClient as refresh } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import Logger from '../../logging/logger';
 import * as auditLogger from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
@@ -82,6 +84,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
+import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     credentialResolution,
     type MaterializedCredentials,
@@ -613,6 +616,7 @@ describe('AiAccessService', () => {
                 surface: 'in_app_agent',
                 client_id: 'lightdash-chat',
                 agent_uuid: null,
+                agent_connection_grant: null,
             },
         });
         expect(flags.get).toHaveBeenCalledOnce();
@@ -717,6 +721,7 @@ describe('AiAccessService', () => {
             surface: AgentActorSurface.MCP,
             client_id: 'oauth-client',
             agent_uuid: null,
+            agent_connection_grant: null,
         });
         const info = vi
             .spyOn(service['logger'], 'info')
@@ -7286,3 +7291,54 @@ describe('result producer compatibility', () => {
         ).rejects.toBeInstanceOf(AiAccessRefusedError);
     });
 });
+
+test.each(['marked_person', 'ai_service_account', 'agent_sign_in'] as const)(
+    'an authenticated connection retains the %s warehouse rule',
+    async (source) => {
+        const f = setup();
+        f.organizationRules.get.mockResolvedValue({ source });
+        f.slots.getSecrets.mockResolvedValue({
+            slot: {
+                uuid: 'slot',
+                identityUuid: 'generation',
+                warehouseType: WarehouseTypes.SNOWFLAKE,
+            } as AiServiceAccountSlot,
+            secrets: snowflakeSecrets,
+        });
+        const auth = setupGrantAuthentication({
+            ...sessionUser,
+            userUuid: 'user',
+            organizationUuid: 'org',
+        });
+        auth.downstream.mockImplementation(async () => {
+            const context = connectionContextFromAccount(auth.req.account!, {
+                organizationUuid: 'org',
+                queryContext: QueryExecutionContext.CLI,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                connection: snowflake,
+                agentIdentity: context.agentIdentity ?? null,
+                context: QueryExecutionContext.CLI,
+                evaluation: { kind: 'query', surface: QuerySurface.CLI },
+            });
+            expect(plan).toMatchObject({
+                identity:
+                    source === 'agent_sign_in' ? 'connected_person' : source,
+                agentIdentity: {
+                    subject: { type: 'user', uuid: 'user' },
+                    act: {
+                        agent_connection_grant: {
+                            grantUuid: 'grant',
+                            revision: 1,
+                        },
+                    },
+                },
+            });
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+    },
+);

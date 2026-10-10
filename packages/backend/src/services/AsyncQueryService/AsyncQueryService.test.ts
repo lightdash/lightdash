@@ -115,6 +115,8 @@ import {
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
 import { AiAccessController } from '../../controllers/v2/AiAccessController';
 import { QueryController } from '../../controllers/v2/QueryController';
 import { AiDeepResearchController } from '../../ee/controllers/AiDeepResearchController';
@@ -25554,6 +25556,119 @@ describe('fresh execution producer to result reader', () => {
             ).not.toHaveBeenCalled();
         },
     );
+    test('an authenticated connection produces and reads its result across refresh and refuses person reads in both directions', async () => {
+        const auth = setupGrantAuthentication({
+            ...defaultSessionUser,
+            organizationUuid: projectSummary.organizationUuid,
+            ability: authenticated('session').user.ability,
+        });
+        auth.grant.approvedProjectUuids = [projectUuid];
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        auth.req.params = { projectUuid };
+        auth.req.body = { sql: sqlChart.sql };
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'QueryController_executeAsyncSqlQuery' },
+        );
+        let fixture: ReturnType<typeof setup>;
+        let connectionQueryUuid: string;
+        auth.downstream.mockImplementation(async () => {
+            fixture = setup(false, false, false, false, auth.req.account!);
+            useRealCredentialSelection(fixture);
+            const result = await writeSql(
+                fixture,
+                QueryExecutionContext.CLI,
+                QuerySurface.CLI,
+            );
+            connectionQueryUuid = result.queryUuid;
+            expect(
+                fixture.rows.get(result.queryUuid)!.requestParameters
+                    .resultProducer,
+            ).toMatchObject({
+                authMethod: 'oauth',
+                agentIdentity: {
+                    subject: { type: 'user', uuid: auth.user.userUuid },
+                    act: {
+                        agent_connection_grant: {
+                            grantUuid: 'grant',
+                            revision: 1,
+                        },
+                    },
+                },
+            });
+            expect(
+                (await readSql(fixture, auth.req.account!, result.queryUuid))
+                    .status,
+            ).toBe(QueryHistoryStatus.READY);
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+        const person = fromOauth(auth.user, {
+            accessToken: 'ordinary',
+            client: { id: 'lightdash-cli' },
+        });
+        vi.mocked(
+            fixture!.service.resultsStorageClient.getDownloadStream,
+        ).mockClear();
+        await expect(
+            readSql(fixture!, person, connectionQueryUuid!),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        expect(
+            fixture!.service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+        const personFixture = setup(false, false, false, false, person);
+        useRealCredentialSelection(personFixture);
+        const personResult = await writeSql(
+            personFixture,
+            QueryExecutionContext.CLI,
+            QuerySurface.CLI,
+        );
+        expect(
+            personFixture.rows.get(personResult.queryUuid)!.requestParameters
+                .resultProducer?.agentIdentity,
+        ).toBeNull();
+        auth.token.accessToken = 'refreshed';
+        auth.req.params.queryUuid = connectionQueryUuid!;
+        auth.deps.resourceResolver.resolveResourceProjectUuid.mockResolvedValue(
+            projectUuid,
+        );
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: 'QueryController_getAsyncQueryResults' },
+        );
+        auth.downstream.mockImplementation(async () => {
+            expect(
+                (
+                    await readSql(
+                        fixture!,
+                        auth.req.account!,
+                        connectionQueryUuid!,
+                    )
+                ).status,
+            ).toBe(QueryHistoryStatus.READY);
+            vi.mocked(
+                personFixture.service.resultsStorageClient.getDownloadStream,
+            ).mockClear();
+            await expect(
+                readSql(
+                    personFixture,
+                    auth.req.account!,
+                    personResult.queryUuid,
+                ),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(
+                personFixture.service.resultsStorageClient.getDownloadStream,
+            ).not.toHaveBeenCalled();
+        });
+        expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+            status: 200,
+            error: undefined,
+        });
+    });
     test.each(['pat', 'oauth'] as const)(
         'round 17 unscoped CLI %s uses a person plan and reads its person result',
         async (method) => {
