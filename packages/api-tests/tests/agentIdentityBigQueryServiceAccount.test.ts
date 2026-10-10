@@ -182,6 +182,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                     WarehouseTypes.ATHENA,
                     WarehouseTypes.BIGQUERY,
                     WarehouseTypes.DATABRICKS,
+                    WarehouseTypes.POSTGRES,
                     WarehouseTypes.SNOWFLAKE,
                 ].sort(),
             );
