@@ -1,3 +1,10 @@
+# [2.550.0](https://github.com/lightdash/lightdash/compare/2.549.0...2.550.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** authorise every stored-result read for agents and people ([#30863](https://github.com/lightdash/lightdash/issues/30863)) ([d4b802b](https://github.com/lightdash/lightdash/commit/d4b802ba37b4b6142902b264c4cddb88e8b8f54b))
+
 # [2.549.0](https://github.com/lightdash/lightdash/compare/2.548.0...2.549.0) (2026-10-10)
 
 

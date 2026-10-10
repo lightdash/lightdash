@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.549.0",
-  "previousVersion": "2.548.0",
-  "releaseDate": "2026-10-10T19:38:14.626Z",
+  "version": "2.550.0",
+  "previousVersion": "2.549.0",
+  "releaseDate": "2026-10-10T20:01:47.956Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,12 +17,9 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v2/org/agent-permissions — removed the required property `results/pilotPreset` from the response with the `200` status",
-        "POST /api/v2/org/agent-permissions/pilot-preset — api path removed without deprecation"
-      ],
-      "breakingCount": 2,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -45,22 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "agent-permissions-pilot-preset-removed",
-      "reason": "Agent identity (beta, agent-identity feature flag) removes POST /api/v2/org/agent-permissions/pilot-preset and the pilotPreset field from GET /api/v2/org/agent-permissions. The agent-identity flag is off by default on Cloud and on self-hosted, and the endpoint refuses callers when the flag is off. No released Lightdash UI ever called the endpoint or read the field. API clients get a 404 and must save the capability ceiling with PUT /api/v2/org/agent-permissions instead.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "featureFlag": "agent-identity",
-        "covers": {
-          "rest": [
-            "POST /api/v2/org/agent-permissions/pilot-preset",
-            "GET /api/v2/org/agent-permissions"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }
