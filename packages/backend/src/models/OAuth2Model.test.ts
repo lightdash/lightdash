@@ -1090,7 +1090,7 @@ describe('OAuth2Model strict refresh rotation', () => {
         expect(tracker.history.transactions[0].state).toBe('committed');
         expect(tracker.history.insert).toHaveLength(0);
     });
-    it('keeps revoked family rows until they expire', async () => {
+    it('keeps family evidence until every refresh token in the family expires', async () => {
         const tracker = getTracker();
         tracker.on.insert('oauth2_access_tokens').response([]);
         tracker.on.insert('oauth2_refresh_tokens').response([]);
@@ -1107,11 +1107,10 @@ describe('OAuth2Model strict refresh rotation', () => {
             user,
         );
         const housekeeping = tracker.history.delete[0];
-        expect(housekeeping.sql).toContain('"expires_at" < CURRENT_TIMESTAMP');
-        expect(housekeeping.sql).toContain(
-            '"family_uuid" is null and "revoked_at" <',
+        expect(housekeeping.sql).toBe(
+            'delete from "oauth2_refresh_tokens" where "user_id" = $1 and (("family_uuid" is null and ("expires_at" < CURRENT_TIMESTAMP or "revoked_at" < now() - interval \'1 day\')) or ("family_uuid" is not null and not exists (select 1 from "oauth2_refresh_tokens" as "live" where "live"."family_uuid" = "oauth2_refresh_tokens"."family_uuid" and "live"."expires_at" >= CURRENT_TIMESTAMP)))',
         );
-        expect(housekeeping.sql).toContain("now() - interval '1 day'");
+        expect(housekeeping.bindings).toEqual([user.userId]);
         tracker.history.insert.forEach((query) =>
             expect(query.bindings).toContain(familyUuid),
         );

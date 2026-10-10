@@ -199,3 +199,42 @@ it('serializes family revocation behind an uncommitted rotation', async () => {
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.revoked_at !== null)).toBe(true);
 });
+
+it('retains expired family evidence through cleanup and revokes descendants on replay', async () => {
+    const { model, refresh, refreshToken, familyUuid, clientId } =
+        await fixture(false);
+    const { database } = migrated;
+    const child = await refresh();
+    await database('oauth2_refresh_tokens')
+        .where('refresh_token', refreshToken)
+        .update({
+            expires_at: database.raw("now() - interval '1 minute'"),
+            revoked_at: database.raw("now() - interval '2 days'"),
+        });
+
+    const grandchild = await refresh(child.refreshToken!);
+    const ancestor = await database('oauth2_refresh_tokens')
+        .where('refresh_token', refreshToken)
+        .first();
+    expect(ancestor).toMatchObject({ family_uuid: familyUuid });
+    expect(ancestor!.expires_at.getTime()).toBeLessThan(Date.now());
+    expect(grandchild.refreshTokenExpiresAt!.getTime()).toBeGreaterThan(
+        Date.now(),
+    );
+
+    await expect(refresh()).rejects.toMatchObject({ name: 'invalid_grant' });
+    const familyRows = await database('oauth2_refresh_tokens').where(
+        'client_id',
+        clientId,
+    );
+    expect(familyRows).toHaveLength(3);
+    expect(familyRows.every((row) => row.revoked_at !== null)).toBe(true);
+    expect(await model.getAccessToken(child.accessToken)).toBe(false);
+    expect(await model.getAccessToken(grandchild.accessToken)).toBe(false);
+    await expect(refresh(child.refreshToken!)).rejects.toMatchObject({
+        name: 'invalid_grant',
+    });
+    await expect(refresh(grandchild.refreshToken!)).rejects.toMatchObject({
+        name: 'invalid_grant',
+    });
+});

@@ -357,34 +357,62 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
             await database('oauth2_refresh_tokens')
                 .where('user_id', user.userId)
-                .where((query) =>
-                    query
-                        .where('expires_at', '<', database.fn.now())
-                        .modify((revoked) => {
-                            if (
-                                token.familyUuid !== null &&
-                                token.familyUuid !== undefined
-                            ) {
-                                void revoked.orWhere((legacy) =>
-                                    legacy
-                                        .whereNull('family_uuid')
-                                        .where(
-                                            'revoked_at',
-                                            '<',
-                                            database.raw(
-                                                "now() - interval '1 day'",
+                .where((query) => {
+                    if (
+                        token.familyUuid !== null &&
+                        token.familyUuid !== undefined
+                    ) {
+                        void query
+                            .where((legacy) =>
+                                legacy
+                                    .whereNull('family_uuid')
+                                    .where((expired) =>
+                                        expired
+                                            .where(
+                                                'expires_at',
+                                                '<',
+                                                database.fn.now(),
+                                            )
+                                            .orWhere(
+                                                'revoked_at',
+                                                '<',
+                                                database.raw(
+                                                    "now() - interval '1 day'",
+                                                ),
                                             ),
-                                        ),
-                                );
-                            } else {
-                                void revoked.orWhere(
-                                    'revoked_at',
-                                    '<',
-                                    database.raw("now() - interval '1 day'"),
-                                );
-                            }
-                        }),
-                )
+                                    ),
+                            )
+                            .orWhere((family) =>
+                                family
+                                    .whereNotNull('family_uuid')
+                                    .whereNotExists(
+                                        database(
+                                            'oauth2_refresh_tokens as live',
+                                        )
+                                            .select(database.raw('1'))
+                                            .where(
+                                                'live.family_uuid',
+                                                database.ref(
+                                                    'oauth2_refresh_tokens.family_uuid',
+                                                ),
+                                            )
+                                            .where(
+                                                'live.expires_at',
+                                                '>=',
+                                                database.fn.now(),
+                                            ),
+                                    ),
+                            );
+                    } else {
+                        void query
+                            .where('expires_at', '<', database.fn.now())
+                            .orWhere(
+                                'revoked_at',
+                                '<',
+                                database.raw("now() - interval '1 day'"),
+                            );
+                    }
+                })
                 .del();
         }
 

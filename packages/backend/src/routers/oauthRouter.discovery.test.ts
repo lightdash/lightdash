@@ -121,27 +121,83 @@ it('advertises strict security from the instance flag', async () => {
 
 afterEach(() => vi.restoreAllMocks());
 
-it.each([true, false])(
-    'advertises a trailing-slash site URL with strict=%s',
-    async (strict) => {
-        const trailingSiteUrl = `${siteUrl}/`;
-        vi.spyOn(oauthService, 'getSiteUrl').mockReturnValue(trailingSiteUrl);
-        vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValue(strict);
-        const metadata = await callHandler(oauthProtectedResourceHandler, {});
-        if (strict) {
-            expect(metadata.resource).toBe(`${siteUrl}/api/v1/mcp`);
-            expect(
-                canonicalOAuthResource(
-                    trailingSiteUrl,
-                    String(metadata.resource),
-                ),
-            ).toBe(metadata.resource);
-            expect(metadata.authorization_servers).toEqual([siteUrl]);
-        } else {
-            expect(JSON.stringify(metadata)).toBe(
-                JSON.stringify(oauthProtectedResourceConfig(trailingSiteUrl)),
-            );
+it.each([siteUrl, `${siteUrl}/`])(
+    'uses one canonical issuer in strict discovery for %s',
+    async (configuredSiteUrl) => {
+        vi.spyOn(oauthService, 'getSiteUrl').mockReturnValue(configuredSiteUrl);
+        vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValue(true);
+        const authorization = await callHandler(
+            oauthAuthorizationServerHandler,
+            {},
+        );
+        const resource = await callHandler(oauthProtectedResourceHandler, {});
+        expect(authorization.issuer).toBe(siteUrl);
+        expect(resource.authorization_servers).toEqual([authorization.issuer]);
+        expect(resource.resource).toBe(`${siteUrl}/api/v1/mcp`);
+        expect(
+            canonicalOAuthResource(
+                configuredSiteUrl,
+                String(resource.resource),
+            ),
+        ).toBe(resource.resource);
+        for (const metadata of [authorization, resource]) {
+            Object.entries(metadata)
+                .filter(([key]) => key.endsWith('_endpoint'))
+                .forEach(([, endpoint]) => {
+                    expect(
+                        String(endpoint).startsWith(`${siteUrl}/api/v1/oauth/`),
+                    ).toBe(true);
+                    expect(String(endpoint)).not.toContain('//api');
+                });
         }
+    },
+);
+
+it.each([siteUrl, `${siteUrl}/`])(
+    'preserves both flag-off discovery documents byte for byte for %s',
+    async (configuredSiteUrl) => {
+        vi.spyOn(oauthService, 'getSiteUrl').mockReturnValue(configuredSiteUrl);
+        vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValue(false);
+        const authorization = await callHandler(
+            oauthAuthorizationServerHandler,
+            {},
+        );
+        const resource = await callHandler(oauthProtectedResourceHandler, {});
+        expect(JSON.stringify(authorization)).toBe(
+            JSON.stringify({
+                issuer: configuredSiteUrl,
+                authorization_endpoint: `${configuredSiteUrl}/api/v1/oauth/authorize`,
+                token_endpoint: `${configuredSiteUrl}/api/v1/oauth/token`,
+                introspection_endpoint: `${configuredSiteUrl}/api/v1/oauth/introspect`,
+                revocation_endpoint: `${configuredSiteUrl}/api/v1/oauth/revoke`,
+                registration_endpoint: `${configuredSiteUrl}/api/v1/oauth/register`,
+                userinfo_endpoint: `${configuredSiteUrl}/api/v1/oauth/userinfo`,
+                response_types_supported: ['code'],
+                grant_types_supported: [
+                    'authorization_code',
+                    'refresh_token',
+                    'client_credentials',
+                ],
+                token_endpoint_auth_methods_supported: [
+                    'client_secret_basic',
+                    'client_secret_post',
+                ],
+                code_challenge_methods_supported: ['S256'],
+                scopes_supported: ['read', 'write', 'mcp:read', 'mcp:write'],
+                pkce_required: false,
+            }),
+        );
+        expect(JSON.stringify(resource)).toBe(
+            JSON.stringify({
+                resource: `${configuredSiteUrl}/api/v1/mcp`,
+                authorization_servers: [configuredSiteUrl],
+                bearer_methods_supported: ['header'],
+                scopes_supported: ['read', 'write', 'mcp:read', 'mcp:write'],
+                resource_documentation: `${configuredSiteUrl}/api/v1/oauth/.well-known/oauth-authorization-server`,
+                introspection_endpoint: `${configuredSiteUrl}/api/v1/oauth/introspect`,
+                revocation_endpoint: `${configuredSiteUrl}/api/v1/oauth/revoke`,
+            }),
+        );
     },
 );
 

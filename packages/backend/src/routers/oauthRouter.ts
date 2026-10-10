@@ -81,7 +81,10 @@ const sendOAuthRedirectResponse = async (
     const user =
         req.user?.userId && req.user.organizationUuid ? req.user : null;
     if (await getOAuthService(req).isSecurityStrict(user))
-        redirectUrl.searchParams.set('iss', getOAuthService(req).getSiteUrl());
+        redirectUrl.searchParams.set(
+            'iss',
+            oauthApiResource(getOAuthService(req).getSiteUrl()),
+        );
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthRedirectPage({
@@ -663,14 +666,15 @@ oauthRouter.delete(
 // OAuth2 Discovery endpoint
 // This endpoint is used by MCP clients and other OAuth clients to discover the OAuth2 server
 export function oauthConfig(baseUrl: string, strict = false) {
+    const issuer = strict ? oauthApiResource(baseUrl) : baseUrl;
     return {
-        issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
-        token_endpoint: `${baseUrl}/api/v1/oauth/token`,
-        introspection_endpoint: `${baseUrl}/api/v1/oauth/introspect`,
-        revocation_endpoint: `${baseUrl}/api/v1/oauth/revoke`,
-        registration_endpoint: `${baseUrl}/api/v1/oauth/register`,
-        userinfo_endpoint: `${baseUrl}/api/v1/oauth/userinfo`,
+        issuer,
+        authorization_endpoint: `${issuer}/api/v1/oauth/authorize`,
+        token_endpoint: `${issuer}/api/v1/oauth/token`,
+        introspection_endpoint: `${issuer}/api/v1/oauth/introspect`,
+        revocation_endpoint: `${issuer}/api/v1/oauth/revoke`,
+        registration_endpoint: `${issuer}/api/v1/oauth/register`,
+        userinfo_endpoint: `${issuer}/api/v1/oauth/userinfo`,
         response_types_supported: ['code'],
         grant_types_supported: [
             'authorization_code',

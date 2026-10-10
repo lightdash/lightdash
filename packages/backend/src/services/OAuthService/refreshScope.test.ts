@@ -669,6 +669,26 @@ describe('strict refresh token families', () => {
             false,
         );
     });
+    it('revokes the family when an expired stored ancestor is replayed', async () => {
+        const child = await rotate('A');
+        const ancestor = refreshRows.get('A')!;
+        expect(ancestor.revoked_at).toBeInstanceOf(Date);
+        ancestor.expires_at = new Date(Date.now() - 60000);
+        expect(
+            refreshRows.get(child.refreshToken!)!.expires_at.getTime(),
+        ).toBeGreaterThan(Date.now());
+
+        await expect(rotate('A')).rejects.toMatchObject({
+            name: 'invalid_grant',
+        });
+        expect(refreshRows.get(child.refreshToken!)!.revoked_at).toBeInstanceOf(
+            Date,
+        );
+        expect(accessRows.has(child.accessToken)).toBe(false);
+        await expect(rotate(child.refreshToken!)).rejects.toMatchObject({
+            name: 'invalid_grant',
+        });
+    });
     it('rejects reuse inside the legacy grace window', async () => {
         const child = await rotate('A');
         await expect(rotate('A')).rejects.toMatchObject({

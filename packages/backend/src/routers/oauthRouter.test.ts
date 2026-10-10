@@ -1,4 +1,7 @@
-import { ManagedSignInError } from '@lightdash/common';
+import {
+    generateOAuthRedirectPage,
+    ManagedSignInError,
+} from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
 import { createHash } from 'node:crypto';
@@ -9,7 +12,10 @@ import { InvalidTargetError } from '../auth/oauthScopes/oauthResources';
 import { AiAccessService } from '../services/AiAccessService/AiAccessService';
 import type { OAuthService } from '../services/OAuthService/OAuthService';
 import { AgentCredentialResolutionError } from '../services/WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
-import oauthRouter from './oauthRouter';
+import oauthRouter, {
+    oauthConfig,
+    oauthProtectedResourceConfig,
+} from './oauthRouter';
 
 vi.mock('../logging/logger', () => ({
     default: {
@@ -871,6 +877,7 @@ describe('strict OAuth redirects and consent', () => {
         'adds the issuer to %s redirects under strict',
         async (outcome) => {
             const oauthService = createOAuthService();
+            oauthService.getSiteUrl.mockReturnValue('https://server.example/');
             oauthService.isSecurityStrict.mockResolvedValue(true);
             oauthService.validateRedirectUri.mockResolvedValue(true);
             if (outcome === 'invalid_target')
@@ -891,9 +898,14 @@ describe('strict OAuth redirects and consent', () => {
                 oauthService,
             });
             const redirect = new URL(getRedirectUrl(response.body));
+            const { issuer } = oauthConfig(oauthService.getSiteUrl(), true);
             expect(redirect.searchParams.get('iss')).toBe(
-                oauthService.getSiteUrl(),
+                'https://server.example',
             );
+            expect(redirect.searchParams.get('iss')).toBe(issuer);
+            expect(
+                oauthProtectedResourceConfig(issuer).authorization_servers,
+            ).toEqual([issuer]);
             expect(redirect.searchParams.get('state')).toBe('state');
             if (outcome === 'success')
                 expect(redirect.searchParams.get('code')).toBe('code');
@@ -903,24 +915,34 @@ describe('strict OAuth redirects and consent', () => {
                 );
         },
     );
-    it('keeps the issuer absent with the flag off', async () => {
-        const oauthService = createOAuthService();
-        oauthService.validateRedirectUri.mockResolvedValue(true);
-        oauthService.authorize.mockResolvedValue({
-            authorizationCode: 'code',
-        } as OAuth2Server.AuthorizationCode);
-        const response = await requestAuthorize({
-            body: {
-                approve: 'true',
-                client_id: 'client',
-                redirect_uri: 'https://client.example/callback',
-            },
-            oauthService,
-        });
-        expect(
-            new URL(getRedirectUrl(response.body)).searchParams.has('iss'),
-        ).toBe(false);
-    });
+    it.each(['https://server.example', 'https://server.example/'])(
+        'preserves flag-off redirects byte for byte for %s',
+        async (siteUrl) => {
+            const oauthService = createOAuthService();
+            oauthService.getSiteUrl.mockReturnValue(siteUrl);
+            oauthService.validateRedirectUri.mockResolvedValue(true);
+            oauthService.authorize.mockResolvedValue({
+                authorizationCode: 'code',
+            } as OAuth2Server.AuthorizationCode);
+            const response = await requestAuthorize({
+                body: {
+                    approve: 'true',
+                    client_id: 'client',
+                    redirect_uri: 'https://client.example/callback',
+                },
+                oauthService,
+            });
+            expect(
+                new URL(getRedirectUrl(response.body)).searchParams.has('iss'),
+            ).toBe(false);
+            expect(response.body).toBe(
+                generateOAuthRedirectPage({
+                    redirectUrl: 'https://client.example/callback?code=code',
+                    message: 'Redirecting you back to your application...',
+                }),
+            );
+        },
+    );
     it('preserves the canonical resource through the consent form POST', async () => {
         const oauthService = createOAuthService();
         const resource = 'https://eu1.lightdash.cloud/api/v1/mcp';
