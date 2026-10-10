@@ -17,10 +17,14 @@ import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import { errorHandler } from '../../errors';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
 } from '../../services/AgentPermissionService/AgentPermissionService';
+import { type ServiceRepository } from '../../services/ServiceRepository';
+import { SpaceService } from '../../services/SpaceService/SpaceService';
+import { SpaceController } from '../spaceController';
 import {
     allowApiKeyAuthentication,
     allowOauthAuthentication,
@@ -394,6 +398,7 @@ it.each(['pat', 'session'] as const)(
 );
 
 it.each([
+    'InviteLinksController_createInviteLink',
     'ProjectController_updateProjectAccessForUser',
     'GroupsController_addUserToGroup',
     'OrganizationController_updateOrganizationMember',
@@ -437,3 +442,104 @@ it.each(['off', 'legacy', 'pat', 'session'] as const)(
         await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
     },
 );
+
+it.each(['off', 'legacy', 'pat', 'session'] as const)(
+    'preserves %s invite REST writes',
+    async (mode) => {
+        const { run } = setup({
+            operation: 'InviteLinksController_createInviteLink',
+            mode: mode === 'off' || mode === 'legacy' ? mode : 'managed',
+            authentication:
+                mode === 'pat' || mode === 'session' ? mode : 'oauth',
+        });
+        await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
+    },
+);
+
+it('allows managed OAuth space metadata edits with content_write', async () => {
+    const { run, getPolicy } = setup({
+        operation: 'SpaceController_updateSpace',
+    });
+    getPolicy.mockResolvedValue({
+        mode: 'managed',
+        version: 1,
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
+    });
+    await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
+});
+
+it('checks access changes after allowing the OAuth space REST operation', async () => {
+    const { run, request, getPolicy } = setup({
+        operation: 'SpaceController_updateSpace',
+    });
+    const policy = {
+        mode: 'managed' as const,
+        version: 1,
+        allowedProjectUuids: null,
+        systemRoleMatrix: agentSystemRoleMatrix([AgentCapability.ContentWrite]),
+    };
+    getPolicy.mockResolvedValue(policy);
+    const policyRead = vi
+        .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+        .mockResolvedValue(policy);
+    const space = {
+        organizationUuid: defaultSessionUser.organizationUuid,
+        projectUuid: 'project',
+        uuid: 'space',
+        name: 'Original',
+        inheritParentPermissions: false,
+        projectMemberAccessRole: null,
+    };
+    const spaceModel = {
+        getSpaceSummary: vi.fn().mockResolvedValue(space),
+        update: vi.fn(),
+        updateWithCopiedPermissions: vi.fn(),
+    };
+    const service = new SpaceService({
+        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
+        analytics: { track: vi.fn() },
+        spaceModel,
+        spacePermissionService: {
+            can: vi.fn().mockResolvedValue(true),
+            getRawDirectAccess: vi.fn().mockResolvedValue({}),
+        },
+    } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+    const assemble = vi
+        .spyOn(
+            service as unknown as { assembleFullSpace: () => Promise<unknown> },
+            'assembleFullSpace',
+        )
+        .mockResolvedValue(space);
+    const controller = new SpaceController({
+        getSpaceService: () => service,
+    } as unknown as ServiceRepository);
+    try {
+        await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
+        await expect(
+            controller.updateSpace(
+                'project',
+                'space',
+                { name: 'Renamed' },
+                request,
+            ),
+        ).resolves.toMatchObject({ status: 'ok' });
+        expect(spaceModel.update).toHaveBeenCalledOnce();
+        spaceModel.update.mockClear();
+        await expect(
+            controller.updateSpace(
+                'project',
+                'space',
+                { name: 'Renamed', inheritParentPermissions: true },
+                request,
+            ),
+        ).rejects.toMatchObject({
+            refusal: { reason: 'agent_capability_denied' },
+        });
+        expect(spaceModel.update).not.toHaveBeenCalled();
+        expect(spaceModel.updateWithCopiedPermissions).not.toHaveBeenCalled();
+    } finally {
+        policyRead.mockRestore();
+        assemble.mockRestore();
+    }
+});

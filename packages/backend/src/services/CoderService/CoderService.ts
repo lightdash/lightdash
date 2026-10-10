@@ -121,6 +121,7 @@ import {
 } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
@@ -139,6 +140,7 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import {
     logAgentContentWrite,
@@ -1660,6 +1662,18 @@ export class CoderService extends BaseService {
                     .sort((left, right) => left.name.localeCompare(right.name)),
             };
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
+        }
+        if (accessChanged) {
+            await assertHumanManagedMutation({
+                organizationUuid: project.organizationUuid,
+                ability: user.ability,
+                oauth: account.authentication.type === 'oauth',
+                database: this.groupsModel.database,
+                featureFlagModel: new FeatureFlagModel({
+                    database: this.groupsModel.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
+            });
         }
         if (existingSpace && !metadataChanged && !accessChanged) {
             return { action: SpaceAsCodeAction.NO_CHANGES };

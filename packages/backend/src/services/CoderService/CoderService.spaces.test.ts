@@ -13,13 +13,19 @@ import {
     SpaceAsCodeAction,
     SpaceMemberRole,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { fromSession } from '../../auth/account';
+import { fromApiKey, fromOauth, fromSession } from '../../auth/account/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ProjectCoderController } from '../../controllers/ProjectCoderController';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { agentSystemRoleMatrix } from '../AgentPermissionService/AgentPermissionService';
 import {
     agentActionTestCases,
     withAgentActionScope,
 } from '../AiAccessService/agentActionTestUtils.mock';
+import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -881,5 +887,71 @@ test.each(agentActionTestCases)(
                     outcome: 'allowed',
                 }),
             );
+    },
+);
+
+describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
+    'managed spaces as code: %s',
+    (operation) => {
+        afterEach(() => vi.restoreAllMocks());
+        test.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+            '%s permits metadata and gates changed access',
+            async (mode) => {
+                vi.spyOn(FeatureFlagModel.prototype, 'get').mockResolvedValue({
+                    enabled: mode !== 'off',
+                } as never);
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    mode: mode === 'legacy' ? 'legacy' : 'managed',
+                    version: 1,
+                    allowedProjectUuids: null,
+                    systemRoleMatrix: agentSystemRoleMatrix([]),
+                });
+                const user = makeSessionUser();
+                let account: Account = fromSession(user);
+                if (mode === 'pat') account = fromApiKey(user, 'token');
+                else if (mode !== 'session')
+                    account = fromOauth(user, {
+                        accessToken: 'token',
+                        client: { id: 'agent' },
+                    });
+                const { service, spaceModel } = buildService();
+                const controller = new ProjectCoderController({
+                    getCoderService: () => service,
+                } as unknown as ServiceRepository);
+                const upsert = async (space: SpaceAsCode) =>
+                    (
+                        await controller[operation](PROJECT_UUID, space, {
+                            account,
+                        } as Request)
+                    ).results;
+                await expect(
+                    upsert(spaceAsCode({ spaceName: 'Renamed' })),
+                ).resolves.toEqual({ action: SpaceAsCodeAction.UPDATE });
+                spaceModel.applySpaceAsCode.mockClear();
+                const changed = spaceAsCode({
+                    spaceName: 'Renamed',
+                    access: {
+                        inheritParentPermissions: true,
+                        projectMemberAccessRole: SpaceMemberRole.VIEWER,
+                        users: [],
+                        groups: [],
+                    },
+                });
+                if (mode === 'managed') {
+                    await expect(upsert(changed)).rejects.toMatchObject({
+                        refusal: { reason: 'agent_capability_denied' },
+                    });
+                    expect(spaceModel.applySpaceAsCode).not.toHaveBeenCalled();
+                } else {
+                    await expect(upsert(changed)).resolves.toEqual({
+                        action: SpaceAsCodeAction.UPDATE,
+                    });
+                    expect(spaceModel.applySpaceAsCode).toHaveBeenCalledOnce();
+                }
+            },
+        );
     },
 );

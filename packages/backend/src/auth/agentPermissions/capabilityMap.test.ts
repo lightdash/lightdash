@@ -476,6 +476,8 @@ const humanOnlyReadExceptions: Record<string, string> = {
         'Reads or validates settings without changing grants or credentials.',
     'ScimOrganizationAccessTokenController.getOrganizationAccessTokens':
         'Reads or validates settings without changing grants or credentials.',
+    'InviteLinksController.revokeAllInviteLinks':
+        'Revokes outstanding invitations without granting roles or membership.',
     'ServiceAccountsController.getServiceAccountProjectGrants':
         'Reads or validates settings without changing grants or credentials.',
     'ServiceAccountsController.getServiceAccounts':
@@ -484,7 +486,7 @@ const humanOnlyReadExceptions: Record<string, string> = {
 
 it('covers every role, membership and token controller operation with a human-only rule or a reviewed exception', () => {
     const families =
-        /^(?:CustomRoles|OrganizationRoles|ProjectRoles|Roles|Groups|DirectAccess|ServiceAccounts|ScimOrganizationAccessToken|AgentPermission|OrganizationAgentIdentity|AiServiceAccount)Controller\./;
+        /^(?:InviteLinks|CustomRoles|OrganizationRoles|ProjectRoles|Roles|Groups|DirectAccess|ServiceAccounts|ScimOrganizationAccessToken|AgentPermission|OrganizationAgentIdentity|AiServiceAccount)Controller\./;
     const operations = Object.keys(REST_OPERATION_CAPABILITIES).filter((key) =>
         families.test(key),
     );

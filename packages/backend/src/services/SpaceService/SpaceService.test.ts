@@ -10,13 +10,16 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
+import { createOAuthScopedAbility } from '../../auth/oauthScopes/scopedAbility';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { agentSystemRoleMatrix } from '../AgentPermissionService/AgentPermissionService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import {
@@ -2115,4 +2118,93 @@ describe('Space cascade audit for Documents', () => {
             }),
         );
     });
+});
+
+describe('managed space updates', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+        '%s allows metadata edits and gates access changes',
+        async (mode) => {
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                mode: mode === 'legacy' ? 'legacy' : 'managed',
+                version: 1,
+                allowedProjectUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([]),
+            });
+            const user = createTestUser({
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }) as SessionUser;
+            if (mode !== 'pat' && mode !== 'session')
+                user.ability = createOAuthScopedAbility(user.ability, {
+                    mode: 'enforce',
+                    scopes: ['read', 'write'],
+                    clientId: 'agent',
+                    getRequest: () => ({
+                        method: 'PATCH',
+                        routeTemplate: null,
+                    }),
+                });
+            const space = {
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                uuid: 'space',
+                name: 'Original',
+                inheritParentPermissions: false,
+                projectMemberAccessRole: null,
+            };
+            const spaceModel = {
+                getSpaceSummary: vi.fn().mockResolvedValue(space),
+                update: vi.fn(),
+                updateWithCopiedPermissions: vi.fn(),
+            };
+            const service = new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
+                },
+                analytics: analyticsMock,
+                spaceModel,
+                spacePermissionService: {
+                    can: vi.fn().mockResolvedValue(true),
+                    getRawDirectAccess: vi.fn().mockResolvedValue({}),
+                },
+            } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+            vi.spyOn(
+                service as unknown as {
+                    assembleFullSpace: () => Promise<unknown>;
+                },
+                'assembleFullSpace',
+            ).mockResolvedValue(space);
+            await service.updateSpace(user, 'space', {
+                name: 'Renamed',
+                inheritParentPermissions: false,
+                projectMemberAccessRole: null,
+            });
+            expect(spaceModel.update).toHaveBeenCalledOnce();
+            spaceModel.update.mockClear();
+            await Promise.all(
+                [
+                    { inheritParentPermissions: true },
+                    { projectMemberAccessRole: SpaceMemberRole.VIEWER },
+                ].map(async (access) => {
+                    const result = service.updateSpace(user, 'space', {
+                        name: 'Renamed',
+                        ...access,
+                    });
+                    if (mode === 'managed') {
+                        await expect(result).rejects.toMatchObject({
+                            refusal: { reason: 'agent_capability_denied' },
+                        });
+                        expect(spaceModel.update).not.toHaveBeenCalled();
+                        expect(
+                            spaceModel.updateWithCopiedPermissions,
+                        ).not.toHaveBeenCalled();
+                    } else await result;
+                }),
+            );
+        },
+    );
 });

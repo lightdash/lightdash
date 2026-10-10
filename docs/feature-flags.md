@@ -248,10 +248,13 @@ shared-credential links, credential-subject and preview-ownership fields,
 service-account identity slots, organization identity rules, Snowflake client
 versions and credential generations. Separate generation counters on project,
 shared organization and extra-connection credentials change when the normalized
-credentials, credential type or credential subject changes, including preview
-credential copies. Re-saving the same effective credentials keeps the generation.
-Replacing credentials on the same connection UUID requires a new confirmation. Token refresh,
-compilation and unrelated project edits do not change these counters. The
+persistent credentials, credential type or credential subject changes, including
+preview credential copies. Re-saving the same effective credentials keeps the generation.
+Replacing credentials on the same connection UUID requires a new confirmation.
+Snowflake SSO and Databricks OAuth access-token output is excluded from the
+comparison. A new refresh grant, provider, subject or routing setting still
+invalidates confirmation. Token refresh, compilation, and name-only or dbt-only
+project saves with the same binding do not change these counters. The
 fingerprint does not hash tokens or encrypted credential payloads and does not
 use generic row timestamps. Confirmation covers the connection, organization
 identity rules, the AI service account slot and the organization's Snowflake agent client. It does not cover
@@ -273,9 +276,12 @@ is unchanged. Managed OAuth REST calls cannot change role definitions, role assi
 membership, space or direct access grants, agent policy, identity or AI-access
 settings, warehouse confirmations, personal tokens, service accounts or OAuth
 clients, even with the administration capability. Role, project membership,
-organization membership and group mutation services also reject managed OAuth
-and agent execution contexts. Ordinary human and PAT administration keeps its
-existing behavior.
+organization membership, invite creation or resend, and group mutation services
+also reject managed OAuth and agent execution contexts. Space updates and
+spaces-as-code imports reject changes to inheritance, project-member access,
+or user and group grants at the service boundary. Metadata-only space edits
+remain under `content_write`; resubmitting unchanged access is allowed. Ordinary
+human and PAT administration keeps its existing behavior.
 
 ### Snowflake silent agent refresh
 

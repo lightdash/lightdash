@@ -1,14 +1,23 @@
+import { Ability } from '@casl/ability';
 import {
+    DatabricksAuthenticationType,
     DbtProjectType,
     normalizeWarehouseCredentials,
     NotFoundError,
     ProjectType,
+    RequestMethod,
+    SnowflakeAuthenticationType,
     SupportedDbtVersions,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
+    type CreateWarehouseCredentials,
+    type PossibleAbilities,
 } from '@lightdash/common';
+import * as warehouses from '@lightdash/warehouses';
 import knex from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { fromSession } from '../../auth/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AgentWarehouseRestrictionConfirmationModel } from '../../models/AgentWarehouseRestrictionConfirmationModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
@@ -16,6 +25,12 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionCompileModel } from '../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    ProjectService,
+    type ProjectServiceArguments,
+} from '../ProjectService/ProjectService';
+import { projectWithSensitiveFields } from '../ProjectService/ProjectService.mock';
+import { UserService } from '../UserService';
 import { AgentWarehouseBindingFingerprint } from './agentWarehouseBindingFingerprint';
 
 const database = knex({ client: MockClient, dialect: 'pg' });
@@ -690,5 +705,192 @@ test.each(['project', 'organization'] as const)(
         expect(
             metadata.warehouse_connections[0].connection_credential_generation,
         ).toBe(1);
+    },
+);
+
+describe.each(['snowflake', 'databricks', 'databricks-m2m'] as const)(
+    '%s OAuth public project saves',
+    (provider) => {
+        afterEach(() => vi.restoreAllMocks());
+        test.each(
+            provider === 'snowflake'
+                ? ([
+                      'name',
+                      'dbt',
+                      'role',
+                      'user',
+                      'host',
+                      'refresh grant',
+                  ] as const)
+                : (['name', 'dbt', 'host', 'refresh grant'] as const),
+        )('%s changes preserve only the same binding', async (change) => {
+            const credentials: CreateWarehouseCredentials =
+                provider === 'snowflake'
+                    ? {
+                          type: WarehouseTypes.SNOWFLAKE,
+                          authenticationType: SnowflakeAuthenticationType.SSO,
+                          account: 'account',
+                          user: 'person',
+                          role: 'analyst',
+                          database: 'database',
+                          warehouse: 'warehouse',
+                          schema: 'public',
+                          token: 'old-access',
+                          refreshToken: 'grant',
+                      }
+                    : {
+                          type: WarehouseTypes.DATABRICKS,
+                          authenticationType:
+                              provider === 'databricks-m2m'
+                                  ? DatabricksAuthenticationType.OAUTH_M2M
+                                  : DatabricksAuthenticationType.OAUTH_U2M,
+                          serverHostName: 'workspace.example.com',
+                          httpPath: '/sql/warehouse',
+                          catalog: 'catalog',
+                          database: 'schema',
+                          oauthClientId: 'client',
+                          token: 'old-access',
+                          refreshToken: 'grant',
+                      };
+            const encryptionUtil = {
+                encrypt: (value: string) => Buffer.from(value),
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil;
+            Object.assign(metadata.warehouse_credentials[0], {
+                project_id: 1,
+                warehouse_type: credentials.type,
+                warehouse_credential_generation: 0,
+                credential_subject_user_uuid:
+                    provider === 'databricks-m2m'
+                        ? null
+                        : defaultSessionUser.userUuid,
+                encrypted_credentials: encryptionUtil.encrypt(
+                    JSON.stringify(credentials),
+                ),
+            });
+            metadata.warehouse_connections = [];
+            const projects = new ProjectModel({
+                database,
+                encryptionUtil,
+                lightdashConfig: lightdashConfigMock,
+            });
+            const saved = {
+                ...projectWithSensitiveFields,
+                projectUuid: 'project',
+                organizationUuid: defaultSessionUser.organizationUuid!,
+                warehouseConnection: credentials,
+                dbtConnection: { type: DbtProjectType.NONE } as const,
+            };
+            vi.spyOn(projects, 'getWithSensitiveFields').mockResolvedValue(
+                saved,
+            );
+            vi.spyOn(
+                projects,
+                'getWarehouseCredentialsForProject',
+            ).mockResolvedValue(credentials);
+            const update = vi.spyOn(projects, 'update');
+            tracker.on.update('projects').response([{ project_id: 1 }]);
+            tracker.on.insert('warehouse_credentials').response((query) => {
+                if (
+                    query.sql.includes(
+                        '"warehouse_credential_generation" = "warehouse_credentials"."warehouse_credential_generation" + 1',
+                    )
+                )
+                    metadata.warehouse_credentials[0].warehouse_credential_generation = 1;
+                return [];
+            });
+            const token = {
+                accessToken: 'fresh-access',
+                refreshToken:
+                    change === 'refresh grant' ? 'new-grant' : 'grant',
+                expiresIn: 3600,
+            };
+            const snowflakeExchange = vi
+                .spyOn(UserService, 'generateSnowflakeAccessToken')
+                .mockResolvedValue(token);
+            const databricksExchange = vi
+                .spyOn(warehouses, 'refreshDatabricksOAuthToken')
+                .mockResolvedValue(token);
+            const service = new ProjectService({
+                lightdashConfig: lightdashConfigMock,
+                projectModel: projects,
+                userOAuthGrantsModel: {
+                    getRefreshToken: vi
+                        .fn()
+                        .mockResolvedValue(
+                            change === 'refresh grant' ? 'new-grant' : 'grant',
+                        ),
+                },
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
+                adminNotificationService: {
+                    notifyConnectionSettingsChange: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                },
+                jobModel: { create: vi.fn() },
+                schedulerClient: { testAndCompileProject: vi.fn() },
+            } as unknown as ProjectServiceArguments);
+            const next = {
+                ...credentials,
+                ...(change === 'refresh grant'
+                    ? { refreshToken: 'new-grant' }
+                    : {}),
+            };
+            if (next.type === WarehouseTypes.SNOWFLAKE) {
+                if (change === 'role') next.role = 'new-role';
+                if (change === 'user') next.user = 'new-user';
+                if (change === 'host') next.account = 'new-account';
+            } else if (
+                next.type === WarehouseTypes.DATABRICKS &&
+                change === 'host'
+            )
+                next.serverHostName = 'other.example.com';
+            const before = await fingerprint.get('project');
+            const ability = new Ability<PossibleAbilities>([
+                { action: 'manage', subject: 'all' },
+            ]);
+            await service.updateAndScheduleAsyncWork(
+                'project',
+                fromSession({
+                    ...defaultSessionUser,
+                    ability,
+                    abilityRules: ability.rules,
+                }),
+                {
+                    name: change === 'name' ? 'renamed' : saved.name,
+                    dbtConnection: saved.dbtConnection,
+                    dbtVersion:
+                        change === 'dbt'
+                            ? SupportedDbtVersions.V1_7
+                            : saved.dbtVersion,
+                    warehouseConnection: next,
+                },
+                RequestMethod.WEB_APP,
+            );
+            expect(
+                provider === 'snowflake'
+                    ? snowflakeExchange
+                    : databricksExchange,
+            ).toHaveBeenCalledOnce();
+            expect(update).toHaveBeenCalledWith(
+                'project',
+                expect.objectContaining({
+                    warehouseConnection: expect.objectContaining({
+                        token: 'fresh-access',
+                    }),
+                }),
+                defaultSessionUser.userUuid,
+            );
+            const unchanged = change === 'name' || change === 'dbt';
+            expect(
+                metadata.warehouse_credentials[0]
+                    .warehouse_credential_generation,
+            ).toBe(unchanged ? 0 : 1);
+            const after = await fingerprint.get('project');
+            if (unchanged) expect(after).toBe(before);
+            else expect(after).not.toBe(before);
+        });
     },
 );

@@ -33,10 +33,12 @@ import {
     type RegisteredAccount,
 } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
+import { createOAuthScopedAbility } from '../auth/oauthScopes/scopedAbility';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
 import * as winston from '../logging/winston';
+import { AgentCapabilityPolicyModel } from '../models/AgentCapabilityPolicyModel';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -60,6 +62,7 @@ import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
+import { agentSystemRoleMatrix } from './AgentPermissionService/AgentPermissionService';
 import { type SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { snowflakeAgentClientMock } from './AiAccessService/SnowflakeAgentClientResolver.mock';
 import { UserService } from './UserService';
@@ -229,6 +232,7 @@ const sessionModel = {
 };
 
 const organizationMemberProfileModel = {
+    updateOrganizationMember: vi.fn(),
     getOrganizationMemberByUuid:
         vi.fn<OrganizationMemberProfileModel['getOrganizationMemberByUuid']>(),
     getOrganizationAdmins: vi.fn<
@@ -4974,6 +4978,126 @@ describe('UserService', () => {
     });
 
     describe('createPendingUserAndInviteLink', () => {
+        test.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+            'handles %s invite role grants before persistence',
+            async (mode) => {
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        mode: mode === 'legacy' ? 'legacy' : 'managed',
+                        version: 1,
+                        allowedProjectUuids: null,
+                        systemRoleMatrix: agentSystemRoleMatrix([]),
+                    });
+                const actor = { ...sessionUser };
+                if (mode !== 'pat' && mode !== 'session')
+                    actor.ability = createOAuthScopedAbility(actor.ability, {
+                        mode: 'enforce',
+                        scopes: ['read', 'write'],
+                        clientId: 'agent',
+                        getRequest: () => ({
+                            method: 'POST',
+                            routeTemplate: null,
+                        }),
+                    });
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: {
+                        get: vi
+                            .fn()
+                            .mockResolvedValue({ enabled: mode !== 'off' }),
+                    },
+                });
+                try {
+                    const result = service.createPendingUserAndInviteLink(
+                        actor,
+                        inviteUser,
+                    );
+                    if (mode === 'managed') {
+                        await expect(result).rejects.toMatchObject({
+                            refusal: { reason: 'agent_capability_denied' },
+                        });
+                        expect(
+                            userModel.createPendingUser,
+                        ).not.toHaveBeenCalled();
+                        expect(userModel.joinOrg).not.toHaveBeenCalled();
+                        expect(
+                            organizationMemberProfileModel.updateOrganizationMember,
+                        ).not.toHaveBeenCalled();
+                        expect(inviteLinkModel.upsert).not.toHaveBeenCalled();
+                    } else {
+                        await expect(result).resolves.toEqual(inviteLink);
+                        expect(
+                            userModel.createPendingUser,
+                        ).toHaveBeenCalledOnce();
+                    }
+                } finally {
+                    policy.mockRestore();
+                }
+            },
+        );
+
+        test.each([
+            'pending member',
+            'pending setup',
+            'existing without org',
+        ] as const)(
+            'refuses managed OAuth invitations for %s',
+            async (kind) => {
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        mode: 'managed',
+                        version: 1,
+                        allowedProjectUuids: null,
+                        systemRoleMatrix: agentSystemRoleMatrix([]),
+                    });
+                const originalFind =
+                    userModel.findUserByEmail.getMockImplementation();
+                userModel.findUserByEmail.mockResolvedValue({
+                    ...newUser,
+                    isPending: true,
+                    organizationUuid:
+                        kind === 'existing without org'
+                            ? undefined
+                            : sessionUser.organizationUuid,
+                });
+                const actor = {
+                    ...sessionUser,
+                    ability: createOAuthScopedAbility(sessionUser.ability, {
+                        mode: 'enforce',
+                        scopes: ['read', 'write'],
+                        clientId: 'agent',
+                        getRequest: () => ({
+                            method: 'POST',
+                            routeTemplate: null,
+                        }),
+                    }),
+                };
+                try {
+                    await expect(
+                        userService.createPendingUserAndInviteLink(actor, {
+                            ...inviteUser,
+                            purpose:
+                                kind === 'pending setup'
+                                    ? InviteLinkPurpose.Setup
+                                    : InviteLinkPurpose.Member,
+                        }),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'agent_capability_denied' },
+                    });
+                    expect(userModel.createPendingUser).not.toHaveBeenCalled();
+                    expect(userModel.joinOrg).not.toHaveBeenCalled();
+                    expect(
+                        organizationMemberProfileModel.updateOrganizationMember,
+                    ).not.toHaveBeenCalled();
+                    expect(inviteLinkModel.upsert).not.toHaveBeenCalled();
+                } finally {
+                    policy.mockRestore();
+                    userModel.findUserByEmail.mockImplementation(originalFind!);
+                }
+            },
+        );
+
         test('should create user and send invite when email is not found', async () => {
             expect(
                 await userService.createPendingUserAndInviteLink(
