@@ -1,3 +1,10 @@
+## [2.547.2](https://github.com/lightdash/lightdash/compare/2.547.1...2.547.2) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** let unlinked Slack users connect when agent limits are on ([#30878](https://github.com/lightdash/lightdash/issues/30878)) ([1765c2e](https://github.com/lightdash/lightdash/commit/1765c2e6c7642b11069ce2c107bc6c8d9114dfe0))
+
 ## [2.547.1](https://github.com/lightdash/lightdash/compare/2.547.0...2.547.1) (2026-10-10)
 
 
