@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ParameterError } from '../types/errors';
 import {
+    buildAthenaAiServiceAccountCommands,
     buildBigQueryAiServiceAccountCommands,
     buildDatabricksAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
@@ -190,6 +191,87 @@ describe('Databricks service account grants', () => {
         expect(sql).toContain('`a``b`.`c``d`.`<table>`');
         expect(sql).not.toMatch(
             /ALL PRIVILEGES|ALL TABLES|CREATE SERVICE|SECRET/,
+        );
+    });
+});
+
+describe('Athena setup', () => {
+    it('substitutes only routing values and keeps identity and location placeholders', () => {
+        const result = buildAthenaAiServiceAccountCommands({
+            region: 'eu-west-1',
+            catalog: 'AwsDataCatalog',
+            database: 'analytics',
+        });
+        expect(JSON.parse(result.roleTrustPolicy)).toEqual({
+            Version: '2012-10-17',
+            Statement: [
+                {
+                    Effect: 'Allow',
+                    Principal: { AWS: '<trusted-caller-iam-arn>' },
+                    Action: 'sts:AssumeRole',
+                },
+            ],
+        });
+        const policy = JSON.parse(result.permissionPolicy);
+        expect(policy.Statement[0].Resource).toBe(
+            'arn:<partition>:athena:eu-west-1:<account-id>:workgroup/<agent-workgroup>',
+        );
+        expect(policy.Statement[1].Resource).toBe(
+            'arn:<partition>:athena:eu-west-1:<account-id>:datacatalog/AwsDataCatalog',
+        );
+        expect(policy.Statement[3].Resource).toBe(
+            'arn:<partition>:s3:::<agent-results-bucket>/<agent-results-prefix>/*',
+        );
+        expect(policy.Statement[4].Resource).toEqual([
+            'arn:<partition>:glue:eu-west-1:<account-id>:catalog',
+            'arn:<partition>:glue:eu-west-1:<account-id>:database/analytics',
+            'arn:<partition>:glue:eu-west-1:<account-id>:table/analytics/*',
+        ]);
+        expect(result.lakeFormationGrants).toContain('--permissions DESCRIBE');
+        expect(result.lakeFormationGrants).toContain('--permissions SELECT');
+        expect(result.lakeFormationGrants).not.toMatch(
+            /TableWildcard|permissions-with-grant-option/,
+        );
+        expect(result.filteredTableGrant).toContain('"DataCellsFilter"');
+        expect(result.filteredTableGrant).toContain('"TableName":"<table>"');
+        expect(result.filteredTableGrant).toContain('"Name":"<data-filter>"');
+        expect(result.filteredTableGrant).toContain(
+            '<agent-iam-principal-arn>',
+        );
+    });
+    it('uses placeholders when routing is unknown', () => {
+        const result = buildAthenaAiServiceAccountCommands({
+            region: null,
+            catalog: null,
+            database: null,
+        });
+        expect(result.permissionPolicy).toContain('<region>');
+        expect(result.permissionPolicy).toContain('<catalog>');
+        expect(result.permissionPolicy).toContain('<glue-database>');
+    });
+    it('preserves quotes and shell metacharacters inside JSON and shell arguments', () => {
+        const value = 'a\'"\\$HOME`command`\n; $(command)';
+        const result = buildAthenaAiServiceAccountCommands({
+            region: value,
+            catalog: value,
+            database: value,
+        });
+        expect(JSON.parse(result.permissionPolicy).Statement[1].Resource).toBe(
+            `arn:<partition>:athena:${value}:<account-id>:datacatalog/${value}`,
+        );
+        expect(result.filteredTableGrant).toContain(
+            `--region '${value.replaceAll("'", "'\"'\"'")}'`,
+        );
+        const resource = JSON.stringify({
+            DataCellsFilter: {
+                TableCatalogId: '<account-id>',
+                DatabaseName: value,
+                TableName: '<table>',
+                Name: '<data-filter>',
+            },
+        });
+        expect(result.filteredTableGrant).toContain(
+            `--resource '${resource.replaceAll("'", "'\"'\"'")}'`,
         );
     });
 });

@@ -10,7 +10,10 @@ import {
     type WarehouseConnection,
 } from '@lightdash/common';
 import { type AiServiceAccountSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
-import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
+    athenaSecrets,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -21,6 +24,7 @@ describe.each([
     WarehouseTypes.BIGQUERY,
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.DATABRICKS,
+    WarehouseTypes.ATHENA,
 ])('%s slot inheritance', (warehouseType) => {
     const record = (projectUuid: string, identityUuid = 'generation-1') => ({
         slot: {
@@ -40,8 +44,9 @@ describe.each([
                         oauthClientId: 'id',
                         oauthClientSecret: 'secret',
                     };
-                case WarehouseTypes.BIGQUERY:
                 case WarehouseTypes.ATHENA:
+                    return athenaSecrets;
+                case WarehouseTypes.BIGQUERY:
                 case WarehouseTypes.CLICKHOUSE:
                 case WarehouseTypes.DUCKDB:
                 case WarehouseTypes.POSTGRES:

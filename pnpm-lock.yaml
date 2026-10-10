@@ -276,6 +276,9 @@ importers:
       '@aws-sdk/client-sso-oidc':
         specifier: 3.1079.0
         version: 3.1079.0
+      '@aws-sdk/client-sts':
+        specifier: 3.992.0
+        version: 3.992.0
       '@aws-sdk/credential-providers':
         specifier: 3.995.0
         version: 3.995.0

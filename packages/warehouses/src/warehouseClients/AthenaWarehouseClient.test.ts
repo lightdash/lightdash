@@ -265,6 +265,40 @@ describe('AthenaWarehouseClient', () => {
             });
         };
 
+        test.each(['ExpiredToken', 'InvalidRequestException'])(
+            'preserves the SDK cause for prefixed and unprefixed %s errors',
+            async (name) => {
+                const sdkError = makeAwsError(name, 'safe', 403);
+                setMockSendToReject(sdkError);
+                const client = new AthenaWarehouseClient(baseCredentials);
+                const queryError = client.parseError(sdkError);
+
+                expect(queryError).toBeInstanceOf(
+                    name === 'ExpiredToken'
+                        ? WarehouseConnectionError
+                        : WarehouseQueryError,
+                );
+                expect(queryError.cause).toBe(sdkError);
+                expect(queryError.message).toMatch(/^\[/);
+
+                const fieldsResult = client.getFields(
+                    'orders',
+                    'my_database',
+                    'AwsDataCatalog',
+                );
+                await expect(fieldsResult).rejects.toBeInstanceOf(
+                    WarehouseConnectionError,
+                );
+                await expect(fieldsResult).rejects.toHaveProperty(
+                    'cause',
+                    sdkError,
+                );
+                await expect(fieldsResult).rejects.toThrow(
+                    "Failed to get fields for table 'AwsDataCatalog.my_database.orders'.",
+                );
+            },
+        );
+
         test('translates UnrecognizedClientException into WarehouseConnectionError with hint', async () => {
             setMockSendToReject(
                 makeAwsError(

@@ -606,6 +606,55 @@ describe('Organisation agent identity settings', () => {
             }),
         );
     });
+    it('offers the Athena AI service account rule without per-person sign-in', async () => {
+        currentOverview.rules.push({
+            warehouseType: WarehouseTypes.ATHENA,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        });
+        missingProjects = [
+            { projectUuid: 'athena-project', name: 'Athena reporting' },
+        ];
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('combobox', {
+                name: 'Athena agent identity',
+            }),
+        );
+        expect(
+            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+        ).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('option', {
+                name: identityLabels.ai_service_account.label,
+            }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveTextContent(
+            'Use the AI service account for Athena?',
+        );
+        const confirm = screen.getByRole('button', {
+            name: 'Use the AI service account',
+        });
+        await waitFor(() => expect(confirm).toBeEnabled());
+        expect(
+            screen.getByRole('link', { name: 'Athena reporting' }),
+        ).toHaveAttribute(
+            'href',
+            '/generalSettings/projectManagement/athena-project/agentIdentity',
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({ method: 'PUT' }),
+        );
+        fireEvent.click(confirm);
+        await waitFor(() =>
+            expect(lightdashApi).toHaveBeenCalledWith({
+                version: 'v2',
+                url: '/org/agent-identity/athena',
+                method: 'PUT',
+                body: JSON.stringify({ source: 'ai_service_account' }),
+            }),
+        );
+    });
     it('shows no setup in the default state and enables the sign-in option with a hint', async () => {
         startUnconfigured();
         await screen.findAllByRole('combobox');

@@ -1,4 +1,5 @@
 import {
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
     SnowflakeAuthenticationType,
@@ -8,6 +9,7 @@ import { isSupportedAiServiceAccountSlot } from './aiServiceAccountCredentialRes
 
 describe('isSupportedAiServiceAccountSlot', () => {
     test.each([
+        [WarehouseTypes.ATHENA, AthenaAuthenticationType.ACCESS_KEY],
         [WarehouseTypes.BIGQUERY, BigqueryAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.SNOWFLAKE, SnowflakeAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.DATABRICKS, DatabricksAuthenticationType.OAUTH_M2M],
@@ -23,6 +25,8 @@ describe('isSupportedAiServiceAccountSlot', () => {
         [WarehouseTypes.DATABRICKS, BigqueryAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.POSTGRES, BigqueryAuthenticationType.PRIVATE_KEY],
         [WarehouseTypes.POSTGRES, DatabricksAuthenticationType.OAUTH_M2M],
+        [WarehouseTypes.ATHENA, AthenaAuthenticationType.IAM_ROLE],
+        [WarehouseTypes.ATHENA, AthenaAuthenticationType.WEB_IDENTITY],
     ])('rejects %s with %s', (warehouseType, method) => {
         expect(isSupportedAiServiceAccountSlot(warehouseType, method)).toBe(
             false,

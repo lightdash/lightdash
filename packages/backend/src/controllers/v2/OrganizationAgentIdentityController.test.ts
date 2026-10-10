@@ -224,6 +224,7 @@ test.each([
     [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
     [WarehouseTypes.BIGQUERY, 'ai_service_account'],
     [WarehouseTypes.DATABRICKS, 'ai_service_account'],
+    [WarehouseTypes.ATHENA, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {
     const { controller, rules, account, req } = setup();
     account.user.ability = new Ability<PossibleAbilities>([
@@ -287,7 +288,11 @@ test('gates the per-warehouse PUT before writing', async () => {
 });
 
 describe('projects without an AI service account', () => {
-    test.each([WarehouseTypes.BIGQUERY, WarehouseTypes.DATABRICKS])(
+    test.each([
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.DATABRICKS,
+        WarehouseTypes.ATHENA,
+    ])(
         'returns the missing projects for an admin on %s without saving',
         async (warehouseType) => {
             const { controller, rules, account, req, slots } = setup();

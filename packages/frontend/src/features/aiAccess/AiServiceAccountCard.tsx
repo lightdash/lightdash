@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     WarehouseTypes,
     type Project,
+    type AthenaCredentials,
     type BigqueryCredentials,
     type DatabricksCredentials,
     type SnowflakeCredentials,
@@ -30,6 +31,7 @@ import {
     useOrganizationAgentIdentitySettings,
     useTestAiServiceAccount,
 } from './api';
+import { AthenaAgentSetup } from './AthenaAgentSetup';
 import { BigQueryAgentSetup } from './BigQueryAgentSetup';
 import { DatabricksAgentSetup } from './DatabricksAgentSetup';
 import { getAiServiceAccountStatus } from './getAiServiceAccountStatus';
@@ -37,6 +39,7 @@ import { getSnowflakeAiPrincipal } from './snowflakeAiPrincipal';
 import { SnowflakeAiServiceAccountSetup } from './SnowflakeAiServiceAccountSetup';
 
 type AiServiceAccountConnection =
+    | AthenaCredentials
     | BigqueryCredentials
     | DatabricksCredentials
     | SnowflakeCredentials;
@@ -337,7 +340,8 @@ const getAiPrincipalState = (
         currentTest?.principal ??
         (warehouseType === WarehouseTypes.SNOWFLAKE
             ? getSnowflakeAiPrincipal(observation)
-            : warehouseType === WarehouseTypes.DATABRICKS
+            : warehouseType === WarehouseTypes.DATABRICKS ||
+                warehouseType === WarehouseTypes.ATHENA
               ? observation?.ok
                   ? observation.principal
                   : null
@@ -355,6 +359,14 @@ const AiServiceAccountSetup = ({
     tested: boolean;
 }) => {
     switch (connection.type) {
+        case WarehouseTypes.ATHENA:
+            return (
+                <AthenaAgentSetup
+                    connection={connection}
+                    hasCredentials={hasKey}
+                    tested={tested}
+                />
+            );
         case WarehouseTypes.BIGQUERY:
             return (
                 <BigQueryAgentSetup
@@ -504,7 +516,8 @@ export const AiServiceAccountCard = ({ project }: { project: Project }) => {
     const ability = useAbilityContext();
     if (
         !project.projectUuid ||
-        (project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
+        (project.warehouseConnection?.type !== WarehouseTypes.ATHENA &&
+            project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
             project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS &&
             project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE) ||
         !flag?.enabled ||

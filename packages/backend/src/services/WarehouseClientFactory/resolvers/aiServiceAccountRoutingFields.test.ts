@@ -85,6 +85,24 @@ it.each(warehouseTypes)(
             expect(result).not.toHaveProperty('awsSsoRoleName');
         }
         if (type === WarehouseTypes.ATHENA) {
+            for (const field of [
+                'accessKeyId',
+                'secretAccessKey',
+                'sessionToken',
+                'assumeRoleExternalId',
+                'webIdentityAudience',
+            ])
+                expect(result).not.toHaveProperty(field);
+            for (const field of [
+                'region',
+                'database',
+                'schema',
+                'threads',
+                'numRetries',
+                'startOfWeek',
+                'dataTimezone',
+            ])
+                expect(result).toHaveProperty(field, connection[field]);
             expect(result).not.toHaveProperty('assumeRoleArn');
             expect(result).not.toHaveProperty('workGroup');
             expect(result).not.toHaveProperty('s3StagingDir');

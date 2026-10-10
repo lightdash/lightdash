@@ -1,6 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
     Account,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     CatalogType,
     ContentType,
     DimensionType,
@@ -28,6 +30,7 @@ import {
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
+import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -811,6 +814,39 @@ describe('AiAgentToolsService', () => {
     });
 
     describe('describeWarehouseTable scope', () => {
+        it('keeps a credential refusal in the describe tool output', async () => {
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            );
+            const getWarehouseFields = vi.fn().mockRejectedValueOnce(refusal);
+            const service = makeService({
+                projectService: { getWarehouseFields },
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const describeTool = getDescribeWarehouseTable({
+                describeWarehouseTable: runtime.describeWarehouseTable,
+            });
+
+            await expect(
+                describeTool.execute!(
+                    {
+                        table: 'orders',
+                        schema: 'jaffle',
+                        database: 'analytics',
+                    },
+                    { toolCallId: 'describe-table', messages: [], context: {} },
+                ),
+            ).resolves.toEqual({
+                result: refusal.message,
+                structuredContent: {
+                    error: refusal.message,
+                    refusal: refusal.refusal,
+                },
+                metadata: { status: 'error' },
+            });
+            expect(getWarehouseFields).toHaveBeenCalledOnce();
+        });
+
         it('blocks metadata from an excluded default database', async () => {
             const getWarehouseFields = vi.fn();
             const service = makeService({

@@ -10,6 +10,8 @@ import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
 import { type Request } from 'express';
 import { buildAccount } from '../../auth/account/account.mock';
 import {
+    athenaSecrets,
+    athenaVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -273,6 +275,49 @@ it.each([undefined, 'extra-connection'])(
             results: { uuid: 'slot' },
             parent: null,
             verification: snowflakeVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+
+it.each([undefined, 'extra-connection'])(
+    'returns Athena save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: athenaVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: athenaVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert('project', req, athenaSecrets, connection),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: athenaVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            athenaSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: athenaVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
             req.account,

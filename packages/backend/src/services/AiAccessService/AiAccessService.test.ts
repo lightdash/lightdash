@@ -44,7 +44,11 @@ import {
     type AiServiceAccountCredentialsModel,
     type AiServiceAccountSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
-import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
+    athenaConnection,
+    athenaSecrets,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
 import { type OrganizationAgentIdentitySettingsModel } from '../../models/OrganizationAgentIdentitySettingsModel';
@@ -2253,6 +2257,7 @@ describe('organization agent identity rules', () => {
         test.each([
             WarehouseTypes.BIGQUERY,
             WarehouseTypes.DATABRICKS,
+            WarehouseTypes.ATHENA,
             WarehouseTypes.SNOWFLAKE,
         ])(
             'returns missing projects for an admin on %s without writing or tracking',
@@ -2394,6 +2399,7 @@ describe('organization agent identity rules', () => {
     test.each([
         [WarehouseTypes.BIGQUERY, 'ai_service_account'],
         [WarehouseTypes.DATABRICKS, 'ai_service_account'],
+        [WarehouseTypes.ATHENA, 'ai_service_account'],
         [WarehouseTypes.SNOWFLAKE, 'agent_sign_in'],
     ] as const)(
         'writes %s rules for the account organization',
@@ -2440,6 +2446,7 @@ describe('organization agent identity rules', () => {
     test.each([
         [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
         [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
+        [WarehouseTypes.ATHENA, 'agent_sign_in'],
         [WarehouseTypes.POSTGRES, 'marked_person'],
         [WarehouseTypes.POSTGRES, 'agent_sign_in'],
         [WarehouseTypes.POSTGRES, 'ai_service_account'],
@@ -3290,6 +3297,10 @@ describe('slot result composition and identity validation', () => {
                 database: 'schema',
             } satisfies CreateWarehouseCredentials,
             method: DatabricksAuthenticationType.OAUTH_M2M,
+        },
+        {
+            connection: athenaConnection,
+            method: athenaSecrets.authenticationType,
         },
     ] as const)(
         'accepts supported metadata for $connection.type with $method',
@@ -5073,4 +5084,170 @@ describe('agent resolver refusal mapping', () => {
         });
         expect(f.analytics.track).not.toHaveBeenCalled();
     });
+});
+
+describe('Athena AI service account runtime', () => {
+    test.each(actorCases.slice(0, 2))(
+        'resolves only slot access-key credentials for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot: {
+                    ...slot,
+                    warehouseType: WarehouseTypes.ATHENA,
+                    method: 'access_key',
+                },
+                secrets: athenaSecrets,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                ...actor,
+                connection: athenaConnection,
+            });
+            expect(plan).toMatchObject({
+                identity: 'ai_service_account',
+                identityUuid: slot.identityUuid,
+                credentials: {
+                    ...athenaSecrets,
+                    region: 'eu-west-1',
+                    workGroup: 'agent-workgroup',
+                    requireUserCredentials: false,
+                },
+            });
+            if (plan?.identity !== 'ai_service_account')
+                throw new Error('Expected slot plan');
+            expect(plan.credentials).not.toHaveProperty('refreshToken');
+            expect(plan.credentials).not.toHaveProperty('personalAccessToken');
+            expect(plan.credentials).not.toHaveProperty('assumeRoleArn');
+            expect(plan.credentials).not.toHaveProperty('webIdentityAudience');
+            expect(plan.credentials).not.toHaveProperty('sessionToken');
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(actorCases.slice(0, 2))(
+        'flag off skips stored Athena rules and slots for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot,
+                secrets: athenaSecrets,
+            });
+            f.flags.get.mockResolvedValue({ enabled: false });
+            expect(
+                await f.service.resolvePlan({
+                    ...args,
+                    ...actor,
+                    connection: athenaConnection,
+                }),
+            ).toBeNull();
+            expect(f.organizationRules.get).not.toHaveBeenCalled();
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['missing', 'unreadable', 'mismatch', 'method'] as const)(
+        'refuses %s slots without falling back',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          slot,
+                          secrets:
+                              failure === 'mismatch' ? secrets : athenaSecrets,
+                      },
+            );
+            if (failure === 'unreadable')
+                f.slots.getSecrets.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'method')
+                f.slots.getSecrets.mockResolvedValue({
+                    slot,
+                    secrets: {
+                        ...athenaSecrets,
+                        authenticationType: 'iam_role',
+                    } as never,
+                });
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: athenaConnection,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                'slot-secret',
+            );
+        },
+    );
+});
+describe('Athena slot availability', () => {
+    test.each(['missing', 'method', 'type'] as const)(
+        'refuses %s metadata without reading keys',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSlot.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          ...slot,
+                          warehouseType:
+                              failure === 'type'
+                                  ? WarehouseTypes.BIGQUERY
+                                  : WarehouseTypes.ATHENA,
+                          method:
+                              failure === 'method' ? 'iam_role' : 'access_key',
+                      },
+            );
+            expect(
+                await f.service.getAiAccessForUser({
+                    ...args,
+                    connection: athenaConnection,
+                }),
+            ).toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it('refuses anonymous Athena agent execution before reading the slot', async () => {
+    const f = setup();
+    f.organizationRules.get.mockResolvedValue({ source: 'ai_service_account' });
+    await expect(
+        f.service.resolvePlan({
+            ...args,
+            connection: athenaConnection,
+            isRegisteredUser: false,
+            isServiceAccount: false,
+        }),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED },
+    });
+    expect(f.slots.getSecrets).not.toHaveBeenCalled();
 });

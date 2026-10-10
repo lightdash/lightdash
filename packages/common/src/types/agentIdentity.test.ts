@@ -52,12 +52,14 @@ describe('identity source map', () => {
                 expect(actorSources.includes('ai_service_account')).toBe(
                     type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
+                        type === WarehouseTypes.ATHENA ||
                         type === WarehouseTypes.SNOWFLAKE,
                 );
             }
             expect(supportsAiServiceAccount(type)).toBe(
                 type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.ATHENA ||
                     type === WarehouseTypes.SNOWFLAKE,
             );
             expect(sources.person).toEqual(sources.service_account);
@@ -65,6 +67,7 @@ describe('identity source map', () => {
                 [WarehouseTypes.SNOWFLAKE]: 3,
                 [WarehouseTypes.BIGQUERY]: 2,
                 [WarehouseTypes.DATABRICKS]: 2,
+                [WarehouseTypes.ATHENA]: 2,
             };
             expect(sources.person).toHaveLength(
                 type in expectedCount
@@ -134,6 +137,7 @@ describe('organization identity rules', () => {
             WarehouseTypes.SNOWFLAKE,
             WarehouseTypes.BIGQUERY,
             WarehouseTypes.DATABRICKS,
+            WarehouseTypes.ATHENA,
         ]);
     });
 
@@ -151,6 +155,7 @@ describe('organization identity rules', () => {
             ).toBe(
                 type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
+                    type === WarehouseTypes.ATHENA ||
                     type === WarehouseTypes.SNOWFLAKE,
             );
         },

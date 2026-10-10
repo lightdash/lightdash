@@ -95,7 +95,11 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { CommercialCacheService } from '../../ee/services/CommercialCacheService';
-import { snowflakeSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import {
+    athenaConnection,
+    athenaSecrets,
+    snowflakeSecrets,
+} from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ContentDraftModel } from '../../models/ContentDraftModel';
@@ -184,6 +188,7 @@ import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
 import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
+import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromAccount,
     WarehouseCredentialKind,
@@ -8552,6 +8557,13 @@ describe('AsyncQueryService', () => {
             aiExecutionPlanMock,
             aiServiceAccountPlanMock,
             snowflakeSlotPlanMock,
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: buildAiServiceAccountCredentials(
+                    athenaConnection,
+                    athenaSecrets,
+                ),
+            },
             {
                 ...aiServiceAccountPlanMock,
                 credentials: {

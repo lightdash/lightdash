@@ -155,3 +155,142 @@ export const buildDatabricksAiServiceAccountCommands = ({
 GRANT USE SCHEMA ON SCHEMA ${schemaIdentifier} TO ${principal};
 GRANT SELECT ON TABLE ${schemaIdentifier}.${quote('<table>')} TO ${principal};`;
 };
+
+export interface AthenaAiServiceAccountCommands {
+    roleTrustPolicy: string;
+    permissionPolicy: string;
+    lakeFormationGrants: string;
+    filteredTableGrant: string;
+}
+
+export const buildAthenaAiServiceAccountCommands = ({
+    region,
+    catalog,
+    database,
+}: {
+    region: string | null;
+    catalog: string | null;
+    database: string | null;
+}): AthenaAiServiceAccountCommands => {
+    const awsRegion = region || '<region>';
+    const glueDatabase = database || '<glue-database>';
+    const athenaArn = `arn:<partition>:athena:${awsRegion}:<account-id>`;
+    const glueArn = `arn:<partition>:glue:${awsRegion}:<account-id>`;
+    const roleTrustPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Effect: 'Allow',
+                Principal: { AWS: '<trusted-caller-iam-arn>' },
+                Action: 'sts:AssumeRole',
+            },
+        ],
+    };
+    const permissionPolicy = {
+        Version: '2012-10-17',
+        Statement: [
+            {
+                Effect: 'Allow',
+                Action: [
+                    'athena:StartQueryExecution',
+                    'athena:GetQueryExecution',
+                    'athena:GetQueryResults',
+                    'athena:GetWorkGroup',
+                ],
+                Resource: `${athenaArn}:workgroup/<agent-workgroup>`,
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    'athena:GetDataCatalog',
+                    'athena:GetDatabase',
+                    'athena:GetTableMetadata',
+                    'athena:ListDatabases',
+                    'athena:ListTableMetadata',
+                ],
+                Resource: `${athenaArn}:datacatalog/${catalog || '<catalog>'}`,
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    's3:GetBucketLocation',
+                    's3:ListBucket',
+                    's3:ListBucketMultipartUploads',
+                ],
+                Resource: 'arn:<partition>:s3:::<agent-results-bucket>',
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    's3:GetObject',
+                    's3:PutObject',
+                    's3:AbortMultipartUpload',
+                    's3:ListMultipartUploadParts',
+                ],
+                Resource:
+                    'arn:<partition>:s3:::<agent-results-bucket>/<agent-results-prefix>/*',
+            },
+            {
+                Effect: 'Allow',
+                Action: [
+                    'glue:GetDatabase',
+                    'glue:GetDatabases',
+                    'glue:GetTable',
+                    'glue:GetTables',
+                    'glue:GetPartition',
+                    'glue:GetPartitions',
+                    'glue:BatchGetPartition',
+                ],
+                Resource: [
+                    `${glueArn}:catalog`,
+                    `${glueArn}:database/${glueDatabase}`,
+                    `${glueArn}:table/${glueDatabase}/*`,
+                ],
+            },
+            {
+                Effect: 'Allow',
+                Action: 'lakeformation:GetDataAccess',
+                Resource: '*',
+            },
+        ],
+    };
+    const principal = JSON.stringify({
+        DataLakePrincipalIdentifier: '<agent-iam-principal-arn>',
+    });
+    const grant = (resource: object, permission: 'DESCRIBE' | 'SELECT') =>
+        `aws lakeformation grant-permissions --region ${shellWord(awsRegion)} \\
+  --principal ${singleQuote(principal)} \\
+  --resource ${singleQuote(JSON.stringify(resource))} \\
+  --permissions ${permission}`;
+    return {
+        roleTrustPolicy: JSON.stringify(roleTrustPolicy, null, 2),
+        permissionPolicy: JSON.stringify(permissionPolicy, null, 2),
+        lakeFormationGrants: [
+            grant(
+                { Database: { CatalogId: '<account-id>', Name: glueDatabase } },
+                'DESCRIBE',
+            ),
+            grant(
+                {
+                    Table: {
+                        CatalogId: '<account-id>',
+                        DatabaseName: glueDatabase,
+                        Name: '<table>',
+                    },
+                },
+                'SELECT',
+            ),
+        ].join('\n'),
+        filteredTableGrant: grant(
+            {
+                DataCellsFilter: {
+                    TableCatalogId: '<account-id>',
+                    DatabaseName: glueDatabase,
+                    TableName: '<table>',
+                    Name: '<data-filter>',
+                },
+            },
+            'SELECT',
+        ),
+    };
+};

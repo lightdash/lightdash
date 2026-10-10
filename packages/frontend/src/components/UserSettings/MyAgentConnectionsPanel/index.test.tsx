@@ -16,6 +16,7 @@ let warehouses: (WarehouseTypes | undefined)[] = [
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.BIGQUERY,
 ];
+let athenaSource: AiIdentitySource = 'marked_person';
 let databricksSource: AiIdentitySource = 'marked_person';
 let configured = true;
 let credentials: UserWarehouseCredentialsWithAgentStatus[] = [];
@@ -27,6 +28,7 @@ vi.mock('../../../features/aiAccess/api', () => ({
         data: {
             snowflakeConfigured: configured,
             rules: [
+                { warehouseType: WarehouseTypes.ATHENA, source: athenaSource },
                 {
                     warehouseType: WarehouseTypes.DATABRICKS,
                     source: databricksSource,
@@ -74,6 +76,7 @@ describe('MyAgentConnectionsPanel', () => {
         snowflakeSource = 'agent_sign_in';
         bigquerySource = 'ai_service_account';
         databricksSource = 'marked_person';
+        athenaSource = 'marked_person';
         warehouses = [WarehouseTypes.SNOWFLAKE, WarehouseTypes.BIGQUERY];
         configured = true;
         credentials = [];
@@ -138,6 +141,31 @@ describe('MyAgentConnectionsPanel', () => {
             expect(
                 screen.queryByRole('heading', { name: 'BigQuery' }) !== null,
             ).toBe(visible);
+        },
+    );
+    it.each([
+        ['ai_service_account', [WarehouseTypes.ATHENA], true],
+        ['marked_person', [WarehouseTypes.ATHENA], false],
+        ['ai_service_account', [WarehouseTypes.BIGQUERY], false],
+        ['ai_service_account', [], false],
+    ] satisfies [AiIdentitySource, WarehouseTypes[], boolean][])(
+        'gates Athena on rule %s and projects %j without a personal connection',
+        (source, projectWarehouses, visible) => {
+            athenaSource = source;
+            warehouses = projectWarehouses;
+            renderWithProviders(<MyAgentConnectionsPanel />);
+            expect(
+                screen.queryByRole('heading', { name: 'Athena' }) !== null,
+            ).toBe(visible);
+            expect(
+                screen.queryByRole('button', { name: /Connect/ }),
+            ).not.toBeInTheDocument();
+            if (visible)
+                expect(
+                    screen.getByText(
+                        /Agents on Athena projects run as the AI service account your admin set up/,
+                    ),
+                ).toBeVisible();
         },
     );
     it('allows an organisation client to connect when instance health is unconfigured', () => {

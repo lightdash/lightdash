@@ -12,7 +12,10 @@ export const mergeAiServiceAccountCredentials = (
     input: AiServiceAccountCredentialInput,
     saved: AiServiceAccountSecrets | null,
 ): AiServiceAccountSecrets => {
-    if (input.type === WarehouseTypes.DATABRICKS)
+    if (
+        input.type === WarehouseTypes.DATABRICKS ||
+        input.type === WarehouseTypes.ATHENA
+    )
         return parseAiServiceAccountSecrets(input);
     const previous =
         saved?.type === input.type &&

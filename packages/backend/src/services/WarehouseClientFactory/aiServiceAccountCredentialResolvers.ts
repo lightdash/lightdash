@@ -8,15 +8,18 @@ import type { AiServiceAccountSecrets } from '../../models/AiServiceAccountCrede
 import { WarehouseCredentialKind } from './ConnectionContext';
 import type { CredentialSelection } from './CredentialResolver';
 import { CredentialResolverRegistry } from './CredentialResolverRegistry';
+import { AthenaAiServiceAccountCredentialResolver } from './resolvers/AthenaAiServiceAccountCredentialResolver';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
 import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
 import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/SnowflakeAiServiceAccountCredentialResolver';
 
+const athenaResolver = new AthenaAiServiceAccountCredentialResolver();
 const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
 const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
 const entries = [
+    { warehouseType: WarehouseTypes.ATHENA, resolver: athenaResolver },
     {
         warehouseType: WarehouseTypes.SNOWFLAKE,
         resolver: snowflakeResolver,
@@ -67,6 +70,7 @@ export const buildAiServiceAccountCredentials = (
         case WarehouseTypes.DATABRICKS:
             return databricksResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.ATHENA:
+            return athenaResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.DUCKDB:
         case WarehouseTypes.POSTGRES:
