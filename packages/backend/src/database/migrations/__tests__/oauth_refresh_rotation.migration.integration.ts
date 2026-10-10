@@ -20,6 +20,19 @@ afterAll(async () => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+const lightdashConfig = {
+    ...lightdashConfigMock,
+    auth: {
+        ...lightdashConfigMock.auth,
+        oauthServer: {
+            accessTokenLifetime: 3600,
+            refreshTokenLifetime: 86400,
+            mobileRefreshTokenLifetime: 86400,
+            refreshTokenRotationGrace: 0,
+        },
+    },
+};
+
 const fixture = async (legacy: boolean) => {
     const { database } = migrated;
     const [organization] = await database('organizations')
@@ -47,7 +60,7 @@ const fixture = async (legacy: boolean) => {
         user_id: user.user_id,
         organization_uuid: organization.organization_uuid,
     });
-    const model = new OAuth2Model(database, lightdashConfigMock, {
+    const model = new OAuth2Model(database, lightdashConfig, {
         get: vi.fn(
             async ({
                 featureFlagId,
@@ -60,7 +73,7 @@ const fixture = async (legacy: boolean) => {
     const service = new OAuthService({
         oauthModel: model,
         userModel: {} as UserModel,
-        lightdashConfig: lightdashConfigMock,
+        lightdashConfig,
     });
     vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
     const refresh = (token: string = refreshToken) =>
