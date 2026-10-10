@@ -1,5 +1,4 @@
 import { v5 as uuidv5 } from 'uuid';
-import { z } from 'zod';
 import {
     WarehouseTypes,
     type AthenaAuthenticationType,
@@ -37,10 +36,24 @@ export type AgentConnectionGrantRef = {
     revision: number;
 };
 
-const agentConnectionGrantRefSchema = z.object({
-    grantUuid: z.string().min(1),
-    revision: z.number().int().positive(),
-});
+// Hand-written: a zod schema here would generate code when the module loads
+const parseAgentConnectionGrantRef = (
+    value: unknown,
+): AgentConnectionGrantRef => {
+    const ref = value as Partial<AgentConnectionGrantRef> | null;
+    if (
+        typeof ref !== 'object' ||
+        ref === null ||
+        typeof ref.grantUuid !== 'string' ||
+        ref.grantUuid.length === 0 ||
+        typeof ref.revision !== 'number' ||
+        !Number.isInteger(ref.revision) ||
+        ref.revision <= 0
+    ) {
+        throw new Error('Invalid agent connection reference');
+    }
+    return { grantUuid: ref.grantUuid, revision: ref.revision };
+};
 
 export type AgentActorClaim = {
     sub: string;
@@ -78,7 +91,7 @@ export const buildAgentIdentityClaim = ({
         agent_connection_grant:
             agentConnectionGrant === null
                 ? null
-                : agentConnectionGrantRefSchema.parse(agentConnectionGrant),
+                : parseAgentConnectionGrantRef(agentConnectionGrant),
     },
 });
 
@@ -103,7 +116,7 @@ export const normalizeAgentIdentityClaim = (
                   agent_connection_grant:
                       claim.act.agent_connection_grant == null
                           ? null
-                          : agentConnectionGrantRefSchema.parse(
+                          : parseAgentConnectionGrantRef(
                                 claim.act.agent_connection_grant,
                             ),
               },

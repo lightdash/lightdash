@@ -3,6 +3,7 @@ import {
     Account,
     addDashboardFiltersToMetricQuery,
     addFiltersToMetricQuery,
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnonymousAccount,
@@ -281,7 +282,11 @@ import {
     hasBlockingTotalFilters,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
-import { type ResultEntitlementScope } from '../../utils/queryResultProducer';
+import {
+    assertQueryConnectionBinding,
+    isSameResultAgent,
+    type ResultEntitlementScope,
+} from '../../utils/queryResultProducer';
 import {
     personaliseSharedSignInError,
     personaliseStoredSharedSignInError,
@@ -290,6 +295,7 @@ import { splitJsonlStream } from '../../utils/streamUtils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import {
+    agentExecutionContext,
     buildQueryAgentIdentity,
     buildResultReader,
     getContentWriteAgentIdentity,
@@ -1100,6 +1106,34 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async isResultIdentityEnabled(account: Account): Promise<boolean> {
+        if (
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant
+        ) {
+            const execution =
+                agentExecutionContext.getStore()?.agentConnectionExecution;
+            if (!execution) throw new ForbiddenError();
+            const { enabled: subjectEnabled } = await this.featureFlagModel.get(
+                {
+                    user: {
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    },
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                },
+            );
+            const { enabled: organizationEnabled } =
+                await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: account.organization.organizationUuid,
+                    },
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+            if (!subjectEnabled || !organizationEnabled)
+                throw new ForbiddenError();
+            return true;
+        }
+
         const { enabled } = await this.featureFlagModel.get({
             user: {
                 organizationUuid: account.organization.organizationUuid,
@@ -1558,6 +1592,26 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const grant =
+            account.authentication.type === 'oauth'
+                ? account.authentication.agentConnectionGrant
+                : null;
+        const validateConnection = async () => {
+            if (!grant) return;
+            const execution =
+                agentExecutionContext.getStore()?.agentConnectionExecution;
+            if (!execution) throw new ForbiddenError();
+            await this.aiAccessService.assertActiveConnectionExecution(
+                execution,
+                projectUuid,
+                [AgentCapability.ReadDiscover],
+                false,
+            );
+        };
+        await validateConnection();
+        const connection = grant
+            ? { grantUuid: grant.grantUuid, revision: grant.revision }
+            : null;
         const userUuid = account.user.id;
         const [{ data: rows, pagination }, counts] = await Promise.all([
             this.queryHistoryModel.findUserHistory(
@@ -1565,13 +1619,17 @@ export class AsyncQueryService extends ProjectService {
                 userUuid,
                 filters,
                 paginateArgs,
+                connection,
             ),
             this.queryHistoryModel.getUserHistoryCounts(
                 projectUuid,
                 userUuid,
                 filters,
+                connection,
             ),
         ]);
+
+        await validateConnection();
 
         return {
             data: rows.map(mapQueryHistoryRowToListItem),
@@ -1588,12 +1646,13 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private async assertCanReadStoredResults(
+    public async assertCanReadStoredResults(
         account: Account,
         projectUuid: string,
         queryHistory: QueryHistory,
         aiAccessOnly = false,
         reader: QueryResultReader = buildResultReader(account),
+        exportResults = false,
     ): Promise<void> {
         await this.assertCanReadStoredResultsForQueries(
             account,
@@ -1603,6 +1662,8 @@ export class AsyncQueryService extends ProjectService {
             null,
             false,
             aiAccessOnly,
+            false,
+            exportResults,
         );
     }
 
@@ -1615,6 +1676,7 @@ export class AsyncQueryService extends ProjectService {
         internalLookup = false,
         aiAccessOnly = false,
         accountAlreadyRefreshed = false,
+        exportResults = false,
     ): Promise<void> {
         let projectPromise: ReturnType<
             typeof this.projectModel.getSummary
@@ -1625,6 +1687,23 @@ export class AsyncQueryService extends ProjectService {
         const getCurrentAccount = (): Promise<Account> =>
             (currentAccount ??= (async (): Promise<Account> => {
                 const project = await getProject();
+                if (
+                    account.authentication.type === 'oauth' &&
+                    account.authentication.agentConnectionGrant
+                ) {
+                    const execution =
+                        agentExecutionContext.getStore()
+                            ?.agentConnectionExecution;
+                    if (!execution) throw new ForbiddenError();
+                    return (
+                        await this.aiAccessService.assertActiveConnectionExecution(
+                            execution,
+                            projectUuid,
+                            [AgentCapability.ReadDiscover],
+                            false,
+                        )
+                    ).account;
+                }
                 if (accountAlreadyRefreshed) return account;
                 if (account.isServiceAccount()) {
                     assertRegisteredAccount(account);
@@ -1942,6 +2021,14 @@ export class AsyncQueryService extends ProjectService {
                 queries[0],
                 {
                     ...options,
+                    evaluation: {
+                        kind: 'result_read',
+                        ...(exportResults &&
+                        account.authentication.type === 'oauth' &&
+                        account.authentication.agentConnectionGrant
+                            ? { export: true }
+                            : {}),
+                    },
                     agentProducedOnly: !(
                         aiAccessOnly ||
                         isAiAccessQueryContext(queries[0].context)
@@ -1959,7 +2046,14 @@ export class AsyncQueryService extends ProjectService {
                     aiAccessOnly || isAiAccessQueryContext(queryHistory.context)
                 ),
             })),
-            { kind: 'result_read' },
+            {
+                kind: 'result_read',
+                ...(exportResults &&
+                account.authentication.type === 'oauth' &&
+                account.authentication.agentConnectionGrant
+                    ? { export: true }
+                    : {}),
+            },
             undefined,
             null,
             options,
@@ -2256,16 +2350,25 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
+            const error = await personaliseStoredSharedSignInError({
+                account,
+                projectUuid,
+                error: queryHistory.error,
+                projectModel: this.projectModel,
+                featureFlagModel: this.featureFlagModel,
+            });
+            if (queryHistory.agentIdentity?.act.agent_connection_grant)
+                await this.assertCanReadStoredResults(
+                    account,
+                    projectUuid,
+                    queryHistory,
+                    aiAccessOnly,
+                    reader,
+                );
             return {
                 status,
                 queryUuid,
-                error: await personaliseStoredSharedSignInError({
-                    account,
-                    projectUuid,
-                    error: queryHistory.error,
-                    projectModel: this.projectModel,
-                    featureFlagModel: this.featureFlagModel,
-                }),
+                error,
                 erroredAt: queryHistory.erroredAt,
             };
         }
@@ -2401,6 +2504,15 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        if (queryHistory.agentIdentity?.act.agent_connection_grant)
+            await this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+                aiAccessOnly,
+                reader,
+            );
+
         return {
             rows,
             columns,
@@ -2511,6 +2623,71 @@ export class AsyncQueryService extends ProjectService {
         return queryHistory;
     }
 
+    private async getProtectedResultsStream(
+        account: Account,
+        projectUuid: string,
+        queryHistory: QueryHistory,
+        reader: QueryResultReader = buildResultReader(account),
+    ): Promise<Readable> {
+        const scope = agentExecutionContext.getStore();
+        const isBound =
+            queryHistory.agentIdentity?.act.agent_connection_grant != null ||
+            (reader.kind === 'agent' &&
+                reader.claim.act.agent_connection_grant != null);
+        const validate = () =>
+            this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+                false,
+                reader,
+            );
+        if (isBound) await validate();
+        const source = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName!);
+        if (!isBound) return source;
+        const check = () =>
+            scope ? agentExecutionContext.run(scope, validate) : validate();
+        const expiresAt =
+            account.authentication.type === 'oauth'
+                ? account.authentication.agentConnectionGrant?.expiresAt
+                : null;
+        let timeout: ReturnType<typeof setTimeout> | null = null;
+        const checkExpiry = () => {
+            if (!expiresAt) return;
+            const remaining = expiresAt.getTime() - Date.now();
+            if (remaining <= 0) {
+                source.destroy(
+                    new ForbiddenError('This agent connection has expired.'),
+                );
+                return;
+            }
+            timeout = setTimeout(checkExpiry, Math.min(remaining, 2 ** 31 - 1));
+            timeout.unref();
+        };
+        checkExpiry();
+        const output = Readable.from(
+            (async function* protectedChunks() {
+                try {
+                    for await (const chunk of source) {
+                        await check();
+                        yield chunk;
+                    }
+                    await check();
+                } finally {
+                    if (timeout) clearTimeout(timeout);
+                    source.destroy();
+                }
+            })(),
+        );
+        output.once('close', () => {
+            if (timeout) clearTimeout(timeout);
+            source.destroy();
+        });
+        return output;
+    }
+
     async getResultsStream({
         account,
         projectUuid,
@@ -2565,9 +2742,11 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Results file name not found for query');
             }
 
-            return this.getResultsStorageClientForContext(
-                queryHistory.context,
-            ).getDownloadStream(resultsFileName);
+            return this.getProtectedResultsStream(
+                account,
+                projectUuid,
+                queryHistory,
+            );
         }
 
         throw new Error('Invalid query status');
@@ -2677,7 +2856,17 @@ export class AsyncQueryService extends ProjectService {
             account,
             payload.projectUuid,
             queryHistory,
+            false,
+            buildResultReader(account),
+            true,
         );
+        if (
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant
+        )
+            throw new ForbiddenError(
+                'Downloads are unavailable for this agent connection.',
+            );
 
         const userUuid = account.user.id;
 
@@ -2881,7 +3070,17 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryHistory,
+            false,
+            buildResultReader(account),
+            true,
         );
+        if (
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant
+        )
+            throw new ForbiddenError(
+                'Downloads are unavailable for this agent connection.',
+            );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -3818,7 +4017,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    public async runAsyncPreAggregateQuery({
+    private async runAsyncPreAggregateQueryInScope({
         userUuid,
         organizationUuid,
         isRegisteredUser,
@@ -4213,6 +4412,89 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    private async withQueryConnectionExecution<T>(
+        args: { queryUuid: string; agentIdentity?: AgentIdentityClaim | null },
+        execute: (bound: boolean) => Promise<T>,
+    ): Promise<T> {
+        try {
+            const row = await this.queryHistoryModel.getByQueryUuid(
+                args.queryUuid,
+            );
+            const execution = row ? assertQueryConnectionBinding(row) : null;
+            const submittedBinding =
+                args.agentIdentity?.act.agent_connection_grant;
+            const scopeBinding =
+                agentExecutionContext.getStore()?.claim?.act
+                    .agent_connection_grant;
+            if (execution === null) {
+                if (submittedBinding || scopeBinding)
+                    throw new ForbiddenError(
+                        'This agent connection is missing its execution binding.',
+                    );
+                return await execute(false);
+            }
+            if (
+                args.agentIdentity &&
+                !isSameResultAgent(
+                    row!.agentIdentity,
+                    args.agentIdentity,
+                    row!.createdByActorType,
+                    'oauth',
+                )
+            )
+                throw new ForbiddenError();
+            const fresh =
+                await this.aiAccessService.assertQueryConnectionExecution(row!);
+            if (!fresh) throw new ForbiddenError();
+            return await agentExecutionContext.run(fresh.scope, async () => {
+                await this.assertCanReadStoredResults(
+                    fresh.account,
+                    row!.projectUuid!,
+                    row!,
+                );
+                return execute(true);
+            });
+        } catch (error) {
+            await this.markClaimedQueryAsErrored(
+                args.queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+    }
+
+    public async runAsyncWarehouseQuery(
+        args: RunAsyncWarehouseQueryArgs & {
+            warehouseClientOverride?: WarehouseClient;
+            resultProducerOverride?: QueryResultProducer | null;
+            warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
+            rethrowOnError?: boolean;
+        },
+    ) {
+        return this.withQueryConnectionExecution(args, () =>
+            this.runAsyncWarehouseQueryInScope(args),
+        );
+    }
+
+    public async runAsyncPreAggregateQuery(
+        args: RunAsyncPreAggregateQueryArgs,
+    ) {
+        return this.withQueryConnectionExecution(args, (bound) =>
+            bound
+                ? this.runAsyncWarehouseQuery({
+                      ...args,
+                      query: args.warehouseQuery,
+                  })
+                : this.runAsyncPreAggregateQueryInScope(args),
+        );
+    }
+
+    private async runDuckdbQuery(args: RunDuckdbQueryArgs) {
+        return this.withQueryConnectionExecution(args, () =>
+            this.runDuckdbQueryInScope(args),
+        );
+    }
+
     public async runAsyncWarehouseQueryFromHistory(
         queryUuid: string,
         workerLabel: string,
@@ -4227,12 +4509,20 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        const args = await this.buildWarehouseQueryArgs(
-            queryUuid,
-            queryTagsOverride,
-        );
-        await this.runAsyncWarehouseQuery(args);
-        return true;
+        try {
+            const args = await this.buildWarehouseQueryArgs(
+                queryUuid,
+                queryTagsOverride,
+            );
+            await this.runAsyncWarehouseQuery(args);
+            return true;
+        } catch (error) {
+            await this.markClaimedQueryAsErrored(
+                queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
     }
 
     public async runAsyncPreAggregateQueryFromHistory(
@@ -4249,12 +4539,20 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        const args = await this.buildPreAggregateQueryArgs(
-            queryUuid,
-            queryTagsOverride,
-        );
-        await this.runAsyncPreAggregateQuery(args);
-        return true;
+        try {
+            const args = await this.buildPreAggregateQueryArgs(
+                queryUuid,
+                queryTagsOverride,
+            );
+            await this.runAsyncPreAggregateQuery(args);
+            return true;
+        } catch (error) {
+            await this.markClaimedQueryAsErrored(
+                queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
     }
 
     public async prepareQueuedQueryForExecution(
@@ -4305,6 +4603,19 @@ export class AsyncQueryService extends ProjectService {
                 `Worker ${workerLabel} skipped async query ${queryUuid} because it could not transition to executing`,
             );
             return false;
+        }
+
+        try {
+            if (assertQueryConnectionBinding(queryHistory))
+                await this.aiAccessService.assertQueryConnectionExecution(
+                    queryHistory,
+                );
+        } catch (error) {
+            await this.markClaimedQueryAsErrored(
+                queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
         }
 
         const queryContext = queryHistory.context || 'unknown';
@@ -4362,7 +4673,7 @@ export class AsyncQueryService extends ProjectService {
     /**
      * Runs the query the warehouse and updates the query history and cache (if cache is enabled and cache is not hit) when complete
      */
-    public async runAsyncWarehouseQuery({
+    private async runAsyncWarehouseQueryInScope({
         userUuid,
         organizationUuid,
         isPreviewProject,
@@ -4502,6 +4813,16 @@ export class AsyncQueryService extends ProjectService {
                 async (connection) => {
                     const { warehouseClient, warehouseCredentials, aiPlan } =
                         connection;
+                    if (agentIdentity?.act.agent_connection_grant) {
+                        const current =
+                            await this.queryHistoryModel.getByQueryUuid(
+                                queryUuid,
+                            );
+                        if (!current) throw new ForbiddenError();
+                        await this.aiAccessService.assertQueryConnectionExecution(
+                            current,
+                        );
+                    }
                     const credentialUuid = getAiExecutionCredentialUuid(
                         aiPlan ?? null,
                     );
@@ -9750,6 +10071,17 @@ export class AsyncQueryService extends ProjectService {
                 };
             }),
         );
+        if (
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant
+        ) {
+            await this.assertCanReadStoredResultsForQueries(
+                account,
+                projectUuid,
+                roots.map(({ queryHistory }) => queryHistory),
+                buildResultReader(account, context, querySurface ?? null),
+            );
+        }
         const connectionContext = connectionContextFromAccount(account, {
             organizationUuid: project.organizationUuid,
             queryContext: context,
@@ -10603,6 +10935,26 @@ export class AsyncQueryService extends ProjectService {
         );
         let columns: SqlQueryColumn[];
         if (allReady) {
+            const execution =
+                agentExecutionContext.getStore()?.agentConnectionExecution;
+            if (execution)
+                await this.aiAccessService.assertActiveConnectionExecution(
+                    execution,
+                    projectUuid,
+                    [
+                        AgentCapability.ReadDiscover,
+                        AgentCapability.Query,
+                        AgentCapability.RawSql,
+                    ],
+                    true,
+                );
+            await this.assertCanReadStoredResultsForQueries(
+                account,
+                projectUuid,
+                referenced.map(([, history]) => history),
+                buildResultReader(account),
+            );
+
             const bound = this.buildQueryReferenceCtes(
                 Object.fromEntries(referenced),
             );
@@ -10978,7 +11330,7 @@ export class AsyncQueryService extends ProjectService {
      * before execution mark the query history row errored so pollers see
      * them through the standard status lifecycle.
      */
-    private async runDuckdbQuery({
+    private async runDuckdbQueryInScope({
         identityEnabled: requestedIdentityEnabled = null,
         agentIdentity,
         authMethod = null,
@@ -11421,7 +11773,21 @@ export class AsyncQueryService extends ProjectService {
                         featureFlagId: FeatureFlags.AgentIdentity,
                     });
                 onIdentityResolved?.(identityEnabled);
-                if (identityEnabled && Object.keys(completed).length > 0) {
+                const execution =
+                    agentExecutionContext.getStore()?.agentConnectionExecution;
+                const freshConnection = execution
+                    ? await this.aiAccessService.assertActiveConnectionExecution(
+                          execution,
+                          projectUuid,
+                          [
+                              AgentCapability.ReadDiscover,
+                              AgentCapability.Query,
+                              AgentCapability.RawSql,
+                          ],
+                          true,
+                      )
+                    : null;
+                if (Object.keys(completed).length > 0) {
                     if (!actor.isRegisteredUser) throw new ForbiddenError();
                     const user =
                         await this.userModel.findSessionUserAndOrgByUuid(
@@ -11453,7 +11819,7 @@ export class AsyncQueryService extends ProjectService {
                             '',
                         );
                     } else {
-                        account = fromSession(user);
+                        account = freshConnection?.account ?? fromSession(user);
                     }
                     await this.assertCanReadStoredResultsForQueries(
                         account,
@@ -13166,9 +13532,12 @@ export class AsyncQueryService extends ProjectService {
             reader,
         );
 
-        const resultsStream = await this.getResultsStorageClientForContext(
-            queryHistory.context,
-        ).getDownloadStream(queryHistory.resultsFileName!);
+        const resultsStream = await this.getProtectedResultsStream(
+            account,
+            projectUuid,
+            queryHistory,
+            reader,
+        );
 
         const rows: Record<string, unknown>[] = [];
         await streamJsonlData<void>({
@@ -13179,6 +13548,15 @@ export class AsyncQueryService extends ProjectService {
         });
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
+
+        if (queryHistory.agentIdentity?.act.agent_connection_grant)
+            await this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+                false,
+                reader,
+            );
 
         return {
             rows,
@@ -13240,9 +13618,12 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const resultsStream = await this.getResultsStorageClientForContext(
-            queryHistory.context,
-        ).getDownloadStream(queryHistory.resultsFileName);
+        const resultsStream = await this.getProtectedResultsStream(
+            account,
+            projectUuid,
+            queryHistory,
+            reader,
+        );
 
         const rows: Record<string, unknown>[] = [];
         const { truncated } = await streamJsonlData<void>({
@@ -13252,6 +13633,15 @@ export class AsyncQueryService extends ProjectService {
             },
             maxLines: maxRows,
         });
+
+        if (queryHistory.agentIdentity?.act.agent_connection_grant)
+            await this.assertCanReadStoredResults(
+                account,
+                projectUuid,
+                queryHistory,
+                false,
+                reader,
+            );
 
         return {
             rows,
@@ -13517,9 +13907,12 @@ export class AsyncQueryService extends ProjectService {
             throw new Error('Results file name not found for query');
         }
 
-        const resultsStream = await this.getResultsStorageClientForContext(
-            queryHistory.context,
-        ).getDownloadStream(queryHistory.resultsFileName);
+        const resultsStream = await this.getProtectedResultsStream(
+            account,
+            projectUuid,
+            queryHistory,
+            buildResultReader(account, args.context, args.querySurface ?? null),
+        );
 
         const rows: Record<string, unknown>[] = [];
         await streamJsonlData<void>({

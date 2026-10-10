@@ -1,5 +1,6 @@
 import { type AiReviewNotificationEvent } from '../ee/types/aiReviewNotification';
 import assertUnreachable from '../utils/assertUnreachable';
+import { type AgentConnectionExecution } from './agentConnectionGrants';
 import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
@@ -681,6 +682,7 @@ export type ApiReassignUserSchedulersResponse = ApiSuccess<{
 }>;
 
 export type TraceTaskBase = {
+    agentConnectionExecution?: AgentConnectionExecution | null;
     organizationUuid: string;
     projectUuid: string;
     userUuid: string;

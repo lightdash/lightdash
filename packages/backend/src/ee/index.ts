@@ -566,6 +566,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     }),
                 );
                 return new QuerySourceService({
+                    getAsyncQueryService: () =>
+                        repository.getAsyncQueryService(),
                     getAgentPermissionService: () =>
                         repository.getAgentPermissionService(),
                     projectModel: models.getProjectModel(),

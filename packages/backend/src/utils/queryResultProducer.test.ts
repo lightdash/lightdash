@@ -9,7 +9,9 @@ import {
     RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type AgentConnectionExecution,
     type CreateWarehouseCredentials,
+    type QueryHistory,
     type UserAccessControls,
 } from '@lightdash/common';
 import { QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
@@ -22,6 +24,7 @@ import { WarehouseClientFactory } from '../services/WarehouseClientFactory/Wareh
 import { buildCacheHash } from './cacheUtils';
 import { replaceUserAttributesRaw } from './QueryBuilder/utils';
 import {
+    assertQueryConnectionBinding,
     getResultEntitlementFingerprint,
     getSqlResultEntitlementFingerprint,
     getWarehouseIdentityFingerprint,
@@ -1064,5 +1067,96 @@ describe('connection result identity', () => {
         expect(
             new Set([key('grant', 1), key('other', 1), key('grant', 2)]).size,
         ).toBe(3);
+    });
+});
+
+describe('durable connection binding', () => {
+    const envelope: AgentConnectionExecution = {
+        grantUuid: 'grant',
+        revision: 1,
+        subjectUserUuid: 'user',
+        organizationUuid: 'org',
+        clientId: 'lightdash-cli',
+        resource: 'https://server.example',
+        refreshFamilyUuid: 'family',
+        scopes: ['read'],
+        operation: {
+            kind: 'rest',
+            key: 'QueryController.executeAsyncSqlQuery',
+        },
+    };
+    const row = (): QueryHistory => {
+        const claim = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'user' },
+            surface: AgentActorSurface.CLI,
+            clientId: 'lightdash-cli',
+            agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+        });
+        return {
+            agentIdentity: claim,
+            organizationUuid: 'org',
+            createdByUserUuid: 'user',
+            createdByActorType: 'oauth',
+            requestParameters: {
+                sql: 'select 1',
+                agentConnectionExecution: envelope,
+                resultProducer: {
+                    version: 1,
+                    authMethod: 'oauth',
+                    agentIdentity: claim,
+                    warehouseConnectionUuid: null,
+                    credentialOwner: { kind: 'no_warehouse_data' },
+                },
+            },
+        } as QueryHistory;
+    };
+    test.each([
+        'history',
+        'producer',
+        'envelope',
+        'missing_envelope',
+        'missing_history',
+        'subject',
+        'organization',
+        'auth',
+    ])('refuses inconsistent %s before storage', async (reason) => {
+        const query = row();
+        if (reason === 'history')
+            query.agentIdentity = {
+                ...query.agentIdentity!,
+                act: {
+                    ...query.agentIdentity!.act,
+                    agent_connection_grant: { grantUuid: 'other', revision: 1 },
+                },
+            };
+        if (reason === 'producer')
+            query.requestParameters.resultProducer!.agentIdentity = null;
+        if (reason === 'envelope')
+            query.requestParameters.agentConnectionExecution = {
+                ...envelope,
+                revision: 2,
+            };
+        if (reason === 'missing_envelope')
+            delete query.requestParameters.agentConnectionExecution;
+        if (reason === 'missing_history') query.agentIdentity = null;
+        if (reason === 'subject') query.createdByUserUuid = 'other';
+        if (reason === 'organization') query.organizationUuid = 'other';
+        if (reason === 'auth') query.createdByActorType = 'session';
+        const storage = vi.fn();
+        await expect(
+            Promise.resolve()
+                .then(() => assertQueryConnectionBinding(query))
+                .then(storage),
+        ).rejects.toThrow();
+        expect(storage).not.toHaveBeenCalled();
+    });
+    test('accepts a consistent binding and legacy unbound rows', () => {
+        expect(assertQueryConnectionBinding(row())).toEqual(envelope);
+        expect(
+            assertQueryConnectionBinding({
+                agentIdentity: null,
+                requestParameters: {},
+            } as QueryHistory),
+        ).toBeNull();
     });
 });

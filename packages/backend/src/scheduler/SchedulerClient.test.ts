@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     SchedulerAndTargets,
     TraceTaskBase,
+    type AgentConnectionExecution,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../config/parseConfig';
@@ -265,4 +266,65 @@ describe('SchedulerClient learn sandbox command queue', () => {
                 .maxAttempts,
         ).toBe(1);
     });
+});
+
+describe('SchedulerClient connection envelope storage', () => {
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => vi.clearAllMocks());
+
+    const execution: AgentConnectionExecution = {
+        grantUuid: 'grant-1',
+        revision: 1,
+        subjectUserUuid: 'user-1',
+        organizationUuid: ORG_UUID,
+        clientId: 'lightdash-cli',
+        resource: 'https://example.com/api',
+        refreshFamilyUuid: 'family-1',
+        scopes: ['read', 'write'],
+        operation: { kind: 'rest', key: 'ProjectController.refreshProject' },
+    };
+    const payload = {
+        ...traceProperties,
+        createdByUserUuid: 'user-1',
+        jobUuid: 'job-1',
+        requestMethod: 'POST',
+        isPreview: false,
+    };
+
+    it('stores a normalized copy of an explicit trusted envelope', async () => {
+        await makeClient(false, vi.fn()).compileProject({
+            ...payload,
+            agentConnectionExecution: execution,
+        });
+        const stored = graphileAddJob.mock.calls[0][1].agentConnectionExecution;
+        expect(stored).toEqual(execution);
+        expect(stored).not.toBe(execution);
+        expect(stored.scopes).not.toBe(execution.scopes);
+    });
+
+    it('keeps legacy unbound payloads without connection metadata', async () => {
+        await makeClient(false, vi.fn()).compileProject(payload);
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
+            'agentConnectionExecution',
+        );
+    });
+
+    it.each([
+        { revision: 0 },
+        { subjectUserUuid: 'another-person' },
+        { organizationUuid: 'another-org' },
+        { accessToken: 'must-not-persist' },
+        { refreshFamilyUuid: '' },
+    ])(
+        'refuses invalid envelope metadata before enqueue: %j',
+        async (change) => {
+            await expect(
+                makeClient(false, vi.fn()).compileProject({
+                    ...payload,
+                    agentConnectionExecution: { ...execution, ...change },
+                }),
+            ).rejects.toThrow();
+            expect(graphileAddJob).not.toHaveBeenCalled();
+        },
+    );
 });

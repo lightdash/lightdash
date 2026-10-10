@@ -25,6 +25,7 @@ import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHist
 import { personaliseStoredSharedSignInError } from '../../utils/sharedSignInExpiry';
 import type { AgentPermissionService } from '../AgentPermissionService/AgentPermissionService';
 import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
+import { type AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import { BaseService } from '../BaseService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
@@ -40,6 +41,10 @@ export type InternalSourceQuerySubmission = SourceQuerySubmission &
     Pick<SourceQuerySubmissionResult, 'cacheHit'>;
 
 type QuerySourceServiceArguments = {
+    getAsyncQueryService: () => Pick<
+        AsyncQueryService,
+        'assertCanReadStoredResults'
+    >;
     getAgentPermissionService: () => Pick<
         AgentPermissionService,
         'isEnforced' | 'assertOperation'
@@ -89,8 +94,11 @@ export class QuerySourceService extends BaseService {
 
     private readonly getAgentPermissionService: QuerySourceServiceArguments['getAgentPermissionService'];
 
+    private readonly getAsyncQueryService: QuerySourceServiceArguments['getAsyncQueryService'];
+
     constructor(args: QuerySourceServiceArguments) {
         super({ serviceName: 'QuerySourceService' });
+        this.getAsyncQueryService = args.getAsyncQueryService;
         this.projectModel = args.projectModel;
         this.queryHistoryModel = args.queryHistoryModel;
         this.featureFlagModel = args.featureFlagModel;
@@ -493,12 +501,17 @@ export class QuerySourceService extends BaseService {
             );
         }
 
+        const queries = await Promise.all(
+            queryUuids.map((queryUuid) =>
+                this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            ),
+        );
         const statuses = await Promise.all(
-            queryUuids.map(async (queryUuid) => {
-                const queryHistory = await this.queryHistoryModel.get(
-                    queryUuid,
-                    projectUuid,
+            queries.map(async (queryHistory) => {
+                await this.getAsyncQueryService().assertCanReadStoredResults(
                     account,
+                    projectUuid,
+                    queryHistory,
                 );
                 return {
                     queryUuid: queryHistory.queryUuid,
@@ -513,6 +526,19 @@ export class QuerySourceService extends BaseService {
                 };
             }),
         );
+        if (
+            account.authentication.type === 'oauth' &&
+            account.authentication.agentConnectionGrant
+        ) {
+            await queries.reduce(async (previous, queryHistory) => {
+                await previous;
+                await this.getAsyncQueryService().assertCanReadStoredResults(
+                    account,
+                    projectUuid,
+                    queryHistory,
+                );
+            }, Promise.resolve());
+        }
 
         return { statuses };
     }

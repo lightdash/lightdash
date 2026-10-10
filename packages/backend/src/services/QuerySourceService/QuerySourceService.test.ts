@@ -102,7 +102,9 @@ const createService = (registry: QuerySourceRegistry) => {
         },
     };
 
+    const assertCanReadStoredResults = vi.fn().mockResolvedValue(undefined);
     const service = new QuerySourceService({
+        getAsyncQueryService: () => ({ assertCanReadStoredResults }),
         getAgentPermissionService: () => mocks.permissions,
         projectModel: mocks.projectModel as unknown as ProjectModel,
         queryHistoryModel:
@@ -111,7 +113,7 @@ const createService = (registry: QuerySourceRegistry) => {
         registry,
     });
 
-    return { service, mocks };
+    return { service, mocks, assertCanReadStoredResults };
 };
 
 const createRegistryWithFakes = () => {
@@ -579,6 +581,21 @@ describe('QuerySourceService', () => {
     });
 
     describe('getSourceQueryStatuses', () => {
+        it('refuses protected status and error before emitting a batch', async () => {
+            const { service, assertCanReadStoredResults } = createService(
+                createRegistryWithFakes().registry,
+            );
+            assertCanReadStoredResults.mockRejectedValue(new ForbiddenError());
+            const emit = vi.fn();
+            await expect(
+                service
+                    .getSourceQueryStatuses(account, projectUuid, ['protected'])
+                    .then(emit),
+            ).rejects.toThrow(ForbiddenError);
+            expect(assertCanReadStoredResults).toHaveBeenCalledOnce();
+            expect(emit).not.toHaveBeenCalled();
+        });
+
         it('returns the standard status per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);

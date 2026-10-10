@@ -4,6 +4,7 @@ import {
     QueryExecutionContext,
     QuerySurface,
     type Account,
+    type AgentConnectionExecution,
     type AgentConnectionGrantRef,
     type AgentIdentityClaim,
     type QueryResultReader,
@@ -23,6 +24,7 @@ export type AgentExecutionContext = Readonly<{
     writerUuid: string;
     operationId: string;
     agentIdentityEnabled: boolean;
+    agentConnectionExecution: AgentConnectionExecution | null;
 }>;
 
 export const agentExecutionContext =
@@ -35,6 +37,7 @@ export const createAgentExecutionContext = ({
     agentUuid,
     agentIdentityEnabled,
     agentConnectionGrant = null,
+    agentConnectionExecution = null,
 }: {
     account: Account;
     surface: AgentActorSurface;
@@ -42,6 +45,7 @@ export const createAgentExecutionContext = ({
     agentUuid: string | null;
     agentIdentityEnabled: boolean;
     agentConnectionGrant?: AgentConnectionGrantRef | null;
+    agentConnectionExecution?: AgentConnectionExecution | null;
 }): AgentExecutionContext => {
     const facts = {
         oauthClientId:
@@ -98,6 +102,16 @@ export const createAgentExecutionContext = ({
         writerUuid: account.user.id,
         operationId: randomUUID(),
         agentIdentityEnabled,
+        agentConnectionExecution:
+            agentConnectionExecution === null
+                ? null
+                : Object.freeze({
+                      ...agentConnectionExecution,
+                      scopes: [...agentConnectionExecution.scopes],
+                      operation: Object.freeze({
+                          ...agentConnectionExecution.operation,
+                      }),
+                  }),
     });
 };
 

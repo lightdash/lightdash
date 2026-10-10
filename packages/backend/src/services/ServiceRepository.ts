@@ -998,6 +998,9 @@ export class ServiceRepository
             'agentConnectionGrantService',
             () =>
                 new AgentConnectionGrantService({
+                    userModel: this.models.getUserModel(),
+                    getAgentPermissionService: () =>
+                        this.getAgentPermissionService(),
                     model: this.models.getAgentConnectionGrantModel(),
                     featureFlags: this.models.getFeatureFlagModel(),
                     resourceResolver: new AgentConnectionGrantResourceResolver({
@@ -1066,6 +1069,8 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    getAgentConnectionGrantService: () =>
+                        this.getAgentConnectionGrantService(),
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     getWarehouseClientFactory: () =>
                         this.getProjectService().warehouseClientFactory,
@@ -1363,6 +1368,7 @@ export class ServiceRepository
             });
 
             return new QuerySourceService({
+                getAsyncQueryService: () => this.getAsyncQueryService(),
                 getAgentPermissionService: () =>
                     this.getAgentPermissionService(),
                 projectModel: this.models.getProjectModel(),

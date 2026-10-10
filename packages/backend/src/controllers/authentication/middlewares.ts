@@ -11,7 +11,7 @@ import {
     LightdashMode,
     SessionUser,
 } from '@lightdash/common';
-import OAuth2Server from '@node-oauth/oauth2-server';
+import OAuth2Server, { type Token } from '@node-oauth/oauth2-server';
 import {
     ErrorRequestHandler,
     NextFunction,
@@ -29,6 +29,7 @@ import {
     oauthApiResource,
     oauthMcpResource,
 } from '../../auth/oauthScopes/oauthResources';
+import { type OAuthTokenBinding } from '../../auth/oauthScopes/oauthTokenBinding';
 import {
     getOAuthRouteResource,
     resolveOAuthRouteOperation,
@@ -192,6 +193,7 @@ const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
 const continueOAuthAuthentication = async (
     req: Request,
     next: NextFunction,
+    token: Token & Partial<OAuthTokenBinding>,
 ): Promise<void> => {
     const { account } = req;
     if (
@@ -208,6 +210,8 @@ const continueOAuthAuthentication = async (
         account.authentication.clientId !== grant.clientId
     )
         throw new OAuthBearerRefusalError();
+    if (!token.familyUuid || token.resource !== grant.resource)
+        throw new OAuthBearerRefusalError();
     const scope = createAgentExecutionContext({
         account,
         surface: AgentActorSurface.CLI,
@@ -218,6 +222,20 @@ const continueOAuthAuthentication = async (
             revision: grant.revision,
         },
         agentIdentityEnabled: true,
+        agentConnectionExecution: {
+            grantUuid: grant.grantUuid,
+            revision: grant.revision,
+            subjectUserUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid!,
+            clientId: grant.clientId,
+            resource: grant.resource,
+            refreshFamilyUuid: token.familyUuid,
+            scopes: [...account.authentication.scopes],
+            operation: {
+                kind: 'rest',
+                key: resolveOAuthRouteOperation(req) ?? 'unknown',
+            },
+        },
     });
     await agentExecutionContext.run(scope, async () => {
         await assertOAuthAgentOperation(req);
@@ -351,7 +369,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await continueOAuthAuthentication(req, next);
+                        await continueOAuthAuthentication(req, next, token);
                         return;
                     }
                     next();
@@ -500,7 +518,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             abilityRules: req.account.user.abilityRules,
                             requestContext,
                         };
-                        await continueOAuthAuthentication(req, next);
+                        await continueOAuthAuthentication(req, next, token);
                         return;
                     }
                     next();

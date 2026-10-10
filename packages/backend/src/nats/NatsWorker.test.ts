@@ -1,3 +1,8 @@
+import {
+    ForbiddenError,
+    QueryHistoryStatus,
+    type QueryHistory,
+} from '@lightdash/common';
 import { StringCodec, type JsMsg } from 'nats';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type NatsClient } from '../clients/NatsClient';
@@ -30,7 +35,9 @@ describe('NatsWorker subject dispatch', () => {
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
-        getByQueryUuid: vi.fn(async () => undefined),
+        getByQueryUuid: vi.fn<() => Promise<QueryHistory | undefined>>(
+            async () => undefined,
+        ),
     };
 
     const buildWorker = () =>
@@ -75,6 +82,32 @@ describe('NatsWorker subject dispatch', () => {
         ).not.toHaveBeenCalled();
         expect(message.ack).toHaveBeenCalled();
     });
+
+    it.each(['warehouse', 'duckdb', 'pre-aggregate'] as const)(
+        'terminates a claimed %s refusal without retrying',
+        async (kind) => {
+            const message = jobMessage(
+                STREAM_CONFIGS[kind === 'warehouse' ? 'warehouse' : kind]
+                    .subjects.query,
+            );
+            const runner = {
+                warehouse: asyncQueryService.runAsyncWarehouseQueryFromHistory,
+                duckdb: asyncQueryService.runAsyncDuckdbQueryFromHistory,
+                'pre-aggregate':
+                    asyncQueryService.runAsyncPreAggregateQueryFromHistory,
+            }[kind];
+            runner.mockRejectedValueOnce(new ForbiddenError());
+            queryHistoryModel.getByQueryUuid
+                .mockResolvedValueOnce(undefined)
+                .mockResolvedValueOnce({
+                    status: QueryHistoryStatus.ERROR,
+                } as QueryHistory);
+            await buildWorker().handleMessage(message, 'worker-1');
+            expect(message.term).toHaveBeenCalledOnce();
+            expect(message.nak).not.toHaveBeenCalled();
+            expect(runner).toHaveBeenCalledOnce();
+        },
+    );
 
     it('terminates a job on a subject it does not know', async () => {
         const message = jobMessage('pre_aggregate.unknown.jobs');

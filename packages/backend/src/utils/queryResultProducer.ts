@@ -1,5 +1,7 @@
 import {
     AgentActorSurface,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     assertUnreachable,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
@@ -15,6 +17,7 @@ import {
     normalizeAgentIdentityClaim,
     parameterRegex,
     WarehouseTypes,
+    type AgentConnectionExecution,
     type AgentIdentityClaim,
     type AuthType,
     type CreateWarehouseCredentials,
@@ -29,6 +32,7 @@ import {
     type UserAccessControls,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { normalizeAgentConnectionExecution } from './agentConnectionExecution';
 import { getWarehouseCredentialVersions } from './warehouseCredentialVersion';
 
 const getDataPathRoute = (value: string): string[] | null => {
@@ -727,3 +731,52 @@ export const isSameResultProducer = (
     stored.entitlementFingerprint != null &&
     stored.entitlementFingerprint === current.entitlementFingerprint &&
     isSameResultProducerOwner(stored, current);
+
+export const assertQueryConnectionBinding = (
+    query: Pick<
+        QueryHistory,
+        | 'agentIdentity'
+        | 'requestParameters'
+        | 'organizationUuid'
+        | 'createdByUserUuid'
+        | 'createdByActorType'
+    >,
+): AgentConnectionExecution | null => {
+    const claim = query.agentIdentity;
+    const producer = query.requestParameters?.resultProducer;
+    const execution = query.requestParameters?.agentConnectionExecution;
+    const binding = claim?.act.agent_connection_grant;
+    if (
+        !binding &&
+        !producer?.agentIdentity?.act.agent_connection_grant &&
+        execution == null
+    )
+        return null;
+    const normalized = normalizeAgentConnectionExecution(execution);
+    if (
+        !normalized ||
+        !claim ||
+        !binding ||
+        binding.grantUuid !== normalized.grantUuid ||
+        binding.revision !== normalized.revision ||
+        claim.subject.type !== 'user' ||
+        claim.subject.uuid !== normalized.subjectUserUuid ||
+        claim.act.client_id !== normalized.clientId ||
+        claim.act.surface !== AgentActorSurface.CLI ||
+        query.createdByUserUuid !== normalized.subjectUserUuid ||
+        query.organizationUuid !== normalized.organizationUuid ||
+        query.createdByActorType !== 'oauth' ||
+        (producer &&
+            !isSameResultAgent(
+                producer.agentIdentity,
+                claim,
+                producer.authMethod,
+                'oauth',
+            ))
+    ) {
+        throw new AiAccessRefusedError(
+            AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+        );
+    }
+    return normalized;
+};

@@ -4075,7 +4075,39 @@ describe('bounded stored result lineage', () => {
         },
     );
 
-    test('flag off performs zero lineage reads for a compose with references', async () => {
+    test.each([true, false])(
+        'connection results refuse a person with identity enabled=%s even with producer checks off',
+        async (enabled) => {
+            const f = buildGraph({ root: [] });
+            f.flags.get.mockResolvedValue({ enabled });
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: account.user.id },
+                surface: AgentActorSurface.CLI,
+                clientId: 'lightdash-cli',
+                agentConnectionGrant: { grantUuid: 'connection', revision: 1 },
+            });
+            f.rows.root.agentIdentity = claim;
+            f.rows.root.requestParameters.resultProducer!.agentIdentity = claim;
+            Object.assign(f.service, {
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        agentResultIdentityCheckEnabled: false,
+                    },
+                },
+            });
+            const deliver = vi.fn();
+            await expect(
+                f.service
+                    .assertCanReadResults(account, 'project', f.rows.root)
+                    .then(deliver),
+            ).rejects.toThrow();
+            expect(deliver).not.toHaveBeenCalled();
+        },
+    );
+
+    test('flag off traverses connection ownership without ordinary identity checks', async () => {
         const { service, flags, historyModel, rows, batch, logger } =
             buildGraph({
                 root: ['source'],
@@ -4090,8 +4122,8 @@ describe('bounded stored result lineage', () => {
             readAgentResults(service, account, 'project', rows.root),
         ).resolves.toBeNull();
         expect(historyModel.get).not.toHaveBeenCalled();
-        expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
-        expect(batch).not.toHaveBeenCalled();
+        expect(historyModel.getDuckdbExecution).toHaveBeenCalledOnce();
+        expect(batch).toHaveBeenCalledOnce();
         expect(flags.get).toHaveBeenCalledOnce();
         expect(logger.warn).not.toHaveBeenCalled();
     });

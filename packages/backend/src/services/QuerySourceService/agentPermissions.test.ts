@@ -123,6 +123,9 @@ const setup = (
         typeof QuerySourceRegistry.withBuiltInSources
     >[0]);
     const service = new QuerySourceService({
+        getAsyncQueryService: () => ({
+            assertCanReadStoredResults: vi.fn(async () => {}),
+        }),
         featureFlagModel,
         projectModel,
         queryHistoryModel: {},

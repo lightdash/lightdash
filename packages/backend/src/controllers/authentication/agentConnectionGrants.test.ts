@@ -696,6 +696,24 @@ describe.each([
                     setImmediate(resolve);
                 });
                 expect(agentExecutionContext.getStore()).toBe(scope);
+                expect(scope!.agentConnectionExecution).toMatchObject({
+                    grantUuid: 'grant',
+                    revision: 1,
+                    subjectUserUuid: f.user.userUuid,
+                    organizationUuid: f.user.organizationUuid,
+                    clientId: 'lightdash-cli',
+                    resource: f.grant.resource,
+                    refreshFamilyUuid: f.token.familyUuid,
+                    scopes: ['read'],
+                    operation: {
+                        kind: 'rest',
+                        key: 'ProjectController.getProject',
+                    },
+                });
+                expect(scope!.agentConnectionExecution).not.toHaveProperty(
+                    'accessToken',
+                );
+
                 expect(buildResultReader(f.req.account!)).toMatchObject({
                     kind: 'agent',
                     claim: scope!.claim,

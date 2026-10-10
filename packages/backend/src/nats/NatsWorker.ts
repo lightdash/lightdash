@@ -1,4 +1,8 @@
-import { getErrorMessage, QueryExecutionContext } from '@lightdash/common';
+import {
+    getErrorMessage,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { StringCodec, type Consumer, type JsMsg } from 'nats';
@@ -288,7 +292,11 @@ export class NatsWorker {
                 `Worker ${workerLabel} failed query job ${parsed.jobId ?? '<unknown>'} on ${message.subject}: ${getErrorMessage(error)}`,
                 { error, ...jobMetadata },
             );
-            message.nak();
+            const query = await this.queryHistoryModel
+                .getByQueryUuid(parsed.payload.queryUuid)
+                .catch(() => null);
+            if (query?.status === QueryHistoryStatus.ERROR) message.term();
+            else message.nak();
         }
     }
 

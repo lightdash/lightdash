@@ -22,6 +22,12 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
         user,
     };
     const deps = {
+        userModel: {
+            findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
+        },
+        getAgentPermissionService: () => ({
+            assertOperation: vi.fn().mockResolvedValue(undefined),
+        }),
         model: {
             findActive: vi.fn().mockResolvedValue(grant),
             touchLastUsed: vi.fn().mockResolvedValue(undefined),
@@ -113,6 +119,7 @@ export const setupGrantAuthentication = (sessionUser = defaultSessionUser) => {
         user,
         token,
         deps,
+        service,
         permissions,
         req,
         run,

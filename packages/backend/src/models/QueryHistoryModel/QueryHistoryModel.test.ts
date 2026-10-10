@@ -788,3 +788,68 @@ describe('result identity cache partition', () => {
         }
     });
 });
+
+describe('connection history filtering', () => {
+    test('filters every count query by grant and revision before aggregation', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('query_history').response([]);
+        try {
+            await new QueryHistoryModel({ database }).getUserHistoryCounts(
+                'project',
+                'user',
+                {},
+                { grantUuid: 'grant-a', revision: 7 },
+            );
+            expect(tracker.history.select).toHaveLength(2);
+            for (const query of tracker.history.select) {
+                expect(query.sql).toContain('agent_connection_grant');
+                expect(query.bindings).toContain('grant-a');
+                expect(query.bindings).toContain('7');
+            }
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+test.each([null, { grantUuid: 'grant-a', revision: 7 }])(
+    'filters the page and pagination count at the database for %s',
+    async (connection) => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on
+            .any(({ sql }) => sql.includes('WITH count_cte AS'))
+            .response({ rows: [{ count: '0' }] });
+        tracker.on.select('query_history').response([]);
+        try {
+            const result = await new QueryHistoryModel({
+                database,
+            }).findUserHistory(
+                'project',
+                'user',
+                {},
+                { page: 2, pageSize: 10 },
+                connection,
+            );
+            const queries = tracker.history.all;
+            expect(result.pagination?.totalResults).toBe(0);
+            expect(queries).toHaveLength(2);
+            for (const query of queries) {
+                expect(query.sql.includes('agent_connection_grant')).toBe(
+                    connection !== null,
+                );
+                if (connection) {
+                    expect(query.bindings).toContain('grant-a');
+                    expect(query.bindings).toContain('7');
+                }
+            }
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    },
+);
