@@ -5,9 +5,14 @@ import {
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
     agentExecutionContext,
     getContentWriteAgentIdentity,
 } from '../../../services/AiAccessService/agentExecutionContext';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import { AiAgentService } from './AiAgentService';
 
 describe('Slack agent identity', () => {
@@ -102,3 +107,87 @@ describe('Slack agent identity', () => {
         },
     );
 });
+
+test.each(agentActionTestCases)(
+    'Slack result runtime persists SQL share action through ShareService: %s',
+    async (_, surface, enabled, count) => {
+        const user = defaultSessionUser;
+        const insert = vi.fn().mockResolvedValue(undefined);
+        const createSharedUrl = vi.fn(async (input: object) => ({
+            ...input,
+            nanoid: 'slack-share',
+        }));
+        const shareService = new ShareService({
+            shareModel: { createSharedUrl },
+            agentActionLogModel: { insert },
+            analytics: { track: vi.fn() },
+            lightdashConfig: { siteUrl: 'https://lightdash.example' },
+        } as unknown as ConstructorParameters<typeof ShareService>[0]);
+        const service = new AiAgentService({
+            shareService,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example',
+                ai: { copilot: { maxQueryLimit: 500 } },
+            },
+            aiAgentModel: {
+                findThreadReferencedArtifacts: vi
+                    .fn()
+                    .mockResolvedValue(new Map()),
+                findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
+                findArtifactVersionsByPromptUuid: vi.fn().mockResolvedValue([]),
+                getToolCallsForPrompt: vi.fn().mockResolvedValue([
+                    {
+                        tool_call_id: 'sql-call',
+                        tool_name: 'runSql',
+                        tool_args: {
+                            sql: 'select private_column',
+                            limit: 10,
+                        },
+                    },
+                ]),
+                getToolResultsForPrompt: vi.fn().mockResolvedValue([
+                    {
+                        toolCallId: 'sql-call',
+                        toolName: 'runSql',
+                        metadata: { status: 'success', rowCount: 1 },
+                    },
+                ]),
+            },
+        } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+        vi.spyOn(service, 'getDecisionClient').mockResolvedValue(undefined);
+        const blocks = await withAgentActionScope(user, surface, enabled, () =>
+            service['getSlackAgentFinalBlocks']({
+                user,
+                slackPrompt: {
+                    promptUuid: 'prompt',
+                    projectUuid: 'project',
+                    threadUuid: 'thread',
+                    organizationUuid: user.organizationUuid,
+                } as SlackPrompt,
+                agent: undefined,
+                response: 'Results',
+                runtimeTableResults: new Map(),
+                accessRefusal: null,
+            }),
+        );
+        expect(JSON.stringify(blocks)).toContain('slack-share');
+        expect(createSharedUrl).toHaveBeenCalledOnce();
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'share',
+                    object_id: 'slack-share',
+                    action: 'create',
+                    outcome: 'allowed',
+                    agent_identity: expect.objectContaining({
+                        subject: { type: 'user', uuid: user.userUuid },
+                        act: expect.objectContaining({ surface }),
+                    }),
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain(
+            'private_column',
+        );
+    },
+);

@@ -2956,7 +2956,10 @@ export class SavedChartService
         });
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: chart.organizationUuid },
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
         });
         return {
             history: versions.map((version) =>
@@ -3015,7 +3018,10 @@ export class SavedChartService
 
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: chart.organizationUuid },
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
         });
         return {
             ...withVersionAgentIdentity(chartVersionSummary, enabled),

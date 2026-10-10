@@ -1825,7 +1825,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         spaceSlug: string,
         notFoundMessage: string,
-        action: 'create' | 'update' = 'update',
+        action: 'read' | 'create' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1855,6 +1855,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         dashboardUuidOrSlug: string,
         notFoundMessage: string,
+        action: 'read' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1875,7 +1876,7 @@ export class AiAgentToolsService extends BaseService {
             await this.recordRefusal(
                 context,
                 'dashboard',
-                'update',
+                action,
                 'agent_scope',
                 'content_outside_agent_scope',
                 undefined,
@@ -1889,6 +1890,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         chartUuid: string,
         notFoundMessage: string,
+        action: 'read' | 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1909,7 +1911,7 @@ export class AiAgentToolsService extends BaseService {
             await this.recordRefusal(
                 context,
                 'chart',
-                'update',
+                action,
                 'agent_scope',
                 'content_outside_agent_scope',
                 undefined,
@@ -2142,6 +2144,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     app.space_uuid,
                     appSlug,
+                    'update',
                 );
                 const dashboard =
                     dashboardSlug === null
@@ -2201,6 +2204,7 @@ export class AiAgentToolsService extends BaseService {
             context,
             source.app.spaceUuid,
             appSlug,
+            'read',
         );
         return source;
     }
@@ -2289,6 +2293,7 @@ export class AiAgentToolsService extends BaseService {
                             context,
                             source.app.spaceUuid,
                             slug,
+                            'read',
                         );
                         return {
                             type: 'data_app',
@@ -2309,6 +2314,7 @@ export class AiAgentToolsService extends BaseService {
     private async readContentAsCode(
         context: AiAgentToolsRuntimeContext,
         { slug, type }: { slug: string; type: ContentAsCodeType },
+        action: 'read' | 'update' = 'read',
     ): Promise<
         Extract<Awaited<ReturnType<ReadContentFn>>, { type: ContentAsCodeType }>
     > {
@@ -2330,6 +2336,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     dashboard.spaceSlug,
                     `Dashboard "${slug}" was not found`,
+                    action,
                 );
                 const savedDashboard =
                     await this.dashboardService.getByIdOrSlug(
@@ -2361,6 +2368,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     chart.spaceSlug,
                     `Chart "${slug}" was not found`,
+                    action,
                 );
                 const savedChart = await this.savedChartService.get(
                     chart.slug,
@@ -2393,6 +2401,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     sqlChart.spaceSlug,
                     notFound,
+                    action,
                 );
                 await this.savedSqlService.assertCanViewSqlChartBySlug(
                     context.user,
@@ -2418,6 +2427,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         spaceUuid: string | null,
         slug: string,
+        action: 'read' | 'update',
     ) {
         const scoped =
             context.spaceAccess !== null && context.spaceAccess.length > 0;
@@ -2432,7 +2442,7 @@ export class AiAgentToolsService extends BaseService {
             await this.recordRefusal(
                 context,
                 'app',
-                'update',
+                action,
                 'agent_scope',
                 'content_outside_agent_scope',
             );
@@ -2687,10 +2697,14 @@ export class AiAgentToolsService extends BaseService {
                 }
                 this.aiAgentContentValidation.validatePatch(type, patch);
 
-                const currentContent = await this.readContentAsCode(context, {
-                    slug,
-                    type,
-                });
+                const currentContent = await this.readContentAsCode(
+                    context,
+                    {
+                        slug,
+                        type,
+                    },
+                    'update',
+                );
                 // Charts can be persisted with a null `chartConfig.config` (e.g.
                 // table charts with no viz settings). The chart-as-code schema
                 // accepts an object or an absent config but rejects null, so
@@ -2726,6 +2740,7 @@ export class AiAgentToolsService extends BaseService {
                             `${AiAgentToolsService.getContentTypeLabel(
                                 type,
                             )} "${slug}" was not found`,
+                            'update',
                         );
                         patchedSlug =
                             patchedContent.slug.length > 0
@@ -2750,6 +2765,7 @@ export class AiAgentToolsService extends BaseService {
                             `${AiAgentToolsService.getContentTypeLabel(
                                 type,
                             )} "${slug}" was not found`,
+                            'update',
                         );
                         patchedSlug =
                             patchedContent.slug.length > 0
@@ -2947,6 +2963,7 @@ export class AiAgentToolsService extends BaseService {
             context,
             patched.spaceSlug,
             `SQL chart "${slug}" was not found`,
+            'update',
         );
         this.assertCanSaveSqlCharts(context);
         const sqlChanged = patched.sql !== current.sql;
@@ -3354,6 +3371,7 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         args.chartUuid,
                         `Chart not found: ${args.chartUuid}`,
+                        'read',
                     );
 
                     await context.onWarehouseQuery?.();
@@ -4005,6 +4023,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     args.dashboardUuid,
                     `Dashboard not found: ${args.dashboardUuid}`,
+                    'read',
                 );
 
                 return this.dashboardService.getDashboardCharts(
@@ -4902,8 +4921,13 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         document: Document,
         chartId: string | null = null,
+        action: 'read' | 'create' | 'update' = 'read',
     ): Promise<DocumentContentResult> {
-        const spaceSlug = await this.getDocumentSpaceSlug(context, document);
+        const spaceSlug = await this.getDocumentSpaceSlug(
+            context,
+            document,
+            action,
+        );
         const project = await this.projectModel.getSummary(context.projectUuid);
         const metadata = {
             name: document.name,
@@ -4956,9 +4980,19 @@ export class AiAgentToolsService extends BaseService {
     private async getDocumentSpaceSlug(
         context: AiAgentToolsRuntimeContext,
         document: Document,
+        action: 'read' | 'create' | 'update',
     ): Promise<string | null> {
         if (document.spaceUuid === null) {
             if (document.createdByUserUuid !== context.user.userUuid) {
+                await this.recordRefusal(
+                    context,
+                    'document',
+                    action,
+                    'agent_scope',
+                    'personal_document_outside_agent_scope',
+                    undefined,
+                    document.documentUuid,
+                );
                 throw new NotFoundError('Document not found');
             }
             return null;
@@ -4969,6 +5003,15 @@ export class AiAgentToolsService extends BaseService {
                 document.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'document',
+                action,
+                'agent_scope',
+                'document_outside_agent_scope',
+                undefined,
+                document.documentUuid,
+            );
             throw new NotFoundError('Document not found');
         }
         const [space] = await this.spaceModel.find({
@@ -5028,7 +5071,11 @@ export class AiAgentToolsService extends BaseService {
         const space =
             input.spaceSlug === null
                 ? null
-                : await this.resolveDocumentSpace(context, input.spaceSlug);
+                : await this.resolveDocumentSpace(
+                      context,
+                      input.spaceSlug,
+                      'create',
+                  );
         const document = await this.documentService.create(
             context.account,
             context.projectUuid,
@@ -5054,6 +5101,8 @@ export class AiAgentToolsService extends BaseService {
     private async resolveDocumentSpace(
         context: AiAgentToolsRuntimeContext,
         spaceSlugOrName: string,
+        action: 'create' | 'update',
+        documentUuid: string | null = null,
     ): Promise<{ uuid: string }> {
         const requested = spaceSlugOrName.trim();
         if (/^[\w-]+(\/[\w-]+)*$/u.test(requested)) {
@@ -5061,6 +5110,24 @@ export class AiAgentToolsService extends BaseService {
                 projectUuid: context.projectUuid,
                 path: getLtreePathFromContentAsCodePath(requested),
             });
+            if (
+                bySlug &&
+                !AiAgentToolsService.hasAgentSpaceAccess(
+                    context.spaceAccess,
+                    bySlug.uuid,
+                )
+            ) {
+                await this.recordRefusal(
+                    context,
+                    'document',
+                    action,
+                    'agent_scope',
+                    'document_destination_outside_agent_scope',
+                    undefined,
+                    documentUuid,
+                );
+                throw new NotFoundError('Space not found');
+            }
             if (
                 bySlug &&
                 AiAgentToolsService.hasAgentSpaceAccess(
@@ -5071,12 +5138,19 @@ export class AiAgentToolsService extends BaseService {
                 return bySlug;
             }
         }
-        const spaces = (
-            await this.projectService.getSpaces(
-                context.user,
-                context.projectUuid,
-            )
-        ).filter((space) =>
+        const allSpaces = await this.projectService.getSpaces(
+            context.user,
+            context.projectUuid,
+        );
+        const outsideNamed = allSpaces.find(
+            (space) =>
+                space.name.trim().toLowerCase() === requested.toLowerCase() &&
+                !AiAgentToolsService.hasAgentSpaceAccess(
+                    context.spaceAccess,
+                    space.uuid,
+                ),
+        );
+        const spaces = allSpaces.filter((space) =>
             AiAgentToolsService.hasAgentSpaceAccess(
                 context.spaceAccess,
                 space.uuid,
@@ -5087,6 +5161,18 @@ export class AiAgentToolsService extends BaseService {
             (space) => space.name.trim().toLowerCase() === wanted,
         );
         if (named.length === 1) return named[0];
+        if (named.length === 0 && outsideNamed) {
+            await this.recordRefusal(
+                context,
+                'document',
+                action,
+                'agent_scope',
+                'document_destination_outside_agent_scope',
+                undefined,
+                documentUuid,
+            );
+            throw new NotFoundError('Space not found');
+        }
         const describe = (list: typeof spaces) =>
             list
                 .slice(0, 5)
@@ -5127,7 +5213,12 @@ export class AiAgentToolsService extends BaseService {
             context.projectUuid,
             slug,
         );
-        const current = await this.documentContentResult(context, existing);
+        const current = await this.documentContentResult(
+            context,
+            existing,
+            null,
+            'update',
+        );
         if (edit.type === 'metadata') {
             const { type: _type, spaceSlug, ...metadata } = edit;
             const saved =
@@ -5225,7 +5316,12 @@ export class AiAgentToolsService extends BaseService {
                 'This Document is already in a Space. Only personal Documents can be saved to a Space.',
             );
         }
-        const space = await this.resolveDocumentSpace(context, spaceSlug);
+        const space = await this.resolveDocumentSpace(
+            context,
+            spaceSlug,
+            'update',
+            document.documentUuid,
+        );
         await this.documentService.moveToSpace(
             context.account,
             {

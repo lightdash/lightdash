@@ -1,6 +1,9 @@
 import { AgentActorSurface, type SessionUser } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { fromSession } from '../../auth/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -32,3 +35,27 @@ export const withAgentActionScope = <T>(
               }),
               run,
           );
+
+export const runContentVersionCallback = async (
+    callback: OnContentVersionCreated | undefined,
+    versionUuid: string,
+    objectUuid: string,
+): Promise<void> => {
+    const trx = new EventEmitter() as Knex.Transaction;
+    let commit!: () => void;
+    let rollback!: (error: unknown) => void;
+    trx.executionPromise = new Promise<unknown[]>((resolve, reject) => {
+        commit = () => resolve([]);
+        rollback = reject;
+    });
+    void trx.executionPromise.catch(() => {});
+    try {
+        await callback?.(trx, versionUuid, objectUuid);
+        trx.emit('query', { sql: 'COMMIT;' });
+        commit();
+        await trx.executionPromise;
+    } catch (error) {
+        rollback(error);
+        throw error;
+    }
+};

@@ -416,16 +416,18 @@ export class DocumentService extends BaseService {
                 createdByUserUuid: account.user.userUuid,
             },
             agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.dependencies.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'document',
+                    objectUuid,
+                    versionUuid,
+                    action: 'create',
+                }),
         );
-        await logAgentContentWrite({
-            model: this.dependencies.agentActionLogModel,
-            projectUuid,
-            agentIdentity,
-            objectType: 'document',
-            objectUuid: created.documentUuid,
-            versionUuid: created.version.versionUuid,
-            action: 'create',
-        });
         this.dependencies.analytics.track({
             event: 'document.created',
             userId: account.user.userUuid,
@@ -606,16 +608,18 @@ export class DocumentService extends BaseService {
             { ...input, content, expectedSpaceUuid: document.spaceUuid },
             account.user.userUuid,
             agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.dependencies.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'document',
+                    objectUuid,
+                    versionUuid,
+                    action: 'update',
+                }),
         );
-        await logAgentContentWrite({
-            model: this.dependencies.agentActionLogModel,
-            projectUuid,
-            agentIdentity,
-            objectType: 'document',
-            objectUuid: saved.documentUuid,
-            versionUuid: saved.version.versionUuid,
-            action: 'update',
-        });
         const updated = {
             ...saved,
             verification: await this.keepVerificationAfterUpdate(
@@ -741,10 +745,25 @@ export class DocumentService extends BaseService {
             },
         );
         if (verification === null && document.verification !== null) {
-            await this.dependencies.contentVerificationModel.unverify(
-                ContentType.DOCUMENT,
-                document.documentUuid,
-            );
+            const removed =
+                await this.dependencies.contentVerificationModel.unverify(
+                    ContentType.DOCUMENT,
+                    document.documentUuid,
+                );
+            if (removed) {
+                await logAgentContentWrite({
+                    model: this.dependencies.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: account.user.userUuid,
+                        organizationUuid: document.organizationUuid,
+                    }),
+                    projectUuid: document.projectUuid,
+                    objectType: 'document',
+                    objectUuid: document.documentUuid,
+                    versionUuid: null,
+                    action: 'unverify',
+                });
+            }
         }
         return verification;
     }
@@ -1908,7 +1927,10 @@ export class DocumentService extends BaseService {
         );
         const { enabled } = await this.dependencies.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: document.organizationUuid },
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
         });
         return {
             ...versions,
@@ -1940,7 +1962,10 @@ export class DocumentService extends BaseService {
         );
         const { enabled } = await this.dependencies.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: document.organizationUuid },
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
         });
         return {
             ...document,
@@ -2308,7 +2333,10 @@ export class DocumentService extends BaseService {
         }
         const { enabled } = await this.dependencies.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: document.organizationUuid },
+            user: {
+                organizationUuid: document.organizationUuid,
+                userUuid: account.user.userUuid,
+            },
         });
         return {
             ...document,

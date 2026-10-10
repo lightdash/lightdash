@@ -1,5 +1,8 @@
 import { Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -177,6 +180,9 @@ const newSchedulerPayload = {
 
 describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     const service = new SavedSqlService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as unknown as ProjectModel,
@@ -602,6 +608,9 @@ describe('SavedSqlService - hasAccess space-move gate', () => {
     };
 
     const service = new SavedSqlService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as unknown as ProjectModel,
@@ -715,4 +724,100 @@ describe('SavedSqlService - hasAccess space-move gate', () => {
             hasAccess({ savedSqlUuid, spaceUuid: 'new-space-uuid' }),
         ).rejects.toThrowError(/new space/);
     });
+});
+
+describe('SavedSqlService version attribution DTOs', () => {
+    test.each(
+        [true, false].flatMap((fromAccount) =>
+            [true, false].flatMap((enabled) =>
+                ['agent', 'legacy', 'human'].map((kind) => ({
+                    fromAccount,
+                    enabled,
+                    kind,
+                })),
+            ),
+        ),
+    )(
+        'uses viewer override with conflicting org flag (account=$fromAccount enabled=$enabled kind=$kind)',
+        async ({ fromAccount, enabled, kind }) => {
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: adminUser.userUuid },
+                surface: AgentActorSurface.MCP,
+                clientId: 'oauth-client',
+                agentUuid: kind === 'agent' ? 'agent-uuid' : null,
+            });
+            const storedClaim = { ...claim, act: { ...claim.act } };
+            if (kind === 'legacy') {
+                Reflect.deleteProperty(storedClaim.act, 'agent_uuid');
+            }
+            const model = new SavedSqlModel({
+                database: {} as never,
+                lightdashConfig: lightdashConfigMock,
+            });
+            vi.spyOn(model, 'find').mockResolvedValue([
+                {
+                    saved_sql_uuid: savedSqlUuid,
+                    name: 'SQL chart',
+                    organization_uuid: organizationUuid,
+                    project_uuid: projectUuid,
+                    space_uuid: spaceUuid,
+                    spaceName: 'Space',
+                    agent_identity: kind === 'human' ? null : storedClaim,
+                } as Parameters<typeof SavedSqlModel.convertSelectSavedSql>[0],
+            ]);
+            vi.spyOn(model, 'resolveColorPalette').mockResolvedValue(
+                undefined as never,
+            );
+            const featureFlagModel = {
+                get: vi.fn(async ({ user }) => ({
+                    id: FeatureFlags.AgentIdentity,
+                    enabled:
+                        user.userUuid === adminUser.userUuid
+                            ? enabled
+                            : !enabled,
+                })),
+            };
+            const service = new SavedSqlService({
+                featureFlagModel,
+                lightdashConfig: lightdashConfigMock,
+                analytics: analyticsMock,
+                projectModel: projectModel as unknown as ProjectModel,
+                savedSqlModel: model,
+                schedulerClient: schedulerClient as unknown as SchedulerClient,
+                schedulerModel: schedulerModel as unknown as SchedulerModel,
+                analyticsModel: {} as unknown as AnalyticsModel,
+                spacePermissionService:
+                    spacePermissionService as unknown as SpacePermissionService,
+                warehouseConnectionIdentityModel:
+                    {} as unknown as WarehouseConnectionIdentityModel,
+            });
+            const dto = fromAccount
+                ? await service.getSqlChartFromAccount(
+                      fromApiKey(adminUser, 'test'),
+                      projectUuid,
+                      savedSqlUuid,
+                  )
+                : await service.getSqlChart(
+                      adminUser,
+                      projectUuid,
+                      undefined,
+                      'sql-chart',
+                  );
+            if (enabled) {
+                expect(dto).toHaveProperty(
+                    'agentIdentity',
+                    kind === 'human' ? null : claim,
+                );
+            } else {
+                expect(dto).not.toHaveProperty('agentIdentity');
+            }
+            expect(featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: { organizationUuid, userUuid: adminUser.userUuid },
+            });
+            if (kind === 'legacy') {
+                expect(storedClaim.act).not.toHaveProperty('agent_uuid');
+            }
+        },
+    );
 });

@@ -122,6 +122,7 @@ import {
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -1428,7 +1429,7 @@ export class CoderService extends BaseService {
             objectType: 'direct_access_policy',
             objectUuid: resourceUuid,
             versionUuid: null,
-            action: 'grant',
+            action: 'replace',
         });
     }
 
@@ -4022,16 +4023,18 @@ export class CoderService extends BaseService {
                         user,
                         projectUuid,
                         agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid,
+                                agentIdentity,
+                                objectType: 'dashboard',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
-                    await logAgentContentWrite({
-                        model: this.agentActionLogModel,
-                        projectUuid,
-                        agentIdentity,
-                        objectType: 'dashboard',
-                        objectUuid: newDashboard.uuid,
-                        versionUuid: newDashboard.versionUuid,
-                        action: 'create',
-                    });
 
                     dashboardUuid = newDashboard.uuid;
                 } else {
@@ -4078,16 +4081,18 @@ export class CoderService extends BaseService {
                 user.userUuid,
                 createChart,
                 agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
-            await logAgentContentWrite({
-                model: this.agentActionLogModel,
-                projectUuid,
-                agentIdentity,
-                objectType: 'chart',
-                objectUuid: newChart.uuid,
-                versionUuid: null,
-                action: 'create',
-            });
 
             await this.syncVerification({
                 user,
@@ -4426,6 +4431,23 @@ export class CoderService extends BaseService {
         } = options;
         const project = await this.projectModel.get(projectUuid);
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+        });
+        const recordSqlWrite =
+            (action: string): OnContentVersionCreated =>
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'sql_chart',
+                    objectUuid,
+                    versionUuid,
+                    action,
+                });
         const auditedAbility = this.createAuditedAbility(user);
         const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
             {
@@ -4575,6 +4597,8 @@ export class CoderService extends BaseService {
                 sqlChartToCreate,
                 binding,
                 { slugMode: mode === 'create' ? 'unique' : 'exact' },
+                agentIdentity,
+                recordSqlWrite('create'),
             );
             const { savedSqlUuid, slug: createdSlug } = created;
 
@@ -4641,11 +4665,12 @@ export class CoderService extends BaseService {
                 },
             },
         };
-        if (binding === undefined) {
-            await this.savedSqlModel.update(sqlChartUpdate);
-        } else {
-            await this.savedSqlModel.update(sqlChartUpdate, binding);
-        }
+        await this.savedSqlModel.update(
+            sqlChartUpdate,
+            binding,
+            agentIdentity,
+            recordSqlWrite('update'),
+        );
 
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -5298,16 +5323,18 @@ export class CoderService extends BaseService {
                 user,
                 projectUuid,
                 agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'dashboard',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
-            await logAgentContentWrite({
-                model: this.agentActionLogModel,
-                projectUuid,
-                agentIdentity,
-                objectType: 'dashboard',
-                objectUuid: newDashboard.uuid,
-                versionUuid: newDashboard.versionUuid,
-                action: 'create',
-            });
 
             if (hasChartsInDashboard(newDashboard)) {
                 const copiedTiles = await Promise.all(
@@ -5341,16 +5368,18 @@ export class CoderService extends BaseService {
                     projectUuid,
                     undefined,
                     agentIdentity,
+                    (trx, versionUuid, objectUuid) =>
+                        logAgentContentWrite({
+                            trx,
+                            model: this.agentActionLogModel,
+                            projectUuid,
+                            agentIdentity,
+                            objectType: 'dashboard',
+                            objectUuid,
+                            versionUuid,
+                            action: 'update',
+                        }),
                 );
-                await logAgentContentWrite({
-                    model: this.agentActionLogModel,
-                    projectUuid,
-                    agentIdentity,
-                    objectType: 'dashboard',
-                    objectUuid: newDashboard.uuid,
-                    versionUuid: newDashboard.versionUuid,
-                    action: 'update',
-                });
             }
 
             await this.syncVerification({

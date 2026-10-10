@@ -309,6 +309,7 @@ describe('DashboardService', () => {
                 dashboardUuid,
             }),
             null,
+            expect.any(Function),
         );
     });
 

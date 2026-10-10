@@ -5,6 +5,7 @@ import {
     BulkActionable,
     CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
+    FeatureFlags,
     ForbiddenError,
     isValidFrequency,
     isValidTimezone,
@@ -37,6 +38,7 @@ import {
 import { getAccountWriteContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     SavedSqlModel,
@@ -55,8 +57,10 @@ import {
     SpacePermissionService,
     type AccessTarget,
 } from '../SpaceService/SpacePermissionService';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 
 type SavedSqlServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -74,6 +78,8 @@ export class SavedSqlService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
 {
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -94,6 +100,7 @@ export class SavedSqlService
 
     constructor(args: SavedSqlServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
@@ -413,8 +420,15 @@ export class SavedSqlService
             actorType: 'user',
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: savedChart.organization.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...savedChart,
+            ...withVersionAgentIdentity(savedChart, enabled),
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
@@ -505,8 +519,15 @@ export class SavedSqlService
             actorType: isEmbedded ? 'embed' : 'user',
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: savedChart.organization.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...savedChart,
+            ...withVersionAgentIdentity(savedChart, enabled),
             space: {
                 ...savedChart.space,
                 userAccess: embedWriteActions ? undefined : spaceCtx.access[0],

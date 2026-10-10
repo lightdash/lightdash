@@ -45,6 +45,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 /** A saved chart a Document link resolves to; `slugs` lists its current slug last. */
 export type SavedChartForLink = {
@@ -836,6 +837,7 @@ export class DocumentModel {
     async create(
         input: CreateDocument,
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<Document> {
         const { content, nextChartNumber } = assignDocumentChartIds(
             parseDocumentContent(DOCUMENT_SCHEMA_VERSION, input.content),
@@ -918,6 +920,11 @@ export class DocumentModel {
                 version.document_version_uuid,
                 content,
             );
+            await onVersionCreated?.(
+                transaction,
+                version.document_version_uuid,
+                document.document_uuid,
+            );
             return this.getWithDatabase(
                 transaction,
                 input.projectUuid,
@@ -934,6 +941,7 @@ export class DocumentModel {
         },
         createdByUserUuid: string,
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<Document> {
         return this.database.transaction(async (transaction) => {
             const row = await this.activeDocuments(transaction, projectUuid)
@@ -991,6 +999,11 @@ export class DocumentModel {
                     updated_at: new Date(),
                     next_chart_number: nextChartNumber,
                 });
+            await onVersionCreated?.(
+                transaction,
+                version.document_version_uuid,
+                documentUuid,
+            );
             return this.getWithDatabase(transaction, projectUuid, documentUuid);
         });
     }

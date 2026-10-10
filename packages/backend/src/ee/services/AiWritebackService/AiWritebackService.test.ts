@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
@@ -1509,7 +1510,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 sandboxAiWritebackDockerImage: 'lightdash-ai-writeback:local',
             },
             ai: { copilot: { providers: { anthropic } } },
-            aiWriteback: { legacyAnthropicApiKey: null },
+            aiWriteback: {
+                legacyAnthropicApiKey: null,
+                codingAgentMaxRepoSizeMb: 100,
+            },
         }) as AnyType;
 
     const runService = (
@@ -1525,6 +1529,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             projectModel: {
                 get: vi.fn().mockResolvedValue({
                     organizationUuid: ORG,
+                    projectUuid: 'p1',
                     name: 'Analytics',
                     dbtConnection: {
                         type: DbtProjectType.GITHUB,
@@ -1556,7 +1561,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             } as AnyType,
             ...serviceOverrides,
         });
-        return service.run({
+        return (
+            extraRunArgs.repoTarget
+                ? service.runEditRepo.bind(service)
+                : service.run.bind(service)
+        )({
             user: permittedUser(),
             projectUuid: 'p1',
             prompt: 'add a revenue metric',
@@ -2078,6 +2087,76 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
 
+    describe.each([
+        ...agentActionTestCases,
+        ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+        ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+    ] as const)(
+        'editRepo production pipeline: %s',
+        (_, surface, enabled, count) => {
+            test.each([
+                { changed: true, runUuid: 'run-1' },
+                { changed: false, runUuid: 'run-1' },
+                { changed: true, runUuid: undefined },
+            ])(
+                'changed=$changed run=$runUuid',
+                async ({ changed, runUuid }) => {
+                    const sandbox = fakeSandbox(0, changed);
+                    fakeSandboxProvider.create.mockResolvedValue(sandbox);
+                    vi.mocked(
+                        listReposAccessibleToInstallation,
+                    ).mockResolvedValue([
+                        {
+                            owner: 'acme',
+                            repo: 'analytics',
+                            defaultBranch: 'main',
+                            private: true,
+                        },
+                    ]);
+                    vi.mocked(getRepoMetadata).mockResolvedValue({
+                        defaultBranch: 'main',
+                        sizeKb: 1024,
+                    });
+                    const insert = vi.fn().mockResolvedValue(undefined);
+                    const result = await withAgentActionScope(
+                        permittedUser(),
+                        surface,
+                        enabled,
+                        () =>
+                            runService(
+                                sandbox,
+                                {
+                                    repoTarget: 'acme/analytics',
+                                    aiWritebackRunUuid: runUuid,
+                                },
+                                { agentActionLogModel: { insert } },
+                            ),
+                    );
+                    expect(result.commitSha !== null).toBe(changed);
+                    expect(insert).toHaveBeenCalledTimes(changed ? count : 0);
+                    if (changed && count)
+                        expect(insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                object_type: 'ai_writeback_run',
+                                object_uuid: runUuid ?? null,
+                                action: 'update',
+                                outcome: 'allowed',
+                                agent_identity: expect.objectContaining({
+                                    act: expect.objectContaining({ surface }),
+                                }),
+                            }),
+                        );
+                    expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                        'analytics',
+                    );
+                    expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                        'github.com',
+                    );
+                },
+            );
+        },
+    );
+
     it('opens no PR when the agent produced no changes', async () => {
         const sandbox = fakeSandbox(0, false);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -2240,14 +2319,7 @@ describe('AiWritebackService repo read access', () => {
             const { service } = buildWithInstallation();
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
-            ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
-            ]);
+            ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
@@ -2258,14 +2330,7 @@ describe('AiWritebackService repo read access', () => {
             expect(listReposAccessibleToInstallation).toHaveBeenCalledWith({
                 installationId: 'inst-1',
             });
-            expect(repos).toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
-            ]);
+            expect(repos).toEqual([{ owner: 'acme', repo: 'analytics' }]);
             expect(access.installationToken).toBe('install-token');
             // No linked user token → the user listing is never fetched.
             expect(listReposAccessibleToUser).not.toHaveBeenCalled();
@@ -2276,12 +2341,7 @@ describe('AiWritebackService repo read access', () => {
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'secret-infrastructure',
@@ -2296,12 +2356,7 @@ describe('AiWritebackService repo read access', () => {
             });
 
             await expect(access.listRepos()).resolves.toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
             ]);
         });
 
@@ -2345,12 +2400,7 @@ describe('AiWritebackService repo read access', () => {
             (
                 listReposAccessibleToInstallation as import('vitest').Mock
             ).mockResolvedValue([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'additional-analytics',
@@ -2371,12 +2421,7 @@ describe('AiWritebackService repo read access', () => {
             });
 
             await expect(access.listRepos()).resolves.toEqual([
-                {
-                    owner: 'acme',
-                    repo: 'analytics',
-                    defaultBranch: 'main',
-                    private: true,
-                },
+                { owner: 'acme', repo: 'analytics' },
                 {
                     owner: 'acme',
                     repo: 'additional-analytics',
@@ -3171,6 +3216,81 @@ describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () 
     });
 
     beforeEach(() => vi.clearAllMocks());
+
+    test.each([
+        ['denylist', 'lightdash/lightdash', 'repository_denied'],
+        ['user intersection', 'acme/private', 'repository_user_access_denied'],
+        ['installation', 'acme/other', 'repository_installation_access_denied'],
+        ['provider failure', 'acme/analytics', null],
+    ])(
+        'records only policy refusals: %s',
+        async (scenario, repoTarget, reasonCode) => {
+            const user = userWithManage();
+            const service = buildService({
+                githubAppService: {
+                    getValidUserToken: vi.fn().mockResolvedValue('user-token'),
+                },
+            });
+            vi.spyOn(
+                service['githubProvider'],
+                'resolveInstallation',
+            ).mockResolvedValue({
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+            } as AnyType);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'private',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+            vi.mocked(listReposAccessibleToUser).mockResolvedValue([]);
+            if (scenario === 'provider failure')
+                vi.mocked(listReposAccessibleToUser).mockRejectedValueOnce(
+                    new Error('provider unavailable'),
+                );
+            await expect(
+                withAgentActionScope(
+                    user,
+                    agentActionTestCases[1][1],
+                    true,
+                    () =>
+                        service.resolveWritableRepoTarget({
+                            user,
+                            project: githubProject(),
+                            repoTarget,
+                        }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                reasonCode ? 1 : 0,
+            );
+            if (reasonCode)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        action: 'update',
+                        policy_layer: 'writeback_policy',
+                        reason_code: reasonCode,
+                    }),
+                );
+            expect(
+                JSON.stringify(
+                    vi.mocked(service['agentActionLogModel'].insert).mock.calls,
+                ),
+            ).not.toContain(repoTarget);
+        },
+    );
 
     it('rejects an installation repository unrelated to the invoking project when the user is not linked', async () => {
         const service = buildService();
@@ -4519,123 +4639,124 @@ describe('AiWritebackService regional boundary', () => {
     });
 });
 
-describe.each(agentActionTestCases)(
-    'writeback agent records: %s',
-    (_, surface, enabled, count) => {
-        const makeUser = (allowed = true) => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            if (allowed) can('manage', 'SourceCode');
-            return {
-                ...defaultSessionUser,
-                userUuid: 'user',
-                organizationUuid: ORG,
-                ability: build(),
-            };
+describe.each([
+    ...agentActionTestCases,
+    ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+    ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+] as const)('writeback agent records: %s', (_, surface, enabled, count) => {
+    const makeUser = (allowed = true) => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (allowed) can('manage', 'SourceCode');
+        return {
+            ...defaultSessionUser,
+            userUuid: 'user',
+            organizationUuid: ORG,
+            ability: build(),
         };
-        const runRow = {
-            ai_writeback_run_uuid: 'run',
-            organization_uuid: ORG,
-            project_uuid: 'project',
-            source: 'mcp',
-            status: 'agent',
-            created_at: new Date(),
-            updated_at: new Date(),
-        };
-        test.each(['enqueue', 'pending', 'cancel', 'close'] as const)(
-            '%s',
-            async (operation) => {
-                const service = buildService({
-                    projectModel: {
-                        get: vi
-                            .fn()
-                            .mockResolvedValue({ organizationUuid: ORG }),
-                    },
-                    aiWritebackRunModel: {
-                        create: vi.fn().mockResolvedValue(runRow),
-                        findByUuid: vi.fn().mockResolvedValue(runRow),
-                        markCancelled: vi.fn().mockResolvedValue(true),
-                        findLatestByProjectUuidAndPrUrl: vi
-                            .fn()
-                            .mockResolvedValue(runRow),
-                    },
-                    pullRequestsModel: {
-                        findByAiThreadUuidAndUrl: vi
-                            .fn()
-                            .mockResolvedValue(null),
-                        findByProjectAndUrl: vi.fn().mockResolvedValue(null),
-                    },
-                    ciService: {
-                        closePullRequest: vi
-                            .fn()
-                            .mockResolvedValue({ closed: true }),
-                    },
-                });
-                const user = makeUser();
-                await withAgentActionScope(user, surface, enabled, async () => {
-                    if (operation === 'cancel')
-                        return service.cancelRun(user, 'run');
-                    if (operation === 'close')
-                        return service.closePullRequest({
-                            user,
-                            projectUuid: 'project',
-                            aiThreadUuid: 'thread',
-                            prUrl: 'secret-url',
-                        });
-                    if (operation === 'pending')
-                        return service.createPendingRun({
-                            user,
-                            projectUuid: 'project',
-                            aiThreadUuid: undefined,
-                            source: 'mcp',
-                            promptUuid: null,
-                            toolCallId: null,
-                        });
-                    return service.enqueueWriteback({
-                        user,
-                        projectUuid: 'project',
-                        source: 'mcp',
-                        prompt: 'secret-prompt',
-                    });
-                });
-                const insert = vi.mocked(service['agentActionLogModel'].insert);
-                expect(insert).toHaveBeenCalledTimes(count);
-                if (count)
-                    expect(insert).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            object_type: 'ai_writeback_run',
-                            object_uuid: 'run',
-                            action:
-                                operation === 'pending' ? 'enqueue' : operation,
-                            outcome: 'allowed',
-                        }),
-                    );
-                expect(JSON.stringify(insert.mock.calls)).not.toContain(
-                    'secret',
-                );
-            },
-        );
-        test('records source-code policy refusal before creating a run', async () => {
+    };
+    const runRow = {
+        ai_writeback_run_uuid: 'run',
+        organization_uuid: ORG,
+        project_uuid: 'project',
+        source: 'mcp',
+        status: 'agent',
+        created_at: new Date(),
+        updated_at: new Date(),
+    };
+    test.each(['enqueue', 'pending', 'cancel', 'close'] as const)(
+        '%s',
+        async (operation) => {
             const service = buildService({
                 projectModel: {
                     get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
                 },
+                aiWritebackRunModel: {
+                    create: vi.fn().mockResolvedValue(runRow),
+                    findByUuid: vi.fn().mockResolvedValue(runRow),
+                    markCancelled: vi.fn().mockResolvedValue(true),
+                    findLatestByProjectUuidAndPrUrl: vi
+                        .fn()
+                        .mockResolvedValue(runRow),
+                },
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(null),
+                    findByProjectAndUrl: vi.fn().mockResolvedValue(null),
+                },
+                ciService: {
+                    closePullRequest: vi
+                        .fn()
+                        .mockResolvedValue({ closed: true }),
+                },
             });
-            const user = makeUser(false);
-            await expect(
-                withAgentActionScope(user, surface, enabled, () =>
-                    service.createPendingRun({
+            const user = makeUser();
+            await withAgentActionScope(user, surface, enabled, async () => {
+                if (operation === 'cancel')
+                    return service.cancelRun(user, 'run');
+                if (operation === 'close')
+                    return service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'secret-url',
+                    });
+                if (operation === 'pending')
+                    return service.createPendingRun({
                         user,
                         projectUuid: 'project',
                         aiThreadUuid: undefined,
                         source: 'mcp',
                         promptUuid: null,
                         toolCallId: null,
+                    });
+                return service.enqueueWriteback({
+                    user,
+                    projectUuid: 'project',
+                    source: 'mcp',
+                    prompt: 'secret-prompt',
+                });
+            });
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'ai_writeback_run',
+                        object_uuid: 'run',
+                        action: operation === 'pending' ? 'enqueue' : operation,
+                        outcome: 'allowed',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+        },
+    );
+    test.each(['conversation', 'project'] as const)(
+        'records %s binding refusal',
+        async (binding) => {
+            const service = buildService({
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi
+                        .fn()
+                        .mockResolvedValue(
+                            binding === 'project'
+                                ? { projectUuid: 'different-project' }
+                                : null,
+                        ),
+                    findByProjectAndUrl: vi
+                        .fn()
+                        .mockResolvedValue({ projectUuid: 'project' }),
+                },
+            });
+            const user = makeUser();
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'private-url',
                     }),
                 ),
             ).rejects.toThrow(ForbiddenError);
-            expect(
-                service['aiWritebackRunModel'].create,
-            ).not.toHaveBeenCalled();
             expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
                 count,
             );
@@ -4645,14 +4766,108 @@ describe.each(agentActionTestCases)(
                 ).toHaveBeenCalledWith(
                     expect.objectContaining({
                         outcome: 'denied',
+                        action: 'close',
                         policy_layer: 'writeback_policy',
-                        reason_code: 'source_code_manage_forbidden',
-                        object_uuid: null,
+                        reason_code:
+                            binding === 'project'
+                                ? 'project_binding_mismatch'
+                                : 'conversation_binding_mismatch',
                     }),
                 );
+        },
+    );
+    test.each(['missing', 'mismatch'] as const)(
+        'records conversation source %s',
+        async (source) => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({
+                        organizationUuid: ORG,
+                        projectUuid: 'project',
+                        dbtConnection: bitbucketConnection,
+                    }),
+                },
+                pullRequestsModel: {
+                    findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue({
+                        projectUuid: 'project',
+                        provider: PullRequestProvider.BITBUCKET,
+                    }),
+                },
+                aiWritebackThreadModel: {
+                    findByAiThreadUuidAndPrUrl: vi.fn().mockResolvedValue(
+                        source === 'missing'
+                            ? null
+                            : {
+                                  project_dbt_source_uuid:
+                                      'unconfigured-source',
+                              },
+                    ),
+                },
+            });
+            const user = makeUser();
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service.closePullRequest({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: 'thread',
+                        prUrl: 'private-url',
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        action: 'close',
+                        policy_layer: 'writeback_policy',
+                        reason_code:
+                            source === 'missing'
+                                ? 'conversation_source_missing'
+                                : 'conversation_source_mismatch',
+                    }),
+                );
+        },
+    );
+    test('records source-code policy refusal before creating a run', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            },
         });
-    },
-);
+        const user = makeUser(false);
+        await expect(
+            withAgentActionScope(user, surface, enabled, () =>
+                service.createPendingRun({
+                    user,
+                    projectUuid: 'project',
+                    aiThreadUuid: undefined,
+                    source: 'mcp',
+                    promptUuid: null,
+                    toolCallId: null,
+                }),
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service['aiWritebackRunModel'].create).not.toHaveBeenCalled();
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+            count,
+        );
+        if (count)
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    outcome: 'denied',
+                    policy_layer: 'writeback_policy',
+                    reason_code: 'source_code_manage_forbidden',
+                    object_uuid: null,
+                }),
+            );
+    });
+});
 
 test('a committed writeback run retains its initiating action when dispatch fails', async () => {
     const { build, can } = new AbilityBuilder<MemberAbility>(Ability);

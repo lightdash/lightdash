@@ -114,10 +114,12 @@ const buildUser = (): SessionUser => {
 const buildService = ({
     canView,
     agentIdentityEnabled = false,
+    organizationIdentityEnabled = agentIdentityEnabled,
     agentIdentity = null,
 }: {
     canView: boolean;
     agentIdentityEnabled?: boolean;
+    organizationIdentityEnabled?: boolean;
     agentIdentity?: AgentIdentityClaim | null;
 }) => {
     const rows = VERSIONS.map((row) => ({
@@ -179,12 +181,24 @@ const buildService = ({
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: async ({ featureFlagId }: { featureFlagId: string }) => ({
-                enabled:
-                    featureFlagId === FeatureFlags.AgentIdentity
+            get: async ({
+                featureFlagId,
+                user: viewer,
+            }: {
+                featureFlagId: string;
+                user?: { userUuid?: string };
+            }) => {
+                const viewerEnabled =
+                    viewer?.userUuid === USER_UUID
                         ? agentIdentityEnabled
-                        : true,
-            }),
+                        : organizationIdentityEnabled;
+                return {
+                    enabled:
+                        featureFlagId === FeatureFlags.AgentIdentity
+                            ? viewerEnabled
+                            : true,
+                };
+            },
         } as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
@@ -227,7 +241,7 @@ const buildService = ({
 
 describe('AppGenerateService version thumbnails', () => {
     it.each([true, false])(
-        'gates agent attribution when enabled=%s',
+        'uses the viewer override over the opposite org flag for app DTOs (%s)',
         async (enabled) => {
             const agentIdentity = buildAgentIdentityClaim({
                 subject: { type: 'user', uuid: USER_UUID },
@@ -237,6 +251,7 @@ describe('AppGenerateService version thumbnails', () => {
             const service = buildService({
                 canView: true,
                 agentIdentityEnabled: enabled,
+                organizationIdentityEnabled: !enabled,
                 agentIdentity,
             });
             const { versions } = await service.getAppVersions(

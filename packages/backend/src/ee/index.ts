@@ -433,6 +433,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             projectContextService: ({ models }) =>
                 new ProjectContextService({
+                    agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),

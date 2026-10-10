@@ -64,6 +64,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 import { getFullTextSearchFilterSql } from './SearchModel/utils/search';
 
 type AppModelArguments = {
@@ -170,6 +171,7 @@ export class AppModel {
             thread?: Pick<CreateAppThreadArgs, 'origin' | 'aiThreadUuid'>;
         },
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<{ app: DbApp; version: DbAppVersion; thread: DbAppThread }> {
         return this.database.transaction(async (trx) => {
             const appId = app.app_id ?? uuidv4();
@@ -262,6 +264,11 @@ export class AppModel {
                         : null,
                 })
                 .returning('*');
+            await onVersionCreated?.(
+                trx,
+                versionRow.app_version_id,
+                appRow.app_id,
+            );
             return { app: appRow, version: versionRow, thread };
         });
     }

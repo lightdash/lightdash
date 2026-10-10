@@ -725,16 +725,18 @@ export class DashboardService
                 slug: chartToDuplicate.slug,
             },
             agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'chart',
+                    objectUuid,
+                    versionUuid,
+                    action: 'create',
+                }),
         );
-        await logAgentContentWrite({
-            model: this.agentActionLogModel,
-            projectUuid,
-            agentIdentity,
-            objectType: 'chart',
-            objectUuid: duplicatedChart.uuid,
-            versionUuid: null,
-            action: 'create',
-        });
 
         // Best effort: the chart has already been duplicated at this point, so
         // missing explore metadata should not fail the parent dashboard copy.
@@ -3610,7 +3612,10 @@ export class DashboardService
 
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: dashboardDao.organizationUuid },
+            user: {
+                organizationUuid: dashboardDao.organizationUuid,
+                userUuid: user.userUuid,
+            },
         });
         return {
             history: versions.map((version) =>
@@ -3755,7 +3760,10 @@ export class DashboardService
 
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.AgentIdentity,
-            user: { organizationUuid: dashboardDao.organizationUuid },
+            user: {
+                organizationUuid: dashboardDao.organizationUuid,
+                userUuid: user.userUuid,
+            },
         });
         return {
             ...withVersionAgentIdentity(versionSummary, enabled),

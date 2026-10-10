@@ -290,21 +290,33 @@ describe('DocumentService views', () => {
 describe('DocumentService', () => {
     describe('version history', () => {
         test.each([true, false])(
-            'gates version attribution when enabled=%s',
+            'uses the viewer override over the opposite org flag for all Document DTOs (%s)',
             async (enabled) => {
                 const { service, documentModel, featureFlagModel } = setup();
                 featureFlagModel.get.mockImplementation(
-                    async ({ featureFlagId }) => ({
-                        enabled:
-                            featureFlagId === FeatureFlags.AgentIdentity
-                                ? enabled
-                                : true,
-                    }),
+                    async ({ featureFlagId, user: viewer }) => {
+                        const viewerEnabled =
+                            viewer?.userUuid === userUuid ? enabled : !enabled;
+                        return {
+                            enabled:
+                                featureFlagId === FeatureFlags.AgentIdentity
+                                    ? viewerEnabled
+                                    : true,
+                        };
+                    },
                 );
                 const agentIdentity = buildAgentIdentityClaim({
                     subject: { type: 'user', uuid: userUuid },
                     surface: AgentActorSurface.MCP,
                     clientId: null,
+                });
+                documentModel.get.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
+                });
+                documentModel.getBySlug.mockResolvedValue({
+                    ...document,
+                    version: { ...document.version, agentIdentity },
                 });
                 documentModel.getVersion.mockResolvedValue({
                     ...document,
@@ -327,7 +339,22 @@ describe('DocumentService', () => {
                     documentUuid,
                     'old-version',
                 );
-                for (const dto of [history.items[0], historical.version]) {
+                const current = await service.getByIdOrSlug(
+                    makeAccount(),
+                    projectUuid,
+                    documentUuid,
+                );
+                const bySlug = await service.getBySlug(
+                    makeAccount(),
+                    projectUuid,
+                    document.slug,
+                );
+                for (const dto of [
+                    history.items[0],
+                    historical.version,
+                    current.version,
+                    bySlug.version,
+                ]) {
                     if (enabled)
                         expect(dto).toHaveProperty(
                             'agentIdentity',

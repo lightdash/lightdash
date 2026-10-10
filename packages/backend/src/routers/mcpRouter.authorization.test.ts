@@ -146,6 +146,7 @@ const requestMcp = async ({
     account,
     documentsEnabled = false,
     agentIdentityEnabled = false,
+    configureService,
     method,
     path,
     requestBody,
@@ -153,12 +154,14 @@ const requestMcp = async ({
     account: Account;
     documentsEnabled?: boolean;
     agentIdentityEnabled?: boolean;
+    configureService?: (service: McpService) => void;
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     requestBody?: Record<string, unknown>;
 }) => {
     const app = express();
     const mcpService = createMcpService(documentsEnabled);
+    configureService?.(mcpService);
     vi.mocked(mcpService.isAgentIdentityEnabled).mockResolvedValue(
         agentIdentityEnabled,
     );
@@ -575,3 +578,81 @@ describe('trusted MCP execution identity', () => {
         expect(response.status).toBe(200);
     });
 });
+
+describe.each([true, false])(
+    'hidden data app dispatch refusals identity=%s',
+    (enabled) => {
+        describe.each([true, false])('data apps=%s', (dataAppsEnabled) => {
+            test.each([
+                ['generate_data_app', 'create'],
+                ['iterate_data_app', 'update'],
+            ])('%s is recorded before SDK dispatch', async (name, action) => {
+                const insert = vi.fn().mockResolvedValue(undefined);
+                transport.handleRequest.mockImplementationOnce(
+                    (_req: unknown, res: Response) => {
+                        expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                        res.status(200).json({
+                            error: { code: -32602, message: 'Tool not found' },
+                        });
+                    },
+                );
+                const { response } = await requestMcp({
+                    account: createAccount({
+                        type: 'oauth',
+                        scopes: ['mcp:write'],
+                    }),
+                    agentIdentityEnabled: enabled,
+                    method: 'POST',
+                    configureService: (service) =>
+                        Object.assign(service, {
+                            recordDisabledToolRefusal:
+                                McpService.prototype.recordDisabledToolRefusal,
+                            agentActionLogModel: { insert },
+                            featureFlagService: {
+                                get: vi.fn().mockResolvedValue({
+                                    enabled: dataAppsEnabled,
+                                }),
+                            },
+                        }),
+                    requestBody: {
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'tools/call',
+                        params: {
+                            name,
+                            arguments: {
+                                prompt: 'private prompt',
+                                projectUuid: PROJECT_UUID,
+                            },
+                        },
+                    },
+                });
+                expect(response.status).toBe(200);
+                expect(insert).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                if (enabled)
+                    expect(insert).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({
+                            action,
+                            object_type: 'app',
+                            outcome: 'denied',
+                            policy_layer: dataAppsEnabled
+                                ? 'casl'
+                                : 'organization_setting',
+                            reason_code: dataAppsEnabled
+                                ? 'data_app_create_forbidden'
+                                : 'data_apps_disabled',
+                            agent_identity: expect.objectContaining({
+                                act: expect.objectContaining({
+                                    surface: AgentActorSurface.MCP,
+                                    client_id: 'authenticated-client',
+                                }),
+                            }),
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'private prompt',
+                );
+            });
+        });
+    },
+);

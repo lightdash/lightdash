@@ -1056,17 +1056,18 @@ export class PromoteService extends BaseService {
                         transaction,
                         undefined,
                         agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid: changeChart.projectUuid,
+                                agentIdentity,
+                                objectType: 'chart',
+                                objectUuid,
+                                versionUuid,
+                                action: 'update',
+                            }),
                     );
-                    await logAgentContentWrite({
-                        trx: transaction,
-                        model: this.agentActionLogModel,
-                        projectUuid: changeChart.projectUuid,
-                        agentIdentity,
-                        objectType: 'chart',
-                        objectUuid: changeChart.uuid,
-                        versionUuid: null,
-                        action: 'update',
-                    });
                 });
 
                 const updatedChart = await this.savedChartModel.get(
@@ -1117,16 +1118,18 @@ export class PromoteService extends BaseService {
                             forceSlug: true,
                         },
                         agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid: changeChart.projectUuid,
+                                agentIdentity,
+                                objectType: 'chart',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
-                    await logAgentContentWrite({
-                        model: this.agentActionLogModel,
-                        projectUuid: changeChart.projectUuid,
-                        agentIdentity,
-                        objectType: 'chart',
-                        objectUuid: createdChart.uuid,
-                        versionUuid: null,
-                        action: 'create',
-                    });
 
                     return {
                         ...createdChart,
@@ -1251,16 +1254,18 @@ export class PromoteService extends BaseService {
                         sqlChartUpdate,
                         binding,
                         agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid: sqlChartChange.data.projectUuid,
+                                agentIdentity,
+                                objectType: 'sql_chart',
+                                objectUuid,
+                                versionUuid,
+                                action: 'update',
+                            }),
                     );
-                    await logAgentContentWrite({
-                        model: this.agentActionLogModel,
-                        projectUuid: sqlChartChange.data.projectUuid,
-                        agentIdentity,
-                        objectType: 'sql_chart',
-                        objectUuid: updated.savedSqlUuid,
-                        versionUuid: updated.savedSqlVersionUuid,
-                        action: 'update',
-                    });
                     return updated;
                 }),
         );
@@ -1282,16 +1287,18 @@ export class PromoteService extends BaseService {
                         binding,
                         { slugMode: 'exact' },
                         agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid: sqlChartChange.data.projectUuid,
+                                agentIdentity,
+                                objectType: 'sql_chart',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
-                    await logAgentContentWrite({
-                        model: this.agentActionLogModel,
-                        projectUuid: sqlChartChange.data.projectUuid,
-                        agentIdentity,
-                        objectType: 'sql_chart',
-                        objectUuid: created.savedSqlUuid,
-                        versionUuid: created.savedSqlVersionUuid,
-                        action: 'create',
-                    });
                     return created;
                 }),
         );
@@ -1949,16 +1956,18 @@ export class PromoteService extends BaseService {
             user,
             promotedDashboard.projectUuid,
             agentIdentity,
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid: promotedDashboard.projectUuid,
+                    agentIdentity,
+                    objectType: 'dashboard',
+                    objectUuid,
+                    versionUuid,
+                    action: 'create',
+                }),
         );
-        await logAgentContentWrite({
-            model: this.agentActionLogModel,
-            projectUuid: promotedDashboard.projectUuid,
-            agentIdentity,
-            objectType: 'dashboard',
-            objectUuid: newDashboard.uuid,
-            versionUuid: newDashboard.versionUuid,
-            action: 'create',
-        });
 
         // Update charts within dashboards with the new dashboard uuid
         const updatedCharts = promotionChanges.charts.map((chartChange) => {
@@ -2009,29 +2018,6 @@ export class PromoteService extends BaseService {
         });
         const promotedDashboard = dahsboardChange.data;
 
-        if (dahsboardChange.action === PromotionAction.UPDATE) {
-            const currentDashboard = await this.dashboardModel.getByIdOrSlug(
-                promotedDashboard.uuid,
-                { projectUuid: promotedDashboard.projectUuid },
-            );
-            if (currentDashboard.slug !== promotedDashboard.slug) {
-                await this.dashboardModel.renameSlug({
-                    projectUuid: promotedDashboard.projectUuid,
-                    dashboardUuid: promotedDashboard.uuid,
-                    from: currentDashboard.slug,
-                    to: promotedDashboard.slug,
-                });
-            }
-            // TODO Check if we need to update the dashboard
-            // We also update dashboard name and description if they have changed
-            await this.dashboardModel.update(promotedDashboard.uuid, {
-                name: promotedDashboard.name,
-                description: promotedDashboard.description,
-                spaceUuid: promotedDashboard.spaceUuid,
-                ownerUserUuid: promotedDashboard.owner?.userUuid ?? null,
-            });
-        }
-
         const updatedDashboard = await this.dashboardModel.addVersion(
             promotedDashboard.uuid,
             promotedDashboard,
@@ -2039,16 +2025,51 @@ export class PromoteService extends BaseService {
             promotedDashboard.projectUuid,
             undefined,
             agentIdentity,
+            async (trx, versionUuid, objectUuid) => {
+                if (dahsboardChange.action === PromotionAction.UPDATE) {
+                    const currentDashboard =
+                        await this.dashboardModel.getByIdOrSlug(
+                            promotedDashboard.uuid,
+                            { projectUuid: promotedDashboard.projectUuid },
+                        );
+                    if (currentDashboard.slug !== promotedDashboard.slug) {
+                        await this.dashboardModel.renameSlug(
+                            {
+                                projectUuid: promotedDashboard.projectUuid,
+                                dashboardUuid: promotedDashboard.uuid,
+                                from: currentDashboard.slug,
+                                to: promotedDashboard.slug,
+                            },
+                            trx,
+                        );
+                    }
+                    // TODO Check if we need to update the dashboard
+                    // We also update dashboard name and description if they have changed
+                    await this.dashboardModel.update(
+                        promotedDashboard.uuid,
+                        {
+                            name: promotedDashboard.name,
+                            description: promotedDashboard.description,
+                            spaceUuid: promotedDashboard.spaceUuid,
+                            ownerUserUuid:
+                                promotedDashboard.owner?.userUuid ?? null,
+                        },
+                        trx,
+                    );
+                }
+
+                await logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid: promotedDashboard.projectUuid,
+                    agentIdentity,
+                    objectType: 'dashboard',
+                    objectUuid,
+                    versionUuid,
+                    action: 'update',
+                });
+            },
         );
-        await logAgentContentWrite({
-            model: this.agentActionLogModel,
-            projectUuid: promotedDashboard.projectUuid,
-            agentIdentity,
-            objectType: 'dashboard',
-            objectUuid: updatedDashboard.uuid,
-            versionUuid: updatedDashboard.versionUuid,
-            action: 'update',
-        });
 
         return {
             ...promotionChanges,

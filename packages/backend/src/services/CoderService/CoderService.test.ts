@@ -7,8 +7,16 @@ import {
     DashboardFilterRule,
     DashboardTileTarget,
     DashboardTileTypes,
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     PromotionAction,
+    SpaceMemberRole,
 } from '@lightdash/common';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
 import { withTileWarnings } from './dashboardReferences';
 
@@ -2671,3 +2679,93 @@ describe('content-as-code access split', () => {
         ).resolves.toMatchObject({ dashboards: [] });
     });
 });
+
+describe.each(agentActionTestCases)(
+    'direct access replacement ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each(['remove', 'replace', 'unchanged'] as const)(
+            '%s',
+            async (operation) => {
+                const original = [
+                    {
+                        principal: {
+                            type: DirectAccessPrincipalType.USER,
+                            uuid: 'private-old-recipient',
+                        },
+                        role: SpaceMemberRole.VIEWER,
+                    },
+                ];
+                let persistedPolicy = original;
+                const policies = {
+                    unchanged: null,
+                    remove: [],
+                    replace: [
+                        {
+                            principal: {
+                                type: DirectAccessPrincipalType.USER,
+                                uuid: 'private-old-recipient',
+                            },
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                        {
+                            principal: {
+                                type: DirectAccessPrincipalType.GROUP,
+                                uuid: 'private-new-group',
+                            },
+                            role: SpaceMemberRole.VIEWER,
+                        },
+                    ],
+                };
+                const assignments = policies[operation];
+                const replacePolicy = vi.fn(
+                    async (
+                        _account,
+                        _projectUuid,
+                        _resourceType,
+                        _resourceUuid,
+                        replacement,
+                    ) => {
+                        persistedPolicy = replacement;
+                    },
+                );
+                const insert = vi.fn().mockResolvedValue(undefined);
+                const service = new CoderService({
+                    agentActionLogModel: { insert },
+                    directAccessService: { replacePolicy },
+                } as AnyType);
+                await withAgentActionScope(
+                    defaultSessionUser,
+                    surface,
+                    enabled,
+                    () =>
+                        service.applyDirectAccessPolicy(
+                            defaultSessionUser,
+                            'project',
+                            DirectAccessResourceType.CHART,
+                            'chart',
+                            assignments,
+                        ),
+                );
+                expect(persistedPolicy).toEqual(assignments ?? original);
+                expect(replacePolicy).toHaveBeenCalledTimes(
+                    assignments === null ? 0 : 1,
+                );
+                expect(insert).toHaveBeenCalledTimes(
+                    assignments === null ? 0 : count,
+                );
+                if (assignments !== null && count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'direct_access_policy',
+                            object_uuid: 'chart',
+                            action: 'replace',
+                            outcome: 'allowed',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'private-',
+                );
+            },
+        );
+    },
+);

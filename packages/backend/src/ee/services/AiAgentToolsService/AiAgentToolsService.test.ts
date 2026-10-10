@@ -4,6 +4,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
+    ChartType,
     ContentType,
     DimensionType,
     Explore,
@@ -13,6 +14,7 @@ import {
     JobStatusType,
     NotFoundError,
     PossibleAbilities,
+    PromotionAction,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
@@ -27,12 +29,15 @@ import {
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
+import { EventEmitter } from 'events';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import {
     agentActionTestCases,
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import { CoderService } from '../../../services/CoderService/CoderService';
+import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -4808,6 +4813,7 @@ describe.each(agentActionTestCases)(
                         makeRuntimeContext({ spaceAccess: ['space'] }),
                         'secret-path',
                         'not found',
+                        'update',
                     ),
                 ),
             ).rejects.toThrow(NotFoundError);
@@ -4877,6 +4883,283 @@ test.each(agentActionTestCases)(
         expect(JSON.stringify(insert.mock.calls)).not.toContain('caller-slug');
         expect(JSON.stringify(insert.mock.calls)).not.toContain(
             'private permission details',
+        );
+    },
+);
+
+test.each(['read', 'update'] as const)(
+    'chart scope refusal preserves %s operation through the reader',
+    async (action) => {
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({
+                    charts: [{ slug: 'chart', spaceSlug: 'outside' }],
+                }),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+            spaceModel: {
+                hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed'] }),
+        );
+        await expect(
+            withAgentActionScope(user, agentActionTestCases[1][1], true, () =>
+                action === 'read'
+                    ? runtime.readContent({ type: 'chart', slug: 'chart' })
+                    : runtime.editContent({
+                          type: 'chart',
+                          slug: 'chart',
+                          patch: [],
+                      }),
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(
+            service['agentActionLogModel'].insert,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                action,
+                outcome: 'denied',
+                policy_layer: 'agent_scope',
+            }),
+        );
+    },
+);
+
+describe.each(agentActionTestCases)(
+    'content tool service wiring: %s',
+    (_, surface, enabled, count) => {
+        test.each(['chart', 'dashboard'] as const)(
+            'creates and edits %s through production services',
+            async (type) => {
+                const content = {
+                    name: 'Original',
+                    slug: 'content',
+                    spaceSlug: 'space',
+                    description: null,
+                    chartConfig: { type: ChartType.TABLE },
+                    metricQuery: {
+                        exploreName: 'orders',
+                        filters: {},
+                        dimensions: [],
+                        metrics: [],
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 100,
+                    },
+                    tiles: [],
+                    tabs: [],
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                const stored = {
+                    ...content,
+                    uuid: 'content-uuid',
+                    projectUuid,
+                    organizationUuid,
+                    spaceUuid: 'space-uuid',
+                    versionUuid: 'version-created',
+                    dashboardUuid: null,
+                };
+                const insert = vi.fn().mockResolvedValue(undefined);
+                const transaction = Object.assign(new EventEmitter(), {
+                    executionPromise: Promise.resolve(),
+                });
+                const create = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-created', stored.uuid);
+                    return stored;
+                });
+                const version = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-edited', stored.uuid);
+                    return { ...stored, versionUuid: 'version-edited' };
+                });
+                const model = {
+                    create,
+                    createVersion: version,
+                    addVersion: version,
+                    get: vi.fn().mockResolvedValue(stored),
+                    getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    find: vi.fn().mockResolvedValue([stored]),
+                    updateInTransaction: vi.fn(),
+                    update: vi.fn(),
+                    renameSlug: vi.fn(),
+                    transaction: vi.fn(
+                        async (run: (trx: unknown) => Promise<void>) =>
+                            run(transaction),
+                    ),
+                };
+                const changes = {
+                    charts: [],
+                    dashboards: [],
+                    spaces: [],
+                    [type === 'chart' ? 'charts' : 'dashboards']: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...stored,
+                                oldUuid: stored.uuid,
+                                spacePath: 'space',
+                            },
+                        },
+                    ],
+                };
+                const promoteService = new PromoteService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<
+                    typeof PromoteService
+                >[0]);
+                Object.assign(promoteService, {
+                    getPromoteCharts: vi.fn().mockResolvedValue({
+                        promotedChart: { chart: stored },
+                        upstreamChart: { chart: stored },
+                    }),
+                    getChartChanges: vi.fn().mockResolvedValue(changes),
+                    getPromotedDashboard: vi.fn().mockResolvedValue({
+                        promotedDashboard: { dashboard: stored },
+                        upstreamDashboard: { dashboard: stored },
+                    }),
+                    getPromotionDashboardChanges: vi
+                        .fn()
+                        .mockResolvedValue([changes, []]),
+                    getOrCreateDashboard: vi.fn(
+                        async (_user: unknown, value: unknown) => value,
+                    ),
+                });
+                const coderService = new CoderService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    promoteService,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<typeof CoderService>[0]);
+                Object.assign(coderService, {
+                    resolveSyncEnabled: vi.fn().mockResolvedValue(false),
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            projectUuid,
+                            organizationUuid,
+                        }),
+                    },
+                    prepareDirectAccessReplace: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                    findAccessibleSpace: vi
+                        .fn()
+                        .mockResolvedValue({ uuid: 'space-uuid' }),
+                    getOrCreateSpace: vi.fn().mockResolvedValue({
+                        space: { uuid: 'space-uuid' },
+                        created: false,
+                    }),
+                    assertContentAccessForMissingSpace: vi.fn(),
+                    assertSpaceContentAccess: vi.fn(),
+                    assertDashboardUpdateAccess: vi.fn(),
+                    assertTileChartsViewAccess: vi.fn(),
+                    spacePermissionService: {
+                        resolveAccessBatch: vi
+                            .fn()
+                            .mockResolvedValue(new Map()),
+                    },
+                    syncVerification: vi.fn(),
+                    syncDashboardOwner: vi.fn().mockResolvedValue([]),
+                    stampAppliedChartSnapshot: vi.fn(),
+                    stampAppliedDashboardSnapshot: vi.fn(),
+                    applyDirectAccessPolicy: vi.fn(),
+                    getChartsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ charts: [content] }),
+                    getDashboardsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ dashboards: [content] }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                });
+                const service = makeService({
+                    coderService: coderService as unknown as Record<
+                        string,
+                        unknown
+                    >,
+                    savedChartService: {
+                        get: vi.fn().mockResolvedValue(stored),
+                    },
+                    dashboardService: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    },
+                    aiAgentContentValidation: {
+                        validateNewContent: vi.fn(),
+                        validateContent: vi.fn(),
+                        validatePatch: vi.fn(),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createContent({ type, content } as never),
+                );
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.editContent({
+                        type,
+                        slug: content.slug,
+                        patch: [
+                            { op: 'replace', path: '/name', value: 'Edited' },
+                        ],
+                    }),
+                );
+                expect(create).toHaveBeenCalledOnce();
+                expect(version).toHaveBeenCalledOnce();
+                const createdClaim =
+                    create.mock.calls[0][type === 'chart' ? 3 : 4];
+                const editedClaim = version.mock.calls[0][5];
+                if (count) {
+                    expect(createdClaim).toMatchObject({
+                        subject: { uuid: userUuid },
+                        act: { surface },
+                    });
+                    expect(editedClaim).toEqual(createdClaim);
+                } else {
+                    expect(createdClaim).toBeNull();
+                    expect(editedClaim).toBeNull();
+                }
+                expect(insert).toHaveBeenCalledTimes(count * 2);
+                if (count) {
+                    expect(insert).toHaveBeenNthCalledWith(
+                        1,
+                        expect.objectContaining({
+                            agent_identity: createdClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-created',
+                            action: 'create',
+                        }),
+                        transaction,
+                    );
+                    expect(insert).toHaveBeenNthCalledWith(
+                        2,
+                        expect.objectContaining({
+                            agent_identity: editedClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-edited',
+                            action: 'update',
+                        }),
+                        transaction,
+                    );
+                }
+            },
         );
     },
 );

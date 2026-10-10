@@ -1772,6 +1772,7 @@ describe.each(['create', 'upsert'] as const)(
                 PROJECT_UUID,
                 undefined,
                 null,
+                expect.any(Function),
             );
             expect(result.dashboards[0].data.tiles).toEqual(updatedTiles);
             expect(tiles[0].properties).toMatchObject({

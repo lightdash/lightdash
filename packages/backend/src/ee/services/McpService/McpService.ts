@@ -5027,11 +5027,39 @@ export class McpService extends BaseService {
                         'create_content',
                         'edit_content',
                         'create_scheduled_delivery',
+                        'generate_data_app',
+                        'iterate_data_app',
                     ]),
                 }),
             })
             .safeParse(request);
         if (!call.success) return;
+        const dataApp = ['generate_data_app', 'iterate_data_app'].includes(
+            call.data.params.name,
+        );
+        if (dataApp) {
+            if (availability.dataAppBuildsEnabled) return;
+            const { enabled } = await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.EnableDataApps,
+            });
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                projectUuid: null,
+                objectType: 'app',
+                action:
+                    call.data.params.name === 'iterate_data_app'
+                        ? 'update'
+                        : 'create',
+                policyLayer: enabled ? 'casl' : 'organization_setting',
+                reasonCode: enabled
+                    ? 'data_app_create_forbidden'
+                    : 'data_apps_disabled',
+            });
+            return;
+        }
         const scheduler = call.data.params.name === 'create_scheduled_delivery';
         if (
             scheduler

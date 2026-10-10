@@ -1191,10 +1191,24 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
             });
         if (verificationAfterUpdate === null) {
-            await this.contentVerificationModel.unverify(
+            const removed = await this.contentVerificationModel.unverify(
                 ContentType.DATA_APP,
                 appUuid,
             );
+            if (removed) {
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'data_app',
+                    objectUuid: appUuid,
+                    versionUuid: null,
+                    action: 'unverify',
+                });
+            }
         }
     }
 
@@ -7571,16 +7585,18 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 { thread },
                 agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'data_app',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
-            await logAgentContentWrite({
-                model: this.agentActionLogModel,
-                projectUuid,
-                agentIdentity,
-                objectType: 'data_app',
-                objectUuid: appUuid,
-                versionUuid: created.version.app_version_id,
-                action: 'create',
-            });
             slug = created.app.slug;
         } catch (error) {
             this.logger.error(
@@ -9904,7 +9920,7 @@ export class AppGenerateService extends BaseService {
         const { enabled: agentIdentityEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.AgentIdentity,
-                user: { organizationUuid },
+                user: { organizationUuid, userUuid: user.userUuid },
             });
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.

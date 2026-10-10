@@ -1,5 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AgentActorSurface,
     DbtProjectType,
     ForbiddenError,
     NotFoundError,
@@ -16,8 +17,13 @@ import {
     getInstallationToken,
     getLastCommit,
 } from '../../../clients/github/Github';
+import type { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import type { ProjectContextModel } from '../../models/ProjectContextModel';
 import {
     projectContextFilePath,
@@ -143,12 +149,21 @@ const makeService = (overrides: {
             },
         ),
     } as unknown as ProjectContextModel;
+    const agentActionLogModel = {
+        insert: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new ProjectContextService({
+        agentActionLogModel:
+            agentActionLogModel as unknown as AgentActionLogModel,
         projectModel,
         githubAppInstallationsModel,
         projectContextModel,
     });
-    return { service, getCachedEntries: () => cachedEntries };
+    return {
+        service,
+        agentActionLogModel,
+        getCachedEntries: () => cachedEntries,
+    };
 };
 
 beforeEach(() => {
@@ -329,6 +344,77 @@ describe('ProjectContextService.writebackEntry', () => {
             html_url: 'https://github.com/acme/analytics/pull/7',
             number: 7,
         });
+    });
+
+    describe.each([
+        ...agentActionTestCases,
+        ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+        ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+    ] as const)('agent ledger: %s', (_, surface, enabled, count) => {
+        test.each(['allowed', 'denied', 'provider_failure'] as const)(
+            '%s',
+            async (outcome) => {
+                mockGetFileContent.mockRejectedValue(
+                    new NotFoundError('missing'),
+                );
+                if (outcome === 'provider_failure')
+                    mockCreatePullRequest.mockRejectedValueOnce(
+                        new Error('provider unavailable'),
+                    );
+                const { service, agentActionLogModel } = makeService({});
+                const user = userWithProjectContextAccess({
+                    canManageSourceCode: outcome !== 'denied',
+                });
+                const write = withAgentActionScope(user, surface, enabled, () =>
+                    service.writebackEntry({
+                        user,
+                        projectUuid: PROJECT_UUID,
+                        entry: judgeEntry,
+                        branchTimestamp: 1000,
+                        sourceThread: null,
+                    }),
+                );
+                if (outcome === 'allowed') await write;
+                else
+                    await expect(write).rejects.toThrow(
+                        outcome === 'denied'
+                            ? ForbiddenError
+                            : 'provider unavailable',
+                    );
+                const expectedCount =
+                    outcome === 'provider_failure' ? 0 : count;
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    expectedCount,
+                );
+                if (expectedCount)
+                    expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'project_context',
+                            object_uuid: PROJECT_UUID,
+                            action: 'update',
+                            outcome:
+                                outcome === 'denied' ? 'denied' : 'allowed',
+                            policy_layer:
+                                outcome === 'denied'
+                                    ? 'writeback_policy'
+                                    : null,
+                            reason_code:
+                                outcome === 'denied'
+                                    ? 'source_code_manage_forbidden'
+                                    : null,
+                            agent_identity: expect.objectContaining({
+                                act: expect.objectContaining({ surface }),
+                            }),
+                        }),
+                    );
+                const rows = JSON.stringify(
+                    agentActionLogModel.insert.mock.calls,
+                );
+                expect(rows).not.toContain('analytics');
+                expect(rows).not.toContain('high-risk');
+                expect(rows).not.toContain('github.com');
+            },
+        );
     });
 
     test('drops persisted legacy string refs instead of failing', async () => {

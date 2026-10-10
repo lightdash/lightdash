@@ -4,8 +4,10 @@ import {
     ChartType,
     DefaultSupportedDbtVersion,
     ProjectType,
+    PromotionAction,
     type AllVizChartConfig,
     type CreateSavedChart,
+    type PromotionChanges,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
@@ -24,15 +26,18 @@ import {
     createAgentExecutionContext,
     getContentWriteAgentIdentity,
 } from '../../../services/AiAccessService/agentExecutionContext';
-import {
-    logAgentContentWrite,
-    recordAgentAction,
-} from '../../../services/AiAccessService/logAgentContentWrite';
+import { recordAgentAction } from '../../../services/AiAccessService/logAgentContentWrite';
+import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { down, up } from '../20261010230000_add_content_version_agent_identity';
+
+vi.mock('../../../config/lightdashConfig', async () => ({
+    lightdashConfig: (await import('../../../config/lightdashConfig.mock'))
+        .lightdashConfigMock,
+}));
 
 const tables = [
     'saved_queries_versions',
@@ -213,9 +218,13 @@ describe('content version agent identity migration', () => {
             const appModel = new AppModel({ database });
             const documentModel = new DocumentModel({ database });
             const ledger = new AgentActionLogModel({ database });
-            const log = vi
-                .spyOn(auditLogger, 'logAuditEvent')
-                .mockImplementation(() => {});
+            const service = new PromoteService({
+                lightdashConfig: lightdashConfigMock,
+                savedChartModel: chartModel,
+                dashboardModel,
+                savedSqlModel: sqlModel,
+                agentActionLogModel: ledger,
+            } as unknown as ConstructorParameters<typeof PromoteService>[0]);
             const run = async () => {
                 const claim = getContentWriteAgentIdentity({
                     userUuid: user.userUuid,
@@ -244,32 +253,143 @@ describe('content version agent identity migration', () => {
                     tableConfig: { columnOrder: [] },
                     updatedByUser: user,
                 };
-                const chart = await chartModel.create(
-                    projectUuid,
-                    userUuid,
-                    chartData,
-                    claim,
-                );
-                await chartModel.createVersion(
-                    chart.uuid,
-                    chartData,
+                const createChanges: PromotionChanges = {
+                    charts: [
+                        {
+                            action: PromotionAction.CREATE,
+                            data: {
+                                ...chartData,
+                                uuid: randomUUID(),
+                                oldUuid: randomUUID(),
+                                projectUuid,
+                                organizationUuid,
+                                spaceSlug: 'reports',
+                                spacePath: 'reports',
+                            } as unknown as PromotionChanges['charts'][0]['data'],
+                        },
+                    ],
+                    dashboards: [],
+                    spaces: [],
+                };
+                const createdChanges = await service.upsertCharts(
                     user,
-                    undefined,
-                    undefined,
-                    claim,
+                    createChanges,
                 );
-                const dashboard = await dashboardModel.create(
-                    spaceUuid,
+                const chart = createdChanges.charts[0].data;
+                const updateChanges: PromotionChanges = {
+                    ...createdChanges,
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { ...chart, name: 'Updated chart' },
+                        },
+                    ],
+                };
+                await service.upsertCharts(user, updateChanges);
+                const actions = await database('agent_action_log').where({
+                    object_uuid: chart.uuid,
+                });
+                expect(actions).toHaveLength(claim ? 2 : 0);
+                if (claim) {
+                    const versions = await chartModel.getLatestVersionSummaries(
+                        chart.uuid,
+                    );
+                    expect(actions).toEqual(
+                        expect.arrayContaining(
+                            versions.map(({ versionUuid }) =>
+                                expect.objectContaining({
+                                    version_uuid: versionUuid,
+                                    agent_identity: claim,
+                                    object_type: 'chart',
+                                    outcome: 'allowed',
+                                }),
+                            ),
+                        ),
+                    );
+                    const failLedger = vi
+                        .spyOn(ledger, 'insert')
+                        .mockRejectedValueOnce(new Error('ledger unavailable'));
+                    await expect(
+                        service.upsertCharts(user, {
+                            ...updateChanges,
+                            charts: [
+                                {
+                                    action: PromotionAction.UPDATE,
+                                    data: {
+                                        ...chart,
+                                        slug: 'failed-slug',
+                                        name: 'Must roll back',
+                                    },
+                                },
+                            ],
+                        }),
+                    ).rejects.toThrow('ledger unavailable');
+                    failLedger.mockRestore();
+                    expect(await chartModel.get(chart.uuid)).toMatchObject({
+                        name: 'Updated chart',
+                        slug: 'chart',
+                    });
+                    expect(
+                        await chartModel.getLatestVersionSummaries(chart.uuid),
+                    ).toHaveLength(2);
+                    expect(
+                        await database('agent_action_log').where({
+                            object_uuid: chart.uuid,
+                        }),
+                    ).toHaveLength(2);
+                    const failCreateLedger = vi
+                        .spyOn(ledger, 'insert')
+                        .mockRejectedValueOnce(new Error('ledger unavailable'));
+                    await expect(
+                        service.upsertCharts(user, {
+                            ...createChanges,
+                            charts: [
+                                {
+                                    ...createChanges.charts[0],
+                                    data: {
+                                        ...createChanges.charts[0].data,
+                                        slug: 'failed-create',
+                                    },
+                                },
+                            ],
+                        }),
+                    ).rejects.toThrow('ledger unavailable');
+                    failCreateLedger.mockRestore();
+                    expect(
+                        await database('saved_queries').where({
+                            project_uuid: projectUuid,
+                            slug: 'failed-create',
+                        }),
+                    ).toHaveLength(0);
+                }
+                const dashboardCreated = await service.getOrCreateDashboard(
+                    user,
                     {
-                        name: 'Dashboard',
-                        slug: 'dashboard',
-                        tiles: [],
-                        tabs: [],
+                        charts: [],
+                        spaces: [],
+                        dashboards: [
+                            {
+                                action: PromotionAction.CREATE,
+                                data: {
+                                    name: 'Dashboard',
+                                    slug: 'dashboard',
+                                    tiles: [],
+                                    tabs: [],
+                                    spaceUuid,
+                                    projectUuid,
+                                    spaceSlug: 'reports',
+                                    spacePath: 'reports',
+                                } as unknown as PromotionChanges['dashboards'][0]['data'],
+                            },
+                        ],
                     },
-                    user,
-                    projectUuid,
-                    claim,
                 );
+                const dashboard = dashboardCreated.dashboards[0].data;
+                expect(
+                    await database('agent_action_log').where({
+                        object_uuid: dashboard.uuid,
+                    }),
+                ).toHaveLength(claim ? 1 : 0);
                 await dashboardModel.addVersion(
                     dashboard.uuid,
                     dashboard,
@@ -278,42 +398,193 @@ describe('content version agent identity migration', () => {
                     undefined,
                     claim,
                 );
+                if (claim) {
+                    const [{ space_uuid: destinationSpaceUuid }] =
+                        await database('spaces')
+                            .insert({
+                                name: 'Destination',
+                                slug: 'destination',
+                                path: 'destination',
+                                project_id: projectId,
+                                parent_space_uuid: null,
+                                inherit_parent_permissions: true,
+                                is_default_user_space: false,
+                            })
+                            .returning('space_uuid');
+                    const dashboardChanges: PromotionChanges = {
+                        charts: [],
+                        spaces: [],
+                        dashboards: [
+                            {
+                                action: PromotionAction.UPDATE,
+                                data: {
+                                    ...dashboard,
+                                    slug: 'new-dashboard-slug',
+                                    name: 'Must roll back',
+                                    description: 'Changed description',
+                                    spaceUuid: destinationSpaceUuid,
+                                    spaceSlug: 'reports',
+                                    spacePath: 'reports',
+                                    owner: {
+                                        userUuid,
+                                        firstName: 'Agent',
+                                        lastName: 'Writer',
+                                        email: 'unused@example.com',
+                                    },
+                                },
+                            },
+                        ],
+                    };
+                    const failLedger = vi
+                        .spyOn(ledger, 'insert')
+                        .mockRejectedValueOnce(new Error('ledger unavailable'));
+                    await expect(
+                        service.updateDashboard(user, dashboardChanges),
+                    ).rejects.toThrow('ledger unavailable');
+                    failLedger.mockRestore();
+                    expect(
+                        await dashboardModel.getByIdOrSlug(dashboard.uuid),
+                    ).toMatchObject({
+                        name: 'Dashboard',
+                        slug: 'dashboard',
+                        description: dashboard.description,
+                        spaceUuid,
+                        owner: null,
+                    });
+                    expect(
+                        await database('agent_action_log').where({
+                            object_uuid: dashboard.uuid,
+                        }),
+                    ).toHaveLength(1);
+                }
                 const config: AllVizChartConfig = {
                     type: ChartKind.TABLE,
                     columns: {},
                     display: undefined,
                     metadata: { version: 1 },
                 };
-                const sql = await sqlModel.create(
-                    userUuid,
+                const sqlChanges: PromotionChanges = {
+                    charts: [],
+                    dashboards: [],
+                    spaces: [
+                        {
+                            action: PromotionAction.NO_CHANGES,
+                            data: {
+                                uuid: spaceUuid,
+                                path: 'reports',
+                            } as PromotionChanges['spaces'][0]['data'],
+                        },
+                    ],
+                };
+                const sqlData = {
+                    uuid: randomUUID(),
+                    oldUuid: randomUUID(),
+                    slug: 'sql',
                     projectUuid,
-                    {
+                    spaceSlug: 'reports',
+                    spacePath: 'reports',
+                    unversionedData: {
                         name: 'SQL',
                         description: '',
-                        sql: 'select 1',
-                        limit: 1,
                         spaceUuid,
-                        config,
                     },
-                    undefined,
-                    { slugMode: 'exact' },
-                    claim,
-                );
-                await sqlModel.update(
-                    {
-                        userUuid,
-                        savedSqlUuid: sql.savedSqlUuid,
-                        sqlChart: {
-                            versionedData: {
-                                sql: 'select 2',
-                                limit: 1,
-                                config,
+                    versionedData: { sql: 'select 1', limit: 1, config },
+                };
+                await service.upsertSqlCharts(user, sqlChanges, [
+                    { action: PromotionAction.CREATE, data: sqlData },
+                ]);
+                const [sqlRow] = await database('saved_sql').where({
+                    project_uuid: projectUuid,
+                    slug: 'sql',
+                });
+                const sql = { savedSqlUuid: sqlRow.saved_sql_uuid };
+                const sqlUpdate = {
+                    ...sqlData,
+                    uuid: sql.savedSqlUuid,
+                    versionedData: {
+                        ...sqlData.versionedData,
+                        sql: 'select 2',
+                    },
+                };
+                await service.upsertSqlCharts(user, sqlChanges, [
+                    { action: PromotionAction.UPDATE, data: sqlUpdate },
+                ]);
+                const sqlActions = await database('agent_action_log').where({
+                    object_uuid: sql.savedSqlUuid,
+                });
+                expect(sqlActions).toHaveLength(claim ? 2 : 0);
+                if (claim) {
+                    const versions = await database('saved_sql_versions').where(
+                        { saved_sql_uuid: sql.savedSqlUuid },
+                    );
+                    expect(sqlActions).toEqual(
+                        expect.arrayContaining(
+                            versions.map((version) =>
+                                expect.objectContaining({
+                                    version_uuid:
+                                        version.saved_sql_version_uuid,
+                                    agent_identity: claim,
+                                    object_type: 'sql_chart',
+                                    outcome: 'allowed',
+                                }),
+                            ),
+                        ),
+                    );
+                    const failure = vi
+                        .spyOn(ledger, 'insert')
+                        .mockRejectedValueOnce(new Error('ledger unavailable'));
+                    await expect(
+                        service.upsertSqlCharts(user, sqlChanges, [
+                            {
+                                action: PromotionAction.UPDATE,
+                                data: {
+                                    ...sqlUpdate,
+                                    unversionedData: {
+                                        ...sqlData.unversionedData,
+                                        name: 'Must roll back',
+                                    },
+                                },
                             },
-                        },
-                    },
-                    undefined,
-                    claim,
-                );
+                        ]),
+                    ).rejects.toThrow('ledger unavailable');
+                    failure.mockRestore();
+                    expect(
+                        await database('saved_sql_versions').where({
+                            saved_sql_uuid: sql.savedSqlUuid,
+                        }),
+                    ).toHaveLength(2);
+                    expect(
+                        await sqlModel.getByUuid(sql.savedSqlUuid),
+                    ).toMatchObject({ name: 'SQL', sql: 'select 2' });
+                    const createFailure = vi
+                        .spyOn(ledger, 'insert')
+                        .mockRejectedValueOnce(new Error('ledger unavailable'));
+                    await expect(
+                        service.upsertSqlCharts(user, sqlChanges, [
+                            {
+                                action: PromotionAction.CREATE,
+                                data: {
+                                    ...sqlData,
+                                    slug: 'failed-sql',
+                                },
+                            },
+                        ]),
+                    ).rejects.toThrow('ledger unavailable');
+                    createFailure.mockRestore();
+                    expect(
+                        await database('saved_sql').where({
+                            project_uuid: projectUuid,
+                            slug: 'failed-sql',
+                        }),
+                    ).toHaveLength(0);
+                }
+                expect(
+                    (
+                        await sqlModel.getByUuid(sql.savedSqlUuid, {
+                            projectUuid,
+                        })
+                    ).agentIdentity,
+                ).toEqual(claim);
                 const app = await appModel.createWithVersion(
                     {
                         project_uuid: projectUuid,
@@ -412,58 +683,6 @@ describe('content version agent identity migration', () => {
                     .where({ app_id: app.app.app_id, version: 2 })
                     .first('agent_identity');
                 expect(terminal?.agent_identity).toEqual(claim);
-                const objects = [
-                    { objectType: 'chart', objectUuid: chart.uuid },
-                    { objectType: 'dashboard', objectUuid: dashboard.uuid },
-                    { objectType: 'sql_chart', objectUuid: sql.savedSqlUuid },
-                    { objectType: 'data_app', objectUuid: app.app.app_id },
-                    { objectType: 'document', objectUuid: doc.documentUuid },
-                ];
-                await Promise.all(
-                    objects.map(async (object) => {
-                        await logAgentContentWrite({
-                            model: ledger,
-                            agentIdentity: claim,
-                            projectUuid,
-                            ...object,
-                            versionUuid: null,
-                            action: 'create',
-                        });
-                        await logAgentContentWrite({
-                            model: ledger,
-                            agentIdentity: claim,
-                            projectUuid,
-                            ...object,
-                            versionUuid: null,
-                            action: 'update',
-                        });
-                    }),
-                );
-                const actions = await database('agent_action_log').where(
-                    'organization_uuid',
-                    organizationUuid,
-                );
-                expect(actions).toHaveLength(claim ? 10 : 0);
-                expect(log).toHaveBeenCalledTimes(claim ? 10 : 0);
-                if (claim) {
-                    expect(actions).toEqual(
-                        expect.arrayContaining(
-                            objects.flatMap((object) =>
-                                ['create', 'update'].map((action) =>
-                                    expect.objectContaining({
-                                        agent_identity: claim,
-                                        object_type: object.objectType,
-                                        object_uuid: object.objectUuid,
-                                        action,
-                                        outcome: 'allowed',
-                                        policy_layer: null,
-                                        reason_code: null,
-                                    }),
-                                ),
-                            ),
-                        ),
-                    );
-                }
             };
             if (surface) await agentExecutionContext.run(scope, run);
             else await run();
@@ -579,134 +798,6 @@ describe('content version agent identity migration', () => {
                 organizationUuid,
             ),
         ).toEqual([]);
-    });
-    test('ledger insertion uses the domain transaction and rolls back together', async () => {
-        const ledger = new AgentActionLogModel({ database });
-        const organizationUuid = randomUUID();
-        const scope = createAgentExecutionContext({
-            account: fromSession({ ...defaultSessionUser, organizationUuid }),
-            surface: AgentActorSurface.MCP,
-            clientId: null,
-            agentUuid: null,
-            agentIdentityEnabled: true,
-        });
-        const log = vi
-            .spyOn(auditLogger, 'logAuditEvent')
-            .mockImplementation(() => {});
-        await expect(
-            agentExecutionContext.run(scope, () =>
-                database.transaction(async (trx) => {
-                    await trx<{
-                        organization_uuid: string;
-                        organization_name: string;
-                    }>('organizations').insert({
-                        organization_uuid: organizationUuid,
-                        organization_name: 'transactional agent action',
-                    });
-                    await logAgentContentWrite({
-                        model: ledger,
-                        trx,
-                        agentIdentity: scope.claim,
-                        projectUuid: null,
-                        objectType: 'space',
-                        objectUuid: randomUUID(),
-                        versionUuid: null,
-                        action: 'create',
-                    });
-                    expect(
-                        await trx('agent_action_log').where(
-                            'organization_uuid',
-                            organizationUuid,
-                        ),
-                    ).toHaveLength(1);
-                    expect(log).not.toHaveBeenCalled();
-                    throw new Error('domain rollback');
-                }),
-            ),
-        ).rejects.toThrow('domain rollback');
-        expect(
-            await database('organizations').where(
-                'organization_uuid',
-                organizationUuid,
-            ),
-        ).toEqual([]);
-        expect(
-            await database('agent_action_log').where(
-                'organization_uuid',
-                organizationUuid,
-            ),
-        ).toEqual([]);
-        expect(log).not.toHaveBeenCalled();
-        await expect(
-            agentExecutionContext.run(scope, () =>
-                database.transaction(async (trx) => {
-                    await trx<{
-                        organization_uuid: string;
-                        organization_name: string;
-                    }>('organizations').insert({
-                        organization_uuid: organizationUuid,
-                        organization_name: 'failed ledger',
-                    });
-                    await logAgentContentWrite({
-                        model: ledger,
-                        trx,
-                        agentIdentity: scope.claim,
-                        projectUuid: null,
-                        objectType: 'space',
-                        objectUuid: 'invalid-uuid',
-                        versionUuid: null,
-                        action: 'create',
-                    });
-                }),
-            ),
-        ).rejects.toThrow();
-        expect(
-            await database('organizations').where(
-                'organization_uuid',
-                organizationUuid,
-            ),
-        ).toEqual([]);
-        expect(log).not.toHaveBeenCalled();
-    });
-    test('committed transactions emit the audit only after commit', async () => {
-        const ledger = new AgentActionLogModel({ database });
-        const [{ organization_uuid: organizationUuid }] = await database(
-            'organizations',
-        )
-            .insert({ organization_name: 'committed action' })
-            .returning('organization_uuid');
-        const scope = createAgentExecutionContext({
-            account: fromSession({ ...defaultSessionUser, organizationUuid }),
-            surface: AgentActorSurface.MCP,
-            clientId: null,
-            agentUuid: null,
-            agentIdentityEnabled: true,
-        });
-        const log = vi
-            .spyOn(auditLogger, 'logAuditEvent')
-            .mockImplementation(() => {});
-        await agentExecutionContext.run(scope, () =>
-            database.transaction(async (trx) => {
-                await logAgentContentWrite({
-                    model: ledger,
-                    trx,
-                    agentIdentity: scope.claim,
-                    projectUuid: null,
-                    objectType: 'space',
-                    objectUuid: randomUUID(),
-                    versionUuid: null,
-                    action: 'create',
-                });
-                expect(log).not.toHaveBeenCalled();
-            }),
-        );
-        expect(log).toHaveBeenCalledOnce();
-        expect(
-            await database('agent_action_log').where(
-                'organization_uuid',
-                organizationUuid,
-            ),
-        ).toHaveLength(1);
     });
     test('down removes all five columns and up restores them', async () => {
         await database.transaction(async (trx) => {

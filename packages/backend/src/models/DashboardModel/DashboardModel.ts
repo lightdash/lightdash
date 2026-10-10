@@ -96,6 +96,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import { type OnContentVersionCreated } from '../OnContentVersionCreated';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
 import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
@@ -206,7 +207,7 @@ export class DashboardModel {
         dashboardId: number,
         version: DashboardVersionedFields,
         agentIdentity: AgentIdentityClaim | null,
-    ): Promise<void> {
+    ): Promise<string> {
         // Narrow date-zoom control tileTargets to tiles present in this version,
         // mirroring the filter tileTargets narrowing below. This drops targets
         // for tiles removed on any deletion path (tile/tab/batch delete) without
@@ -240,7 +241,11 @@ export class DashboardModel {
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
                 config,
             },
-            ['dashboard_version_id', 'updated_by_user_uuid'],
+            [
+                'dashboard_version_id',
+                'dashboard_version_uuid',
+                'updated_by_user_uuid',
+            ],
         );
 
         await trx(DashboardViewsTableName).insert({
@@ -471,6 +476,7 @@ export class DashboardModel {
         await trx(DashboardViewsTableName)
             .update(updateData)
             .where({ dashboard_version_id: versionId.dashboard_version_id });
+        return versionId.dashboard_version_uuid;
     }
 
     private async getDashboardVersionTileTypes(dashboardVersionId: number) {
@@ -1715,6 +1721,7 @@ export class DashboardModel {
         dashboard: CreateDashboard & { slug: string },
         user: Pick<SessionUser, 'userUuid'>,
         agentIdentity: AgentIdentityClaim | null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<string> {
         const [revived] = await trx(DashboardsTableName)
             .update({
@@ -1743,7 +1750,7 @@ export class DashboardModel {
                 );
         }
 
-        await DashboardModel.createVersion(
+        const versionUuid = await DashboardModel.createVersion(
             trx,
             revived.dashboard_id,
             {
@@ -1754,6 +1761,7 @@ export class DashboardModel {
             agentIdentity,
         );
 
+        await onVersionCreated?.(trx, versionUuid, revived.dashboard_uuid);
         return revived.dashboard_uuid;
     }
 
@@ -1763,6 +1771,7 @@ export class DashboardModel {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
@@ -1802,6 +1811,7 @@ export class DashboardModel {
                     dashboard,
                     user,
                     agentIdentity,
+                    onVersionCreated,
                 );
             }
 
@@ -1822,7 +1832,7 @@ export class DashboardModel {
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
-            await DashboardModel.createVersion(
+            const versionUuid = await DashboardModel.createVersion(
                 trx,
                 newDashboard.dashboard_id,
                 {
@@ -1833,6 +1843,11 @@ export class DashboardModel {
                 agentIdentity,
             );
 
+            await onVersionCreated?.(
+                trx,
+                versionUuid,
+                newDashboard.dashboard_uuid,
+            );
             return newDashboard.dashboard_uuid;
         });
         return this.getByIdOrSlug(dashboardId);
@@ -1929,11 +1944,12 @@ export class DashboardModel {
     async update(
         dashboardUuidOrSlug: string,
         dashboard: Partial<DashboardUnversionedFields>,
+        trx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
         const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
         let withSpaceId: { space_id: number } | Record<string, never> = {};
         if (dashboard.spaceUuid) {
-            const space = await this.database(SpaceTableName)
+            const space = await (trx ?? this.database)(SpaceTableName)
                 .innerJoin(
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
@@ -1959,7 +1975,7 @@ export class DashboardModel {
             dashboard.ownerUserUuid !== undefined
                 ? { owner_user_uuid: dashboard.ownerUserUuid }
                 : {};
-        const query = this.database(DashboardsTableName)
+        const query = (trx ?? this.database)(DashboardsTableName)
             .update({
                 project_uuid: existingDashboard.projectUuid,
                 // Owner-only updates omit name; leave it unchanged in that case
@@ -2167,6 +2183,7 @@ export class DashboardModel {
         projectUuid: string,
         tx?: Knex.Transaction,
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<DashboardDAO> {
         const db = tx || this.database;
         const [dashboard] = await db(DashboardsTableName)
@@ -2179,7 +2196,7 @@ export class DashboardModel {
         }
 
         const doWork = async (trx: Knex.Transaction) => {
-            await DashboardModel.createVersion(
+            const versionUuid = await DashboardModel.createVersion(
                 trx,
                 dashboard.dashboard_id,
                 {
@@ -2189,6 +2206,7 @@ export class DashboardModel {
                 },
                 agentIdentity,
             );
+            await onVersionCreated?.(trx, versionUuid, dashboardUuid);
         };
 
         if (tx) {

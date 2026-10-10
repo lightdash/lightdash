@@ -22,8 +22,10 @@ import {
 import { fromSession } from '../../auth/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
+import { type DocumentModel } from '../../models/DocumentModel';
 import {
     agentActionTestCases,
+    runContentVersionCallback,
     withAgentActionScope,
 } from '../AiAccessService/agentActionTestUtils.mock';
 import {
@@ -208,9 +210,36 @@ const setup = (dependencies: Record<string, unknown> = {}) => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
-        create: vi.fn().mockResolvedValue(document),
+        create: vi
+            .fn<DocumentModel['create']>()
+            .mockImplementation(async (_input, _identity, callback) => {
+                await runContentVersionCallback(
+                    callback,
+                    document.version.versionUuid,
+                    document.documentUuid,
+                );
+                return document;
+            }),
         updateMetadata: vi.fn().mockResolvedValue(document),
-        updateContent: vi.fn().mockResolvedValue(document),
+        updateContent: vi
+            .fn<DocumentModel['updateContent']>()
+            .mockImplementation(
+                async (
+                    _project,
+                    _document,
+                    _input,
+                    _user,
+                    _identity,
+                    callback,
+                ) => {
+                    await runContentVersionCallback(
+                        callback,
+                        document.version.versionUuid,
+                        document.documentUuid,
+                    );
+                    return document;
+                },
+            ),
     };
     const projectModel = {
         getSummary: vi
@@ -438,6 +467,7 @@ describe('DocumentService mutations', () => {
                     content: source.version.content,
                 },
                 null,
+                expect.any(Function),
             );
             expect(source.version.versionNumber).toBe(5);
             expect(source.version.content).toEqual(toContent([markdown, cell]));
@@ -461,6 +491,7 @@ describe('DocumentService mutations', () => {
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ description: '' }),
             null,
+            expect.any(Function),
         );
     });
 
@@ -827,6 +858,7 @@ describe('DocumentService mutations', () => {
                 { ...request, expectedSpaceUuid: spaceUuid },
                 userUuid,
                 null,
+                expect.any(Function),
             );
         },
     );
@@ -844,6 +876,7 @@ describe('DocumentService mutations', () => {
                 createdByUserUuid: userUuid,
             },
             null,
+            expect.any(Function),
         );
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
@@ -982,6 +1015,7 @@ describe('DocumentService mutations', () => {
                 createdByUserUuid: userUuid,
             },
             null,
+            expect.any(Function),
         );
     });
 
@@ -1269,6 +1303,7 @@ describe('DocumentService personal Documents', () => {
                 createdByUserUuid: userUuid,
             },
             null,
+            expect.any(Function),
         );
     });
 
@@ -1413,6 +1448,7 @@ describe('DocumentService ownership', () => {
                 ownerUserUuid: ownerUuid,
             }),
             null,
+            expect.any(Function),
         );
     });
 
@@ -1525,6 +1561,7 @@ describe('DocumentService SQL charts', () => {
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ content: toContent([sqlChart]) }),
             null,
+            expect.any(Function),
         );
     });
 
@@ -1603,6 +1640,7 @@ describe('DocumentService SQL charts', () => {
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ content: stored }),
             null,
+            expect.any(Function),
         );
         expect(created.version.content.charts.c1).toEqual({
             source: 'sql',
@@ -1697,6 +1735,7 @@ describe('DocumentService saved chart links', () => {
                 ),
             }),
             null,
+            expect.any(Function),
         );
     });
 
@@ -1800,6 +1839,7 @@ describe('DocumentService saved chart links to deleted charts', () => {
             }),
             userUuid,
             null,
+            expect.any(Function),
         );
     });
 });
@@ -1838,6 +1878,7 @@ describe('document agent attribution', () => {
                 expect(documentModel.create).toHaveBeenLastCalledWith(
                     expect.any(Object),
                     claim,
+                    expect.any(Function),
                 );
                 expect(
                     log.mock.calls.filter(
@@ -1856,6 +1897,7 @@ describe('document agent attribution', () => {
                             object_type: 'document',
                             outcome: 'allowed',
                         }),
+                        expect.any(Object),
                     );
                 agentActionLogModel.insert.mockClear();
                 log.mockClear();
@@ -1871,6 +1913,7 @@ describe('document agent attribution', () => {
                     expect.any(Object),
                     userUuid,
                     claim,
+                    expect.any(Function),
                 );
                 expect(
                     log.mock.calls.filter(
@@ -1889,6 +1932,7 @@ describe('document agent attribution', () => {
                             object_type: 'document',
                             outcome: 'allowed',
                         }),
+                        expect.any(Object),
                     );
                 agentActionLogModel.insert.mockClear();
             };

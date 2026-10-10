@@ -322,7 +322,7 @@ test.each(agentActionTestCases)(
                 expect.objectContaining({
                     object_type: 'direct_access_policy',
                     object_uuid: 'dashboard',
-                    action: 'grant',
+                    action: 'replace',
                     outcome: 'allowed',
                 }),
             );

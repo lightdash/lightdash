@@ -1772,6 +1772,7 @@ export class ServiceRepository
             'savedSqlService',
             () =>
                 new SavedSqlService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),

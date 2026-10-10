@@ -130,13 +130,14 @@ export class ContentVerificationModel {
     async unverify(
         contentType: ContentType,
         contentUuid: string,
-    ): Promise<void> {
-        await this.database(ContentVerificationTableName)
+    ): Promise<boolean> {
+        const deleted = await this.database(ContentVerificationTableName)
             .where({
                 content_type: contentType,
                 content_uuid: contentUuid,
             })
             .delete();
+        return deleted > 0;
     }
 
     async getAllForProject(

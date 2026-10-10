@@ -9,9 +9,16 @@ import {
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { z, type ZodRawShape } from 'zod';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import { ShareService } from '../../../services/ShareService/ShareService';
 import * as runQueryTool from '../ai/tools/runQuery';
 import { McpService, McpToolName } from './McpService';
 import { makeMcpServerOptions } from './McpService.mock';
@@ -2522,3 +2529,72 @@ describe('agent connection over MCP', () => {
         });
     });
 });
+
+test.each(agentActionTestCases)(
+    'MCP completed SQL tool persists share action through ShareService: %s',
+    async (_, surface, enabled, count) => {
+        const { service, asyncQueryService } = makeMcpService();
+        const insert = vi.fn().mockResolvedValue(undefined);
+        const createSharedUrl = vi.fn(async (input: object) => ({
+            ...input,
+            nanoid: 'saved-share',
+        }));
+        Object.assign(service, {
+            shareService: new ShareService({
+                shareModel: { createSharedUrl },
+                agentActionLogModel: { insert },
+                analytics: { track: vi.fn() },
+                lightdashConfig: { siteUrl: 'https://lightdash.example' },
+            } as unknown as ConstructorParameters<typeof ShareService>[0]),
+        });
+        asyncQueryService.executeAsyncSqlQuery.mockResolvedValue({ queryUuid });
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            makeQueryHistory(QueryHistoryStatus.READY),
+        );
+        asyncQueryService.getAsyncQueryResults.mockResolvedValue({
+            status: QueryHistoryStatus.READY,
+            rows: [],
+            columns: {},
+        });
+        const authenticatedUser = { ...defaultSessionUser, ...user };
+        const result = await withAgentActionScope(
+            authenticatedUser as unknown as SessionUser,
+            surface,
+            enabled,
+            () =>
+                getToolCallback(McpToolName.RUN_SQL)(
+                    { sql: 'select 1', limit: 10 },
+                    {
+                        ...extra,
+                        authInfo: {
+                            extra: { user: authenticatedUser, account },
+                        },
+                    },
+                ),
+        );
+        expect(result).toMatchObject({
+            structuredContent: {
+                result: {
+                    sqlRunnerUrl:
+                        'https://lightdash.example/projects/project-uuid/sql-runner?share=saved-share',
+                },
+            },
+        });
+        expect(createSharedUrl).toHaveBeenCalledOnce();
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'share',
+                    object_id: 'saved-share',
+                    action: 'create',
+                    outcome: 'allowed',
+                    agent_identity: expect.objectContaining({
+                        subject: { type: 'user', uuid: userUuid },
+                        act: expect.objectContaining({ surface }),
+                    }),
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('select 1');
+    },
+);

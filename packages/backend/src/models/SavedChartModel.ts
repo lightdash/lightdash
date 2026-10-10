@@ -125,6 +125,7 @@ import {
 import { dismissOpenContentDrafts } from './ContentDraftModel';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
+import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 type DbSavedChartDetails = {
     project_uuid: string;
@@ -338,8 +339,8 @@ const createSavedChartVersion = async (
         merge,
     }: CreateSavedChartVersion,
     agentIdentity: AgentIdentityClaim | null,
-): Promise<void> => {
-    await db.transaction(async (trx) => {
+): Promise<string> =>
+    db.transaction(async (trx) => {
         // Only save overrides for existing metrics
         const validMetricOverrides = Object.fromEntries(
             Object.entries(metricOverrides || {}).filter(([key]) =>
@@ -547,8 +548,8 @@ const createSavedChartVersion = async (
                         : null,
             })),
         );
+        return version.saved_queries_version_uuid;
     });
-};
 
 const ProjectSlugUniqueConstraint = 'saved_queries_project_uuid_slug_unique';
 const MaxChartSlugCreateAttempts = 3;
@@ -634,6 +635,7 @@ export const createSavedChart = async (
         forceSlug?: boolean;
     },
     agentIdentity: AgentIdentityClaim | null = null,
+    onVersionCreated?: OnContentVersionCreated,
 ): Promise<string> => {
     for (let attempt = 1; attempt <= MaxChartSlugCreateAttempts; attempt += 1) {
         try {
@@ -746,7 +748,7 @@ export const createSavedChart = async (
                     : await trx(SavedChartsTableName)
                           .insert(chart)
                           .returning('*');
-                await createSavedChartVersion(
+                const versionUuid = await createSavedChartVersion(
                     trx,
                     newSavedChart.saved_query_id,
                     {
@@ -760,6 +762,11 @@ export const createSavedChart = async (
                         merge,
                     },
                     agentIdentity,
+                );
+                await onVersionCreated?.(
+                    trx,
+                    versionUuid,
+                    newSavedChart.saved_query_uuid,
                 );
                 return newSavedChart.saved_query_uuid;
             });
@@ -1316,6 +1323,7 @@ export class SavedChartModel {
             forceSlug?: boolean;
         },
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<SavedChartDAO> {
         const newSavedChartUuid = await createSavedChart(
             this.database,
@@ -1323,6 +1331,7 @@ export class SavedChartModel {
             userUuid,
             data,
             agentIdentity,
+            onVersionCreated,
         );
         return this.get(newSavedChartUuid);
     }
@@ -1334,6 +1343,7 @@ export class SavedChartModel {
         tx?: Knex,
         expectedLocation?: SavedChartLocation,
         agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<SavedChartDAO> {
         const doWork = async (trx: Knex) => {
             const chartQuery = this.getChartMutationQuery(
@@ -1355,7 +1365,7 @@ export class SavedChartModel {
                 throw new NotFoundError('Saved chart not found');
             }
 
-            await createSavedChartVersion(
+            const versionUuid = await createSavedChartVersion(
                 trx,
                 savedChart.saved_query_id,
                 {
@@ -1376,6 +1386,11 @@ export class SavedChartModel {
                 })
                 .where('saved_query_uuid', savedChartUuid)
                 .whereNull('deleted_at');
+            await onVersionCreated?.(
+                trx as Knex.Transaction,
+                versionUuid,
+                savedChartUuid,
+            );
         };
 
         if (tx) {

@@ -2,6 +2,8 @@ import { AgentActorSurface } from '@lightdash/common';
 import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import * as auditLogger from '../../../logging/winston';
+import { type AppModel } from '../../../models/AppModel';
+import { runContentVersionCallback } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -32,10 +34,22 @@ const BRAND_THEME = {
 
 function buildService() {
     const appModel = {
-        createWithVersion: vi.fn().mockResolvedValue({
-            app: { slug: 'new-app' },
-            version: { app_version_id: 'version-1' },
-        }),
+        createWithVersion: vi
+            .fn<AppModel['createWithVersion']>()
+            .mockImplementation(async (...args) => {
+                const result = {
+                    app: { slug: 'new-app', app_id: 'new-app' },
+                    version: { app_version_id: 'version-1' },
+                };
+                await runContentVersionCallback(
+                    args[8],
+                    result.version.app_version_id,
+                    result.app.app_id,
+                );
+                return result as Awaited<
+                    ReturnType<AppModel['createWithVersion']>
+                >;
+            }),
         createVersion: vi
             .fn()
             .mockResolvedValue({ app_version_id: 'version-2' }),
@@ -327,7 +341,7 @@ describe('data app agent attribution', () => {
                     [],
                     'new-app',
                 );
-                expect(appModel.createWithVersion.mock.calls[0].at(-1)).toEqual(
+                expect(appModel.createWithVersion.mock.calls[0].at(-2)).toEqual(
                     claim,
                 );
                 const creates = log.mock.calls.filter(
@@ -346,6 +360,7 @@ describe('data app agent attribution', () => {
                             object_type: 'data_app',
                             outcome: 'allowed',
                         }),
+                        expect.any(Object),
                     );
                 agentActionLogModel.insert.mockClear();
                 if (claim)

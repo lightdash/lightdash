@@ -38,8 +38,15 @@ const summary = {
     createdBy: null,
     agentIdentity: claim,
 };
-const setup = (enabled: boolean) => {
-    const featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled }) };
+const setup = (enabled: boolean, organizationEnabled = enabled) => {
+    const featureFlagModel = {
+        get: vi.fn(async ({ user: viewer }) => ({
+            enabled:
+                viewer.userUuid === user.userUuid
+                    ? enabled
+                    : organizationEnabled,
+        })),
+    };
     const savedChartModel = {
         getSummary: vi.fn().mockResolvedValue(chart),
         get: vi.fn().mockResolvedValue({ ...chart, agentIdentity: claim }),
@@ -104,9 +111,9 @@ const setup = (enabled: boolean) => {
 
 describe('version history agent identity', () => {
     it.each([true, false])(
-        'gates chart history and version DTOs when enabled=%s',
+        'uses the viewer override over the opposite org flag for chart DTOs (%s)',
         async (enabled) => {
-            const { chartService, featureFlagModel } = setup(enabled);
+            const { chartService, featureFlagModel } = setup(enabled, !enabled);
             const history = await chartService.getHistory(user, chart.uuid);
             const version = await chartService.getVersion(
                 user,
@@ -119,14 +126,17 @@ describe('version history agent identity', () => {
             }
             expect(featureFlagModel.get).toHaveBeenCalledWith({
                 featureFlagId: FeatureFlags.AgentIdentity,
-                user: { organizationUuid: chart.organizationUuid },
+                user: {
+                    organizationUuid: chart.organizationUuid,
+                    userUuid: user.userUuid,
+                },
             });
         },
     );
     it.each([true, false])(
-        'gates dashboard history and version DTOs when enabled=%s',
+        'uses the viewer override over the opposite org flag for dashboard DTOs (%s)',
         async (enabled) => {
-            const { dashboardService } = setup(enabled);
+            const { dashboardService } = setup(enabled, !enabled);
             const history = await dashboardService.getHistory(
                 user,
                 dashboard.uuid,
@@ -206,7 +216,10 @@ describe('version history agent identity', () => {
     it.each([true, false])(
         'gates nested chart versions in dashboard comparisons (enabled=%s)',
         async (enabled) => {
-            const { dashboardService, dashboardModel } = setup(enabled);
+            const { dashboardService, dashboardModel } = setup(
+                enabled,
+                !enabled,
+            );
             dashboardModel.getVersionByUuid.mockResolvedValue({
                 ...dashboard,
                 tiles: [
