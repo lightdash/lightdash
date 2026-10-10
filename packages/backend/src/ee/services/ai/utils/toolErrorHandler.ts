@@ -111,8 +111,9 @@ export const toolErrorOutput = (
         },
         structuredContent: {
             error: result,
-            refusal:
-                error instanceof AiAccessRefusedError ? error.refusal : null,
+            ...(error instanceof AiAccessRefusedError
+                ? { refusal: error.refusal }
+                : {}),
         },
     };
 };

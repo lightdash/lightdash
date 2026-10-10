@@ -227,7 +227,6 @@ describe('AI Agent Document authoring', () => {
         expect(result).toMatchObject({ metadata: { status: 'error' } });
         expect(result.structuredContent).toEqual({
             error: result.result,
-            refusal: null,
         });
         expect(toolCreateContentOutputSchema.safeParse(result).success).toBe(
             true,

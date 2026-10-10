@@ -129,8 +129,9 @@ describe('toolErrorOutput', () => {
         );
 
         expect(output.metadata).toEqual({ status: 'error' });
-        expect(output.structuredContent.error).toBe(output.result);
-        expect(output.structuredContent.refusal).toBeNull();
+        expect(output.structuredContent).toStrictEqual({
+            error: output.result,
+        });
         expect(output.result).toContain('bad sql');
         expect(
             toolErrorStructuredContentSchema.safeParse(output.structuredContent)

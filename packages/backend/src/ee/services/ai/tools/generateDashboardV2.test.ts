@@ -349,7 +349,6 @@ describe('getGenerateDashboardV2 structured output', () => {
         );
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
         expect(createOrUpdateArtifact).not.toHaveBeenCalled();
     });
@@ -367,7 +366,6 @@ describe('getGenerateDashboardV2 structured output', () => {
         expect(output.result).toContain('prompt is gone');
         expect(output.structuredContent).toEqual({
             error: output.result,
-            refusal: null,
         });
     });
 });

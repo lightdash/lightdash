@@ -20,7 +20,7 @@ export type ExecuteStructuredToolResult<
 
 /** Failure envelope: `structuredContent` mirrors the error text as `{ error }`. */
 interface ToolErrorWithRefusal extends ToolErrorStructuredContent {
-    refusal: AiAccessRefusal | null;
+    refusal?: AiAccessRefusal;
 }
 
 interface ToolErrorMetadata extends Record<string, unknown> {
@@ -38,5 +38,5 @@ export interface ExecuteToolErrorResult<TMetadata = ToolErrorMetadata> {
 export const toolFailure = (result: string): ExecuteToolErrorResult => ({
     result,
     metadata: { status: 'error' },
-    structuredContent: { error: result, refusal: null },
+    structuredContent: { error: result },
 });
