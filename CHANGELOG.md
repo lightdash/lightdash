@@ -1,3 +1,10 @@
+## [2.537.1](https://github.com/lightdash/lightdash/compare/2.537.0...2.537.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **oauth:** tighten wildcard redirect URI matching and redact tokens in logs ([#30864](https://github.com/lightdash/lightdash/issues/30864)) ([5d75e1f](https://github.com/lightdash/lightdash/commit/5d75e1f88e28cb2c25521f9d0f785ba1f3de106f))
+
 # [2.537.0](https://github.com/lightdash/lightdash/compare/2.536.0...2.537.0) (2026-10-10)
 
 

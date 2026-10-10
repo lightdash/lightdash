@@ -1,33 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "2.537.0",
-  "previousVersion": "2.536.0",
-  "releaseDate": "2026-10-10T04:36:23.039Z",
+  "version": "2.537.1",
+  "previousVersion": "2.537.0",
+  "releaseDate": "2026-10-10T05:13:10.690Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261010230000_add_content_version_agent_identity.ts",
-        "edition": "core",
-        "tables": [
-          "agent_action_log",
-          "app_versions",
-          "dashboard_versions",
-          "document_versions",
-          "organizations",
-          "saved_queries_versions",
-          "saved_sql_versions"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
