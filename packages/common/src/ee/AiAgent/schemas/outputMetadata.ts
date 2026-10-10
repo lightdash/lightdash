@@ -1,32 +1,18 @@
 import { z } from 'zod';
-import { AgentCapability } from '../../../types/agentPermissions';
-import {
-    AiAccessRefusalAction,
-    AiAccessRefusalReason,
-    type AiAccessRefusal,
-} from '../../../types/aiPrincipal';
 
 const toolAccessRefusalSchema = z.object({
     code: z.literal('ai_access_refused'),
-    reason: z.enum(AiAccessRefusalReason),
+    reason: z.string(),
     message: z.string(),
-    action: z.enum(AiAccessRefusalAction).nullable(),
+    action: z.string().nullable(),
     settingsUrl: z.string().nullable(),
     connectUrl: z.string().nullable(),
-    capability: z.enum(AgentCapability).nullable().optional(),
-    policyLayer: z
-        .enum([
-            'org_ceiling',
-            'project_scope',
-            'organization_setting',
-            'warehouse_identity',
-            'unmapped',
-        ])
-        .optional(),
+    capability: z.string().nullable().optional(),
+    policyLayer: z.string().optional(),
     operation: z.string().optional(),
     policyVersion: z.number().optional(),
     projectUuid: z.string().nullable().optional(),
-}) satisfies z.ZodType<AiAccessRefusal>;
+});
 
 export const baseOutputMetadataSchema = z.object({
     status: z.enum(['success', 'error']),
