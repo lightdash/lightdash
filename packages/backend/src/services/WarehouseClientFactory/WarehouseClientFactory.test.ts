@@ -49,6 +49,8 @@ import {
     athenaSecrets,
     postgresConnection,
     postgresSecrets,
+    redshiftConnection,
+    redshiftSecrets,
     snowflakeSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -2312,6 +2314,364 @@ describe('AI service account factory scopes', () => {
             expect(disconnect).toHaveBeenCalledOnce();
         },
     );
+    const redshiftPlan = async (connection = redshiftConnection) => ({
+        ...slotPlan,
+        credentials: await resolveAiServiceAccountCredentials({
+            connection,
+            stored: redshiftSecrets,
+            owner: {
+                kind: 'aiServiceAccount' as const,
+                uuid: 'slot-row',
+                identityUuid: 'generation-a',
+                sourceProjectUuid: 'project',
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project-uuid',
+            warehouseConnectionUuid: null,
+        }),
+    });
+
+    test.each([true, false])(
+        'opens the Redshift AI tunnel with the local endpoint, copied key=%s',
+        async (copiedKey) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                sshKeyPairModel,
+            } = buildFixture();
+            const connection = {
+                ...redshiftConnection,
+                sshTunnelPrivateKey: copiedKey ? 'tunnel-private' : undefined,
+            };
+            sshKeyPairModel.find.mockResolvedValue(
+                copiedKey
+                    ? null
+                    : {
+                          publicKey: 'tunnel-public',
+                          privateKey: 'organization-private',
+                          organizationUuid: 'org-uuid',
+                      },
+            );
+            aiAccessService.resolvePlan.mockResolvedValue(
+                await redshiftPlan(connection),
+            );
+            connect.mockImplementation(async (creds) => ({
+                ...creds,
+                host: '127.0.0.1',
+                port: 43210,
+            }));
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ connectionCredentials }) => {
+                    expect(connectionCredentials).toMatchObject({
+                        ...redshiftSecrets,
+                        authenticationType: RedshiftAuthenticationType.PASSWORD,
+                        host: '127.0.0.1',
+                        port: 43210,
+                    });
+                },
+            );
+            expect(SshTunnel).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...redshiftSecrets,
+                    authenticationType: RedshiftAuthenticationType.PASSWORD,
+                    sshTunnelPrivateKey: copiedKey
+                        ? 'tunnel-private'
+                        : 'organization-private',
+                }),
+                undefined,
+            );
+            const clientCredentials =
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0];
+            expect(clientCredentials).toMatchObject({
+                ...redshiftSecrets,
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+                host: '127.0.0.1',
+                port: 43210,
+            });
+            for (const field of [
+                'accessKeyId',
+                'secretAccessKey',
+                'sessionToken',
+                'assumeRoleArn',
+                'assumeRoleExternalId',
+                'awsSsoStartUrl',
+                'awsSsoRegion',
+                'awsSsoAccountId',
+                'awsSsoRoleName',
+                'autoCreate',
+                'dbGroups',
+            ])
+                expect(clientCredentials).not.toHaveProperty(field);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.any(Object),
+                expect.objectContaining({ agentJobControls: true }),
+            );
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
+            expect(sshKeyPairModel.find).toHaveBeenCalledOnce();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
+        },
+    );
+
+    test.each(
+        [true, false].flatMap((copiedKey) =>
+            [true, false].map((queryFails) => ({ copiedKey, queryFails })),
+        ),
+    )(
+        'opens the same tunnel for a Redshift service account Test, copied key=$copiedKey, failure=$queryFails',
+        async ({ copiedKey, queryFails }) => {
+            const { factory, projectModel, sshKeyPairModel } = buildFixture();
+            const connection = {
+                ...redshiftConnection,
+                sshTunnelPrivateKey: copiedKey ? 'tunnel-private' : undefined,
+            };
+            sshKeyPairModel.find.mockResolvedValue(
+                copiedKey
+                    ? null
+                    : {
+                          publicKey: 'tunnel-public',
+                          privateKey: 'organization-private',
+                          organizationUuid: 'org-uuid',
+                      },
+            );
+            const testCredentials = buildAiServiceAccountCredentials(
+                connection,
+                redshiftSecrets,
+            );
+            connect.mockImplementation(async (creds) => ({
+                ...creds,
+                host: '127.0.0.1',
+                port: 43211,
+            }));
+            const queryError = new Error('probe failed');
+            const operation = factory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    agentSession: true,
+                    clientOptions: { agentJobControls: true },
+                    projectUuid: 'project-uuid',
+                    credentials: testCredentials,
+                },
+                contextFor(QueryExecutionContext.API),
+                async ({ warehouseClient }) => {
+                    if (queryFails) throw queryError;
+                    return warehouseClient.runQuery(
+                        'SELECT current_user AS principal, session_user AS session_principal',
+                        {},
+                    );
+                },
+            );
+            if (queryFails) await expect(operation).rejects.toBe(queryError);
+            else await operation;
+            expect(SshTunnel).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sshTunnelPrivateKey: copiedKey
+                        ? 'tunnel-private'
+                        : 'organization-private',
+                }),
+                undefined,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...redshiftSecrets,
+                    authenticationType: RedshiftAuthenticationType.PASSWORD,
+                    host: '127.0.0.1',
+                    port: 43211,
+                }),
+                expect.any(Object),
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.any(Object),
+                expect.objectContaining({ agentJobControls: true }),
+            );
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
+            expect(sshKeyPairModel.find).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    test.each([
+        ['28P01', true],
+        ['28000', true],
+        ['42501', false],
+        ['42601', false],
+    ])(
+        'attributes only Redshift authentication failure %s',
+        async (code, refused) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                logger,
+            } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await redshiftPlan());
+            const error = new WarehouseQueryError(
+                'password authentication failed for user "ai_agents"',
+            );
+            error.cause = Object.assign(new Error(redshiftSecrets.password), {
+                code,
+            });
+            const client =
+                projectModel.getWarehouseClientFromCredentials(credentials);
+            vi.spyOn(client, 'runQuery').mockRejectedValue(error);
+            projectModel.getWarehouseClientFromCredentials.mockReturnValue(
+                client,
+            );
+            const operation = factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            );
+            if (refused) {
+                await expect(operation).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    },
+                });
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).toHaveBeenCalledOnce();
+            } else {
+                await expect(operation).rejects.toBe(error);
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).not.toHaveBeenCalled();
+            }
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                redshiftSecrets.password,
+            );
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+    test.each(['binding', 'resolved'] as const)(
+        'keeps Redshift slot controls on %s and derived clients',
+        async (kind) => {
+            const { factory, aiAccessService, projectModel, credentialSource } =
+                buildFixture();
+            const slot = await redshiftPlan({
+                ...redshiftConnection,
+                useSshTunnel: false,
+            });
+            aiAccessService.resolvePlan.mockResolvedValue(slot);
+            const ref: WarehouseClientRef =
+                kind === 'binding'
+                    ? bindingRef
+                    : {
+                          kind: 'resolved',
+                          projectUuid: 'project-uuid',
+                          credentials: slot.credentials,
+                          aiPlan: slot,
+                          warehouseConnectionUuid: 'extra-connection',
+                          connectionRoute: {
+                              route: 'single',
+                              originalWarehouseConnectionUuid: null,
+                          },
+                      };
+            await factory.withWarehouseClient(
+                ref,
+                contextFor(QueryExecutionContext.AI),
+                async ({ deriveClient, connectionCredentials }) => {
+                    deriveClient({
+                        ...connectionCredentials,
+                        schema: 'another_schema',
+                    } as CreateWarehouseCredentials);
+                },
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            for (const [clientCredentials, options] of projectModel
+                .getWarehouseClientFromCredentials.mock.calls) {
+                expect(clientCredentials).toMatchObject({
+                    ...redshiftSecrets,
+                    authenticationType: RedshiftAuthenticationType.PASSWORD,
+                });
+                expect(options).toMatchObject({
+                    agentSession: true,
+                    agentJobControls: true,
+                });
+                expect(clientCredentials).not.toHaveProperty('accessKeyId');
+                expect(clientCredentials).not.toHaveProperty('secretAccessKey');
+            }
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+        },
+    );
+
+    test('isolates overlapping Redshift slot generations without replacing an active client', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        const connection = { ...redshiftConnection, useSshTunnel: false };
+        const oldPlan = await redshiftPlan(connection);
+        aiAccessService.resolvePlan.mockResolvedValue(oldPlan);
+        const started = Promise.withResolvers<void>();
+        const finish = Promise.withResolvers<void>();
+        const oldQuery = factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => {
+                started.resolve();
+                await finish.promise;
+                return warehouseClient;
+            },
+        );
+        await started.promise;
+        const newPlan = {
+            ...oldPlan,
+            identityUuid: 'generation-b',
+            credentials: await resolveAiServiceAccountCredentials({
+                connection,
+                stored: {
+                    ...redshiftSecrets,
+                    password: 'replacement-password',
+                },
+                owner: {
+                    kind: 'aiServiceAccount',
+                    uuid: 'slot-row',
+                    identityUuid: 'generation-b',
+                    sourceProjectUuid: 'project',
+                },
+                context: contextFor(QueryExecutionContext.AI),
+                projectUuid: 'project-uuid',
+                warehouseConnectionUuid: null,
+            }),
+        };
+        aiAccessService.resolvePlan.mockResolvedValue(newPlan);
+        try {
+            const newClient = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(newClient.credentials).toMatchObject({
+                password: 'replacement-password',
+            });
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            finish.resolve();
+            const oldClient = await oldQuery;
+            expect(oldClient).not.toBe(newClient);
+            expect(oldClient.credentials).toMatchObject(redshiftSecrets);
+        } finally {
+            finish.resolve();
+            await oldQuery;
+        }
+    });
+
     const athenaPlan = async () => ({
         ...slotPlan,
         inheritedFromProjectUuid: 'parent',

@@ -34,7 +34,7 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import {
     getAthenaServiceAccountTestErrorMessage,
-    getPostgresServiceAccountTestErrorMessage,
+    getUserPasswordServiceAccountTestErrorMessage,
 } from '../../utils/aiServiceAccountErrors';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
@@ -61,6 +61,14 @@ type Dependencies = {
     warehouseConnectionModel: WarehouseConnectionModel;
     projectService: Pick<ProjectService, 'warehouseClientFactory'>;
 };
+
+const verifiedWarehouseTypes = new Set<WarehouseTypes>([
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
+    WarehouseTypes.ATHENA,
+    WarehouseTypes.DATABRICKS,
+    WarehouseTypes.SNOWFLAKE,
+]);
 
 export class AiServiceAccountService extends BaseService {
     constructor(private readonly deps: Dependencies) {
@@ -219,20 +227,16 @@ export class AiServiceAccountService extends BaseService {
                       results?.identityUuid ?? null,
                   )
                 : results !== null;
-        const verification =
-            connection.type === WarehouseTypes.POSTGRES ||
-            connection.type === WarehouseTypes.ATHENA ||
-            connection.type === WarehouseTypes.DATABRICKS ||
-            connection.type === WarehouseTypes.SNOWFLAKE
-                ? {
-                      verification:
-                          await this.deps.aiServiceAccountCredentialsModel.getVerification(
-                              projectUuid,
-                              warehouseConnectionUuid,
-                              results?.identityUuid ?? null,
-                          ),
-                  }
-                : {};
+        const verification = verifiedWarehouseTypes.has(connection.type)
+            ? {
+                  verification:
+                      await this.deps.aiServiceAccountCredentialsModel.getVerification(
+                          projectUuid,
+                          warehouseConnectionUuid,
+                          results?.identityUuid ?? null,
+                      ),
+              }
+            : {};
         const resolver = new AiServiceAccountSlotResolver(this.deps);
         const input = { projectUuid, connection: warehouseConnectionUuid };
         const inherited = await resolver
@@ -276,10 +280,7 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...(connection.type === WarehouseTypes.POSTGRES ||
-                connection.type === WarehouseTypes.ATHENA ||
-                connection.type === WarehouseTypes.DATABRICKS ||
-                connection.type === WarehouseTypes.SNOWFLAKE
+                ...(verifiedWarehouseTypes.has(connection.type)
                     ? {
                           verification:
                               await this.deps.aiServiceAccountCredentialsModel.getVerification(
@@ -343,23 +344,19 @@ export class AiServiceAccountService extends BaseService {
                 projectUuid,
                 warehouseConnectionUuid,
             );
-        const verification =
-            connection.type === WarehouseTypes.POSTGRES ||
-            connection.type === WarehouseTypes.ATHENA ||
-            connection.type === WarehouseTypes.DATABRICKS ||
-            connection.type === WarehouseTypes.SNOWFLAKE
-                ? await this.testConnection(
-                      account,
-                      projectUuid,
-                      {
-                          connection,
-                          warehouseConnectionUuid,
-                          organizationUuid,
-                          connectionName,
-                      },
-                      credentials,
-                  )
-                : null;
+        const verification = verifiedWarehouseTypes.has(connection.type)
+            ? await this.testConnection(
+                  account,
+                  projectUuid,
+                  {
+                      connection,
+                      warehouseConnectionUuid,
+                      organizationUuid,
+                      connectionName,
+                  },
+                  credentials,
+              )
+            : null;
         if (verification !== null && !verification.ok)
             throw new ParameterError(verification.message);
         const slot = await this.deps.aiServiceAccountCredentialsModel.upsert(
@@ -399,10 +396,7 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...(connection.type === WarehouseTypes.POSTGRES ||
-            connection.type === WarehouseTypes.ATHENA ||
-            connection.type === WarehouseTypes.DATABRICKS ||
-            connection.type === WarehouseTypes.SNOWFLAKE
+            ...(verifiedWarehouseTypes.has(connection.type)
                 ? { verification }
                 : {}),
         };
@@ -544,7 +538,9 @@ export class AiServiceAccountService extends BaseService {
                     agentSession: true,
                     projectUuid,
                     credentials,
-                    ...(databricks || snowflake
+                    ...(databricks ||
+                    snowflake ||
+                    connection.type === WarehouseTypes.REDSHIFT
                         ? { clientOptions: { agentJobControls: true } }
                         : {}),
                 },
@@ -559,12 +555,12 @@ export class AiServiceAccountService extends BaseService {
                                 return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
                             case WarehouseTypes.ATHENA:
                                 return 'SELECT 1 AS connection_check';
+                            case WarehouseTypes.REDSHIFT:
                             case WarehouseTypes.POSTGRES:
                                 return 'SELECT current_user AS principal, session_user AS session_principal';
                             case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.CLICKHOUSE:
                             case WarehouseTypes.DUCKDB:
-                            case WarehouseTypes.REDSHIFT:
                             case WarehouseTypes.TRINO:
                                 return 'SELECT SESSION_USER() AS principal';
                             default:
@@ -620,6 +616,21 @@ export class AiServiceAccountService extends BaseService {
                 checkedAt: new Date(),
             };
         }
+        if (
+            credentials.type === WarehouseTypes.REDSHIFT &&
+            (!principal?.trim() ||
+                principal !== row.session_principal ||
+                (principal !== credentials.user &&
+                    principal !== credentials.user.toLowerCase()))
+        ) {
+            return {
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Redshift signed in as a different user.',
+                checkedAt: new Date(),
+            };
+        }
         return {
             ok: true,
             principal,
@@ -627,6 +638,7 @@ export class AiServiceAccountService extends BaseService {
                 switch (connection.type) {
                     case WarehouseTypes.SNOWFLAKE:
                         return { currentUser: principal, currentRole: role };
+                    case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.POSTGRES:
                     case WarehouseTypes.DATABRICKS:
                         return { currentUser: principal };
@@ -635,7 +647,6 @@ export class AiServiceAccountService extends BaseService {
                     case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.TRINO:
                         return { principal };
                     default:
@@ -712,10 +723,7 @@ export class AiServiceAccountService extends BaseService {
             if (
                 result.ok &&
                 input === null &&
-                (connection.type === WarehouseTypes.POSTGRES ||
-                    connection.type === WarehouseTypes.ATHENA ||
-                    connection.type === WarehouseTypes.DATABRICKS ||
-                    connection.type === WarehouseTypes.SNOWFLAKE) &&
+                verifiedWarehouseTypes.has(connection.type) &&
                 testedGeneration !== null
             ) {
                 await this.deps.aiServiceAccountCredentialsModel.updateVerification(
@@ -737,10 +745,14 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
                 reason: failureReason,
                 ...redactCredentialError(error),
-                ...(connection.type === WarehouseTypes.POSTGRES
+                ...(connection.type === WarehouseTypes.POSTGRES ||
+                connection.type === WarehouseTypes.REDSHIFT
                     ? {
                           errorMessage:
-                              getPostgresServiceAccountTestErrorMessage(error),
+                              getUserPasswordServiceAccountTestErrorMessage(
+                                  connection.type,
+                                  error,
+                              ),
                       }
                     : {}),
             });
@@ -750,8 +762,10 @@ export class AiServiceAccountService extends BaseService {
                 observed: {},
                 message: (() => {
                     switch (connection.type) {
+                        case WarehouseTypes.REDSHIFT:
                         case WarehouseTypes.POSTGRES:
-                            return getPostgresServiceAccountTestErrorMessage(
+                            return getUserPasswordServiceAccountTestErrorMessage(
+                                connection.type,
                                 error,
                             );
                         case WarehouseTypes.ATHENA:

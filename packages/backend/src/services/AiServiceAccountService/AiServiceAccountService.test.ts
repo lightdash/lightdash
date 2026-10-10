@@ -9,6 +9,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    RedshiftAuthenticationType,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
@@ -24,6 +25,9 @@ import {
     postgresConnection,
     postgresSecrets,
     postgresVerification,
+    redshiftConnection,
+    redshiftSecrets,
+    redshiftVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -203,6 +207,7 @@ describe.each(operations)('%s boundaries', (operation) => {
         Object.values(WarehouseTypes).filter(
             (type) =>
                 type !== WarehouseTypes.POSTGRES &&
+                type !== WarehouseTypes.REDSHIFT &&
                 type !== WarehouseTypes.BIGQUERY &&
                 type !== WarehouseTypes.ATHENA &&
                 type !== WarehouseTypes.DATABRICKS &&
@@ -2005,5 +2010,315 @@ describe('Postgres identity verification', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(f.withWarehouseClient).not.toHaveBeenCalled();
         },
+    );
+});
+
+const redshiftFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(redshiftConnection);
+    f.getExtra.mockResolvedValue(redshiftConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(redshiftSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: redshiftSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', session_principal: 'ai_agents' }],
+    });
+    return f;
+};
+
+describe('Redshift identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = redshiftFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                redshiftSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal, session_user AS session_principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                clientOptions: { agentJobControls: true },
+                credentials: {
+                    ...redshiftSecrets,
+                    host: 'warehouse.internal',
+                    port: 5439,
+                    authenticationType: RedshiftAuthenticationType.PASSWORD,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'tunnel-private',
+                    requireUserCredentials: false,
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...redshiftVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                redshiftSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([
+        { rows: [{ principal: 'other', session_principal: 'ai_agents' }] },
+        { rows: [{ principal: 'ai_agents', session_principal: 'other' }] },
+        { rows: [{ principal: 'ai_agents' }] },
+        { rows: [{ session_principal: 'ai_agents' }] },
+        { rows: [] },
+    ])(
+        'refuses mismatched or missing session identities %j',
+        async ({ rows }) => {
+            const f = redshiftFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Redshift signed in as a different user.',
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, redshiftSecrets),
+            ).rejects.toThrow('signed in as a different user');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = redshiftFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = redshiftFixture();
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            redshiftSecrets,
+        );
+        expect(result).toMatchObject({ ok: true, principal: 'ai_agents' });
+        expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+            'SELECT current_user AS principal, session_user AS session_principal',
+            {},
+        );
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = redshiftFixture(preview);
+            f.model.getVerification.mockResolvedValue(redshiftVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(redshiftVerification);
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    redshiftVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['28P01', '28000', '42501', '3D000'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = redshiftFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                redshiftSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, redshiftSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                redshiftSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = redshiftFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    redshiftSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    redshiftSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it.each([
+    ['AI_Agents', 'AI_Agents'],
+    ['AI_Agents', 'ai_agents'],
+])(
+    'verifies Redshift user %s as %s without changing saved spelling',
+    async (user, principal) => {
+        const f = redshiftFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [{ principal, session_principal: principal }],
+        });
+        const submitted = {
+            ...redshiftSecrets,
+            user: ` ${user} `,
+            password: ' password bytes ',
+        };
+        const result = await f.service.upsert(
+            f.account,
+            'project',
+            null,
+            submitted,
+        );
+        expect(result.verification).toMatchObject({
+            ok: true,
+            principal,
+            observed: { currentUser: principal },
+        });
+        expect(f.model.upsert).toHaveBeenCalledWith(
+            'project',
+            null,
+            { ...submitted, user },
+            f.account.user.id,
+            result.verification,
+        );
+        expect(f.runQuery).toHaveBeenCalledOnce();
+    },
+);
+
+it.each([
+    ['ai_agents', 'AI_Agents', 'AI_Agents'],
+    ['AI_Agents', 'ai_agents', 'AI_Agents'],
+    ['ai_agents', '', ''],
+    ['ai_agents', ' ', ' '],
+])(
+    'refuses Redshift identity mismatch %s / %s / %s',
+    async (user, principal, sessionPrincipal) => {
+        const f = redshiftFixture();
+        f.runQuery.mockResolvedValue({
+            rows: [{ principal, session_principal: sessionPrincipal }],
+        });
+        expect(
+            await f.service.test(f.account, 'project', null, {
+                ...redshiftSecrets,
+                user,
+            }),
+        ).toMatchObject({
+            ok: false,
+            principal: null,
+            message: 'Redshift signed in as a different user.',
+        });
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    },
+);
+
+it('disables the Redshift result cache for submitted and saved Test probes', async () => {
+    const f = redshiftFixture();
+    await f.service.test(f.account, 'project', null, redshiftSecrets);
+    await f.service.test(f.account, 'project', null, null);
+    for (const [ref] of f.withWarehouseClient.mock.calls)
+        expect(ref).toMatchObject({
+            kind: 'bypass',
+            mode: 'connection_test',
+            agentSession: true,
+            clientOptions: { agentJobControls: true },
+            credentials: {
+                ...redshiftSecrets,
+                authenticationType: RedshiftAuthenticationType.PASSWORD,
+            },
+        });
+    expect(f.runQuery).toHaveBeenCalledTimes(2);
+    expect(f.runQuery).toHaveBeenNthCalledWith(
+        1,
+        'SELECT current_user AS principal, session_user AS session_principal',
+        {},
+    );
+    expect(f.runQuery).toHaveBeenNthCalledWith(
+        2,
+        'SELECT current_user AS principal, session_user AS session_principal',
+        {},
     );
 });

@@ -183,6 +183,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                     WarehouseTypes.BIGQUERY,
                     WarehouseTypes.DATABRICKS,
                     WarehouseTypes.POSTGRES,
+                    WarehouseTypes.REDSHIFT,
                     WarehouseTypes.SNOWFLAKE,
                 ].sort(),
             );

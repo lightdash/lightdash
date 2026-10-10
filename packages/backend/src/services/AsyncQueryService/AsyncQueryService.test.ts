@@ -98,6 +98,8 @@ import { CommercialCacheService } from '../../ee/services/CommercialCacheService
 import {
     athenaConnection,
     athenaSecrets,
+    redshiftConnection,
+    redshiftSecrets,
     snowflakeSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -8580,6 +8582,13 @@ describe('AsyncQueryService', () => {
             aiExecutionPlanMock,
             aiServiceAccountPlanMock,
             snowflakeSlotPlanMock,
+            {
+                ...aiServiceAccountPlanMock,
+                credentials: buildAiServiceAccountCredentials(
+                    { ...redshiftConnection, useSshTunnel: false },
+                    redshiftSecrets,
+                ),
+            },
             {
                 ...aiServiceAccountPlanMock,
                 credentials: buildAiServiceAccountCredentials(

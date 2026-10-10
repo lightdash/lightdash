@@ -27,6 +27,7 @@ test.each([
 
 test.each([
     WarehouseTypes.POSTGRES,
+    WarehouseTypes.REDSHIFT,
     WarehouseTypes.DATABRICKS,
     WarehouseTypes.ATHENA,
 ])('persists the %s source for both actor kinds', async (warehouseType) => {

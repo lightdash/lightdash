@@ -41,11 +41,12 @@ import type {
     ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import {
-    getPostgresServiceAccountTestErrorMessage,
+    getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
     isPostgresServiceAccountAuthError,
+    isRedshiftServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
 import {
@@ -1077,6 +1078,8 @@ export class WarehouseClientFactory {
             !(
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.REDSHIFT &&
+                    isRedshiftServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.POSTGRES &&
                     isPostgresServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.ATHENA &&
@@ -1117,10 +1120,14 @@ export class WarehouseClientFactory {
                 projectUuid,
                 reason,
                 ...redactCredentialError(error),
-                ...(credentials.type === WarehouseTypes.POSTGRES
+                ...(credentials.type === WarehouseTypes.POSTGRES ||
+                credentials.type === WarehouseTypes.REDSHIFT
                     ? {
                           errorMessage:
-                              getPostgresServiceAccountTestErrorMessage(error),
+                              getUserPasswordServiceAccountTestErrorMessage(
+                                  credentials.type,
+                                  error,
+                              ),
                       }
                     : {}),
             });

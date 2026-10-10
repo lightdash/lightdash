@@ -5,6 +5,7 @@ import {
     buildBigQueryAiServiceAccountCommands,
     buildDatabricksAiServiceAccountCommands,
     buildPostgresAiServiceAccountCommands,
+    buildRedshiftAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
@@ -327,4 +328,58 @@ CREATE POLICY "ai_agents_rows" ON "reporting"."<table>"
             expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
         },
     );
+});
+
+describe('Redshift AI service account setup commands', () => {
+    it('creates a restricted user and uses Redshift grants, row and masking policies', () => {
+        const commands = buildRedshiftAiServiceAccountCommands({
+            schema: 'reporting',
+        });
+        expect(commands.createUser).toBe(`CREATE USER ai_agents
+  PASSWORD '<choose-a-strong-password>'
+  NOCREATEDB NOCREATEUSER
+  SYSLOG ACCESS RESTRICTED;`);
+        expect(commands.grantReadAccess).toBe(`GRANT USAGE ON SCHEMA "reporting"
+  TO ai_agents;
+GRANT SELECT ON ALL TABLES
+  IN SCHEMA "reporting"
+  TO ai_agents;
+ALTER DEFAULT PRIVILEGES
+  FOR USER "<table-owner>"
+  IN SCHEMA "reporting"
+  GRANT SELECT ON TABLES TO ai_agents;`);
+        expect(commands.rowLevelSecurity).toBe(`CREATE RLS POLICY ai_agents_rows
+  WITH ("<column>" <type>)
+  USING (<condition>);
+ATTACH RLS POLICY ai_agents_rows
+  ON "reporting"."<table>"
+  TO ai_agents;
+ALTER TABLE "reporting"."<table>"
+  ROW LEVEL SECURITY ON;`);
+        expect(commands.masking).toBe(`CREATE MASKING POLICY ai_agents_mask
+  WITH (value VARCHAR(256))
+  USING ('[redacted]'::VARCHAR(256));
+ATTACH MASKING POLICY ai_agents_mask
+  ON "reporting"."<table>" ("<column>")
+  TO ai_agents;`);
+        for (const sql of Object.values(commands))
+            for (const line of sql.split('\n'))
+                expect(line.length).toBeLessThanOrEqual(45);
+    });
+    it('quotes schema identifiers without interpreting SQL', () => {
+        const commands = buildRedshiftAiServiceAccountCommands({
+            schema: 'read"; DROP USER "someone',
+        });
+        expect(commands.grantReadAccess).toContain(
+            'IN SCHEMA "read""; DROP USER ""someone"',
+        );
+        for (const sql of [commands.rowLevelSecurity, commands.masking])
+            expect(sql).toContain('"read""; DROP USER ""someone"."<table>"');
+    });
+    it.each([null, ''])('uses placeholders for %s schema', (schema) => {
+        const commands = buildRedshiftAiServiceAccountCommands({ schema });
+        expect(commands.grantReadAccess).toContain('IN SCHEMA "<schema>"');
+        expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
+        expect(commands.masking).toContain('"<schema>"."<table>"');
+    });
 });

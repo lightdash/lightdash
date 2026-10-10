@@ -12,6 +12,7 @@ import {
 import { type AiServiceAccountSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import {
     athenaSecrets,
+    redshiftSecrets,
     snowflakeSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
@@ -21,6 +22,7 @@ import {
 } from './resolveAiServiceAccountSlot';
 
 describe.each([
+    WarehouseTypes.REDSHIFT,
     WarehouseTypes.BIGQUERY,
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.DATABRICKS,
@@ -34,6 +36,8 @@ describe.each([
         } as AiServiceAccountSlot,
         secrets: ((): AiServiceAccountSecrets => {
             switch (warehouseType) {
+                case WarehouseTypes.REDSHIFT:
+                    return redshiftSecrets;
                 case WarehouseTypes.SNOWFLAKE:
                     return snowflakeSecrets;
                 case WarehouseTypes.DATABRICKS:
@@ -50,7 +54,6 @@ describe.each([
                 case WarehouseTypes.CLICKHOUSE:
                 case WarehouseTypes.DUCKDB:
                 case WarehouseTypes.POSTGRES:
-                case WarehouseTypes.REDSHIFT:
                 case WarehouseTypes.TRINO:
                     return {
                         type: WarehouseTypes.BIGQUERY,

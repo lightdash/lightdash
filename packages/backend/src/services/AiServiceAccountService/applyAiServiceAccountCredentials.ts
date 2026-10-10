@@ -14,6 +14,7 @@ export const mergeAiServiceAccountCredentials = (
 ): AiServiceAccountSecrets => {
     if (
         input.type === WarehouseTypes.POSTGRES ||
+        input.type === WarehouseTypes.REDSHIFT ||
         input.type === WarehouseTypes.DATABRICKS ||
         input.type === WarehouseTypes.ATHENA
     )

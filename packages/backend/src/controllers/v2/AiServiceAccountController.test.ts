@@ -14,6 +14,8 @@ import {
     athenaVerification,
     postgresSecrets,
     postgresVerification,
+    redshiftSecrets,
+    redshiftVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -115,7 +117,7 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
         });
         it('rejects unsupported connections', async () => {
             const f = setup(true);
-            f.load.mockResolvedValue({ type: WarehouseTypes.REDSHIFT });
+            f.load.mockResolvedValue({ type: WarehouseTypes.TRINO });
             await expect(call(f)).rejects.toMatchObject({
                 name: 'ParameterError',
             });
@@ -367,6 +369,54 @@ it.each([undefined, 'extra-connection'])(
             results: { uuid: 'slot' },
             parent: null,
             verification: postgresVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+
+it.each([undefined, 'extra-connection'])(
+    'returns Redshift save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: redshiftVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: redshiftVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert(
+                'project',
+                req,
+                redshiftSecrets,
+                connection,
+            ),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: redshiftVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            redshiftSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: redshiftVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
             req.account,

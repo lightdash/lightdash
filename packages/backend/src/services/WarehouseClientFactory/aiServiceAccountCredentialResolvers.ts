@@ -12,8 +12,10 @@ import { AthenaAiServiceAccountCredentialResolver } from './resolvers/AthenaAiSe
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
 import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
 import { PostgresAiServiceAccountCredentialResolver } from './resolvers/PostgresAiServiceAccountCredentialResolver';
+import { RedshiftAiServiceAccountCredentialResolver } from './resolvers/RedshiftAiServiceAccountCredentialResolver';
 import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/SnowflakeAiServiceAccountCredentialResolver';
 
+const redshiftResolver = new RedshiftAiServiceAccountCredentialResolver();
 const postgresResolver = new PostgresAiServiceAccountCredentialResolver();
 const athenaResolver = new AthenaAiServiceAccountCredentialResolver();
 const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
@@ -21,6 +23,7 @@ const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
 const entries = [
+    { warehouseType: WarehouseTypes.REDSHIFT, resolver: redshiftResolver },
     { warehouseType: WarehouseTypes.POSTGRES, resolver: postgresResolver },
     { warehouseType: WarehouseTypes.ATHENA, resolver: athenaResolver },
     {
@@ -66,6 +69,8 @@ export const buildAiServiceAccountCredentials = (
     secrets: AiServiceAccountSecrets,
 ): CreateWarehouseCredentials => {
     switch (connection.type) {
+        case WarehouseTypes.REDSHIFT:
+            return redshiftResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.POSTGRES:
             return postgresResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.SNOWFLAKE:
@@ -78,7 +83,6 @@ export const buildAiServiceAccountCredentials = (
             return athenaResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.DUCKDB:
-        case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.TRINO:
             throw new ParameterError(
                 'This warehouse does not support an AI service account.',

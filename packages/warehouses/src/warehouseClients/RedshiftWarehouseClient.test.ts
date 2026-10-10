@@ -89,6 +89,29 @@ describe('RedshiftWarehouseClient result cache', () => {
         },
     );
 
+    it('disables the cache before the agent marker and identity probe', async () => {
+        vi.mocked(mintRedshiftIamCredentials).mockClear();
+        const { query, release, end } = mockConnection();
+        const warehouse = new RedshiftWarehouseClient(credentials, {
+            agentJobControls: true,
+            agentSession: true,
+        });
+        const sql =
+            'SELECT current_user AS principal, session_user AS session_principal';
+        await warehouse.runQuery(sql);
+        expect(mintRedshiftIamCredentials).not.toHaveBeenCalled();
+        expect(query.mock.calls.map(([statement]) => statement)).toEqual([
+            'SET statement_timeout = 540000',
+            cacheStatement,
+            "SELECT set_config('lightdash.agent', 'true', false)",
+            expect.objectContaining({
+                cursor: expect.objectContaining({ text: sql }),
+            }),
+        ]);
+        expect(release).toHaveBeenCalledOnce();
+        expect(end).toHaveBeenCalledOnce();
+    });
+
     it('awaits cache setup before executing the query', async () => {
         const cacheSetup = Promise.withResolvers<void>();
         const cacheStarted = Promise.withResolvers<void>();
