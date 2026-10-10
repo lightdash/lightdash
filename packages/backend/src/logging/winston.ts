@@ -334,7 +334,13 @@ export const sanitizeRequestUrl = (url: string): string => {
         }
         if (
             names.some((name) =>
-                ['downloadtoken', 'code', 'state'].includes(name),
+                [
+                    'downloadtoken',
+                    'code',
+                    'state',
+                    'access_token',
+                    'refresh_token',
+                ].includes(name),
             )
         ) {
             return `${rawName}=[REDACTED]`;
