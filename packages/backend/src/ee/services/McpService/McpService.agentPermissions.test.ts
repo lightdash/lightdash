@@ -193,6 +193,15 @@ describe.each(['oauth', 'session'] as const)(
             },
         );
 
+        test('returns the organization refusal in both text and structured content', async () => {
+            const { call } = setup(authentication);
+            const message =
+                "Your organization's agent permissions do not allow Create and edit content. Ask an admin to change Permissions on the Agents page.";
+            const result = await call('create_content');
+            expect(result.content[0].text).toBe(message);
+            expect(result.structuredContent.refusal.message).toBe(message);
+        });
+
         test('refuses unlisted users before dispatch', async () => {
             const { call, handler, policy } = setup(authentication);
             policy.allowedUserUuids = [];

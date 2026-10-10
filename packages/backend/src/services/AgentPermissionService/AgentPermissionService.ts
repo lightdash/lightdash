@@ -11,6 +11,7 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
+    getAgentCapabilityRefusalMessage,
     getProjectAgentIdentitySettingsPath,
     OrganizationMemberRole,
     ParameterError,
@@ -487,11 +488,11 @@ export class AgentPermissionService extends BaseService {
         if (!denial) return;
         const error = new AiAccessRefusedError(denial.reason, {
             ...denial,
-            ...(denial.reason === AiAccessRefusalReason.AGENT_CAPABILITY_DENIED
-                ? {
-                      message: `Your roles do not allow the ${denial.capability} agent capability. Ask an admin to update your agent permissions.`,
-                  }
-                : {}),
+            message: getAgentCapabilityRefusalMessage(
+                denial.reason,
+                denial.policyLayer,
+                denial.capability,
+            ),
             operation: args.key,
             policyVersion: policy.version,
             projectUuid: args.projectUuid,

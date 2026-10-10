@@ -5,7 +5,10 @@ import {
     type AgentIdentityClaim,
     type AiActorKind,
 } from './agentIdentity';
-import { type AgentCapability } from './agentPermissions';
+import {
+    getAgentCapabilityName,
+    type AgentCapability,
+} from './agentPermissions';
 import { type AnyType } from './any';
 import {
     type CreateWarehouseCredentials,
@@ -179,7 +182,7 @@ export const getAiAccessRefusalMessage = (
         case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
             return 'Agents are disabled. Ask an organization admin to enable agent access.';
         case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
-            return 'Your roles do not allow this agent capability. Ask an admin to update your agent permissions.';
+            return 'Agents cannot do this here. Ask an admin to review agent permissions.';
         case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
             return 'Agents cannot access this project. Ask an organization admin to allow it.';
         case AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED:
@@ -225,6 +228,25 @@ export const getAiAccessRefusalMessage = (
                 'Unknown AI access refusal reason',
             );
     }
+};
+
+export const getAgentCapabilityRefusalMessage = (
+    reason: AiAccessRefusalReason,
+    policyLayer: AiAccessRefusal['policyLayer'] | null,
+    capability: AgentCapability | null,
+): string => {
+    if (capability !== null) {
+        const name = getAgentCapabilityName(capability);
+        if (reason === AiAccessRefusalReason.AGENT_CAPABILITY_DENIED) {
+            return policyLayer === 'org_ceiling'
+                ? `Your organization's agent permissions do not allow ${name}. Ask an admin to change Permissions on the Agents page.`
+                : `Agents cannot use ${name} here. Ask an admin to review agent permissions.`;
+        }
+        if (reason === AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED) {
+            return `Your roles do not allow ${name}. Ask an admin to review your permissions.`;
+        }
+    }
+    return getAiAccessRefusalMessage(reason, { projectName: null });
 };
 
 export const getAiAccessRefusalAction = (

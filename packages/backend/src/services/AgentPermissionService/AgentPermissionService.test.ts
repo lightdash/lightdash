@@ -581,3 +581,25 @@ test('a stale listed user cannot bypass current organization membership', async 
         operation.projectUuid,
     );
 });
+
+test('names organization permissions when Export is missing and preserves refusal data', async () => {
+    const { service, operation } = setup();
+    const key = 'render_chart';
+    await expect(
+        service.assertOperation({ ...operation, kind: 'mcp_tool', key }),
+    ).rejects.toMatchObject({
+        message:
+            "Your organization's agent permissions do not allow Export results. Ask an admin to change Permissions on the Agents page.",
+        refusal: {
+            reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+            policyLayer: 'org_ceiling',
+            capability: AgentCapability.Export,
+            settingsUrl: '/generalSettings/agentIdentity',
+            operation: key,
+            policyVersion: 1,
+            projectUuid: operation.projectUuid,
+            message:
+                "Your organization's agent permissions do not allow Export results. Ask an admin to change Permissions on the Agents page.",
+        },
+    });
+});
