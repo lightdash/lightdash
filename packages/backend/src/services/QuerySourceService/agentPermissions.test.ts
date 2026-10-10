@@ -8,11 +8,16 @@ import {
     QueryHistoryStatus,
     QuerySourceType,
     QuerySurface,
+    type Account,
     type AgentCapabilityPolicy,
     type SourceQuery,
 } from '@lightdash/common';
 import type { Request } from 'express';
-import { fromApiKey, fromOauth } from '../../auth/account/account';
+import {
+    fromApiKey,
+    fromOauth,
+    fromServiceAccount,
+} from '../../auth/account/account';
 import {
     buildAccount,
     defaultSessionUser,
@@ -46,8 +51,10 @@ const sqlQuery: SourceQuery = {
     sql: 'select 1',
 };
 
-const setup = (mode: 'off' | 'legacy' | 'managed' = 'managed') => {
-    const account = buildAccount();
+const setup = (
+    mode: 'off' | 'legacy' | 'managed' = 'managed',
+    account: Account = buildAccount(),
+) => {
     const organizationUuid = account.organization.organizationUuid!;
     const policy: AgentCapabilityPolicy = {
         mode: mode === 'off' ? 'managed' : mode,
@@ -130,10 +137,18 @@ const setup = (mode: 'off' | 'legacy' | 'managed' = 'managed') => {
         asyncQueryService,
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 100 } } },
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
-    const composer = (surface: AgentActorSurface, queries: SourceQuery[]) =>
-        agentExecutionContext.run(
+    const composer = (surface: AgentActorSurface, queries: SourceQuery[]) => {
+        const runtimeAccount =
+            surface === AgentActorSurface.MCP &&
+            account.authentication.type === 'session'
+                ? fromOauth(defaultSessionUser, {
+                      accessToken: 'test-token',
+                      client: { id: 'client' },
+                  })
+                : account;
+        return agentExecutionContext.run(
             createAgentExecutionContext({
-                account,
+                account: runtimeAccount,
                 surface,
                 clientId: null,
                 agentUuid: null,
@@ -142,7 +157,7 @@ const setup = (mode: 'off' | 'legacy' | 'managed' = 'managed') => {
             () =>
                 tools
                     .createRuntime({
-                        account,
+                        account: runtimeAccount,
                         user: defaultSessionUser,
                         organizationUuid,
                         projectUuid,
@@ -164,6 +179,7 @@ const setup = (mode: 'off' | 'legacy' | 'managed' = 'managed') => {
                         terminalNodeId: queries.at(-1)!.nodeId!,
                     }),
         );
+    };
     const controller = new QuerySourceController({
         getQuerySourceService: () => service,
     } as unknown as ServiceRepository);
@@ -366,3 +382,85 @@ describe('OAuth REST source dispatch', () => {
         expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledOnce();
     });
 });
+
+describe.each(['pat', 'service-account', 'oauth'] as const)(
+    '%s MCP source access',
+    (kind) => {
+        it('applies the outer MCP exemption to composer SQL and schema scans', async () => {
+            const accounts = {
+                pat: () => fromApiKey(defaultSessionUser, 'token'),
+                oauth: () =>
+                    fromOauth(defaultSessionUser, {
+                        accessToken: 'token',
+                        client: { id: 'client' },
+                    }),
+                'service-account': () =>
+                    fromServiceAccount(
+                        {
+                            ...defaultSessionUser,
+                            serviceAccount: {
+                                uuid: 'service-account',
+                                description: 'test',
+                            },
+                        },
+                        'token',
+                    ),
+            };
+            const account = accounts[kind]();
+            const {
+                composer,
+                controller,
+                request,
+                asyncQueryService,
+                projectService,
+                confirmation,
+            } = setup('managed', account);
+            const scan = () =>
+                agentExecutionContext.run(
+                    createAgentExecutionContext({
+                        account,
+                        surface: AgentActorSurface.MCP,
+                        clientId: null,
+                        agentUuid: null,
+                        agentIdentityEnabled: true,
+                    }),
+                    () =>
+                        controller.scanQuerySourceSchema(
+                            projectUuid,
+                            QuerySourceType.SQL,
+                            { ...request, account } as Request,
+                        ),
+                );
+            if (kind === 'oauth') {
+                await expect(
+                    composer(AgentActorSurface.MCP, [sqlQuery]),
+                ).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                });
+                await expect(scan()).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                });
+                expect(
+                    asyncQueryService.executeAsyncSqlQuery,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectService.getWarehouseTables,
+                ).not.toHaveBeenCalled();
+            } else {
+                await composer(AgentActorSurface.MCP, [sqlQuery]);
+                await scan();
+                expect(
+                    asyncQueryService.executeAsyncSqlQuery,
+                ).toHaveBeenCalledOnce();
+                expect(
+                    projectService.getWarehouseTables,
+                ).toHaveBeenCalledOnce();
+                expect(confirmation.get).not.toHaveBeenCalled();
+            }
+        });
+    },
+);

@@ -24,6 +24,7 @@ import {
     type UUID,
 } from '@lightdash/common';
 import { getRequiredAgentCapabilities } from '../../auth/agentPermissions/capabilityMap';
+import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
 import { getOAuthScopeContext } from '../../auth/oauthScopes/scopedAbility';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { type AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
@@ -406,6 +407,26 @@ export class AgentPermissionService extends BaseService {
     async assertOperation(args: AssertOperationArgs): Promise<void> {
         const policy = await this.resolvePolicy(args);
         if (policy.mode !== 'managed') return;
+        if (
+            args.kind === 'rest_operation' &&
+            HUMAN_ONLY_IN_MANAGED.has(args.key)
+        ) {
+            const error = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                {
+                    message:
+                        'Only a person can change access grants or identity settings.',
+                    capability: AgentCapability.Administration,
+                    settingsUrl: '/generalSettings/agentIdentity',
+                    policyLayer: 'organization_setting',
+                    policyVersion: policy.version,
+                    operation: args.key,
+                    projectUuid: args.projectUuid,
+                },
+            );
+            await this.recordRefusal(args, error);
+            throw error;
+        }
         const requiredCapabilities = requiredCapabilitiesForOperation(
             args.kind,
             args.key,

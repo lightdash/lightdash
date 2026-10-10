@@ -101,7 +101,11 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         const execution = agentExecutionContext.getStore();
-        if (account.authentication.type !== 'oauth' && !execution) return;
+        if (
+            account.authentication.type !== 'oauth' &&
+            (!execution || execution.surface === AgentActorSurface.MCP)
+        )
+            return;
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
         const permissionService = this.getAgentPermissionService();

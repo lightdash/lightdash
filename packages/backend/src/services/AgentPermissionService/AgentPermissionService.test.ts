@@ -9,6 +9,7 @@ import {
     type PossibleAbilities,
 } from '@lightdash/common';
 import { buildAccount } from '../../auth/account/account.mock';
+import { HUMAN_ONLY_IN_MANAGED } from '../../auth/agentPermissions/humanOnlyInManaged';
 import {
     AgentPermissionService,
     agentSystemRoleMatrix,
@@ -209,7 +210,7 @@ test('the organization write switch bounds content writes', async () => {
     await expect(
         service.assertOperation({
             ...operation,
-            key: 'SpaceController.createSpace',
+            key: 'ProjectController.createDashboard',
         }),
     ).rejects.toMatchObject({
         refusal: {
@@ -469,3 +470,21 @@ test('turn admission checks the project and switch without requiring a capabilit
         refusal: { reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED },
     });
 });
+
+test.each([...HUMAN_ONLY_IN_MANAGED])(
+    'keeps %s human-only even when every capability is granted',
+    async (key) => {
+        const { service, policy, operation, deps } = setup();
+        policy.systemRoleMatrix.viewer = Object.values(AgentCapability);
+        await expect(
+            service.assertOperation({ ...operation, key }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.Administration,
+                settingsUrl: '/generalSettings/agentIdentity',
+            },
+        });
+        expect(deps.agentActionLogModel.insert).toHaveBeenCalledOnce();
+    },
+);

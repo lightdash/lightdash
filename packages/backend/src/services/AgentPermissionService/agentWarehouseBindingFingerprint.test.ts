@@ -1,6 +1,9 @@
 import {
+    DbtProjectType,
+    normalizeWarehouseCredentials,
     NotFoundError,
     ProjectType,
+    SupportedDbtVersions,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
@@ -440,6 +443,28 @@ test.each(['project', 'organization', 'preview'] as const)(
                 confirmed_at: new Date(),
             },
         ];
+        if (owner === 'organization') {
+            await organizations.update('shared', {
+                credentials: { ...credentials },
+            });
+        } else if (owner === 'project') {
+            await projects.updateWarehouseCredentialsIf(
+                'project',
+                (current) => ({ ...current }),
+            );
+        } else {
+            await database.transaction((transaction) =>
+                projects['rewritePreviewWarehouseCredentials'](
+                    transaction,
+                    'parent',
+                    { signIn: null, subjectUserUuid: null },
+                    (current) => ({ ...current }),
+                ),
+            );
+        }
+        expect(
+            await confirmations.getCurrentBindingFingerprint('project'),
+        ).toBe(confirmed);
         const rotated =
             owner !== 'organization'
                 ? await projects.rotateRefreshToken(
@@ -501,5 +526,169 @@ test.each(['project', 'organization', 'preview'] as const)(
         expect(
             await confirmations.getCurrentBindingFingerprint('project'),
         ).not.toBe((await confirmations.get('project'))?.bindingFingerprint);
+    },
+);
+
+test.each(['name', 'dbt', 'credentials'] as const)(
+    'public project update preserves only unchanged warehouse bindings: %s',
+    async (change) => {
+        const encryptionUtil = {
+            encrypt: (value: string) => Buffer.from(value),
+            decrypt: (value: Buffer) => value.toString(),
+        } as EncryptionUtil;
+        const credentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'person',
+            password: 'password',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'public',
+        };
+        Object.assign(metadata.warehouse_credentials[0], {
+            project_id: 1,
+            warehouse_type: credentials.type,
+            warehouse_credential_generation: 0,
+            credential_subject_user_uuid: null,
+            encrypted_credentials: encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            ),
+        });
+        metadata.warehouse_connections = [];
+        const projects = new ProjectModel({
+            database,
+            encryptionUtil,
+            lightdashConfig: lightdashConfigMock,
+        });
+        vi.spyOn(
+            projects,
+            'getWarehouseCredentialsForProject',
+        ).mockResolvedValue(credentials);
+        tracker.on.update('projects').response([{ project_id: 1 }]);
+        tracker.on.insert('warehouse_credentials').response((query) => {
+            if (
+                query.sql.includes(
+                    '"warehouse_credential_generation" = "warehouse_credentials"."warehouse_credential_generation" + 1',
+                )
+            )
+                metadata.warehouse_credentials[0].warehouse_credential_generation = 1;
+            return [];
+        });
+        const before = await fingerprint.get('project');
+        await projects.update(
+            'project',
+            {
+                name: change === 'name' ? 'renamed' : 'project',
+                dbtConnection: { type: DbtProjectType.NONE },
+                warehouseConnection:
+                    change === 'credentials'
+                        ? { ...credentials, password: 'replacement' }
+                        : {
+                              ...normalizeWarehouseCredentials(credentials),
+                              timeoutSeconds: undefined,
+                          },
+                dbtVersion:
+                    change === 'dbt'
+                        ? SupportedDbtVersions.V1_7
+                        : SupportedDbtVersions.V1_8,
+            },
+            null,
+        );
+        expect(
+            metadata.warehouse_credentials[0].warehouse_credential_generation,
+        ).toBe(change === 'credentials' ? 1 : 0);
+        const after = await fingerprint.get('project');
+        if (change === 'credentials') expect(after).not.toBe(before);
+        else expect(after).toBe(before);
+        expect(
+            tracker.history.select.some(
+                ({ sql }) =>
+                    sql.includes('warehouse_credentials') &&
+                    sql.includes('for update'),
+            ),
+        ).toBe(true);
+    },
+);
+
+test.each(['project', 'organization'] as const)(
+    'keeps extra connection generation for an unchanged %s credential source',
+    async (kind) => {
+        const encryptionUtil = {
+            encrypt: (value: string) => Buffer.from(value),
+            decrypt: (value: Buffer) => value.toString(),
+        } as EncryptionUtil;
+        const credentials: CreateSnowflakeCredentials = {
+            type: WarehouseTypes.SNOWFLAKE,
+            account: 'account',
+            user: 'person',
+            password: 'password',
+            database: 'database',
+            warehouse: 'warehouse',
+            schema: 'public',
+        };
+        Object.assign(metadata.warehouse_connections[0], {
+            warehouse_type: credentials.type,
+            connection_credential_generation: 0,
+            encrypted_credentials:
+                kind === 'project'
+                    ? encryptionUtil.encrypt(JSON.stringify(credentials))
+                    : null,
+            organization_warehouse_credentials_uuid:
+                kind === 'organization' ? 'shared' : null,
+        });
+        const connections = new WarehouseConnectionModel({
+            database,
+            encryptionUtil,
+            organizationWarehouseCredentialsModel:
+                new OrganizationWarehouseCredentialsModel({
+                    database,
+                    encryptionUtil,
+                }),
+        });
+        tracker.on.update('warehouse_connections').response((query) => {
+            if (query.sql.includes('"connection_credential_generation" ='))
+                metadata.warehouse_connections[0].connection_credential_generation = 1;
+            return 1;
+        });
+        const project = {
+            projectUuid: 'project',
+            organizationUuid: 'organization',
+            connectionMode: 'multi' as const,
+            originalWarehouseType: WarehouseTypes.SNOWFLAKE,
+        };
+        const before = await fingerprint.get('project');
+        await connections.updateExtraCredentials(
+            project,
+            'connection',
+            kind === 'project'
+                ? {
+                      kind,
+                      credentials: {
+                          ...normalizeWarehouseCredentials(credentials),
+                      },
+                  }
+                : { kind, organizationWarehouseCredentialsUuid: 'shared' },
+        );
+        expect(await fingerprint.get('project')).toBe(before);
+        expect(
+            metadata.warehouse_connections[0].connection_credential_generation,
+        ).toBe(0);
+        await connections.updateExtraCredentials(
+            project,
+            'connection',
+            kind === 'project'
+                ? {
+                      kind,
+                      credentials: { ...credentials, password: 'replacement' },
+                  }
+                : {
+                      kind,
+                      organizationWarehouseCredentialsUuid: 'different-shared',
+                  },
+        );
+        expect(await fingerprint.get('project')).not.toBe(before);
+        expect(
+            metadata.warehouse_connections[0].connection_credential_generation,
+        ).toBe(1);
     },
 );

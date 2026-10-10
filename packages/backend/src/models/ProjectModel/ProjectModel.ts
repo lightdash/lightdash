@@ -223,6 +223,7 @@ import {
     generateUniqueProjectSlug,
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
+import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
@@ -975,6 +976,10 @@ export class ProjectModel {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
         const credentials = normalizeWarehouseCredentials(data);
+        const existing = await trx('warehouse_credentials')
+            .where('project_id', projectId)
+            .forUpdate()
+            .first();
         const signIn = getPersonSignIn(credentials);
         const subjectUserUuid = resolveSignInSubject({
             signIn,
@@ -1009,10 +1014,25 @@ export class ProjectModel {
                 warehouse_type: credentials.type,
                 encrypted_credentials: encryptedCredentials,
                 credential_subject_user_uuid: subjectUserUuid,
-                warehouse_credential_generation: trx.raw('??.?? + 1', [
-                    'warehouse_credentials',
-                    'warehouse_credential_generation',
-                ]),
+                ...(existing &&
+                (existing.warehouse_type !== credentials.type ||
+                    existing.credential_subject_user_uuid !== subjectUserUuid ||
+                    !warehouseCredentialsEqual(
+                        this.decryptWarehouseCredentials(
+                            existing.encrypted_credentials,
+                        ),
+                        credentials,
+                    ))
+                    ? {
+                          warehouse_credential_generation: trx.raw(
+                              '??.?? + 1',
+                              [
+                                  'warehouse_credentials',
+                                  'warehouse_credential_generation',
+                              ],
+                          ),
+                      }
+                    : {}),
             });
     }
 
@@ -5447,33 +5467,43 @@ export class ProjectModel {
             );
             const next = credentials ? update(credentials) : null;
             if (!next) return;
+            const subjectUserUuid = resolveSignInSubject({
+                signIn: getPersonSignIn(next),
+                actorUserUuid: null,
+                stored: [
+                    {
+                        refreshToken: upstream.signIn?.refreshToken ?? null,
+                        subjectUserUuid: upstream.subjectUserUuid,
+                    },
+                    {
+                        refreshToken: credentials
+                            ? (getPersonSignIn(credentials)?.refreshToken ??
+                              null)
+                            : null,
+                        subjectUserUuid: row.credential_subject_user_uuid,
+                    },
+                ],
+            });
+            const bindingChanged =
+                row.credential_subject_user_uuid !== subjectUserUuid ||
+                !warehouseCredentialsEqual(
+                    this.decryptWarehouseCredentials(row.encrypted_credentials),
+                    normalizeWarehouseCredentials(next),
+                );
             await trx(WarehouseCredentialTableName)
                 .update({
-                    warehouse_credential_generation: trx.raw('?? + 1', [
-                        'warehouse_credential_generation',
-                    ]),
+                    ...(bindingChanged
+                        ? {
+                              warehouse_credential_generation: trx.raw(
+                                  '?? + 1',
+                                  ['warehouse_credential_generation'],
+                              ),
+                          }
+                        : {}),
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
-                    credential_subject_user_uuid: resolveSignInSubject({
-                        signIn: getPersonSignIn(next),
-                        actorUserUuid: null,
-                        stored: [
-                            {
-                                refreshToken:
-                                    upstream.signIn?.refreshToken ?? null,
-                                subjectUserUuid: upstream.subjectUserUuid,
-                            },
-                            {
-                                refreshToken: credentials
-                                    ? (getPersonSignIn(credentials)
-                                          ?.refreshToken ?? null)
-                                    : null,
-                                subjectUserUuid:
-                                    row.credential_subject_user_uuid,
-                            },
-                        ],
-                    }),
+                    credential_subject_user_uuid: subjectUserUuid,
                 })
                 .where('project_id', row.project_id);
             updated.push(row.project_uuid);
@@ -5557,9 +5587,29 @@ export class ProjectModel {
                 trx,
                 row.upstream_project_id ? [row.upstream_project_id] : [],
             );
+            const subjectUserUuid = resolveSignInSubject({
+                signIn: getPersonSignIn(next),
+                actorUserUuid: null,
+                stored: [
+                    ...stored,
+                    {
+                        refreshToken: credentials
+                            ? (getPersonSignIn(credentials)?.refreshToken ??
+                              null)
+                            : null,
+                        subjectUserUuid: row.credential_subject_user_uuid,
+                    },
+                ],
+            });
+            const bindingChanged =
+                row.credential_subject_user_uuid !== subjectUserUuid ||
+                !warehouseCredentialsEqual(
+                    this.decryptWarehouseCredentials(row.encrypted_credentials),
+                    normalizeWarehouseCredentials(next),
+                );
             await trx('warehouse_credentials')
                 .update({
-                    ...(change === 'replacement'
+                    ...(change === 'replacement' && bindingChanged
                         ? {
                               warehouse_credential_generation: trx.raw(
                                   '?? + 1',
@@ -5570,21 +5620,7 @@ export class ProjectModel {
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),
-                    credential_subject_user_uuid: resolveSignInSubject({
-                        signIn: getPersonSignIn(next),
-                        actorUserUuid: null,
-                        stored: [
-                            ...stored,
-                            {
-                                refreshToken: credentials
-                                    ? (getPersonSignIn(credentials)
-                                          ?.refreshToken ?? null)
-                                    : null,
-                                subjectUserUuid:
-                                    row.credential_subject_user_uuid,
-                            },
-                        ],
-                    }),
+                    credential_subject_user_uuid: subjectUserUuid,
                 })
                 .where('project_id', row.project_id);
             return true;
@@ -5651,9 +5687,18 @@ export class ProjectModel {
             await trx(WarehouseCredentialTableName)
                 .where('project_id', row.project_id)
                 .update({
-                    warehouse_credential_generation: trx.raw('?? + 1', [
-                        'warehouse_credential_generation',
-                    ]),
+                    ...(row.credential_subject_user_uuid !== actorUserUuid ||
+                    !warehouseCredentialsEqual(
+                        current,
+                        normalizeWarehouseCredentials(next),
+                    )
+                        ? {
+                              warehouse_credential_generation: trx.raw(
+                                  '?? + 1',
+                                  ['warehouse_credential_generation'],
+                              ),
+                          }
+                        : {}),
                     encrypted_credentials: this.encryptionUtil.encrypt(
                         JSON.stringify(next),
                     ),

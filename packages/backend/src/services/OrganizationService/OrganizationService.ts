@@ -66,6 +66,7 @@ import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
 } from '../../utils/organizationRolePermissions';
+import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../BaseService';
 import { isAnalyticsProjectEnabled } from '../ProjectService/analyticsProject/analyticsProjectClient';
 
@@ -785,6 +786,13 @@ export class OrganizationService extends BaseService {
         memberUserUuid: string,
         data: OrganizationMemberProfileUpdate,
     ): Promise<OrganizationMemberProfile> {
+        await assertHumanManagedMutation({
+            organizationUuid: authenticatedUser.organizationUuid,
+            ability: authenticatedUser.ability,
+            oauth: false,
+            database: this.rolesModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         if (!isUserWithOrg(authenticatedUser)) {
             throw new ForbiddenError('User is not part of an organization');
         }

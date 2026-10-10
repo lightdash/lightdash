@@ -247,13 +247,17 @@ including project and preview-parent links, connection modes, IDs and warehouse 
 shared-credential links, credential-subject and preview-ownership fields,
 service-account identity slots, organization identity rules, Snowflake client
 versions and credential generations. Separate generation counters on project,
-shared organization and extra-connection credentials change on credential
-replacement, including preview credential copies. Replacing credentials on the
-same connection UUID therefore requires a new confirmation. Token refresh,
+shared organization and extra-connection credentials change when the normalized
+credentials, credential type or credential subject changes, including preview
+credential copies. Re-saving the same effective credentials keeps the generation.
+Replacing credentials on the same connection UUID requires a new confirmation. Token refresh,
 compilation and unrelated project edits do not change these counters. The
 fingerprint does not hash tokens or encrypted credential payloads and does not
-use generic row timestamps. Confirmation records an admin assurance; it does not
-verify warehouse-side permissions.
+use generic row timestamps. Confirmation covers the connection, organization
+identity rules, the AI service account slot and the organization's Snowflake agent client. It does not cover
+individual users' sign-in tokens; reconnecting under the same organization
+integration keeps the same identity for this assurance. Confirmation records an
+admin assurance; it does not verify warehouse-side permissions.
 
 The ceiling applies to MCP tools and resource reads, in-app and Slack agent tools
 and fast data paths, and OAuth REST operations. SQL nodes in mixed-source
@@ -262,10 +266,16 @@ confirmation before dispatch or cache access. Semantic-only pipelines require
 the query grant. Connected MCP tools also require `external_tools` and an
 explicit entry in that server's `enabledToolNames`, matched by server UUID and
 original tool name. A null tool list does not admit tools in managed mode.
-Personal-access-token and browser-session REST calls are not narrowed. Existing
-browser-session MCP authentication behavior is unchanged. Managed OAuth and
-agent execution contexts cannot change role grants, role assignments or agent
-identity and AI-access configuration through the existing administration APIs.
+Personal-access-token and service-account MCP calls are not narrowed, including
+composer SQL nodes and schema scans. Personal-access-token and browser-session
+REST calls are not narrowed. Existing browser-session MCP authentication behavior
+is unchanged. Managed OAuth REST calls cannot change role definitions, role assignments,
+membership, space or direct access grants, agent policy, identity or AI-access
+settings, warehouse confirmations, personal tokens, service accounts or OAuth
+clients, even with the administration capability. Role, project membership,
+organization membership and group mutation services also reject managed OAuth
+and agent execution contexts. Ordinary human and PAT administration keeps its
+existing behavior.
 
 ### Snowflake silent agent refresh
 

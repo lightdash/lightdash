@@ -392,3 +392,48 @@ it.each(['pat', 'session'] as const)(
         expect(getPolicy).not.toHaveBeenCalled();
     },
 );
+
+it.each([
+    'ProjectController_updateProjectAccessForUser',
+    'GroupsController_addUserToGroup',
+    'OrganizationController_updateOrganizationMember',
+])(
+    'refuses managed OAuth self-grants through %s even with administration and publish',
+    async (operation) => {
+        const { run, getPolicy, request } = setup({
+            operation,
+            scopes: ['write'],
+        });
+        request.method = 'PATCH';
+        request.body = { role: 'developer' };
+        getPolicy.mockResolvedValue({
+            mode: 'managed',
+            version: 1,
+            allowedProjectUuids: null,
+            systemRoleMatrix: agentSystemRoleMatrix([
+                AgentCapability.Administration,
+                AgentCapability.Publish,
+            ]),
+        });
+        await expect(run(allowApiKeyAuthentication)).resolves.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.Administration,
+                settingsUrl: '/generalSettings/agentIdentity',
+            },
+        });
+    },
+);
+it.each(['off', 'legacy', 'pat', 'session'] as const)(
+    'preserves %s membership REST writes',
+    async (mode) => {
+        const { run } = setup({
+            operation: 'ProjectController_updateProjectAccessForUser',
+            mode: mode === 'off' || mode === 'legacy' ? mode : 'managed',
+            authentication:
+                mode === 'pat' || mode === 'session' ? mode : 'oauth',
+            scopes: ['write'],
+        });
+        await expect(run(allowApiKeyAuthentication)).resolves.toBeUndefined();
+    },
+);

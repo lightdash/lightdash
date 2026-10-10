@@ -38,6 +38,7 @@ import {
     REST_OPERATION_CAPABILITIES,
     type RequiredAgentCapabilities,
 } from './capabilityMap';
+import { HUMAN_ONLY_IN_MANAGED } from './humanOnlyInManaged';
 
 const registeredMcpToolSets = new WeakMap<object, string[]>();
 
@@ -426,4 +427,79 @@ it.each([
     expect(getRequiredAgentCapabilities('rest', operation as string)).toEqual(
         expected,
     );
+});
+
+const humanOnlyReadExceptions: Record<string, string> = {
+    'AgentPermissionController.getPolicy':
+        'Reads or validates settings without changing grants or credentials.',
+    'AgentPermissionController.getWarehouseConfirmation':
+        'Reads or validates settings without changing grants or credentials.',
+    'AiServiceAccountController.get':
+        'Reads or validates settings without changing grants or credentials.',
+    'AiServiceAccountController.test':
+        'Reads or validates settings without changing grants or credentials.',
+    'CustomRolesController.getOrganizationRoleAssignees':
+        'Reads or validates settings without changing grants or credentials.',
+    'DirectAccessController.listDirectAccessAssignments':
+        'Reads or validates settings without changing grants or credentials.',
+    'DirectAccessController.listDirectAccessGroups':
+        'Reads or validates settings without changing grants or credentials.',
+    'DirectAccessController.listDirectAccessUsers':
+        'Reads or validates settings without changing grants or credentials.',
+    'GroupsController.getGroup':
+        'Reads or validates settings without changing grants or credentials.',
+    'GroupsController.getGroupMembers':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationAgentIdentityController.getProjectsWithoutAiServiceAccount':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationAgentIdentityController.getSettings':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationAgentIdentityController.getSnowflakeSetup':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationAgentIdentityController.verifySnowflakeSetup':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationRolesController.getCustomRoleByUuid':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationRolesController.getOrganizationRoleAssignments':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationRolesController.getOrganizationRoles':
+        'Reads or validates settings without changing grants or credentials.',
+    'OrganizationRolesController.getOrganizationUserRoleSet':
+        'Reads or validates settings without changing grants or credentials.',
+    'ProjectRolesController.getProjectGroupRoleSet':
+        'Reads or validates settings without changing grants or credentials.',
+    'ProjectRolesController.getProjectRoleAssignments':
+        'Reads or validates settings without changing grants or credentials.',
+    'ProjectRolesController.getProjectUserRoleSet':
+        'Reads or validates settings without changing grants or credentials.',
+    'ScimOrganizationAccessTokenController.getOrganizationAccessToken':
+        'Reads or validates settings without changing grants or credentials.',
+    'ScimOrganizationAccessTokenController.getOrganizationAccessTokens':
+        'Reads or validates settings without changing grants or credentials.',
+    'ServiceAccountsController.getServiceAccountProjectGrants':
+        'Reads or validates settings without changing grants or credentials.',
+    'ServiceAccountsController.getServiceAccounts':
+        'Reads or validates settings without changing grants or credentials.',
+};
+
+it('covers every role, membership and token controller operation with a human-only rule or a reviewed exception', () => {
+    const families =
+        /^(?:CustomRoles|OrganizationRoles|ProjectRoles|Roles|Groups|DirectAccess|ServiceAccounts|ScimOrganizationAccessToken|AgentPermission|OrganizationAgentIdentity|AiServiceAccount)Controller\./;
+    const operations = Object.keys(REST_OPERATION_CAPABILITIES).filter((key) =>
+        families.test(key),
+    );
+    expect(
+        operations.filter(
+            (key) =>
+                !HUMAN_ONLY_IN_MANAGED.has(key) &&
+                !Object.hasOwn(humanOnlyReadExceptions, key),
+        ),
+    ).toEqual([]);
+    for (const [key, reason] of Object.entries(humanOnlyReadExceptions)) {
+        expect(operations).toContain(key);
+        expect(HUMAN_ONLY_IN_MANAGED.has(key)).toBe(false);
+        expect(reason.length).toBeGreaterThan(20);
+    }
+    for (const key of HUMAN_ONLY_IN_MANAGED)
+        expect(Object.hasOwn(REST_OPERATION_CAPABILITIES, key)).toBe(true);
 });

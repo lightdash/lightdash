@@ -14,6 +14,7 @@ import {
     UserWarehouseCredentialsTableName,
 } from '../../database/entities/userWarehouseCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import type { PersonalCredentialPersistencePolicy } from '../UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -431,17 +432,57 @@ export class WarehouseConnectionModel {
         warehouseConnectionUuid: string,
         source: WarehouseConnectionCredentialSource,
     ): Promise<void> {
-        await this.database(WAREHOUSE_CONNECTIONS_TABLE)
-            .where('project_uuid', project.projectUuid)
-            .where('warehouse_connection_uuid', warehouseConnectionUuid)
-            .where('is_original', false)
-            .update({
-                ...this.toCredentialColumns(source),
-                connection_credential_generation: this.database.raw('?? + 1', [
-                    'connection_credential_generation',
-                ]),
-                updated_at: this.database.fn.now(),
-            });
+        await this.database.transaction(async (transaction) => {
+            const existing = await transaction(WAREHOUSE_CONNECTIONS_TABLE)
+                .where('project_uuid', project.projectUuid)
+                .where('warehouse_connection_uuid', warehouseConnectionUuid)
+                .where('is_original', false)
+                .forUpdate()
+                .first();
+            if (!existing) return;
+            let current: CreateWarehouseCredentials | null = null;
+            if (existing.encrypted_credentials) {
+                try {
+                    current = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                existing.encrypted_credentials,
+                            ),
+                        ),
+                    );
+                } catch {
+                    current = null;
+                }
+            }
+            const changed =
+                source.kind === 'project'
+                    ? existing.organization_warehouse_credentials_uuid !=
+                          null ||
+                      existing.warehouse_type !== source.credentials.type ||
+                      !warehouseCredentialsEqual(
+                          current,
+                          normalizeWarehouseCredentials(source.credentials),
+                      )
+                    : existing.encrypted_credentials != null ||
+                      existing.organization_warehouse_credentials_uuid !==
+                          source.organizationWarehouseCredentialsUuid;
+            await transaction(WAREHOUSE_CONNECTIONS_TABLE)
+                .where('project_uuid', project.projectUuid)
+                .where('warehouse_connection_uuid', warehouseConnectionUuid)
+                .where('is_original', false)
+                .update({
+                    ...this.toCredentialColumns(source),
+                    ...(changed
+                        ? {
+                              connection_credential_generation: transaction.raw(
+                                  '?? + 1',
+                                  ['connection_credential_generation'],
+                              ),
+                          }
+                        : {}),
+                    updated_at: transaction.fn.now(),
+                });
+        });
     }
 
     async updateListingSettings(

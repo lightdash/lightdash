@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     FeatureFlags,
@@ -21,7 +22,7 @@ export const assertHumanManagedMutation = async ({
     ability: MemberAbility;
     oauth: boolean;
     database: Knex;
-    featureFlagModel: FeatureFlagModel;
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 }): Promise<void> => {
     if (
         !organizationUuid ||
@@ -44,6 +45,7 @@ export const assertHumanManagedMutation = async ({
         {
             message:
                 'Only a person can change agent grants or identity settings.',
+            capability: AgentCapability.Administration,
             settingsUrl: '/generalSettings/agentIdentity',
             policyLayer: 'organization_setting',
             policyVersion: policy.version,
