@@ -5802,6 +5802,7 @@ describe('UserService', () => {
                         refreshToken: 'new-refresh-token',
                     }),
                 }),
+                { strictPersonalOverlay: false },
             );
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
@@ -5822,6 +5823,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'sso-credentials-uuid',
                 expect.objectContaining({ name: 'My Snowflake login' }),
+                { strictPersonalOverlay: false },
             );
         });
 
@@ -5862,6 +5864,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'newest-sso-credentials-uuid',
                 expect.anything(),
+                { strictPersonalOverlay: false },
             );
         });
 

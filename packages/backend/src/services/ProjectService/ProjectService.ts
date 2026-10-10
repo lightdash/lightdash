@@ -4566,6 +4566,7 @@ export class ProjectService
                                             warehouseConnection.oauthClientId,
                                     },
                                 },
+                                { strictPersonalOverlay: false },
                                 projectUuid,
                             );
                         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(

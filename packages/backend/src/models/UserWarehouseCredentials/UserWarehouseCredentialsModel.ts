@@ -19,6 +19,7 @@ import {
     snowflakeSsoUserCredentialsSchema,
     SnowflakeTokenError,
     snowflakeUserCredentialsSchema,
+    strictPersonalWarehouseCredentialsSchema,
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentialPurpose,
@@ -41,6 +42,10 @@ import {
 import Logger from '../../logging/logger';
 import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+
+export type PersonalCredentialPersistencePolicy = {
+    strictPersonalOverlay: boolean;
+};
 
 export type SnowflakeAiClientBinding = {
     organizationUuid: string;
@@ -773,7 +778,27 @@ export class UserWarehouseCredentialsModel {
     // would otherwise be resolved from the project connection at query time.
     static normalizeCredentialsForPersistence(
         data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
     ): UpsertUserWarehouseCredentials {
+        if (policy.strictPersonalOverlay) {
+            const credentials =
+                data.credentials.type === WarehouseTypes.SNOWFLAKE
+                    ? {
+                          ...data.credentials,
+                          authenticationType:
+                              data.credentials.authenticationType ??
+                              SnowflakeAuthenticationType.PASSWORD,
+                      }
+                    : data.credentials;
+            const result =
+                strictPersonalWarehouseCredentialsSchema.safeParse(credentials);
+            if (!result.success) {
+                throw new ParameterError(
+                    'Personal warehouse credentials must contain only valid identity fields.',
+                );
+            }
+            return { ...data, credentials };
+        }
         if (data.credentials.type === WarehouseTypes.BIGQUERY) {
             const result = bigquerySsoUserCredentialsSchema.safeParse(
                 data.credentials,
@@ -909,11 +934,13 @@ export class UserWarehouseCredentialsModel {
     async create(
         userUuid: string,
         data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
         projectUuid?: string,
     ): Promise<string> {
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
                 data,
+                policy,
             );
         let encryptedCredentials: Buffer;
         try {
@@ -944,6 +971,7 @@ export class UserWarehouseCredentialsModel {
         userUuid: string,
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
     ): Promise<string> {
         let dataToPersist = data;
         if (
@@ -976,6 +1004,7 @@ export class UserWarehouseCredentialsModel {
         const normalized =
             UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
                 dataToPersist,
+                policy,
             );
         let encryptedCredentials: Buffer;
         try {

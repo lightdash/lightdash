@@ -4037,6 +4037,7 @@ export class UserService extends BaseService {
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
+                { strictPersonalOverlay: false },
                 projectUuid,
             );
         this.analytics.track({
@@ -4061,6 +4062,7 @@ export class UserService extends BaseService {
             user.userUuid,
             userWarehouseCredentialsUuid,
             data,
+            { strictPersonalOverlay: false },
         );
         this.analytics.track({
             userId: user.userUuid,

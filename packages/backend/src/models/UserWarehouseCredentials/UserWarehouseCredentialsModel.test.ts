@@ -341,10 +341,13 @@ describe('UserWarehouseCredentialsModel', () => {
 
     describe('normalizeCredentialsForPersistence', () => {
         const normalize = (credentials: object) =>
-            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence({
-                name: 'Default',
-                credentials: credentials as never,
-            });
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                {
+                    name: 'Default',
+                    credentials: credentials as never,
+                },
+                { strictPersonalOverlay: false },
+            );
 
         test('keeps only the access keys of Athena credentials', () => {
             expect(
@@ -866,4 +869,233 @@ describe('refresh rotation expiry CAS', () => {
             } else expect(tracker.history.update).toHaveLength(0);
         },
     );
+});
+
+describe('strict personal credential writes', () => {
+    const normalSaves = [
+        { type: WarehouseTypes.POSTGRES, user: 'person', password: '' },
+        { type: WarehouseTypes.TRINO, user: 'person', password: '' },
+        { type: WarehouseTypes.CLICKHOUSE, user: 'person', password: '' },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        },
+        {
+            type: WarehouseTypes.SNOWFLAKE,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        },
+        validBigqueryCredentials,
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'personal_access_token',
+            personalAccessToken: 'pat',
+        },
+        {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+        },
+        { type: WarehouseTypes.DUCKDB, token: 'token' },
+    ];
+    const normalize = (credentials: object, strictPersonalOverlay = true) =>
+        UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+            { name: 'Personal', credentials: credentials as never },
+            { strictPersonalOverlay },
+        );
+    test.each(normalSaves)(
+        'strict write rejects non-allowlisted fields for $type',
+        (credentials) => {
+            expect(() =>
+                normalize({ ...credentials, requireUserCredentials: false }),
+            ).toThrow(ParameterError);
+        },
+    );
+    test.each(normalSaves)(
+        'strict write accepts the normal save shape for $type',
+        (credentials) => {
+            expect(normalize(credentials)).toEqual({
+                name: 'Personal',
+                credentials,
+            });
+        },
+    );
+    test.each(normalSaves)(
+        'flag-off parity preserves the current normal save for $type',
+        (credentials) => {
+            expect(normalize(credentials, false)).toEqual({
+                name: 'Personal',
+                credentials,
+            });
+        },
+    );
+    test('flag-off parity preserves legacy extras and Athena projection', () => {
+        expect(
+            normalize(
+                {
+                    type: WarehouseTypes.POSTGRES,
+                    user: 'person',
+                    password: '',
+                    host: 'legacy-host',
+                },
+                false,
+            ),
+        ).toEqual({
+            name: 'Personal',
+            credentials: {
+                type: WarehouseTypes.POSTGRES,
+                user: 'person',
+                password: '',
+                host: 'legacy-host',
+            },
+        });
+        expect(
+            normalize(
+                {
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: 'access',
+                    secretAccessKey: 'secret',
+                    region: 'legacy-region',
+                },
+                false,
+            ),
+        ).toEqual({
+            name: 'Personal',
+            credentials: {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'access',
+                secretAccessKey: 'secret',
+            },
+        });
+    });
+    test.each([
+        {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: 'adc',
+            keyfileContents: validBigqueryCredentials.keyfileContents,
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            authenticationType: 'private_key',
+            keyfileContents: validBigqueryCredentials.keyfileContents,
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: {
+                type: 'service_account',
+                refresh_token: 'refresh',
+            },
+        },
+        {
+            type: WarehouseTypes.BIGQUERY,
+            keyfileContents: { type: 'authorized_user', refresh_token: '' },
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_m2m',
+            personalAccessToken: 'pat',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: '',
+        },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: 'iam',
+            assumeRoleArn: 'role',
+        },
+        {
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+            authenticationType: 'access_key',
+        },
+    ])('strict write rejects invalid personal mode %#', (credentials) => {
+        expect(() => normalize(credentials)).toThrow(ParameterError);
+    });
+    test.each([
+        {
+            type: WarehouseTypes.SNOWFLAKE,
+            authenticationType: 'sso',
+            user: 'person',
+            refreshToken: 'refresh',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: 'refresh',
+            serverHostName: 'workspace.cloud.databricks.com',
+            oauthClientId: 'client',
+        },
+        {
+            type: WarehouseTypes.DATABRICKS,
+            authenticationType: 'oauth_u2m',
+            refreshToken: 'refresh',
+            oauthClientId: 'client',
+        },
+        {
+            type: WarehouseTypes.REDSHIFT,
+            authenticationType: 'iam_browser',
+            user: '',
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+            sessionToken: 'session',
+        },
+    ])('strict write accepts the current SSO save %#', (credentials) => {
+        expect(normalize(credentials)).toEqual({
+            name: 'Personal',
+            credentials,
+        });
+    });
+    test('strict write retains the Snowflake default and Athena same-key secret preservation', () => {
+        expect(
+            normalize({
+                type: WarehouseTypes.SNOWFLAKE,
+                user: 'person',
+                password: 'password',
+            }).credentials,
+        ).toEqual({
+            type: WarehouseTypes.SNOWFLAKE,
+            user: 'person',
+            password: 'password',
+            authenticationType: 'password',
+        });
+        const merged = UserWarehouseCredentialsModel.mergeCredentialsForUpdate(
+            {
+                name: 'Personal',
+                credentials: {
+                    type: WarehouseTypes.ATHENA,
+                    accessKeyId: 'access',
+                    secretAccessKey: '',
+                },
+            },
+            {
+                type: WarehouseTypes.ATHENA,
+                accessKeyId: 'access',
+                secretAccessKey: 'secret',
+            },
+        );
+        expect(normalize(merged.credentials).credentials).toEqual({
+            type: WarehouseTypes.ATHENA,
+            accessKeyId: 'access',
+            secretAccessKey: 'secret',
+        });
+    });
+    test('strict write rejects the Redshift password edit form AWS placeholders', () => {
+        expect(() =>
+            normalize({
+                type: WarehouseTypes.REDSHIFT,
+                user: 'person',
+                password: 'password',
+                authenticationType: 'password',
+                accessKeyId: '',
+                secretAccessKey: '',
+                sessionToken: '',
+            }),
+        ).toThrow(ParameterError);
+    });
 });
