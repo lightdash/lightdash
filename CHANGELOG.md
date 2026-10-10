@@ -1,3 +1,10 @@
+# [2.552.0](https://github.com/lightdash/lightdash/compare/2.551.1...2.552.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** show the shared agent account setup steps without a collapsible section ([#30892](https://github.com/lightdash/lightdash/issues/30892)) ([cbf7a75](https://github.com/lightdash/lightdash/commit/cbf7a75ce2e2b09e5452bceb7d75bb57521f059d))
+
 ## [2.551.1](https://github.com/lightdash/lightdash/compare/2.551.0...2.551.1) (2026-10-10)
 
 
