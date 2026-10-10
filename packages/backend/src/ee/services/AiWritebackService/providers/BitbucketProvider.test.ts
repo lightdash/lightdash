@@ -138,6 +138,7 @@ const writeArgs = (sandbox: ReturnType<typeof sandboxFixture>) => ({
     description: 'Adds revenue.',
     setStage: vi.fn(),
     onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+    assertStagedChangesAllowed: null,
 });
 
 afterEach(() => vi.restoreAllMocks());

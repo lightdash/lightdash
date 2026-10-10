@@ -104,6 +104,7 @@ describe('GitlabProvider.openPullRequest', () => {
             user: { userUuid: 'u1' } as never,
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+            assertStagedChangesAllowed: null,
         });
 
         expect(result.prUrl).toBe(
@@ -148,6 +149,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+                assertStagedChangesAllowed: null,
             };
             if (action === 'open') await provider.openPullRequest(args);
             else
@@ -188,6 +190,7 @@ describe('GitlabProvider.openPullRequest', () => {
             } as never,
             setStage: vi.fn(),
             onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+            assertStagedChangesAllowed: null,
         });
 
         expect(sandbox.git.commit).toHaveBeenCalledWith(
@@ -217,6 +220,7 @@ describe('GitlabProvider.openPullRequest', () => {
                 user: { userUuid: 'u1' } as never,
                 setStage: vi.fn(),
                 onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+                assertStagedChangesAllowed: null,
             }),
         ).rejects.toBeInstanceOf(DeniedPathError);
 

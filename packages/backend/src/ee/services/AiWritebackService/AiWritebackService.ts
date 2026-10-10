@@ -146,7 +146,7 @@ import { BitbucketProvider } from './providers/BitbucketProvider';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
-import { resolveConnectionPaths } from './providers/sandboxGit';
+import { readStagedChanges } from './providers/sandboxGit';
 import { buildGatherRepoContextScript } from './scripts';
 import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import {
@@ -177,7 +177,6 @@ import {
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
-    parseGitNameStatus,
     parsePullNumber,
     parsePullRequestUrl,
     progressTextForStage,
@@ -2692,39 +2691,35 @@ export class AiWritebackService extends BaseService {
                 });
             }
 
-            if (
+            const checkStagedDeletions =
                 hasChanges &&
                 args.agentPermissionsApply &&
                 (await this.agentPermissionService.isManaged(
                     turn.organizationUuid,
-                ))
-            ) {
-                const paths = await resolveConnectionPaths(
-                    sandbox,
-                    turn.gitConnection,
-                    this.logger,
-                );
-                const changes = await sandbox.commands.run(
-                    `git -C ${CWD} diff HEAD --name-status --no-renames -z -- ${paths.map(quoteShellArgument).join(' ')}`,
-                );
-                if (changes.exitCode !== 0) {
-                    throw new UnexpectedServerError(
-                        'Could not inspect repository changes before commit',
-                    );
-                }
-                if (parseGitNameStatus(changes.stdout).deletions.length > 0) {
-                    await this.agentPermissionService.assertOperation({
-                        account: fromSession(user),
-                        organizationUuid: turn.organizationUuid,
-                        projectUuid,
-                        kind: 'tool_effect',
-                        key: 'editRepo.delete_file',
-                        surface:
-                            agentExecutionContext.getStore()?.surface ??
-                            AiWritebackService.getAgentSurface(source),
-                    });
-                }
-            }
+                ));
+            const sandboxForCommit = sandbox;
+            const assertStagedChangesAllowed = checkStagedDeletions
+                ? async () => {
+                      const changes = await readStagedChanges(sandboxForCommit);
+                      if (changes.exitCode !== 0) {
+                          throw new UnexpectedServerError(
+                              'Could not inspect repository changes before commit',
+                          );
+                      }
+                      if (changes.deletions.length > 0) {
+                          await this.agentPermissionService.assertOperation({
+                              account: fromSession(user),
+                              organizationUuid: turn.organizationUuid,
+                              projectUuid,
+                              kind: 'tool_effect',
+                              key: 'editRepo.delete_file',
+                              surface:
+                                  agentExecutionContext.getStore()?.surface ??
+                                  AiWritebackService.getAgentSurface(source),
+                          });
+                      }
+                  }
+                : null;
 
             // Finalize claim: atomic arbitration with tasks/cancel before any
             // external side effect (commit/push/PR all happen inside
@@ -2764,6 +2759,7 @@ export class AiWritebackService extends BaseService {
                 prSummary,
                 workstream: config.mode,
                 aiWritebackRunUuid,
+                assertStagedChangesAllowed,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -5003,6 +4999,7 @@ export class AiWritebackService extends BaseService {
         prSummary,
         workstream,
         aiWritebackRunUuid,
+        assertStagedChangesAllowed,
     }: {
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -5019,6 +5016,7 @@ export class AiWritebackService extends BaseService {
         prSummary: string | null;
         workstream: CodingAgentConfig['mode'];
         aiWritebackRunUuid?: string;
+        assertStagedChangesAllowed: (() => Promise<void>) | null;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -5075,6 +5073,7 @@ export class AiWritebackService extends BaseService {
                     user,
                     setStage,
                     onRemoteCommitted,
+                    assertStagedChangesAllowed,
                 });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
@@ -5121,6 +5120,7 @@ export class AiWritebackService extends BaseService {
                 user,
                 setStage,
                 onRemoteCommitted,
+                assertStagedChangesAllowed,
             });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,

@@ -23,6 +23,7 @@ export type OpenPullRequestArgs = {
     user: SessionUser;
     setStage: SetStage;
     onRemoteCommitted: () => Promise<void>;
+    assertStagedChangesAllowed: (() => Promise<void>) | null;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {

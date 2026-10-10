@@ -437,6 +437,7 @@ export class BitbucketProvider extends BaseService implements GitProvider {
             this.logger,
         );
         await stageChanges(args.sandbox, paths, this.logger);
+        await args.assertStagedChangesAllowed?.();
         await assertStagedPathsAllowed(args.sandbox);
         const diffStat = await collectDiffStat(args.sandbox);
         const trailer = buildUserCoAuthorTrailer(args.user);

@@ -213,6 +213,13 @@ export const resolveConnectionPaths = async (
         ? [connection.projectSubPath]
         : resolveDbtProjectPaths(sandbox, connection.projectSubPath, logger);
 
+export const readStagedChanges = async (sandbox: SandboxHandle) => {
+    const { stdout, exitCode } = await sandbox.commands.run(
+        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
+    );
+    return { ...parseGitNameStatus(stdout), exitCode };
+};
+
 /**
  * Read the staged changes out of the sandbox as a set of file additions and
  * deletions for a GitHub API commit. `-z` keeps paths NUL-separated so paths
@@ -223,10 +230,7 @@ export const resolveConnectionPaths = async (
 export const collectFileChanges = async (
     sandbox: SandboxHandle,
 ): Promise<GithubFileChanges> => {
-    const { stdout } = await sandbox.commands.run(
-        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
-    );
-    const { addPaths, deletions } = parseGitNameStatus(stdout);
+    const { addPaths, deletions } = await readStagedChanges(sandbox);
     // Host-side denied-path gate: reject the whole commit (no PR) if any staged
     // path is a secret or CI/workflow file. The
     // agent has no Bash and commits via the host, so this is the enforceable
@@ -259,10 +263,7 @@ export const collectFileChanges = async (
 export const assertStagedPathsAllowed = async (
     sandbox: SandboxHandle,
 ): Promise<void> => {
-    const { stdout } = await sandbox.commands.run(
-        `git -C ${CWD} diff --cached --name-status --no-renames -z`,
-    );
-    const { addPaths, deletions } = parseGitNameStatus(stdout);
+    const { addPaths, deletions } = await readStagedChanges(sandbox);
     const denied = findDeniedCommitPaths([
         ...addPaths,
         ...deletions.map((deletion) => deletion.path),

@@ -244,6 +244,7 @@ export class GitlabProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
         });
 
         setStage('pull_request');
@@ -285,6 +286,7 @@ export class GitlabProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
+            assertStagedChangesAllowed: args.assertStagedChangesAllowed,
         });
 
         setStage('pull_request');
@@ -424,6 +426,7 @@ export class GitlabProvider implements GitProvider {
         user,
         setStage,
         onRemoteCommitted,
+        assertStagedChangesAllowed,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -433,6 +436,7 @@ export class GitlabProvider implements GitProvider {
         user: SessionUser;
         setStage: SetStage;
         onRemoteCommitted: () => Promise<void>;
+        assertStagedChangesAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
         setStage('commit');
         const paths = await resolveConnectionPaths(
@@ -441,6 +445,7 @@ export class GitlabProvider implements GitProvider {
             this.logger,
         );
         await stageChanges(sandbox, paths, this.logger);
+        await assertStagedChangesAllowed?.();
         // Host-side denied-path gate (GitLab pushes via git, so check the staged
         // paths here rather than in collectFileChanges). Reject the whole commit
         // before any commit or push reaches the remote.
