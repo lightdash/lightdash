@@ -2,7 +2,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { down, up } from '../20261010035848_add_oauth_resource_and_family';
+import { down, up } from '../20261010231500_add_oauth_resource_and_family';
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {

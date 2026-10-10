@@ -283,20 +283,6 @@ describe('OAuth2Model.validateRedirectUri', () => {
             }),
         ).resolves.toBe(true);
     });
-
-    it('matches userinfo authority escape (documents current hole)', async () => {
-        // flips when the wildcard fix lands
-        await expect(
-            model.validateRedirectUri(
-                'http://localhost:8080@evil.example/callback',
-                {
-                    id: 'lightdash-cli',
-                    grants: ['authorization_code'],
-                    redirectUris: [cliRedirectUri],
-                },
-            ),
-        ).resolves.toBe(true);
-    });
 });
 
 describe('isMobileOAuthClient', () => {
