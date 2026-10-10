@@ -13,7 +13,8 @@ import {
 } from 'ai';
 import { useCallback } from 'react';
 import { z } from 'zod';
-import { lightdashApiStream } from '../../../../api';
+import { LightdashApiStreamError, lightdashApiStream } from '../../../../api';
+import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
@@ -24,6 +25,7 @@ import {
     markStreamRecovering,
     markToolCallDecided,
     setError,
+    setAccessRefusal,
     setMessage,
     setParts,
     startStreaming,
@@ -712,6 +714,17 @@ export function useAiAgentThreadStreamMutation() {
 
                 if (error instanceof Error && error.name === 'AbortError') {
                     dispatch(stopStreaming({ threadUuid }));
+                    return;
+                }
+
+                const refusal = getAiAccessRefusal(
+                    error instanceof LightdashApiStreamError
+                        ? error.error
+                        : null,
+                );
+                if (refusal) {
+                    dispatch(setAccessRefusal({ threadUuid, refusal }));
+                    onError?.(refusal.message);
                     return;
                 }
 

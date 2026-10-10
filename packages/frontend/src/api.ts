@@ -340,6 +340,12 @@ export const lightdashApiResponse = async <T extends ApiResponse>({
         });
 };
 
+export class LightdashApiStreamError extends Error {
+    constructor(readonly error: ApiError['error']) {
+        super(error.message);
+    }
+}
+
 export const lightdashApiStream = ({
     method,
     url,
@@ -390,7 +396,7 @@ export const lightdashApiStream = ({
                 hosted: baseUrl !== null || !!embed?.token,
                 diagnose: diagnoseTransportFailures,
             });
-            throw new Error(apiError.error.message);
+            throw new LightdashApiStreamError(apiError.error);
         }
         return r;
     });
