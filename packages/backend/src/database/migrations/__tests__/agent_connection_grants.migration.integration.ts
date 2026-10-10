@@ -432,7 +432,9 @@ test('revokes one grant atomically without changing another grant or unbound tok
             'access_token',
             boundToken,
         ),
-    ).toHaveLength(0);
+    ).toMatchObject([
+        { agent_connection_grant_uuid: grant.agent_connection_grant_uuid },
+    ]);
     expect(
         await database('oauth2_authorization_codes').where(
             'authorization_code',
