@@ -1263,15 +1263,13 @@ export class AsyncQueryService extends ProjectService {
             throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
         }
 
-        if (!exploreHasFilteredAttribute(explore)) {
-            return { explore, userAccessControls: materializationRole };
-        }
+        const executionExplore = exploreHasFilteredAttribute(explore)
+            ? getFilteredExplore(explore, materializationRole.userAttributes)
+            : explore;
+        this.unfilteredExploreSnapshots.set(executionExplore, explore);
 
         return {
-            explore: getFilteredExplore(
-                explore,
-                materializationRole.userAttributes,
-            ),
+            explore: executionExplore,
             userAccessControls: materializationRole,
         };
     }
@@ -5854,15 +5852,17 @@ export class AsyncQueryService extends ProjectService {
                         identityEnabled && semanticResult
                             ? (queryComposer.getParameters() ?? {})
                             : undefined;
-                    const executionScope =
-                        identityEnabled && semanticResult
+                    const executionSnapshot =
+                        this.unfilteredExploreSnapshots.get(explore);
+                    let executionScope:
+                        | ResultEntitlementScope
+                        | null
+                        | undefined;
+                    if (identityEnabled && semanticResult) {
+                        executionScope = executionSnapshot
                             ? await resolveResultEntitlementScope({
                                   exploreName: explore.name,
-                                  initialExplores: [
-                                      this.unfilteredExploreSnapshots.get(
-                                          explore,
-                                      ) ?? explore,
-                                  ],
+                                  initialExplores: [executionSnapshot],
                                   executionExplores: [explore],
                                   getExplore: (name) =>
                                       this.projectModel.getExploreFromCache(
@@ -5875,7 +5875,8 @@ export class AsyncQueryService extends ProjectService {
                                   parameterValues:
                                       resultEffectiveParameters ?? {},
                               })
-                            : undefined;
+                            : null;
+                    }
                     const executionExplore =
                         executionScope === undefined
                             ? undefined
@@ -7685,6 +7686,7 @@ export class AsyncQueryService extends ProjectService {
             exploreResolver: this.projectModel,
             userAttributes: mergedUserAttributes,
         });
+        this.unfilteredExploreSnapshots.set(explore, explore);
 
         // The field's config turns warehouse fetching off: serve curated
         // values (empty when none) as an immediately-READY query instead of
@@ -7714,10 +7716,7 @@ export class AsyncQueryService extends ProjectService {
             const executionScope = identityEnabled
                 ? await resolveResultEntitlementScope({
                       exploreName: explore.name,
-                      initialExplores: [
-                          this.unfilteredExploreSnapshots.get(explore) ??
-                              explore,
-                      ],
+                      initialExplores: [explore],
                       executionExplores: [explore],
                       getExplore: (name) =>
                           this.projectModel.getExploreFromCache(

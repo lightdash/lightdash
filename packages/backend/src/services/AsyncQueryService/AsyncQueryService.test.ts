@@ -246,6 +246,7 @@ import { SemanticLayerQuerySource } from '../QuerySourceService/sources/Semantic
 import { SqlQuerySource } from '../QuerySourceService/sources/SqlQuerySource';
 import type { SubmitSourceQueryArgs } from '../QuerySourceService/types';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { getFilteredExplore } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
 import { buildAiServiceAccountCredentials } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
@@ -21246,6 +21247,198 @@ describe('fresh execution producer to result reader', () => {
         vi.mocked(f.service.resultsStorageClient.getFirstLine).mockClear();
         return read;
     };
+    test.each(['retained', 'spread', 'clone', 'stripped', 'materialization'])(
+        'round 26 original snapshot loss retains conservative comparison: %s',
+        async (kind) => {
+            const f = setup(false, false, false, false);
+            const controls: UserAccessControls = round24Controls(f);
+            controls.userAttributes.gate = ['deny'];
+            const original = structuredClone(validExplore);
+            original.tables.b.requiredAttributes = { gate: 'allow' };
+            original.joinedTables[0].sqlOn += " AND ${ld.attr.region} = 'EU'";
+            original.joinedTables[0].compiledSqlOn +=
+                " AND ${ld.attr.region} = 'EU'";
+            vi.mocked(
+                f.service.projectModel.findExploresFromCache,
+            ).mockResolvedValue({
+                [original.name]: original,
+            });
+            vi.mocked(
+                f.service.projectModel.getExploreFromCache,
+            ).mockResolvedValue(original);
+            const lookup = f.service.getExploreWithUserAccessControls.bind(
+                f.service,
+            );
+            const preparation = vi
+                .spyOn(f.service, 'getExploreWithUserAccessControls')
+                .mockImplementation(async (...args) => {
+                    const result = await lookup(...args);
+                    switch (kind) {
+                        case 'spread':
+                            return {
+                                ...result,
+                                explore: { ...result.explore },
+                            };
+                        case 'clone':
+                            return {
+                                ...result,
+                                explore: structuredClone(result.explore),
+                            };
+                        case 'stripped':
+                            return {
+                                ...result,
+                                explore: {
+                                    ...result.explore,
+                                    unfilteredTables: undefined,
+                                },
+                            };
+                        default:
+                            return result;
+                    }
+                });
+            const r = await f.service.executeAsyncMetricQuery({
+                account: f.account,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    dimensions: ['a_dim1'],
+                    metrics: [],
+                    sorts: [],
+                },
+                context:
+                    kind === 'materialization'
+                        ? QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                        : QueryExecutionContext.EXPLORE,
+                ...(kind === 'materialization'
+                    ? { materializationRole: controls }
+                    : {}),
+                invalidateCache: true,
+            });
+            await vi.waitFor(() =>
+                expect(f.rows.get(r.queryUuid)!.status).toBe(
+                    QueryHistoryStatus.READY,
+                ),
+            );
+            if (kind === 'materialization')
+                expect(preparation).not.toHaveBeenCalled();
+            const stored = f.rows.get(r.queryUuid)!;
+            const filtered = getFilteredExplore(
+                original,
+                controls.userAttributes,
+            );
+            if (kind === 'stripped') filtered.unfilteredTables = undefined;
+            expect(filtered.joinedTables).toHaveLength(0);
+            const scope = (explore: Explore) => ({
+                explores: [explore],
+                projectParameterDefinitions: {},
+                parameterValues:
+                    stored.requestParameters.resultEffectiveParameters ?? {},
+            });
+            const complete = getResultEntitlementFingerprint(
+                controls,
+                original,
+                stored.metricQuery,
+                scope(original),
+            );
+            const full = getResultEntitlementFingerprint(
+                controls,
+                filtered,
+                stored.metricQuery,
+                null,
+            );
+            const narrowed = getResultEntitlementFingerprint(
+                controls,
+                filtered,
+                stored.metricQuery,
+                scope(filtered),
+            );
+            const fingerprint =
+                stored.requestParameters.resultProducer!.entitlementFingerprint;
+            expect([complete, full]).toContain(fingerprint);
+            expect(fingerprint).not.toBe(narrowed);
+            expect(fingerprint).toBe(
+                kind === 'retained' || kind === 'materialization'
+                    ? complete
+                    : full,
+            );
+            expect(
+                f.service.projectModel.getExploreFromCache,
+            ).toHaveBeenCalledTimes(kind === 'materialization' ? 1 : 0);
+        },
+    );
+    test.each(['materialization', 'field values', 'curated field values'])(
+        'round 26 complete raw explore retains scoped comparison: %s',
+        async (kind) => {
+            const f = setup(false, false, false, false);
+            const controls = round24Controls(f);
+            const original = structuredClone(validExplore);
+            if (kind === 'curated field values') {
+                original.tables.a.dimensions.dim1.filterAutocomplete = {
+                    fetchFromWarehouse: false,
+                    values: [{ value: 'curated' }],
+                };
+            }
+            vi.mocked(
+                f.service.projectModel.getExploreFromCache,
+            ).mockResolvedValue(original);
+            vi.mocked(
+                f.service.projectModel.findExploreByTableName,
+            ).mockResolvedValue(original);
+            const r =
+                kind === 'materialization'
+                    ? await f.service.executeAsyncMetricQuery({
+                          account: f.account,
+                          projectUuid,
+                          metricQuery: {
+                              ...metricQueryMock,
+                              dimensions: ['a_dim1'],
+                              metrics: [],
+                              sorts: [],
+                          },
+                          context:
+                              QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                          materializationRole: controls,
+                          invalidateCache: true,
+                      })
+                    : await f.service.executeAsyncFieldValueSearch({
+                          account: f.account,
+                          projectUuid,
+                          table: 'a',
+                          fieldId: 'a_dim1',
+                          search: '',
+                          context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
+                          invalidateCache: true,
+                      });
+            const read = await round24Ready(f, r.queryUuid);
+            const stored = f.rows.get(r.queryUuid)!;
+            const fingerprint =
+                stored.requestParameters.resultProducer!.entitlementFingerprint;
+            expect(fingerprint).toBe(
+                getResultEntitlementFingerprint(
+                    controls,
+                    original,
+                    stored.metricQuery,
+                    {
+                        explores: [original],
+                        projectParameterDefinitions: {},
+                        parameterValues:
+                            stored.requestParameters
+                                .resultEffectiveParameters ?? {},
+                    },
+                ),
+            );
+            expect(fingerprint).not.toBe(
+                getResultEntitlementFingerprint(
+                    controls,
+                    original,
+                    stored.metricQuery,
+                    null,
+                ),
+            );
+            controls.userAttributes.unrelated = ['after'];
+            expect((await read()).status).toBe(QueryHistoryStatus.READY);
+        },
+    );
     test('round 25 cache changes after execution explore is loaded', async () => {
         const f = setup(false, false, false, false);
         const c = round24Controls(f);
