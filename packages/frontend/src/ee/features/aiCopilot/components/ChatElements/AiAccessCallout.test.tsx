@@ -1,6 +1,10 @@
+import { subject } from '@casl/ability';
 import {
+    AGENT_IDENTITY_SETTINGS_PATH,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
+    getAiAccessRefusalSettingsUrl,
+    getProjectAgentIdentitySettingsPath,
     type AiAccessRefusal,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
@@ -201,6 +205,7 @@ describe('AI access callout', () => {
     it.each([
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+        AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
         AiAccessRefusalReason.PRINCIPAL_FAILED,
     ])('gates settings for %s at the appropriate scope', (reason) => {
         const settingsUrl =
@@ -264,6 +269,164 @@ describe('AI access callout', () => {
             screen.getByRole('link', { name: 'Review agent identity' }),
         ).toHaveAttribute('href', '/custom-org-settings');
     });
+
+    it.each([
+        { target: 'project', absolute: true },
+        { target: 'other-project', absolute: false },
+        { target: 'other-project', absolute: true },
+    ])(
+        'uses the target project for raw SQL settings ($target, absolute: $absolute)',
+        ({ target, absolute }) => {
+            const settingsPath = getProjectAgentIdentitySettingsPath(target);
+            const projectRefusal: AiAccessRefusal = {
+                ...refusal,
+                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                projectUuid: target,
+                settingsUrl: absolute
+                    ? new URL(settingsPath, window.location.origin).href
+                    : settingsPath,
+            };
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.organizationUuid === 'org' &&
+                    resource.projectUuid === target,
+            );
+            const { rerender } = renderWithProviders(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={projectRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                screen.getByRole('link', {
+                    name: 'Open project agent settings',
+                }),
+            ).toHaveAttribute('href', settingsPath);
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                subject('Project', {
+                    organizationUuid: 'org',
+                    projectUuid: target,
+                }),
+            );
+
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.projectUuid === 'project' &&
+                    resource.projectUuid !== target,
+            );
+            rerender(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={projectRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                subject('Project', {
+                    organizationUuid: 'org',
+                    projectUuid: target,
+                }),
+            );
+        },
+    );
+
+    it('does not treat a foreign-origin settings URL as a project link', () => {
+        mocks.can.mockImplementation(
+            (action, resource) =>
+                action === 'manage' && resource === 'Organization',
+        );
+        renderWithProviders(
+            <MemoryRouter>
+                <AiAccessCallout
+                    projectUuid="project"
+                    refusal={{
+                        ...refusal,
+                        reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                        action: AiAccessRefusalAction.ASK_ADMIN,
+                        projectUuid: 'project',
+                        settingsUrl: `https://other.example${getProjectAgentIdentitySettingsPath('project')}`,
+                    }}
+                />
+            </MemoryRouter>,
+        );
+        expect(mocks.can).toHaveBeenLastCalledWith('manage', 'Organization');
+        expect(
+            screen.getByRole('link', { name: 'Review agent identity' }),
+        ).toHaveAttribute(
+            'href',
+            'https://other.example/generalSettings/projectManagement/project/agentIdentity',
+        );
+        expect(
+            screen.queryByRole('link', { name: 'Open project agent settings' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it.each([
+        AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+        AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+    ])(
+        'requires organization manage for %s with organization settings',
+        (reason) => {
+            const orgRefusal: AiAccessRefusal = {
+                ...refusal,
+                reason,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                settingsUrl: getAiAccessRefusalSettingsUrl(reason, null),
+            };
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' &&
+                    resource !== 'Organization' &&
+                    resource.organizationUuid === 'org' &&
+                    resource.projectUuid === 'project',
+            );
+            const content = (
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={orgRefusal}
+                    />
+                </MemoryRouter>
+            );
+            const { rerender } = renderWithProviders(content);
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                'Organization',
+            );
+
+            mocks.can.mockImplementation(
+                (action, resource) =>
+                    action === 'manage' && resource === 'Organization',
+            );
+            rerender(
+                <MemoryRouter>
+                    <AiAccessCallout
+                        projectUuid="project"
+                        refusal={orgRefusal}
+                    />
+                </MemoryRouter>,
+            );
+            expect(
+                screen.getByRole('link', { name: 'Review agent identity' }),
+            ).toHaveAttribute('href', AGENT_IDENTITY_SETTINGS_PATH);
+            expect(mocks.can).toHaveBeenLastCalledWith(
+                'manage',
+                'Organization',
+            );
+        },
+    );
 
     it('links organization managers to warehouse credential settings', () => {
         mocks.can.mockReturnValue(true);
