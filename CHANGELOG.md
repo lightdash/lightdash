@@ -1,3 +1,10 @@
+## [2.547.1](https://github.com/lightdash/lightdash/compare/2.547.0...2.547.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** show agent limit refusals in chat instead of a generic error ([#30877](https://github.com/lightdash/lightdash/issues/30877)) ([979dc66](https://github.com/lightdash/lightdash/commit/979dc664c489b0c561d017175f835a9f7a6341d9))
+
 # [2.547.0](https://github.com/lightdash/lightdash/compare/2.546.0...2.547.0) (2026-10-10)
 
 
