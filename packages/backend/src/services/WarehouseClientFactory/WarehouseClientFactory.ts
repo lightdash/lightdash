@@ -41,9 +41,11 @@ import type {
     ConnectionRouteWithOriginal,
 } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import {
+    getPostgresServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
+    isPostgresServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
 import {
@@ -1075,6 +1077,8 @@ export class WarehouseClientFactory {
             !(
                 (credentials.type === WarehouseTypes.BIGQUERY &&
                     isBigqueryServiceAccountAuthError(error)) ||
+                (credentials.type === WarehouseTypes.POSTGRES &&
+                    isPostgresServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.ATHENA &&
                     isAthenaServiceAccountAuthError(error)) ||
                 (credentials.type === WarehouseTypes.DATABRICKS &&
@@ -1113,6 +1117,12 @@ export class WarehouseClientFactory {
                 projectUuid,
                 reason,
                 ...redactCredentialError(error),
+                ...(credentials.type === WarehouseTypes.POSTGRES
+                    ? {
+                          errorMessage:
+                              getPostgresServiceAccountTestErrorMessage(error),
+                      }
+                    : {}),
             });
         }
         const projectName = await this.getRefusalProjectName(projectUuid);

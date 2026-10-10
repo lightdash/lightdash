@@ -1,6 +1,7 @@
 import {
     RedshiftAuthenticationType,
     WarehouseDatabaseListingNotSupportedError,
+    WarehouseQueryError,
     WarehouseTableType,
     WarehouseTypes,
     type CreateRedshiftCredentials,
@@ -720,3 +721,26 @@ describe('PostgresSqlBuilder escaping', () => {
         expect(anotherEscaped).toBe("'' OR ''1''=''1");
     });
 });
+
+it.each(['28P01', '28000', '42501'])(
+    'preserves driver SQLSTATE %s as the query error cause',
+    async (code) => {
+        const driverError = Object.assign(new Error('driver failure'), {
+            code,
+        });
+        vi.mocked(pg.Pool).mockImplementationOnce(function () {
+            return {
+                connect: vi.fn((callback) => callback(driverError)),
+                end: vi.fn(async () => undefined),
+                on: vi.fn(),
+            } as unknown as pg.Pool;
+        });
+        const client = new PostgresWarehouseClient(credentials);
+        const error = await client
+            .runQuery('SELECT 1')
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(error).toHaveProperty('cause', driverError);
+        expect(error).toHaveProperty('cause.code', code);
+    },
+);

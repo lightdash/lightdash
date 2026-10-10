@@ -227,3 +227,60 @@ export const getAthenaServiceAccountTestErrorMessage = (
         return 'AWS could not complete the connection check. Try again.';
     return 'Could not verify the AI service account. Check the credentials and connection settings.';
 };
+
+const postgresErrors = (
+    error: unknown,
+    ancestors = new Set<unknown>(),
+): Record<string, unknown>[] => {
+    if (!isRecord(error) || ancestors.has(error)) return [];
+    ancestors.add(error);
+    return [error, ...postgresErrors(error.cause, ancestors)];
+};
+
+const postgresCredentialRejected =
+    /^(?:password authentication failed for user "[^"\n]*"|role "[^"\n]*" does not exist)\s*$/i;
+const postgresLoginDisabled = /^role "[^"\n]*" is not permitted to log in\s*$/i;
+const postgresNetworkBlocked = /^no pg_hba.conf entry for host /i;
+const postgresDatabaseDenied = /^permission denied for database "[^"\n]*"\s*$/i;
+
+export const isPostgresServiceAccountAuthError = (error: unknown): boolean => {
+    const errors = postgresErrors(error);
+    const codes = errors
+        .map((entry) => entry.code)
+        .filter(
+            (code): code is string =>
+                typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code),
+        );
+    if (codes.length > 0)
+        return codes.some((code) => code === '28P01' || code === '28000');
+    return errors.some(
+        (entry) =>
+            typeof entry.message === 'string' &&
+            (postgresCredentialRejected.test(entry.message) ||
+                postgresLoginDisabled.test(entry.message) ||
+                postgresNetworkBlocked.test(entry.message)),
+    );
+};
+
+export const getPostgresServiceAccountTestErrorMessage = (
+    error: unknown,
+): string => {
+    const errors = postgresErrors(error);
+    const matches = (pattern: RegExp) =>
+        errors.some(
+            (entry) =>
+                typeof entry.message === 'string' &&
+                pattern.test(entry.message),
+        );
+    if (matches(postgresLoginDisabled))
+        return 'The Postgres AI service account cannot log in. Add LOGIN to the role.';
+    if (matches(postgresNetworkBlocked))
+        return 'Postgres network rules (pg_hba.conf) block this user. Allow the AI service account to connect.';
+    if (isPostgresServiceAccountAuthError(error))
+        return 'Postgres rejected the AI service account credentials. Check the user and password.';
+    if (matches(postgresDatabaseDenied))
+        return 'The Postgres AI service account lacks CONNECT on the database. Grant CONNECT to the role.';
+    if (errors.some((entry) => entry.code === '3D000'))
+        return 'The Postgres database does not exist. Check the connection database.';
+    return 'Could not verify the AI service account. Check the credentials and connection settings.';
+};

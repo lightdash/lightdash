@@ -12,6 +12,8 @@ import { buildAccount } from '../../auth/account/account.mock';
 import {
     athenaSecrets,
     athenaVerification,
+    postgresSecrets,
+    postgresVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -113,7 +115,7 @@ describe.each(['get', 'upsert', 'delete', 'test'] as const)(
         });
         it('rejects unsupported connections', async () => {
             const f = setup(true);
-            f.load.mockResolvedValue({ type: WarehouseTypes.POSTGRES });
+            f.load.mockResolvedValue({ type: WarehouseTypes.REDSHIFT });
             await expect(call(f)).rejects.toMatchObject({
                 name: 'ParameterError',
             });
@@ -318,6 +320,53 @@ it.each([undefined, 'extra-connection'])(
             results: { uuid: 'slot' },
             parent: null,
             verification: athenaVerification,
+        });
+        expect(getStatus).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+        );
+    },
+);
+it.each([undefined, 'extra-connection'])(
+    'returns Postgres save observations and routes connection %s',
+    async (connection) => {
+        const upsert = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            verification: postgresVerification,
+        });
+        const getStatus = vi.fn().mockResolvedValue({
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: postgresVerification,
+        });
+        const controller = new AiServiceAccountController({
+            getAiServiceAccountService: () => ({ upsert, getStatus }),
+        } as unknown as ServiceRepository);
+        const req = { account: buildAccount() } as Request;
+        expect(
+            await controller.upsert(
+                'project',
+                req,
+                postgresSecrets,
+                connection,
+            ),
+        ).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            verification: postgresVerification,
+        });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith(
+            req.account,
+            'project',
+            connection ?? null,
+            postgresSecrets,
+        );
+        expect(await controller.get('project', req, connection)).toEqual({
+            status: 'ok',
+            results: { uuid: 'slot' },
+            parent: null,
+            verification: postgresVerification,
         });
         expect(getStatus).toHaveBeenCalledExactlyOnceWith(
             req.account,

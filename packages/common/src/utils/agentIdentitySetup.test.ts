@@ -4,6 +4,7 @@ import {
     buildAthenaAiServiceAccountCommands,
     buildBigQueryAiServiceAccountCommands,
     buildDatabricksAiServiceAccountCommands,
+    buildPostgresAiServiceAccountCommands,
     buildSnowflakeAgentIntegrationSql,
     getSnowflakeAgentRedirectUri,
     parseSnowflakeAccountUrl,
@@ -274,4 +275,54 @@ describe('Athena setup', () => {
             `--resource '${resource.replaceAll("'", "'\"'\"'")}'`,
         );
     });
+});
+
+describe('Postgres AI service account setup commands', () => {
+    it('creates a restricted login and separate grants and row policy', () => {
+        const commands = buildPostgresAiServiceAccountCommands({
+            dbname: 'analytics',
+            schema: 'reporting',
+        });
+        expect(commands.createRole).toBe(
+            `CREATE ROLE "ai_agents" LOGIN PASSWORD '<choose-a-strong-password>' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+ALTER ROLE "ai_agents" SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE "analytics" TO "ai_agents";`,
+        );
+        expect(commands.grantReadAccess).toBe(
+            `GRANT USAGE ON SCHEMA "reporting" TO "ai_agents";
+GRANT SELECT ON ALL TABLES IN SCHEMA "reporting" TO "ai_agents";
+ALTER DEFAULT PRIVILEGES IN SCHEMA "reporting" GRANT SELECT ON TABLES TO "ai_agents";`,
+        );
+        expect(commands.rowLevelSecurity).toBe(
+            `ALTER TABLE "reporting"."<table>" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_agents_rows" ON "reporting"."<table>" FOR SELECT TO "ai_agents" USING (<condition>);`,
+        );
+    });
+    it('escapes quotes in identifiers without treating apostrophes as literals', () => {
+        const commands = buildPostgresAiServiceAccountCommands({
+            dbname: `data"base's`,
+            schema: `read"; DROP ROLE "someone`,
+        });
+        expect(commands.createRole).toContain(
+            `ON DATABASE "data""base's" TO "ai_agents"`,
+        );
+        expect(commands.grantReadAccess).toContain(
+            `ON SCHEMA "read""; DROP ROLE ""someone" TO "ai_agents"`,
+        );
+        expect(commands.rowLevelSecurity).toContain(
+            `"read""; DROP ROLE ""someone"."<table>"`,
+        );
+    });
+    it.each([null, ''])(
+        'uses placeholders for %s connection settings',
+        (value) => {
+            const commands = buildPostgresAiServiceAccountCommands({
+                dbname: value,
+                schema: value,
+            });
+            expect(commands.createRole).toContain('ON DATABASE "<database>"');
+            expect(commands.grantReadAccess).toContain('ON SCHEMA "<schema>"');
+            expect(commands.rowLevelSecurity).toContain('"<schema>"."<table>"');
+        },
+    );
 });

@@ -51,14 +51,16 @@ describe('identity source map', () => {
                     type === WarehouseTypes.SNOWFLAKE,
                 );
                 expect(actorSources.includes('ai_service_account')).toBe(
-                    type === WarehouseTypes.BIGQUERY ||
+                    type === WarehouseTypes.POSTGRES ||
+                        type === WarehouseTypes.BIGQUERY ||
                         type === WarehouseTypes.DATABRICKS ||
                         type === WarehouseTypes.ATHENA ||
                         type === WarehouseTypes.SNOWFLAKE,
                 );
             }
             expect(supportsAiServiceAccount(type)).toBe(
-                type === WarehouseTypes.BIGQUERY ||
+                type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
                     type === WarehouseTypes.SNOWFLAKE,
@@ -67,6 +69,7 @@ describe('identity source map', () => {
             const expectedCount = {
                 [WarehouseTypes.SNOWFLAKE]: 3,
                 [WarehouseTypes.BIGQUERY]: 2,
+                [WarehouseTypes.POSTGRES]: 2,
                 [WarehouseTypes.DATABRICKS]: 2,
                 [WarehouseTypes.ATHENA]: 2,
             };
@@ -137,6 +140,7 @@ describe('organization identity rules', () => {
         expect(getAgentIdentityWarehouseTypes()).toEqual([
             WarehouseTypes.SNOWFLAKE,
             WarehouseTypes.BIGQUERY,
+            WarehouseTypes.POSTGRES,
             WarehouseTypes.DATABRICKS,
             WarehouseTypes.ATHENA,
         ]);
@@ -154,7 +158,8 @@ describe('organization identity rules', () => {
             expect(
                 isAllowedAgentIdentitySource(type, 'ai_service_account'),
             ).toBe(
-                type === WarehouseTypes.BIGQUERY ||
+                type === WarehouseTypes.POSTGRES ||
+                    type === WarehouseTypes.BIGQUERY ||
                     type === WarehouseTypes.DATABRICKS ||
                     type === WarehouseTypes.ATHENA ||
                     type === WarehouseTypes.SNOWFLAKE,

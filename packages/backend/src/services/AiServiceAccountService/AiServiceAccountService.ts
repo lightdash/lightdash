@@ -32,7 +32,10 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { getAthenaServiceAccountTestErrorMessage } from '../../utils/aiServiceAccountErrors';
+import {
+    getAthenaServiceAccountTestErrorMessage,
+    getPostgresServiceAccountTestErrorMessage,
+} from '../../utils/aiServiceAccountErrors';
 import { BaseService } from '../BaseService';
 import { type ProjectService } from '../ProjectService/ProjectService';
 import {
@@ -217,6 +220,7 @@ export class AiServiceAccountService extends BaseService {
                   )
                 : results !== null;
         const verification =
+            connection.type === WarehouseTypes.POSTGRES ||
             connection.type === WarehouseTypes.ATHENA ||
             connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
@@ -272,7 +276,8 @@ export class AiServiceAccountService extends BaseService {
                         ? (inherited.slot.secrets.keyfileContents
                               .client_email ?? null)
                         : null,
-                ...(connection.type === WarehouseTypes.ATHENA ||
+                ...(connection.type === WarehouseTypes.POSTGRES ||
+                connection.type === WarehouseTypes.ATHENA ||
                 connection.type === WarehouseTypes.DATABRICKS ||
                 connection.type === WarehouseTypes.SNOWFLAKE
                     ? {
@@ -339,6 +344,7 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
             );
         const verification =
+            connection.type === WarehouseTypes.POSTGRES ||
             connection.type === WarehouseTypes.ATHENA ||
             connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
@@ -393,7 +399,8 @@ export class AiServiceAccountService extends BaseService {
         );
         return {
             results: slot,
-            ...(connection.type === WarehouseTypes.ATHENA ||
+            ...(connection.type === WarehouseTypes.POSTGRES ||
+            connection.type === WarehouseTypes.ATHENA ||
             connection.type === WarehouseTypes.DATABRICKS ||
             connection.type === WarehouseTypes.SNOWFLAKE
                 ? { verification }
@@ -552,10 +559,11 @@ export class AiServiceAccountService extends BaseService {
                                 return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
                             case WarehouseTypes.ATHENA:
                                 return 'SELECT 1 AS connection_check';
+                            case WarehouseTypes.POSTGRES:
+                                return 'SELECT current_user AS principal, session_user AS session_principal';
                             case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.CLICKHOUSE:
                             case WarehouseTypes.DUCKDB:
-                            case WarehouseTypes.POSTGRES:
                             case WarehouseTypes.REDSHIFT:
                             case WarehouseTypes.TRINO:
                                 return 'SELECT SESSION_USER() AS principal';
@@ -599,6 +607,19 @@ export class AiServiceAccountService extends BaseService {
             throw new ParameterError(
                 'The session did not return its current user.',
             );
+        if (
+            credentials.type === WarehouseTypes.POSTGRES &&
+            (principal !== credentials.user ||
+                row.session_principal !== credentials.user)
+        ) {
+            return {
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Postgres signed in as a different user.',
+                checkedAt: new Date(),
+            };
+        }
         return {
             ok: true,
             principal,
@@ -606,6 +627,7 @@ export class AiServiceAccountService extends BaseService {
                 switch (connection.type) {
                     case WarehouseTypes.SNOWFLAKE:
                         return { currentUser: principal, currentRole: role };
+                    case WarehouseTypes.POSTGRES:
                     case WarehouseTypes.DATABRICKS:
                         return { currentUser: principal };
                     case WarehouseTypes.ATHENA:
@@ -613,7 +635,6 @@ export class AiServiceAccountService extends BaseService {
                     case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.POSTGRES:
                     case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.TRINO:
                         return { principal };
@@ -687,9 +708,12 @@ export class AiServiceAccountService extends BaseService {
                     queryStarted = true;
                 },
             );
+            if (!result.ok) failureReason = 'query_failed';
             if (
+                result.ok &&
                 input === null &&
-                (connection.type === WarehouseTypes.ATHENA ||
+                (connection.type === WarehouseTypes.POSTGRES ||
+                    connection.type === WarehouseTypes.ATHENA ||
                     connection.type === WarehouseTypes.DATABRICKS ||
                     connection.type === WarehouseTypes.SNOWFLAKE) &&
                 testedGeneration !== null
@@ -713,15 +737,31 @@ export class AiServiceAccountService extends BaseService {
                 warehouseConnectionUuid,
                 reason: failureReason,
                 ...redactCredentialError(error),
+                ...(connection.type === WarehouseTypes.POSTGRES
+                    ? {
+                          errorMessage:
+                              getPostgresServiceAccountTestErrorMessage(error),
+                      }
+                    : {}),
             });
             result = {
                 ok: false,
                 principal: null,
                 observed: {},
-                message:
-                    connection.type === WarehouseTypes.ATHENA
-                        ? getAthenaServiceAccountTestErrorMessage(error)
-                        : 'Could not verify the AI service account. Check the credentials and connection settings.',
+                message: (() => {
+                    switch (connection.type) {
+                        case WarehouseTypes.POSTGRES:
+                            return getPostgresServiceAccountTestErrorMessage(
+                                error,
+                            );
+                        case WarehouseTypes.ATHENA:
+                            return getAthenaServiceAccountTestErrorMessage(
+                                error,
+                            );
+                        default:
+                            return 'Could not verify the AI service account. Check the credentials and connection settings.';
+                    }
+                })(),
                 checkedAt: new Date(),
             };
         }

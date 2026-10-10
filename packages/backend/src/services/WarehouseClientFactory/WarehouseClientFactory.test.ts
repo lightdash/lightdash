@@ -47,6 +47,8 @@ import Logger from '../../logging/logger';
 import {
     athenaConnection,
     athenaSecrets,
+    postgresConnection,
+    postgresSecrets,
     snowflakeSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -57,7 +59,10 @@ import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
-import { resolveAiServiceAccountCredentials } from './aiServiceAccountCredentialResolvers';
+import {
+    buildAiServiceAccountCredentials,
+    resolveAiServiceAccountCredentials,
+} from './aiServiceAccountCredentialResolvers';
 import {
     connectionContextFromUser,
     ConnectionSurface,
@@ -2103,6 +2108,210 @@ describe('AI service account factory scopes', () => {
         },
     };
 
+    const postgresPlan = async (connection = postgresConnection) => ({
+        ...slotPlan,
+        credentials: await resolveAiServiceAccountCredentials({
+            connection,
+            stored: postgresSecrets,
+            owner: {
+                kind: 'aiServiceAccount' as const,
+                uuid: 'slot-row',
+                identityUuid: 'generation-a',
+                sourceProjectUuid: 'project',
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project-uuid',
+            warehouseConnectionUuid: null,
+        }),
+    });
+
+    test.each([true, false])(
+        'opens the Postgres AI tunnel with the local endpoint, copied key=%s',
+        async (copiedKey) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                sshKeyPairModel,
+            } = buildFixture();
+            const connection = {
+                ...postgresConnection,
+                sshTunnelPrivateKey: copiedKey ? 'tunnel-private' : undefined,
+            };
+            sshKeyPairModel.find.mockResolvedValue(
+                copiedKey
+                    ? null
+                    : {
+                          publicKey: 'tunnel-public',
+                          privateKey: 'organization-private',
+                          organizationUuid: 'org-uuid',
+                      },
+            );
+            aiAccessService.resolvePlan.mockResolvedValue(
+                await postgresPlan(connection),
+            );
+            connect.mockImplementation(async (creds) => ({
+                ...creds,
+                host: '127.0.0.1',
+                port: 43210,
+            }));
+            await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ connectionCredentials }) => {
+                    expect(connectionCredentials).toMatchObject({
+                        ...postgresSecrets,
+                        host: '127.0.0.1',
+                        port: 43210,
+                    });
+                },
+            );
+            expect(SshTunnel).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...postgresSecrets,
+                    sshTunnelPrivateKey: copiedKey
+                        ? 'tunnel-private'
+                        : 'organization-private',
+                }),
+                undefined,
+            );
+            const clientCredentials =
+                projectModel.getWarehouseClientFromCredentials.mock.calls[0][0];
+            expect(clientCredentials).toMatchObject({
+                ...postgresSecrets,
+                host: '127.0.0.1',
+                port: 43210,
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(clientCredentials).not.toHaveProperty(field);
+            expect(sshKeyPairModel.find).toHaveBeenCalledOnce();
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledOnce();
+            expect(Object.keys(factory.warehouseClients)).toEqual([]);
+        },
+    );
+
+    test.each([true, false])(
+        'opens the same tunnel for a Postgres service account Test, copied key=%s',
+        async (copiedKey) => {
+            const { factory, projectModel, sshKeyPairModel } = buildFixture();
+            const connection = {
+                ...postgresConnection,
+                sshTunnelPrivateKey: copiedKey ? 'tunnel-private' : undefined,
+            };
+            sshKeyPairModel.find.mockResolvedValue(
+                copiedKey
+                    ? null
+                    : {
+                          publicKey: 'tunnel-public',
+                          privateKey: 'organization-private',
+                          organizationUuid: 'org-uuid',
+                      },
+            );
+            const testCredentials = buildAiServiceAccountCredentials(
+                connection,
+                postgresSecrets,
+            );
+            connect.mockImplementation(async (creds) => ({
+                ...creds,
+                host: '127.0.0.1',
+                port: 43211,
+            }));
+            await factory.withWarehouseClient(
+                {
+                    kind: 'bypass',
+                    mode: 'connection_test',
+                    agentSession: true,
+                    projectUuid: 'project-uuid',
+                    credentials: testCredentials,
+                },
+                contextFor(QueryExecutionContext.API),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery(
+                        'SELECT current_user AS principal, session_user AS session_principal',
+                        {},
+                    ),
+            );
+            expect(SshTunnel).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    sshTunnelPrivateKey: copiedKey
+                        ? 'tunnel-private'
+                        : 'organization-private',
+                }),
+                undefined,
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    ...postgresSecrets,
+                    host: '127.0.0.1',
+                    port: 43211,
+                }),
+                expect.any(Object),
+            );
+            expect(sshKeyPairModel.find).toHaveBeenCalledOnce();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+
+    test.each([
+        ['28P01', true],
+        ['28000', true],
+        ['42501', false],
+        ['42601', false],
+    ])(
+        'attributes only Postgres authentication failure %s',
+        async (code, refused) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                logger,
+            } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await postgresPlan());
+            const error = new WarehouseQueryError(
+                'password authentication failed for user "ai_agents"',
+            );
+            error.cause = Object.assign(new Error(postgresSecrets.password), {
+                code,
+            });
+            const client =
+                projectModel.getWarehouseClientFromCredentials(credentials);
+            vi.spyOn(client, 'runQuery').mockRejectedValue(error);
+            projectModel.getWarehouseClientFromCredentials.mockReturnValue(
+                client,
+            );
+            const operation = factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            );
+            if (refused) {
+                await expect(operation).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    },
+                });
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).toHaveBeenCalledOnce();
+            } else {
+                await expect(operation).rejects.toBe(error);
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).not.toHaveBeenCalled();
+            }
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                postgresSecrets.password,
+            );
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
     const athenaPlan = async () => ({
         ...slotPlan,
         inheritedFromProjectUuid: 'parent',

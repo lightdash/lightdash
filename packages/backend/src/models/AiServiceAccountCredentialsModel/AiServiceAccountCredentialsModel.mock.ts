@@ -3,6 +3,7 @@ import {
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
+    type CreatePostgresCredentials,
 } from '@lightdash/common';
 import { generateKeyPairSync } from 'node:crypto';
 
@@ -73,6 +74,42 @@ export const athenaVerification = {
     observed: {
         principalArn: 'arn:aws:sts::123456789012:assumed-role/agent/session',
     },
+    message: 'AI service account connection checked.',
+    checkedAt: new Date('2026-10-10T00:00:00Z'),
+};
+
+export const postgresSecrets = {
+    type: WarehouseTypes.POSTGRES,
+    user: 'ai_agents',
+    password: 'agent-password',
+} as const;
+
+export const postgresConnection: CreatePostgresCredentials = {
+    type: WarehouseTypes.POSTGRES,
+    host: 'warehouse.internal',
+    port: 5432,
+    dbname: 'analytics',
+    schema: 'reporting',
+    user: 'project-user',
+    password: 'project-password',
+    role: 'project-role',
+    sslcert: 'project-cert',
+    sslkey: 'project-key',
+    sslmode: 'verify-full',
+    sslrootcert: 'root-cert',
+    useSshTunnel: true,
+    sshTunnelHost: 'bastion.internal',
+    sshTunnelPort: 22,
+    sshTunnelUser: 'tunnel-user',
+    sshTunnelPublicKey: 'tunnel-public',
+    sshTunnelPrivateKey: 'tunnel-private',
+    requireUserCredentials: true,
+};
+
+export const postgresVerification = {
+    ok: true,
+    principal: 'ai_agents',
+    observed: { currentUser: 'ai_agents' },
     message: 'AI service account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
