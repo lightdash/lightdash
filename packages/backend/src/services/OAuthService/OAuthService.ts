@@ -83,7 +83,7 @@ export class OAuthService extends BaseService {
             extendedGrantTypes: {
                 authorization_code: createResourceBoundAuthorizationCodeGrant(
                     (user) =>
-                        this.oauthModel.isSecurityStrict(
+                        this.oauthModel.isSecurityStrictForOAuthUser(
                             user as UserWithOrganizationUuid,
                         ),
                     this.getSiteUrl(),
@@ -94,7 +94,7 @@ export class OAuthService extends BaseService {
                             user as UserWithOrganizationUuid,
                         ),
                     (user) =>
-                        this.oauthModel.isSecurityStrict(
+                        this.oauthModel.isSecurityStrictForOAuthUser(
                             user as UserWithOrganizationUuid,
                         ),
                     this.getSiteUrl(),
@@ -105,7 +105,7 @@ export class OAuthService extends BaseService {
                               createMicrosoftTokenExchangeGrantType(
                                   getManagedSignInService,
                                   (user) =>
-                                      this.oauthModel.isSecurityStrict(
+                                      this.oauthModel.isSecurityStrictForOAuthUser(
                                           user as UserWithOrganizationUuid,
                                       ),
                                   this.getSiteUrl(),
@@ -140,9 +140,9 @@ export class OAuthService extends BaseService {
         const model: OAuth2Server.AuthorizationCodeModel = Object.create(
             this.oauthModel,
         ) as OAuth2Server.AuthorizationCodeModel;
-        if (await this.isSecurityStrict(user))
+        if (await this.isSecurityStrictForOAuthUser(user))
             model.validateRedirectUri = (redirectUri, client) =>
-                this.oauthModel.validateRedirectUri(redirectUri, client, true);
+                this.oauthModel.validateRedirectUriStrict(redirectUri, client);
         model.saveAuthorizationCode = (code, client, savedUser) =>
             this.oauthModel.saveAuthorizationCode(
                 { ...code, resource },
@@ -162,7 +162,7 @@ export class OAuthService extends BaseService {
         request: OAuth2Server.Request,
         user: UserWithOrganizationUuid,
     ): Promise<string | null> {
-        const strict = await this.isSecurityStrict(user);
+        const strict = await this.isSecurityStrictForOAuthUser(user);
         if (
             strict &&
             !(request.body.code_challenge || request.query?.code_challenge)
@@ -192,6 +192,12 @@ export class OAuthService extends BaseService {
         return this.oauthModel.isSecurityStrict(user);
     }
 
+    public isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
+        return this.oauthModel.isSecurityStrictForOAuthUser(user);
+    }
+
     public async validateRedirectUri(
         clientId: string,
         redirectUri: string,
@@ -199,11 +205,14 @@ export class OAuthService extends BaseService {
     ): Promise<boolean> {
         const client = await this.oauthModel.getClient(clientId);
         if (client === false) return false;
-        if (await this.isSecurityStrict(user))
-            return this.oauthModel.validateRedirectUri(
+        const strict =
+            user === null
+                ? await this.isSecurityStrict(null)
+                : await this.isSecurityStrictForOAuthUser(user);
+        if (strict)
+            return this.oauthModel.validateRedirectUriStrict(
                 redirectUri,
                 client,
-                true,
             );
         return this.oauthModel.validateRedirectUri(redirectUri, client);
     }
@@ -235,7 +244,7 @@ export class OAuthService extends BaseService {
                     const token =
                         await this.oauthModel.getAccessToken(candidate);
                     return token
-                        ? this.isSecurityStrict(
+                        ? this.isSecurityStrictForOAuthUser(
                               token.user as UserWithOrganizationUuid,
                           )
                         : false;

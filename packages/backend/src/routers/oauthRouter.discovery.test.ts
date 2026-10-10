@@ -1,11 +1,15 @@
-import type { Request, Response } from 'express';
+import express, { type Request, type Response } from 'express';
 import knex from 'knex';
 import { MockClient } from 'knex-mock-client';
+import { once } from 'node:events';
+import { request as httpRequest } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { canonicalOAuthResource } from '../auth/oauthScopes/oauthResources';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { OAuth2Model } from '../models/OAuth2Model';
 import { type UserModel } from '../models/UserModel';
 import { OAuthService } from '../services/OAuthService/OAuthService';
-import {
+import oauthRouter, {
     oauthAuthorizationServerHandler,
     oauthConfig,
     oauthProtectedResourceConfig,
@@ -35,7 +39,7 @@ const callHandler = async (
         services: { getOauthService: () => oauthService },
     } as unknown as Request;
     const json = vi.fn();
-    await handler(request, { json } as unknown as Response);
+    await handler(request, { json } as unknown as Response, vi.fn());
     expect(json).toHaveBeenCalledOnce();
     return json.mock.calls[0][0] as Record<string, unknown>;
 };
@@ -113,4 +117,82 @@ it('advertises strict security from the instance flag', async () => {
     ]);
     expect(oauthService.isSecurityStrict).toHaveBeenCalledExactlyOnceWith(null);
     vi.restoreAllMocks();
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+it.each([true, false])(
+    'advertises a trailing-slash site URL with strict=%s',
+    async (strict) => {
+        const trailingSiteUrl = `${siteUrl}/`;
+        vi.spyOn(oauthService, 'getSiteUrl').mockReturnValue(trailingSiteUrl);
+        vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValue(strict);
+        const metadata = await callHandler(oauthProtectedResourceHandler, {});
+        if (strict) {
+            expect(metadata.resource).toBe(`${siteUrl}/api/v1/mcp`);
+            expect(
+                canonicalOAuthResource(
+                    trailingSiteUrl,
+                    String(metadata.resource),
+                ),
+            ).toBe(metadata.resource);
+            expect(metadata.authorization_servers).toEqual([siteUrl]);
+        } else {
+            expect(JSON.stringify(metadata)).toBe(
+                JSON.stringify(oauthProtectedResourceConfig(trailingSiteUrl)),
+            );
+        }
+    },
+);
+
+it.each([
+    '/.well-known/oauth-authorization-server',
+    '/.well-known/oauth-protected-resource',
+])('forwards a rejected flag lookup at %s to Express', async (path) => {
+    vi.spyOn(oauthService, 'isSecurityStrict').mockRejectedValue(
+        new Error('flag lookup failed'),
+    );
+    const app = express();
+    app.use((req, _res, next) => {
+        req.services = {
+            getOauthService: () => oauthService,
+        } as Request['services'];
+        next();
+    });
+    app.use(oauthRouter);
+    const onError = vi.fn<express.ErrorRequestHandler>(
+        (_error, _req, res, _next) => {
+            res.status(503).send('flag lookup failed');
+        },
+    );
+    app.use(onError);
+    const server = app.listen(0, '127.0.0.1');
+    await once(server, 'listening');
+    try {
+        const status = await new Promise<number>((resolve, reject) => {
+            const request = httpRequest(
+                {
+                    hostname: '127.0.0.1',
+                    port: (server.address() as AddressInfo).port,
+                    path,
+                },
+                (response) => {
+                    response.resume();
+                    response.on('end', () => resolve(response.statusCode ?? 0));
+                },
+            );
+            request.setTimeout(500, () =>
+                request.destroy(new Error('OAuth route timed out')),
+            );
+            request.on('error', reject);
+            request.end();
+        });
+        expect(status).toBe(503);
+        expect(onError).toHaveBeenCalledOnce();
+    } finally {
+        server.closeAllConnections();
+        await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error ? reject(error) : resolve()));
+        });
+    }
 });

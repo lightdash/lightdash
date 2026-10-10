@@ -1117,3 +1117,59 @@ describe('OAuth2Model strict refresh rotation', () => {
         );
     });
 });
+
+describe('OAuth2Model explicit security methods', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    afterEach(() => {
+        getTracker().reset();
+        vi.restoreAllMocks();
+    });
+
+    it('resolves the stored UUID for an OAuth user before checking strict mode', async () => {
+        const resolve = vi
+            .spyOn(model, 'isSecurityStrict')
+            .mockResolvedValue(true);
+        await expect(
+            model.isSecurityStrictForOAuthUser({
+                userId: 42,
+                organizationUuid: 'org',
+            }),
+        ).resolves.toBe(true);
+        expect(getTracker().history.select[0].bindings).toEqual([42, 1]);
+        expect(resolve).toHaveBeenCalledExactlyOnceWith({
+            userUuid: 'user-uuid',
+            organizationUuid: 'org',
+        });
+    });
+
+    it('refuses an OAuth user missing from storage', async () => {
+        getTracker().reset();
+        getTracker().on.select('users').response([]);
+        const resolve = vi.spyOn(model, 'isSecurityStrict');
+        await expect(
+            model.isSecurityStrictForOAuthUser({
+                userId: 42,
+                organizationUuid: 'org',
+            }),
+        ).rejects.toBeInstanceOf(AuthorizationError);
+        expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('keeps strict redirect checks separate from legacy wildcard matching', async () => {
+        const client = {
+            id: 'client',
+            grants: ['authorization_code'],
+            redirectUris: ['https://example.com/*'],
+        };
+        await expect(
+            model.validateRedirectUriStrict(
+                'https://example.com/callback',
+                client,
+            ),
+        ).resolves.toBe(false);
+        await expect(
+            model.validateRedirectUri('https://example.com/callback', client),
+        ).resolves.toBe(true);
+    });
+});

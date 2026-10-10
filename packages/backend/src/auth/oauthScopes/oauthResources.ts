@@ -83,15 +83,3 @@ export const resolveGrantedOAuthResource = (
         throw new InvalidTargetError();
     return parentResource ?? requested ?? oauthApiResource(siteUrl);
 };
-
-export const withOAuthResourceBinding = (
-    model: OAuth2Server.AuthorizationCodeModel,
-    binding: OAuthResourceBinding,
-): OAuth2Server.AuthorizationCodeModel => {
-    const boundModel: OAuth2Server.AuthorizationCodeModel = Object.create(
-        model,
-    ) as OAuth2Server.AuthorizationCodeModel;
-    boundModel.saveToken = (token, client, user) =>
-        model.saveToken({ ...token, resource: binding.resource }, client, user);
-    return boundModel;
-};

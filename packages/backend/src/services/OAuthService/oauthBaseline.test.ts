@@ -586,11 +586,8 @@ it.each([
 
 it('keeps concurrent strict and legacy redirect checks isolated by user', async () => {
     await setScopeMode('log');
-    vi.spyOn(model, 'isSecurityStrict').mockImplementation(
-        async (identity) =>
-            identity !== null &&
-            'userId' in identity &&
-            identity.userId === user.userId,
+    vi.spyOn(model, 'isSecurityStrictForOAuthUser').mockImplementation(
+        async (identity) => identity.userId === user.userId,
     );
     vi.mocked(model.getClient).mockResolvedValue({
         ...client,

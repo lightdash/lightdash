@@ -18,7 +18,7 @@ const client = {
     grants: [],
 } as unknown as OAuth2Server.Client;
 
-const createRequest = (body: Record<string, string>) =>
+const createRequest = (body: Record<string, unknown>) =>
     new OAuth2Server.Request({
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -250,3 +250,67 @@ it.each([true, false])(
         );
     },
 );
+
+it.each([
+    { resource: 'https://foreign.example' },
+    { resource: ['https://server.example', 'https://server.example'] },
+    { resource: 'not a URL' },
+    { resource: 'https://server.example/api/v1/mcp' },
+])(
+    'refuses managed sign-in resource $resource under strict without saving tokens',
+    async ({ resource }) => {
+        const { grant, saveToken, recordSignInAllowed } = createGrant({
+            strict: true,
+        });
+        await expect(
+            grant.handle(createRequest({ ...validBody, resource }), client),
+        ).rejects.toMatchObject({ name: 'invalid_target' });
+        expect(saveToken).not.toHaveBeenCalled();
+        expect(recordSignInAllowed).not.toHaveBeenCalled();
+    },
+);
+
+it('refuses a resource duplicated across body and query without saving tokens', async () => {
+    const { grant, saveToken } = createGrant({ strict: true });
+    const request = createRequest({
+        ...validBody,
+        resource: 'https://server.example',
+    });
+    request.query = { resource: 'https://server.example' };
+    await expect(grant.handle(request, client)).rejects.toMatchObject({
+        name: 'invalid_target',
+    });
+    expect(saveToken).not.toHaveBeenCalled();
+});
+
+it.each([null, 'https://server.example'])(
+    'binds managed sign-in resource %s to the API under strict',
+    async (resource) => {
+        const { grant, saveToken } = createGrant({ strict: true });
+        const token = await grant.handle(
+            createRequest({
+                ...validBody,
+                ...(resource === null ? {} : { resource }),
+            }),
+            client,
+        );
+        expect(token.resource).toBe('https://server.example');
+        expect(saveToken).toHaveBeenCalledWith(
+            expect.objectContaining({ resource: 'https://server.example' }),
+            client,
+            sessionUser,
+        );
+    },
+);
+
+it('ignores invalid resources with the flag off', async () => {
+    const { grant } = createGrant();
+    const token = await grant.handle(
+        createRequest({
+            ...validBody,
+            resource: ['not a URL', 'https://foreign.example'],
+        }),
+        client,
+    );
+    expect(token.resource).toBeNull();
+});

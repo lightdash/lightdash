@@ -21,15 +21,13 @@ import {
     oauthMcpResource,
 } from '../../auth/oauthScopes/oauthResources';
 import { OAuthScopePolicy } from '../../auth/oauthScopes/scopedAbility';
-import {
-    OAuthBearerRefusalError,
-    resolveOAuthSecurityStrict,
-} from '../../auth/oauthScopes/security';
+import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
-const isMcpRequest = (req: Request): boolean => req.baseUrl.endsWith('/mcp');
+const isMcpRequest = (req: Request): boolean =>
+    req.baseUrl.toLowerCase().endsWith('/mcp');
 
 const refuseOAuthToken = (
     req: Request,
@@ -155,17 +153,6 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                     organization: token.user.organizationUuid,
                 })
                 .then(async (user) => {
-                    if (
-                        user &&
-                        req.query.access_token !== undefined &&
-                        (await resolveOAuthSecurityStrict(
-                            req.services.getFeatureFlagService(),
-                            user,
-                        ))
-                    ) {
-                        refuseOAuthToken(req, res);
-                        return;
-                    }
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),
@@ -281,17 +268,6 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                     organization: token.user.organizationUuid,
                 })
                 .then(async (user) => {
-                    if (
-                        user &&
-                        req.query.access_token !== undefined &&
-                        (await resolveOAuthSecurityStrict(
-                            req.services.getFeatureFlagService(),
-                            user,
-                        ))
-                    ) {
-                        refuseOAuthToken(req, res);
-                        return;
-                    }
                     if (req.account?.isAuthenticated()) {
                         Logger.warn(
                             buildAccountExistsWarning('OAuth'),

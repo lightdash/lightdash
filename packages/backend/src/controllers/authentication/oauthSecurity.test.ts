@@ -74,7 +74,11 @@ const start = async (
         req.isAuthenticated = (() => false) as Request['isAuthenticated'];
         req.services = {
             getOauthService: () => ({
-                authenticate: async () => token,
+                authenticate: async (request: OAuth2Server.Request) => {
+                    if (strict && request.query?.access_token !== undefined)
+                        throw new OAuthBearerRefusalError();
+                    return token;
+                },
                 getSiteUrl: () => site,
             }),
             getUserService: () => ({ findSessionUser: async () => user }),
@@ -153,6 +157,8 @@ it.each([site, mcp])(
 );
 it.each([
     '/api/v1/mcp',
+    '/api/v1/MCP',
+    '/api/v1/McP/projects/11111111-1111-4111-8111-111111111111',
     '/api/v1/mcp/projects/11111111-1111-4111-8111-111111111111',
 ])('refuses an API-bound token at %s with resource discovery', async (path) => {
     const url = await start(
@@ -374,3 +380,22 @@ it.each([allowApiKeyAuthentication, allowOauthAuthentication])(
         expect(passport.authenticate).not.toHaveBeenCalled();
     },
 );
+
+it.each([
+    '/api/v1/MCP',
+    '/api/v1/McP/projects/11111111-1111-4111-8111-111111111111',
+])('accepts an MCP-bound token at %s', async (path) => {
+    const url = await start(
+        tokenFor(mcp),
+        false,
+        allowApiKeyAuthentication,
+        true,
+    );
+    const response = await fetch(`${url}${path}`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer oauth-token' },
+    });
+    expect(response.status).toBe(405);
+    expect(authenticateServiceAccount).not.toHaveBeenCalled();
+    expect(passport.authenticate).not.toHaveBeenCalled();
+});

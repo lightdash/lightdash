@@ -441,7 +441,9 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         if (
-            await this.isSecurityStrict(token.user as UserWithOrganizationUuid)
+            await this.isSecurityStrictForOAuthUser(
+                token.user as UserWithOrganizationUuid,
+            )
         ) {
             return this.database.transaction(async (database) => {
                 await this.lockRefreshRotation(database, token.user.userId);
@@ -518,7 +520,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 organizationUuid: result.organization_uuid,
             },
         };
-        const strict = await this.isSecurityStrict(
+        const strict = await this.isSecurityStrictForOAuthUser(
             token.user as UserWithOrganizationUuid,
         );
         if (
@@ -582,21 +584,20 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async isSecurityStrict(
-        user:
-            | UserWithOrganizationUuid
-            | Pick<LightdashUser, 'userUuid' | 'organizationUuid'>
-            | null,
+        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'> | null,
     ): Promise<boolean> {
-        if (user === null)
-            return resolveOAuthSecurityStrict(this.featureFlagModel, null);
-        if ('userUuid' in user)
-            return resolveOAuthSecurityStrict(this.featureFlagModel, user);
+        return resolveOAuthSecurityStrict(this.featureFlagModel, user);
+    }
+
+    async isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
         const storedUser = await this.database('users')
             .select('user_uuid')
             .where('user_id', user.userId)
             .first();
         if (!storedUser) throw new AuthorizationError('OAuth user not found');
-        return resolveOAuthSecurityStrict(this.featureFlagModel, {
+        return this.isSecurityStrict({
             userUuid: storedUser.user_uuid,
             organizationUuid: user.organizationUuid,
         });
@@ -640,19 +641,23 @@ export class OAuth2Model implements AuthorizationCodeModel {
     async validateRedirectUri(
         redirectUri: string,
         client: Client,
-        strict = false,
     ): Promise<boolean> {
-        if (strict)
-            return (
-                Array.isArray(client.redirectUris) &&
-                client.redirectUris.some((uri) =>
-                    matchesRedirectUriStrict(redirectUri, uri),
-                )
-            );
         return (
             Array.isArray(client.redirectUris) &&
             client.redirectUris.some((uri) =>
                 matchesRegisteredRedirectUri(redirectUri, uri),
+            )
+        );
+    }
+
+    async validateRedirectUriStrict(
+        redirectUri: string,
+        client: Client,
+    ): Promise<boolean> {
+        return (
+            Array.isArray(client.redirectUris) &&
+            client.redirectUris.some((uri) =>
+                matchesRedirectUriStrict(redirectUri, uri),
             )
         );
     }
