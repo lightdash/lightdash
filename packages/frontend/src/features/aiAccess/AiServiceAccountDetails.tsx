@@ -10,6 +10,7 @@ import { Link } from 'react-router';
 import { formatAiServiceAccountDate } from './formatAiServiceAccountDate';
 
 type ServiceAccountWarehouse =
+    | WarehouseTypes.POSTGRES
     | WarehouseTypes.ATHENA
     | WarehouseTypes.BIGQUERY
     | WarehouseTypes.SNOWFLAKE
@@ -17,6 +18,8 @@ type ServiceAccountWarehouse =
 
 const getMethod = (warehouseType: ServiceAccountWarehouse): string => {
     switch (warehouseType) {
+        case WarehouseTypes.POSTGRES:
+            return 'User and password';
         case WarehouseTypes.ATHENA:
             return 'Access keys';
         case WarehouseTypes.BIGQUERY:

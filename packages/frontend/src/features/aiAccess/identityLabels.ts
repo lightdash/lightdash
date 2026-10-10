@@ -19,6 +19,7 @@ export const identityLabels: Record<
 };
 
 export const identityWarehouseNames = {
+    [WarehouseTypes.POSTGRES]: 'Postgres',
     [WarehouseTypes.ATHENA]: 'Athena',
     [WarehouseTypes.SNOWFLAKE]: 'Snowflake',
     [WarehouseTypes.BIGQUERY]: 'BigQuery',
