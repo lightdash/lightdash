@@ -438,3 +438,38 @@ GRANT SELECT ON TABLE ${quoteIdentifier(catalogName)}.${quoteIdentifier(schemaNa
 GRANT ai_agents_read TO USER ${quoteIdentifier(user)};`,
     };
 };
+
+export interface ClickhouseAiServiceAccountCommands {
+    createUser: string;
+    grantReadAccess: string;
+    rowPolicy: string;
+}
+
+interface ClickhouseAiServiceAccountSetupInput {
+    schema: string | null;
+}
+
+export const buildClickhouseAiServiceAccountCommands = ({
+    schema,
+}: ClickhouseAiServiceAccountSetupInput): ClickhouseAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `\`${value
+            .replaceAll('\\', '\\\\')
+            .replaceAll('`', '\\`')
+            .replaceAll('\n', '\\n')
+            .replaceAll('\r', '\\r')
+            .replaceAll('\t', '\\t')}\``;
+    const database = quoteIdentifier(schema || '<database>');
+    return {
+        createUser: `CREATE USER ai_agents
+  IDENTIFIED WITH sha256_password
+  BY '<choose-a-strong-password>'
+  SETTINGS readonly = 2;`,
+        grantReadAccess: `GRANT SELECT ON ${database}.*
+  TO ai_agents;`,
+        rowPolicy: `CREATE ROW POLICY ai_agents_rows
+  ON ${database}.\`<table>\`
+  FOR SELECT USING <condition>
+  TO ai_agents;`,
+    };
+};
