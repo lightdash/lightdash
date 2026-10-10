@@ -281,6 +281,55 @@ describe('AiWritebackService.applyAgentChanges', () => {
             ...args,
         });
 
+    test.each(['fresh', 'adopted'] as const)(
+        'keeps one %s mutation record after bookkeeping fails',
+        async (kind) => {
+            const insert = vi.fn().mockResolvedValue(undefined);
+            const service = buildService({
+                agentActionLogModel: { insert } as AnyType,
+            });
+            const provider = fakeProvider();
+            const user = {
+                userUuid: 'u1',
+                organizationUuid: ORG,
+            } as SessionUser;
+            vi.spyOn(
+                service as AnyType,
+                'recordWritebackPullRequest',
+            ).mockRejectedValue(new Error('bookkeeping unavailable'));
+            await expect(
+                withAgentActionScope(
+                    user,
+                    AgentActorSurface.IN_APP_AGENT,
+                    true,
+                    () =>
+                        applyAgentChanges(service, provider, {
+                            hasChanges: true,
+                            user,
+                            workstream: 'general',
+                            aiWritebackRunUuid: 'run-1',
+                            adoptedPr:
+                                kind === 'adopted'
+                                    ? adoptedPullRequest(PR_9)
+                                    : null,
+                        }),
+                ),
+            ).rejects.toThrow('bookkeeping unavailable');
+            expect(
+                kind === 'adopted'
+                    ? provider.updatePullRequest
+                    : provider.openPullRequest,
+            ).toHaveBeenCalledOnce();
+            expect(insert).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'ai_writeback_run',
+                    object_uuid: 'run-1',
+                    outcome: 'allowed',
+                }),
+            );
+        },
+    );
+
     it('does nothing when the agent made no changes (one-shot)', async () => {
         const { service, provider, open, update } = setup();
         const result = await applyAgentChanges(service, provider, {
@@ -2153,6 +2202,56 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         'github.com',
                     );
                 },
+            );
+        },
+    );
+
+    test.each(['provider', 'bookkeeping'] as const)(
+        'records only completed external writes when %s fails',
+        async (failure) => {
+            const sandbox = fakeSandbox(0, true);
+            fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            vi.mocked(listReposAccessibleToInstallation).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'analytics',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+            vi.mocked(getRepoMetadata).mockResolvedValue({
+                defaultBranch: 'main',
+                sizeKb: 1024,
+            });
+            const insert = vi.fn().mockResolvedValue(undefined);
+            if (failure === 'provider')
+                vi.mocked(createPullRequest).mockRejectedValueOnce(
+                    new Error('provider unavailable'),
+                );
+            const findOrCreate = vi
+                .fn()
+                .mockRejectedValue(new Error('bookkeeping unavailable'));
+            await expect(
+                withAgentActionScope(
+                    permittedUser(),
+                    AgentActorSurface.IN_APP_AGENT,
+                    true,
+                    () =>
+                        runService(
+                            sandbox,
+                            { repoTarget: 'acme/analytics' },
+                            {
+                                agentActionLogModel: { insert },
+                                pullRequestsModel: { findOrCreate },
+                            },
+                        ),
+                ),
+            ).rejects.toThrow(`${failure} unavailable`);
+            expect(insert).toHaveBeenCalledTimes(
+                failure === 'bookkeeping' ? 1 : 0,
+            );
+            expect(findOrCreate).toHaveBeenCalledTimes(
+                failure === 'bookkeeping' ? 1 : 0,
             );
         },
     );

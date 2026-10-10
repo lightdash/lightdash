@@ -37,8 +37,9 @@ export class ContentVerificationModel {
     async getByContent(
         contentType: ContentType,
         contentUuid: string,
+        trx?: Knex,
     ): Promise<ContentVerificationInfo | null> {
-        const row = await this.database(ContentVerificationTableName)
+        const row = await (trx ?? this.database)(ContentVerificationTableName)
             .leftJoin(
                 UserTableName,
                 `${ContentVerificationTableName}.verified_by_user_uuid`,

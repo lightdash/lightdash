@@ -429,6 +429,19 @@ export class ProjectContextService extends BaseService {
             token,
         });
 
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: args.user.userUuid,
+                organizationUuid: args.user.organizationUuid,
+            }),
+            projectUuid: args.projectUuid,
+            objectType: 'project_context',
+            objectUuid: args.projectUuid,
+            versionUuid: null,
+            action: 'update',
+        });
+
         const bodyLines = [
             `This PR ${
                 op === 'create' ? 'adds a new' : 'updates an'
@@ -455,19 +468,6 @@ export class ProjectContextService extends BaseService {
             base: branch,
             installationId,
             token,
-        });
-
-        await logAgentContentWrite({
-            model: this.agentActionLogModel,
-            agentIdentity: getContentWriteAgentIdentity({
-                userUuid: args.user.userUuid,
-                organizationUuid: args.user.organizationUuid,
-            }),
-            projectUuid: args.projectUuid,
-            objectType: 'project_context',
-            objectUuid: args.projectUuid,
-            versionUuid: null,
-            action: 'update',
         });
 
         return {

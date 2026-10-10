@@ -2031,6 +2031,7 @@ export class PromoteService extends BaseService {
                         await this.dashboardModel.getByIdOrSlug(
                             promotedDashboard.uuid,
                             { projectUuid: promotedDashboard.projectUuid },
+                            trx,
                         );
                     if (currentDashboard.slug !== promotedDashboard.slug) {
                         await this.dashboardModel.renameSlug(

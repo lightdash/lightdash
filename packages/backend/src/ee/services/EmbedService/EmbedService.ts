@@ -31,6 +31,7 @@ import {
     Explore,
     ExploreError,
     ExportContentPayload,
+    FeatureFlags,
     FieldValueSearchResult,
     FilterableDimension,
     ForbiddenError,
@@ -112,6 +113,7 @@ import {
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
+import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
 import { wrapSentryTransaction } from '../../../utils';
 import {
@@ -1564,8 +1566,16 @@ export class EmbedService extends BaseService {
                 spaceUuid: savedChart.space.uuid,
             });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: savedChart.organization.organizationUuid,
+            },
+        });
+
         return {
-            ...savedChart,
+            ...withVersionAgentIdentity(savedChart, enabled),
             space: {
                 ...savedChart.space,
                 userAccess: undefined,

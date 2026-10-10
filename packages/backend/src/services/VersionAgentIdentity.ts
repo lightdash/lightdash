@@ -2,22 +2,32 @@ import {
     normalizeAgentIdentityClaim,
     type AgentIdentityClaim,
 } from '@lightdash/common';
+import { storedVersionAgentIdentity } from '../models/ContentVersionIdentity';
 
 export const withVersionAgentIdentity = <
-    T extends { agentIdentity?: AgentIdentityClaim | null },
+    T extends {
+        agentIdentity?: AgentIdentityClaim | null;
+        [storedVersionAgentIdentity]?: AgentIdentityClaim | null;
+    },
 >(
     version: T,
     enabled: boolean,
-): T => {
-    const { agentIdentity, ...rest } = version;
+): Omit<T, 'agentIdentity' | typeof storedVersionAgentIdentity> & {
+    agentIdentity?: AgentIdentityClaim | null;
+} => {
+    const {
+        agentIdentity,
+        [storedVersionAgentIdentity]: storedIdentity,
+        ...rest
+    } = version;
     return {
         ...rest,
         ...(enabled
             ? {
                   agentIdentity: normalizeAgentIdentityClaim(
-                      agentIdentity ?? null,
+                      storedIdentity ?? agentIdentity ?? null,
                   ),
               }
             : {}),
-    } as T;
+    };
 };

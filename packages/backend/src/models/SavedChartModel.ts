@@ -1144,15 +1144,18 @@ export class SavedChartModel {
         };
     }
 
-    async resolveColorPalette(args: {
-        projectUuid: string;
-        chartUuid?: string;
-        dashboardUuid?: string;
-        spaceUuid?: string;
-    }): Promise<ResolvedProjectColorPalette> {
+    async resolveColorPalette(
+        args: {
+            projectUuid: string;
+            chartUuid?: string;
+            dashboardUuid?: string;
+            spaceUuid?: string;
+        },
+        trx?: Knex,
+    ): Promise<ResolvedProjectColorPalette> {
         return resolveColorPalette({
             ...args,
-            database: this.database,
+            database: trx ?? this.database,
             lightdashConfig: this.lightdashConfig,
         });
     }
@@ -1399,7 +1402,7 @@ export class SavedChartModel {
             await this.database.transaction(async (trx) => doWork(trx));
         }
 
-        return this.get(savedChartUuid);
+        return this.get(savedChartUuid, undefined, undefined, tx);
     }
 
     private getChartMutationQuery(
@@ -2269,7 +2272,9 @@ export class SavedChartModel {
         savedChartUuidOrSlug: string,
         versionUuid?: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        trx?: Knex,
     ): Promise<SavedChartDAO> {
+        const database = trx ?? this.database;
         return traceSpan(
             {
                 op: 'SavedChartModel.get',
@@ -2278,7 +2283,7 @@ export class SavedChartModel {
             async () => {
                 const isUuid = isValidUuid(savedChartUuidOrSlug);
 
-                const chartQuery = this.database
+                const chartQuery = database
                     .from<DbSavedChartDetails>(SavedChartsTableName)
                     .leftJoin(
                         DashboardsTableName,
@@ -2355,7 +2360,7 @@ export class SavedChartModel {
                         `${SavedChartsTableName}.project_uuid`,
                         `${ProjectTableName}.name as project_name`,
                         `${ProjectTableName}.project_type`,
-                        this.database.raw(
+                        database.raw(
                             `${SavedChartsTableName}.created_at::timestamp as content_created_at`,
                         ),
                         `${SavedChartsTableName}.saved_query_id`,
@@ -2444,14 +2449,12 @@ export class SavedChartModel {
                 const savedQueriesVersionId =
                     savedQuery.saved_queries_version_id;
 
-                const fieldsQuery = this.database(
-                    'saved_queries_version_fields',
-                )
+                const fieldsQuery = database('saved_queries_version_fields')
                     .select(['name', 'field_type', 'order'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .orderBy('order', 'asc');
 
-                const sortsQuery = this.database('saved_queries_version_sorts')
+                const sortsQuery = database('saved_queries_version_sorts')
                     .select([
                         'field_name',
                         'descending',
@@ -2460,7 +2463,7 @@ export class SavedChartModel {
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .orderBy('order', 'asc');
-                const tableCalculationsQuery = this.database(
+                const tableCalculationsQuery = database(
                     'saved_queries_version_table_calculations',
                 )
                     .select([
@@ -2476,20 +2479,20 @@ export class SavedChartModel {
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
-                const additionalMetricsQuery = this.database(
+                const additionalMetricsQuery = database(
                     SavedChartAdditionalMetricTableName,
                 )
                     .select([...additionalMetricColumns])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
-                const customBinDimensionsQuery = this.database(
+                const customBinDimensionsQuery = database(
                     SavedChartCustomDimensionsTableName,
                 ).where('saved_queries_version_id', savedQueriesVersionId);
-                const customSqlDimensionsQuery = this.database(
+                const customSqlDimensionsQuery = database(
                     SavedChartCustomSqlDimensionsTableName,
                 ).where('saved_queries_version_id', savedQueriesVersionId);
 
-                const mergeQuery = this.database('saved_queries_version_merges')
+                const mergeQuery = database('saved_queries_version_merges')
                     .select(['schema_version', 'merge'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .first();
@@ -2510,11 +2513,15 @@ export class SavedChartModel {
                     additionalMetricsQuery,
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
-                    this.resolveColorPalette({
-                        projectUuid: savedQuery.project_uuid,
-                        chartUuid: savedQuery.saved_query_uuid,
-                        dashboardUuid: savedQuery.dashboard_uuid ?? undefined,
-                    }),
+                    this.resolveColorPalette(
+                        {
+                            projectUuid: savedQuery.project_uuid,
+                            chartUuid: savedQuery.saved_query_uuid,
+                            dashboardUuid:
+                                savedQuery.dashboard_uuid ?? undefined,
+                        },
+                        trx,
+                    ),
                     mergeQuery,
                 ]);
 
@@ -2556,6 +2563,7 @@ export class SavedChartModel {
                     (await this.contentVerificationModel?.getByContent(
                         ContentType.CHART,
                         savedQuery.saved_query_uuid,
+                        trx,
                     )) ?? null;
 
                 return {

@@ -17,6 +17,8 @@ import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import * as auditLogger from '../../../logging/winston';
 import { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AppModel } from '../../../models/AppModel';
+import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { storedVersionAgentIdentity } from '../../../models/ContentVersionIdentity';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { DocumentModel } from '../../../models/DocumentModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -51,7 +53,11 @@ describe('content version agent identity migration', () => {
     let migrated: MigratedDatabase;
     let database: Knex;
     beforeAll(async () => {
-        migrated = await createMigratedDatabase();
+        migrated = await createMigratedDatabase(undefined, {
+            min: 0,
+            max: 1,
+            acquireTimeoutMillis: 1500,
+        });
         database = migrated.database;
     });
     afterAll(async () => {
@@ -206,11 +212,18 @@ describe('content version agent identity migration', () => {
                 agentUuid: randomUUID(),
                 agentIdentityEnabled: enabled,
             });
+            const contentVerificationModel = new ContentVerificationModel({
+                database,
+            });
             const chartModel = new SavedChartModel({
                 database,
+                contentVerificationModel,
                 lightdashConfig: lightdashConfigMock,
             });
-            const dashboardModel = new DashboardModel({ database });
+            const dashboardModel = new DashboardModel({
+                database,
+                contentVerificationModel,
+            });
             const sqlModel = new SavedSqlModel({
                 database,
                 lightdashConfig: lightdashConfigMock,
@@ -390,14 +403,32 @@ describe('content version agent identity migration', () => {
                         object_uuid: dashboard.uuid,
                     }),
                 ).toHaveLength(claim ? 1 : 0);
-                await dashboardModel.addVersion(
-                    dashboard.uuid,
-                    dashboard,
-                    user,
-                    projectUuid,
-                    undefined,
-                    claim,
-                );
+                await service.updateDashboard(user, {
+                    ...dashboardCreated,
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { ...dashboard, name: 'Updated dashboard' },
+                        },
+                    ],
+                });
+                const dashboardVersions = await database('dashboard_versions')
+                    .join(
+                        'dashboards',
+                        'dashboards.dashboard_id',
+                        'dashboard_versions.dashboard_id',
+                    )
+                    .where({ dashboard_uuid: dashboard.uuid })
+                    .select('dashboard_versions.*');
+                expect(dashboardVersions).toHaveLength(2);
+                expect(
+                    dashboardVersions.map((version) => version.agent_identity),
+                ).toEqual([claim, claim]);
+                expect(
+                    await database('agent_action_log').where({
+                        object_uuid: dashboard.uuid,
+                    }),
+                ).toHaveLength(claim ? 2 : 0);
                 if (claim) {
                     const [{ space_uuid: destinationSpaceUuid }] =
                         await database('spaces')
@@ -445,7 +476,7 @@ describe('content version agent identity migration', () => {
                     expect(
                         await dashboardModel.getByIdOrSlug(dashboard.uuid),
                     ).toMatchObject({
-                        name: 'Dashboard',
+                        name: 'Updated dashboard',
                         slug: 'dashboard',
                         description: dashboard.description,
                         spaceUuid,
@@ -455,7 +486,21 @@ describe('content version agent identity migration', () => {
                         await database('agent_action_log').where({
                             object_uuid: dashboard.uuid,
                         }),
-                    ).toHaveLength(1);
+                    ).toHaveLength(2);
+                    expect(
+                        await database('dashboard_versions').whereIn(
+                            'dashboard_version_uuid',
+                            dashboardVersions.map(
+                                (version) => version.dashboard_version_uuid,
+                            ),
+                        ),
+                    ).toEqual(expect.arrayContaining(dashboardVersions));
+                    expect(
+                        await database('dashboard_versions').where(
+                            'dashboard_id',
+                            dashboardVersions[0].dashboard_id,
+                        ),
+                    ).toHaveLength(2);
                 }
                 const config: AllVizChartConfig = {
                     type: ChartKind.TABLE,
@@ -583,7 +628,7 @@ describe('content version agent identity migration', () => {
                         await sqlModel.getByUuid(sql.savedSqlUuid, {
                             projectUuid,
                         })
-                    ).agentIdentity,
+                    )[storedVersionAgentIdentity],
                 ).toEqual(claim);
                 const app = await appModel.createWithVersion(
                     {

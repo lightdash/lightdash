@@ -944,8 +944,9 @@ export class DashboardModel {
     private async resolveDashboardUuidBySlug(
         slug: string,
         projectUuid?: string,
+        trx?: Knex.Transaction,
     ): Promise<string | undefined> {
-        const dashboardQuery = this.database(DashboardsTableName)
+        const dashboardQuery = (trx ?? this.database)(DashboardsTableName)
             .select('dashboard_uuid')
             .where('slug', slug);
 
@@ -956,7 +957,9 @@ export class DashboardModel {
         const dashboard = await dashboardQuery.first();
         if (dashboard) return dashboard.dashboard_uuid;
 
-        const aliasQuery = this.database(DashboardSlugMappingsTableName)
+        const aliasQuery = (trx ?? this.database)(
+            DashboardSlugMappingsTableName,
+        )
             .select('dashboard_uuid')
             .where('slug', slug);
 
@@ -1078,8 +1081,10 @@ export class DashboardModel {
     async getByIdOrSlug(
         dashboardUuidOrSlug: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        trx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const query = this.database(DashboardsTableName)
+        const database = trx ?? this.database;
+        const query = database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -1153,7 +1158,7 @@ export class DashboardModel {
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.project_type`,
-                this.database.raw(
+                database.raw(
                     `${DashboardsTableName}.created_at::timestamp as content_created_at`,
                 ),
                 `${DashboardsTableName}.dashboard_id`,
@@ -1219,6 +1224,7 @@ export class DashboardModel {
             const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
                 dashboardUuidOrSlug,
                 options?.projectUuid,
+                trx,
             );
             dashboard = resolvedDashboardUuid
                 ? await fetchByUuid(resolvedDashboardUuid)
@@ -1229,12 +1235,12 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        const viewQuery = this.database(DashboardViewsTableName)
+        const viewQuery = database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
             .where(`dashboard_version_id`, dashboard.dashboard_version_id);
 
-        const tilesQuery = this.database(DashboardTilesTableName)
+        const tilesQuery = database(DashboardTilesTableName)
             .select<
                 {
                     x_offset: number;
@@ -1272,13 +1278,13 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${DashboardTilesTableName}.tab_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                this.database.raw(
+                database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.name,
                         ${SavedSqlTableName}.name
                     ) AS name`,
                 ),
-                this.database.raw(
+                database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
                         ${SavedSqlTableName}.slug
@@ -1286,10 +1292,10 @@ export class DashboardModel {
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
-                this.database.raw(
+                database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
                 ),
-                this.database.raw(
+                database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
                         ${DashboardTileLoomsTableName}.title,
@@ -1298,7 +1304,7 @@ export class DashboardModel {
                         ${DashboardTileDataAppsTableName}.title
                     ) AS title`,
                 ),
-                this.database.raw(
+                database.raw(
                     `COALESCE(
                         ${DashboardTileLoomsTableName}.hide_title,
                         ${DashboardTileChartTableName}.hide_title,
@@ -1312,8 +1318,8 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
-                this.database.raw(`${AppsTableName}.slug AS app_slug`),
-                this.database.raw(
+                database.raw(`${AppsTableName}.slug AS app_slug`),
+                database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
             )
@@ -1425,7 +1431,7 @@ export class DashboardModel {
                 },
             ]);
 
-        const tabsQuery = this.database(DashboardTabsTableName)
+        const tabsQuery = database(DashboardTabsTableName)
             .select<DashboardTab[]>(
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
@@ -1444,6 +1450,7 @@ export class DashboardModel {
         const verificationQuery = this.contentVerificationModel?.getByContent(
             ContentType.DASHBOARD,
             dashboard.dashboard_uuid,
+            trx,
         );
 
         const [[view], tiles, tabs, verificationResult] = await Promise.all([
@@ -1946,7 +1953,11 @@ export class DashboardModel {
         dashboard: Partial<DashboardUnversionedFields>,
         trx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
+        const existingDashboard = await this.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            undefined,
+            trx,
+        );
         let withSpaceId: { space_id: number } | Record<string, never> = {};
         if (dashboard.spaceUuid) {
             const space = await (trx ?? this.database)(SpaceTableName)
@@ -1994,9 +2005,13 @@ export class DashboardModel {
 
         await query;
 
-        return this.getByIdOrSlug(existingDashboard.uuid, {
-            projectUuid: existingDashboard.projectUuid,
-        });
+        return this.getByIdOrSlug(
+            existingDashboard.uuid,
+            {
+                projectUuid: existingDashboard.projectUuid,
+            },
+            trx,
+        );
     }
 
     async updateMultiple(

@@ -36,6 +36,7 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../utils/SlugUtils';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
+import { storedVersionAgentIdentity } from './ContentVersionIdentity';
 import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 export type SqlChartConnectionBinding = {
@@ -121,13 +122,16 @@ export class SavedSqlModel {
 
     static convertSelectSavedSql(row: SelectSavedSql): Omit<
         SqlChart,
-        'space' | 'resolvedColorPalette'
+        'space' | 'resolvedColorPalette' | 'agentIdentity'
     > & {
+        [storedVersionAgentIdentity]: AgentIdentityClaim | null;
         space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {
         return {
             savedSqlUuid: row.saved_sql_uuid,
-            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
+            [storedVersionAgentIdentity]: normalizeAgentIdentityClaim(
+                row.agent_identity,
+            ),
             name: row.name,
             description: row.description,
             slug: row.slug,

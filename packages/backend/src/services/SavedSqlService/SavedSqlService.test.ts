@@ -791,6 +791,9 @@ describe('SavedSqlService version attribution DTOs', () => {
                 warehouseConnectionIdentityModel:
                     {} as unknown as WarehouseConnectionIdentityModel,
             });
+            const raw = await model.getByUuid(savedSqlUuid);
+            expect(raw).not.toHaveProperty('agentIdentity');
+            expect(JSON.stringify(raw)).not.toContain('oauth-client');
             const dto = fromAccount
                 ? await service.getSqlChartFromAccount(
                       fromApiKey(adminUser, 'test'),
@@ -803,6 +806,7 @@ describe('SavedSqlService version attribution DTOs', () => {
                       undefined,
                       'sql-chart',
                   );
+            expect(Object.getOwnPropertySymbols(dto)).toHaveLength(0);
             if (enabled) {
                 expect(dto).toHaveProperty(
                     'agentIdentity',

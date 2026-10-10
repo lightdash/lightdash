@@ -2692,6 +2692,7 @@ export class AiWritebackService extends BaseService {
                 prDescription,
                 prSummary,
                 workstream: config.mode,
+                aiWritebackRunUuid,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -4692,20 +4693,6 @@ export class AiWritebackService extends BaseService {
                 args,
                 this.generalCodingAgentConfig(),
             );
-            if (result.commitSha !== null && result.commitSha !== undefined) {
-                await logAgentContentWrite({
-                    model: this.agentActionLogModel,
-                    agentIdentity: getContentWriteAgentIdentity({
-                        userUuid: args.user.userUuid,
-                        organizationUuid: args.user.organizationUuid,
-                    }),
-                    projectUuid: args.projectUuid,
-                    objectType: 'ai_writeback_run',
-                    objectUuid: args.aiWritebackRunUuid ?? null,
-                    versionUuid: null,
-                    action: 'update',
-                });
-            }
             this.emitWriteAudit({
                 user: args.user,
                 projectUuid: args.projectUuid,
@@ -4944,6 +4931,7 @@ export class AiWritebackService extends BaseService {
         prDescription,
         prSummary,
         workstream,
+        aiWritebackRunUuid,
     }: {
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -4959,6 +4947,7 @@ export class AiWritebackService extends BaseService {
         prDescription: string | null;
         prSummary: string | null;
         workstream: CodingAgentConfig['mode'];
+        aiWritebackRunUuid?: string;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -4974,6 +4963,22 @@ export class AiWritebackService extends BaseService {
                 deletions: null,
             };
         }
+
+        const recordMutation = async () => {
+            if (workstream !== 'general') return;
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'ai_writeback_run',
+                objectUuid: aiWritebackRunUuid ?? null,
+                versionUuid: null,
+                action: 'update',
+            });
+        };
 
         // Resume or pasted-link adoption: land onto the existing request's
         // branch (the sandbox is already on it) and refresh its title/body.
@@ -4999,6 +5004,7 @@ export class AiWritebackService extends BaseService {
                     user,
                     setStage,
                 });
+            await recordMutation();
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
             );
@@ -5044,6 +5050,7 @@ export class AiWritebackService extends BaseService {
                 user,
                 setStage,
             });
+        await recordMutation();
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
