@@ -124,6 +124,7 @@ const makeMcpService = (
     },
 ): McpService =>
     new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: {
             createRuntime: vi.fn(),

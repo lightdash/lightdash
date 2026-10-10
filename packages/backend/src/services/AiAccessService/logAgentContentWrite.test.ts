@@ -1,6 +1,9 @@
 import { AgentActorSurface } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { fromSession } from '../../auth/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import Logger from '../../logging/logger';
 import * as audit from '../../logging/winston';
 import {
     agentExecutionContext,
@@ -117,7 +120,7 @@ test('null claims and flag-off scopes write neither destination', async () => {
     expect(log).not.toHaveBeenCalled();
 });
 
-test('does not emit a success event when durable insertion fails', async () => {
+test('does not fail an already committed write when durable insertion fails', async () => {
     const log = vi.spyOn(audit, 'logAuditEvent').mockImplementation(() => {});
     const model = {
         insert: vi.fn().mockRejectedValue(new Error('ledger unavailable')),
@@ -130,6 +133,135 @@ test('does not emit a success event when durable insertion fails', async () => {
                 ...content,
             }),
         ),
+    ).resolves.toBeUndefined();
+    expect(log).not.toHaveBeenCalled();
+});
+
+test('transactional insert failures propagate so the domain write rolls back', async () => {
+    const log = vi.spyOn(audit, 'logAuditEvent').mockImplementation(() => {});
+    const model = {
+        insert: vi.fn().mockRejectedValue(new Error('ledger unavailable')),
+    };
+    const trx = Object.assign(new EventEmitter(), {
+        executionPromise: Promise.resolve(),
+    }) as unknown as Knex.Transaction;
+    await expect(
+        agentExecutionContext.run(scope, () =>
+            logAgentContentWrite({
+                model,
+                agentIdentity: scope.claim,
+                ...content,
+                trx,
+            }),
+        ),
     ).rejects.toThrow('ledger unavailable');
+    expect(model.insert).toHaveBeenCalledWith(expect.any(Object), trx);
+    expect(log).not.toHaveBeenCalled();
+});
+
+test('reports insertion failure using only safe identifiers', async () => {
+    const log = vi.spyOn(Logger, 'error').mockImplementation(() => Logger);
+    const model = {
+        insert: vi
+            .fn()
+            .mockRejectedValue(new Error('secret SQL and arguments')),
+    };
+    await agentExecutionContext.run(scope, () =>
+        logAgentContentWrite({
+            model,
+            agentIdentity: scope.claim,
+            ...content,
+        }),
+    );
+    expect(log).toHaveBeenCalledOnce();
+    expect(JSON.stringify(log.mock.calls)).not.toContain('secret');
+});
+
+test('does not put service accounts in personUuid', async () => {
+    const log = vi.spyOn(audit, 'logAuditEvent').mockImplementation(() => {});
+    const claim = {
+        ...scope.claim!,
+        subject: { type: 'service_account' as const, uuid: 'service-account' },
+    };
+    await agentExecutionContext.run({ ...scope, claim }, () =>
+        logAgentContentWrite({
+            model: { insert: vi.fn().mockResolvedValue(undefined) },
+            agentIdentity: claim,
+            ...content,
+        }),
+    );
+    expect(log).toHaveBeenCalledWith(
+        expect.objectContaining({
+            resource: expect.objectContaining({
+                metadata: expect.objectContaining({
+                    personUuid: null,
+                    subjectType: 'service_account',
+                }),
+            }),
+        }),
+    );
+});
+
+test('transactional audit waits for commit and skips rollback', async () => {
+    const log = vi.spyOn(audit, 'logAuditEvent').mockImplementation(() => {});
+    const model = { insert: vi.fn().mockResolvedValue(undefined) };
+    let commit!: () => void;
+    const trx = Object.assign(new EventEmitter(), {
+        executionPromise: new Promise<void>((resolve) => {
+            commit = resolve;
+        }),
+    }) as unknown as Knex.Transaction;
+    await agentExecutionContext.run(scope, () =>
+        logAgentContentWrite({
+            model,
+            agentIdentity: scope.claim,
+            ...content,
+            trx,
+        }),
+    );
+    expect(log).not.toHaveBeenCalled();
+    trx.emit('query', { sql: 'COMMIT;' });
+    commit();
+    await trx.executionPromise;
+    expect(log).toHaveBeenCalledOnce();
+    log.mockClear();
+    let rollback!: (error: Error) => void;
+    const rolledBack = Object.assign(new EventEmitter(), {
+        executionPromise: new Promise<void>((_, reject) => {
+            rollback = reject;
+        }),
+    }) as unknown as Knex.Transaction;
+    await agentExecutionContext.run(scope, () =>
+        logAgentContentWrite({
+            model,
+            agentIdentity: scope.claim,
+            ...content,
+            trx: rolledBack,
+        }),
+    );
+    rollback(new Error('domain failed'));
+    await rolledBack.executionPromise.catch(() => {});
+    expect(log).not.toHaveBeenCalled();
+});
+
+test('an explicit rollback without an error does not emit an allowed audit', async () => {
+    const log = vi.spyOn(audit, 'logAuditEvent').mockImplementation(() => {});
+    let finish!: () => void;
+    const trx = Object.assign(new EventEmitter(), {
+        executionPromise: new Promise<void>((resolve) => {
+            finish = resolve;
+        }),
+    }) as unknown as Knex.Transaction;
+    await agentExecutionContext.run(scope, () =>
+        logAgentContentWrite({
+            model: { insert: vi.fn().mockResolvedValue(undefined) },
+            agentIdentity: scope.claim,
+            ...content,
+            trx,
+        }),
+    );
+    trx.emit('query', { sql: 'ROLLBACK;' });
+    finish();
+    await trx.executionPromise;
     expect(log).not.toHaveBeenCalled();
 });

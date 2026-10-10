@@ -525,7 +525,14 @@ mcpRouter.all(
                         agentUuid: null,
                         agentIdentityEnabled,
                     }),
-                    () => transport.handleRequest(authReq, res, req.body),
+                    async () => {
+                        await mcpService.recordDisabledToolRefusal(
+                            req.user!,
+                            req.body,
+                            toolOptions.featureAvailability,
+                        );
+                        return transport.handleRequest(authReq, res, req.body);
+                    },
                 );
                 if (authReq.auth && isToolsListRequest(req)) {
                     mcpService.recordToolList({

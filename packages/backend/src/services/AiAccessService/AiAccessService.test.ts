@@ -28,6 +28,7 @@ import {
     type OrganizationAgentIdentityRule,
     type PossibleAbilities,
     type QueryHistory,
+    type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
@@ -68,6 +69,10 @@ import {
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AgentCredentialResolutionError } from '../WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
 import { AgentSignInResolverHarness } from '../WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from './agentActionTestUtils.mock';
 import {
     agentExecutionContext,
     createAgentExecutionContext,
@@ -283,6 +288,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         })),
     };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         organizationSnowflakeAgentClientModel: {
             getWithSecret: vi.fn().mockResolvedValue({
                 organizationUuid: 'org',
@@ -5275,3 +5281,40 @@ it('refuses anonymous Athena agent execution before reading the slot', async () 
     });
     expect(f.slots.getSecrets).not.toHaveBeenCalled();
 });
+
+test.each(agentActionTestCases)(
+    'warehouse refusal ledger: %s',
+    async (_, surface, enabled, count) => {
+        const { service, analytics } = setup();
+        await withAgentActionScope(
+            {
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+            } as SessionUser,
+            surface,
+            enabled,
+            async () => {
+                service.trackQueryRefusal(
+                    { ...args, warehouseType: WarehouseTypes.POSTGRES },
+                    AiAccessRefusalReason.NEEDS_SIGN_IN,
+                );
+                await Promise.resolve();
+            },
+        );
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+            count,
+        );
+        if (count)
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    outcome: 'denied',
+                    policy_layer: 'warehouse_identity',
+                    reason_code: AiAccessRefusalReason.NEEDS_SIGN_IN,
+                    object_uuid: null,
+                }),
+            );
+        expect(analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'query.refused' }),
+        );
+    },
+);

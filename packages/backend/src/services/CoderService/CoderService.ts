@@ -139,7 +139,10 @@ import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
-import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
@@ -1415,6 +1418,18 @@ export class CoderService extends BaseService {
             resourceUuid,
             assignments,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'direct_access_policy',
+            objectUuid: resourceUuid,
+            versionUuid: null,
+            action: 'grant',
+        });
     }
 
     async upsertSpace(
@@ -3280,6 +3295,17 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                action: verified ? 'verify' : 'unverify',
+                policyLayer: 'casl',
+                reasonCode: 'content_verification_forbidden',
+            });
             // Warn and skip so CI pipelines run by non-admin deployers don't fail.
             this.logger.warn(
                 `User ${user.userUuid} cannot ${
@@ -3302,6 +3328,18 @@ export class CoderService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'verify',
+            });
             this.analytics.track({
                 event: 'content_verification.created',
                 userId: user.userUuid,
@@ -3317,6 +3355,18 @@ export class CoderService extends BaseService {
                 contentType,
                 contentUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'unverify',
+            });
             this.analytics.track({
                 event: 'content_verification.deleted',
                 userId: user.userUuid,
@@ -3721,11 +3771,15 @@ export class CoderService extends BaseService {
      * Returns warnings when the email does not match any organization member.
      */
     private async syncDashboardOwner({
+        user,
+        projectUuid,
         organizationUuid,
         dashboardUuid,
         currentOwnerUserUuid,
         ownerEmail,
     }: {
+        user: SessionUser;
+        projectUuid: string;
         organizationUuid: string;
         dashboardUuid: string;
         currentOwnerUserUuid: string | null;
@@ -3737,6 +3791,18 @@ export class CoderService extends BaseService {
             if (currentOwnerUserUuid !== null) {
                 await this.dashboardModel.update(dashboardUuid, {
                     ownerUserUuid: null,
+                });
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'dashboard_owner',
+                    objectUuid: dashboardUuid,
+                    versionUuid: null,
+                    action: 'update',
                 });
             }
             return [];
@@ -3755,6 +3821,18 @@ export class CoderService extends BaseService {
         if (member.userUuid !== currentOwnerUserUuid) {
             await this.dashboardModel.update(dashboardUuid, {
                 ownerUserUuid: member.userUuid,
+            });
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'dashboard_owner',
+                objectUuid: dashboardUuid,
+                versionUuid: null,
+                action: 'update',
             });
         }
         return [];
@@ -5006,6 +5084,18 @@ export class CoderService extends BaseService {
                 },
             );
 
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'space',
+                objectUuid: newSpace.uuid,
+                versionUuid: null,
+                action: 'create',
+            });
             if (!newSpace.inheritParentPermissions) {
                 if (parentSpaceUuid) {
                     const [ctx, groupsAccess] = await Promise.all([
@@ -5273,6 +5363,8 @@ export class CoderService extends BaseService {
             });
 
             const createOwnerWarnings = await this.syncDashboardOwner({
+                user,
+                projectUuid,
                 organizationUuid: project.organizationUuid,
                 dashboardUuid: newDashboard.uuid,
                 currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
@@ -5455,6 +5547,8 @@ export class CoderService extends BaseService {
         });
 
         const ownerWarnings = await this.syncDashboardOwner({
+            user,
+            projectUuid,
             organizationUuid: project.organizationUuid,
             dashboardUuid: dashboard.uuid,
             currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,

@@ -1057,6 +1057,16 @@ export class PromoteService extends BaseService {
                         undefined,
                         agentIdentity,
                     );
+                    await logAgentContentWrite({
+                        trx: transaction,
+                        model: this.agentActionLogModel,
+                        projectUuid: changeChart.projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid: changeChart.uuid,
+                        versionUuid: null,
+                        action: 'update',
+                    });
                 });
 
                 const updatedChart = await this.savedChartModel.get(
@@ -1064,15 +1074,6 @@ export class PromoteService extends BaseService {
                     undefined,
                     { projectUuid: changeChart.projectUuid },
                 );
-                await logAgentContentWrite({
-                    model: this.agentActionLogModel,
-                    projectUuid: changeChart.projectUuid,
-                    agentIdentity,
-                    objectType: 'chart',
-                    objectUuid: updatedChart.uuid,
-                    versionUuid: null,
-                    action: 'update',
-                });
                 return {
                     ...updatedChart,
                     oldUuid: changeChart.oldUuid,

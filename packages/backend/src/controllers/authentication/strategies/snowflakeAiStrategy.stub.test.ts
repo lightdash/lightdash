@@ -131,6 +131,9 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
                 await import('../../../services/AiAccessService/AiAccessService');
             const analytics = { track: vi.fn() };
             const service = new AiAccessService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 analytics,
                 featureFlagModel: {
                     get: vi.fn(async () => ({ enabled: true })),
@@ -237,6 +240,9 @@ describe('Snowflake AI strategy against the real OAuth and SDK stub', () => {
             await import('../../../services/AiAccessService/AiAccessService');
         const analytics = { track: vi.fn() };
         const service = new AiAccessService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             analytics,
             featureFlagModel: { get: vi.fn(async () => ({ enabled: true })) },
         } as unknown as ConstructorParameters<typeof AiAccessService>[0]);

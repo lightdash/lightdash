@@ -70,6 +70,7 @@ const callVerify = async (
         }),
     );
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics: analyticsMock,
         featureFlagModel: { get },
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);

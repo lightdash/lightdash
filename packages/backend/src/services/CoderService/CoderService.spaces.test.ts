@@ -16,6 +16,10 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
 
 const PROJECT_UUID = 'project-uuid';
@@ -802,3 +806,80 @@ describe('CoderService spaces as code', () => {
         expect(spaceModel.applySpaceAsCode).toHaveBeenCalledOnce();
     });
 });
+
+test.each(agentActionTestCases)(
+    'implicit spaces: %s',
+    async (_, surface, enabled, count) => {
+        const { service, spaceModel } = buildService({ spaces: [] });
+        vi.spyOn(
+            service as unknown as {
+                findAccessibleSpace: () => Promise<undefined>;
+            },
+            'findAccessibleSpace',
+        ).mockResolvedValue(undefined);
+        Object.assign(spaceModel, {
+            findClosestAncestorByPath: vi.fn().mockResolvedValue(null),
+            createSpace: vi.fn().mockImplementation(async (_input, data) => ({
+                ...rootSpace,
+                uuid: data.path,
+                inheritParentPermissions: true,
+            })),
+        });
+        await withAgentActionScope(makeSessionUser(), surface, enabled, () =>
+            service.getOrCreateSpace(
+                PROJECT_UUID,
+                'parent/child',
+                makeSessionUser(),
+                false,
+                true,
+                undefined,
+                true,
+            ),
+        );
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count * 2);
+        if (count)
+            expect(
+                insert.mock.calls.map(([row]) => [
+                    row.object_type,
+                    row.object_uuid,
+                    row.action,
+                ]),
+            ).toEqual([
+                ['space', 'parent', 'create'],
+                ['space', 'parent.child', 'create'],
+            ]);
+    },
+);
+
+test.each(agentActionTestCases)(
+    'dashboard owner: %s',
+    async (_, surface, enabled, count) => {
+        const { service } = buildService();
+        Object.assign(service.dashboardModel, {
+            update: vi.fn().mockResolvedValue(undefined),
+        });
+        await withAgentActionScope(makeSessionUser(), surface, enabled, () =>
+            service['syncDashboardOwner']({
+                user: makeSessionUser(),
+                projectUuid: PROJECT_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                dashboardUuid: 'dashboard',
+                currentOwnerUserUuid: 'owner',
+                ownerEmail: null,
+            }),
+        );
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+            count,
+        );
+        if (count)
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'dashboard_owner',
+                    object_uuid: 'dashboard',
+                    action: 'update',
+                    outcome: 'allowed',
+                }),
+            );
+    },
+);

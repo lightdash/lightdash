@@ -2037,6 +2037,7 @@ export const getAgentTools = (
               },
           }
         : { mode: 'disabled' };
+    sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
     const editContent = getEditContent({
         editContent: dependencies.editContent,
         documentsEnabled,

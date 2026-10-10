@@ -29,6 +29,10 @@ import {
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -165,6 +169,7 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
             getAiAgentSkill: vi.fn(),
@@ -233,6 +238,7 @@ const makeService = ({
         featureFlagService,
         previewDeploySetupService: {},
         shareService: {},
+        userService: {},
         asyncQueryService,
         querySourceService,
         appGenerateService,
@@ -4661,3 +4667,216 @@ describe('AiAgentToolsService listDataAppThemes', () => {
         expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
     });
 });
+
+describe.each(agentActionTestCases)(
+    'agent tool action logging: %s',
+    (_, surface, enabled, count) => {
+        test('compile enqueue is recorded even when compile subsequently fails', async () => {
+            const service = makeService({
+                jobModel: {
+                    get: vi.fn().mockResolvedValue({
+                        jobStatus: JobStatusType.ERROR,
+                        jobUuid: 'job-1',
+                        steps: [],
+                    }),
+                },
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null }),
+            );
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'project_compile',
+                        object_uuid: 'job-1',
+                        action: 'enqueue',
+                    }),
+                );
+        });
+        test('user name records no supplied name', async () => {
+            const service = makeService();
+            Object.assign(service['userService'], {
+                updateUser: vi.fn().mockResolvedValue(undefined),
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).updateUserName({
+                    firstName: 'secret-name',
+                    lastName: 'private-name',
+                }),
+            );
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'user',
+                        object_uuid: userUuid,
+                        action: 'update',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                'secret-name',
+            );
+        });
+        test.each(['chart', 'dashboard'] as const)(
+            'scheduled %s records before augmentation failure',
+            async (resourceType) => {
+                const resource = { uuid: 'resource', spaceUuid: 'space' };
+                const service = makeService({
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue(resource),
+                    },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(resource),
+                    },
+                    savedChartService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                    dashboardService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createScheduledDelivery({
+                        resourceType,
+                        resourceUuidOrSlug: 'resource',
+                        scheduler: {} as never,
+                        aiAugmentationPrompt: 'secret prompt',
+                    }),
+                );
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                expect(insert).toHaveBeenCalledTimes(count);
+                if (count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'scheduler',
+                            object_uuid: 'scheduler',
+                            action: 'create',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'secret prompt',
+                );
+            },
+        );
+        test('CASL denial at tool boundary is redacted', async () => {
+            const error = new ForbiddenError('secret details');
+            const service = makeService({
+                scheduleCompileProject: vi.fn().mockRejectedValue(error),
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(makeRuntimeContext())
+                        .syncDbtProject({ reason: null }),
+                ),
+            ).rejects.toBe(error);
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'casl',
+                        object_uuid: null,
+                        reason_code: 'content_write_forbidden',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+        });
+        test('space scope denial records the deciding layer', async () => {
+            const service = makeService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+                },
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service['assertContentSpaceInScope'](
+                        makeRuntimeContext({ spaceAccess: ['space'] }),
+                        'secret-path',
+                        'not found',
+                    ),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'agent_scope',
+                        object_uuid: null,
+                    }),
+                );
+        });
+    },
+);
+
+test('generic tool failures are not policy refusals', async () => {
+    const service = makeService({
+        scheduleCompileProject: vi
+            .fn()
+            .mockRejectedValue(new Error('database unavailable')),
+    });
+    await expect(
+        withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
+            service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: null }),
+        ),
+    ).rejects.toThrow('database unavailable');
+    expect(service['agentActionLogModel'].insert).not.toHaveBeenCalled();
+});
+
+test.each(agentActionTestCases)(
+    'content write CASL refusal: %s',
+    async (_, surface, enabled, count) => {
+        const error = new ForbiddenError('private permission details');
+        const service = makeService({
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
+            coderService: { upsertDashboard: vi.fn().mockRejectedValue(error) },
+        });
+        await expect(
+            withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'dashboard',
+                    content: {
+                        slug: 'caller-slug',
+                        spaceSlug: 'space',
+                    } as never,
+                }),
+            ),
+        ).rejects.toBe(error);
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'create',
+                    outcome: 'denied',
+                    policy_layer: 'casl',
+                    object_uuid: null,
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('caller-slug');
+        expect(JSON.stringify(insert.mock.calls)).not.toContain(
+            'private permission details',
+        );
+    },
+);

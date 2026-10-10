@@ -990,6 +990,7 @@ export class ServiceRepository
             'aiAccessService',
             () =>
                 new AiAccessService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,
@@ -1377,6 +1378,7 @@ export class ServiceRepository
             'shareService',
             () =>
                 new ShareService({
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     shareModel: this.models.getShareModel(),

@@ -67,6 +67,7 @@ import {
 import * as JsonPatch from 'fast-json-patch';
 import { type DbApp } from '../../../database/entities/apps';
 import Logger from '../../../logging/logger';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
@@ -79,6 +80,12 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    isAgentActionForbiddenError,
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
@@ -263,6 +270,10 @@ type FindFieldsRuntimeResult = Awaited<ReturnType<FindFieldsFn>>;
 type GetExploreRuntimeResult = Awaited<ReturnType<GetExploreFn>>;
 
 export type AiAgentToolsRuntime = {
+    recordSqlChartRefusal: (
+        action: 'create' | 'update',
+        reasonCode: string,
+    ) => Promise<void>;
     listExplores: ListExploresFn;
     getProjectParameterDefinitions: () => Promise<ParameterDefinitions>;
     getExplore: GetExploreFn;
@@ -346,6 +357,7 @@ type BuiltInSkillsClient = Pick<
 >;
 
 type AiAgentToolsServiceDependencies = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     builtInSkills: BuiltInSkillsClient;
     appModel: AppModel;
     projectModel: ProjectModel;
@@ -393,6 +405,8 @@ type AiAgentToolsServiceDependencies = {
 };
 
 export class AiAgentToolsService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly runtimePromiseCache = new WeakMap<
         AiAgentToolsRuntimeContext,
         Map<string, Promise<unknown>>
@@ -524,6 +538,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     constructor({
+        agentActionLogModel,
         builtInSkills,
         appModel,
         projectModel,
@@ -561,6 +576,7 @@ export class AiAgentToolsService extends BaseService {
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.builtInSkills = builtInSkills;
         this.appModel = appModel;
         this.projectModel = projectModel;
@@ -704,8 +720,22 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
     ): AiAgentToolsRuntime | McpAiAgentToolsRuntime {
         const runtime: Omit<AiAgentToolsRuntime, 'updateUserName'> = {
-            generateDataApp: (args) => this.generateDataApp(context, args),
-            iterateDataApp: (args) => this.iterateDataApp(context, args),
+            recordSqlChartRefusal: (action, reasonCode) =>
+                this.recordRefusal(
+                    context,
+                    'sql_chart',
+                    action,
+                    'sql_approval',
+                    reasonCode,
+                ),
+            generateDataApp: (args) =>
+                this.withWriteRefusal(context, 'app', 'create', () =>
+                    this.generateDataApp(context, args),
+                ),
+            iterateDataApp: (args) =>
+                this.withWriteRefusal(context, 'app', 'update', () =>
+                    this.iterateDataApp(context, args),
+                ),
             listDataAppThemes: () => this.listDataAppThemes(context),
             listExplores: () => this.listExplores(context),
             getProjectParameterDefinitions: () =>
@@ -725,7 +755,13 @@ export class AiAgentToolsService extends BaseService {
                 this.searchSemanticLayer(context, args),
             analyzeFieldImpact: (args) =>
                 this.analyzeFieldImpact(context, args),
-            syncDbtProject: (args) => this.syncDbtProject(context, args),
+            syncDbtProject: (args) =>
+                this.withWriteRefusal(
+                    context,
+                    'project_compile',
+                    'enqueue',
+                    () => this.syncDbtProject(context, args),
+                ),
             runAsyncQuery: (
                 metricQuery,
                 additionalMetrics,
@@ -757,17 +793,28 @@ export class AiAgentToolsService extends BaseService {
                 this.getDashboardCharts(context, args),
             readContent: (args) => this.readContent(context, args),
             resolveUrl: (args) => this.resolveUrl(context, args),
-            editContent: (args) => this.editContent(context, args),
-            createContent: (args) => this.createContent(context, args),
+            editContent: (args) =>
+                this.withWriteRefusal(context, 'content', 'update', () =>
+                    this.editContent(context, args),
+                ),
+            createContent: (args) =>
+                this.withWriteRefusal(context, 'content', 'create', () =>
+                    this.createContent(context, args),
+                ),
             createScheduledDelivery: (args) =>
-                this.createScheduledDelivery(context, args),
+                this.withWriteRefusal(context, 'scheduler', 'create', () =>
+                    this.createScheduledDelivery(context, args),
+                ),
             validateContent: (args) => this.validateContent(args),
             listKnowledgeDocuments: () => this.listKnowledgeDocuments(context),
             getKnowledgeDocumentContent: (args) =>
                 this.getKnowledgeDocumentContent(context, args),
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
-            setupPreviewDeploy: () => this.setupPreviewDeploy(context),
+            setupPreviewDeploy: () =>
+                this.withWriteRefusal(context, 'preview_deploy', 'create', () =>
+                    this.setupPreviewDeploy(context),
+                ),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
@@ -777,7 +824,10 @@ export class AiAgentToolsService extends BaseService {
             ? this.withMcpRuntimeResults(runtime, context)
             : {
                   ...runtime,
-                  updateUserName: (args) => this.updateUserName(context, args),
+                  updateUserName: (args) =>
+                      this.withWriteRefusal(context, 'user', 'update', () =>
+                          this.updateUserName(context, args),
+                      ),
               };
     }
 
@@ -790,11 +840,15 @@ export class AiAgentToolsService extends BaseService {
             getDataAppBuildStatus: (args) =>
                 this.getDataAppBuildStatus(context, args),
             createDocumentContent: (content) =>
-                this.createDocumentContent(context, content),
+                this.withWriteRefusal(context, 'document', 'create', () =>
+                    this.createDocumentContent(context, content),
+                ),
             readDocumentContent: (slug, chartId) =>
                 this.readDocumentContent(context, slug, chartId),
             editDocumentContent: (slug, edit) =>
-                this.editDocumentContent(context, slug, edit),
+                this.withWriteRefusal(context, 'document', 'update', () =>
+                    this.editDocumentContent(context, slug, edit),
+                ),
             getExplore: this.withMcpRuntimeResult(
                 'get_explore',
                 runtime.getExplore,
@@ -808,6 +862,52 @@ export class AiAgentToolsService extends BaseService {
                 runtime.findFields,
             ),
         };
+    }
+
+    private recordRefusal(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: string,
+        policyLayer: 'casl' | 'agent_scope' | 'sql_approval',
+        reasonCode: string,
+        error?: object,
+        objectUuid: string | null = null,
+    ) {
+        return recordAgentRefusal({
+            model: this.agentActionLogModel,
+            userUuid: context.user.userUuid,
+            organizationUuid: context.organizationUuid,
+            projectUuid: context.projectUuid,
+            objectType,
+            objectUuid,
+            action,
+            policyLayer,
+            reasonCode,
+            error,
+        });
+    }
+
+    private async withWriteRefusal<T>(
+        context: AiAgentToolsRuntimeContext,
+        objectType: string,
+        action: string,
+        run: () => Promise<T>,
+    ): Promise<T> {
+        try {
+            return await run();
+        } catch (error) {
+            if (isAgentActionForbiddenError(error)) {
+                await this.recordRefusal(
+                    context,
+                    objectType,
+                    action,
+                    'casl',
+                    'content_write_forbidden',
+                    error,
+                );
+            }
+            throw error;
+        }
     }
 
     private withMcpRuntimeResult<TArgs extends unknown[], TData>(
@@ -1294,6 +1394,18 @@ export class AiAgentToolsService extends BaseService {
                         RequestMethod.BACKEND,
                     );
 
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: context.user.userUuid,
+                        organizationUuid: context.user.organizationUuid,
+                    }),
+                    projectUuid: context.projectUuid,
+                    objectType: 'project_compile',
+                    objectUuid: jobUuid,
+                    versionUuid: null,
+                    action: 'enqueue',
+                });
                 const timeoutMs = 90_000;
                 const pollIntervalMs = 2_000;
                 const deadline = Date.now() + timeoutMs;
@@ -1713,6 +1825,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         spaceSlug: string,
         notFoundMessage: string,
+        action: 'create' | 'update' = 'update',
     ) {
         if (!context.spaceAccess || context.spaceAccess.length === 0) {
             return;
@@ -1725,6 +1838,15 @@ export class AiAgentToolsService extends BaseService {
         });
 
         if (!hasSpaceAccess) {
+            await this.recordRefusal(
+                context,
+                'content',
+                action,
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                null,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1750,6 +1872,15 @@ export class AiAgentToolsService extends BaseService {
                 dashboard.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'dashboard',
+                'update',
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                dashboard.uuid,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1775,6 +1906,15 @@ export class AiAgentToolsService extends BaseService {
                 savedChart.spaceUuid,
             )
         ) {
+            await this.recordRefusal(
+                context,
+                'chart',
+                'update',
+                'agent_scope',
+                'content_outside_agent_scope',
+                undefined,
+                savedChart.uuid,
+            );
             throw new NotFoundError(notFoundMessage);
         }
     }
@@ -1998,7 +2138,7 @@ export class AiAgentToolsService extends BaseService {
                         `Data app "${appSlug}" was not found`,
                     );
                 }
-                AiAgentToolsService.assertDataAppInAgentScope(
+                await this.assertDataAppInAgentScope(
                     context,
                     app.space_uuid,
                     appSlug,
@@ -2057,7 +2197,7 @@ export class AiAgentToolsService extends BaseService {
             appSlug,
             version,
         );
-        AiAgentToolsService.assertDataAppInAgentScope(
+        await this.assertDataAppInAgentScope(
             context,
             source.app.spaceUuid,
             appSlug,
@@ -2145,7 +2285,7 @@ export class AiAgentToolsService extends BaseService {
                                 context.projectUuid,
                                 slug,
                             );
-                        AiAgentToolsService.assertDataAppInAgentScope(
+                        await this.assertDataAppInAgentScope(
                             context,
                             source.app.spaceUuid,
                             slug,
@@ -2274,7 +2414,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     /** Same scoping as findContent: personal apps only under unrestricted search. */
-    private static assertDataAppInAgentScope(
+    private async assertDataAppInAgentScope(
         context: AiAgentToolsRuntimeContext,
         spaceUuid: string | null,
         slug: string,
@@ -2289,6 +2429,13 @@ export class AiAgentToolsService extends BaseService {
                       spaceUuid,
                   );
         if (!inScope) {
+            await this.recordRefusal(
+                context,
+                'app',
+                'update',
+                'agent_scope',
+                'content_outside_agent_scope',
+            );
             throw new NotFoundError(`Data app "${slug}" was not found`);
         }
     }
@@ -2691,6 +2838,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     content.spaceSlug,
                     `Space "${content.spaceSlug}" was not found`,
+                    'create',
                 );
 
                 switch (type) {
@@ -2904,6 +3052,13 @@ export class AiAgentToolsService extends BaseService {
                                 chart.spaceUuid,
                             )
                         ) {
+                            await this.recordRefusal(
+                                context,
+                                'scheduler',
+                                'create',
+                                'agent_scope',
+                                'content_outside_agent_scope',
+                            );
                             throw new NotFoundError(notFoundMessage);
                         }
                         resourceUuid = chart.uuid;
@@ -2927,6 +3082,13 @@ export class AiAgentToolsService extends BaseService {
                                 dashboard.spaceUuid,
                             )
                         ) {
+                            await this.recordRefusal(
+                                context,
+                                'scheduler',
+                                'create',
+                                'agent_scope',
+                                'content_outside_agent_scope',
+                            );
                             throw new NotFoundError(notFoundMessage);
                         }
                         resourceUuid = dashboard.uuid;
@@ -2943,6 +3105,18 @@ export class AiAgentToolsService extends BaseService {
                             'Invalid resource type',
                         );
                 }
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: context.user.userUuid,
+                        organizationUuid: context.user.organizationUuid,
+                    }),
+                    projectUuid: context.projectUuid,
+                    objectType: 'scheduler',
+                    objectUuid: scheduler.schedulerUuid,
+                    versionUuid: null,
+                    action: 'create',
+                });
                 const href = AiAgentToolsService.getScheduledDeliveryUrl(
                     context,
                     args.resourceType,
@@ -2986,6 +3160,15 @@ export class AiAgentToolsService extends BaseService {
                         warnings: [],
                     };
                 } catch (error) {
+                    if (isAgentActionForbiddenError(error))
+                        await this.recordRefusal(
+                            context,
+                            'scheduler_ai_augmentation',
+                            'update',
+                            'casl',
+                            'scheduler_augmentation_forbidden',
+                            error,
+                        );
                     return {
                         scheduler,
                         resourceUuid,
@@ -3009,6 +3192,18 @@ export class AiAgentToolsService extends BaseService {
         await this.userService.updateUser(context.user, {
             firstName: args.firstName.trim(),
             lastName: args.lastName.trim(),
+        });
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: context.user.userUuid,
+                organizationUuid: context.user.organizationUuid,
+            }),
+            projectUuid: null,
+            objectType: 'user',
+            objectUuid: context.user.userUuid,
+            versionUuid: null,
+            action: 'update',
         });
     }
 

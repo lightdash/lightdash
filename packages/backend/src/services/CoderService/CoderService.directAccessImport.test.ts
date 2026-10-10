@@ -10,6 +10,10 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
 
 const ORG_UUID = 'org-uuid';
@@ -42,13 +46,14 @@ type Setup = {
     gateError?: Error;
 };
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
 const buildService = ({ members = [], groups = [], gateError }: Setup = {}) => {
     const assertEnabled = vi.fn(async () => {
         if (gateError) throw gateError;
     });
     const replacePolicy = vi.fn(async () => {});
     const service = new CoderService({
-        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        agentActionLogModel,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: {} as never,
@@ -296,3 +301,30 @@ describe('CoderService.applyDirectAccessPolicy', () => {
         );
     });
 });
+
+test.each(agentActionTestCases)(
+    'agent policy replace: %s',
+    async (_, surface, enabled, count) => {
+        agentActionLogModel.insert.mockClear();
+        const { service } = buildService();
+        await withAgentActionScope(user, surface, enabled, () =>
+            service.applyDirectAccessPolicy(
+                user,
+                PROJECT_UUID,
+                DirectAccessResourceType.DASHBOARD,
+                'dashboard',
+                [],
+            ),
+        );
+        expect(agentActionLogModel.insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    object_type: 'direct_access_policy',
+                    object_uuid: 'dashboard',
+                    action: 'grant',
+                    outcome: 'allowed',
+                }),
+            );
+    },
+);

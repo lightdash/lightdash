@@ -11,6 +11,7 @@ import {
     type PromotionChanges,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -79,7 +80,32 @@ const warehouseConnectionModel = {
     ),
 };
 
-const chartTransaction = {} as Knex.Transaction;
+const chartTransaction = new EventEmitter() as unknown as Knex.Transaction;
+const runChartTransaction = async <T>(
+    callback: (transaction: Knex.Transaction) => Promise<T>,
+    failCommit = false,
+): Promise<T> => {
+    let commit!: () => void;
+    let rollback!: (error: unknown) => void;
+    chartTransaction.executionPromise = new Promise<unknown[]>(
+        (resolve, reject) => {
+            commit = () => resolve([]);
+            rollback = reject;
+        },
+    );
+    void chartTransaction.executionPromise.catch(() => {});
+    try {
+        const result = await callback(chartTransaction);
+        if (failCommit) throw new Error('commit failed');
+        chartTransaction.emit('query', { sql: 'COMMIT;' });
+        commit();
+        await chartTransaction.executionPromise;
+        return result;
+    } catch (error) {
+        rollback(error);
+        throw error;
+    }
+};
 
 const savedChartModel = {
     getSummary: vi.fn(async () => ({
@@ -93,7 +119,7 @@ const savedChartModel = {
     renameSlug: vi.fn(async () => undefined),
     transaction: vi.fn(
         async (callback: (transaction: Knex.Transaction) => Promise<unknown>) =>
-            callback(chartTransaction),
+            runChartTransaction(callback),
     ),
 };
 
@@ -123,7 +149,7 @@ beforeEach(() => {
         .mockImplementation(
             async (
                 callback: (transaction: Knex.Transaction) => Promise<unknown>,
-            ) => callback(chartTransaction),
+            ) => runChartTransaction(callback),
         );
 });
 
@@ -2769,12 +2795,16 @@ describe('agent content writes', () => {
         const log = vi
             .spyOn(auditLogger, 'logAuditEvent')
             .mockImplementation(() => {});
-        savedChartModel.transaction.mockImplementationOnce(async (callback) => {
-            await callback(chartTransaction);
-            expect(log).not.toHaveBeenCalled();
-            expect(agentActionLogModel.insert).not.toHaveBeenCalled();
-            throw new Error('commit failed');
-        });
+        savedChartModel.transaction.mockImplementationOnce((callback) =>
+            runChartTransaction(async (trx) => {
+                await callback(trx);
+                expect(log).not.toHaveBeenCalled();
+                expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                    expect.any(Object),
+                    trx,
+                );
+            }, true),
+        );
         const scope = createAgentExecutionContext({
             account: fromSession(user),
             surface: AgentActorSurface.IN_APP_AGENT,

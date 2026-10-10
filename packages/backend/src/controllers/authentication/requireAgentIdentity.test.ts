@@ -9,6 +9,9 @@ it.each([false, true])(
     async (enabled) => {
         const get = vi.fn(async () => ({ enabled }));
         const service = new AiAccessService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             analytics: analyticsMock,
             featureFlagModel: { get },
         } as unknown as ConstructorParameters<typeof AiAccessService>[0]);

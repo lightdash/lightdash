@@ -494,12 +494,26 @@ export class DocumentService extends BaseService {
             document.organizationUuid,
             input.ownerUserUuid,
         );
-        const updated = {
-            ...(await this.dependencies.documentModel.updateMetadata(
+        const savedMetadata =
+            await this.dependencies.documentModel.updateMetadata(
                 projectUuid,
                 documentUuid,
                 { ...input, expectedSpaceUuid: document.spaceUuid },
-            )),
+            );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'update',
+        });
+        const updated = {
+            ...savedMetadata,
             verification: await this.keepVerificationAfterUpdate(
                 account,
                 document,
@@ -860,7 +874,7 @@ export class DocumentService extends BaseService {
             trackEvent = true,
             change = API_CHANGE,
         }: {
-            tx?: Knex;
+            tx?: Knex.Transaction;
             checkForAccess?: boolean;
             trackEvent?: boolean;
             change?: DocumentChangeContext;
@@ -911,6 +925,19 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'move',
+            trx: tx,
+        });
         if (trackEvent) {
             this.trackMoved(account, document, targetSpaceUuid, change);
         }
@@ -932,7 +959,7 @@ export class DocumentService extends BaseService {
             documentUuid: string;
             targetSpaceUuid: string;
         },
-        { tx }: { tx?: Knex } = {},
+        { tx }: { tx?: Knex.Transaction } = {},
     ): Promise<void> {
         const document = await this.get(account, projectUuid, documentUuid);
         await this.assertCanMutateVerifiedDocument(account, document);
@@ -968,6 +995,19 @@ export class DocumentService extends BaseService {
             },
             { tx },
         );
+        await logAgentContentWrite({
+            model: this.dependencies.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: account.user.id,
+                organizationUuid: document.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'document',
+            objectUuid: document.documentUuid,
+            versionUuid: null,
+            action: 'move',
+            trx: tx,
+        });
         this.trackMoved(account, document, targetSpaceUuid, API_CHANGE);
     }
 

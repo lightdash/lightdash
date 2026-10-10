@@ -66,6 +66,7 @@ import { createActorFromAccount } from '../../logging/caslAuditWrapper';
 import { redactCredentialError } from '../../logging/redactCredentialError';
 import { logAuditEvent } from '../../logging/winston';
 import { withCause } from '../../logging/withCause';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
@@ -109,6 +110,7 @@ import { resolveQueryAgentActor } from './agentExecutionContext';
 import { describeAgentMarker } from './agentMarker';
 import { agentMarkerProbe } from './agentMarkerProbe';
 import { AgentSessionCheckError } from './agentSession';
+import { recordAgentRefusal } from './logAgentContentWrite';
 import {
     getQueryIdentityLineage,
     getQuerySourceParameters,
@@ -291,6 +293,7 @@ export const mapAgentCredentialResolutionError = (
 };
 
 type AiAccessServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     analytics: Pick<LightdashAnalytics, 'track'>;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     organizationAgentIdentityRulesModel: OrganizationAgentIdentityRulesModel;
@@ -315,6 +318,8 @@ type AiAccessServiceArguments = {
 };
 
 export class AiAccessService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
 
     private readonly analytics: Pick<LightdashAnalytics, 'track'>;
@@ -354,6 +359,7 @@ export class AiAccessService extends BaseService {
     private readonly agentSignInRegistry: CredentialResolverRegistry;
 
     constructor({
+        agentActionLogModel,
         analytics,
         aiServiceAccountCredentialsModel,
         organizationAgentIdentityRulesModel,
@@ -369,6 +375,7 @@ export class AiAccessService extends BaseService {
         agentSignInCredentialResolver,
     }: AiAccessServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.analytics = analytics;
         this.aiServiceAccountCredentialsModel =
             aiServiceAccountCredentialsModel;
@@ -1406,6 +1413,16 @@ export class AiAccessService extends BaseService {
         inheritedFromProjectUuid: string | null = null,
     ): void {
         if (args.evaluation.kind === 'query') {
+            void recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: args.userUuid,
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                objectType: 'query',
+                action: 'execute',
+                policyLayer: 'warehouse_identity',
+                reasonCode: reason,
+            });
             const userId = this.analyticsUserId(args);
             const actor =
                 userId !== null

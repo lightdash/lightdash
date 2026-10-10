@@ -71,6 +71,7 @@ const setup = () => {
         })),
     };
     const service = new AiAccessService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         analytics,
         featureFlagModel: flags,
         projectModel: projects,

@@ -217,7 +217,10 @@ describe('content version agent identity migration', () => {
                 .spyOn(auditLogger, 'logAuditEvent')
                 .mockImplementation(() => {});
             const run = async () => {
-                const claim = getContentWriteAgentIdentity(user);
+                const claim = getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                });
                 expect(claim).toEqual(surface && enabled ? scope.claim : null);
                 const chartData: CreateSavedChart & {
                     updatedByUser: typeof user;
@@ -576,6 +579,134 @@ describe('content version agent identity migration', () => {
                 organizationUuid,
             ),
         ).toEqual([]);
+    });
+    test('ledger insertion uses the domain transaction and rolls back together', async () => {
+        const ledger = new AgentActionLogModel({ database });
+        const organizationUuid = randomUUID();
+        const scope = createAgentExecutionContext({
+            account: fromSession({ ...defaultSessionUser, organizationUuid }),
+            surface: AgentActorSurface.MCP,
+            clientId: null,
+            agentUuid: null,
+            agentIdentityEnabled: true,
+        });
+        const log = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        await expect(
+            agentExecutionContext.run(scope, () =>
+                database.transaction(async (trx) => {
+                    await trx<{
+                        organization_uuid: string;
+                        organization_name: string;
+                    }>('organizations').insert({
+                        organization_uuid: organizationUuid,
+                        organization_name: 'transactional agent action',
+                    });
+                    await logAgentContentWrite({
+                        model: ledger,
+                        trx,
+                        agentIdentity: scope.claim,
+                        projectUuid: null,
+                        objectType: 'space',
+                        objectUuid: randomUUID(),
+                        versionUuid: null,
+                        action: 'create',
+                    });
+                    expect(
+                        await trx('agent_action_log').where(
+                            'organization_uuid',
+                            organizationUuid,
+                        ),
+                    ).toHaveLength(1);
+                    expect(log).not.toHaveBeenCalled();
+                    throw new Error('domain rollback');
+                }),
+            ),
+        ).rejects.toThrow('domain rollback');
+        expect(
+            await database('organizations').where(
+                'organization_uuid',
+                organizationUuid,
+            ),
+        ).toEqual([]);
+        expect(
+            await database('agent_action_log').where(
+                'organization_uuid',
+                organizationUuid,
+            ),
+        ).toEqual([]);
+        expect(log).not.toHaveBeenCalled();
+        await expect(
+            agentExecutionContext.run(scope, () =>
+                database.transaction(async (trx) => {
+                    await trx<{
+                        organization_uuid: string;
+                        organization_name: string;
+                    }>('organizations').insert({
+                        organization_uuid: organizationUuid,
+                        organization_name: 'failed ledger',
+                    });
+                    await logAgentContentWrite({
+                        model: ledger,
+                        trx,
+                        agentIdentity: scope.claim,
+                        projectUuid: null,
+                        objectType: 'space',
+                        objectUuid: 'invalid-uuid',
+                        versionUuid: null,
+                        action: 'create',
+                    });
+                }),
+            ),
+        ).rejects.toThrow();
+        expect(
+            await database('organizations').where(
+                'organization_uuid',
+                organizationUuid,
+            ),
+        ).toEqual([]);
+        expect(log).not.toHaveBeenCalled();
+    });
+    test('committed transactions emit the audit only after commit', async () => {
+        const ledger = new AgentActionLogModel({ database });
+        const [{ organization_uuid: organizationUuid }] = await database(
+            'organizations',
+        )
+            .insert({ organization_name: 'committed action' })
+            .returning('organization_uuid');
+        const scope = createAgentExecutionContext({
+            account: fromSession({ ...defaultSessionUser, organizationUuid }),
+            surface: AgentActorSurface.MCP,
+            clientId: null,
+            agentUuid: null,
+            agentIdentityEnabled: true,
+        });
+        const log = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        await agentExecutionContext.run(scope, () =>
+            database.transaction(async (trx) => {
+                await logAgentContentWrite({
+                    model: ledger,
+                    trx,
+                    agentIdentity: scope.claim,
+                    projectUuid: null,
+                    objectType: 'space',
+                    objectUuid: randomUUID(),
+                    versionUuid: null,
+                    action: 'create',
+                });
+                expect(log).not.toHaveBeenCalled();
+            }),
+        );
+        expect(log).toHaveBeenCalledOnce();
+        expect(
+            await database('agent_action_log').where(
+                'organization_uuid',
+                organizationUuid,
+            ),
+        ).toHaveLength(1);
     });
     test('down removes all five columns and up restores them', async () => {
         await database.transaction(async (trx) => {

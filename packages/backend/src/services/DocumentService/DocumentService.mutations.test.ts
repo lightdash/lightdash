@@ -23,6 +23,10 @@ import { fromSession } from '../../auth/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
 import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import {
     agentExecutionContext,
     createAgentExecutionContext,
 } from '../AiAccessService/agentExecutionContext';
@@ -1893,3 +1897,47 @@ describe('document agent attribution', () => {
         },
     );
 });
+
+describe.each(agentActionTestCases)(
+    'document metadata and move: %s',
+    (_, surface, enabled, count) => {
+        test.each(['update', 'move'] as const)('%s', async (action) => {
+            agentActionLogModel.insert.mockClear();
+            const { service, documentModel, spacePermissionService, context } =
+                setup();
+            Object.assign(spacePermissionService, {
+                resolveAccessBatch: vi
+                    .fn()
+                    .mockResolvedValue([{ context }, { context }]),
+            });
+            Object.assign(documentModel, {
+                moveToSpace: vi.fn().mockResolvedValue(undefined),
+            });
+            const user = { ...defaultSessionUser, userUuid, organizationUuid };
+            await withAgentActionScope(user, surface, enabled, () =>
+                action === 'update'
+                    ? service.updateMetadata(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          { name: 'new name' },
+                      )
+                    : service.moveToSpace(makeAccount(), {
+                          projectUuid,
+                          itemUuid: documentUuid,
+                          targetSpaceUuid: 'destination',
+                      }),
+            );
+            expect(agentActionLogModel.insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'document',
+                        object_uuid: documentUuid,
+                        action,
+                        outcome: 'allowed',
+                    }),
+                );
+        });
+    },
+);

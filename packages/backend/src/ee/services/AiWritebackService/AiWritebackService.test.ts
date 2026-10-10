@@ -16,6 +16,7 @@ import {
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     createPullRequest,
     getAppBotIdentity,
@@ -30,6 +31,10 @@ import {
     listReposAccessibleToUser,
     revokeInstallationToken,
 } from '../../../clients/github/Github';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
@@ -135,6 +140,7 @@ const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 const buildService = (overrides: Record<string, AnyType> = {}) => {
     const { projectModel: projectModelOverride, ...otherOverrides } = overrides;
     return new AiWritebackService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: vi.fn() } as AnyType,
         orgAiCopilotConfigResolver: {
@@ -4511,4 +4517,179 @@ describe('AiWritebackService regional boundary', () => {
             'AI repository editing is not yet supported for organizations configured with Amazon Bedrock.',
         );
     });
+});
+
+describe.each(agentActionTestCases)(
+    'writeback agent records: %s',
+    (_, surface, enabled, count) => {
+        const makeUser = (allowed = true) => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            if (allowed) can('manage', 'SourceCode');
+            return {
+                ...defaultSessionUser,
+                userUuid: 'user',
+                organizationUuid: ORG,
+                ability: build(),
+            };
+        };
+        const runRow = {
+            ai_writeback_run_uuid: 'run',
+            organization_uuid: ORG,
+            project_uuid: 'project',
+            source: 'mcp',
+            status: 'agent',
+            created_at: new Date(),
+            updated_at: new Date(),
+        };
+        test.each(['enqueue', 'pending', 'cancel', 'close'] as const)(
+            '%s',
+            async (operation) => {
+                const service = buildService({
+                    projectModel: {
+                        get: vi
+                            .fn()
+                            .mockResolvedValue({ organizationUuid: ORG }),
+                    },
+                    aiWritebackRunModel: {
+                        create: vi.fn().mockResolvedValue(runRow),
+                        findByUuid: vi.fn().mockResolvedValue(runRow),
+                        markCancelled: vi.fn().mockResolvedValue(true),
+                        findLatestByProjectUuidAndPrUrl: vi
+                            .fn()
+                            .mockResolvedValue(runRow),
+                    },
+                    pullRequestsModel: {
+                        findByAiThreadUuidAndUrl: vi
+                            .fn()
+                            .mockResolvedValue(null),
+                        findByProjectAndUrl: vi.fn().mockResolvedValue(null),
+                    },
+                    ciService: {
+                        closePullRequest: vi
+                            .fn()
+                            .mockResolvedValue({ closed: true }),
+                    },
+                });
+                const user = makeUser();
+                await withAgentActionScope(user, surface, enabled, async () => {
+                    if (operation === 'cancel')
+                        return service.cancelRun(user, 'run');
+                    if (operation === 'close')
+                        return service.closePullRequest({
+                            user,
+                            projectUuid: 'project',
+                            aiThreadUuid: 'thread',
+                            prUrl: 'secret-url',
+                        });
+                    if (operation === 'pending')
+                        return service.createPendingRun({
+                            user,
+                            projectUuid: 'project',
+                            aiThreadUuid: undefined,
+                            source: 'mcp',
+                            promptUuid: null,
+                            toolCallId: null,
+                        });
+                    return service.enqueueWriteback({
+                        user,
+                        projectUuid: 'project',
+                        source: 'mcp',
+                        prompt: 'secret-prompt',
+                    });
+                });
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                expect(insert).toHaveBeenCalledTimes(count);
+                if (count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'ai_writeback_run',
+                            object_uuid: 'run',
+                            action:
+                                operation === 'pending' ? 'enqueue' : operation,
+                            outcome: 'allowed',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'secret',
+                );
+            },
+        );
+        test('records source-code policy refusal before creating a run', async () => {
+            const service = buildService({
+                projectModel: {
+                    get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+                },
+            });
+            const user = makeUser(false);
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service.createPendingRun({
+                        user,
+                        projectUuid: 'project',
+                        aiThreadUuid: undefined,
+                        source: 'mcp',
+                        promptUuid: null,
+                        toolCallId: null,
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(
+                service['aiWritebackRunModel'].create,
+            ).not.toHaveBeenCalled();
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'writeback_policy',
+                        reason_code: 'source_code_manage_forbidden',
+                        object_uuid: null,
+                    }),
+                );
+        });
+    },
+);
+
+test('a committed writeback run retains its initiating action when dispatch fails', async () => {
+    const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+    can('manage', 'SourceCode');
+    const user = { ...defaultSessionUser, ability: build() };
+    const service = buildService({
+        projectModel: {
+            get: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: user.organizationUuid }),
+        },
+        aiWritebackRunModel: {
+            create: vi.fn().mockResolvedValue({ ai_writeback_run_uuid: 'run' }),
+        },
+        schedulerClient: {
+            aiWritebackPipeline: vi
+                .fn()
+                .mockRejectedValue(new Error('queue unavailable')),
+        },
+    });
+    await expect(
+        withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
+            service.enqueueWriteback({
+                user,
+                projectUuid: 'project',
+                source: 'mcp',
+                prompt: 'private prompt',
+            }),
+        ),
+    ).rejects.toThrow('queue unavailable');
+    expect(
+        service['agentActionLogModel'].insert,
+    ).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            object_uuid: 'run',
+            action: 'enqueue',
+            outcome: 'allowed',
+        }),
+    );
 });

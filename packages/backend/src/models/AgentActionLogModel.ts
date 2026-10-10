@@ -8,8 +8,13 @@ import {
 export class AgentActionLogModel {
     constructor(private readonly dependencies: { database: Knex }) {}
 
-    async insert(entry: InsertAgentActionLog): Promise<void> {
-        await this.dependencies.database(AgentActionLogTableName).insert(entry);
+    async insert(
+        entry: InsertAgentActionLog,
+        trx?: Knex.Transaction,
+    ): Promise<void> {
+        await (trx ?? this.dependencies.database)(
+            AgentActionLogTableName,
+        ).insert(entry);
     }
 
     async cleanupBatch(
