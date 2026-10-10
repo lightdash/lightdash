@@ -19,6 +19,7 @@ import {
 import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
+import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
@@ -139,6 +140,9 @@ export class OAuthService extends BaseService {
         const model: OAuth2Server.AuthorizationCodeModel = Object.create(
             this.oauthModel,
         ) as OAuth2Server.AuthorizationCodeModel;
+        if (await this.isSecurityStrict(user))
+            model.validateRedirectUri = (redirectUri, client) =>
+                this.oauthModel.validateRedirectUri(redirectUri, client, true);
         model.saveAuthorizationCode = (code, client, savedUser) =>
             this.oauthModel.saveAuthorizationCode(
                 { ...code, resource },
@@ -183,7 +187,7 @@ export class OAuthService extends BaseService {
     }
 
     public isSecurityStrict(
-        user: UserWithOrganizationUuid | null,
+        user: Parameters<OAuth2Model['isSecurityStrict']>[0],
     ): Promise<boolean> {
         return this.oauthModel.isSecurityStrict(user);
     }
@@ -191,12 +195,17 @@ export class OAuthService extends BaseService {
     public async validateRedirectUri(
         clientId: string,
         redirectUri: string,
+        user: UserWithOrganizationUuid | null = null,
     ): Promise<boolean> {
         const client = await this.oauthModel.getClient(clientId);
-        return (
-            client !== false &&
-            this.oauthModel.validateRedirectUri(redirectUri, client)
-        );
+        if (client === false) return false;
+        if (await this.isSecurityStrict(user))
+            return this.oauthModel.validateRedirectUri(
+                redirectUri,
+                client,
+                true,
+            );
+        return this.oauthModel.validateRedirectUri(redirectUri, client);
     }
 
     public async token(
@@ -269,8 +278,13 @@ export class OAuthService extends BaseService {
         grantTypes?: string[];
         scopes?: string[];
     }) {
+        const strict = await this.isSecurityStrict(null);
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -330,8 +344,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -372,8 +394,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }

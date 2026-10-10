@@ -249,7 +249,7 @@ const requestAuthorizePage = async ({
     prompt?: Awaited<ReturnType<AiAccessService['getAgentConnectPrompt']>>;
     rawQuery?: string;
     aiAccessService?: AiAccessService;
-}): Promise<{ body: string; status: number }> => {
+}): Promise<{ body: string; headers: IncomingHttpHeaders; status: number }> => {
     const app = express();
     app.use(express.json());
     app.use((request, _response, next) => {
@@ -284,6 +284,7 @@ const requestAuthorizePage = async ({
                     response.on('end', () =>
                         resolve({
                             body: Buffer.concat(chunks).toString('utf8'),
+                            headers: response.headers,
                             status: response.statusCode ?? 0,
                         }),
                     );
@@ -300,6 +301,36 @@ const requestAuthorizePage = async ({
 };
 
 describe('OAuth authorize redirects', () => {
+    it('refuses a strict invalid redirect before rendering consent', async () => {
+        const oauthService = createOAuthService();
+        oauthService.isSecurityStrict.mockResolvedValue(true);
+        oauthService.validateRedirectUri.mockResolvedValue(false);
+        const response = await requestAuthorizePage({
+            query: {
+                client_id: 'client',
+                redirect_uri: 'http://example.com/cb',
+            },
+            oauthService,
+        });
+        expect(response.status).toBe(400);
+        expect(response.body).toBe(
+            '{"error":"invalid_request","error_description":"Invalid client_id or redirect_uri"}',
+        );
+        expect(response.headers.location).toBeUndefined();
+        expect(response.body).not.toContain('http://example.com/cb');
+        expect(response.body).not.toContain('http-equiv="refresh"');
+        expect(oauthService.authorize).not.toHaveBeenCalled();
+        expect(oauthService.getClientDisplayName).not.toHaveBeenCalled();
+        expect(oauthService.validateRedirectUri).toHaveBeenCalledWith(
+            'client',
+            'http://example.com/cb',
+            {
+                userId: authenticatedUser.userId,
+                organizationUuid: authenticatedUser.organizationUuid,
+            },
+        );
+    });
+
     it.each(['sso', 'local'])(
         'preserves the %s mobile login intent in the outer authorization request',
         async (intent) => {
@@ -346,6 +377,10 @@ describe('OAuth authorize redirects', () => {
             expect(oauthService.validateRedirectUri).toHaveBeenCalledWith(
                 'client-id',
                 redirectUri,
+                {
+                    userId: authenticatedUser.userId,
+                    organizationUuid: authenticatedUser.organizationUuid,
+                },
             );
         },
     );

@@ -4,6 +4,7 @@ import {
     AuthTokenPrefix,
     TOKEN_EXCHANGE_GRANT_TYPE,
     UserWithOrganizationUuid,
+    type LightdashUser,
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server, {
@@ -28,6 +29,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
+import { matchesRedirectUriStrict } from './oauthStrictRedirectUri';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -580,10 +582,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async isSecurityStrict(
-        user: UserWithOrganizationUuid | null,
+        user:
+            | UserWithOrganizationUuid
+            | Pick<LightdashUser, 'userUuid' | 'organizationUuid'>
+            | null,
     ): Promise<boolean> {
         if (user === null)
             return resolveOAuthSecurityStrict(this.featureFlagModel, null);
+        if ('userUuid' in user)
+            return resolveOAuthSecurityStrict(this.featureFlagModel, user);
         const storedUser = await this.database('users')
             .select('user_uuid')
             .where('user_id', user.userId)
@@ -633,7 +640,15 @@ export class OAuth2Model implements AuthorizationCodeModel {
     async validateRedirectUri(
         redirectUri: string,
         client: Client,
+        strict = false,
     ): Promise<boolean> {
+        if (strict)
+            return (
+                Array.isArray(client.redirectUris) &&
+                client.redirectUris.some((uri) =>
+                    matchesRedirectUriStrict(redirectUri, uri),
+                )
+            );
         return (
             Array.isArray(client.redirectUris) &&
             client.redirectUris.some((uri) =>

@@ -44,6 +44,12 @@ const getValidatedRedirectUrl = async (
     const isRegistered = await getOAuthService(req).validateRedirectUri(
         clientId,
         redirectUri,
+        req.user?.userId && req.user.organizationUuid
+            ? {
+                  userId: req.user.userId,
+                  organizationUuid: req.user.organizationUuid,
+              }
+            : null,
     );
     if (!isRegistered) {
         return null;
@@ -170,6 +176,15 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             state,
         });
     }
+
+    if (
+        (await getOAuthService(req).isSecurityStrict(identity)) &&
+        !(await getValidatedRedirectUrl(req, {
+            clientId: client_id,
+            redirectUri: redirect_uri,
+        }))
+    )
+        return sendInvalidRedirectResponse(res);
 
     let resource: string | null;
     try {

@@ -511,3 +511,118 @@ it('keeps concurrent API and MCP grant resource bindings separate', async () => 
     expect(apiToken.resource).toBe(apiResource);
     expect(mcpToken.resource).toBe(mcpResource);
 });
+
+describe.each(modes)('redirect policy in %s mode', (mode) => {
+    it.each([
+        ['https://client.example/callback', 'https://client.example/*'],
+        ['myapp://cb', 'myapp://cb'],
+        ['http://example.com/cb', 'http://example.com/cb'],
+    ])('validates %s registered as %s', async (candidate, registered) => {
+        await setScopeMode(mode);
+        vi.mocked(model.getClient).mockResolvedValue({
+            ...client,
+            redirectUris: [registered],
+        });
+        await expect(
+            service.validateRedirectUri(client.id, candidate, user),
+        ).resolves.toBe(mode === null);
+        expect(flags.get).toHaveBeenCalledWith({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: { userUuid: 'user', organizationUuid: user.organizationUuid },
+        });
+        const result = authorize({ redirect_uri: candidate });
+        if (mode === null) {
+            await expect(result).resolves.toMatchObject({
+                redirectUri: candidate,
+            });
+            expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
+        } else {
+            await expect(result).rejects.toBeInstanceOf(
+                OAuth2Server.InvalidClientError,
+            );
+            expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        }
+    });
+});
+
+it('resolves admin strict mode from the account UUID without a numeric user lookup', async () => {
+    await setScopeMode('log');
+    getTracker().reset();
+    await expect(
+        service.isSecurityStrict({
+            userUuid: 'admin-user',
+            organizationUuid: 'admin-org',
+        }),
+    ).resolves.toBe(true);
+    expect(flags.get).toHaveBeenLastCalledWith({
+        featureFlagId: FeatureFlags.AgentIdentity,
+        user: { userUuid: 'admin-user', organizationUuid: 'admin-org' },
+    });
+});
+
+it.each([
+    ['http://127.0.0.1:1234/cb', 'http://127.0.0.1:5678/cb'],
+    ['http://localhost:1234/callback', 'http://localhost:*/callback'],
+    [
+        'com.lightdash.mobile:/oauth/callback',
+        'com.lightdash.mobile:/oauth/callback',
+    ],
+])(
+    'authorizes strict native redirect %s registered as %s',
+    async (candidate, registered) => {
+        await setScopeMode('log');
+        vi.mocked(model.getClient).mockResolvedValue({
+            ...client,
+            redirectUris: [registered],
+        });
+        await expect(
+            service.validateRedirectUri(client.id, candidate, user),
+        ).resolves.toBe(true);
+        await expect(
+            authorize({ redirect_uri: candidate }),
+        ).resolves.toMatchObject({ redirectUri: candidate });
+    },
+);
+
+it('keeps concurrent strict and legacy redirect checks isolated by user', async () => {
+    await setScopeMode('log');
+    vi.spyOn(model, 'isSecurityStrict').mockImplementation(
+        async (identity) =>
+            identity !== null &&
+            'userId' in identity &&
+            identity.userId === user.userId,
+    );
+    vi.mocked(model.getClient).mockResolvedValue({
+        ...client,
+        redirectUris: ['https://client.example/*'],
+    });
+    const legacyRequest = new OAuth2Server.Request({
+        method: 'GET',
+        headers: {},
+        body: {},
+        query: {
+            response_type: 'code',
+            client_id: client.id,
+            redirect_uri: redirectUri,
+            state: 'state',
+            code_challenge: challenge,
+            code_challenge_method: 'S256',
+        },
+    });
+    const [strict, legacy] = await Promise.allSettled([
+        authorize(),
+        service.authorize(legacyRequest, new OAuth2Server.Response({}), {
+            ...user,
+            userId: 43,
+        }),
+    ]);
+    expect(strict).toMatchObject({
+        status: 'rejected',
+        reason: { name: 'invalid_client' },
+    });
+    expect(legacy).toMatchObject({
+        status: 'fulfilled',
+        value: { redirectUri },
+    });
+    expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
+});
