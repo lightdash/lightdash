@@ -351,6 +351,9 @@ describe('Multi runtime identity wiring on the real schema', () => {
 
     const serviceArgs = () => ({
         lightdashConfig: lightdashConfigMock,
+        featureFlagModel: {
+            get: async () => ({ id: 'flag', enabled: false }),
+        },
         analytics: { track: vi.fn() },
         projectModel,
         projectDbtSourcesModel,

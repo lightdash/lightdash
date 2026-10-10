@@ -267,7 +267,11 @@ describe('WarehouseConnectionService on the real schema', () => {
                     encryptionUtil,
                 }),
         });
-        projectService = new ProjectService({} as never);
+        projectService = new ProjectService({
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
+        } as never);
     }, 600000);
 
     afterAll(async () => {
@@ -1283,6 +1287,9 @@ describe('WarehouseConnectionService on the real schema', () => {
             const fixture = await createProject({ mode: 'multi' });
             const policy = new ProjectService({
                 lightdashConfig: lightdashConfigMock,
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: false }),
+                },
                 projectModel: new ProjectModel({
                     database,
                     lightdashConfig: lightdashConfigMock,

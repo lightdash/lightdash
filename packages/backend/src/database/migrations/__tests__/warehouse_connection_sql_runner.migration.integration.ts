@@ -325,6 +325,9 @@ describe('SQL runner catalog by connection on the real schema', () => {
         tablesModel = new WarehouseConnectionTablesModel({ database });
         service = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
             projectModel: new ProjectModel({
                 database,
                 lightdashConfig: lightdashConfigMock,

@@ -384,7 +384,11 @@ describe('Enable multiple connections on the real schema', () => {
             encryptionUtil,
             organizationWarehouseCredentialsModel,
         });
-        projectService = new ProjectService({} as never);
+        projectService = new ProjectService({
+            featureFlagModel: {
+                get: async () => ({ id: 'flag', enabled: false }),
+            },
+        } as never);
     }, 600000);
 
     afterAll(async () => {
@@ -1428,6 +1432,9 @@ describe('Enable multiple connections on the real schema', () => {
             const fixture = await createProject();
             const credentialsService = new ProjectService({
                 lightdashConfig: lightdashConfigMock,
+                featureFlagModel: {
+                    get: async () => ({ id: 'flag', enabled: false }),
+                },
                 projectModel,
                 userWarehouseCredentialsModel:
                     new UserWarehouseCredentialsModel({
