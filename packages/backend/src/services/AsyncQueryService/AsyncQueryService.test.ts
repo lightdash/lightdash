@@ -21247,6 +21247,118 @@ describe('fresh execution producer to result reader', () => {
         vi.mocked(f.service.resultsStorageClient.getFirstLine).mockClear();
         return read;
     };
+    describe.each(['requiredAttributes', 'anyAttributes'] as const)(
+        'stored person results with %s',
+        (restriction) => {
+            test.each<{
+                change: string;
+                before: UserAccessControls['userAttributes'];
+                after: UserAccessControls['userAttributes'];
+                allowed: boolean;
+            }>([
+                {
+                    change: 'empty definition created',
+                    before: {},
+                    after: { region: [] },
+                    allowed: true,
+                },
+                {
+                    change: 'empty definition deleted',
+                    before: { region: [] },
+                    after: {},
+                    allowed: true,
+                },
+                {
+                    change: 'value changed',
+                    before: { region: ['a'] },
+                    after: { region: ['b'] },
+                    allowed: false,
+                },
+                {
+                    change: 'value added to empty',
+                    before: { region: [] },
+                    after: { region: ['a'] },
+                    allowed: false,
+                },
+                {
+                    change: 'value added to absent',
+                    before: {},
+                    after: { region: ['a'] },
+                    allowed: false,
+                },
+                {
+                    change: 'value removed to empty',
+                    before: { region: ['a'] },
+                    after: { region: [] },
+                    allowed: false,
+                },
+                {
+                    change: 'value removed to absent',
+                    before: { region: ['a'] },
+                    after: {},
+                    allowed: false,
+                },
+            ])('$change', async ({ before, after, allowed }) => {
+                const f = setup(false, false, false, false);
+                const controls: UserAccessControls = {
+                    userAttributes: before,
+                    intrinsicUserAttributes: { email: 'person@example.test' },
+                };
+                vi.mocked(f.service.getUserAttributes).mockImplementation(
+                    async () => controls,
+                );
+                const explore = structuredClone(validExplore);
+                explore.tables.a.dimensions.restricted = {
+                    ...explore.tables.a.dimensions.dim1,
+                    name: 'restricted',
+                    [restriction]: { region: 'a' },
+                };
+                vi.mocked(
+                    f.service.projectModel.getExploreFromCache,
+                ).mockResolvedValue(explore);
+                vi.mocked(
+                    f.service.projectModel.findExploresFromCache,
+                ).mockResolvedValue({ [explore.name]: explore });
+                const result = await f.service.executeAsyncMetricQuery({
+                    account: f.account,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    invalidateCache: true,
+                });
+                const read = await round24Ready(f, result.queryUuid);
+                expect(
+                    f.rows.get(result.queryUuid)!.requestParameters
+                        .resultProducer,
+                ).toMatchObject({
+                    authMethod: 'session',
+                    agentIdentity: null,
+                    entitlementFingerprint: expect.any(String),
+                });
+                controls.userAttributes = after;
+                if (allowed) {
+                    expect((await read()).status).toBe(
+                        QueryHistoryStatus.READY,
+                    );
+                    expect(
+                        f.service.resultsStorageClient.getDownloadStream,
+                    ).toHaveBeenCalled();
+                } else {
+                    await expect(read()).rejects.toMatchObject({
+                        refusal: {
+                            reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        },
+                    });
+                    expect(
+                        f.service.resultsStorageClient.getDownloadStream,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        f.service.resultsStorageClient.getFirstLine,
+                    ).not.toHaveBeenCalled();
+                }
+            });
+        },
+    );
     test.each(['retained', 'spread', 'clone', 'stripped', 'materialization'])(
         'round 26 original snapshot loss retains conservative comparison: %s',
         async (kind) => {
