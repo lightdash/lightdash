@@ -19,6 +19,7 @@ import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import MantineModal from '../../components/common/MantineModal';
 import { SettingsCard } from '../../components/common/Settings/SettingsCard';
+import useToaster from '../../hooks/toaster/useToaster';
 import { useOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { useProjects } from '../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
@@ -155,10 +156,12 @@ const AgentPermissionLimits = ({
 
 const AgentPermissionsForm = ({
     policy,
+    refetchPolicy,
     projects,
     people,
 }: {
     policy: AgentCapabilityPolicyOverview;
+    refetchPolicy: ReturnType<typeof useAgentCapabilityPolicy>['refetch'];
     projects: AgentPickerOption[];
     people: AgentPickerOption[];
 }) => {
@@ -166,7 +169,7 @@ const AgentPermissionsForm = ({
         baseline,
         values,
         dirty,
-        conflict,
+        conflict: draftConflict,
         change,
         accept,
         discard: discardDraft,
@@ -174,26 +177,61 @@ const AgentPermissionsForm = ({
     const limitsOn = values.mode === 'managed';
     const starting = limitsOn && baseline.mode === 'legacy';
     const [modal, setModal] = useState<'empty' | 'reset' | null>(null);
+    const [staleRequest, setStaleRequest] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const { showToastApiError } = useToaster();
+    const conflict = draftConflict || staleRequest;
     const onSaved = (updated: AgentCapabilityPolicy) => {
         accept(updated);
         setModal(null);
     };
     const save = useSaveAgentCapabilityCeiling(onSaved);
     const reset = useResetAgentCapabilityPolicy(onSaved);
-    const saving = save.isLoading || reset.isLoading;
+    const saving = save.isLoading || reset.isLoading || refreshing;
     const editingDisabled = saving || conflict;
     const discard = () => {
         discardDraft();
+        setStaleRequest(false);
+        setModal(null);
+    };
+    const refreshPolicy = async () => {
+        setRefreshing(true);
+        try {
+            const result = await refetchPolicy();
+            if (result.isError) {
+                showToastApiError({
+                    title: 'Could not reload agent permissions.',
+                    apiError: result.error.error,
+                });
+                return null;
+            }
+            return result.data;
+        } finally {
+            setRefreshing(false);
+        }
+    };
+    const onFailed = async (requestVersion: number) => {
+        const latest = await refreshPolicy();
+        if (latest && latest.version > requestVersion) setStaleRequest(true);
+    };
+    const reloadLatest = async () => {
+        const latest = await refreshPolicy();
+        if (!latest) return;
+        accept(latest);
+        setStaleRequest(false);
         setModal(null);
     };
     const submit = () => {
         if (editingDisabled) return;
-        save.mutate({
-            version: values.version,
-            systemRoleMatrix: values.systemRoleMatrix,
-            allowedProjectUuids: values.allowedProjectUuids,
-            allowedUserUuids: values.allowedUserUuids,
-        });
+        save.mutate(
+            {
+                version: values.version,
+                systemRoleMatrix: values.systemRoleMatrix,
+                allowedProjectUuids: values.allowedProjectUuids,
+                allowedUserUuids: values.allowedUserUuids,
+            },
+            { onError: () => void onFailed(values.version) },
+        );
     };
     return (
         <SettingsCard>
@@ -204,13 +242,16 @@ const AgentPermissionsForm = ({
                         <Stack gap="sm">
                             <Text size="sm">
                                 Someone changed the saved permissions. Reload
-                                the latest permissions before saving. This will
-                                discard your unsaved changes.
+                                the latest permissions before making more
+                                changes.
+                                {dirty &&
+                                    ' This will discard your unsaved changes.'}
                             </Text>
                             <Button
                                 variant="default"
                                 disabled={saving}
-                                onClick={discard}
+                                loading={refreshing}
+                                onClick={() => void reloadLatest()}
                             >
                                 Reload latest
                             </Button>
@@ -280,7 +321,14 @@ const AgentPermissionsForm = ({
                     confirmDisabled={saving}
                     cancelDisabled={saving}
                     onConfirm={() => {
-                        if (!saving) reset.mutate({ version: values.version });
+                        if (!saving)
+                            reset.mutate(
+                                { version: values.version },
+                                {
+                                    onError: () =>
+                                        void onFailed(values.version),
+                                },
+                            );
                     }}
                 />
             )}
@@ -317,6 +365,7 @@ const AgentPermissionsContent = () => {
     return (
         <AgentPermissionsForm
             policy={policy.data}
+            refetchPolicy={policy.refetch}
             projects={projectOptions}
             people={peopleOptions}
         />
