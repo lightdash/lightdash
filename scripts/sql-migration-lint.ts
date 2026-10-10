@@ -910,6 +910,7 @@ export function evaluateMigrationEnforcement(
     const findings: SqlMigrationEnforcementFinding[] = [];
     const declarationChanges = options.declarationChanges ?? {
         added: [],
+        advisories: [],
         diagnostics: [],
     };
     for (const diagnostic of declarationChanges.diagnostics) {

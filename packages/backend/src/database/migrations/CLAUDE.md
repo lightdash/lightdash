@@ -36,6 +36,7 @@ For API and type breaks outside migrations, see the root [release-safety declara
 
 The release-safety gate applies these rules only to migration files changed by the pull request. Existing untouched migrations are grandfathered.
 
+- `impact` is not allowed on migration declarations.
 - A migration containing a detected breaking operation must add a stable ID to `release-safety.declarations.json`. Set `reason`, `requiredStop`, and `migration` to the full migration path. The declaration records the break; it does not hide the detector finding.
 - Raw SQL that the static lint cannot classify must add `export const classification: { kind: 'safe' | 'breaking'; reason: string } = { kind: '<safe | breaking>', reason: '<why>' }`, or the equivalent unannotated object literal. A `breaking` classification also requires a matching registry entry.
 - A `transaction: false` migration must be resumable after any completed statement. Concurrent index creation needs `IF NOT EXISTS`; backfills need bounded, state-guarded batches; inserts need conflict handling or another explicit idempotency guard.
