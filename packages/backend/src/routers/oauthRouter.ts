@@ -6,6 +6,7 @@ import {
     getErrorMessage,
     isManagedSignInError,
     OAuthIntrospectResponse,
+    ParameterError,
     parseScopeString,
     type OAuthUserInfoResponse,
 } from '@lightdash/common';
@@ -24,6 +25,7 @@ import {
 } from '../controllers/authentication';
 import Logger from '../logging/logger';
 import { DEFAULT_OAUTH_CLIENT_ID } from '../models/OAuth2Model';
+import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
 import {
     OAuthScope,
     OAuthService,
@@ -524,18 +526,23 @@ oauthRouter.post('/revoke', async (req, res) => {
 // Used by MCP clients to self-register — must remain unauthenticated
 oauthRouter.post('/register', async (req, res) => {
     try {
-        const { client_name, redirect_uris, scope, grantTypes } = req.body;
+        const { client_name, redirect_uris, scope, grantTypes } =
+            req.body ?? {};
+
+        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
+            throw new ParameterError(
+                'client_name and redirect_uris are required',
+            );
+        }
+        if (redirect_uris.some((uri) => typeof uri !== 'string')) {
+            throw new ParameterError(
+                'redirect_uris must be an array of strings',
+            );
+        }
 
         Logger.info(
             `Registering Oauth client ${client_name} with redirect_uris ${redirect_uris} and scopes ${scope}`,
         );
-
-        if (!client_name || !redirect_uris || !Array.isArray(redirect_uris)) {
-            return res.status(400).json({
-                error: 'invalid_client_metadata',
-                error_description: 'client_name and redirect_uris are required',
-            });
-        }
 
         const scopes = typeof scope === 'string' ? scope.split(' ') : [];
 
@@ -556,6 +563,16 @@ oauthRouter.post('/register', async (req, res) => {
             client_id_issued_at: Math.floor(client.createdAt.getTime() / 1000),
         });
     } catch (error) {
+        if (error instanceof ParameterError) {
+            Logger.info(`Client registration refused: ${error.message}`);
+            return res.status(400).json({
+                error:
+                    error instanceof InvalidRedirectUriError
+                        ? 'invalid_redirect_uri'
+                        : 'invalid_client_metadata',
+                error_description: error.message,
+            });
+        }
         Logger.error(`Client registration error: ${getErrorMessage(error)}`);
         return res.status(500).json({
             error: 'server_error',

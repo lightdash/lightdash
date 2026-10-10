@@ -1,6 +1,7 @@
 import {
     generateOAuthRedirectPage,
     ManagedSignInError,
+    ParameterError,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import express from 'express';
@@ -9,7 +10,10 @@ import { once } from 'node:events';
 import { request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { InvalidTargetError } from '../auth/oauthScopes/oauthResources';
+import Logger from '../logging/logger';
 import { AiAccessService } from '../services/AiAccessService/AiAccessService';
+import { InvalidClientMetadataError } from '../services/OAuthService/InvalidClientMetadataError';
+import { InvalidRedirectUriError } from '../services/OAuthService/InvalidRedirectUriError';
 import type { OAuthService } from '../services/OAuthService/OAuthService';
 import { AgentCredentialResolutionError } from '../services/WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
 import oauthRouter, {
@@ -20,6 +24,7 @@ import oauthRouter, {
 vi.mock('../logging/logger', () => ({
     default: {
         error: vi.fn(),
+        info: vi.fn(),
         warn: vi.fn(),
         child: vi.fn(() => ({ warn: vi.fn(), debug: vi.fn(), info: vi.fn() })),
     },
@@ -34,6 +39,7 @@ type OAuthServiceStub = Pick<
     | 'token'
     | 'isSecurityStrict'
     | 'getAuthorizationResource'
+    | 'registerClient'
 >;
 
 const getRedirectUrl = (body: string): string => {
@@ -68,14 +74,14 @@ const createOAuthService = () => ({
         .fn<OAuthServiceStub['getSiteUrl']>()
         .mockReturnValue('https://eu1.lightdash.cloud'),
     token: vi.fn<OAuthServiceStub['token']>(),
+    registerClient: vi.fn<OAuthServiceStub['registerClient']>(),
 });
 
-const requestToken = async (
-    tokenError: unknown,
+const requestOAuthPost = async (
+    path: string,
+    body: Record<string, unknown>,
+    oauthService: ReturnType<typeof createOAuthService>,
 ): Promise<{ body: Record<string, unknown>; status: number }> => {
-    const oauthService = createOAuthService();
-    oauthService.token.mockRejectedValue(tokenError);
-
     const app = express();
     app.use(express.json());
     app.use((request, _response, next) => {
@@ -96,24 +102,28 @@ const requestToken = async (
                     headers: { 'content-type': 'application/json' },
                     hostname: '127.0.0.1',
                     method: 'POST',
-                    path: '/api/v1/oauth/token',
+                    path: `/api/v1/oauth/${path}`,
                     port: (server.address() as AddressInfo).port,
                 },
                 (response) => {
                     const chunks: Buffer[] = [];
                     response.on('data', (chunk: Buffer) => chunks.push(chunk));
-                    response.on('end', () =>
-                        resolve({
-                            body: JSON.parse(
-                                Buffer.concat(chunks).toString('utf8'),
-                            ) as Record<string, unknown>,
-                            status: response.statusCode ?? 0,
-                        }),
-                    );
+                    response.on('end', () => {
+                        try {
+                            resolve({
+                                body: JSON.parse(
+                                    Buffer.concat(chunks).toString('utf8'),
+                                ) as Record<string, unknown>,
+                                status: response.statusCode ?? 0,
+                            });
+                        } catch (error) {
+                            reject(error);
+                        }
+                    });
                 },
             );
             request.on('error', reject);
-            request.end(JSON.stringify({}));
+            request.end(JSON.stringify(body));
         });
     } finally {
         await new Promise<void>((resolve, reject) => {
@@ -121,6 +131,262 @@ const requestToken = async (
         });
     }
 };
+
+const requestToken = async (tokenError: unknown) => {
+    const oauthService = createOAuthService();
+    oauthService.token.mockRejectedValue(tokenError);
+    return requestOAuthPost('token', {}, oauthService);
+};
+
+describe('POST /register', () => {
+    const metadata = {
+        client_name: 'Test client',
+        redirect_uris: ['https://example.com/callback'],
+    };
+    const client = {
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        clientName: metadata.client_name,
+        redirectUris: metadata.redirect_uris,
+        grantTypes: ['authorization_code', 'refresh_token'],
+        scopes: ['read', 'write'],
+        createdAt: new Date('2026-10-01T12:00:00Z'),
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('returns invalid_redirect_uri for a refused redirect', async () => {
+        const oauthService = createOAuthService();
+        const uri = 'http://example.com/callback';
+        oauthService.registerClient.mockRejectedValue(
+            new InvalidRedirectUriError(uri),
+        );
+
+        const response = await requestOAuthPost(
+            'register',
+            { ...metadata, redirect_uris: [uri] },
+            oauthService,
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            body: {
+                error: 'invalid_redirect_uri',
+                error_description: `Invalid redirect URI ${uri}`,
+            },
+        });
+        expect(Logger.error).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { redirect_uris: ['https://example.com/callback', 42] },
+        { redirect_uris: [null] },
+        { redirect_uris: 'https://example.com/callback' },
+    ])('rejects malformed metadata: %j', async (invalidMetadata) => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockResolvedValue(client);
+
+        const response = await requestOAuthPost(
+            'register',
+            { ...metadata, ...invalidMetadata },
+            oauthService,
+        );
+
+        expect(response.status).toBe(400);
+        expect(response.body).toEqual({
+            error: 'invalid_client_metadata',
+            error_description: expect.any(String),
+        });
+        expect(oauthService.registerClient).not.toHaveBeenCalled();
+        expect(Logger.error).not.toHaveBeenCalled();
+    });
+
+    it.each([{ scope: ['read'] }, { scope: null }])(
+        'ignores non-string scope: %j',
+        async (scopeMetadata) => {
+            const oauthService = createOAuthService();
+            oauthService.registerClient.mockResolvedValue(client);
+
+            const response = await requestOAuthPost(
+                'register',
+                { ...metadata, ...scopeMetadata },
+                oauthService,
+            );
+
+            expect(response.status).toBe(201);
+            expect(oauthService.registerClient).toHaveBeenCalledWith({
+                clientName: metadata.client_name,
+                redirectUris: metadata.redirect_uris,
+                grantTypes: undefined,
+                scopes: [],
+            });
+        },
+    );
+
+    it('keeps numeric client names compatible', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockResolvedValue(client);
+
+        const response = await requestOAuthPost(
+            'register',
+            { ...metadata, client_name: 42 },
+            oauthService,
+        );
+
+        expect(response.status).toBe(201);
+        expect(oauthService.registerClient).toHaveBeenCalledWith({
+            clientName: 42,
+            redirectUris: metadata.redirect_uris,
+            grantTypes: undefined,
+            scopes: [],
+        });
+    });
+
+    it('maps rejected null grantTypes to invalid_client_metadata', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockRejectedValue(
+            new InvalidClientMetadataError(),
+        );
+
+        const response = await requestOAuthPost(
+            'register',
+            { ...metadata, grantTypes: null },
+            oauthService,
+        );
+
+        expect(response).toEqual({
+            status: 400,
+            body: {
+                error: 'invalid_client_metadata',
+                error_description: 'Client metadata is invalid',
+            },
+        });
+        expect(oauthService.registerClient).toHaveBeenCalledWith({
+            clientName: metadata.client_name,
+            redirectUris: metadata.redirect_uris,
+            grantTypes: null,
+            scopes: [],
+        });
+        expect(Logger.error).not.toHaveBeenCalled();
+    });
+
+    it.each([{}, { client_name: 'Test client' }, { redirect_uris: [] }])(
+        'keeps missing metadata as a 400: %j',
+        async (body) => {
+            const oauthService = createOAuthService();
+            const response = await requestOAuthPost(
+                'register',
+                body,
+                oauthService,
+            );
+
+            expect(response).toEqual({
+                status: 400,
+                body: {
+                    error: 'invalid_client_metadata',
+                    error_description:
+                        'client_name and redirect_uris are required',
+                },
+            });
+            expect(oauthService.registerClient).not.toHaveBeenCalled();
+            expect(Logger.error).not.toHaveBeenCalled();
+        },
+    );
+
+    it('maps other parameter errors to invalid_client_metadata', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockRejectedValue(
+            new ParameterError('Invalid client metadata'),
+        );
+
+        expect(
+            await requestOAuthPost('register', metadata, oauthService),
+        ).toEqual({
+            status: 400,
+            body: {
+                error: 'invalid_client_metadata',
+                error_description: 'Invalid client metadata',
+            },
+        });
+        expect(Logger.error).not.toHaveBeenCalled();
+    });
+
+    it('keeps unexpected failures as logged server errors', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockRejectedValue(
+            new Error('Database unavailable'),
+        );
+
+        expect(
+            await requestOAuthPost('register', metadata, oauthService),
+        ).toEqual({
+            status: 500,
+            body: {
+                error: 'server_error',
+                error_description:
+                    'Internal server error during client registration',
+            },
+        });
+        expect(Logger.error).toHaveBeenCalledWith(
+            'Client registration error: Database unavailable',
+        );
+    });
+
+    it('preserves the successful response and grantTypes request key', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockResolvedValue(client);
+
+        const response = await requestOAuthPost(
+            'register',
+            { ...metadata, scope: 'read write', grantTypes: client.grantTypes },
+            oauthService,
+        );
+
+        expect(response).toEqual({
+            status: 201,
+            body: {
+                client_id: client.clientId,
+                client_secret: client.clientSecret,
+                client_name: client.clientName,
+                redirect_uris: client.redirectUris,
+                grant_types: client.grantTypes,
+                scope: 'read write',
+                client_id_issued_at: 1790856000,
+            },
+        });
+        expect(oauthService.registerClient).toHaveBeenCalledWith({
+            clientName: metadata.client_name,
+            redirectUris: metadata.redirect_uris,
+            grantTypes: client.grantTypes,
+            scopes: ['read', 'write'],
+        });
+    });
+
+    it('keeps empty redirect arrays and omitted optional metadata valid', async () => {
+        const oauthService = createOAuthService();
+        oauthService.registerClient.mockResolvedValue({
+            ...client,
+            redirectUris: [],
+            scopes: [],
+        });
+
+        const response = await requestOAuthPost(
+            'register',
+            { client_name: metadata.client_name, redirect_uris: [] },
+            oauthService,
+        );
+
+        expect(response.status).toBe(201);
+        expect(oauthService.registerClient).toHaveBeenCalledWith({
+            clientName: metadata.client_name,
+            redirectUris: [],
+            grantTypes: undefined,
+            scopes: [],
+        });
+    });
+});
 
 const authenticatedUser = {
     userId: 1,

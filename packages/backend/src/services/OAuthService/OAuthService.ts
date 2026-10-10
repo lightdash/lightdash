@@ -22,6 +22,8 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import { InvalidClientMetadataError } from './InvalidClientMetadataError';
+import { InvalidRedirectUriError } from './InvalidRedirectUriError';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
 import { createResourceBoundAuthorizationCodeGrant } from './ResourceBoundAuthorizationCodeGrant';
@@ -46,6 +48,11 @@ type OAuthServiceArguments = {
     onGrantRevoked?: OAuthGrantRevokedHandler;
     getManagedSignInService?: () => ManagedSignInService;
 };
+
+const isDatabaseErrorWithCode = (
+    error: unknown,
+): error is Error & { code: string } =>
+    error instanceof Error && 'code' in error && typeof error.code === 'string';
 
 export class OAuthService extends BaseService {
     protected oauthServer!: OAuth2Server;
@@ -294,16 +301,28 @@ export class OAuthService extends BaseService {
                     ? isAllowedStrictRedirectUri(uri)
                     : isSafeRedirectScheme(uri))
             ) {
-                throw new ParameterError(`Invalid redirect URI ${uri}`);
+                throw new InvalidRedirectUriError(uri);
             }
         }
 
-        return this.oauthModel.createClient({
-            clientName,
-            redirectUris,
-            grantTypes,
-            scopes,
-        });
+        try {
+            return await this.oauthModel.createClient({
+                clientName,
+                redirectUris,
+                grantTypes,
+                scopes,
+            });
+        } catch (error) {
+            if (
+                isDatabaseErrorWithCode(error) &&
+                ['22001', '22P05', '22021', '22P02', '23502'].includes(
+                    error.code,
+                )
+            ) {
+                throw new InvalidClientMetadataError();
+            }
+            throw error;
+        }
     }
 
     public async listClients(account: Account): Promise<OAuthClientSummary[]> {
