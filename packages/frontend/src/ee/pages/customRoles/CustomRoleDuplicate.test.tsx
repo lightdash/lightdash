@@ -8,6 +8,7 @@ import { CustomRoleDuplicate } from './CustomRoleDuplicate';
 
 const mocks = vi.hoisted(() => ({
     createRole: vi.fn(),
+    agentIdentityEnabled: true,
     roles: [] as RoleWithScopes[],
 }));
 vi.mock('../../features/customRoles/useCustomRoles', () => ({
@@ -17,11 +18,14 @@ vi.mock('../../features/customRoles/useCustomRoles', () => ({
     }),
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: true } }),
+    useServerFeatureFlag: () => ({
+        data: { enabled: mocks.agentIdentityEnabled },
+    }),
 }));
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.agentIdentityEnabled = true;
     mocks.roles = getSystemRoles();
 });
 
@@ -80,6 +84,20 @@ describe('CustomRoleDuplicate', () => {
             );
         },
     );
+
+    it('omits Raw SQL when copying a built-in role with agent identity disabled', async () => {
+        mocks.agentIdentityEnabled = false;
+        const user = await selectRole('Editor');
+        await user.click(screen.getByRole('button', { name: /AI Features/ }));
+        expect(screen.queryByText('Agent permissions')).not.toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Create role' }));
+        await waitFor(() => expect(mocks.createRole).toHaveBeenCalledOnce());
+        expect(mocks.createRole).toHaveBeenCalledWith(
+            expect.objectContaining({
+                scopes: expect.not.arrayContaining(['view:AgentRawSql']),
+            }),
+        );
+    });
 
     it('keeps an explicit Raw SQL grant when copying a custom role', async () => {
         mocks.roles = [

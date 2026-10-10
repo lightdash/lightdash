@@ -71,7 +71,9 @@ migration `20260417111420_grant_custom_fields_to_custom_sql_roles.ts`.
 
 A migration that revokes a permission for security reasons does not swallow
 errors. Its `down()` throws an error with an `irreversible:` prefix when it
-cannot safely restore the removed grants.
+cannot safely restore the removed grants. A cleanup migration must not leave
+a custom role with no scopes, because a custom role with no scope rows falls
+back to its placeholder built-in role.
 
 ```ts
 import { Knex } from 'knex';

@@ -22,11 +22,13 @@ const renderRoleBuilder = ({
     onSubmit = vi.fn<OnSubmit>(),
     mode = 'create',
     scopes = [],
+    level = 'project',
 }: {
     presets?: typeof rolePresets;
     onSubmit?: OnSubmit;
     mode?: 'create' | 'edit';
     scopes?: string[];
+    level?: ComponentProps<typeof RoleBuilder>['initialValues']['level'];
 } = {}) => {
     render(
         <MemoryRouter>
@@ -35,7 +37,7 @@ const renderRoleBuilder = ({
                     initialValues={{
                         name: '',
                         description: '',
-                        level: 'project',
+                        level,
                         scopes,
                     }}
                     onSubmit={onSubmit}
@@ -151,59 +153,95 @@ describe('RoleBuilder presets', () => {
 });
 
 describe('Agent permissions', () => {
-    it('shows grouped capabilities and seeds only Read, Query and Export for new roles', async () => {
-        flags.enabled = true;
-        const { onSubmit } = renderRoleBuilder();
-        const user = userEvent.setup();
-        await user.click(screen.getByRole('button', { name: /AI Features/ }));
-        expect(screen.getByText('Agent permissions')).toBeInTheDocument();
-        expect(screen.getByText('Read and query')).toBeInTheDocument();
-        expect(screen.getByText('Changes')).toBeInTheDocument();
-        expect(
-            screen.getByRole('checkbox', { name: 'Raw SQL' }),
-        ).not.toBeChecked();
-        for (const name of [
-            'Read and discover',
-            'Query data',
-            'Export results',
-        ]) {
-            expect(screen.getByRole('checkbox', { name })).toBeChecked();
-        }
-        expect(
-            screen.getByRole('checkbox', { name: 'Delete content' }),
-        ).not.toBeChecked();
-        await user.type(
-            screen.getByRole('textbox', { name: /Role name/ }),
-            'Agent reader',
-        );
-        await user.click(screen.getByRole('button', { name: 'Create role' }));
-        expect(onSubmit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                scopes: [
-                    'view:AgentReadDiscover',
-                    'view:AgentQuery',
-                    'view:AgentExport',
-                ],
-            }),
-        );
-    });
-    it('keeps the read/query defaults when choosing a preset or returning to scratch', async () => {
-        flags.enabled = true;
-        renderRoleBuilder({ presets: rolePresets });
-        await selectPreset('SQL Runner user');
-        const user = await selectPreset('Start from scratch');
-        await user.click(screen.getByRole('button', { name: /AI Features/ }));
-        expect(
-            screen.getByRole('checkbox', { name: 'Raw SQL' }),
-        ).not.toBeChecked();
-        for (const name of [
-            'Read and discover',
-            'Query data',
-            'Export results',
-        ]) {
-            expect(screen.getByRole('checkbox', { name })).toBeChecked();
-        }
-    });
+    it.each(['project', 'organization'] as const)(
+        'shows grouped capabilities and seeds only Read, Query and Export for new %s roles',
+        async (level) => {
+            flags.enabled = true;
+            const { onSubmit } = renderRoleBuilder({ level });
+            const user = userEvent.setup();
+            await user.click(
+                screen.getByRole('button', { name: /AI Features/ }),
+            );
+            expect(screen.getByText('Agent permissions')).toBeInTheDocument();
+            expect(screen.getByText('Read and query')).toBeInTheDocument();
+            expect(screen.getByText('Changes')).toBeInTheDocument();
+            expect(
+                screen.getByRole('checkbox', { name: 'Raw SQL' }),
+            ).not.toBeChecked();
+            for (const name of [
+                'Read and discover',
+                'Query data',
+                'Export results',
+            ]) {
+                expect(screen.getByRole('checkbox', { name })).toBeChecked();
+            }
+            expect(
+                screen.getByRole('checkbox', { name: 'Delete content' }),
+            ).not.toBeChecked();
+            await user.type(
+                screen.getByRole('textbox', { name: /Role name/ }),
+                'Agent reader',
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'Create role' }),
+            );
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    level,
+                    scopes: [
+                        'view:AgentReadDiscover',
+                        'view:AgentQuery',
+                        'view:AgentExport',
+                    ],
+                }),
+            );
+        },
+    );
+    it.each([
+        { level: 'project', preset: 'SQL Runner user' },
+        { level: 'organization', preset: 'Roadmap viewer' },
+    ] as const)(
+        'keeps Raw SQL off when returning to scratch from a $level preset',
+        async ({ level, preset }) => {
+            flags.enabled = true;
+            const { onSubmit } = renderRoleBuilder({
+                presets: rolePresets,
+                level,
+            });
+            await selectPreset(preset);
+            const user = await selectPreset('Start from scratch');
+            await user.click(
+                screen.getByRole('button', { name: /AI Features/ }),
+            );
+            expect(
+                screen.getByRole('checkbox', { name: 'Raw SQL' }),
+            ).not.toBeChecked();
+            for (const name of [
+                'Read and discover',
+                'Query data',
+                'Export results',
+            ]) {
+                expect(screen.getByRole('checkbox', { name })).toBeChecked();
+            }
+            await user.type(
+                screen.getByRole('textbox', { name: /Role name/ }),
+                'Agent reader',
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'Create role' }),
+            );
+            expect(onSubmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    level,
+                    scopes: [
+                        'view:AgentReadDiscover',
+                        'view:AgentQuery',
+                        'view:AgentExport',
+                    ],
+                }),
+            );
+        },
+    );
     it('lets an admin explicitly select Raw SQL for a new role', async () => {
         flags.enabled = true;
         const { onSubmit } = renderRoleBuilder();

@@ -237,10 +237,16 @@ in `legacy` mode. Saving a ceiling or applying the pilot preset activates
 `managed` mode; resetting restores `legacy`. Disabling the flag preserves the
 saved policy and makes the permission service return `off` without new checks.
 
-New custom roles start with Read, Query and Export for agents; Raw SQL stays
-off until an admin adds it to the role. The cleanup migration removes the Raw
-SQL agent scope from every existing custom role in every organization, including
-explicit admin grants, whatever the flag state.
+The role builder gives a new role Read, Query and Export for agents when the
+`agent-identity` flag is on. Raw SQL is off until an admin adds it.
+A copy of a built-in role does not get the Raw SQL agent scope.
+A copy of a custom role keeps the scopes that role holds.
+Roles created through the API or as code get only the scopes in the request.
+
+The cleanup migration removes the Raw SQL agent scope from every custom role
+that holds another scope, in every organization, whatever the flag state.
+This includes grants an admin chose. A role whose only scope is the Raw SQL
+agent scope keeps it, so that no role is left without scopes.
 
 Managed policy resolution unions system-role matrix grants with custom-role
 capability scopes. The pilot changes the system-role matrix and allowed projects;

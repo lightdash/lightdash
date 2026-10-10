@@ -15,11 +15,30 @@ describe('new role agent scopes', () => {
         expect(getNewRoleAgentScopes(false)).toEqual([]);
     });
 
-    it.each(rolePresets)('does not default Raw SQL for $title', (preset) => {
-        expect(getRolePresetScopes(preset, 'project', true)).not.toContain(
-            'view:AgentRawSql',
-        );
-    });
+    it.each(rolePresets)(
+        'defaults to exactly Read, Query and Export for $title at its own level when enabled',
+        (preset) => {
+            const scopes = getRolePresetScopes(preset, preset.level, true);
+            expect(
+                scopes.filter((scope) => scope.startsWith('view:Agent')),
+            ).toEqual([
+                'view:AgentReadDiscover',
+                'view:AgentQuery',
+                'view:AgentExport',
+            ]);
+            expect(scopes).not.toContain('view:AgentRawSql');
+        },
+    );
+
+    it.each(rolePresets)(
+        'has no agent scopes for $title at its own level when disabled',
+        (preset) => {
+            const scopes = getRolePresetScopes(preset, preset.level, false);
+            expect(
+                scopes.filter((scope) => scope.startsWith('view:Agent')),
+            ).toEqual([]);
+        },
+    );
 });
 
 describe('getRolePresetScopes', () => {

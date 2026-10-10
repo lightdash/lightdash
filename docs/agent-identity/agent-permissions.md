@@ -17,10 +17,16 @@ Capability checks and the people-only list apply only when the
 `agent-identity` feature flag is on and "Limit what agents can do" is on.
 The legacy switches at the end of this page apply in every mode.
 
-A new custom role starts with Read, Query and Export for agents when the
-`agent-identity` flag is on. Raw SQL is off until an admin adds it to the role.
-The cleanup migration removes the Raw SQL agent scope from every existing
-custom role in every organization, including grants an admin chose.
+The role builder gives a new role Read, Query and Export for agents when the
+`agent-identity` flag is on. Raw SQL is off until an admin adds it.
+A copy of a built-in role does not get the Raw SQL agent scope.
+A copy of a custom role keeps the scopes that role holds.
+Roles created through the API or as code get only the scopes in the request.
+
+The cleanup migration removes the Raw SQL agent scope from every custom role
+that holds another scope, in every organization, whatever the flag state.
+This includes grants an admin chose. A role whose only scope is the Raw SQL
+agent scope keeps it, so that no role is left without scopes.
 
 ## The 11 capabilities
 
