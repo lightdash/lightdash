@@ -23,6 +23,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useSnowflakeAiLoginPopup } from '../../../../../hooks/useSnowflake';
 import useApp from '../../../../../providers/App/useApp';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { getAiAccessRefusalRequirements } from './aiAccessRefusal';
 
@@ -102,7 +103,8 @@ export const AiAccessCallout = ({
     variant?: 'card' | 'inline';
 }) => {
     const t = useUiStrings();
-    const requirements = getAiAccessRefusalRequirements(refusal);
+    const isEmbedded = useIsEmbedded();
+    const requirements = getAiAccessRefusalRequirements(refusal, t);
     const login = useSnowflakeAiLoginPopup({
         entryPoint: AgentIdentityConnectEntryPoint.CHAT_CARD,
         projectUuid,
@@ -134,7 +136,7 @@ export const AiAccessCallout = ({
                             })}
                         </Text>
                     )}
-                    {refusal.explanationUrl && (
+                    {!isEmbedded && refusal.explanationUrl && (
                         <Anchor
                             component={Link}
                             to={refusal.explanationUrl}

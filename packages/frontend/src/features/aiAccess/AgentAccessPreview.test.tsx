@@ -3,6 +3,8 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     getAgentCapabilityName,
+    OrganizationMemberRole,
+    type AgentCapabilitySourceAssignment,
     type AgentPermissionCheck,
     type AgentPermissionExplanation,
 } from '@lightdash/common';
@@ -98,7 +100,7 @@ const delivery = (): AgentPermissionExplanation => ({
                     getAgentCapabilityName(capability),
                     capability === AgentCapability.Publish
                         ? 'No role grants this capability.'
-                        : 'Granted by Editor (project role).',
+                        : "This person's roles grant Create and edit content to agents.",
                 ),
                 id: `capability:${capability}`,
                 capability,
@@ -206,7 +208,9 @@ describe('Test agent access', () => {
         ).toBeInTheDocument();
         expect(screen.getByText("Ana's permissions")).toBeInTheDocument();
         expect(
-            screen.getByText('Granted by Editor (project role).'),
+            screen.getByText(
+                "This person's roles grant Create and edit content to agents.",
+            ),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('link', { name: 'Project access' }),
@@ -468,3 +472,99 @@ describe('Test agent access', () => {
         scroll.mockRestore();
     });
 });
+
+const grantingSources: {
+    source: AgentCapabilitySourceAssignment;
+    label: string;
+}[] = [
+    ...Object.values(OrganizationMemberRole).map((role) => ({
+        source: {
+            role: { kind: 'system' as const, role },
+            assignment: 'organization' as const,
+            projectUuid: null,
+            groupUuid: null,
+        },
+        label: `Granted by ${{ member: 'Member', viewer: 'Viewer', interactive_viewer: 'Interactive viewer', editor: 'Editor', developer: 'Developer', admin: 'Admin' }[role]} (organization role)`,
+    })),
+    {
+        source: {
+            role: { kind: 'system', role: OrganizationMemberRole.EDITOR },
+            assignment: 'project_user',
+            projectUuid: 'private-project-uuid',
+            groupUuid: null,
+        },
+        label: 'Granted by Editor (project role)',
+    },
+    {
+        source: {
+            role: {
+                kind: 'custom',
+                roleUuid: 'private-role-uuid',
+                name: 'Analyst',
+            },
+            assignment: 'project_group',
+            projectUuid: 'private-project-uuid',
+            groupUuid: 'private-group-uuid',
+        },
+        label: 'Granted by Analyst (custom role, project group)',
+    },
+    {
+        source: {
+            role: {
+                kind: 'custom',
+                roleUuid: 'private-extra-role-uuid',
+                name: null,
+            },
+            assignment: 'extra_organization',
+            projectUuid: null,
+            groupUuid: null,
+        },
+        label: 'Granted by a custom role (custom role, additional organization role)',
+    },
+];
+
+it('lists every granting role source with plain names and assignment descriptions', async () => {
+    const result = delivery();
+    result.checks = result.checks.map((row) =>
+        row.capability === AgentCapability.ContentWrite
+            ? {
+                  ...row,
+                  sourceAssignments: grantingSources.map(
+                      ({ source }) => source,
+                  ),
+              }
+            : row,
+    );
+    apiMock.mockResolvedValue(result);
+    renderPreview();
+    await choose();
+    testAccess();
+    await screen.findByRole('region', { name: 'Agent access result' });
+    for (const { label } of grantingSources) {
+        expect(screen.getByText(label)).toBeInTheDocument();
+    }
+    const region = screen.getByRole('region', { name: 'Agent access result' });
+    expect(region).not.toHaveTextContent(
+        /private-.*-uuid|interactive_viewer|project_user|project_group|extra_organization/,
+    );
+});
+
+it.each(['refused', 'not_checked', 'setup_needed'] as const)(
+    'does not describe %s capabilities as grants',
+    async (status) => {
+        const result = delivery();
+        result.checks = [
+            {
+                ...result.checks[1],
+                status,
+                sourceAssignments: grantingSources.map(({ source }) => source),
+            },
+        ];
+        apiMock.mockResolvedValue(result);
+        renderPreview();
+        await choose();
+        testAccess();
+        await screen.findByRole('region', { name: 'Agent access result' });
+        expect(screen.queryByText(/^Granted by/)).not.toBeInTheDocument();
+    },
+);

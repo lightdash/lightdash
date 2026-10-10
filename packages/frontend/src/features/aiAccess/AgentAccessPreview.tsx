@@ -2,6 +2,7 @@ import {
     AGENT_ACCESS_PREVIEW_ACTIONS,
     getAgentCapabilityName,
     type AgentAccessPreviewActionId,
+    type AgentCapabilitySourceAssignment,
     type AgentPermissionCheck,
     type AgentPermissionCheckStatus,
     type AgentPermissionExplanation,
@@ -120,6 +121,49 @@ const resultSummary = (
     const suffix = result.result === 'setup_needed' ? ' yet' : '';
     return `An agent cannot ${actionPhrase} for ${person} in ${project}${suffix}.`;
 };
+const systemRoleLabels: Record<
+    Extract<
+        AgentCapabilitySourceAssignment['role'],
+        { kind: 'system' }
+    >['role'],
+    string
+> = {
+    viewer: 'Viewer',
+    interactive_viewer: 'Interactive viewer',
+    editor: 'Editor',
+    developer: 'Developer',
+    admin: 'Admin',
+    member: 'Member',
+};
+const assignmentLabels: Record<
+    AgentCapabilitySourceAssignment['assignment'],
+    string
+> = {
+    organization: 'organization role',
+    project_user: 'project role',
+    project_group: 'project group',
+    extra_organization: 'additional organization role',
+};
+const grantingSourceLabel = ({
+    role,
+    assignment,
+}: AgentCapabilitySourceAssignment): string => {
+    const name =
+        role.kind === 'system'
+            ? systemRoleLabels[role.role]
+            : (role.name ?? 'a custom role');
+    const kind = role.kind === 'custom' ? 'custom role, ' : '';
+    return `Granted by ${name} (${kind}${assignmentLabels[assignment]})`;
+};
+const grantingSourceKey = (source: AgentCapabilitySourceAssignment): string =>
+    JSON.stringify([
+        source.role.kind,
+        source.role.kind === 'system' ? source.role.role : source.role.roleUuid,
+        source.assignment,
+        source.projectUuid,
+        source.groupUuid,
+    ]);
+
 const CheckRow = ({
     row,
     person,
@@ -136,6 +180,13 @@ const CheckRow = ({
             <Text size="sm" c="dimmed">
                 {row.message}
             </Text>
+            {row.kind === 'capability' &&
+                row.status === 'allowed' &&
+                row.sourceAssignments.map((source) => (
+                    <Text key={grantingSourceKey(source)} size="sm" c="dimmed">
+                        {grantingSourceLabel(source)}
+                    </Text>
+                ))}
         </Stack>
         {row.settingsUrl && (
             <Anchor component={Link} to={row.settingsUrl} size="sm">

@@ -2,6 +2,7 @@ import {
     getAdditionalAgentPermissionRequirements,
     isAiAccessRefusal,
     type AiAccessRefusal,
+    type UiStringResolver,
 } from '@lightdash/common';
 export const getAiAccessRefusal = (output: unknown): AiAccessRefusal | null => {
     if (
@@ -18,7 +19,11 @@ export const getAiAccessRefusal = (output: unknown): AiAccessRefusal | null => {
 
 export const getAiAccessRefusalRequirements = (
     refusal: AiAccessRefusal,
+    getUiString?: UiStringResolver,
 ): string | null => {
-    const requirements = getAdditionalAgentPermissionRequirements(refusal);
+    const requirements = getAdditionalAgentPermissionRequirements(
+        refusal,
+        getUiString,
+    );
     return requirements.length ? requirements.join(', ') : null;
 };

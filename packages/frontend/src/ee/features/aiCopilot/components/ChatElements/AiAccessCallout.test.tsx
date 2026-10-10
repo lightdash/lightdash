@@ -8,11 +8,13 @@ import {
     getAiAccessRefusalSettingsUrl,
     getProjectAgentIdentitySettingsPath,
     type AiAccessRefusal,
+    type SdkUiOverrides,
 } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
+import EmbedProviderContext from '../../../../providers/Embed/context';
 import { AiAccessCallout } from './AiAccessCallout';
 import { AiAccessGate } from './AiAccessGate';
 import { getAiAccessRefusal } from './aiAccessRefusal';
@@ -535,4 +537,134 @@ it('shows other blockers and See why to the person, including structured extract
         'href',
         '/generalSettings/myAgentConnections',
     );
+});
+
+const managedRefusal: AiAccessRefusal = new AiAccessRefusedError(
+    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    {
+        capability: AgentCapability.ContentWrite,
+        policyLayer: 'org_ceiling',
+        blockers: [
+            {
+                checkId: 'capability:content_write',
+                status: 'refused',
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.ContentWrite,
+                policyLayer: 'org_ceiling',
+                message: 'Primary',
+                settingsUrl: null,
+            },
+            {
+                checkId: 'capability:publish',
+                status: 'refused',
+                reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                capability: AgentCapability.Publish,
+                policyLayer: 'org_ceiling',
+                message: 'Secondary',
+                settingsUrl: null,
+            },
+            {
+                checkId: 'warehouse_confirmation',
+                status: 'setup_needed',
+                reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                capability: AgentCapability.RawSql,
+                policyLayer: 'warehouse_identity',
+                message: 'Confirm warehouse',
+                settingsUrl: null,
+            },
+        ],
+    },
+).refusal;
+
+it.each(['direct', 'sdk', 'main'] as const)(
+    'keeps requirements and gates explanation links in the %s context',
+    (context) => {
+        const content = (explanationUrl: string) => (
+            <MemoryRouter>
+                <EmbedProviderContext.Consumer>
+                    {(defaults) => (
+                        <EmbedProviderContext.Provider
+                            value={{
+                                ...defaults,
+                                mode: context === 'sdk' ? 'sdk' : 'direct',
+                                embedToken:
+                                    context === 'main'
+                                        ? undefined
+                                        : 'embed-token',
+                            }}
+                        >
+                            <AiAccessCallout
+                                projectUuid="project"
+                                refusal={{ ...managedRefusal, explanationUrl }}
+                            />
+                        </EmbedProviderContext.Provider>
+                    )}
+                </EmbedProviderContext.Consumer>
+            </MemoryRouter>
+        );
+        const personalUrl = '/generalSettings/myAgentConnections';
+        const { rerender } = renderWithProviders(content(personalUrl));
+        for (const url of [
+            personalUrl,
+            '/generalSettings/agentIdentity#test-agent-access',
+        ]) {
+            rerender(content(url));
+            expect(
+                screen.getByText(managedRefusal.message),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Also needed: Publish and share, warehouse confirmation for this project',
+                ),
+            ).toBeInTheDocument();
+            if (context === 'main') {
+                expect(
+                    screen.getByRole('link', { name: 'See why' }),
+                ).toHaveAttribute('href', url);
+            } else {
+                expect(
+                    screen.queryByRole('link', { name: 'See why' }),
+                ).not.toBeInTheDocument();
+            }
+        }
+    },
+);
+
+it('uses embed UI overrides for capability and setting requirement labels', () => {
+    const overrides: SdkUiOverrides = {
+        'aiAccess.alsoNeeded': 'También se necesita: {requirements}',
+        'aiAccess.requirements.capabilities.publish': 'Publicar y compartir',
+        'aiAccess.requirements.warehouseConfirmation':
+            'confirmación del almacén para este proyecto',
+    };
+    renderWithProviders(
+        <MemoryRouter>
+            <EmbedProviderContext.Consumer>
+                {(defaults) => (
+                    <EmbedProviderContext.Provider
+                        value={{
+                            ...defaults,
+                            embedToken: 'embed-token',
+                            mode: 'sdk',
+                            t: (key) => overrides[key],
+                        }}
+                    >
+                        <AiAccessCallout
+                            projectUuid="project"
+                            refusal={managedRefusal}
+                        />
+                    </EmbedProviderContext.Provider>
+                )}
+            </EmbedProviderContext.Consumer>
+        </MemoryRouter>,
+    );
+    expect(
+        screen.getByText(
+            'También se necesita: Publicar y compartir, confirmación del almacén para este proyecto',
+        ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Publish and share/)).not.toBeInTheDocument();
+    expect(
+        screen.queryByText(/warehouse confirmation for this project/),
+    ).not.toBeInTheDocument();
 });

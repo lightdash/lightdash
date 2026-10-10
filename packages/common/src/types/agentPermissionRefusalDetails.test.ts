@@ -1,3 +1,4 @@
+import { DEFAULT_UI_STRINGS } from '../utils/i18n/uiStrings';
 import { type AgentPermissionBlocker } from './agentPermissionExplanation';
 import {
     getAdditionalAgentPermissionRequirements,
@@ -114,3 +115,70 @@ test('uses the ordered primary blocker when optional top-level metadata is absen
         }),
     ).toEqual(['Publish and share']);
 });
+
+test.each([
+    ...Object.values(AgentCapability).map((capability) => ({
+        checkId: `capability:${capability}`,
+        capability,
+        key: `aiAccess.requirements.capabilities.${capability}` as const,
+    })),
+    {
+        checkId: 'content_writes',
+        capability: null,
+        key: 'aiAccess.requirements.contentWrites',
+    },
+    {
+        checkId: 'warehouse_confirmation',
+        capability: null,
+        key: 'aiAccess.requirements.warehouseConfirmation',
+    },
+    {
+        checkId: 'agent_admission',
+        capability: null,
+        key: 'aiAccess.requirements.agentAccess',
+    },
+    {
+        checkId: 'agent_enabled',
+        capability: null,
+        key: 'aiAccess.requirements.agentAccess',
+    },
+    {
+        checkId: 'project_scope',
+        capability: null,
+        key: 'aiAccess.requirements.allowedProjects',
+    },
+    {
+        checkId: 'human_only',
+        capability: null,
+        key: 'aiAccess.requirements.agentAction',
+    },
+    {
+        checkId: 'operation_mapping',
+        capability: null,
+        key: 'aiAccess.requirements.supportedAction',
+    },
+    {
+        checkId: 'unknown',
+        capability: null,
+        key: 'aiAccess.requirements.agentPermissions',
+    },
+])(
+    'resolves $checkId through the UI registry',
+    ({ checkId, capability, key }) => {
+        const first = blocker('capability:query', AgentCapability.Query);
+        const extra = blocker(checkId, capability);
+        const value = {
+            ...refusal,
+            capability: AgentCapability.Query,
+            blockers: [first, extra, extra],
+        };
+        const labels = getAdditionalAgentPermissionRequirements(
+            value,
+            (labelKey) => `translated:${labelKey}`,
+        );
+        expect(labels).toEqual(
+            capability === AgentCapability.Query ? [] : [`translated:${key}`],
+        );
+        expect(DEFAULT_UI_STRINGS).toHaveProperty([key]);
+    },
+);

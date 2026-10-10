@@ -1402,3 +1402,28 @@ test('missing organization settings keep the existing enabled defaults', async (
         }),
     ).resolves.toBeUndefined();
 });
+
+test.each([
+    ['disabled', 'agent_enabled'],
+    ['writes', 'content_writes'],
+] as const)(
+    'explain links the disabled %s switch to MCP settings without changing runtime refusals',
+    async (scenario, kind) => {
+        const { service, operation } = paritySetup(scenario);
+        const runtime = await refusalFrom(service.assertOperation(operation));
+        const result = await service.explain({
+            ...operation,
+            action: {
+                type: 'operation',
+                kind: operation.kind,
+                key: operation.key,
+            },
+        });
+        expect(result.checks.find((row) => row.kind === kind)).toMatchObject({
+            status: 'refused',
+            settingsUrl: '/generalSettings/mcp/general',
+        });
+        expect(runtime?.settingsUrl).toBe('/generalSettings/agentIdentity');
+        expect(result.mainReason).toEqual(runtime);
+    },
+);

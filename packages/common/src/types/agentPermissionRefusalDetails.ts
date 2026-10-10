@@ -1,31 +1,40 @@
+import {
+    DEFAULT_UI_STRINGS,
+    type UiStringResolver,
+} from '../utils/i18n/uiStrings';
 import { type AgentPermissionBlocker } from './agentPermissionExplanation';
-import { getAgentCapabilityName } from './agentPermissions';
 import { type AiAccessRefusal } from './aiPrincipal';
 
-const blockerLabel = (blocker: AgentPermissionBlocker): string => {
+const blockerLabel = (
+    blocker: AgentPermissionBlocker,
+    getUiString: UiStringResolver,
+): string => {
     switch (blocker.checkId) {
         case 'content_writes':
-            return 'Agent content writes';
+            return getUiString('aiAccess.requirements.contentWrites');
         case 'warehouse_confirmation':
-            return 'warehouse confirmation for this project';
+            return getUiString('aiAccess.requirements.warehouseConfirmation');
         case 'agent_admission':
         case 'agent_enabled':
-            return 'access to agents';
+            return getUiString('aiAccess.requirements.agentAccess');
         case 'project_scope':
-            return 'this project in the allowed projects';
+            return getUiString('aiAccess.requirements.allowedProjects');
         case 'human_only':
-            return 'an action agents can perform';
+            return getUiString('aiAccess.requirements.agentAction');
         case 'operation_mapping':
-            return 'a supported agent action';
+            return getUiString('aiAccess.requirements.supportedAction');
         default:
             return blocker.capability
-                ? getAgentCapabilityName(blocker.capability)
-                : 'agent permissions';
+                ? getUiString(
+                      `aiAccess.requirements.capabilities.${blocker.capability}`,
+                  )
+                : getUiString('aiAccess.requirements.agentPermissions');
     }
 };
 
 export const getAdditionalAgentPermissionRequirements = (
     refusal: AiAccessRefusal,
+    getUiString: UiStringResolver = (key) => DEFAULT_UI_STRINGS[key],
 ): string[] => {
     if (!refusal.blockers || refusal.blockers.length <= 1) return [];
     const primary =
@@ -35,11 +44,11 @@ export const getAdditionalAgentPermissionRequirements = (
                 blocker.capability === (refusal.capability ?? null) &&
                 blocker.policyLayer === (refusal.policyLayer ?? null),
         ) ?? refusal.blockers[0];
-    const primaryLabel = primary ? blockerLabel(primary) : null;
+    const primaryLabel = primary ? blockerLabel(primary, getUiString) : null;
     return [
         ...new Set(
             refusal.blockers
-                .map(blockerLabel)
+                .map((blocker) => blockerLabel(blocker, getUiString))
                 .filter((label) => label !== primaryLabel),
         ),
     ];
