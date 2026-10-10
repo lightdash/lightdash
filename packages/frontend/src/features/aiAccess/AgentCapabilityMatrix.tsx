@@ -1,13 +1,28 @@
 import {
     OrganizationMemberRoleLabels,
+    AgentCapability,
     type OrganizationMemberRole,
     type AgentSystemRoleMatrix,
 } from '@lightdash/common';
-import { Checkbox, Stack, Table, Text, Tooltip } from '@mantine/core';
+import { Center, Checkbox, Stack, Table, Text, Tooltip } from '@mantine/core';
 import {
     agentCapabilityGroups,
     agentCapabilityLabels,
 } from './agentCapabilityLabels';
+
+const columnLabels: Record<AgentCapability, string> = {
+    [AgentCapability.ReadDiscover]: 'Read',
+    [AgentCapability.Query]: 'Query',
+    [AgentCapability.Export]: 'Export',
+    [AgentCapability.RawSql]: 'Raw SQL',
+    [AgentCapability.ContentWrite]: 'Create / edit',
+    [AgentCapability.Delete]: 'Delete',
+    [AgentCapability.Publish]: 'Publish',
+    [AgentCapability.DeployUpload]: 'Deploy',
+    [AgentCapability.DbtWriteback]: 'dbt',
+    [AgentCapability.Administration]: 'Admin',
+    [AgentCapability.ExternalTools]: 'External tools',
+};
 
 export const AgentCapabilityMatrix = ({
     matrix,
@@ -19,11 +34,13 @@ export const AgentCapabilityMatrix = ({
     disabled: boolean;
 }) => (
     <Stack gap="xs">
-        <Table.ScrollContainer minWidth={1100}>
-            <Table>
+        <Table.ScrollContainer minWidth={660}>
+            <Table layout="fixed" horizontalSpacing="xs" verticalSpacing="xs">
                 <Table.Thead>
                     <Table.Tr>
-                        <Table.Th rowSpan={2}>Role</Table.Th>
+                        <Table.Th rowSpan={2} w={100}>
+                            Role
+                        </Table.Th>
                         {agentCapabilityGroups.map((group) => (
                             <Table.Th
                                 key={group.label}
@@ -38,26 +55,32 @@ export const AgentCapabilityMatrix = ({
                         {agentCapabilityGroups
                             .flatMap((group) => group.capabilities)
                             .map((capability) => (
-                                <Table.Th key={capability} scope="col">
+                                <Table.Th
+                                    key={capability}
+                                    scope="col"
+                                    ta="center"
+                                >
                                     <Tooltip
                                         events={{
                                             hover: true,
                                             focus: true,
                                             touch: false,
                                         }}
-                                        label={
-                                            agentCapabilityLabels[capability]
-                                                .description
-                                        }
+                                        label={`${agentCapabilityLabels[capability].label}: ${agentCapabilityLabels[capability].description}`}
                                         multiline
                                         w={240}
                                     >
-                                        <Text size="xs" fw={500} tabIndex={0}>
-                                            {
+                                        <Text
+                                            size="xs"
+                                            fw={500}
+                                            tabIndex={0}
+                                            aria-label={
                                                 agentCapabilityLabels[
                                                     capability
                                                 ].label
                                             }
+                                        >
+                                            {columnLabels[capability]}
                                         </Text>
                                     </Tooltip>
                                 </Table.Th>
@@ -75,34 +98,36 @@ export const AgentCapabilityMatrix = ({
                                     .flatMap((group) => group.capabilities)
                                     .map((capability) => (
                                         <Table.Td key={capability}>
-                                            <Checkbox
-                                                aria-label={`${OrganizationMemberRoleLabels[role]}: ${agentCapabilityLabels[capability].label}`}
-                                                checked={matrix[role].includes(
-                                                    capability,
-                                                )}
-                                                disabled={disabled}
-                                                onChange={(event) =>
-                                                    onChange({
-                                                        ...matrix,
-                                                        [role]: event
-                                                            .currentTarget
-                                                            .checked
-                                                            ? [
-                                                                  ...matrix[
-                                                                      role
-                                                                  ],
-                                                                  capability,
-                                                              ]
-                                                            : matrix[
-                                                                  role
-                                                              ].filter(
-                                                                  (value) =>
-                                                                      value !==
+                                            <Center>
+                                                <Checkbox
+                                                    aria-label={`${OrganizationMemberRoleLabels[role]}: ${agentCapabilityLabels[capability].label}`}
+                                                    checked={matrix[
+                                                        role
+                                                    ].includes(capability)}
+                                                    disabled={disabled}
+                                                    onChange={(event) =>
+                                                        onChange({
+                                                            ...matrix,
+                                                            [role]: event
+                                                                .currentTarget
+                                                                .checked
+                                                                ? [
+                                                                      ...matrix[
+                                                                          role
+                                                                      ],
                                                                       capability,
-                                                              ),
-                                                    })
-                                                }
-                                            />
+                                                                  ]
+                                                                : matrix[
+                                                                      role
+                                                                  ].filter(
+                                                                      (value) =>
+                                                                          value !==
+                                                                          capability,
+                                                                  ),
+                                                        })
+                                                    }
+                                                />
+                                            </Center>
                                         </Table.Td>
                                     ))}
                             </Table.Tr>

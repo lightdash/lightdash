@@ -11,6 +11,7 @@ import { useState } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 import { type AgentPickerOption } from './AgentAccessPickers';
 import { agentCapabilityLabels } from './agentCapabilityLabels';
+import classes from './AgentPilotPresetModal.module.css';
 import { useApplyAgentPilotPreset } from './api';
 import { EmptyAgentPilotConfirmModal } from './EmptyAgentPilotConfirmModal';
 
@@ -38,10 +39,10 @@ export const AgentPilotPresetModal = ({
             allowedUserUuids: selection.allowedUserUuids ?? [],
         },
     });
-    const apply = useApplyAgentPilotPreset();
+    const apply = useApplyAgentPilotPreset(onSaved);
     const [confirmEmpty, setConfirmEmpty] = useState(false);
     const submit = () => {
-        if (!apply.isLoading) apply.mutate(form.values, { onSuccess: onSaved });
+        if (!apply.isLoading) apply.mutate(form.values);
     };
     return (
         <>
@@ -88,10 +89,14 @@ export const AgentPilotPresetModal = ({
                         These changes replace the current system role limits and
                         any unsaved edits.
                     </Text>
-                    <Table>
+                    <Table
+                        layout="fixed"
+                        horizontalSpacing="xs"
+                        className={classes.summary}
+                    >
                         <Table.Thead>
                             <Table.Tr>
-                                <Table.Th>Role</Table.Th>
+                                <Table.Th w="24%">Role</Table.Th>
                                 <Table.Th>Turn on</Table.Th>
                                 <Table.Th>Turn off</Table.Th>
                             </Table.Tr>

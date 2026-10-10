@@ -431,6 +431,7 @@ const useAgentPermissionMutation = <
     url: string,
     method: 'PUT' | 'POST' | 'DELETE',
     errorTitle: string,
+    onSaved?: (result: TResult) => void,
 ) => {
     const client = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -443,7 +444,8 @@ const useAgentPermissionMutation = <
                 body:
                     request === undefined ? undefined : JSON.stringify(request),
             }),
-        onSuccess: async () => {
+        onSuccess: async (result) => {
+            onSaved?.(result);
             await client.invalidateQueries(['ai-access']);
         },
         onError: ({ error }) =>
@@ -451,23 +453,31 @@ const useAgentPermissionMutation = <
     });
 };
 
-export const useSaveAgentCapabilityCeiling = () =>
+export const useSaveAgentCapabilityCeiling = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
     useAgentPermissionMutation<AgentCapabilityPolicy, AgentCapabilityCeiling>(
         agentPolicyUrl,
         'PUT',
         'Could not save agent permissions.',
+        onSaved,
     );
-export const useApplyAgentPilotPreset = () =>
+export const useApplyAgentPilotPreset = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
     useAgentPermissionMutation<AgentCapabilityPolicy, AgentPilotSelection>(
         `${agentPolicyUrl}/pilot-preset`,
         'POST',
         'Could not apply the pilot preset.',
+        onSaved,
     );
-export const useResetAgentCapabilityPolicy = () =>
+export const useResetAgentCapabilityPolicy = (
+    onSaved: (policy: AgentCapabilityPolicy) => void,
+) =>
     useAgentPermissionMutation<
         AgentCapabilityPolicy,
         Pick<AgentCapabilityPolicy, 'version'>
-    >(`${agentPolicyUrl}/reset`, 'POST', 'Could not turn off limits.');
+    >(`${agentPolicyUrl}/reset`, 'POST', 'Could not turn off limits.', onSaved);
 export const useAgentWarehouseConfirmation = (projectUuid: string) =>
     useAccessQuery(projectUuid, null, 'warehouse-confirmation', () =>
         lightdashApi<AgentWarehouseConfirmationStatus>({

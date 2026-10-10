@@ -174,6 +174,10 @@ describe('Agent permissions', () => {
             ),
         ).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     });
     it('saves matrix edits, selected projects and named people', async () => {
         renderSection();
@@ -202,6 +206,18 @@ describe('Agent permissions', () => {
             allowedProjectUuids: ['project'],
             allowedUserUuids: ['person'],
         });
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Unsaved changes'),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).toBeChecked();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
     it('requires confirmation for no people; cancel restores the saved list and saves nothing', async () => {
         policy = {
@@ -265,8 +281,15 @@ describe('Agent permissions', () => {
             JSON.parse(String(mutations()[0][0].body)).allowedUserUuids,
         ).toBeNull();
     });
-    it('previews the pilot changes by role and applies the selected projects and people', async () => {
-        renderSection();
+    it('applies the pilot preset over a dirty draft and adopts the saved values without a conflict', async () => {
+        const client = renderSection();
+        const invalidate = client.invalidateQueries.bind(client);
+        vi.spyOn(client, 'invalidateQueries').mockImplementation(
+            async (...args) => {
+                await invalidate(...args);
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            },
+        );
         await enableLimits();
         fireEvent.click(
             await screen.findByRole('button', {
@@ -294,6 +317,54 @@ describe('Agent permissions', () => {
                 }),
             }),
         );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+        expect(
+            screen.queryByText(
+                'Not saved yet — these are the starting limits.',
+            ),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Raw SQL' }),
+        ).not.toBeChecked();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Query data' }),
+        ).toBeChecked();
+        expect(
+            screen.getByRole('radio', { name: 'Only these people' }),
+        ).toBeChecked();
+        expect(
+            screen.getByRole('radio', { name: 'Only these projects' }),
+        ).toBeChecked();
+        expect(
+            screen
+                .getByRole('combobox', { name: 'People' })
+                .closest('.mantine-MultiSelect-root'),
+        ).toHaveTextContent('Sam Smith (sam@example.com)');
+        expect(
+            screen
+                .getByRole('combobox', { name: 'Projects' })
+                .closest('.mantine-MultiSelect-root'),
+        ).toHaveTextContent('Sales');
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        await act(async () => {
+            client.setQueryData(
+                ['ai-access', 'org', 'org', 'agent-permissions'],
+                legacy(),
+            );
+        });
+        fireEvent.click(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     });
     it('confirms an empty pilot list before applying the preset', async () => {
         renderSection();
@@ -325,9 +396,14 @@ describe('Agent permissions', () => {
             JSON.parse(String(mutations()[0][0].body)).allowedUserUuids,
         ).toEqual([]);
     });
-    it('confirms turning off limits', async () => {
+    it('confirms turning off limits and discards dirty edits without a conflict', async () => {
         policy.mode = 'managed';
         renderSection();
+        fireEvent.click(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        );
         fireEvent.click(
             await screen.findByRole('switch', {
                 name: 'Limit what agents can do',
@@ -364,6 +440,13 @@ describe('Agent permissions', () => {
                 }),
             ).not.toBeChecked(),
         );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).not.toBeInTheDocument();
     });
     it('keeps edits on refetch and reports server errors', async () => {
         const client = renderSection();

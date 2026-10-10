@@ -60,7 +60,7 @@ const useAgentPermissionDraft = (policy: AgentCapabilityPolicyOverview) => {
             ? draft.baseline
             : latest;
     const values = dirty ? draft.values : baseline;
-    const conflict = dirty && policy.version !== baseline.version;
+    const conflict = dirty && policy.version > baseline.version;
     const change = (changes: Partial<Values>) =>
         setDraft({ baseline, values: { ...values, ...changes } });
     return {
@@ -175,32 +175,29 @@ const AgentPermissionsForm = ({
     } = useAgentPermissionDraft(policy);
     const limitsOn = values.mode === 'managed';
     const starting = limitsOn && baseline.mode === 'legacy';
-    const save = useSaveAgentCapabilityCeiling();
-    const reset = useResetAgentCapabilityPolicy();
     const [modal, setModal] = useState<'empty' | 'reset' | 'preset' | null>(
         null,
     );
-    const saving = save.isLoading || reset.isLoading;
-    const editingDisabled = saving || conflict;
     const onSaved = (updated: AgentCapabilityPolicy) => {
         accept(updated);
         setModal(null);
     };
+    const save = useSaveAgentCapabilityCeiling(onSaved);
+    const reset = useResetAgentCapabilityPolicy(onSaved);
+    const saving = save.isLoading || reset.isLoading;
+    const editingDisabled = saving || conflict;
     const discard = () => {
         discardDraft();
         setModal(null);
     };
     const submit = () => {
         if (editingDisabled) return;
-        save.mutate(
-            {
-                version: values.version,
-                systemRoleMatrix: values.systemRoleMatrix,
-                allowedProjectUuids: values.allowedProjectUuids,
-                allowedUserUuids: values.allowedUserUuids,
-            },
-            { onSuccess: onSaved },
-        );
+        save.mutate({
+            version: values.version,
+            systemRoleMatrix: values.systemRoleMatrix,
+            allowedProjectUuids: values.allowedProjectUuids,
+            allowedUserUuids: values.allowedUserUuids,
+        });
     };
     return (
         <SettingsCard>
@@ -288,11 +285,7 @@ const AgentPermissionsForm = ({
                     confirmDisabled={saving}
                     cancelDisabled={saving}
                     onConfirm={() => {
-                        if (!saving)
-                            reset.mutate(
-                                { version: values.version },
-                                { onSuccess: onSaved },
-                            );
+                        if (!saving) reset.mutate({ version: values.version });
                     }}
                 />
             )}
