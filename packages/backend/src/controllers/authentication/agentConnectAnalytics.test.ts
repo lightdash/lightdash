@@ -1082,7 +1082,7 @@ describe('Snowflake client attempt bindings', () => {
             state: new URL(await authorize()).searchParams.get('state')!,
         };
         vi.mocked(service.resolveSnowflakeAgentClient).mockResolvedValue(null);
-        await expect(callback()).rejects.toThrow('not configured');
+        await expect(callback()).rejects.toThrow('not set up');
         expect(oauth.getOAuthAccessToken).not.toHaveBeenCalled();
         expect(analytics.track).toHaveBeenLastCalledWith(
             expect.objectContaining({
