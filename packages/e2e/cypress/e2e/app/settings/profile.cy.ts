@@ -1,27 +1,57 @@
-import { SEED_ORG_1_ADMIN, SEED_ORG_1_ADMIN_EMAIL } from '@lightdash/common';
-
-const resetUserName = () => {
-    // Reset to default values
-
-    cy.request({
-        url: 'api/v1/user/me',
-        method: 'PATCH',
-        body: {
-            firstName: SEED_ORG_1_ADMIN.first_name,
-            lastName: SEED_ORG_1_ADMIN.last_name,
-            email: SEED_ORG_1_ADMIN_EMAIL.email,
-        },
-    });
-};
-
 describe('Settings - Profile', () => {
-    beforeEach(() => {
-        cy.login();
+    const email = `profile-${Date.now()}-${Cypress._.random(1_000_000)}@lightdash.com`;
+    let userUuid: string | null = null;
 
-        resetUserName();
+    before(() => {
+        cy.login();
+        cy.request({
+            url: '/api/v1/invite-links',
+            method: 'POST',
+            body: {
+                email,
+                role: 'member',
+                expiresAt: new Date(
+                    Date.now() + 24 * 60 * 60 * 1000,
+                ).toISOString(),
+            },
+        }).then(({ status, body }) => {
+            expect(status).to.eq(201);
+            userUuid = body.results.userUuid;
+            cy.registerWithCode(body.results.inviteCode);
+            cy.verifyEmail();
+        });
+        cy.loginWithEmail(email);
+        cy.request({
+            url: '/api/v1/user/me/complete',
+            method: 'PATCH',
+            body: {
+                jobTitle: 'Engineering',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: false,
+                isTrackingAnonymized: false,
+            },
+        })
+            .its('status')
+            .should('eq', 200);
     });
-    afterEach(() => {
-        resetUserName();
+
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+        cy.request({
+            url: '/api/v1/user/me',
+            method: 'PATCH',
+            body: { firstName: 'test', lastName: 'test' },
+        })
+            .its('status')
+            .should('eq', 200);
+    });
+
+    after(() => {
+        if (!userUuid) return;
+        cy.login();
+        cy.request('DELETE', `/api/v1/org/user/${userUuid}`)
+            .its('status')
+            .should('eq', 200);
     });
 
     it('should update user names', () => {
@@ -31,12 +61,12 @@ describe('Settings - Profile', () => {
 
         cy.findByPlaceholderText('Email')
             .should('not.be.disabled')
-            .should('have.value', SEED_ORG_1_ADMIN_EMAIL.email);
+            .should('have.value', email);
 
         cy.wait(500);
         cy.findByPlaceholderText('First name')
             .should('not.be.disabled')
-            .should('have.value', SEED_ORG_1_ADMIN.first_name)
+            .should('have.value', 'test')
             .click()
             .clear()
             .type('Kevin')
@@ -44,7 +74,7 @@ describe('Settings - Profile', () => {
         cy.wait(500); // Add wait here to prevent flakiness when typing in different inputs.
         cy.findByPlaceholderText('Last name')
             .should('not.be.disabled')
-            .should('have.value', SEED_ORG_1_ADMIN.last_name)
+            .should('have.value', 'test')
             .click()
             .clear()
             .type('Space')
