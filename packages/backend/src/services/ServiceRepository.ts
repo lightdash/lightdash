@@ -1,6 +1,12 @@
-import { BulkActionable, MissingConfigError } from '@lightdash/common';
+import {
+    BulkActionable,
+    ForbiddenError,
+    MissingConfigError,
+} from '@lightdash/common';
 import { Knex } from 'knex';
+import { validate as isUuid } from 'uuid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { AgentConnectionGrantService } from '../auth/agentConnectionGrants/AgentConnectionGrantService';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
     closePullRequest,
@@ -160,6 +166,7 @@ interface ServiceManifest {
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
     agentPermissionService: AgentPermissionService;
+    agentConnectionGrantService: AgentConnectionGrantService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -985,6 +992,104 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getAgentConnectionGrantService(): AgentConnectionGrantService {
+        return this.getService(
+            'agentConnectionGrantService',
+            () =>
+                new AgentConnectionGrantService({
+                    model: this.models.getAgentConnectionGrantModel(),
+                    featureFlags: this.models.getFeatureFlagModel(),
+                    resolveProjectUuid: async (
+                        organizationUuid,
+                        uuidOrSlug,
+                    ) => {
+                        const uuid = isUuid(uuidOrSlug)
+                            ? uuidOrSlug
+                            : await this.models
+                                  .getProjectModel()
+                                  .getUuidBySlug(organizationUuid, uuidOrSlug);
+                        const project = await this.models
+                            .getProjectModel()
+                            .getSummary(uuid);
+                        if (project.organizationUuid !== organizationUuid)
+                            throw new ForbiddenError(
+                                'Project does not belong to this organization',
+                            );
+                        return uuid;
+                    },
+                    resolveUpstreamProjectUuid: async (projectUuid) =>
+                        (
+                            await this.models
+                                .getProjectModel()
+                                .getSummary(projectUuid)
+                        ).upstreamProjectUuid ?? null,
+                    resolveResourceProjectUuid: async (resource) => {
+                        if (
+                            resource.type === 'document' ||
+                            resource.type === 'data_app'
+                        ) {
+                            if (resource.projectUuid === null) return null;
+                            if (resource.type === 'document')
+                                return (
+                                    await this.models
+                                        .getDocumentModel()
+                                        .get(
+                                            resource.projectUuid,
+                                            resource.uuid,
+                                        )
+                                ).projectUuid;
+                            return (
+                                await this.models
+                                    .getAppModel()
+                                    .getAppByUuidOrSlug(
+                                        resource.projectUuid,
+                                        resource.uuid,
+                                    )
+                            ).project_uuid;
+                        }
+                        if (resource.type === 'sql_chart') {
+                            if (isUuid(resource.uuid))
+                                return (
+                                    await this.models
+                                        .getSavedSqlModel()
+                                        .getByUuid(resource.uuid)
+                                ).project.projectUuid;
+                            if (resource.projectUuid === null) return null;
+                            const chart = await this.models
+                                .getSavedSqlModel()
+                                .getBySlug(resource.projectUuid, resource.uuid);
+                            return chart?.project.projectUuid ?? null;
+                        }
+                        if (isUuid(resource.uuid))
+                            return this.getAgentPermissionService().resolveResourceProjectUuid(
+                                { type: resource.type, uuid: resource.uuid },
+                            );
+                        if (resource.projectUuid === null) return null;
+                        switch (resource.type) {
+                            case 'dashboard':
+                                return (
+                                    await this.models
+                                        .getDashboardModel()
+                                        .getByIdOrSlug(resource.uuid, {
+                                            projectUuid: resource.projectUuid,
+                                        })
+                                ).projectUuid;
+                            case 'saved_chart':
+                                return (
+                                    await this.models
+                                        .getSavedChartModel()
+                                        .get(resource.uuid, undefined, {
+                                            projectUuid: resource.projectUuid,
+                                        })
+                                ).projectUuid;
+                            default:
+                                return null;
+                        }
+                    },
                 }),
         );
     }

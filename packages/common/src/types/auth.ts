@@ -3,6 +3,7 @@ import {
     type DashboardFilterInteractivityOptions,
     type ParameterInteractivityOptions,
 } from '../ee';
+import { type AgentConnectionGrant } from './agentConnectionGrants';
 import { ForbiddenError } from './errors';
 import { type Organization } from './organization';
 import {
@@ -51,12 +52,25 @@ export type ServiceAccountAuth = {
     serviceAccountDescription: string;
 };
 
+export type OAuthAgentConnectionGrant = Pick<
+    AgentConnectionGrant,
+    | 'grantUuid'
+    | 'approvedProjectUuids'
+    | 'approvedCapabilities'
+    | 'expiresAt'
+    | 'clientId'
+    | 'resource'
+    | 'resourceConstraints'
+    | 'grantContractVersion'
+> & { revision: number };
+
 export type OauthAuth = {
     type: 'oauth';
     source: string; // The oauth token
     token: string;
     clientId: string;
     scopes: string[];
+    agentConnectionGrant: OAuthAgentConnectionGrant | null;
     expiresAt?: number;
     resource?: URL;
 };

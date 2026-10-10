@@ -25,6 +25,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { assertAgentConnectionGrantOperation } from '../../auth/agentConnectionGrants/evaluateGrant';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
@@ -60,6 +61,12 @@ export class DeployController extends BaseController {
             target?: DeployTarget;
         },
     ): Promise<ApiSetExploresResponse> {
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'DeployController.deployExplores',
+            projectUuids: [projectUuid],
+            deploymentOverrides: body,
+        });
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getProjectService()
@@ -94,6 +101,12 @@ export class DeployController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiStartDeploySessionResponse> {
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'DeployController.startDeploySession',
+            projectUuids: [projectUuid],
+            deploymentOverrides: req.body,
+        });
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
@@ -123,6 +136,12 @@ export class DeployController extends BaseController {
         @Path() sessionUuid: string,
         @Body() body: AnyType, // ApiAddDeployBatchRequest,
     ): Promise<ApiAddDeployBatchResponse> {
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'DeployController.addDeployBatch',
+            projectUuids: [projectUuid],
+            deploymentOverrides: body,
+        });
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
@@ -165,6 +184,12 @@ export class DeployController extends BaseController {
             target?: DeployTarget;
         },
     ): Promise<ApiFinalizeDeployResponse> {
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'DeployController.finalizeDeploySession',
+            projectUuids: [projectUuid],
+            deploymentOverrides: body,
+        });
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
