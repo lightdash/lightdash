@@ -1,3 +1,10 @@
+# [2.548.0](https://github.com/lightdash/lightdash/compare/2.547.6...2.548.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** define agent capabilities and map operations to them ([#30881](https://github.com/lightdash/lightdash/issues/30881)) ([9af9fae](https://github.com/lightdash/lightdash/commit/9af9faef790c3ecac515dad81eb4b725903e85b9))
+
 ## [2.547.6](https://github.com/lightdash/lightdash/compare/2.547.5...2.547.6) (2026-10-10)
 
 
