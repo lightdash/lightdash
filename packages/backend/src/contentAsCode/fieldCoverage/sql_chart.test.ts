@@ -4,6 +4,7 @@ describeContentAsCodeSchemaContract({
     resource: 'sql_chart',
     modelSchema: 'SqlChart',
     documentSchema: 'SqlChartAsCode',
+    serverMetadataFields: ['agentIdentity', 'agent_identity'],
     skippedModelFields: [
         'createdAt',
         'createdBy',

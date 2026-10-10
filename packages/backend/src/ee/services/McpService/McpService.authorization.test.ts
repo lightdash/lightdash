@@ -1,10 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
+    ForbiddenError,
     mcpToolDefinitions,
     type Account,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { ForbiddenError } from '@lightdash/common';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { fromSession } from '../../../auth/account';

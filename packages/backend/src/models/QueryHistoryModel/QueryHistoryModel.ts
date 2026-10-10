@@ -12,7 +12,6 @@ import {
     isJwtUser,
     KnexPaginateArgs,
     KnexPaginatedData,
-    normalizeAgentIdentityClaim,
     NotFoundError,
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
@@ -52,9 +51,7 @@ function convertDbQueryHistoryToQueryHistory(
 ): QueryHistoryWithLineage {
     return {
         queryUuid: queryHistory.query_uuid,
-        agentIdentity: normalizeAgentIdentityClaim(
-            queryHistory.agent_identity ?? null,
-        ),
+        agentIdentity: queryHistory.agent_identity ?? null,
         duckdbExecutionReferences:
             queryHistory.duckdb_execution?.references ?? null,
         createdAt: queryHistory.created_at,
