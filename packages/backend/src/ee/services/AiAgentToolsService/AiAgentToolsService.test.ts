@@ -32,6 +32,8 @@ import {
     type PersistedDataAppDataReferences,
 } from '@lightdash/common';
 import { EventEmitter } from 'events';
+import { fromSession } from '../../../auth/account';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
 import {
@@ -67,12 +69,7 @@ const user = {
     },
 } as unknown as SessionUser;
 
-const account = {
-    authentication: { type: 'session', source: 'test-session' },
-    isRegisteredUser: () => true,
-    isServiceAccount: () => false,
-    user: { type: 'registered', id: userUuid },
-} as unknown as Account;
+const account = fromSession({ ...defaultSessionUser, ...user });
 
 const makeExplore = ({
     name,
@@ -384,7 +381,7 @@ describe('AiAgentToolsService', () => {
                 expect.anything(),
             );
             expect(searchFieldUniqueValues).toHaveBeenCalledExactlyOnceWith(
-                user,
+                account,
                 projectUuid,
                 'orders',
                 'orders_status',

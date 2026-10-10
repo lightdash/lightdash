@@ -27,6 +27,7 @@ import { type AsyncQueryService } from '../../../services/AsyncQueryService/Asyn
 import { BaseService } from '../../../services/BaseService';
 import { traceSpan } from '../../../tracing/tracing';
 import { PreAggregateModel } from '../../models/PreAggregateModel';
+import { writeMaterializationProducer } from '../AsyncQueryService/materializationProducer';
 
 const { getDefaultMaterializationSorts } = preAggregateMaterialization;
 
@@ -459,6 +460,22 @@ export class PreAggregateMaterializationService extends BaseService {
                 resultsFileName: queryHistory.resultsFileName,
                 warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
             });
+
+            await writeMaterializationProducer(
+                this.preAggregateResultsStorageClient,
+                {
+                    projectUuid: args.projectUuid,
+                    queryUuid,
+                    resultsFileName: queryHistory.resultsFileName,
+                    producer:
+                        queryHistory.requestParameters?.resultProducer ?? null,
+                },
+            ).catch((error: unknown) =>
+                this.logger.warn(
+                    'Failed to store materialization producer provenance',
+                    { error },
+                ),
+            );
 
             const { status } = await traceSpan(
                 {

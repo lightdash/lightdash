@@ -224,6 +224,14 @@ import {
     generateUniqueSlugScopedToProject,
 } from '../../utils/SlugUtils';
 import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
+import {
+    copyWarehouseCredentialVersions,
+    getWarehouseCredentialVersions,
+    withNewWarehouseCredentialVersion,
+    withPreservedWarehouseCredentialVersion,
+    withWarehouseCredentialVersion,
+    withWarehouseCredentialVersions,
+} from '../../utils/warehouseCredentialVersion';
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
@@ -273,6 +281,11 @@ export type ProjectModelArguments = {
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
+
+type CachedWarehouseCredentials = {
+    credentials: CreateWarehouseCredentials;
+    sourceVersions: readonly string[];
+};
 
 // Initialize cache for warehouse credentials with 30 seconds TTL
 const warehouseCredentialsCache =
@@ -975,11 +988,31 @@ export class ProjectModel {
     ): Promise<void> {
         // Normalize on write too, so stored blobs never hold legacy values
         // that violate the credentials types
-        const credentials = normalizeWarehouseCredentials(data);
         const existing = await trx('warehouse_credentials')
             .where('project_id', projectId)
             .forUpdate()
             .first();
+        let storedCredentials: CreateWarehouseCredentials | null = null;
+        if (existing?.encrypted_credentials) {
+            try {
+                storedCredentials = withWarehouseCredentialVersion(
+                    normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                existing.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    ),
+                    `warehouse_credentials:${existing.warehouse_credentials_id}`,
+                );
+            } catch {
+                throw new UnexpectedServerError('Could not load credentials.');
+            }
+        }
+        const credentials = withNewWarehouseCredentialVersion(
+            normalizeWarehouseCredentials(data),
+            storedCredentials,
+        );
         const signIn = getPersonSignIn(credentials);
         const subjectUserUuid = resolveSignInSubject({
             signIn,
@@ -2431,7 +2464,10 @@ export class ProjectModel {
                 }
                 return {
                     ...result,
-                    warehouseConnection: sensitiveCredentials,
+                    warehouseConnection: copyWarehouseCredentialVersions(
+                        sensitiveCredentials,
+                        sensitiveCredentials,
+                    ),
                 };
             },
         );
@@ -2580,12 +2616,15 @@ export class ProjectModel {
         }
 
         try {
-            return normalizeWarehouseCredentials(
-                JSON.parse(
-                    this.encryptionUtil.decrypt(
-                        orgCredentials.warehouse_connection,
-                    ),
-                ) as CreateWarehouseCredentials,
+            return withWarehouseCredentialVersion(
+                normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(
+                            orgCredentials.warehouse_connection,
+                        ),
+                    ) as CreateWarehouseCredentials,
+                ),
+                `organization:${organizationWarehouseCredentialsUuid}`,
             );
         } catch (e) {
             throw new UnexpectedServerError(
@@ -5223,16 +5262,22 @@ export class ProjectModel {
     ): Promise<CreateWarehouseCredentials> {
         // Try to get from cache first
         const cachedCredentials =
-            warehouseCredentialsCache?.get<CreateWarehouseCredentials>(
+            warehouseCredentialsCache?.get<CachedWarehouseCredentials>(
                 projectUuid,
             );
         if (cachedCredentials) {
-            return cachedCredentials;
+            return withWarehouseCredentialVersions(
+                cachedCredentials.credentials,
+                cachedCredentials.sourceVersions,
+            );
         }
 
         const credentials =
             await this.getWarehouseCredentialsForProjectUncached(projectUuid);
-        warehouseCredentialsCache?.set(projectUuid, credentials);
+        warehouseCredentialsCache?.set(projectUuid, {
+            credentials,
+            sourceVersions: getWarehouseCredentialVersions(credentials),
+        } satisfies CachedWarehouseCredentials);
         return credentials;
     }
 
@@ -5299,8 +5344,10 @@ export class ProjectModel {
                     organization_warehouse_credentials_uuid: string;
                     organization_uuid: string;
                     playground_bundle_version: string | null;
+                    warehouse_credentials_id: number;
                 }[]
             >([
+                'warehouse_credentials_id',
                 'encrypted_credentials',
                 'organization_warehouse_credentials_uuid',
                 'organizations.organization_uuid',
@@ -5331,7 +5378,10 @@ export class ProjectModel {
                 ),
                 row.playground_bundle_version,
             );
-            return credentials;
+            return withWarehouseCredentialVersion(
+                credentials,
+                `warehouse_credentials:${row.warehouse_credentials_id}`,
+            );
         } catch (e) {
             throw new UnexpectedServerError(
                 'Unexpected error: failed to parse warehouse credentials',
@@ -5410,11 +5460,12 @@ export class ProjectModel {
         encryptedCredentials: Buffer,
     ): CreateWarehouseCredentials | null {
         try {
-            return normalizeWarehouseCredentials(
+            const credentials = normalizeWarehouseCredentials(
                 JSON.parse(
                     this.encryptionUtil.decrypt(encryptedCredentials),
                 ) as CreateWarehouseCredentials,
             );
+            return copyWarehouseCredentialVersions(credentials, credentials);
         } catch {
             return null;
         }
@@ -5449,12 +5500,14 @@ export class ProjectModel {
                 {
                     project_uuid: string;
                     project_id: number;
+                    warehouse_credentials_id: number;
                     encrypted_credentials: Buffer;
                     credential_subject_user_uuid: string | null;
                 }[]
             >([
                 `${ProjectTableName}.project_uuid`,
                 `${WarehouseCredentialTableName}.project_id`,
+                `${WarehouseCredentialTableName}.warehouse_credentials_id`,
                 `${WarehouseCredentialTableName}.encrypted_credentials`,
                 `${WarehouseCredentialTableName}.credential_subject_user_uuid`,
             ])
@@ -5462,11 +5515,21 @@ export class ProjectModel {
         const updated: string[] = [];
         await rows.reduce<Promise<void>>(async (previous, row) => {
             await previous;
-            const credentials = this.decryptWarehouseCredentials(
+            const decrypted = this.decryptWarehouseCredentials(
                 row.encrypted_credentials,
             );
-            const next = credentials ? update(credentials) : null;
-            if (!next) return;
+            const credentials = decrypted
+                ? withWarehouseCredentialVersion(
+                      decrypted,
+                      `warehouse_credentials:${row.warehouse_credentials_id}`,
+                  )
+                : null;
+            const updatedCredentials = credentials ? update(credentials) : null;
+            if (!updatedCredentials) return;
+            const next = withNewWarehouseCredentialVersion(
+                updatedCredentials,
+                credentials,
+            );
             const subjectUserUuid = resolveSignInSubject({
                 signIn: getPersonSignIn(next),
                 actorUserUuid: null,
@@ -5565,12 +5628,14 @@ export class ProjectModel {
                 .select<
                     {
                         project_id: number;
+                        warehouse_credentials_id: number;
                         encrypted_credentials: Buffer;
                         credential_subject_user_uuid: string | null;
                         upstream_project_id: number | null;
                     }[]
                 >([
                     'warehouse_credentials.project_id',
+                    'warehouse_credentials.warehouse_credentials_id',
                     'warehouse_credentials.encrypted_credentials',
                     'warehouse_credentials.credential_subject_user_uuid',
                     'upstream.project_id as upstream_project_id',
@@ -5578,10 +5643,23 @@ export class ProjectModel {
                 .forUpdate('warehouse_credentials')
                 .first();
             if (!row) return false;
-            const credentials = this.decryptWarehouseCredentials(
+            const decrypted = this.decryptWarehouseCredentials(
                 row.encrypted_credentials,
             );
-            const next = credentials ? update(credentials) : null;
+            const credentials = decrypted
+                ? withWarehouseCredentialVersion(
+                      decrypted,
+                      `warehouse_credentials:${row.warehouse_credentials_id}`,
+                  )
+                : null;
+            const updatedCredentials = credentials ? update(credentials) : null;
+            const next =
+                updatedCredentials && credentials
+                    ? withPreservedWarehouseCredentialVersion(
+                          updatedCredentials,
+                          credentials,
+                      )
+                    : null;
             if (!next) return false;
             const stored = await this.getStoredSignInSubjects(
                 trx,
@@ -5652,21 +5730,30 @@ export class ProjectModel {
                 .select<
                     {
                         project_id: number;
+                        warehouse_credentials_id: number;
                         encrypted_credentials: Buffer;
                         credential_subject_user_uuid: string | null;
                         organization_warehouse_credentials_uuid: string | null;
                     }[]
                 >([
                     `${WarehouseCredentialTableName}.project_id`,
+                    `${WarehouseCredentialTableName}.warehouse_credentials_id`,
                     `${WarehouseCredentialTableName}.encrypted_credentials`,
                     `${WarehouseCredentialTableName}.credential_subject_user_uuid`,
                     `${ProjectTableName}.organization_warehouse_credentials_uuid`,
                 ])
                 .forUpdate(WarehouseCredentialTableName)
                 .first();
-            const current = row
+            const decrypted = row
                 ? this.decryptWarehouseCredentials(row.encrypted_credentials)
                 : null;
+            const current =
+                row && decrypted
+                    ? withWarehouseCredentialVersion(
+                          decrypted,
+                          `warehouse_credentials:${row.warehouse_credentials_id}`,
+                      )
+                    : null;
             if (
                 !row ||
                 row.organization_warehouse_credentials_uuid ||
@@ -5679,11 +5766,14 @@ export class ProjectModel {
                     'This connection changed while you were signing in. Reload the page and try again.',
                 );
             }
-            const next: CreateWarehouseCredentials = {
-                ...current,
-                authenticationType: BigqueryAuthenticationType.SSO,
-                keyfileContents,
-            };
+            const next = withNewWarehouseCredentialVersion(
+                {
+                    ...current,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents,
+                },
+                current,
+            );
             await trx(WarehouseCredentialTableName)
                 .where('project_id', row.project_id)
                 .update({

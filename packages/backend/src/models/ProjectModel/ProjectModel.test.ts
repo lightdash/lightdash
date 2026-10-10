@@ -125,6 +125,34 @@ describe('ProjectModel', () => {
         expect(project).toEqual(expectedProject);
         expect(tracker.history.select).toHaveLength(1);
     });
+    test('the project GET strips the stored identity version at the model loader', async () => {
+        let stored: CreateWarehouseCredentials;
+        try {
+            stored = JSON.parse(
+                projectMock.encrypted_credentials.toString(),
+            ) as CreateWarehouseCredentials;
+        } catch {
+            throw new Error('Invalid test credentials');
+        }
+        tracker.on
+            .select(queryMatcher(ProjectTableName, [projectUuid]))
+            .response([
+                {
+                    ...projectMock,
+                    encrypted_credentials: Buffer.from(
+                        JSON.stringify({
+                            ...stored,
+                            resultIdentityVersion: 'internal-version',
+                        }),
+                    ),
+                },
+            ]);
+        const project = await model.get(projectUuid);
+        expect(project.warehouseConnection).not.toHaveProperty(
+            'resultIdentityVersion',
+        );
+        expect(project).toEqual(expectedProject);
+    });
     test('should get the primary dbt source identity', async () => {
         tracker.on
             .select(queryMatcher(ProjectTableName, [projectUuid]))
@@ -1237,7 +1265,7 @@ describe('ProjectModel', () => {
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_connections'))
             .response(undefined);
-        tracker.on.select('warehouse_credentials').response([]);
+        tracker.on.select('warehouse_credentials').response(undefined);
         tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);
@@ -1272,7 +1300,7 @@ describe('ProjectModel', () => {
         tracker.on
             .select(({ sql }) => sql.includes('warehouse_connections'))
             .response(undefined);
-        tracker.on.select('warehouse_credentials').response([]);
+        tracker.on.select('warehouse_credentials').response(undefined);
         tracker.on
             .insert(({ sql }) => sql.includes('warehouse_credentials'))
             .response([]);

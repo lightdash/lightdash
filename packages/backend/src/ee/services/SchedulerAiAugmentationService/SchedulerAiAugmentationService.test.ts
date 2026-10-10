@@ -44,6 +44,7 @@ const setup = (enabled: boolean) => {
         getAgent: vi.fn().mockResolvedValue({}),
     };
     const service = new SchedulerAiAugmentationService({
+        featureFlagModel: { get: vi.fn(async () => ({ enabled })) } as never,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org' }),

@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type AuthType,
     type Explore,
     type FieldType,
     type PivotChartData,
@@ -139,6 +140,7 @@ export type SqlRunnerFilter = SqlRunnerFilterTypes & {
 };
 
 export type SqlRunnerPayload = TraceTaskBase & {
+    authMethod?: AuthType | null;
     sqlChartUuid?: string;
     context: QueryExecutionContext;
 } & SqlRunnerBody;

@@ -8,6 +8,10 @@ import { UserRefreshClient } from 'google-auth-library';
 import { describe, expect, it, vi } from 'vitest';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import {
+    getWarehouseCredentialVersions,
+    withWarehouseCredentialVersion,
+} from '../../utils/warehouseCredentialVersion';
+import {
     checkGoogleRefreshTokenCached,
     getPreviewOwnsBigquerySsoCredentials,
     getPushedPreviewCredentials,
@@ -383,3 +387,39 @@ it.each([undefined, '', '   '])(
         expect(keyfileContents.client_secret).toBe('secret');
     },
 );
+
+describe('preview credential version metadata', () => {
+    it('keeps the preview version and hides its marker through a keyfile repair', async () => {
+        const preview = withWarehouseCredentialVersion(
+            bigquerySso('old-token'),
+            'preview-version',
+        );
+        const upstream = withWarehouseCredentialVersion(
+            bigquerySso('fresh-token'),
+            'upstream-version',
+        );
+        const repaired = await repairStalePreviewBigquerySso({
+            previewCredentials: preview,
+            upstreamCredentials: upstream,
+            checkRefreshToken: async (keyfile) =>
+                keyfile.refresh_token === 'old-token' ? 'rejected' : 'valid',
+        });
+        expect(repaired.kind).toBe('repaired');
+        if (repaired.kind !== 'repaired') throw new Error('Expected repair');
+        expect(getWarehouseCredentialVersions(repaired.credentials)).toEqual([
+            'preview-version',
+        ]);
+        expect(repaired.credentials).not.toHaveProperty(
+            'resultIdentityVersion',
+        );
+        expect(
+            getWarehouseCredentialVersions(
+                getPushedPreviewCredentials({
+                    previewCredentials: preview,
+                    previousUpstreamCredentials: bigquerySso('old-token'),
+                    nextUpstreamCredentials: upstream,
+                })!,
+            ),
+        ).toEqual(['preview-version']);
+    });
+});

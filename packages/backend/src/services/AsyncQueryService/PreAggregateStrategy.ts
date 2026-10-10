@@ -19,6 +19,7 @@ import {
     type KnexPaginatedData,
     type MetricQuery,
     type QueryExecutionContext,
+    type QueryResultProducer,
 } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import {
@@ -106,6 +107,7 @@ export interface PreAggregateStrategy {
 }
 
 export type ResolveExecutionArgs = {
+    executionExplore?: (name: string) => Promise<Explore>;
     metricQuery: MetricQuery;
     timezone: string;
     dateZoom: DateZoom | undefined;
@@ -116,6 +118,7 @@ export type ResolveExecutionArgs = {
     userAccessControls?: UserAccessControls;
     availableParameterDefinitions?: ParameterDefinitions;
     useTimezoneAwareDateTrunc?: boolean;
+    resultProducer?: QueryResultProducer;
 };
 
 export type PreAggregateExecutionResolution =

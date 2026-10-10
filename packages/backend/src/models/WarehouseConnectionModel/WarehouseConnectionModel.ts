@@ -15,6 +15,10 @@ import {
 } from '../../database/entities/userWarehouseCredentials';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseCredentialsEqual } from '../../utils/warehouseCredentialsEqual';
+import {
+    withNewWarehouseCredentialVersion,
+    withWarehouseCredentialVersion,
+} from '../../utils/warehouseCredentialVersion';
 import { type OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import type { PersonalCredentialPersistencePolicy } from '../UserWarehouseCredentials/UserWarehouseCredentialsModel';
@@ -344,10 +348,15 @@ export class WarehouseConnectionModel {
         }
         try {
             return {
-                credentials: normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(row.encrypted_credentials),
-                    ) as CreateWarehouseCredentials,
+                credentials: withWarehouseCredentialVersion(
+                    normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                row.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    ),
+                    `connection:${row.warehouse_connection_uuid}`,
                 ),
                 organizationWarehouseCredentialsUuid: null,
             };
@@ -358,12 +367,18 @@ export class WarehouseConnectionModel {
         }
     }
 
-    private toCredentialColumns(source: WarehouseConnectionCredentialSource) {
+    private toCredentialColumns(
+        source: WarehouseConnectionCredentialSource,
+        stored: CreateWarehouseCredentials | null = null,
+    ) {
         return source.kind === 'project'
             ? {
                   encrypted_credentials: this.encryptionUtil.encrypt(
                       JSON.stringify(
-                          normalizeWarehouseCredentials(source.credentials),
+                          withNewWarehouseCredentialVersion(
+                              normalizeWarehouseCredentials(source.credentials),
+                              stored,
+                          ),
                       ),
                   ),
                   organization_warehouse_credentials_uuid: null,
@@ -443,15 +458,20 @@ export class WarehouseConnectionModel {
             let current: CreateWarehouseCredentials | null = null;
             if (existing.encrypted_credentials) {
                 try {
-                    current = normalizeWarehouseCredentials(
-                        JSON.parse(
-                            this.encryptionUtil.decrypt(
-                                existing.encrypted_credentials,
+                    current = withWarehouseCredentialVersion(
+                        normalizeWarehouseCredentials(
+                            JSON.parse(
+                                this.encryptionUtil.decrypt(
+                                    existing.encrypted_credentials,
+                                ),
                             ),
                         ),
+                        `connection:${warehouseConnectionUuid}`,
                     );
                 } catch {
-                    current = null;
+                    throw new UnexpectedServerError(
+                        'Failed to load warehouse connection credentials',
+                    );
                 }
             }
             const changed =
@@ -471,7 +491,7 @@ export class WarehouseConnectionModel {
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)
                 .where('is_original', false)
                 .update({
-                    ...this.toCredentialColumns(source),
+                    ...this.toCredentialColumns(source, current),
                     ...(changed
                         ? {
                               connection_credential_generation: transaction.raw(

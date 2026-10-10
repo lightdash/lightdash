@@ -104,6 +104,7 @@ describe('ConnectionContext', () => {
             ),
         ).toEqual({
             organizationUuid: 'org-uuid',
+            agentIdentity: null,
             actor: {
                 surface: ConnectionSurface.APP,
                 person: {

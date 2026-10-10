@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     CatalogType,
@@ -9,15 +10,21 @@ import {
     NotFoundError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    type Account,
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { z, type ZodRawShape } from 'zod';
+import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     agentActionTestCases,
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import * as runQueryTool from '../ai/tools/runQuery';
 import { McpService, McpToolName } from './McpService';
@@ -120,6 +127,8 @@ const makeSpaceMetadata = (spaceUuid: string) => ({
 });
 
 const account = {
+    ...fromSession({ ...defaultSessionUser, userUuid, organizationUuid }),
+    organization: { organizationUuid },
     authentication: { type: 'session' },
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
@@ -528,7 +537,7 @@ const makeMcpService = ({
                         : undefined;
                 const { results } =
                     await projectService.searchFieldUniqueValues(
-                        user,
+                        account,
                         projectUuid,
                         args.table,
                         args.fieldId,
@@ -681,7 +690,22 @@ const getToolCallback = (toolName: McpToolName) => {
     return (
         args: Record<string, unknown>,
         callbackExtra: Record<string, unknown>,
-    ) => callback({ projectUuid, ...args }, callbackExtra);
+    ) => {
+        const authenticated = (callbackExtra as typeof extra).authInfo.extra
+            .account as unknown as Account;
+        return agentExecutionContext.getStore()
+            ? callback({ projectUuid, ...args }, callbackExtra)
+            : agentExecutionContext.run(
+                  createAgentExecutionContext({
+                      account: authenticated,
+                      surface: AgentActorSurface.MCP,
+                      clientId: null,
+                      agentUuid: null,
+                      agentIdentityEnabled: true,
+                  }),
+                  () => callback({ projectUuid, ...args }, callbackExtra),
+              );
+    };
 };
 
 const getParsedToolCallback = (toolName: McpToolName) => {
@@ -1585,6 +1609,127 @@ describe('MCP async query polling', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('carries the OAuth client id as the MCP result reader identity', async () => {
+        const { asyncQueryService } = makeMcpService({
+            agentIdentityEnabled: true,
+        });
+        const ready = makeQueryHistory(
+            QueryHistoryStatus.READY,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        );
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(ready);
+        asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+            ready,
+        );
+        asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+            rows: [],
+            fields: {},
+        });
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            {
+                ...extra,
+                authInfo: {
+                    ...extra.authInfo,
+                    extra: {
+                        ...extra.authInfo.extra,
+                        account: {
+                            ...account,
+                            authentication: {
+                                type: 'oauth',
+                                clientId: 'oauth-agent-client',
+                            },
+                        },
+                    },
+                },
+            },
+        );
+        expect(result).not.toMatchObject({ isError: true });
+        for (const method of [
+            'getAsyncQueryHistory',
+            'getRawAsyncQueryResults',
+        ] as const)
+            expect(asyncQueryService[method]).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    reader: {
+                        authMethod: 'oauth',
+                        kind: 'agent',
+                        claim: expect.objectContaining({
+                            subject: { type: 'user', uuid: userUuid },
+                            act: {
+                                sub: 'mcp:oauth-agent-client',
+                                surface: AgentActorSurface.MCP,
+                                client_id: 'oauth-agent-client',
+                                agent_uuid: null,
+                            },
+                        }),
+                    },
+                }),
+            );
+    });
+
+    it.each(['getAsyncQueryHistory', 'getRawAsyncQueryResults'] as const)(
+        'PAT-backed MCP forwards its session identity through %s',
+        async (method) => {
+            const { asyncQueryService } = makeMcpService({
+                agentIdentityEnabled: true,
+            });
+            const ready = makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            );
+            asyncQueryService.getAsyncQueryHistory.mockResolvedValue(ready);
+            asyncQueryService.getRawAsyncQueryResults.mockResolvedValue({
+                rows: [{ one: 1 }],
+                fields: {},
+            });
+            asyncQueryService.pollQueryHistoryUntilDeadline.mockResolvedValue(
+                ready,
+            );
+            asyncQueryService[method].mockImplementation(async ({ reader }) => {
+                expect(reader).toMatchObject({
+                    authMethod: 'pat',
+                    kind: 'agent',
+                    claim: { act: { client_id: null } },
+                });
+                return method === 'getAsyncQueryHistory'
+                    ? ready
+                    : {
+                          rows: [{ one: 1 }],
+                          fields: {},
+                      };
+            });
+            const patExtra = {
+                ...extra,
+                authInfo: {
+                    ...extra.authInfo,
+                    extra: {
+                        ...extra.authInfo.extra,
+                        account: {
+                            ...account,
+                            authentication: {
+                                type: 'pat',
+                                source: 'dummy-pat',
+                            },
+                        },
+                    },
+                },
+            };
+            const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+                { queryUuid },
+                patExtra,
+            );
+            expect(result).not.toMatchObject({ isError: true });
+            expect(asyncQueryService[method]).toHaveBeenCalled();
+            expect(
+                asyncQueryService.getAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.getRawAsyncQueryResults,
+            ).toHaveBeenCalled();
+        },
+    );
+
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(
@@ -2006,7 +2151,7 @@ describe('MCP async query polling', () => {
 
         expect(getTextResult(result)).toContain('[]');
         expect(projectService.searchFieldUniqueValues).toHaveBeenCalledWith(
-            user,
+            account,
             projectUuid,
             'orders',
             'orders_status',
@@ -2038,7 +2183,7 @@ describe('MCP async query polling', () => {
 
         expect(getTextResult(result)).toContain('[]');
         expect(projectService.searchFieldUniqueValues).toHaveBeenCalledWith(
-            user,
+            account,
             projectUuid,
             'orders',
             'orders_status',
@@ -2692,8 +2837,10 @@ test.each(agentActionTestCases)(
             surface,
             enabled,
             () =>
-                getToolCallback(McpToolName.RUN_SQL)(
-                    { sql: 'select 1', limit: 10 },
+                (surface === null
+                    ? mockRegisteredMcpTools.get(McpToolName.RUN_SQL)!
+                    : getToolCallback(McpToolName.RUN_SQL))(
+                    { projectUuid, sql: 'select 1', limit: 10 },
                     {
                         ...extra,
                         authInfo: {

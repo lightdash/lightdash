@@ -10,6 +10,7 @@ import NodeCache from 'node-cache';
 import { createHash } from 'node:crypto';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { hydrateBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
 type BigquerySsoCredentials = {
     credentials: CreateBigqueryCredentials;
@@ -59,7 +60,11 @@ export const getBigquerySsoCredentials = (
 const withKeyfile = (
     credentials: CreateBigqueryCredentials,
     keyfileContents: CreateBigqueryCredentials['keyfileContents'],
-): CreateBigqueryCredentials => ({ ...credentials, keyfileContents });
+): CreateBigqueryCredentials =>
+    copyWarehouseCredentialVersions(
+        { ...credentials, keyfileContents },
+        credentials,
+    );
 
 export const getPushedPreviewCredentials = ({
     previewCredentials,

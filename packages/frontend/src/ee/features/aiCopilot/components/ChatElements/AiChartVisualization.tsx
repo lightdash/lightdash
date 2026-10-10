@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isAiAgentSqlArtifactVizQuery,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
@@ -21,6 +22,9 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     getAiArtifactChartSource,
@@ -59,6 +63,9 @@ export const AiChartVisualization: FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useAgentMaxWidth(768);
+    const isEmbed = useIsEmbedded();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
 
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
@@ -93,9 +100,21 @@ export const AiChartVisualization: FC<Props> = ({
             ? queryExecutionHandle.data
             : undefined;
 
+    const queryUuid = queryExecutionHandle.data?.query.queryUuid;
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        queryExecutionHandle.data?.query.queryUuid,
+        isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+        undefined,
+        identityEnabled && !isEmbed && queryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+                  queryUuid,
+                  cached: false,
+              })
+            : null,
     );
 
     const compiledSqlQuery = useAiArtifactCompiledSql({

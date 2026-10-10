@@ -43,6 +43,23 @@ const baseArgs = {
 };
 
 describe('SqlQueryComposer', () => {
+    it('retains the controls used to substitute user SQL for result provenance', () => {
+        const controls = {
+            userAttributes: { region: ['EU'] },
+            intrinsicUserAttributes: { email: 'person@example.test' },
+        };
+        const composer = new SqlQueryComposer(
+            { ...baseArgs, pivotConfiguration: undefined },
+            controls,
+        );
+        expect(composer.getUserAccessControls()).toEqual(controls);
+        expect(
+            new SqlQueryComposer({
+                ...baseArgs,
+                pivotConfiguration: undefined,
+            }).getUserAccessControls(),
+        ).toBeUndefined();
+    });
     it('does not infer semantic lineage from raw SQL column names', () => {
         expect(
             new SqlQueryComposer({

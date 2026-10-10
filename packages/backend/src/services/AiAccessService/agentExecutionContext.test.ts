@@ -5,9 +5,11 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../../auth/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
+import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     agentExecutionContext,
     buildQueryAgentIdentity,
+    buildResultReader,
     createAgentExecutionContext,
     getContentWriteAgentIdentity,
 } from './agentExecutionContext';
@@ -119,6 +121,61 @@ test.each([AgentActorSurface.IN_APP_AGENT, AgentActorSurface.SLACK_AGENT])(
                     QuerySurface.APP,
                 ),
             ).toEqual(envelope.claim);
+            expect(
+                buildResultReader(
+                    account,
+                    QueryExecutionContext.AI,
+                    QuerySurface.APP,
+                ),
+            ).toEqual({
+                kind: 'agent',
+                claim: envelope.claim,
+                authMethod: 'session',
+            });
+        });
+    },
+);
+
+test('a worker connection retains the trusted submitted claim outside its execution scope', () => {
+    const account = fromSession(defaultSessionUser);
+    const { claim } = scope('submitted-agent');
+    const context = connectionContextFromAccount(account, {
+        organizationUuid: defaultSessionUser.organizationUuid!,
+        queryContext: QueryExecutionContext.AI,
+        agentIdentity: claim,
+    });
+    expect(context.agentIdentity).toEqual(claim);
+});
+
+test.each([
+    'enabled',
+    'disabled',
+    'other writer',
+    'other organization',
+] as const)(
+    'connection credentials capture only the %s trusted scope',
+    (state) => {
+        const account = fromSession({
+            ...defaultSessionUser,
+            userUuid:
+                state === 'other writer'
+                    ? 'other'
+                    : defaultSessionUser.userUuid,
+        });
+        const organizationUuid =
+            state === 'other organization'
+                ? 'other'
+                : defaultSessionUser.organizationUuid!;
+        const envelope = scope('agent', state !== 'disabled');
+        agentExecutionContext.run(envelope, () => {
+            const context = connectionContextFromAccount(account, {
+                organizationUuid,
+                queryContext: QueryExecutionContext.MCP_RUN_SQL,
+                surface: undefined,
+            });
+            expect(context.agentIdentity).toEqual(
+                state === 'enabled' ? envelope.claim : null,
+            );
         });
     },
 );

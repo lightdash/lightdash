@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     assertUnreachable,
+    FeatureFlags,
     ForbiddenError,
     hasAiAgentAccessToSpace,
     hasSchedulerUuid,
@@ -22,6 +23,7 @@ import {
 import { fromSession } from '../../../auth/account/account';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -61,6 +63,7 @@ import {
 } from './deliveryContext';
 
 type Dependencies = {
+    featureFlagModel: FeatureFlagModel;
     agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
     schedulerService: SchedulerService;
@@ -75,6 +78,7 @@ type Dependencies = {
 };
 
 export class SchedulerAiAugmentationService extends BaseService {
+    private readonly featureFlagModel: FeatureFlagModel;
     private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
 
     private readonly schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
@@ -102,6 +106,7 @@ export class SchedulerAiAugmentationService extends BaseService {
         const { agentActionLogModel } = dependencies;
         this.agentActionLogModel = agentActionLogModel;
         this.aiAccessService = dependencies.aiAccessService;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.projectModel = dependencies.projectModel;
         this.warehouseConnectionModel = dependencies.warehouseConnectionModel;
         this.schedulerAiAugmentationModel =
@@ -311,13 +316,21 @@ export class SchedulerAiAugmentationService extends BaseService {
                 }
             }),
         );
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                user: { userUuid: account.user.id, organizationUuid },
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
         return agentExecutionContext.run(
             createAgentExecutionContext({
                 account,
                 surface: AgentActorSurface.AI_SUMMARY,
                 clientId: 'lightdash-ai-summary',
-                agentUuid: null,
-                agentIdentityEnabled: false,
+                agentUuid:
+                    augmentation.type === 'agent'
+                        ? augmentation.agentUuid
+                        : null,
+                agentIdentityEnabled,
             }),
             () => {
                 switch (augmentation.type) {

@@ -12,6 +12,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject, type Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
     AlreadyExistsError,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
@@ -215,7 +216,11 @@ import {
     mintPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
-import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
@@ -6897,11 +6902,31 @@ export class AppGenerateService extends BaseService {
     ): Promise<ChartSampleData> {
         const account = fromSession(user);
         try {
-            const result = await this.projectService.runViewChartQuery({
-                account,
-                chartUuid,
-                context: QueryExecutionContext.DATA_APP_SAMPLE,
+            const { enabled: agentIdentityEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+            const current = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
             });
+            const scope = current
+                ? agentExecutionContext.getStore()!
+                : createAgentExecutionContext({
+                      account,
+                      surface: AgentActorSurface.DATA_APP,
+                      clientId: 'lightdash-data-app',
+                      agentUuid: null,
+                      agentIdentityEnabled,
+                  });
+            const result = await agentExecutionContext.run(scope, () =>
+                this.projectService.runViewChartQuery({
+                    account,
+                    chartUuid,
+                    context: QueryExecutionContext.DATA_APP_SAMPLE,
+                }),
+            );
             const truncated =
                 result.rows.length > AppGenerateService.SAMPLE_ROW_LIMIT;
             const rows = result.rows

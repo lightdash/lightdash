@@ -44,6 +44,7 @@ describe('PreAggregateMaterializationService', () => {
 
     const preAggregateResultsStorageClient = {
         getFileSize: vi.fn(),
+        uploadResults: vi.fn().mockResolvedValue(undefined),
     };
 
     const service = new PreAggregateMaterializationService({
@@ -131,6 +132,18 @@ describe('PreAggregateMaterializationService', () => {
             status: QueryHistoryStatus.READY,
             resultsFileName: 'query-1-results',
             resultsUpdatedAt: queryUpdatedAt,
+            requestParameters: {
+                resultProducer: {
+                    version: 1,
+                    authMethod: 'session',
+                    warehouseConnectionUuid: 'built-connection',
+                    credentialOwner: {
+                        kind: 'shared_connection',
+                        identityFingerprint: 'built-owner',
+                    },
+                    agentIdentity: null,
+                },
+            },
             totalRowCount: 123,
             columns: null,
         });
@@ -170,6 +183,23 @@ describe('PreAggregateMaterializationService', () => {
         expect(
             asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
         ).not.toHaveProperty('materializationRole');
+        expect(
+            preAggregateResultsStorageClient.uploadResults,
+        ).toHaveBeenCalledWith(
+            'query-1-results.producer',
+            JSON.stringify({
+                version: 1,
+                authMethod: 'session',
+                projectUuid: 'project-1',
+                queryUuid: 'query-1',
+                warehouseConnectionUuid: 'built-connection',
+                identityFingerprint: 'built-owner',
+            }),
+            undefined,
+        );
+        expect(
+            preAggregateResultsStorageClient.uploadResults,
+        ).toHaveBeenCalledBefore(preAggregateModel.promoteToActive);
         expect(preAggregateModel.promoteToActive).toHaveBeenCalledWith({
             materializationUuid: 'mat-1',
             queryUuid: 'query-1',
@@ -339,6 +369,18 @@ describe('PreAggregateMaterializationService', () => {
             status: QueryHistoryStatus.READY,
             resultsFileName: 'query-1-results',
             resultsUpdatedAt: queryUpdatedAt,
+            requestParameters: {
+                resultProducer: {
+                    version: 1,
+                    authMethod: 'session',
+                    warehouseConnectionUuid: 'built-connection',
+                    credentialOwner: {
+                        kind: 'shared_connection',
+                        identityFingerprint: 'built-owner',
+                    },
+                    agentIdentity: null,
+                },
+            },
             totalRowCount: 123,
             columns: null,
         });

@@ -14,12 +14,14 @@ import {
 } from '@lightdash/common';
 import { MockLanguageModelV3 } from 'ai/test';
 import { fromSession } from '../../../auth/account';
+import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
 import {
     metricQueryMock,
     validExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { AiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { getAvailableModels, getModel } from '../ai/models';
+import { type getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import { ManagedAgentService } from './ManagedAgentService';
 
 const captureAutopilotFailure = vi.fn();
@@ -212,7 +214,7 @@ const buildService = ({
         userModel: {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
         },
-        featureFlagModel: {},
+        featureFlagModel: { get: vi.fn(async () => ({ enabled: false })) },
         schedulerClient,
         slackClient,
         orgAiCopilotConfigResolver,
@@ -526,6 +528,52 @@ describe('ManagedAgentService cleanup qualification enforcement', () => {
 });
 
 describe('ManagedAgentService discovery scope', () => {
+    it.each([false, true])(
+        'round 18 returned Autopilot data tools establish their scope when invoked: %s',
+        async (enabled) => {
+            const { service, dataRuntime } = buildService();
+            vi.mocked(service['featureFlagModel'].get).mockResolvedValue({
+                enabled,
+            } as never);
+            const run = vi.fn(async () => {
+                const scope = agentExecutionContext.getStore();
+                expect(scope?.agentIdentityEnabled).toBe(enabled);
+                expect(scope?.claim?.act.client_id).toBe('lightdash-autopilot');
+                expect(scope?.claim?.subject.uuid).toBe(USER_UUID);
+                return {
+                    queryUuid: 'query',
+                    rows: [],
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                };
+            });
+            Object.assign(dataRuntime, { runAsyncQuery: run });
+            dataRuntime.listExplores.mockResolvedValue([validExplore] as never);
+            const { tools } = await service['buildAutopilotDataTools'](
+                user,
+                PROJECT_UUID,
+                ORGANIZATION_UUID,
+            );
+            await (tools.runMetricQuery as ReturnType<typeof getRunMetricQuery>)
+                .execute!(
+                {
+                    vizConfig: {
+                        exploreName: validExplore.name,
+                        dimensions: metricQueryMock.dimensions,
+                        metrics: metricQueryMock.metrics,
+                        sorts: [],
+                        limit: 100,
+                    },
+                    filters: null,
+                    customMetrics: null,
+                    tableCalculations: null,
+                },
+                { toolCallId: 'query', messages: [], context: {} },
+            );
+            expect(run).toHaveBeenCalledOnce();
+        },
+    );
+
     it.each([true, false])(
         'resolves the organization flag before reviewing managed metric queries (enabled=%s)',
         async (enabled) => {
@@ -579,7 +627,7 @@ describe('ManagedAgentService discovery scope', () => {
                     },
                 );
                 expect(output.metadata.status).toBe('success');
-                expect(getFlag).toHaveBeenCalledExactlyOnceWith({
+                expect(getFlag).toHaveBeenCalledWith({
                     user: { organizationUuid: ORGANIZATION_UUID },
                     featureFlagId: FeatureFlags.AiAgentFastDecisions,
                 });
@@ -667,6 +715,13 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     reversedAt: null,
                 },
             ] as AnyType);
+            vi.mocked(service['featureFlagModel'].get).mockImplementation(
+                async ({ featureFlagId }) =>
+                    ({
+                        enabled: featureFlagId === FeatureFlags.AgentIdentity,
+                    }) as never,
+            );
+            let scopedModelCalls = 0;
             let calls = 0;
             let reportCalls = 0;
             const model = new MockLanguageModelV3({
@@ -707,6 +762,13 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                             warnings: [],
                         };
                     }
+                    const scope = agentExecutionContext.getStore();
+                    expect(scope?.agentIdentityEnabled).toBe(true);
+                    expect(scope?.claim?.act.client_id).toBe(
+                        'lightdash-autopilot',
+                    );
+                    expect(scope?.claim?.subject.uuid).toBe(USER_UUID);
+                    scopedModelCalls += 1;
                     expect(
                         options.tools.some(
                             (tool) =>
@@ -755,6 +817,7 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                 callOptions: { maxRetries: 0 },
             } as AnyType);
             await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+            expect(scopedModelCalls).toBeGreaterThan(0);
             expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
                 'run-uuid',
                 expect.objectContaining({

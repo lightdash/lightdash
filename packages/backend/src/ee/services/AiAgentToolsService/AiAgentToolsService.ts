@@ -87,6 +87,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
+    buildResultReader,
     getContentWriteAgentIdentity,
 } from '../../../services/AiAccessService/agentExecutionContext';
 import {
@@ -3646,6 +3647,11 @@ export class AiAgentToolsService extends BaseService {
                         // eslint-disable-next-line no-await-in-loop
                         await this.asyncQueryService.getAsyncQueryResults({
                             account: context.account,
+                            reader: buildResultReader(
+                                context.account,
+                                context.defaultQueryExecutionContext,
+                                context.querySurface ?? null,
+                            ),
                             projectUuid: context.projectUuid,
                             queryUuid,
                             page: 1,
@@ -3921,6 +3927,11 @@ export class AiAgentToolsService extends BaseService {
                 // eslint-disable-next-line no-await-in-loop
                 await this.asyncQueryService.getAsyncQueryResults({
                     account: context.account,
+                    reader: buildResultReader(
+                        context.account,
+                        context.defaultQueryExecutionContext,
+                        context.querySurface ?? null,
+                    ),
                     projectUuid: context.projectUuid,
                     queryUuid: terminalSubmission.queryUuid,
                     page: 1,
@@ -4246,7 +4257,7 @@ export class AiAgentToolsService extends BaseService {
                 const startedAt = Date.now();
                 const results =
                     await this.projectService.searchFieldUniqueValues(
-                        context.user,
+                        context.account,
                         context.projectUuid,
                         args.table,
                         args.fieldId,

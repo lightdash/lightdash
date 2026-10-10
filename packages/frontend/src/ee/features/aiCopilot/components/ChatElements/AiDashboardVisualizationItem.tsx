@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
     type ApiAiAgentThreadMessageVizQuery,
@@ -24,6 +25,9 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useCanViewAiAgentSql } from '../../hooks/useCanViewAiAgentSql';
 import {
     getAiAgentDashboardChartVizQueryKey,
@@ -56,6 +60,9 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         index,
     }) => {
         const queryClient = useQueryClient();
+        const isEmbed = useIsEmbedded();
+        const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+        const identityEnabled = identityFlag.data?.enabled === true;
 
         const [selectedChartType, setSelectedChartType] =
             useState<AiAgentChartTypeOption | null>(null);
@@ -70,7 +77,22 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
 
         const queryResults = useInfiniteQueryResults(
             projectUuid,
-            queryExecutionHandle.data?.query?.queryUuid,
+            isEmbed || !identityFlag.isLoading
+                ? queryExecutionHandle.data?.query?.queryUuid
+                : undefined,
+            undefined,
+            identityEnabled &&
+                !isEmbed &&
+                queryExecutionHandle.data?.query.queryUuid
+                ? getAiAgentArtifactResultsUrl({
+                      projectUuid,
+                      agentUuid,
+                      artifactUuid,
+                      versionUuid,
+                      queryUuid: queryExecutionHandle.data.query.queryUuid,
+                      cached: false,
+                  })
+                : null,
         );
 
         const canViewSql = useCanViewAiAgentSql();

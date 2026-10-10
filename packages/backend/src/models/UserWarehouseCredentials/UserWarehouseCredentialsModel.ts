@@ -48,6 +48,11 @@ import {
 } from '../../services/WarehouseClientFactory/personalCredentialOverlay';
 import { assertValidPersistedBigquerySsoKeyfile } from '../../utils/bigquerySsoCredentials';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import {
+    copyWarehouseCredentialVersions,
+    withNewWarehouseCredentialVersion,
+    withWarehouseCredentialVersion,
+} from '../../utils/warehouseCredentialVersion';
 
 export type PersonalCredentialPersistencePolicy = {
     strictPersonalOverlay: boolean;
@@ -123,14 +128,25 @@ export class UserWarehouseCredentialsModel {
             ) {
                 throw refusedPersonalCredentials(data.warehouse_type);
             }
+            const projected = policy.strictPersonalOverlay
+                ? (projectPersonalWarehouseCredentials(
+                      credentials,
+                  ) as UserWarehouseCredentialsWithSecrets['credentials'])
+                : credentials;
+            const versioned =
+                data.purpose === UserWarehouseCredentialPurpose.DEFAULT
+                    ? withWarehouseCredentialVersion(
+                          credentials,
+                          `personal:${data.user_warehouse_credentials_uuid}`,
+                      )
+                    : credentials;
             return {
                 uuid: data.user_warehouse_credentials_uuid,
                 expiresAt: data.expires_at,
-                credentials: policy.strictPersonalOverlay
-                    ? (projectPersonalWarehouseCredentials(
-                          credentials,
-                      ) as UserWarehouseCredentialsWithSecrets['credentials'])
-                    : credentials,
+                credentials: copyWarehouseCredentialVersions(
+                    projected,
+                    versioned,
+                ),
             };
         } catch (error) {
             if (policy.strictPersonalOverlay)
@@ -1074,7 +1090,9 @@ export class UserWarehouseCredentialsModel {
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(normalized.credentials),
+                JSON.stringify(
+                    withNewWarehouseCredentialVersion(normalized.credentials),
+                ),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');
@@ -1102,31 +1120,37 @@ export class UserWarehouseCredentialsModel {
         data: UpsertUserWarehouseCredentials,
         policy: PersonalCredentialPersistencePolicy,
     ): Promise<string> {
+        const storedRow = await this.database(UserWarehouseCredentialsTableName)
+            .where(
+                'user_warehouse_credentials_uuid',
+                userWarehouseCredentialsUuid,
+            )
+            .andWhere('user_uuid', userUuid)
+            .first();
+        if (!storedRow)
+            throw new UnexpectedServerError('Could not save credentials.');
+        let storedCredentials: StoredWarehouseCredentials;
+        try {
+            storedCredentials = withWarehouseCredentialVersion(
+                this.decryptCredentials(storedRow),
+                `personal:${userWarehouseCredentialsUuid}`,
+            );
+        } catch (error) {
+            if (policy.strictPersonalOverlay)
+                throw refusedPersonalCredentials(data.credentials.type);
+            throw error;
+        }
         let dataToPersist = data;
         if (
             policy.strictPersonalOverlay ||
             (data.credentials.type === WarehouseTypes.ATHENA &&
                 !data.credentials.secretAccessKey)
         ) {
-            const existingRow = await this.database(
-                UserWarehouseCredentialsTableName,
-            )
-                .where(
-                    'user_warehouse_credentials_uuid',
-                    userWarehouseCredentialsUuid,
-                )
-                .andWhere('user_uuid', userUuid)
-                .first();
-
-            if (!existingRow) {
-                throw new UnexpectedServerError('Could not save credentials.');
-            }
-
             let existingCredentials: UserWarehouseCredentialsWithSecrets['credentials'];
             try {
                 existingCredentials =
                     this.convertToUserWarehouseCredentialsWithSecrets(
-                        existingRow,
+                        storedRow,
                         { strictPersonalOverlay: false },
                     ).credentials;
             } catch (error) {
@@ -1136,7 +1160,7 @@ export class UserWarehouseCredentialsModel {
             }
             if (
                 policy.strictPersonalOverlay &&
-                (existingRow.warehouse_type !== data.credentials.type ||
+                (storedRow.warehouse_type !== data.credentials.type ||
                     existingCredentials.type !== data.credentials.type)
             ) {
                 throw new ParameterError(
@@ -1158,7 +1182,12 @@ export class UserWarehouseCredentialsModel {
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
-                JSON.stringify(normalized.credentials),
+                JSON.stringify(
+                    withNewWarehouseCredentialVersion(
+                        normalized.credentials,
+                        storedCredentials,
+                    ),
+                ),
             );
         } catch (e) {
             throw new UnexpectedServerError('Could not save credentials.');

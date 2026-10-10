@@ -1,6 +1,8 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    buildAgentIdentityClaim,
     QueryExecutionContext,
     QuerySurface,
     WarehouseTypes,
@@ -611,6 +613,11 @@ test('resolvePlan refuses needs_sign_in after an old pod enables the legacy swit
     } as unknown as ConstructorParameters<typeof AiAccessService>[0]);
     await expect(
         service.resolvePlan({
+            agentIdentity: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'person' },
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-chat',
+            }),
             organizationUuid,
             projectUuid: 'project',
             warehouseConnectionUuid: null,

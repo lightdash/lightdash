@@ -90,6 +90,7 @@ type Dependencies = {
      */
     buildEvidencePack: (
         run: DbAiDeepResearchRun,
+        sourceForRun?: DbAiDeepResearchRun,
     ) => Promise<AiDeepResearchEvidenceBuildResult>;
     aiAgentModel: Pick<AiAgentModel, 'getToolCallsAndResultsForPrompt'>;
     aiDeepResearchRunModel: Pick<
@@ -743,7 +744,7 @@ export class AiDeepResearchExecutor {
                 );
             if (sourceRun) {
                 const sourceEvidence =
-                    await this.dependencies.buildEvidencePack(sourceRun);
+                    await this.dependencies.buildEvidencePack(sourceRun, run);
                 resumeContext = getResumeContext(sourceEvidence.evidencePack);
             }
         }

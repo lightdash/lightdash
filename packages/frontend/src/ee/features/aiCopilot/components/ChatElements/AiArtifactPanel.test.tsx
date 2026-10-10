@@ -2,17 +2,23 @@ import {
     AiAccessRefusedError,
     AiAccessRefusalReason,
     AiResultType,
+    FeatureFlags,
     QuerySourceType,
+    QueryHistoryStatus,
     ChartKind,
     VizAggregationOptions,
     VizIndexType,
     type AiComposerChartArtifactConfig,
     type ToolRunQueryArgs,
+    type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { type ComponentProps, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { lightdashApi } from '../../../../../api';
+import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AiArtifactPanel } from './AiArtifactPanel';
 import { AiChartVisualization } from './AiChartVisualization';
@@ -21,6 +27,7 @@ import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 const mocks = vi.hoisted(() => ({
     fastDecisions: vi.fn(),
+    isEmbedded: vi.fn(),
     artifact: vi.fn(),
     thread: vi.fn(),
     query: vi.fn(),
@@ -28,8 +35,12 @@ const mocks = vi.hoisted(() => ({
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
 }));
+vi.mock('../../../../../api', () => ({ lightdashApi: vi.fn() }));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.fastDecisions,
+}));
+vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
+    default: mocks.isEmbedded,
 }));
 vi.mock('../../hooks/useAiAgentArtifacts', () => ({
     useAiAgentArtifact: mocks.artifact,
@@ -143,6 +154,7 @@ const config: ToolRunQueryArgs = {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    mocks.isEmbedded.mockReturnValue(false);
     mocks.fastDecisions.mockReturnValue({ data: { enabled: true } });
     mocks.artifact.mockReturnValue({
         data: {
@@ -1014,5 +1026,152 @@ describe('alternate artifact visualization identity recovery', () => {
         expect(
             screen.queryByText(/These results have expired/),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('inline artifact result routing', () => {
+    it.each([
+        { enabled: true, isLoading: false, isEmbed: false },
+        { enabled: false, isLoading: false, isEmbed: false },
+        { enabled: undefined, isLoading: true, isEmbed: false },
+        { enabled: true, isLoading: false, isEmbed: true },
+        { enabled: false, isLoading: false, isEmbed: true },
+        { enabled: undefined, isLoading: true, isEmbed: true },
+    ])(
+        'routes every owner inline row consumer with identity=$enabled, loading=$isLoading, embed=$isEmbed',
+        ({ enabled, isLoading, isEmbed }) => {
+            mocks.isEmbedded.mockReturnValue(isEmbed);
+            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+                flag === FeatureFlags.AgentIdentity
+                    ? {
+                          data: enabled === undefined ? undefined : { enabled },
+                          isLoading,
+                      }
+                    : { data: { enabled: true }, isLoading: false },
+            );
+            renderWithProviders(
+                <AiArtifactPanel artifact={artifact} variant="inline" />,
+            );
+            expect(screen.getByTestId('chart')).toBeInTheDocument();
+            expect(mocks.rows).toHaveBeenCalled();
+            for (const args of mocks.rows.mock.calls) {
+                expect(args).toEqual([
+                    'project',
+                    isLoading && !isEmbed ? undefined : 'query',
+                    undefined,
+                    enabled && !isEmbed
+                        ? '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false'
+                        : null,
+                ]);
+            }
+        },
+    );
+
+    it.each([
+        { enabled: true, isEmbed: false },
+        { enabled: false, isEmbed: false },
+        { enabled: true, isEmbed: true },
+    ])(
+        'fetches inline rows over HTTP after flag resolution with identity=$enabled, embed=$isEmbed',
+        async ({ enabled, isEmbed }) => {
+            const { useInfiniteQueryResults } = await vi.importActual<
+                typeof QueryResultsHooks
+            >('../../../../../hooks/useQueryResults');
+            mocks.rows.mockImplementation(useInfiniteQueryResults);
+            mocks.isEmbedded.mockReturnValue(isEmbed);
+            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+                flag === FeatureFlags.AgentIdentity
+                    ? { data: undefined, isLoading: true }
+                    : { data: { enabled: true }, isLoading: false },
+            );
+            vi.mocked(lightdashApi).mockResolvedValue({
+                queryUuid: 'query',
+                status: QueryHistoryStatus.READY,
+                rows: [],
+                columns: {},
+                page: 1,
+                pageSize: 500,
+                totalPageCount: 1,
+                nextPage: undefined,
+                previousPage: undefined,
+                totalResults: 0,
+                metadata: {
+                    performance: {
+                        initialQueryExecutionMs: 0,
+                        resultsPageExecutionMs: 0,
+                        queueTimeMs: null,
+                    },
+                    preAggregate: null,
+                },
+                pivotDetails: null,
+            } satisfies ReadyQueryResultsPage);
+            const queryClient = new QueryClient({
+                defaultOptions: { queries: { retry: false } },
+            });
+            const panel = (
+                <QueryClientProvider client={queryClient}>
+                    <AiArtifactPanel artifact={artifact} variant="inline" />
+                </QueryClientProvider>
+            );
+            const { rerender } = renderWithProviders(panel);
+            if (isEmbed) {
+                await waitFor(() => expect(lightdashApi).toHaveBeenCalled());
+            } else {
+                expect(lightdashApi).not.toHaveBeenCalled();
+            }
+            mocks.fastDecisions.mockImplementation((flag: FeatureFlags) => ({
+                data: {
+                    enabled:
+                        flag === FeatureFlags.AgentIdentity ? enabled : true,
+                },
+                isLoading: false,
+            }));
+            rerender(
+                <QueryClientProvider client={queryClient}>
+                    <AiArtifactPanel artifact={artifact} variant="inline" />
+                </QueryClientProvider>,
+            );
+            await waitFor(() => expect(lightdashApi).toHaveBeenCalled());
+            for (const [request] of vi.mocked(lightdashApi).mock.calls) {
+                expect(request).toMatchObject({
+                    method: 'GET',
+                    url:
+                        enabled && !isEmbed
+                            ? '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false&page=1&pageSize=500'
+                            : '/projects/project/query/query?page=1&pageSize=500',
+                });
+                if (!enabled || isEmbed) expect(request.version).toBe('v2');
+            }
+        },
+    );
+
+    it('starts scoped inline reads only after the identity flag resolves', () => {
+        mocks.fastDecisions.mockImplementation((flag: FeatureFlags) =>
+            flag === FeatureFlags.AgentIdentity
+                ? { data: undefined, isLoading: true }
+                : { data: { enabled: true }, isLoading: false },
+        );
+        const { rerender } = renderWithProviders(
+            <AiArtifactPanel artifact={artifact} variant="inline" />,
+        );
+        expect(mocks.rows).toHaveBeenCalled();
+        expect(
+            mocks.rows.mock.calls.every((args) => args[1] === undefined),
+        ).toBe(true);
+        mocks.rows.mockClear();
+        mocks.fastDecisions.mockReturnValue({
+            data: { enabled: true },
+            isLoading: false,
+        });
+        rerender(<AiArtifactPanel artifact={artifact} variant="inline" />);
+        expect(mocks.rows).toHaveBeenCalled();
+        for (const args of mocks.rows.mock.calls) {
+            expect(args).toEqual([
+                'project',
+                'query',
+                undefined,
+                '/projects/project/aiAgents/agent/artifacts/artifact/versions/version/query-results?queryUuid=query&cached=false',
+            ]);
+        }
     });
 });

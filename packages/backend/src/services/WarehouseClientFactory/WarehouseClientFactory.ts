@@ -20,6 +20,7 @@ import {
     type CreateDatabricksCredentials,
     type CreateSnowflakeCredentials,
     type CreateWarehouseCredentials,
+    type QueryResultProducer,
     type WarehouseClient,
 } from '@lightdash/common';
 import {
@@ -51,17 +52,21 @@ import {
     isSnowflakeServiceAccountAuthError,
     isTrinoServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
+import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import {
     attributeClientErrors,
     isWarehouseTokenError,
     withSharedSignInExpiry,
 } from '../../utils/sharedSignInExpiry';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import type {
     AiAccessEvaluation,
     AiAccessService,
 } from '../AiAccessService/AiAccessService';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
+import { withTrustedAgentQueryTags } from './agentQueryTags';
 import {
+    connectionSurfaceFromAgentSurface,
     getAgentActor,
     querySurfaceFromConnectionSurface,
     WarehouseCredentialKind,
@@ -277,7 +282,10 @@ export class WarehouseClientFactory {
     }
 
     private aiAccessEvaluation(
-        context: Pick<ConnectionContext, 'purpose' | 'aiAccess' | 'actor'>,
+        context: Pick<
+            ConnectionContext,
+            'purpose' | 'aiAccess' | 'actor' | 'agentIdentity'
+        >,
     ): AiAccessEvaluation {
         return context.purpose === 'compile' ||
             context.aiAccess === 'diagnostic'
@@ -285,7 +293,11 @@ export class WarehouseClientFactory {
             : {
                   kind: 'query',
                   surface: querySurfaceFromConnectionSurface(
-                      context.actor.surface,
+                      context.agentIdentity
+                          ? connectionSurfaceFromAgentSurface(
+                                context.agentIdentity.act.surface,
+                            )
+                          : context.actor.surface,
                   ),
               };
     }
@@ -319,9 +331,12 @@ export class WarehouseClientFactory {
                           context.purpose,
                       ),
         };
-        return this.credentialResolvers.resolveCredentialSelection(
-            selection,
-            legacyResolve,
+        return copyWarehouseCredentialVersions(
+            await this.credentialResolvers.resolveCredentialSelection(
+                selection,
+                legacyResolve,
+            ),
+            credentials,
         );
     }
 
@@ -436,12 +451,15 @@ export class WarehouseClientFactory {
             owner,
             aiPlan,
         );
-        return {
-            ...materialized,
-            userWarehouseCredentialsUuid:
-                credentials.userWarehouseCredentialsUuid,
-            ...(aiPlan ? { aiPlan } : {}),
-        };
+        return copyWarehouseCredentialVersions(
+            {
+                ...materialized,
+                userWarehouseCredentialsUuid:
+                    credentials.userWarehouseCredentialsUuid,
+                ...(aiPlan ? { aiPlan } : {}),
+            },
+            credentials,
+        );
     }
 
     async resolveLoadedCredentials(
@@ -450,10 +468,13 @@ export class WarehouseClientFactory {
     ): Promise<ResolvedWarehouseCredentials> {
         if (base.kind === 'final') {
             return this.materializeLoadedCredentials(
-                {
-                    ...base.credentials,
-                    userWarehouseCredentialsUuid: undefined,
-                },
+                copyWarehouseCredentialVersions(
+                    {
+                        ...base.credentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
+                    base.credentials,
+                ),
                 base,
                 context,
             );
@@ -461,7 +482,8 @@ export class WarehouseClientFactory {
         let aiPlan: AiExecutionPlan | null = null;
         if (
             context.queryContext &&
-            isAiAccessQueryContext(context.queryContext)
+            (isAiAccessQueryContext(context.queryContext) ||
+                context.agentIdentity != null)
         ) {
             const { person } = context.actor;
             const organizationUuid =
@@ -472,6 +494,7 @@ export class WarehouseClientFactory {
                 );
             }
             aiPlan = await this.aiAccessService.resolvePlan({
+                agentIdentity: context.agentIdentity ?? null,
                 evaluation: this.aiAccessEvaluation(context),
                 projectUuid: base.projectUuid,
                 organizationUuid,
@@ -483,9 +506,6 @@ export class WarehouseClientFactory {
                 isServiceAccount: person.isServiceAccount,
                 serviceAccountUuid: person.serviceAccountUuid,
                 oauthClientId: person.oauthClientId,
-                ...(context.actor.aiClient?.surface
-                    ? { agentActor: getAgentActor(context.actor) }
-                    : {}),
             });
         }
         if (
@@ -507,7 +527,10 @@ export class WarehouseClientFactory {
         return this.materializeLoadedCredentials(
             base.kind === 'extra' && context.purpose === 'compile'
                 ? credentials
-                : { ...credentials, ...(aiPlan ? { aiPlan } : {}) },
+                : copyWarehouseCredentialVersions(
+                      { ...credentials, ...(aiPlan ? { aiPlan } : {}) },
+                      credentials,
+                  ),
             base,
             context,
         );
@@ -545,11 +568,18 @@ export class WarehouseClientFactory {
         context: ConnectionContext,
     ): Promise<ResolvedWarehouseConnection> {
         const base = await this.credentialSource.loadBase(ref, context);
+        const resolvedCredentials = await this.resolveLoadedCredentials(
+            base,
+            context,
+        );
         const { aiPlan: resolvedPlan, ...warehouseCredentials } =
-            await this.resolveLoadedCredentials(base, context);
+            resolvedCredentials;
         const aiPlan = resolvedPlan ?? null;
         return {
-            warehouseCredentials,
+            warehouseCredentials: copyWarehouseCredentialVersions(
+                warehouseCredentials,
+                resolvedCredentials,
+            ),
             aiPlan,
             warehouseConnectionUuid: base.warehouseConnectionUuid,
             connectionRoute: base.connectionRoute,
@@ -558,6 +588,68 @@ export class WarehouseClientFactory {
                 aiPlan,
                 context.purpose,
             ),
+        };
+    }
+
+    static getResultProducer(
+        connection: Pick<
+            ResolvedWarehouseConnection,
+            'warehouseCredentials' | 'aiPlan' | 'warehouseConnectionUuid'
+        >,
+        userUuid: string,
+        agentIdentity: QueryResultProducer['agentIdentity'],
+        entitlementFingerprint: string | null = null,
+        authMethod: QueryResultProducer['authMethod'] = null,
+    ): QueryResultProducer {
+        const { aiPlan, warehouseCredentials, warehouseConnectionUuid } =
+            connection;
+        let credentialOwner: QueryResultProducer['credentialOwner'];
+        if (aiPlan === null || aiPlan.identity === 'marked_person') {
+            credentialOwner = warehouseCredentials.userWarehouseCredentialsUuid
+                ? {
+                      kind: 'person',
+                      identityFingerprint:
+                          getWarehouseIdentityFingerprint(warehouseCredentials),
+                      userUuid,
+                      userWarehouseCredentialsUuid:
+                          warehouseCredentials.userWarehouseCredentialsUuid,
+                  }
+                : {
+                      kind: 'shared_connection',
+                      identityFingerprint:
+                          getWarehouseIdentityFingerprint(warehouseCredentials),
+                  };
+        } else {
+            switch (aiPlan.identity) {
+                case 'ai_service_account':
+                    credentialOwner = {
+                        kind: 'ai_service_account',
+                        credentialUuid: aiPlan.credentialUuid,
+                        generation: aiPlan.identityUuid,
+                        sourceProjectUuid: aiPlan.sourceProjectUuid,
+                    };
+                    break;
+                case 'connected_person':
+                    credentialOwner = {
+                        kind: 'agent_sign_in',
+                        userUuid: aiPlan.audit.personUuid,
+                        generation: aiPlan.identityUuid,
+                    };
+                    break;
+                default:
+                    return assertUnreachable(
+                        aiPlan,
+                        'Unknown result producer identity',
+                    );
+            }
+        }
+        return {
+            version: 1,
+            warehouseConnectionUuid,
+            credentialOwner,
+            authMethod,
+            agentIdentity,
+            entitlementFingerprint,
         };
     }
 
@@ -588,6 +680,16 @@ export class WarehouseClientFactory {
         ref: WarehouseClientRef,
         context: ConnectionContext,
     ): Promise<WarehouseConnectionLease> {
+        const { enabled: agentIdentityEnabled } =
+            context.purpose === 'query' && context.actor.person
+                ? await this.featureFlagModel.get({
+                      featureFlagId: FeatureFlags.AgentIdentity,
+                      user: {
+                          userUuid: context.actor.person.userUuid,
+                          organizationUuid: context.organizationUuid,
+                      },
+                  })
+                : { enabled: false };
         let warehouseCredentials: ScopedWarehouseConnection['warehouseCredentials'];
         let aiPlan: AiExecutionPlan | null = null;
         let warehouseConnectionUuid: string | null = null;
@@ -607,9 +709,10 @@ export class WarehouseClientFactory {
                 overrides = {
                     ...ref.overrides,
                     aiPlan,
-                    agentSession:
-                        context.queryContext !== null &&
-                        isAiAccessQueryContext(context.queryContext),
+                    agentSession: agentIdentityEnabled
+                        ? context.agentIdentity != null
+                        : context.queryContext !== null &&
+                          isAiAccessQueryContext(context.queryContext),
                 };
                 break;
             }
@@ -621,9 +724,10 @@ export class WarehouseClientFactory {
                 overrides = {
                     ...ref.overrides,
                     aiPlan,
-                    agentSession:
-                        context.queryContext !== null &&
-                        isAiAccessQueryContext(context.queryContext),
+                    agentSession: agentIdentityEnabled
+                        ? context.agentIdentity != null
+                        : context.queryContext !== null &&
+                          isAiAccessQueryContext(context.queryContext),
                 };
                 break;
             }
@@ -669,6 +773,11 @@ export class WarehouseClientFactory {
                     'Unknown warehouse client reference',
                 );
         }
+        if (agentIdentityEnabled)
+            overrides = {
+                ...overrides,
+                agentSession: context.agentIdentity != null,
+            };
         warehouseCredentials = await this.materializeResolvedCredentials(
             warehouseCredentials,
             context,
@@ -716,7 +825,12 @@ export class WarehouseClientFactory {
                             ref.kind === 'resolved' &&
                             ref.cachePolicy === 'disabled'
                         ),
-                    resolverOptions: materialization?.clientOptions,
+                    resolverOptions: agentIdentityEnabled
+                        ? {
+                              ...materialization?.clientOptions,
+                              agentSession: context.agentIdentity != null,
+                          }
+                        : materialization?.clientOptions,
                     cacheKeyIdentity: materialization?.cacheKeyIdentity,
                     compileGroup:
                         ref.kind === 'compile' ? ref.compileGroup : undefined,
@@ -733,11 +847,18 @@ export class WarehouseClientFactory {
                 await materialization?.dispose();
                 throw error;
             });
+        const withExecutionTags = (client: WarehouseClient) =>
+            agentIdentityEnabled
+                ? withTrustedAgentQueryTags(
+                      client,
+                      context.agentIdentity ?? null,
+                  )
+                : client;
         const connectionCredentials = sshTunnel.overrideCredentials;
         const clientOptions = this.clientOptions.get(warehouseClient) ?? {};
         let releasePromise: Promise<void> | null = null;
         return {
-            warehouseClient,
+            warehouseClient: withExecutionTags(warehouseClient),
             connectionCredentials,
             warehouseCredentials,
             aiPlan,
@@ -766,16 +887,18 @@ export class WarehouseClientFactory {
                         'Derived warehouse client must use the scope tunnel host and port',
                     );
                 }
-                return this.withSharedSignInAttribution(
-                    ref.projectUuid,
-                    credentials,
-                    this.buildClient(
-                        { ...credentials },
-                        clientOptions,
-                        options?.compileGroup,
+                return withExecutionTags(
+                    this.withSharedSignInAttribution(
+                        ref.projectUuid,
+                        credentials,
+                        this.buildClient(
+                            { ...credentials },
+                            clientOptions,
+                            options?.compileGroup,
+                        ),
+                        aiPlan,
+                        refusalScope,
                     ),
-                    aiPlan,
-                    refusalScope,
                 );
             },
             release: () => {
@@ -1175,7 +1298,19 @@ export class WarehouseClientFactory {
                     userUuid: person?.userUuid ?? '',
                     isRegisteredUser: person?.isRegisteredUser ?? false,
                     isServiceAccount: person?.isServiceAccount ?? false,
-                    agentActor: getAgentActor(context.actor),
+                    agentActor: context.agentIdentity
+                        ? {
+                              surface: context.agentIdentity.act.surface,
+                              clientId: context.agentIdentity.act.client_id,
+                              ...(context.agentIdentity.act.agent_uuid !== null
+                                  ? {
+                                        agentUuid:
+                                            context.agentIdentity.act
+                                                .agent_uuid,
+                                    }
+                                  : {}),
+                          }
+                        : getAgentActor(context.actor),
                     warehouseType: credentials.type,
                 },
                 reason,

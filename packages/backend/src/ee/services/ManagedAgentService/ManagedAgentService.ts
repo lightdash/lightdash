@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
+    AgentActorSurface,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
@@ -57,6 +58,11 @@ import type { SpaceModel } from '../../../models/SpaceModel';
 import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
@@ -305,6 +311,33 @@ export class ManagedAgentService extends BaseService {
 
     // --- Validation helpers ---
 
+    private async withAutopilotScope<T>(
+        actor: SessionUser,
+        execute: () => Promise<T>,
+    ): Promise<T> {
+        const account = fromSession(actor);
+        const current = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        });
+        if (current?.act.client_id === 'lightdash-autopilot') return execute();
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                user: actor,
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+        return agentExecutionContext.run(
+            createAgentExecutionContext({
+                account,
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-autopilot',
+                agentUuid: null,
+                agentIdentityEnabled,
+            }),
+            execute,
+        );
+    }
+
     // Runs the chart query at limit 1 so a bad field or SQL fails here, not
     // on the next validation pass after the version is already saved.
     private async assertChartQueryRuns(
@@ -315,15 +348,17 @@ export class ManagedAgentService extends BaseService {
         abortSignal?: AbortSignal,
     ): Promise<void> {
         try {
-            await this.asyncQueryService.executeMetricQueryAndGetResults(
-                {
-                    account: fromSession(actor),
-                    projectUuid,
-                    context: QueryExecutionContext.AI,
-                    metricQuery: { ...metricQuery, limit: 1 },
-                    parameters,
-                },
-                { abortSignal },
+            await this.withAutopilotScope(actor, () =>
+                this.asyncQueryService.executeMetricQueryAndGetResults(
+                    {
+                        account: fromSession(actor),
+                        projectUuid,
+                        context: QueryExecutionContext.AI,
+                        metricQuery: { ...metricQuery, limit: 1 },
+                        parameters,
+                    },
+                    { abortSignal },
+                ),
             );
         } catch (error) {
             abortSignal?.throwIfAborted();
@@ -1858,24 +1893,26 @@ export class ManagedAgentService extends BaseService {
         const { sessionTimeoutMs, maxSteps } =
             this.lightdashConfig.managedAgent;
 
-        const result = await runAutopilotAgent({
-            model,
-            callOptions,
-            providerOptions,
-            agent,
-            dataTools,
-            executeTool: (name, input, signal) =>
-                onToolCall(
-                    name,
-                    input,
-                    signal,
-                    runtimeInfo.effectiveCleanupMode === 'cleanup',
-                ),
-            projectName: project.name,
-            maxSteps,
-            timeoutMs: sessionTimeoutMs,
-            telemetry,
-        });
+        const result = await this.withAutopilotScope(actor, () =>
+            runAutopilotAgent({
+                model,
+                callOptions,
+                providerOptions,
+                agent,
+                dataTools,
+                executeTool: (name, input, signal) =>
+                    onToolCall(
+                        name,
+                        input,
+                        signal,
+                        runtimeInfo.effectiveCleanupMode === 'cleanup',
+                    ),
+                projectName: project.name,
+                maxSteps,
+                timeoutMs: sessionTimeoutMs,
+                telemetry,
+            }),
+        );
 
         if (result.cause !== null) {
             this.reportHeartbeatFailure(
@@ -2008,6 +2045,14 @@ export class ManagedAgentService extends BaseService {
             }),
         };
 
+        for (const dataTool of Object.values(tools)) {
+            const { execute } = dataTool;
+            if (execute)
+                dataTool.execute = (input, options) =>
+                    this.withAutopilotScope(actor, async () =>
+                        execute(input, options),
+                    );
+        }
         return { tools, availableExplores };
     }
 

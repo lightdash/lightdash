@@ -1,28 +1,16 @@
 import {
-    AGENT_CLIENT_IDS,
     AgentActorSurface,
     buildAgentIdentityClaim,
+    QueryExecutionContext,
     QuerySurface,
     type Account,
     type AgentIdentityClaim,
-    type QueryExecutionContext,
+    type QueryResultReader,
 } from '@lightdash/common';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import { type AuditActor } from '../../logging/auditLog';
 import { createActorFromAccount } from '../../logging/caslAuditWrapper';
-import {
-    connectionSurfaceFromQuerySurface,
-    getAccountAgentIdentityFacts,
-    getAgentActor,
-    surfaceFromQueryContext,
-} from '../WarehouseClientFactory/ConnectionContext';
-
-export type QueryAgentActor = {
-    surface: AgentActorSurface;
-    clientId: string | null;
-    agentUuid?: string | null;
-};
 
 export type AgentExecutionContext = Readonly<{
     surface: AgentActorSurface;
@@ -52,7 +40,16 @@ export const createAgentExecutionContext = ({
     agentUuid: string | null;
     agentIdentityEnabled: boolean;
 }): AgentExecutionContext => {
-    const facts = getAccountAgentIdentityFacts(account);
+    const facts = {
+        oauthClientId:
+            account.authentication.type === 'oauth'
+                ? account.authentication.clientId
+                : null,
+        serviceAccountUuid:
+            account.authentication.type === 'service-account'
+                ? account.authentication.serviceAccountUuid
+                : null,
+    };
     const resolvedClientId =
         surface === AgentActorSurface.MCP ? facts.oauthClientId : clientId;
     const resolvedAgentUuid =
@@ -117,73 +114,24 @@ export const getContentWriteAgentIdentity = ({
     return scope.claim;
 };
 
-export const resolveQueryAgentActor = ({
-    context,
-    querySurface,
-    oauthClientId,
-    explicitActor,
-}: {
-    context: QueryExecutionContext;
-    querySurface: QuerySurface | null;
-    oauthClientId: string | null;
-    explicitActor?: QueryAgentActor | null;
-}): QueryAgentActor | null => {
-    if (explicitActor !== undefined) return explicitActor;
-    const scopedActor = agentExecutionContext.getStore();
-    if (scopedActor)
-        return {
-            surface: scopedActor.surface,
-            clientId: scopedActor.clientId,
-            agentUuid: scopedActor.agentUuid,
-        };
-    if (querySurface === QuerySurface.CLI) {
-        return {
-            surface: AgentActorSurface.CLI,
-            clientId: AGENT_CLIENT_IDS[AgentActorSurface.CLI],
-        };
-    }
-    const actor = getAgentActor({
-        surface:
-            querySurface === null
-                ? surfaceFromQueryContext(context)
-                : connectionSurfaceFromQuerySurface(querySurface, context),
-        person: null,
-        aiClient: null,
-    });
-    return actor?.surface === AgentActorSurface.MCP
-        ? { ...actor, clientId: oauthClientId }
-        : actor;
-};
-
 export const buildQueryAgentIdentity = (
     account: Account,
-    context: QueryExecutionContext,
-    querySurface: QuerySurface | null,
-): AgentIdentityClaim | null => {
-    const { serviceAccountUuid, oauthClientId } =
-        getAccountAgentIdentityFacts(account);
-    const actor = resolveQueryAgentActor({
-        context,
-        querySurface,
-        oauthClientId,
-    });
-    const serviceAccount = account.isServiceAccount();
-    const uuid = serviceAccount ? serviceAccountUuid : account.user.id;
-    return actor && uuid && (serviceAccount || account.isRegisteredUser())
-        ? buildAgentIdentityClaim({
-              subject: {
-                  type: serviceAccount ? 'service_account' : 'user',
-                  uuid,
-              },
-              ...actor,
-          })
-        : null;
-};
-
-export const withQueryAgentUuid = (
-    claim: AgentIdentityClaim | null | undefined,
-    actor: QueryAgentActor | null | undefined,
+    _context: QueryExecutionContext,
+    _querySurface: QuerySurface | null,
 ): AgentIdentityClaim | null =>
-    claim && actor?.agentUuid != null
-        ? { ...claim, act: { ...claim.act, agent_uuid: actor.agentUuid } }
-        : (claim ?? null);
+    getContentWriteAgentIdentity({
+        userUuid: account.user.id,
+        organizationUuid: account.organization.organizationUuid,
+    });
+
+export const buildResultReader = (
+    account: Account,
+    context: QueryExecutionContext = QueryExecutionContext.EXPLORE,
+    querySurface: QuerySurface | null = null,
+): QueryResultReader => {
+    const claim = buildQueryAgentIdentity(account, context, querySurface);
+    const authMethod = account.authentication.type;
+    return claim === null
+        ? { kind: 'person', authMethod }
+        : { kind: 'agent', claim, authMethod };
+};

@@ -4,11 +4,6 @@ import {
     QuerySurface,
     type SessionUser,
 } from '@lightdash/common';
-import {
-    buildQueryAgentIdentity,
-    withQueryAgentUuid,
-} from '../../../services/AiAccessService/agentExecutionContext';
-import type { ExecuteAsyncSqlQueryArgs } from '../../../services/AsyncQueryService/types';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -71,6 +66,9 @@ describe('AiAgentService SQL artifact visualization query', () => {
             };
             const service = new AiAgentService({
                 aiAgentModel,
+                featureFlagService: {
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
+                },
                 asyncQueryService,
                 analytics,
                 lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
@@ -119,21 +117,9 @@ describe('AiAgentService SQL artifact visualization query', () => {
                 versionUuid: 'version-uuid',
             });
 
-            const args = asyncQueryService.executeAsyncSqlQuery.mock
-                .calls[0][0] as ExecuteAsyncSqlQueryArgs;
-            const baseline = buildQueryAgentIdentity(
-                args.account,
-                args.context,
-                querySurface,
-            );
-            expect(withQueryAgentUuid(baseline, args.agentActor)).toEqual(
-                baseline
-                    ? {
-                          ...baseline,
-                          act: { ...baseline.act, agent_uuid: 'agent-uuid' },
-                      }
-                    : null,
-            );
+            expect(
+                asyncQueryService.executeAsyncSqlQuery.mock.calls[0][0],
+            ).not.toHaveProperty('agentActor');
             expect(asyncQueryService.executeAsyncSqlQuery).toHaveBeenCalledWith(
                 expect.objectContaining({
                     projectUuid: 'project-uuid',

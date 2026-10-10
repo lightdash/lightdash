@@ -1,4 +1,4 @@
-import { isAiAgentSqlArtifactVizQuery } from '@lightdash/common';
+import { FeatureFlags, isAiAgentSqlArtifactVizQuery } from '@lightdash/common';
 import { Center, Text } from '@mantine/core';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
@@ -7,7 +7,9 @@ import ScreenshotProgressIndicator from '../../components/common/ScreenshotProgr
 import ScreenshotReadyIndicator from '../../components/common/ScreenshotReadyIndicator';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { AiVisualizationRenderer } from '../features/aiCopilot/components/ChatElements/AiVisualizationRenderer';
+import { getAiAgentArtifactResultsUrl } from '../features/aiCopilot/hooks/aiAgentRouting';
 import { useAiAgentArtifact } from '../features/aiCopilot/hooks/useAiAgentArtifacts';
 import { getAiArtifactChartSource } from '../features/aiCopilot/hooks/useAiArtifactChart';
 import { useAiAgentArtifactVizQuery } from '../features/aiCopilot/hooks/useProjectAiAgents';
@@ -21,6 +23,8 @@ const MinimalAiAgentArtifact: FC = () => {
         versionUuid: string;
     }>();
     const projectUuid = useProjectUuid();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
     const [searchParams] = useSearchParams();
     const requestedQueryUuid = searchParams.get('cachedQueryUuid');
     const hasInvalidCachedQuery =
@@ -65,7 +69,20 @@ const MinimalAiAgentArtifact: FC = () => {
 
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        hasInvalidCachedQuery ? undefined : vizQueryData?.query.queryUuid,
+        hasInvalidCachedQuery ||
+            (cachedQueryUuid === undefined && identityFlag.isLoading)
+            ? undefined
+            : vizQueryData?.query.queryUuid,
+        undefined,
+        !hasInvalidCachedQuery &&
+            (cachedQueryUuid !== undefined || identityEnabled) &&
+            vizQueryData?.query.queryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  ...artifactRef,
+                  queryUuid: cachedQueryUuid ?? vizQueryData.query.queryUuid,
+                  cached: cachedQueryUuid !== undefined,
+              })
+            : null,
     );
 
     const [isScreenshotReady, setIsScreenshotReady] = useState(false);

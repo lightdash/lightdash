@@ -267,7 +267,9 @@ describe('UserWarehouseCredentialsModel', () => {
             { strictPersonalOverlay: false },
         );
         expect(secretResult).not.toHaveProperty('aiClientBinding');
-        expect(secretResult.credentials).toEqual(credentials);
+        expect(secretResult.credentials).toEqual({
+            ...credentials,
+        });
         const [statusCredential] =
             await credentialModel.getAiCredentialsByUserUuid('user-1');
         expect(statusCredential.aiClientBinding).toEqual(aiClientBinding);
@@ -821,7 +823,10 @@ describe('UserWarehouseCredentialsModel', () => {
                 }),
             ).rejects.toThrow('Reconnect your credentials');
         });
-        test('flag-off update preserves the legacy write without reading the old type', async () => {
+        test('flag-off update keeps the legacy type change and reads its credential version', async () => {
+            tracker.on
+                .select('user_warehouse_credentials')
+                .response([makeRow('credential', validBigqueryCredentials)]);
             tracker.on
                 .update('user_warehouse_credentials')
                 .response([{ user_warehouse_credentials_uuid: 'credential' }]);
@@ -838,7 +843,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 },
                 { strictPersonalOverlay: false },
             );
-            expect(tracker.history.select).toHaveLength(0);
+            expect(tracker.history.select).toHaveLength(1);
             expect(tracker.history.update[0].bindings).toContain(
                 WarehouseTypes.POSTGRES,
             );
@@ -900,6 +905,7 @@ describe('UserWarehouseCredentialsModel', () => {
                 user: 'person',
                 authenticationType: SnowflakeAuthenticationType.SSO,
                 refreshToken: 'new-refresh',
+                resultIdentityVersion: expect.any(String),
             });
         });
         test('strict update preserves the stored Athena secret before parsing', async () => {

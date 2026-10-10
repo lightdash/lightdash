@@ -310,6 +310,7 @@ const getResultsPage = async (
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
+    resultsUrl: string | null = null,
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -319,6 +320,12 @@ const getResultsPage = async (
         searchParams.set('pageSize', pageSize.toString());
     }
 
+    if (resultsUrl !== null) {
+        return lightdashApi<ApiGetAsyncQueryResults>({
+            url: `${resultsUrl}&${searchParams}`,
+            method: 'GET',
+        });
+    }
     const urlQueryParams = searchParams.toString();
     return lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}${
@@ -361,6 +368,7 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
     chartName?: string,
+    resultsUrl: string | null = null,
 ): InfiniteQueryResults => {
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
@@ -385,10 +393,12 @@ export const useInfiniteQueryResults = (
     >([]);
     const [fetchAll, setFetchAll] = useState(false);
 
+    const prevResultsUrlRef = useRef(resultsUrl);
     const prevQueryUuidRef = useRef<string | undefined>(null);
     const prevProjectUuidRef = useRef<string | undefined>(null);
     // Detect input changes during render to avoid exposing stale data
     const dependenciesChanged =
+        resultsUrl !== prevResultsUrlRef.current ||
         projectUuid !== prevProjectUuidRef.current ||
         queryUuid !== prevQueryUuidRef.current;
 
@@ -445,7 +455,11 @@ export const useInfiniteQueryResults = (
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
-        queryKey: ['query-page', fetchArgs],
+        queryKey: [
+            'query-page',
+            fetchArgs,
+            ...(resultsUrl === null ? [] : [resultsUrl]),
+        ],
         queryFn: async () => {
             const startTime = performance.now();
             const results = await getResultsPage(
@@ -453,6 +467,7 @@ export const useInfiniteQueryResults = (
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
+                resultsUrl,
             );
 
             const { status } = results;
@@ -485,6 +500,7 @@ export const useInfiniteQueryResults = (
                         queryClient.invalidateQueries([
                             'query-page',
                             fetchArgs,
+                            ...(resultsUrl === null ? [] : [resultsUrl]),
                         ]),
                     );
                     // Double the backoff until it reaches the cap
@@ -546,7 +562,11 @@ export const useInfiniteQueryResults = (
         const hasProjectUuidChanged =
             projectUuid !== prevProjectUuidRef.current;
 
-        if (hasQueryUuidChanged || hasProjectUuidChanged) {
+        if (
+            hasQueryUuidChanged ||
+            hasProjectUuidChanged ||
+            resultsUrl !== prevResultsUrlRef.current
+        ) {
             // Reset fetched pages before updating the fetch args
             setFetchedPages([]);
             backoffRef.current = getInitialBackoffMs();
@@ -560,10 +580,11 @@ export const useInfiniteQueryResults = (
             });
 
             // Update refs
+            prevResultsUrlRef.current = resultsUrl;
             prevQueryUuidRef.current = queryUuid;
             prevProjectUuidRef.current = projectUuid;
         }
-    }, [projectUuid, queryUuid]);
+    }, [projectUuid, queryUuid, resultsUrl]);
 
     useEffect(() => {
         if (fetchAll) {

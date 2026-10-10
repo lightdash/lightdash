@@ -621,3 +621,107 @@ describe('QueryHistoryModel agent identity', () => {
         },
     );
 });
+
+describe('result identity cache partition', () => {
+    const identifiers = { sql: 'SELECT 1', userUuid: 'user', timezone: 'UTC' };
+    const producer = {
+        version: 1 as const,
+        warehouseConnectionUuid: 'connection',
+        credentialOwner: {
+            kind: 'person' as const,
+            userUuid: 'user',
+            userWarehouseCredentialsUuid: 'credential',
+        },
+        agentIdentity: null,
+    };
+    test('keeps the legacy key without identity and separates credential owners, replacements and organisations', () => {
+        const key = (organizationUuid: string, current = producer) =>
+            QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                resultIdentity: { organizationUuid, producer: current },
+            });
+        const legacy = QueryHistoryModel.getCacheKey('project', identifiers);
+        expect(
+            QueryHistoryModel.getCacheKey('project', {
+                ...identifiers,
+                resultIdentity: null,
+            }),
+        ).toBe(legacy);
+        expect(
+            new Set([
+                legacy,
+                key('org'),
+                key('other-org'),
+                key('org', {
+                    ...producer,
+                    credentialOwner: {
+                        ...producer.credentialOwner,
+                        userUuid: 'other',
+                    },
+                }),
+                key('org', {
+                    ...producer,
+                    credentialOwner: {
+                        ...producer.credentialOwner,
+                        userWarehouseCredentialsUuid: 'replacement',
+                    },
+                }),
+                key('org', { ...producer, warehouseConnectionUuid: 'other' }),
+            ]).size,
+        ).toBe(6);
+    });
+    test('records provenance for a registered or embedded creator without losing project scope', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.recordResultProducer(
+                'query',
+                'project',
+                'creator',
+                producer,
+            );
+            expect(tracker.history.update).toHaveLength(1);
+            const [{ sql, bindings }] = tracker.history.update;
+            expect(sql.replace(/\$\d+/g, '?')).toContain(
+                '"query_uuid" = ? and "project_uuid" = ? and (created_by_user_uuid::text = ? or "created_by_account" = ?)',
+            );
+            expect(bindings).toEqual([
+                JSON.stringify(producer),
+                'query',
+                'project',
+                'creator',
+                'creator',
+            ]);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+    test('excludes every agent claim and returns the original producer', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.select('query_history').response(({ sql }) => {
+            expect(sql).toContain('"agent_identity" is null');
+            expect(sql).toContain(
+                "request_parameters->>'aiSignInCredentialUuid' is null",
+            );
+            return { request_parameters: { resultProducer: producer } };
+        });
+        try {
+            const model = new QueryHistoryModel({ database });
+            const candidate = await model.findMostRecentByCacheKey(
+                'cache',
+                'project',
+                { excludeAgentProduced: true, excludeAgentClaims: true },
+            );
+            expect(candidate?.resultProducer).toEqual(producer);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
