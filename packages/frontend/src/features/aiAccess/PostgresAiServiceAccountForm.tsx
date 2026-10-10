@@ -8,6 +8,7 @@ import { Button, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { zod4Resolver as zodResolver } from 'mantine-form-zod-resolver';
 import { z } from 'zod';
+import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 
@@ -112,17 +113,22 @@ export const PostgresAiServiceAccountForm = ({
                         change('password', event.currentTarget.value)
                     }
                 />
-                {test.data && (
-                    <Text size="sm" role={test.data.ok ? 'status' : 'alert'}>
-                        {test.data.ok && test.data.principal
-                            ? `Signs in as ${test.data.principal}`
-                            : test.data.message}
-                    </Text>
-                )}
+                {test.data &&
+                    (test.data.ok ? (
+                        <Text size="sm" role="status">
+                            {test.data.principal
+                                ? `Signs in as ${test.data.principal}`
+                                : test.data.message}
+                        </Text>
+                    ) : (
+                        <Callout variant="danger" role="alert">
+                            {test.data.message}
+                        </Callout>
+                    ))}
                 {(save.error || test.error) && (
-                    <Text size="sm" c="red" role="alert">
+                    <Callout variant="danger" role="alert">
                         {(save.error ?? test.error)?.error.message}
-                    </Text>
+                    </Callout>
                 )}
             </Stack>
         </MantineModal>

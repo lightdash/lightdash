@@ -131,6 +131,7 @@ describe('Postgres AI service account form', () => {
         expect(await screen.findByRole('status')).toHaveTextContent(
             'Signs in as verified-principal',
         );
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
         expect(lightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 method: 'POST',
@@ -205,22 +206,29 @@ describe('Postgres AI service account form', () => {
             expect(client.getMutationCache().getAll()).toHaveLength(0);
         },
     );
-    it('shows failures inline and clears them on edit', async () => {
-        vi.mocked(lightdashApiResponse).mockRejectedValue({
-            error: { message: 'Could not verify these credentials.' },
-        });
-        const { onSaved } = setup();
-        fill();
-        fireEvent.click(screen.getByRole('button', { name: 'Test and save' }));
-        expect(await screen.findByRole('alert')).toHaveTextContent(
-            'Could not verify these credentials.',
-        );
-        expect(onSaved).not.toHaveBeenCalled();
-        fireEvent.change(screen.getByLabelText(/^Password/), {
-            target: { value: 'replacement' },
-        });
-        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    });
+    it.each(['Test', 'Test and save'])(
+        'shows %s request errors as alerts and clears them on edit',
+        async (action) => {
+            const error = {
+                error: { message: 'Could not verify these credentials.' },
+            };
+            if (action === 'Test')
+                vi.mocked(lightdashApi).mockRejectedValue(error);
+            else vi.mocked(lightdashApiResponse).mockRejectedValue(error);
+            const { onSaved } = setup();
+            fill();
+            fireEvent.click(screen.getByRole('button', { name: action }));
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'Could not verify these credentials.',
+            );
+            expect(screen.queryByRole('status')).not.toBeInTheDocument();
+            expect(onSaved).not.toHaveBeenCalled();
+            fireEvent.change(screen.getByLabelText(/^Password/), {
+                target: { value: 'replacement' },
+            });
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        },
+    );
     it('shows a failed Test as an alert', async () => {
         vi.mocked(lightdashApi).mockResolvedValue({
             ...verification,
@@ -234,6 +242,7 @@ describe('Postgres AI service account form', () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             'Access denied.',
         );
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
     it('clears inputs and mutations on Cancel', async () => {
         const { onClose, client } = setup();
