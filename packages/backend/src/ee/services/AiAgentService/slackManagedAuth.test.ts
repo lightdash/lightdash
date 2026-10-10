@@ -17,6 +17,7 @@ const setup = ({
     managed = true,
     requireOAuth = false,
     linked = false,
+    multiAgent = false,
 } = {}) => {
     const policy: AgentCapabilityPolicy = {
         mode: managed ? 'managed' : 'legacy',
@@ -33,7 +34,9 @@ const setup = ({
     } as unknown as ConstructorParameters<typeof AgentPermissionService>[0]);
     const findIdentityByOpenId = vi
         .fn()
-        .mockResolvedValue(linked ? { userUuid: 'requester' } : null);
+        .mockResolvedValue(
+            linked ? { userUuid: 'requester', teamId: 'team' } : null,
+        );
     const findSessionUserAndOrgByUuid = vi
         .fn()
         .mockImplementation(async (userUuid: string) => ({
@@ -43,18 +46,34 @@ const setup = ({
         }));
     const postMessage = vi.fn().mockResolvedValue({ ok: true, ts: 'reply' });
     const postEphemeral = vi.fn().mockResolvedValue({ ok: true });
+    const history = vi.fn().mockResolvedValue({
+        messages: [{ text: 'question', ts: 'message', user: 'sender' }],
+    });
+    const replies = vi.fn().mockResolvedValue({
+        messages: [{ text: 'question', ts: 'message', user: 'sender' }],
+    });
+    const findIdentityByUserUuid = vi.fn().mockResolvedValue({
+        subject: 'sender',
+        userUuid: 'requester',
+        teamId: 'team',
+    });
+    const findThreadUuidBySlackChannelIdAndThreadTs = vi
+        .fn()
+        .mockResolvedValue(null);
+    const getAgent = vi.fn().mockResolvedValue({
+        uuid: 'bound-agent',
+        organizationUuid: 'org',
+        projectUuid: 'second-project',
+    });
     const client = {
         chat: { postMessage, postEphemeral },
-        conversations: {
-            history: vi
-                .fn()
-                .mockResolvedValue({ messages: [{ text: 'question' }] }),
-        },
+        conversations: { history, replies },
     } as unknown as WebClient;
     const settings = {
         aiRequireOAuth: requireOAuth,
         teamId: 'team',
         appId: 'app',
+        aiMultiAgentChannelId: multiAgent ? 'channel' : undefined,
     };
     const service = new AiAgentService({
         lightdashConfig: { siteUrl, ai: {} },
@@ -68,14 +87,14 @@ const setup = ({
         },
         openIdIdentityModel: {
             findIdentityByOpenId,
-            findIdentityByUserUuid: vi.fn().mockResolvedValue({
-                subject: 'sender',
-                userUuid: 'requester',
-            }),
+            findIdentityByUserUuid,
         },
         userModel: { findSessionUserAndOrgByUuid },
         slackClient: { getWebClient: vi.fn().mockResolvedValue(client) },
         aiAgentModel: {
+            findThreadUuidBySlackChannelIdAndThreadTs,
+            findThread: vi.fn().mockResolvedValue({ agentUuid: 'bound-agent' }),
+            getAgent,
             getAgentBySlackChannelId: vi.fn().mockResolvedValue({
                 uuid: 'agent',
                 organizationUuid: 'org',
@@ -131,6 +150,11 @@ const setup = ({
         postMessage,
         postEphemeral,
         findIdentityByOpenId,
+        findIdentityByUserUuid,
+        history,
+        replies,
+        getAgent,
+        findThreadUuidBySlackChannelIdAndThreadTs,
         findSessionUserAndOrgByUuid,
     };
 };
@@ -142,10 +166,11 @@ test.each([undefined, 'thread'])(
         const createPrompt = vi.spyOn(h.service, 'createSlackPrompt');
         await expect(h.auth(threadTs)).resolves.toBeNull();
         expect(createPrompt).not.toHaveBeenCalled();
-        expect(h.postEphemeral).not.toHaveBeenCalled();
-        expect(h.postMessage).toHaveBeenCalledExactlyOnceWith(
+        expect(h.postMessage).not.toHaveBeenCalled();
+        expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 channel: 'channel',
+                user: 'sender',
                 thread_ts: threadTs ?? 'message',
                 text: expect.stringContaining('Needs your sign-in'),
                 blocks: [
@@ -180,7 +205,7 @@ test.each([undefined, 'thread'])(
                 ],
             }),
         );
-        expect(JSON.stringify(h.postMessage.mock.calls)).not.toMatch(
+        expect(JSON.stringify(h.postEphemeral.mock.calls)).not.toMatch(
             /🔴|failed|Reference:|Please try again/,
         );
         expect(h.insert).toHaveBeenCalledExactlyOnceWith(
@@ -210,7 +235,16 @@ test('managed linked Slack rejects a requester outside the organization', async 
     h.findSessionUserAndOrgByUuid.mockRejectedValue(
         new InvalidUser('not a member'),
     );
-    await expect(h.auth()).rejects.toThrow('not a member');
+    const createPrompt = vi.spyOn(h.service, 'createSlackPrompt');
+    await expect(h.mention()).resolves.toBeUndefined();
+    expect(createPrompt).not.toHaveBeenCalled();
+    expect(h.postMessage).not.toHaveBeenCalled();
+    expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+        channel: 'channel',
+        user: 'sender',
+        thread_ts: 'message',
+        text: 'Your account is not a member of this organization. Ask an admin for access.',
+    });
 });
 
 test.each([{ enabled: false }, { managed: false }])(
@@ -293,4 +327,199 @@ test('an unlinked mention does not reserve the message before OAuth replay', asy
             promptSlackTs: 'message',
         }),
     );
+});
+
+const prepareReplay = (options: Parameters<typeof setup>[0] = {}) => {
+    const h = setup(options);
+    const createPrompt = vi
+        .spyOn(h.service, 'createSlackPrompt')
+        .mockResolvedValue(['prompt', true]);
+    const schedule = vi.fn().mockResolvedValue(undefined);
+    const availableAgents = vi.fn().mockResolvedValue([
+        {
+            uuid: 'first-agent',
+            organizationUuid: 'org',
+            projectUuid: 'first-project',
+        },
+        {
+            uuid: 'bound-agent',
+            organizationUuid: 'org',
+            projectUuid: 'second-project',
+        },
+    ]);
+    Object.assign(h.service, {
+        setThinkingStatusAndSchedule: schedule,
+        getAvailableAgents: availableAgents,
+        checkAgentAccess: vi.fn().mockResolvedValue(true),
+    });
+    const replay = (threadTs?: string) =>
+        h.service.processPendingSlackMessage({
+            teamId: 'team',
+            channelId: 'channel',
+            messageTs: 'message',
+            userUuid: 'requester',
+            threadTs,
+        });
+    return { ...h, createPrompt, schedule, replay };
+};
+
+test.each([
+    { requireOAuth: false },
+    { requireOAuth: true },
+    { enabled: false },
+    { managed: false },
+])(
+    'replay rejects a different clicker before creating a prompt: %j',
+    async (options) => {
+        const h = prepareReplay(options);
+        h.findIdentityByUserUuid.mockResolvedValue({
+            subject: 'clicker',
+            userUuid: 'requester',
+            teamId: 'team',
+        });
+        await h.replay();
+        expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+            channel: 'channel',
+            user: 'clicker',
+            thread_ts: 'message',
+            text: 'You can only resume your own message.',
+        });
+        expect(h.createPrompt).not.toHaveBeenCalled();
+        expect(h.schedule).not.toHaveBeenCalled();
+    },
+);
+
+test.each(['enterprise', undefined])(
+    'replay resumes the author when the stored team is %s',
+    async (teamId) => {
+        const h = prepareReplay();
+        h.findIdentityByUserUuid.mockResolvedValue({
+            subject: 'sender',
+            userUuid: 'requester',
+            teamId,
+        });
+        await h.replay();
+        expect(h.createPrompt).toHaveBeenCalledOnce();
+    },
+);
+
+test('replay resumes the right clicker using the exact original message', async () => {
+    const h = prepareReplay();
+    h.history.mockResolvedValue({
+        messages: [
+            {
+                text: 'another question',
+                ts: 'other-message',
+                user: 'someone-else',
+            },
+            { text: 'question', ts: 'message', user: 'sender' },
+        ],
+    });
+    await h.replay();
+    expect(h.createPrompt).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            userUuid: 'requester',
+            organizationUuid: 'org',
+            slackUserId: 'sender',
+            prompt: 'question',
+            promptSlackTs: 'message',
+        }),
+    );
+    expect(h.schedule).toHaveBeenCalledOnce();
+    expect(h.postEphemeral).not.toHaveBeenCalled();
+});
+
+test.each([false, true])(
+    'replay tells a non-member why it stopped (OAuth %s)',
+    async (requireOAuth) => {
+        const h = prepareReplay({ requireOAuth });
+        h.findSessionUserAndOrgByUuid.mockRejectedValue(
+            new InvalidUser('not a member'),
+        );
+        await expect(h.replay()).resolves.toBeUndefined();
+        expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+            channel: 'channel',
+            user: 'sender',
+            thread_ts: 'message',
+            text: 'Your account is not a member of this organization. Ask an admin for access.',
+        });
+        expect(h.createPrompt).not.toHaveBeenCalled();
+        expect(h.schedule).not.toHaveBeenCalled();
+    },
+);
+
+test('replay finds the exact reply in its thread', async () => {
+    const h = prepareReplay();
+    h.replies.mockResolvedValue({
+        messages: [
+            { text: 'root question', ts: 'thread', user: 'another-user' },
+            { text: 'reply question', ts: 'message', user: 'sender' },
+        ],
+    });
+    await h.replay('thread');
+    expect(h.history).not.toHaveBeenCalled();
+    expect(h.replies).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'channel', ts: 'thread' }),
+    );
+    expect(h.createPrompt).toHaveBeenCalledWith(
+        expect.objectContaining({
+            prompt: 'reply question',
+            promptSlackTs: 'message',
+            slackThreadTs: 'thread',
+        }),
+    );
+    expect(h.schedule).toHaveBeenCalledOnce();
+});
+
+test.each(['missing', 'error'])(
+    'replay gives a visible fallback when a threaded message is %s',
+    async (failure) => {
+        const h = prepareReplay();
+        if (failure === 'error') {
+            h.history.mockRejectedValue(new Error('Slack unavailable'));
+            h.replies.mockRejectedValue(new Error('Slack unavailable'));
+        } else {
+            h.history.mockResolvedValue({ messages: [] });
+            h.replies.mockResolvedValue({ messages: [] });
+        }
+        await h.replay('thread');
+        expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+            channel: 'channel',
+            user: 'sender',
+            thread_ts: 'thread',
+            text: "Couldn't find your message. Ask again.",
+        });
+        expect(h.createPrompt).not.toHaveBeenCalled();
+        expect(h.schedule).not.toHaveBeenCalled();
+    },
+);
+
+test('multi-agent replay asks for a new mention instead of picking the first project', async () => {
+    const h = prepareReplay({ multiAgent: true });
+    await h.replay();
+    expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+        channel: 'channel',
+        user: 'sender',
+        thread_ts: 'message',
+        text: "You're connected. Mention me again to continue.",
+    });
+    expect(h.createPrompt).not.toHaveBeenCalled();
+    expect(h.schedule).not.toHaveBeenCalled();
+});
+
+test('multi-agent replay keeps the existing thread agent and project', async () => {
+    const h = prepareReplay({ multiAgent: true });
+    h.findThreadUuidBySlackChannelIdAndThreadTs.mockResolvedValue(
+        'stored-thread',
+    );
+    await h.replay('thread');
+    expect(h.createPrompt).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            agentUuid: 'bound-agent',
+            projectUuid: 'second-project',
+            slackThreadTs: 'thread',
+        }),
+    );
+    expect(h.schedule).toHaveBeenCalledOnce();
+    expect(h.postEphemeral).not.toHaveBeenCalled();
 });

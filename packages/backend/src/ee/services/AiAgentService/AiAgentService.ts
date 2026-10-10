@@ -121,6 +121,7 @@ import {
     GITHUB_MCP_SERVER_URL,
     hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
+    InvalidUser,
     isAgentToolName,
     isAiAgentSqlArtifactVizQuery,
     isAiAppThreadCreatedFrom,
@@ -16614,6 +16615,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
     async createSlackPrompt(data: {
         userUuid: string;
+        organizationUuid: string;
         projectUuid: string;
         slackUserId: string;
         slackChannelId: string;
@@ -16648,20 +16650,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 );
         }
 
-        const user = await this.userModel.getUserDetailsByUuid(data.userUuid);
-        if (user.organizationUuid === undefined) {
-            throw new Error('Organization not found');
-        }
+        await this.userModel.findSessionUserAndOrgByUuid(
+            data.userUuid,
+            data.organizationUuid,
+        );
 
         const agent = data.agentUuid
             ? await this.aiAgentModel.getAgent({
-                  organizationUuid: user.organizationUuid,
+                  organizationUuid: data.organizationUuid,
                   projectUuid: data.projectUuid,
                   agentUuid: data.agentUuid,
               })
             : undefined;
         const modelConfig = await this.resolvePromptModelConfig({
-            organizationUuid: user.organizationUuid,
+            organizationUuid: data.organizationUuid,
             projectUuid: data.projectUuid,
             credentialUuid: agent?.providerCredentialUuid ?? null,
             threadModelConfig: threadUuid
@@ -16674,7 +16676,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (!threadUuid) {
             createdThread = true;
             threadUuid = await this.aiAgentModel.createSlackThread({
-                organizationUuid: user.organizationUuid,
+                organizationUuid: data.organizationUuid,
                 projectUuid: data.projectUuid,
                 createdFrom: 'slack',
                 slackUserId: data.slackUserId,
@@ -16708,23 +16710,21 @@ Use your existing tools to inspect them when relevant to the user's question (re
             promptSlackTs: data.promptSlackTs,
         });
 
-        if (user.organizationUuid) {
-            this.analytics.track<AiAgentPromptCreatedEvent>({
-                event: 'ai_agent_prompt.created',
-                userId: data.userUuid,
-                properties: {
-                    organizationId: user.organizationUuid,
-                    projectId: data.projectUuid,
-                    aiAgentId: data.agentUuid || '',
-                    threadId: threadUuid,
-                    promptId: uuid,
-                    context: 'slack',
-                    ...AiAgentService.getPinnedContextAnalyticsProperties(
-                        undefined,
-                    ),
-                },
-            });
-        }
+        this.analytics.track<AiAgentPromptCreatedEvent>({
+            event: 'ai_agent_prompt.created',
+            userId: data.userUuid,
+            properties: {
+                organizationId: data.organizationUuid,
+                projectId: data.projectUuid,
+                aiAgentId: data.agentUuid || '',
+                threadId: threadUuid,
+                promptId: uuid,
+                context: 'slack',
+                ...AiAgentService.getPinnedContextAnalyticsProperties(
+                    undefined,
+                ),
+            },
+        });
 
         return [uuid, createdThread];
     }
@@ -20238,6 +20238,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             // Create the slack prompt
             [slackPromptUuid] = await this.createSlackPrompt({
+                organizationUuid,
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,
@@ -20389,6 +20390,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
     }
 
     private async createSlackPromptFromAction(args: {
+        organizationUuid: string;
         slackAppId: string | null;
         channelId: string;
         threadTs: string | undefined;
@@ -20400,6 +20402,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         forwardToAgent: boolean;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
+            organizationUuid: args.organizationUuid,
             userUuid: args.userUuid,
             projectUuid: args.agentConfig.projectUuid,
             slackUserId: args.slackUserId,
@@ -20613,6 +20616,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // A meta-query is not forwarded to the agent, but the choice
                 // still binds the thread so the next turn keeps this agent.
                 await this.createSlackPromptFromAction({
+                    organizationUuid,
                     slackAppId: slackSettings.appId ?? null,
                     channelId,
                     threadTs,
@@ -20865,6 +20869,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }
 
                     const [slackPromptUuid] = await this.createSlackPrompt({
+                        organizationUuid,
                         userUuid,
                         projectUuid,
                         slackUserId: body.user.id,
@@ -21187,6 +21192,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     }
 
                     await this.createSlackPromptFromAction({
+                        organizationUuid,
                         slackAppId: slackSettings.appId ?? null,
                         channelId,
                         threadTs,
@@ -21284,6 +21290,39 @@ Use your existing tools to inspect them when relevant to the user's question (re
         };
     }
 
+    private async checkSlackOrganizationMembership({
+        userUuid,
+        organizationUuid,
+        slackUserId,
+        channelId,
+        threadTs,
+        client,
+    }: {
+        userUuid: string;
+        organizationUuid: string;
+        slackUserId: string;
+        channelId: string;
+        threadTs: string;
+        client: WebClient;
+    }): Promise<boolean> {
+        try {
+            await this.userModel.findSessionUserAndOrgByUuid(
+                userUuid,
+                organizationUuid,
+            );
+            return true;
+        } catch (error) {
+            if (!(error instanceof InvalidUser)) throw error;
+            await client.chat.postEphemeral({
+                channel: channelId,
+                user: slackUserId,
+                thread_ts: threadTs,
+                text: 'Your account is not a member of this organization. Ask an admin for access.',
+            });
+            return false;
+        }
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -21365,8 +21404,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         const reply = this.getSlackAccessRefusalReply(
                             refusalError.refusal,
                         );
-                        await client.chat.postMessage({
+                        await client.chat.postEphemeral({
                             channel: channelId,
+                            user: userId,
                             thread_ts: threadTs ?? messageId,
                             text: reply.text,
                             blocks: [reply.titleBlock, ...reply.blocks],
@@ -21413,11 +21453,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 return null;
             }
 
-            if (!aiRequireOAuth) {
-                await this.userModel.findSessionUserAndOrgByUuid(
-                    openIdIdentity.userUuid,
+            if (
+                !(await this.checkSlackOrganizationMembership({
+                    userUuid: openIdIdentity.userUuid,
                     organizationUuid,
-                );
+                    slackUserId: userId,
+                    channelId,
+                    threadTs: threadTs ?? messageId,
+                    client,
+                }))
+            ) {
+                return null;
             }
             result = 'authenticated';
             return { userUuid: openIdIdentity.userUuid };
@@ -21502,6 +21548,75 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         const slackUserId = openIdIdentity.subject;
 
+        let originalMessage: MessageElement | undefined;
+        if (trigger !== 'vote') {
+            // Fetch the original message
+            try {
+                if (threadTs && threadTs !== messageTs) {
+                    const replies = await client.conversations.replies({
+                        channel: channelId,
+                        ts: threadTs,
+                        oldest: messageTs,
+                        latest: messageTs,
+                        inclusive: true,
+                        limit: 100,
+                    });
+                    originalMessage = replies.messages?.find(
+                        (message) => message.ts === messageTs,
+                    );
+                } else {
+                    const history = await client.conversations.history({
+                        channel: channelId,
+                        oldest: messageTs,
+                        latest: messageTs,
+                        inclusive: true,
+                        limit: 1,
+                    });
+                    originalMessage = history.messages?.find(
+                        (message) => message.ts === messageTs,
+                    );
+                }
+            } catch (error) {
+                Logger.error(
+                    'Failed to fetch original message from Slack:',
+                    error,
+                );
+            }
+
+            if (!originalMessage?.text) {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: slackUserId,
+                    thread_ts: threadTs ?? messageTs,
+                    text: "Couldn't find your message. Ask again.",
+                });
+                return;
+            }
+
+            if (originalMessage.user !== slackUserId) {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: slackUserId,
+                    thread_ts: threadTs ?? messageTs,
+                    text: 'You can only resume your own message.',
+                });
+                return;
+            }
+
+            if (
+                !(await this.checkSlackOrganizationMembership({
+                    userUuid,
+                    organizationUuid,
+                    slackUserId,
+                    channelId,
+                    threadTs: threadTs ?? messageTs,
+                    client,
+                }))
+            ) {
+                return;
+            }
+        }
+
         // Try to update the ephemeral message via cached response_url
         const cacheKey = getOAuthCacheKey(teamId, channelId, messageTs);
         const cachedResponse = oauthResponseUrlCache.get(cacheKey);
@@ -21569,36 +21684,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
             return;
         }
 
-        if (
-            !slackSettings.aiRequireOAuth &&
-            (await this.agentPermissionService.isManaged(organizationUuid))
-        ) {
-            await this.userModel.findSessionUserAndOrgByUuid(
-                userUuid,
-                organizationUuid,
-            );
-        }
-
-        // Fetch the original message
-        let originalMessageText: string | undefined;
-        try {
-            const history = await client.conversations.history({
-                channel: channelId,
-                oldest: messageTs,
-                latest: messageTs,
-                inclusive: true,
-                limit: 1,
-            });
-            originalMessageText = history.messages?.[0]?.text;
-        } catch (e) {
-            Logger.error('Failed to fetch original message from Slack:', e);
-            return;
-        }
-
-        if (!originalMessageText) {
-            Logger.error('Original message text not found');
-            return;
-        }
+        if (!originalMessage?.text) return;
+        const originalMessageText = originalMessage.text;
 
         // Get agent config
         const isMultiAgentChannel =
@@ -21613,22 +21700,28 @@ Use your existing tools to inspect them when relevant to the user's question (re
             });
 
         if (isMultiAgentChannel) {
-            const availableAgents = await this.getAvailableAgents(
-                organizationUuid,
-                userUuid,
-                slackSettings,
-                {
-                    projectType: ProjectType.DEFAULT,
-                    projectFilter: slackSettings.aiMultiAgentProjectUuids
-                        ? {
-                              projectUuids:
-                                  slackSettings.aiMultiAgentProjectUuids,
-                          }
-                        : undefined,
-                },
-            );
-            // Use first available agent for pending message processing
-            [agentConfig] = availableAgents;
+            const threadUuid =
+                await this.aiAgentModel.findThreadUuidBySlackChannelIdAndThreadTs(
+                    channelId,
+                    threadTs ?? messageTs,
+                );
+            const thread = threadUuid
+                ? await this.aiAgentModel.findThread(threadUuid)
+                : undefined;
+            if (thread?.agentUuid) {
+                agentConfig = await this.aiAgentModel.getAgent({
+                    organizationUuid,
+                    agentUuid: thread.agentUuid,
+                });
+            } else {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: slackUserId,
+                    thread_ts: threadTs ?? messageTs,
+                    text: "You're connected. Mention me again to continue.",
+                });
+                return;
+            }
         } else {
             try {
                 agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
@@ -21680,6 +21773,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
         try {
             [slackPromptUuid] = await this.createSlackPrompt({
+                organizationUuid,
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId,
@@ -21965,6 +22059,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             }
 
             [slackPromptUuid] = await this.createSlackPrompt({
+                organizationUuid,
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,

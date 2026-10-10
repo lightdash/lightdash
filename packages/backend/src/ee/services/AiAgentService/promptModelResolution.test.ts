@@ -1,4 +1,8 @@
 import { type AiAgentModelConfig, type SessionUser } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
+import { UserModel, type DbUserDetails } from '../../../models/UserModel';
 import { getOrgModelCatalogue, MODEL_PRESETS } from '../ai/models';
 import { AiAgentService } from './AiAgentService';
 
@@ -60,7 +64,9 @@ const buildService = ({
             getContextForPromptUuids: vi.fn(async () => new Map()),
         },
         userModel: {
-            getUserDetailsByUuid: vi.fn(async () => ({ organizationUuid })),
+            findSessionUserAndOrgByUuid: vi.fn(async () => ({
+                organizationUuid,
+            })),
         },
         aiOrganizationSettingsService: {
             getDefaultModelConfig: vi.fn(async () => organizationModelConfig),
@@ -116,6 +122,7 @@ const sendOnEachPath = {
     ) =>
         service.createSlackPrompt({
             userUuid,
+            organizationUuid,
             projectUuid,
             slackUserId: 'slack-user',
             slackChannelId: 'slack-channel',
@@ -206,6 +213,7 @@ const followUpOnEachPath = {
     ) =>
         service.createSlackPrompt({
             userUuid,
+            organizationUuid,
             projectUuid,
             slackUserId: 'slack-user',
             slackChannelId: 'slack-channel',
@@ -261,3 +269,74 @@ describe.each(Object.entries(followUpOnEachPath))(
         });
     },
 );
+
+test('Slack prompt creation keeps the installation organization for a user with two memberships', async () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    const memberships = [
+        {
+            user_uuid: userUuid,
+            organization_uuid: 'other-organization',
+            organization_id: 1,
+        },
+        {
+            user_uuid: userUuid,
+            organization_uuid: organizationUuid,
+            organization_id: 2,
+        },
+    ];
+    tracker.on
+        .select(/from "users"/)
+        .response((query) =>
+            query.bindings.includes(organizationUuid)
+                ? memberships.filter(
+                      (row) => row.organization_uuid === organizationUuid,
+                  )
+                : memberships,
+        );
+    const userModel = new UserModel({ database } as ConstructorParameters<
+        typeof UserModel
+    >[0]);
+    Object.assign(userModel, {
+        hasAuthentication: vi.fn().mockResolvedValue(true),
+        generateUserAbilityBuilder: vi.fn(async (row: DbUserDetails) => ({
+            lightdashUser: {
+                ...defaultSessionUser,
+                userUuid: row.user_uuid,
+                organizationUuid: row.organization_uuid,
+            },
+            abilityBuilder: {
+                rules: [],
+                build: () => defaultSessionUser.ability,
+            },
+        })),
+    });
+    const { service } = buildService({
+        agentModelConfig: null,
+        organizationModelConfig: null,
+    });
+    Object.assign(service, { userModel });
+    const createThread = vi.spyOn(service['aiAgentModel'], 'createSlackThread');
+    const getAgent = vi.spyOn(service['aiAgentModel'], 'getAgent');
+    const defaults = vi.spyOn(
+        service['aiOrganizationSettingsService'],
+        'getDefaultModelConfig',
+    );
+    try {
+        await sendOnEachPath['Slack prompt'](service, undefined);
+        expect(createThread).toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid }),
+        );
+        expect(getAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ organizationUuid }),
+        );
+        expect(defaults).toHaveBeenCalledWith(organizationUuid);
+        expect(tracker.history.select[0].bindings).toEqual([
+            userUuid,
+            organizationUuid,
+        ]);
+    } finally {
+        tracker.reset();
+        await database.destroy();
+    }
+});
