@@ -29,11 +29,26 @@ const baseMarker: ReleaseSafetyMarker = {
         recommendedStrategy: 'RollingUpdate',
     },
     api: {
-        rest: { checked: true, breaking: false, changes: [] },
-        mcp: { checked: true, breaking: false, changes: [] },
+        rest: {
+            checked: true,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        },
+        mcp: {
+            checked: true,
+            breaking: false,
+            changes: [],
+            breakingCount: 0,
+            advisories: [],
+            advisoryCount: 0,
+        },
     },
     config: { checked: true, breaking: false, changes: [] },
     upgrade: { minPreviousVersion: null, requiredStops: [] },
+    declaredAdvisories: [],
     declaredBreaks: [],
 };
 

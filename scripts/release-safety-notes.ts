@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { renderAdvisories } from './release-safety-advisories';
 import type { ReleaseSafetyMarker } from './release-safety-contract';
 
 function verdictLabel(marker: ReleaseSafetyMarker): string {
@@ -37,6 +38,9 @@ export function renderReleaseSafetyNotes(
             );
         }
     }
+
+    const advisories = renderAdvisories(marker.declaredAdvisories ?? []);
+    if (advisories.length > 0) lines.push('', ...advisories);
 
     const surfaceChanges = [
         ...marker.api.rest.changes.map((change) => `REST: ${change}`),
