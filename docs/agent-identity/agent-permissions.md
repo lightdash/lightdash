@@ -32,7 +32,7 @@ Refusals and settings use the plain name. Never show the key to people.
 | `deploy_upload` | Deploy | Deploy and upload | Deploy project changes and upload files. |
 | `dbt_writeback` | dbt | Git repository changes (dbt) | Change any file in the project's Git repository, and open, update or close pull requests. Not only dbt files. |
 | `export` | Export | Export results | Download results, render charts and export to supported destinations. |
-| `administration` | Admin | Administration | Administrative actions that agents may do. Access, credential and identity changes stay with people. |
+| `administration` | Admin | Administration | Administrative actions mapped for agents. Changes reserved for people (see below) stay with people. |
 | `external_tools` | External tools | External tools | Call tools enabled on a connected external service. It does not grant what those tools do downstream. |
 
 `get_query_result` is Read, not Query: it reads a result that already exists.
