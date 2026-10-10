@@ -83,7 +83,7 @@ describe('agent status', () => {
     });
 
     it.each(['organization', null] as const)(
-        'reports a shared agent account with requirement source %s',
+        'reports that the CLI runs as you for a shared agent account with requirement source %s',
         async (requirementSource) => {
             vi.mocked(lightdashApi).mockResolvedValue({
                 ...agentAccess,
@@ -95,7 +95,10 @@ describe('agent status', () => {
             });
             await agentStatusHandler({ verbose: false });
             expect(console.error).toHaveBeenCalledExactlyOnceWith(
-                'Not needed: agents on this project use the shared agent account',
+                'The CLI runs as you until agent connect issues an agent credential.',
+            );
+            expect(console.error).not.toHaveBeenCalledWith(
+                expect.stringContaining('use the shared agent account'),
             );
             expect(process.exitCode).toBeUndefined();
             expect(openBrowser).not.toHaveBeenCalled();
