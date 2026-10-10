@@ -55,12 +55,10 @@ import {
     friendlyName,
     generateSlug,
     getContentAsCodePathFromLtreePath,
-    getCustomSqlFieldKey,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     hasChartsInDashboard,
     isChartScheduler,
-    isCustomSqlDimension,
     isDashboardChartTileType,
     isDashboardScheduler,
     isEmailTarget,
@@ -71,7 +69,6 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
-    isSqlTableCalculation,
     normalizeContentAsCodePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
@@ -108,10 +105,12 @@ import {
     type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
+    type MetricQuery,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import type { Knex } from 'knex';
 import isEqual from 'lodash/isEqual';
+import isPlainObject from 'lodash/isPlainObject';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
@@ -3920,6 +3919,74 @@ export class CoderService extends BaseService {
             );
     }
 
+    private static getChangedAgentChartSqlItems(
+        incoming: Partial<
+            Pick<
+                MetricQuery,
+                'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+            >
+        >,
+        current:
+            | Partial<
+                  Pick<
+                      MetricQuery,
+                      | 'tableCalculations'
+                      | 'customDimensions'
+                      | 'additionalMetrics'
+                  >
+              >
+            | undefined,
+        stripMetricUuids = false,
+    ): Pick<
+        MetricQuery,
+        'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+    > {
+        // JSON transport drops undefined properties at every depth
+        const definedProperties = (item: unknown): unknown => {
+            if (Array.isArray(item)) return item.map(definedProperties);
+            if (!isPlainObject(item)) return item;
+            return Object.fromEntries(
+                Object.entries(item as object)
+                    .filter(([, value]) => value !== undefined)
+                    .map(([key, value]) => [key, definedProperties(value)]),
+            );
+        };
+        const changedItems = <T extends object>(
+            items: T[] | undefined,
+            previous: T[] | undefined,
+        ): T[] =>
+            (items ?? []).filter(
+                (item) =>
+                    !(previous ?? []).some((stored) =>
+                        isEqual(
+                            definedProperties(item),
+                            definedProperties(stored),
+                        ),
+                    ),
+            );
+        const withoutMetricUuids = (
+            metrics: MetricQuery['additionalMetrics'],
+        ) => metrics?.map(({ uuid: _uuid, ...metric }) => metric);
+        return {
+            tableCalculations: changedItems(
+                incoming.tableCalculations,
+                current?.tableCalculations,
+            ),
+            customDimensions: changedItems(
+                incoming.customDimensions,
+                current?.customDimensions,
+            ),
+            additionalMetrics: changedItems(
+                stripMetricUuids
+                    ? withoutMetricUuids(incoming.additionalMetrics)
+                    : incoming.additionalMetrics,
+                stripMetricUuids
+                    ? withoutMetricUuids(current?.additionalMetrics)
+                    : current?.additionalMetrics,
+            ),
+        };
+    }
+
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
@@ -4027,50 +4094,69 @@ export class CoderService extends BaseService {
                 ? await this.savedChartModel.get(chart.uuid)
                 : undefined;
         if (grantAccount) {
-            if (!this.projectService) {
+            const { projectService } = this;
+            if (!projectService) {
                 throw new Error(
                     'ProjectService is required to check agent chart uploads',
                 );
             }
-            const currentQuery = currentChart?.metricQuery;
-            await this.projectService.assertAgentCustomSqlAuthorizedForQuery({
+            const sameChartExplore =
+                currentChart?.tableName === chartAsCode.tableName &&
+                currentChart?.metricQuery.exploreName ===
+                    metricQuery.exploreName;
+            const currentQuery = sameChartExplore
+                ? currentChart?.metricQuery
+                : undefined;
+            await projectService.assertAgentCustomSqlAuthorizedForQuery({
                 account: grantAccount,
                 projectUuid,
                 exploreName: metricQuery.exploreName,
-                metricQuery: {
-                    tableCalculations: metricQuery.tableCalculations.filter(
-                        (calculation) =>
-                            isSqlTableCalculation(calculation) &&
-                            !(currentQuery?.tableCalculations ?? []).some(
-                                (current) =>
-                                    isSqlTableCalculation(current) &&
-                                    current.name === calculation.name &&
-                                    current.sql === calculation.sql,
-                            ),
-                    ),
-                    customDimensions: metricQuery.customDimensions?.filter(
-                        (dimension) =>
-                            isCustomSqlDimension(dimension) &&
-                            !(currentQuery?.customDimensions ?? []).some(
-                                (current) =>
-                                    isCustomSqlDimension(current) &&
-                                    current.id === dimension.id &&
-                                    current.sql === dimension.sql,
-                            ),
-                    ),
-                    additionalMetrics: metricQuery.additionalMetrics?.filter(
-                        (metric) =>
-                            !(currentQuery?.additionalMetrics ?? []).some(
-                                (current) =>
-                                    current.name === metric.name &&
-                                    getCustomSqlFieldKey(current) ===
-                                        getCustomSqlFieldKey(metric) &&
-                                    current.baseDimensionName ===
-                                        metric.baseDimensionName,
-                            ),
-                    ),
-                },
+                metricQuery: CoderService.getChangedAgentChartSqlItems(
+                    metricQuery,
+                    currentQuery,
+                    true,
+                ),
             });
+            if (merge) {
+                const currentMerge =
+                    sameChartExplore && currentChart?.merge
+                        ? normalizeSavedMergeDefinition(
+                              currentChart.merge,
+                              currentChart.metricQuery,
+                          )
+                        : null;
+                await Promise.all(
+                    Object.entries(merge.queries).map(([name, query]) => {
+                        const currentMergeQuery = currentMerge?.queries[name];
+                        return projectService.assertAgentCustomSqlAuthorizedForQuery(
+                            {
+                                account: grantAccount,
+                                projectUuid,
+                                exploreName: query.explore,
+                                metricQuery:
+                                    CoderService.getChangedAgentChartSqlItems(
+                                        query,
+                                        currentMergeQuery?.explore ===
+                                            query.explore
+                                            ? currentMergeQuery
+                                            : undefined,
+                                    ),
+                            },
+                        );
+                    }),
+                );
+                await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                    account: grantAccount,
+                    projectUuid,
+                    exploreName: metricQuery.exploreName,
+                    metricQuery: CoderService.getChangedAgentChartSqlItems(
+                        { tableCalculations: merge.tableCalculations },
+                        {
+                            tableCalculations: currentMerge?.tableCalculations,
+                        },
+                    ),
+                });
+            }
         }
 
         // If chart does not exist, we can't use promoteService,
