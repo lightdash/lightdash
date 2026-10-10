@@ -179,6 +179,34 @@ describe('Agent permissions', () => {
         ).not.toBeInTheDocument();
         expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     });
+    it('starts from all projects and everyone after limits were turned off', async () => {
+        policy = {
+            ...legacy(),
+            allowedProjectUuids: ['project'],
+            allowedUserUuids: ['person'],
+        };
+        renderSection();
+        await enableLimits();
+        expect(
+            screen.getByRole('radio', { name: 'All projects' }),
+        ).toBeChecked();
+        expect(
+            screen.getByRole('radio', { name: 'Everyone the roles allow' }),
+        ).toBeChecked();
+        await save();
+        await waitFor(() =>
+            expect(mutations()[0]?.[0]).toMatchObject({
+                method: 'PUT',
+                body: JSON.stringify({
+                    version: 0,
+                    systemRoleMatrix: policy.defaults,
+                    allowedProjectUuids: null,
+                    allowedUserUuids: null,
+                }),
+            }),
+        );
+    });
+
     it('saves matrix edits, selected projects and named people', async () => {
         renderSection();
         await screen.findByText('Permissions');

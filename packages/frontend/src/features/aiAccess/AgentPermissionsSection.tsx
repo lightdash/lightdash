@@ -43,8 +43,9 @@ const formValues = (
     version: policy.version,
     systemRoleMatrix:
         policy.mode === 'legacy' ? defaults : policy.systemRoleMatrix,
-    allowedProjectUuids: policy.allowedProjectUuids,
-    allowedUserUuids: policy.allowedUserUuids,
+    allowedProjectUuids:
+        policy.mode === 'legacy' ? null : policy.allowedProjectUuids,
+    allowedUserUuids: policy.mode === 'legacy' ? null : policy.allowedUserUuids,
 });
 
 const useAgentPermissionDraft = (policy: AgentCapabilityPolicyOverview) => {
