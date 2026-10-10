@@ -213,7 +213,7 @@ it.each([
             ...selection(),
             intent,
         }),
-    ).rejects.toThrow('service account');
+    ).rejects.toThrow('shared agent account');
 });
 
 it('separates slot, generation and source project but reuses identity across people', async () => {

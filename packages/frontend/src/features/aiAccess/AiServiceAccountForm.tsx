@@ -49,7 +49,7 @@ const BigqueryAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="AI service account"
+            title="Shared agent account"
             onClose={busy ? () => {} : onClose}
             confirmLabel="Save"
             confirmDisabled={!credentials || busy}

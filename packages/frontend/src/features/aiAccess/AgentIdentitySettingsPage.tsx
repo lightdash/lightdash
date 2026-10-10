@@ -9,7 +9,7 @@ export const AgentIdentitySettingsPage = () => {
     const { showMyAgentConnections } = useSettingsContext();
     return (
         <SettingsPage
-            title="Agent identity"
+            title="Agents"
             description={
                 <>
                     Shared warehouse logins are in{' '}
@@ -20,17 +20,17 @@ export const AgentIdentitySettingsPage = () => {
                     >
                         Warehouse credentials
                     </Anchor>
-                    . A person's own agent connection is in{' '}
+                    . Each person's agent sign-in is in{' '}
                     {showMyAgentConnections ? (
                         <Anchor
                             component={Link}
                             to="/generalSettings/myAgentConnections"
                             size="sm"
                         >
-                            My agent connections
+                            My agent identity
                         </Anchor>
                     ) : (
-                        'My agent connections'
+                        'My agent identity'
                     )}
                     .
                 </>

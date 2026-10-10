@@ -10,7 +10,7 @@ export const AiServiceAccountStatus = ({
 }) => (
     <Stack gap="sm">
         <Group gap="sm">
-            <Title order={5}>AI service account</Title>
+            <Title order={5}>Shared agent account</Title>
             {status.badge && (
                 <Badge
                     variant="light"

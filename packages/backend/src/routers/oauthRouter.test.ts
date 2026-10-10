@@ -549,11 +549,11 @@ describe('OAuth authorize redirects', () => {
     it.each([
         [
             'needs_sign_in',
-            'Your organisation requires an agent connection for AI queries. Connect once now, or authorise and connect later from the link an AI tool shows you.',
+            'Your organisation requires an agent sign-in. Connect once now, or authorise and connect later from the link your agent shows you.',
         ],
         [
             'sign_in_expired',
-            'Your agent connection expired. Connect again now, or authorise and connect later from the link an AI tool shows you.',
+            'Your agent sign-in expired. Connect your agent again now, or authorise and connect later from the link your agent shows you.',
         ],
     ] as const)(
         'offers an optional agent connection for %s',
@@ -716,7 +716,7 @@ describe('OAuth authorize redirects', () => {
             'class="oauth-agent-connect-error" role="alert"',
         );
         expect(response.body).toContain(
-            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC &#x3D; TRUE on the security integration used for AI.',
+            'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC &#x3D; TRUE on the security integration used for agents.',
         );
         const link = /href="([^"]+)">Connect your warehouse agent<\/a>/.exec(
             response.body,

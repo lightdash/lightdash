@@ -58,7 +58,7 @@ export const createSnowflakeAiPassportStrategy = (
                     verification.failureReason =
                         AgentIdentityConnectFailureReason.LICENSE_REQUIRED;
                     throw new ForbiddenError(
-                        'Enterprise license required for Snowflake AI sign-in',
+                        'Enterprise license required for Snowflake agent sign-in',
                     );
                 }
                 const { user } = req;

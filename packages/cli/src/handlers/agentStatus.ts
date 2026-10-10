@@ -19,7 +19,7 @@ export const agentStatusHandler = async (
         return;
     }
     if (access.requirementSource === null) {
-        console.error('Agent connection not required for this project');
+        console.error('Agent sign-in is not required for this project');
         return;
     }
     if (access.refusal?.action === 'sign_in') {

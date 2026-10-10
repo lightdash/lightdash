@@ -376,17 +376,17 @@ describe('Agent identity settings routes', () => {
             if (enabled && canManage) {
                 expect(
                     await screen.findByRole('heading', {
-                        name: 'Agent identity',
+                        name: 'Agents',
                     }),
                 ).toBeInTheDocument();
                 expect(
-                    screen.getAllByRole('heading', { name: 'Agent identity' }),
+                    screen.getAllByRole('heading', { name: 'Agents' }),
                 ).toHaveLength(1);
                 expect(
-                    screen.getByRole('link', { name: 'Agent identity' }),
+                    screen.getByRole('link', { name: 'Agents' }),
                 ).toHaveAttribute('href', '/generalSettings/agentIdentity');
                 expect(
-                    screen.getByText(/Choose who AI agents run as/),
+                    screen.getByText(/Choose who agents run as/),
                 ).toBeInTheDocument();
                 expect(
                     screen.getByRole('link', { name: 'Warehouse credentials' }),
@@ -410,10 +410,10 @@ describe('Agent identity settings routes', () => {
                     await screen.findByRole('heading', { name: 'Profile' }),
                 ).toBeInTheDocument();
                 expect(
-                    screen.queryByRole('link', { name: 'Agent identity' }),
+                    screen.queryByRole('link', { name: 'Agents' }),
                 ).not.toBeInTheDocument();
                 expect(
-                    screen.queryByRole('heading', { name: 'Agent identity' }),
+                    screen.queryByRole('heading', { name: 'Agents' }),
                 ).not.toBeInTheDocument();
                 expect(
                     screen.getByRole('status', { name: 'Current URL' }),
@@ -439,7 +439,7 @@ describe('Agent identity settings routes', () => {
         );
 
         expect(
-            await screen.findByRole('heading', { name: 'Agent identity' }),
+            await screen.findByRole('heading', { name: 'Agents' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('status', { name: 'Current URL' }),
@@ -471,13 +471,13 @@ describe('Agent identity settings routes', () => {
             screen.getByText('No warehouse credentials'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText(/Choose who AI agents run as/),
+            screen.queryByText(/Choose who agents run as/),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByRole('heading', { name: 'Agent identity' }),
+            screen.queryByRole('heading', { name: 'Agents' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Agent identity' }),
+            screen.getByRole('link', { name: 'Agents' }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('status', { name: 'Current URL' }),

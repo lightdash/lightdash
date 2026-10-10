@@ -5,7 +5,7 @@ import {
     type OrganizationAgentIdentityRule,
     type AiIdentitySource,
 } from '@lightdash/common';
-import { Anchor, Box, Group, Select, Stack, Text } from '@mantine/core';
+import { Anchor, Box, Group, Select, Stack, Text, Title } from '@mantine/core';
 import { IconAlertTriangle, IconCheck } from '@tabler/icons-react';
 import { Fragment, useState } from 'react';
 import { Link } from 'react-router';
@@ -142,7 +142,7 @@ const AgentIdentityRule = ({
                                 1
                                     ? 'project has'
                                     : 'projects have'}{' '}
-                                no AI service account:{' '}
+                                no shared agent account:{' '}
                                 {rule.projectsMissingAiServiceAccount
                                     .slice(0, 3)
                                     .map((project, index) => (
@@ -172,7 +172,7 @@ const AgentIdentityRule = ({
                     <Group role="status" gap="xs" wrap="nowrap">
                         <MantineIcon icon={IconCheck} color="green" size="sm" />
                         <Text size="sm" c="green" flex={1}>
-                            Every {warehouseName} project has an AI service
+                            Every {warehouseName} project has a shared agent
                             account.
                         </Text>
                     </Group>
@@ -237,8 +237,9 @@ const OrganizationAgentIdentitySection = () => {
     return (
         <SettingsCard>
             <Stack gap="md">
+                <Title order={5}>Identity</Title>
                 <Text size="sm" c="dimmed">
-                    Choose who AI agents run as on each warehouse.
+                    Choose who agents run as on each warehouse.
                 </Text>
                 <AgentIdentitySettings />
             </Stack>

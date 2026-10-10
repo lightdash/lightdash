@@ -237,7 +237,7 @@ test('returns Databricks save verification beside metadata without credentials',
             ok: true,
             principal: 'agent',
             observed: { currentUser: 'agent' },
-            message: 'AI service account connection checked.',
+            message: 'Shared agent account connection checked.',
             checkedAt: expect.any(Date),
         },
     });

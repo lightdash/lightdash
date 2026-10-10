@@ -4080,7 +4080,7 @@ describe('AI service account factory scopes', () => {
                             reason: 'ai_service_account_invalid',
                             action: 'ask_admin',
                             message:
-                                "Agents can't query Jaffle shop right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.",
+                                "Agents can't run on Jaffle shop right now. Its shared agent account failed to sign in. A project admin can check it in Agent identity.",
                             settingsUrl:
                                 '/generalSettings/projectManagement/project-uuid/agentIdentity',
                             connectUrl: null,

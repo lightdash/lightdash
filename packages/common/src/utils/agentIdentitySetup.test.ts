@@ -54,7 +54,7 @@ describe('BigQuery AI service account commands', () => {
                 step: 'create',
                 title: 'Create the service account',
                 command:
-                    'gcloud iam service-accounts create lightdash-agents \\\n  --project=data-project \\\n  --display-name="AI agents"',
+                    'gcloud iam service-accounts create lightdash-agents \\\n  --project=data-project \\\n  --display-name="Lightdash agents"',
             },
             {
                 step: 'job_user',
@@ -80,7 +80,7 @@ describe('BigQuery AI service account commands', () => {
                 serviceAccountName: 'custom-agent',
             });
             expect(commands.map(({ command }) => command)).toEqual([
-                'gcloud iam service-accounts create custom-agent \\\n  --project=data-project \\\n  --display-name="AI agents"',
+                'gcloud iam service-accounts create custom-agent \\\n  --project=data-project \\\n  --display-name="Lightdash agents"',
                 'gcloud projects add-iam-policy-binding data-project \\\n  --member="serviceAccount:custom-agent@data-project.iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
             ]);
         },
@@ -93,7 +93,7 @@ describe('BigQuery AI service account commands', () => {
             serviceAccountName: 'agent`id`',
         });
         expect(commands.map(({ command }) => command)).toEqual([
-            "gcloud iam service-accounts create 'agent`id`' \\\n  --project='project'\"'\"'$(whoami)' \\\n  --display-name=\"AI agents\"",
+            "gcloud iam service-accounts create 'agent`id`' \\\n  --project='project'\"'\"'$(whoami)' \\\n  --display-name=\"Lightdash agents\"",
             'gcloud projects add-iam-policy-binding \'jobs; echo bad\' \\\n  --member="serviceAccount:agent\\`id\\`@project\'\\$(whoami).iam.gserviceaccount.com" \\\n  --role="roles/bigquery.jobUser"',
         ]);
     });

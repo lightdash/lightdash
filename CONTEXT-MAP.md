@@ -14,6 +14,7 @@ collisions with other contexts' or repo-wide meanings.
 - [Chart type registry](./docs/chart-types/CONTEXT.md) — official custom chart types published as prebuilt artifacts in a public registry and installed read-only per project, with explicit fork for customization
 - [Pre-aggregates](./docs/pre-aggregates/CONTEXT.md) — user-defined, pre-computed summaries of explores that serve matching queries from materialized files instead of the warehouse
 - [AI agent](./docs/ai-agent/CONTEXT.md) — the in-app conversational agent (Ask AI), what users pin to its prompts, and where it opens from
+- [Agent identity](./docs/agent-identity/CONTEXT.md) — who agents run as on each warehouse, what they may do, and the words every agent screen uses for both
 - [AI agent memory](./docs/ai-agent-memory/CONTEXT.md) — per-user, per-project knowledge the AI agent distills from a user's threads and recalls on their future threads
 - [External sources](./docs/external-sources/CONTEXT.md) — uploaded CSVs and connected Google Sheets ingested to typed parquet and queried as explores on the DuckDB engine
 - [Merge queries](./docs/merge-queries/CONTEXT.md) — joining the results of two explore queries on a shared key, executed as a composed query with the join running in DuckDB

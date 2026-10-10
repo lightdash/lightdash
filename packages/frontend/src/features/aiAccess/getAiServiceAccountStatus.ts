@@ -27,7 +27,7 @@ export const getAiServiceAccountStatus = ({
     const required = rule.source === 'ai_service_account';
     const unreadableParent = !slot && parent?.credentialsReadable === false;
     const warehouse = identityWarehouseNames[rule.warehouseType];
-    const parentWarning = `Lightdash can't read the parent project's AI service account. Add this preview's own account, or ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;
+    const parentWarning = `This preview can't read the parent project's shared agent account. Add this preview's own account, or ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;
     if (required && unreadableParent)
         return {
             badge: null,
@@ -44,7 +44,7 @@ export const getAiServiceAccountStatus = ({
             alert: {
                 color: 'yellow',
                 message:
-                    'Agents are refused on this project until you add an AI service account.',
+                    'Agents are refused on this project until you add a shared agent account.',
             },
         };
     return {
@@ -59,7 +59,7 @@ export const getAiServiceAccountStatus = ({
                 ? {
                       color: 'red',
                       message:
-                          "The AI service account can't be read. Replace it.",
+                          "The shared agent account can't be read. Replace it.",
                   }
                 : unreadableParent
                   ? { color: 'red', message: parentWarning }

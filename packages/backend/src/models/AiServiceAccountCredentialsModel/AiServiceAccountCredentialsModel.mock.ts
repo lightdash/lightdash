@@ -39,7 +39,7 @@ export const snowflakeVerification = {
     ok: true,
     principal: 'OBSERVED_USER',
     observed: { currentUser: 'OBSERVED_USER', currentRole: 'OBSERVED_ROLE' },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-09T12:00:00Z'),
 };
 
@@ -79,7 +79,7 @@ export const athenaVerification = {
     observed: {
         principalArn: 'arn:aws:sts::123456789012:assumed-role/agent/session',
     },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
 
@@ -115,7 +115,7 @@ export const postgresVerification = {
     ok: true,
     principal: 'ai_agents',
     observed: { currentUser: 'ai_agents' },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
 
@@ -164,7 +164,7 @@ export const redshiftVerification = {
     ok: true,
     principal: 'ai_agents',
     observed: { currentUser: 'ai_agents' },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
 
@@ -193,7 +193,7 @@ export const trinoVerification = {
     ok: true,
     principal: 'MappedAgent/RestrictedRole',
     observed: { currentUser: 'MappedAgent/RestrictedRole' },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
 
@@ -221,7 +221,7 @@ export const clickhouseVerification = {
     ok: true,
     principal: 'ai_agents',
     observed: { currentUser: 'ai_agents', readonly: '2', useQueryCache: '0' },
-    message: 'AI service account connection checked.',
+    message: 'Shared agent account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };
 

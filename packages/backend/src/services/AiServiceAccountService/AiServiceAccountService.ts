@@ -139,7 +139,7 @@ export class AiServiceAccountService extends BaseService {
                   );
         if (!supportsAiServiceAccount(connection.type)) {
             throw new ParameterError(
-                'This warehouse does not support an AI service account.',
+                'This warehouse does not support a shared agent account.',
             );
         }
         return {
@@ -323,7 +323,7 @@ export class AiServiceAccountService extends BaseService {
         );
         if (input.type !== connection.type)
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         const saved =
             await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
@@ -481,7 +481,7 @@ export class AiServiceAccountService extends BaseService {
         );
         if (input !== null && input.type !== loaded.connection.type)
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         const secrets =
             input === null
@@ -738,7 +738,7 @@ export class AiServiceAccountService extends BaseService {
             message:
                 principal === null
                     ? 'Connection checked; principal not observed.'
-                    : 'AI service account connection checked.',
+                    : 'Shared agent account connection checked.',
             checkedAt: new Date(),
         };
     }
@@ -785,7 +785,7 @@ export class AiServiceAccountService extends BaseService {
             }
             if (secrets === null) {
                 throw new NotFoundError(
-                    'The connection has no AI service account.',
+                    'The connection has no shared agent account.',
                 );
             }
             result = await this.probeConnection(
@@ -856,7 +856,7 @@ export class AiServiceAccountService extends BaseService {
                                 error,
                             );
                         default:
-                            return 'Could not verify the AI service account. Check the credentials and connection settings.';
+                            return 'Could not verify the shared agent account. Check the credentials and connection settings.';
                     }
                 })(),
                 checkedAt: new Date(),

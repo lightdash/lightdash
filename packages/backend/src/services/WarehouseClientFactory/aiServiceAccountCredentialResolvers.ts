@@ -97,7 +97,7 @@ export const buildAiServiceAccountCredentials = (
             return clickhouseResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.DUCKDB:
             throw new ParameterError(
-                'This warehouse does not support an AI service account.',
+                'This warehouse does not support a shared agent account.',
             );
         default:
             return assertUnreachable(connection, 'Unknown warehouse type');
@@ -125,7 +125,7 @@ export const resolveAiServiceAccountCredentials = (selection: AiSelection) =>
         },
         async () => {
             throw new ParameterError(
-                'This warehouse does not support an AI service account.',
+                'This warehouse does not support a shared agent account.',
             );
         },
         'ai_service_account',

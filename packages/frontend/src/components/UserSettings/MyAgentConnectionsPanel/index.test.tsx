@@ -107,11 +107,11 @@ describe('MyAgentConnectionsPanel', () => {
     it('shows both applicable cards and the agreed heading', () => {
         renderWithProviders(<MyAgentConnectionsPanel />);
         expect(
-            screen.getByRole('heading', { name: 'My agent connections' }),
+            screen.getByRole('heading', { name: 'My agent identity' }),
         ).toBeInTheDocument();
         expect(
             screen.getByText(
-                'Some warehouses need your agent to sign in as you, once.',
+                'See who your agents run as on each warehouse. Some warehouses need you to sign in once.',
             ),
         ).toBeInTheDocument();
         expect(
@@ -184,7 +184,7 @@ describe('MyAgentConnectionsPanel', () => {
             if (visible)
                 expect(
                     screen.getByText(
-                        /Agents on Athena projects run as the AI service account your admin set up/,
+                        /Agents on Athena projects run as a shared agent account that your admin set up/,
                     ),
                 ).toBeVisible();
         },
@@ -209,7 +209,7 @@ describe('MyAgentConnectionsPanel', () => {
             if (visible)
                 expect(
                     screen.getByText(
-                        /Agents on PostgreSQL projects run as the AI service account your admin set up/,
+                        /Agents on PostgreSQL projects run as a shared agent account that your admin set up/,
                     ),
                 ).toBeVisible();
         },
@@ -234,7 +234,7 @@ describe('MyAgentConnectionsPanel', () => {
             if (visible)
                 expect(
                     screen.getByText(
-                        /Agents on Redshift projects run as the AI service account your admin set up/,
+                        /Agents on Redshift projects run as a shared agent account that your admin set up/,
                     ),
                 ).toBeVisible();
         },
@@ -259,7 +259,7 @@ describe('MyAgentConnectionsPanel', () => {
             if (visible)
                 expect(
                     screen.getByText(
-                        /Agents on Trino projects run as the AI service account your admin set up/,
+                        /Agents on Trino projects run as a shared agent account that your admin set up/,
                     ),
                 ).toBeVisible();
         },
@@ -284,7 +284,7 @@ describe('MyAgentConnectionsPanel', () => {
             if (visible)
                 expect(
                     screen.getByText(
-                        /Agents on ClickHouse projects run as the AI service account your admin set up/,
+                        /Agents on ClickHouse projects run as a shared agent account that your admin set up/,
                     ),
                 ).toBeVisible();
         },
@@ -312,19 +312,17 @@ describe('MyAgentConnectionsPanel', () => {
             screen.queryByRole('button', { name: 'Connect agent' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByText('No agent connections needed'),
+            screen.queryByText('Your agents run as you'),
         ).not.toBeInTheDocument();
     });
     it('shows the neutral empty state when no card applies', () => {
         snowflakeSource = 'marked_person';
         bigquerySource = 'marked_person';
         renderWithProviders(<MyAgentConnectionsPanel />);
-        expect(
-            screen.getByText('No agent connections needed'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Your agents run as you')).toBeInTheDocument();
         expect(
             screen.getByText(
-                "Agents use your own warehouse access. There's nothing to connect.",
+                "Agents use your own warehouse access. There's nothing to set up.",
             ),
         ).toBeInTheDocument();
     });
@@ -363,17 +361,17 @@ describe('MyAgentConnectionsPanel', () => {
             screen.queryByRole('heading', { name: 'Snowflake' }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByText('No agent connections needed'),
+            screen.queryByText('Your agents run as you'),
         ).not.toBeInTheDocument();
     });
     it('does not describe a failed request as an empty state', () => {
         isError = true;
         renderWithProviders(<MyAgentConnectionsPanel />);
         expect(
-            screen.getByText('Could not load your agent connections.'),
+            screen.getByText('Could not load your agent identity.'),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('No agent connections needed'),
+            screen.queryByText('Your agents run as you'),
         ).not.toBeInTheDocument();
     });
     it('shows Databricks service access instead of the empty state', () => {
@@ -386,7 +384,7 @@ describe('MyAgentConnectionsPanel', () => {
             screen.getByRole('heading', { name: 'Databricks' }),
         ).toBeInTheDocument();
         expect(
-            screen.queryByText('No agent connections needed'),
+            screen.queryByText('Your agents run as you'),
         ).not.toBeInTheDocument();
     });
 

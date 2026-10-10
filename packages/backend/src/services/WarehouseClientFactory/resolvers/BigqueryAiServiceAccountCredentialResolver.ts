@@ -40,13 +40,13 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
     ): CreateBigqueryCredentials {
         if (connection.type !== WarehouseTypes.BIGQUERY) {
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
         if (credentials.type !== WarehouseTypes.BIGQUERY) {
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         }
         return {
@@ -77,7 +77,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
             case 'linkCurrentPerson':
             case 'verifiedGoogleCallback':
                 throw new ParameterError(
-                    'An AI service account cannot use a person sign-in.',
+                    'A shared agent account cannot use a person sign-in.',
                 );
             default:
                 return assertUnreachable(
@@ -92,7 +92,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
     ): Promise<CredentialResolution<CreateBigqueryCredentials>> {
         if (input.owner !== null && input.owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         return {
@@ -110,7 +110,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
         const { owner } = input;
         if (owner !== null && owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         return [
@@ -125,7 +125,7 @@ export class BigqueryAiServiceAccountCredentialResolver implements CredentialRes
     toDbtTarget(): DbtTargetResult {
         return {
             kind: 'none',
-            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+            reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
         };
     }
 

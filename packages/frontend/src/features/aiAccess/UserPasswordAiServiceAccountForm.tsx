@@ -70,7 +70,7 @@ export const UserPasswordAiServiceAccountForm = ({
     return (
         <MantineModal
             opened
-            title="AI service account"
+            title="Shared agent account"
             onClose={() => {
                 if (!busy) close();
             }}

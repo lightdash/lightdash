@@ -535,7 +535,7 @@ export class AiAccessService extends BaseService {
             !isAllowedAgentIdentitySource(warehouseType, 'ai_service_account')
         ) {
             throw new ParameterError(
-                'The AI service account is not supported for the warehouse type',
+                'A shared agent account is not supported for the warehouse type',
             );
         }
         return this.aiServiceAccountCredentialsModel.findProjectsMissingSlot(
@@ -729,7 +729,7 @@ export class AiAccessService extends BaseService {
             status: hasAgentSession ? 'passed' : 'not_checked',
             detail: hasAgentSession
                 ? 'Someone in this organisation has connected an agent with an activated Snowflake agent session.'
-                : 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
+                : 'No one has connected an agent yet. Connect yours in My agent identity to confirm Snowflake marks the session as an agent session.',
         });
         return {
             checkedAt: new Date(),
@@ -1334,7 +1334,7 @@ export class AiAccessService extends BaseService {
                 AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
                 {
                     message:
-                        'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
+                        'Snowflake agent sign-in is not set up for this organisation. An organisation admin can add the OAuth client in Agents settings.',
                 },
             );
     }
@@ -1675,7 +1675,7 @@ export class AiAccessService extends BaseService {
             );
             if (!email)
                 throw new UnexpectedServerError(
-                    'AI access needs the person to have an email address',
+                    'Agents need the person to have an email address.',
                 );
             if (args.connection.type !== WarehouseTypes.SNOWFLAKE)
                 throw new AiAccessRefusedError(
@@ -2233,7 +2233,7 @@ export class AiAccessService extends BaseService {
                     );
                     if (!email)
                         throw new UnexpectedServerError(
-                            'AI access needs the person to have an email address',
+                            'Agents need the person to have an email address.',
                         );
                     const missing =
                         await this.agentSignInCredentialResolver.inspect(

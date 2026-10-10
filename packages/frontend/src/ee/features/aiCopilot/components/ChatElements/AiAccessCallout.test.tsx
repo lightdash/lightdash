@@ -43,7 +43,7 @@ vi.mock('../../../../../hooks/useSnowflake', () => ({
 const refusal: AiAccessRefusal = {
     code: 'ai_access_refused',
     reason: AiAccessRefusalReason.NEEDS_SIGN_IN,
-    message: 'Sign in to run AI queries.',
+    message: 'Sign in to run agent queries.',
     action: AiAccessRefusalAction.SIGN_IN,
     settingsUrl: null,
     connectUrl: null,
@@ -119,7 +119,8 @@ describe('AI access callout', () => {
     it.each(['card', 'inline'] as const)(
         'shows the expired refusal in the %s variant',
         (variant) => {
-            const message = 'Your agent connection expired. Connect again.';
+            const message =
+                'Your agent sign-in expired. Connect your agent again.';
             renderWithProviders(
                 <MemoryRouter>
                     <AiAccessCallout
@@ -149,7 +150,7 @@ describe('AI access callout', () => {
             }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('link', { name: 'Manage agent connections' }),
+            screen.getByRole('link', { name: 'My agent identity' }),
         ).toHaveAttribute('href', '/generalSettings/myAgentConnections');
         expect(
             screen.getByText(
@@ -297,7 +298,7 @@ describe('AI access callout', () => {
         AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
     ])('shows the backend message for %s without sign-in', (reason) => {
         const message =
-            'Ask an administrator to add or replace the AI service account.';
+            'Ask an administrator to add or replace the shared agent account.';
         renderWithProviders(
             <MemoryRouter>
                 <AiAccessCallout

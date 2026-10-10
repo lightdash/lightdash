@@ -24,7 +24,7 @@ type AgentConnectOptions = AgentOptions & {
 const getFailureReason = (error: string): string => {
     switch (error) {
         case 'not_agent_session':
-            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+            return 'Your Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for agents.';
         case 'no_refresh_token':
             return 'Snowflake did not return a refresh token. Try again.';
         case 'license_required':
@@ -59,7 +59,7 @@ export const agentConnectHandler = async (
         return;
     }
     if (access.requirementSource === null) {
-        console.error('Agent connection is not required for this project');
+        console.error('Agent sign-in is not required for this project');
         return;
     }
     if (access.refusal?.action !== 'sign_in' || !access.refusal.connectUrl) {

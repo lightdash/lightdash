@@ -230,7 +230,7 @@ describe('SnowflakeAgentSetup client', () => {
             await expandSetup();
             await screen.findByText('Agent session detail.');
             const link = screen.queryByRole('link', {
-                name: 'My agent connections',
+                name: 'My agent identity',
             });
             if (linked)
                 expect(link).toHaveAttribute(

@@ -40,13 +40,13 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
     ): CreateDatabricksCredentials {
         if (connection.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         }
         const credentials = parseAiServiceAccountSecrets(secrets);
         if (credentials.type !== WarehouseTypes.DATABRICKS) {
             throw new ParameterError(
-                'The AI service account must match the connection warehouse type.',
+                'The shared agent account must match the connection warehouse type.',
             );
         }
         return {
@@ -79,7 +79,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
             case 'linkCurrentPerson':
             case 'verifiedGoogleCallback':
                 throw new ParameterError(
-                    'An AI service account cannot use a person sign-in.',
+                    'A shared agent account cannot use a person sign-in.',
                 );
             default:
                 return assertUnreachable(
@@ -94,7 +94,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
     ): Promise<CredentialResolution<CreateDatabricksCredentials>> {
         if (input.owner !== null && input.owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         const credentials = this.buildCredentials(
@@ -108,7 +108,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
         );
         if (typeof accessToken !== 'string' || !accessToken.trim()) {
             throw new ParameterError(
-                'The AI service account did not return an access token.',
+                'The shared agent account did not return an access token.',
             );
         }
         return {
@@ -123,7 +123,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
         const { owner } = input;
         if (owner !== null && owner.kind !== 'aiServiceAccount') {
             throw new ParameterError(
-                'Invalid AI service account credential owner.',
+                'Invalid shared agent account credential owner.',
             );
         }
         return [
@@ -138,7 +138,7 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
     toDbtTarget(): DbtTargetResult {
         return {
             kind: 'none',
-            reason: "AI service account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
+            reason: "Shared agent account credentials cannot run dbt. Use the connection's key or a person's sign-in instead.",
         };
     }
 

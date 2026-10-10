@@ -302,7 +302,7 @@ describe('AgentSignInResolverHarness', () => {
         const { provider, clients } = setup();
         clients.getWithSecret.mockResolvedValue(null);
         expect(await provider.configurationError('org')).toBe(
-            'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.',
+            'Snowflake agent sign-in is not set up for this organisation. An organisation admin can add the OAuth client in Agents settings.',
         );
     });
     test.each([true, false])(

@@ -123,7 +123,7 @@ const SnowflakeSetupSteps = ({
                                                 to="/generalSettings/myAgentConnections"
                                                 size="sm"
                                             >
-                                                My agent connections
+                                                My agent identity
                                             </Anchor>
                                         )}
                                 </Stack>

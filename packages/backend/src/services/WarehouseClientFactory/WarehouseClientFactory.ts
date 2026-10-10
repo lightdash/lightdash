@@ -468,7 +468,7 @@ export class WarehouseClientFactory {
                 base.organizationUuid ?? context.organizationUuid;
             if (person === null || organizationUuid === null) {
                 throw new ForbiddenError(
-                    'AI access requires a connection person and organization',
+                    'Agents need a person and an organization for this connection.',
                 );
             }
             aiPlan = await this.aiAccessService.resolvePlan({

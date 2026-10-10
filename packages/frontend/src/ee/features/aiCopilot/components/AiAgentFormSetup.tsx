@@ -837,7 +837,7 @@ export const AiAgentFormSetup = ({
                                                 </>
                                             )
                                         ) : (
-                                            `Loading AI access information...`
+                                            `Loading agent access information...`
                                         )
                                     }
                                     {...form.getInputProps('tags')}

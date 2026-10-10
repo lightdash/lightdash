@@ -159,7 +159,7 @@ const selectAgentSignIn = async () => {
     );
     fireEvent.click(
         screen.getByRole('option', {
-            name: /A separate agent sign-in for each person/,
+            name: /The person's agent sign-in/,
         }),
     );
 };
@@ -266,7 +266,7 @@ describe('Organisation agent identity settings', () => {
         const { container } = renderSection();
         expect(await screen.findAllByRole('combobox')).toHaveLength(3);
         expect(
-            screen.getByText('Choose who AI agents run as on each warehouse.'),
+            screen.getByText('Choose who agents run as on each warehouse.'),
         ).toBeInTheDocument();
         for (const [warehouseType, warehouseName] of [
             [WarehouseTypes.SNOWFLAKE, 'Snowflake'],
@@ -293,9 +293,9 @@ describe('Organisation agent identity settings', () => {
             });
         }
         for (const helper of [
-            "Agents get the same access as the person asking. Agent queries are labelled, but warehouse rules can't use the label.",
-            'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your Snowflake policies can limit them.',
-            "Agents run as one account that a project admin adds to each project. Everyone's agent gets that account's access.",
+            "Agents get the access of the person asking. Their queries are labelled, but warehouse rules can't act on the label.",
+            'Each person signs in to Snowflake once for their agent. Snowflake marks these sessions, so your policies can limit them.',
+            'A project admin adds one account to each project. All agents run as it and get only its access.',
         ]) {
             expect(screen.getByText(helper)).toBeVisible();
         }
@@ -325,7 +325,7 @@ describe('Organisation agent identity settings', () => {
         const { invalidate } = renderSection();
         await changeToMarkedPerson(name);
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            `Use each person's credentials for ${name}?`,
+            `Run agents as the person on ${name}?`,
         );
         expect(screen.getByRole('dialog')).toHaveTextContent(
             `Agents will get the same ${name} access as the person asking. Your warehouse can't limit agent queries separately.`,
@@ -342,7 +342,7 @@ describe('Organisation agent identity settings', () => {
         );
         fireEvent.click(
             screen.getByRole('button', {
-                name: "Use each person's credentials",
+                name: 'Run as the person',
             }),
         );
         await waitFor(() =>
@@ -376,10 +376,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for BigQuery?',
+            'Use a shared agent account for BigQuery?',
         );
         expect(screen.getByRole('dialog')).toHaveTextContent(
-            "Agents on BigQuery will run as each project's AI service account, not as the person asking.",
+            "Agents on BigQuery will run as each project's shared agent account, not as the person asking.",
         );
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'PUT' }),
@@ -390,7 +390,7 @@ describe('Organisation agent identity settings', () => {
             }),
         ).toHaveValue(identityLabels.marked_person.label);
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
@@ -423,7 +423,7 @@ describe('Organisation agent identity settings', () => {
             await chooseServiceAccount();
             const alert = await screen.findByRole('alert');
             expect(alert).toHaveTextContent(
-                `${count} ${count === 1 ? 'project has' : 'projects have'} no AI service account yet:`,
+                `${count} ${count === 1 ? 'project has' : 'projects have'} no shared agent account yet:`,
             );
             expect(alert).toHaveTextContent(
                 `Agents stop working on ${count === 1 ? 'it' : 'them'} until a project admin adds one.`,
@@ -480,10 +480,10 @@ describe('Organisation agent identity settings', () => {
         renderSection();
         await chooseServiceAccount();
         expect(
-            await screen.findByLabelText('Checking AI service accounts'),
+            await screen.findByLabelText('Checking shared agent accounts'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Use the AI service account' }),
+            screen.getByRole('button', { name: 'Use a shared agent account' }),
         ).toBeDisabled();
     });
     it('requires a successful retry before confirming after the affected-project read fails', async () => {
@@ -503,17 +503,17 @@ describe('Organisation agent identity settings', () => {
         await chooseServiceAccount();
         expect(
             await screen.findByText(
-                'Could not check which projects have an AI service account.',
+                'Could not check which projects have a shared agent account.',
             ),
         ).toBeInTheDocument();
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         expect(confirm).toBeDisabled();
         expect(readProjects).toHaveBeenCalledTimes(1);
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(await screen.findByRole('alert')).toHaveTextContent(
-            '1 project has no AI service account yet: Missing project.',
+            '1 project has no shared agent account yet: Missing project.',
         );
         expect(readProjects).toHaveBeenCalledTimes(2);
         expect(confirm).toBeEnabled();
@@ -530,7 +530,7 @@ describe('Organisation agent identity settings', () => {
         renderSection();
         await changeToMarkedPerson('BigQuery');
         const confirm = await screen.findByRole('button', {
-            name: "Use each person's credentials",
+            name: 'Run as the person',
         });
         fireEvent.click(confirm);
         await waitFor(() =>
@@ -555,14 +555,14 @@ describe('Organisation agent identity settings', () => {
         await changeToMarkedPerson('BigQuery');
         fireEvent.click(
             await screen.findByRole('button', {
-                name: "Use each person's credentials",
+                name: 'Run as the person',
             }),
         );
         await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
         expect(screen.getByRole('dialog')).toBeInTheDocument();
         expect(
             screen.getByRole('button', {
-                name: "Use each person's credentials",
+                name: 'Run as the person',
             }),
         ).toBeEnabled();
         expect(
@@ -582,7 +582,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('option', {
@@ -590,10 +592,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for Databricks?',
+            'Use a shared agent account for Databricks?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
@@ -622,7 +624,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('option', {
@@ -630,10 +634,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for Athena?',
+            'Use a shared agent account for Athena?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         expect(
@@ -671,7 +675,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('option', {
@@ -679,10 +685,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for Postgres?',
+            'Use a shared agent account for Postgres?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         expect(
@@ -720,7 +726,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('option', {
@@ -728,10 +736,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for Redshift?',
+            'Use a shared agent account for Redshift?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         expect(
@@ -769,7 +777,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         fireEvent.click(
             screen.getByRole('option', {
@@ -777,10 +787,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for Trino?',
+            'Use a shared agent account for Trino?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         expect(
@@ -818,7 +828,9 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(
-            screen.queryByRole('option', { name: /A separate agent sign-in/ }),
+            screen.queryByRole('option', {
+                name: /The person's agent sign-in/,
+            }),
         ).not.toBeInTheDocument();
         expect(screen.getAllByRole('option')).toHaveLength(2);
         fireEvent.click(
@@ -827,10 +839,10 @@ describe('Organisation agent identity settings', () => {
             }),
         );
         expect(await screen.findByRole('dialog')).toHaveTextContent(
-            'Use the AI service account for ClickHouse?',
+            'Use a shared agent account for ClickHouse?',
         );
         const confirm = screen.getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         expect(
@@ -895,7 +907,7 @@ describe('Organisation agent identity settings', () => {
                 }),
             );
             const confirm = await screen.findByRole('button', {
-                name: 'Use the AI service account',
+                name: 'Use a shared agent account',
             });
             await waitFor(() => expect(confirm).toBeEnabled());
             fireEvent.click(confirm);
@@ -926,7 +938,7 @@ describe('Organisation agent identity settings', () => {
             screen.getByRole('combobox', { name: 'Snowflake agent identity' }),
         );
         const option = screen.getByRole('option', {
-            name: /A separate agent sign-in for each person Needs a one-time Snowflake setup/,
+            name: /The person's agent sign-in Needs a one-time Snowflake setup/,
         });
         expect(option).not.toHaveAttribute('data-combobox-disabled', 'true');
     });
@@ -1335,11 +1347,11 @@ describe('Organisation agent identity settings', () => {
         renderSection();
         await chooseServiceAccount('Snowflake');
         const dialog = await screen.findByRole('dialog', {
-            name: 'Use the AI service account for Snowflake?',
+            name: 'Use a shared agent account for Snowflake?',
         });
         const alert = await within(dialog).findByRole('alert');
         expect(alert).toHaveTextContent(
-            '2 projects have no AI service account yet:',
+            '2 projects have no shared agent account yet:',
         );
         expect(within(alert).getAllByRole('link')).toHaveLength(2);
         missingProjects.forEach(({ projectUuid, name }) =>
@@ -1365,7 +1377,7 @@ describe('Organisation agent identity settings', () => {
             screen.queryByText('Set up the Snowflake agent integration'),
         ).not.toBeInTheDocument();
         const confirm = within(dialog).getByRole('button', {
-            name: 'Use the AI service account',
+            name: 'Use a shared agent account',
         });
         await waitFor(() => expect(confirm).toBeEnabled());
         fireEvent.click(confirm);
@@ -1399,8 +1411,8 @@ describe('Organisation agent identity settings', () => {
         );
     });
     it.each([
-        ['ai_service_account', 'Use the AI service account for Snowflake?'],
-        ['marked_person', "Use each person's credentials for Snowflake?"],
+        ['ai_service_account', 'Use a shared agent account for Snowflake?'],
+        ['marked_person', 'Run agents as the person on Snowflake?'],
     ] as const)(
         'keeps the saved Snowflake agent sign-in when cancelling %s',
         async (source, title) => {
@@ -1458,7 +1470,7 @@ describe('Organisation agent identity settings', () => {
             renderSection();
             const line = await screen.findByText(
                 new RegExp(
-                    `${count} ${count === 1 ? 'project has' : 'projects have'} no AI service account:`,
+                    `${count} ${count === 1 ? 'project has' : 'projects have'} no shared agent account:`,
                 ),
             );
             expect(line).toHaveTextContent(
@@ -1497,7 +1509,7 @@ describe('Organisation agent identity settings', () => {
             renderSection();
             await screen.findAllByRole('combobox');
             expect(
-                screen.queryByText(/no AI service account:/),
+                screen.queryByText(/no shared agent account:/),
             ).not.toBeInTheDocument();
         },
     );
@@ -1510,7 +1522,7 @@ describe('Organisation agent identity settings', () => {
         renderSection();
         const status = await screen.findByRole('status');
         const message = within(status).getByText(
-            'Every Databricks project has an AI service account.',
+            'Every Databricks project has a shared agent account.',
         );
         expect(message).toHaveStyle({
             color: 'var(--mantine-color-green-text)',
@@ -1531,7 +1543,7 @@ describe('Organisation agent identity settings', () => {
         await changeToMarkedPerson('Snowflake');
         fireEvent.click(
             await screen.findByRole('button', {
-                name: "Use each person's credentials",
+                name: 'Run as the person',
             }),
         );
         await waitFor(() =>
@@ -1571,7 +1583,7 @@ describe('Organisation agent identity settings', () => {
         await changeToMarkedPerson('Snowflake');
         fireEvent.click(
             await screen.findByRole('button', {
-                name: "Use each person's credentials",
+                name: 'Run as the person',
             }),
         );
         await waitFor(() => expect(mocks.errorToast).toHaveBeenCalled());
@@ -1585,7 +1597,7 @@ describe('Organisation agent identity settings', () => {
         mocks.canManage = mode !== 'non-admin';
         renderSection();
         expect(
-            screen.queryByText(/Choose who AI agents run as/),
+            screen.queryByText(/Choose who agents run as/),
         ).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalled();
     });

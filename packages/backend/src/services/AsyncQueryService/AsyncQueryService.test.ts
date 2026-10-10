@@ -4489,7 +4489,7 @@ describe('AsyncQueryService', () => {
                         type: ExploreType.PRE_AGGREGATE,
                     },
                 }),
-            ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+            ).rejects.toThrow('Agents cannot query a pre-aggregate explore.');
             expect(getRoutingDecision).not.toHaveBeenCalled();
         },
     );
@@ -4900,7 +4900,7 @@ describe('AsyncQueryService', () => {
                     forceWarehouse: false,
                     aiPlan: null,
                 }),
-            ).rejects.toThrow('AI access cannot query a pre-aggregate explore');
+            ).rejects.toThrow('Agents cannot query a pre-aggregate explore.');
         });
 
         test.each([

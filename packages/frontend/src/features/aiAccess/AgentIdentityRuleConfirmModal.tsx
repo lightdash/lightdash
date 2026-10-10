@@ -21,16 +21,16 @@ const getConfirmationCopy = (
 ) => {
     if (source === 'ai_service_account') {
         return {
-            title: `Use the AI service account for ${warehouseName}?`,
-            body: `Agents on ${warehouseName} will run as each project's AI service account, not as the person asking.`,
-            confirmLabel: 'Use the AI service account',
+            title: `Use a shared agent account for ${warehouseName}?`,
+            body: `Agents on ${warehouseName} will run as each project's shared agent account, not as the person asking.`,
+            confirmLabel: 'Use a shared agent account',
         };
     }
 
     return {
-        title: `Use each person's credentials for ${warehouseName}?`,
+        title: `Run agents as the person on ${warehouseName}?`,
         body: `Agents will get the same ${warehouseName} access as the person asking. Your warehouse can't limit agent queries separately.`,
-        confirmLabel: "Use each person's credentials",
+        confirmLabel: 'Run as the person',
     };
 };
 
@@ -40,14 +40,14 @@ const ProjectsWithoutAiServiceAccountNotice = ({
     projects: ReturnType<typeof useProjectsWithoutAiServiceAccount>;
 }) => {
     if (projects.isFetching) {
-        return <Loader size="sm" aria-label="Checking AI service accounts" />;
+        return <Loader size="sm" aria-label="Checking shared agent accounts" />;
     }
 
     if (projects.isError) {
         return (
             <Group gap="xs">
                 <Text size="sm" c="dimmed">
-                    Could not check which projects have an AI service account.
+                    Could not check which projects have a shared agent account.
                 </Text>
                 <Button
                     variant="default"
@@ -67,7 +67,7 @@ const ProjectsWithoutAiServiceAccountNotice = ({
         <Callout variant="warning" color="yellow">
             {missingProjects.length}{' '}
             {missingProjects.length === 1 ? 'project has' : 'projects have'} no
-            AI service account yet:{' '}
+            shared agent account yet:{' '}
             {missingProjects.slice(0, 3).map((project, index) => (
                 <Fragment key={project.projectUuid}>
                     {index > 0 && ', '}

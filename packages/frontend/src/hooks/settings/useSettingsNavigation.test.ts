@@ -144,6 +144,25 @@ describe('MCP settings navigation', () => {
     });
 });
 
+describe('Agents settings navigation', () => {
+    it('indexes the Identity and Permissions sections on the Agents page', () => {
+        const agents = organizationNavigation({
+            isAgentIdentityEnabled: true,
+            user: {
+                ability: new Ability([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            } as SettingsContext['user'],
+        })?.find((item) => item.label === 'Agents');
+
+        expect(agents?.to).toBe('/generalSettings/agentIdentity');
+        expect(agents?.pageSections?.map(({ title }) => title)).toEqual([
+            'Identity',
+            'Permissions',
+        ]);
+    });
+});
+
 describe('Data apps settings navigation', () => {
     const dataAppsChildren = (
         rules: { action: string; subject: string }[],
@@ -339,7 +358,7 @@ describe('My agent connections navigation', () => {
                 ({ id }) => id === 'your-settings',
             )!.items;
             const index = items.findIndex(
-                ({ label }) => label === 'My agent connections',
+                ({ label }) => label === 'My agent identity',
             );
             if (showMyAgentConnections) {
                 expect(items[index - 1].label).toBe('My warehouse connections');
@@ -347,6 +366,8 @@ describe('My agent connections navigation', () => {
                     to: '/generalSettings/myAgentConnections',
                     keywords: [
                         'agent',
+                        'identity',
+                        'sign-in',
                         'ai',
                         'mcp',
                         'snowflake',

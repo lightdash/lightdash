@@ -357,7 +357,7 @@ export class UserWarehouseCredentialsModel {
     ): Promise<string> {
         if (!refreshToken) {
             throw new ParameterError(
-                'Snowflake AI sign-in requires a refresh token',
+                'Snowflake agent sign-in requires a refresh token',
             );
         }
         let credentials: StoredWarehouseCredentials = {
@@ -385,7 +385,7 @@ export class UserWarehouseCredentialsModel {
         const [created] = await this.database(UserWarehouseCredentialsTableName)
             .insert({
                 user_uuid: userUuid,
-                name: 'Snowflake sign-in for AI',
+                name: 'Snowflake agent sign-in',
                 warehouse_type: WarehouseTypes.SNOWFLAKE,
                 encrypted_credentials: encryptedCredentials,
                 project_uuid: null,
@@ -406,7 +406,7 @@ export class UserWarehouseCredentialsModel {
             .returning('user_warehouse_credentials_uuid');
         if (!created)
             throw new UnexpectedServerError(
-                'Could not save Snowflake AI credentials',
+                'Could not save Snowflake agent sign-in credentials',
             );
         return created.user_warehouse_credentials_uuid;
     }

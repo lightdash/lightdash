@@ -64,7 +64,7 @@ export class AgentSignInResolverHarness {
     async configurationError(organizationUuid: string) {
         return (await this.resolver.inspectClient(organizationUuid)) === null
             ? null
-            : 'The Snowflake agent connection is not configured for this organisation. An organisation admin can add the OAuth client in Agent identity settings.';
+            : 'Snowflake agent sign-in is not set up for this organisation. An organisation admin can add the OAuth client in Agents settings.';
     }
 
     async missingPrerequisite(args: Args) {

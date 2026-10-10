@@ -117,7 +117,7 @@ export const AiAccessCallout = ({
                                     to="/generalSettings/myAgentConnections"
                                     size="sm"
                                 >
-                                    Manage agent connections
+                                    My agent identity
                                 </Anchor>
                             )}
                         </Group>

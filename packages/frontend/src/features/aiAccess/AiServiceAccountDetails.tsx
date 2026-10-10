@@ -70,7 +70,7 @@ export const AiServiceAccountDetails = ({
         <Stack gap="xs">
             {!slot && parent && parent.credentialsReadable !== false && (
                 <Text size="sm">
-                    Uses the AI service account from{' '}
+                    Uses the shared agent account from{' '}
                     {parent.projectName !== null ? (
                         <>
                             <Anchor

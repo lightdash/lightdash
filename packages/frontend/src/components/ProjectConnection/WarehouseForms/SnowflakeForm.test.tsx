@@ -131,9 +131,7 @@ describe('SnowflakeForm agent identity requirement', () => {
                 />,
             );
             expect(
-                screen.getByText(
-                    /Agent identity required by your organisation/,
-                ),
+                screen.getByText(/Your organisation requires agent identity/),
             ).toBeInTheDocument();
             expect(
                 screen.getByRole('link', { name: 'Organisation settings' }),
@@ -153,7 +151,7 @@ describe('SnowflakeForm agent identity requirement', () => {
         mocks.canManage = false;
         renderWithProviders(<TestForm />);
         expect(
-            screen.getByText(/Agent identity required by your organisation/),
+            screen.getByText(/Your organisation requires agent identity/),
         ).toBeInTheDocument();
     });
     it.each([

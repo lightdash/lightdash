@@ -25,7 +25,7 @@ type Resolution<T> = {
 
 export class AiServiceAccountSlotResolutionError extends Error {
     constructor(readonly inheritedFromProjectUuid: string | null) {
-        super('The saved AI service account credentials could not be read.');
+        super('The saved shared agent account credentials could not be read.');
     }
 }
 

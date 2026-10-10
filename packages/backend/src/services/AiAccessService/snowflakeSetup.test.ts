@@ -126,7 +126,7 @@ describe('Snowflake integration setup', () => {
                 });
             expect(result.checks[2]).toMatchObject({
                 status: 'not_checked',
-                detail: 'No one has connected an agent yet. Connect yours in My agent connections to confirm Snowflake marks the session as an agent session.',
+                detail: 'No one has connected an agent yet. Connect yours in My agent identity to confirm Snowflake marks the session as an agent session.',
             });
             const setupResult = await service.getSnowflakeSetup(account);
             expect(setupResult.configured).toBe(saved && licensed);

@@ -95,7 +95,7 @@ const AiServiceAccountRemoveModal = ({
             title={
                 inherit
                     ? "Use the parent's account"
-                    : 'Remove AI service account'
+                    : 'Remove shared agent account'
             }
             variant={inherit ? 'default' : 'delete'}
             confirmLabel={inherit ? "Use the parent's account" : 'Remove'}
@@ -107,7 +107,7 @@ const AiServiceAccountRemoveModal = ({
                 <Text size="sm">
                     {inherit
                         ? "Remove this preview's own account and use the parent project's account? Agents use it on the next query."
-                        : 'Remove this AI service account? Agent queries are refused if your organization requires it.'}
+                        : 'Remove this shared agent account? Agent queries are refused if your organization requires it.'}
                 </Text>
                 {inherit && parentPrincipal && (
                     <Text size="sm">{parentPrincipal}</Text>
@@ -143,7 +143,7 @@ const AiServiceAccountTestFeedback = ({
             observation?.ok &&
             (error || (result && !result.ok)) && (
                 <Text size="sm" c="dimmed">
-                    The principal above is from the last successful check.
+                    The account above is from the last successful check.
                 </Text>
             )}
     </>
@@ -324,7 +324,7 @@ const AiServiceAccountSettingsContent = ({
             ) : (
                 <Group>
                     <Button variant="filled" onClick={onEdit}>
-                        Add AI service account
+                        Add shared agent account
                     </Button>
                 </Group>
             )}
@@ -546,7 +546,7 @@ const AiServiceAccountSettings = ({
     if (settings.isError || status.isError || !rule || !status.data)
         return (
             <InlineErrorState
-                message="Could not load the AI service account."
+                message="Could not load the shared agent account."
                 onRetry={() => {
                     void settings.refetch();
                     void status.refetch();

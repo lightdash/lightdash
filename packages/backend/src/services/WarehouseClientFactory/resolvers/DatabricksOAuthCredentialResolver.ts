@@ -159,7 +159,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
     ): Promise<ValidatedCredential<CreateDatabricksCredentials>> {
         if (input.owner?.kind === 'aiServiceAccount') {
             throw new ForbiddenError(
-                'Databricks OAuth does not support AI service account credentials',
+                'Databricks OAuth does not support shared agent account credentials',
             );
         }
         let userUuid: string | undefined;
@@ -247,7 +247,7 @@ export class DatabricksOAuthCredentialResolver implements CredentialResolver<Cre
             policy.legacyOwner?.kind === 'aiServiceAccount'
         ) {
             throw new ForbiddenError(
-                'Databricks OAuth does not support AI service account credentials',
+                'Databricks OAuth does not support shared agent account credentials',
             );
         }
         const isU2m =

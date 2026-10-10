@@ -202,23 +202,23 @@ export const getAiAccessRefusalMessage = (
             return 'Your account cannot perform this operation. Ask an admin to update your project permissions.';
 
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
-            return `Agents can't query ${projectName ?? 'this project'} yet. It needs an AI service account, and none is set up. A project admin can add one in Agent identity.`;
+            return `Agents can't run on ${projectName ?? 'this project'} yet. It needs a shared agent account. A project admin can add one in Agent identity.`;
         case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
-            return `Agents can't query ${projectName ?? 'this project'} right now. Its AI service account failed to sign in. A project admin can check it in Agent identity.`;
+            return `Agents can't run on ${projectName ?? 'this project'} right now. Its shared agent account failed to sign in. A project admin can check it in Agent identity.`;
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
-            return 'AI cannot use these results because your current agent connection did not produce them. Run the query again through your agent.';
+            return "Agents can't use these results because your current agent sign-in didn't produce them. Run the query again through your agent.";
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
-            return 'The last check of your AI principal failed. Ask an admin to review it.';
+            return 'The last check of your agent identity failed. Ask an admin to review it.';
         case AiAccessRefusalReason.SIGN_IN_EXPIRED:
-            return 'Your agent connection expired. Connect again.';
+            return 'Your agent sign-in expired. Connect your agent again.';
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return 'Connect your agent to the warehouse once so it can run as you.';
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
-            return 'AI principals are not available for this warehouse yet.';
+            return 'Agent identity is not available for this warehouse yet.';
         case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
-            return 'AI access runs as a signed-in person. Embedded viewers cannot use it on this connection.';
+            return "Agents run as a signed-in person on this connection. Embedded viewers can't use them.";
         case AiAccessRefusalReason.SERVICE_ACCOUNT:
-            return 'AI access runs as a person. Service accounts cannot use it on this connection.';
+            return "Agents run as a person on this connection. Service accounts can't use them.";
         default:
             return assertUnreachable(
                 reason,
