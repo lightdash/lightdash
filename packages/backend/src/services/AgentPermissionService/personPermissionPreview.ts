@@ -51,7 +51,7 @@ const content = notChecked(
 const deletion = notChecked(
     'The content and its type are not selected. Delete access is checked when the agent acts.',
 );
-const exports = notChecked(
+const exportAccess = notChecked(
     'Export depends on the chart and format. It is checked when the agent acts.',
 );
 
@@ -89,7 +89,7 @@ export const PERSON_PERMISSION_PREVIEWS: Record<
         'Deployments and uploads have different permissions. Access is checked when the agent acts.',
     ),
     [`capability:${AgentCapability.DbtWriteback}`]: branch,
-    [`capability:${AgentCapability.Export}`]: exports,
+    [`capability:${AgentCapability.Export}`]: exportAccess,
     [`capability:${AgentCapability.Administration}`]: notChecked(
         'Administration actions have different permissions. Access is checked when the agent acts.',
     ),
@@ -115,7 +115,7 @@ export const PERSON_PERMISSION_PREVIEWS: Record<
                   'creating scheduled deliveries in this project',
                   'The content, destination and format are checked when the agent acts.',
               ),
-    export_results: exports,
+    export_results: exportAccess,
     create_edit_chart: content,
     delete_content: deletion,
     publish_dashboard: notChecked(
