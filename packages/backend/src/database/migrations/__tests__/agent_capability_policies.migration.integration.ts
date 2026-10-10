@@ -8,7 +8,7 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
-import { down, up } from '../20261010065649_add_agent_capability_policies';
+import { down, up } from '../20261011000000_add_agent_capability_policies';
 
 let migrated: MigratedDatabase;
 beforeAll(async () => {

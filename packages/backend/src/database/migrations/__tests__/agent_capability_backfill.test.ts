@@ -1,6 +1,6 @@
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
-import { up } from '../20261010065649_add_agent_capability_policies';
+import { up } from '../20261011000000_add_agent_capability_policies';
 
 const database = knex({ client: MockClient, dialect: 'pg' });
 afterAll(async () => database.destroy());
