@@ -133,6 +133,8 @@ const schedulerWorkerFactory = (context: {
     prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
+        getAgentConnectionGrantService: () =>
+            context.serviceRepository.getAgentConnectionGrantService(),
         agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
         featureFlagModel: context.models.getFeatureFlagModel(),

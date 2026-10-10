@@ -1,10 +1,15 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    assertUnreachable,
+    ForbiddenError,
     type AgentConnectionExecution,
+    type AgentConnectionTaskEffect,
     type TraceTaskBase,
 } from '@lightdash/common';
 import { z } from 'zod';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 
 const connectionExecutionSchema = z
     .object({
@@ -53,4 +58,61 @@ export const normalizeAgentConnectionTaskPayload = <
         );
     }
     return { ...payload, agentConnectionExecution: execution };
+};
+
+export const captureAgentConnectionTask = (
+    effect: AgentConnectionTaskEffect,
+    owner: Pick<TraceTaskBase, 'userUuid' | 'organizationUuid'>,
+): Pick<
+    TraceTaskBase,
+    'agentConnectionExecution' | 'agentConnectionEffect'
+> => {
+    const scope = agentExecutionContext.getStore();
+    const ref = scope?.claim?.act.agent_connection_grant;
+    const execution = normalizeAgentConnectionExecution(
+        scope?.agentConnectionExecution,
+    );
+    if (!ref && !execution) return {};
+    if (
+        !execution ||
+        !ref ||
+        execution.grantUuid !== ref.grantUuid ||
+        execution.revision !== ref.revision ||
+        execution.subjectUserUuid !== owner.userUuid ||
+        execution.organizationUuid !== owner.organizationUuid
+    )
+        throw new ForbiddenError(
+            'This agent connection is no longer available for this operation.',
+        );
+    return {
+        agentConnectionExecution: execution,
+        agentConnectionEffect: effect,
+    };
+};
+
+export const getAgentConnectionEffectCapabilities = (
+    effect: AgentConnectionTaskEffect,
+    execution: AgentConnectionExecution,
+): AgentCapability[] => {
+    if (
+        ![
+            'ProjectController.refresh',
+            'ExploreController.SetExplores',
+            'DeployController.deployExplores',
+            'DeployController.finalizeDeploySession',
+        ].includes(execution.operation.key)
+    )
+        throw new ForbiddenError('Invalid agent connection effect origin');
+    switch (effect) {
+        case 'compileProject':
+        case 'indexCatalog':
+        case 'validateProject':
+            return [AgentCapability.DeployUpload];
+        case 'replaceCustomFields':
+            return [AgentCapability.DeployUpload, AgentCapability.ContentWrite];
+        case 'materializePreAggregate':
+            return [AgentCapability.DeployUpload, AgentCapability.Query];
+        default:
+            return assertUnreachable(effect, 'Unknown agent connection effect');
+    }
 };

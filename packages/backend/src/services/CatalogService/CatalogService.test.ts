@@ -454,3 +454,37 @@ describe('CatalogService tree-lock ability checks', () => {
         });
     });
 });
+
+describe('connection catalog publication', () => {
+    test.each([
+        ['migrateCatalogItemTags', 'migrateCatalogItemTags'],
+        ['migrateCatalogItemIcons', 'updateCatalogItemIcon'],
+        ['migrateMetricsTreeEdges', 'migrateMetricsTreeEdges'],
+        ['migrateMetricsTreeNodes', 'migrateMetricsTreeNodes'],
+    ] as const)(
+        '%s rechecks authority after reading the catalog',
+        async (method, writer) => {
+            const write = vi.fn();
+            const { service } = buildService({
+                catalogModel: {
+                    getCatalogItemsSummary: vi.fn().mockResolvedValue([]),
+                    [writer]: write,
+                },
+            });
+            const beforeEffect = vi
+                .fn()
+                .mockRejectedValue(
+                    new ForbiddenError('revoked after catalog read'),
+                );
+            await expect(
+                service[method](
+                    'project',
+                    method === 'migrateMetricsTreeNodes' ? ([{}] as never) : [],
+                    beforeEffect,
+                ),
+            ).rejects.toThrow('revoked after catalog read');
+            expect(beforeEffect).toHaveBeenCalledOnce();
+            expect(write).not.toHaveBeenCalled();
+        },
+    );
+});

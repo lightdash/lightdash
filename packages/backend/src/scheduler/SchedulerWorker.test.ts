@@ -1,4 +1,6 @@
+import { ForbiddenError } from '@lightdash/common';
 import { getDailyDatesFromCron } from './SchedulerClient';
+import { SchedulerWorker } from './SchedulerWorker';
 
 describe('Cron converter', () => {
     test('Should convert cron into daily dates', () => {
@@ -98,4 +100,82 @@ describe('Cron converter', () => {
             '23:59:00.000Z',
         );
     });
+});
+
+describe('connection jobs at the Graphile dispatch boundary', () => {
+    test.each([
+        'compileProject',
+        'indexCatalog',
+        'validateProject',
+        'replaceCustomFields',
+        'materializePreAggregate',
+    ] as const)(
+        '%s stops a refused serialized job without a session fallback',
+        async (taskName) => {
+            const effect = vi.fn();
+            const session = vi.fn();
+            const validate = vi
+                .fn()
+                .mockRejectedValue(new ForbiddenError('connection revoked'));
+            const worker = new SchedulerWorker({
+                lightdashConfig: { scheduler: { tasks: [] } },
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution: validate,
+                }),
+                schedulerService: { logSchedulerJob: vi.fn() },
+                projectService: {
+                    compileProject: effect,
+                    replaceCustomFields: effect,
+                    _markJobAsFailed: vi.fn(),
+                },
+                userService: {
+                    getSessionByUserUuid: session,
+                    getAccountByUserUuid: session,
+                },
+                catalogService: { indexCatalog: effect },
+                validationService: { generateValidation: effect },
+                preAggregateMaterializationService: {
+                    materializePreAggregate: effect,
+                },
+            } as unknown as ConstructorParameters<typeof SchedulerWorker>[0]);
+            const tasks = (
+                worker as unknown as {
+                    getFullTaskList(): Record<
+                        string,
+                        (payload: unknown, helpers: unknown) => Promise<void>
+                    >;
+                }
+            ).getFullTaskList();
+            const payload = {
+                userUuid: 'user',
+                createdByUserUuid: 'user',
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                jobUuid: 'compile-job',
+                agentConnectionEffect: taskName,
+                agentConnectionExecution: {
+                    grantUuid: 'grant',
+                    revision: 1,
+                    subjectUserUuid: 'user',
+                    organizationUuid: 'org',
+                    clientId: 'lightdash-cli',
+                    resource: 'https://example.com',
+                    refreshFamilyUuid: 'family',
+                    scopes: ['read', 'write'],
+                    operation: {
+                        kind: 'rest',
+                        key: 'ProjectController.refresh',
+                    },
+                },
+            };
+            await expect(
+                tasks[taskName](structuredClone(payload), {
+                    job: { id: 'job', run_at: new Date() },
+                }),
+            ).resolves.toBeUndefined();
+            expect(validate).toHaveBeenCalledOnce();
+            expect(effect).not.toHaveBeenCalled();
+            expect(session).not.toHaveBeenCalled();
+        },
+    );
 });

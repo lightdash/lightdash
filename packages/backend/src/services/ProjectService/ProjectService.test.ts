@@ -214,6 +214,7 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
+import { DeployService } from '../DeployService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -9416,6 +9417,568 @@ describe('ProjectService', () => {
         });
     });
 
+    describe('connection warehouse discovery', () => {
+        const setup = () => {
+            const discoveryUser = {
+                ...user,
+                organizationUuid: 'organizationUuid',
+            };
+            const connectionAccount = fromSession(discoveryUser);
+            const execution = {
+                grantUuid: 'grant',
+                revision: 1,
+                subjectUserUuid: user.userUuid,
+                organizationUuid: discoveryUser.organizationUuid,
+                clientId: 'lightdash-cli',
+                resource: 'https://example.com',
+                refreshFamilyUuid: 'family',
+                scopes: [],
+                operation: {
+                    kind: 'rest' as const,
+                    key: 'SqlRunnerController.getTables',
+                },
+            };
+            const scope = createAgentExecutionContext({
+                account: connectionAccount,
+                surface: AgentActorSurface.CLI,
+                clientId: 'lightdash-cli',
+                agentUuid: null,
+                agentIdentityEnabled: true,
+                agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+                agentConnectionExecution: execution,
+            });
+            const assertActiveExecution = vi
+                .fn()
+                .mockResolvedValue({ account: connectionAccount, scope });
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+            );
+            Object.assign(configured, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution,
+                }),
+            });
+            const getAllTables = vi.fn().mockResolvedValue([
+                {
+                    database: 'agent_db',
+                    schema: 'agent_schema',
+                    table: 'agent_table',
+                    tableType: WarehouseTableType.TABLE,
+                },
+            ]);
+            const getFields = vi.fn().mockResolvedValue({
+                agent_db: {
+                    agent_schema: {
+                        agent_table: { secret_column: { type: 'string' } },
+                    },
+                },
+            });
+            const withClient = vi
+                .spyOn(configured.warehouseClientFactory, 'withWarehouseClient')
+                .mockImplementation(async (_selector, _context, run) =>
+                    run({
+                        warehouseClient: { getAllTables, getFields },
+                        warehouseCredentials: warehouseClientMock.credentials,
+                    } as never),
+                );
+            const cache = configured.warehouseAvailableTablesModel;
+            const cacheMethods = {
+                getTablesForProjectWarehouseCredentials: vi
+                    .fn()
+                    .mockResolvedValue({ person_db: {} }),
+                getTablesForUserWarehouseCredentials: vi
+                    .fn()
+                    .mockResolvedValue({ person_db: {} }),
+                createAvailableTablesForProjectWarehouseCredentials: vi.fn(),
+                createAvailableTablesForUserWarehouseCredentials: vi.fn(),
+            };
+            Object.assign(cache, cacheMethods);
+            const caches = Object.values(cacheMethods);
+            const run = (
+                kind: 'list' | 'refresh' | 'fields',
+                caller: SessionUser = discoveryUser,
+            ) =>
+                agentExecutionContext.run(scope, () => {
+                    if (kind === 'refresh')
+                        return configured.populateWarehouseTablesCache(
+                            caller,
+                            projectUuid,
+                        );
+                    if (kind === 'fields')
+                        return configured.getWarehouseFields(
+                            caller,
+                            projectUuid,
+                            QueryExecutionContext.SQL_RUNNER,
+                            'agent_table',
+                            'agent_schema',
+                            'agent_db',
+                        );
+                    return configured.getWarehouseTables(caller, projectUuid);
+                });
+            return {
+                run,
+                withClient,
+                getAllTables,
+                getFields,
+                caches,
+                assertActiveExecution,
+                scope,
+                account: connectionAccount,
+            };
+        };
+        test.each(['list', 'refresh', 'fields'] as const)(
+            '%s uses the live agent path without reading or writing human caches',
+            async (kind) => {
+                const f = setup();
+                const result = await f.run(kind);
+                expect(result).toEqual(
+                    kind === 'fields'
+                        ? { secret_column: { type: 'string' } }
+                        : {
+                              agent_db: {
+                                  agent_schema: {
+                                      agent_table: {
+                                          tableType: WarehouseTableType.TABLE,
+                                          partitionColumn: undefined,
+                                      },
+                                  },
+                              },
+                          },
+                );
+                expect(f.withClient).toHaveBeenCalledWith(
+                    expect.anything(),
+                    expect.objectContaining({
+                        queryContext: QueryExecutionContext.SQL_RUNNER,
+                        agentIdentity: f.scope.claim,
+                    }),
+                    expect.any(Function),
+                );
+                f.caches.forEach((cache) =>
+                    expect(cache).not.toHaveBeenCalled(),
+                );
+                expect(f.assertActiveExecution).toHaveBeenCalledWith(
+                    f.scope.agentConnectionExecution,
+                    expect.objectContaining({
+                        projectUuid,
+                        capabilities: expect.arrayContaining([
+                            AgentCapability.RawSql,
+                        ]),
+                    }),
+                );
+                expect(
+                    f.assertActiveExecution.mock.calls.length,
+                ).toBeGreaterThanOrEqual(2);
+            },
+        );
+        test.each(['list', 'refresh', 'fields'] as const)(
+            '%s refuses revoked authority before warehouse access',
+            async (kind) => {
+                const f = setup();
+                f.assertActiveExecution.mockRejectedValue(
+                    new ForbiddenError('connection revoked'),
+                );
+                await expect(f.run(kind)).rejects.toThrow('connection revoked');
+                expect(f.withClient).not.toHaveBeenCalled();
+                f.caches.forEach((cache) =>
+                    expect(cache).not.toHaveBeenCalled(),
+                );
+            },
+        );
+        test.each(['list', 'refresh', 'fields'] as const)(
+            '%s rechecks authority before schema delivery',
+            async (kind) => {
+                const f = setup();
+                const revoke = () => {
+                    f.assertActiveExecution.mockRejectedValue(
+                        new ForbiddenError('connection expired'),
+                    );
+                };
+                f.getAllTables.mockImplementation(async () => {
+                    revoke();
+                    return [];
+                });
+                f.getFields.mockImplementation(async () => {
+                    revoke();
+                    return { agent_db: { agent_schema: { agent_table: {} } } };
+                });
+                await expect(f.run(kind)).rejects.toThrow('connection expired');
+                f.caches.forEach((cache) =>
+                    expect(cache).not.toHaveBeenCalled(),
+                );
+            },
+        );
+        test.each(['list', 'refresh', 'fields'] as const)(
+            '%s does not let shared warehouse access override person permissions',
+            async (kind) => {
+                const f = setup();
+                await expect(
+                    f.run(kind, { ...user, ability: new Ability([]) }),
+                ).rejects.toThrow(ForbiddenError);
+                expect(f.withClient).not.toHaveBeenCalled();
+                f.caches.forEach((cache) =>
+                    expect(cache).not.toHaveBeenCalled(),
+                );
+            },
+        );
+    });
+
+    describe('connection recurring refresh policy', () => {
+        const cachedExplores =
+            projectModel.getAllExploresFromCache.getMockImplementation()!;
+        afterEach(() => {
+            projectModel.getAllExploresFromCache
+                .mockReset()
+                .mockImplementation(cachedExplores);
+        });
+        const connectionAccount = fromSession({
+            ...user,
+            organizationUuid: 'organizationUuid',
+            ability: new Ability([{ action: 'manage', subject: 'all' }]),
+        });
+        beforeEach(() => {
+            Object.assign(service, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution: vi
+                        .fn()
+                        .mockResolvedValue({ account: connectionAccount }),
+                }),
+            });
+        });
+        const scope = (bound: boolean) =>
+            createAgentExecutionContext({
+                account: connectionAccount,
+                surface: AgentActorSurface.CLI,
+                clientId: 'lightdash-cli',
+                agentUuid: null,
+                agentIdentityEnabled: true,
+                agentConnectionGrant: bound
+                    ? { grantUuid: 'grant', revision: 1 }
+                    : null,
+                agentConnectionExecution: bound
+                    ? {
+                          grantUuid: 'grant',
+                          revision: 1,
+                          subjectUserUuid: user.userUuid,
+                          organizationUuid: 'organizationUuid',
+                          clientId: 'lightdash-cli',
+                          resource: 'https://example.com',
+                          refreshFamilyUuid: 'family',
+                          scopes: ['read', 'write'],
+                          operation: {
+                              kind: 'rest',
+                              key: 'DeployController.deployExplores',
+                          },
+                      }
+                    : null,
+            });
+        const exploreWithCron = (cron: string | null): Explore => ({
+            ...validExplore,
+            preAggregates: [
+                {
+                    name: 'daily',
+                    dimensions: [],
+                    metrics: [],
+                    ...(cron === null ? {} : { refresh: { cron } }),
+                },
+            ],
+        });
+        test('does not delete a published manifest while preparing a bound compile', async () => {
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                {
+                    featureFlagModel: {
+                        get: vi.fn().mockResolvedValue({ enabled: false }),
+                    } as unknown as FeatureFlagModel,
+                },
+            );
+            const internals = configured as unknown as {
+                resolveCompileAdapter: (args: unknown) => Promise<unknown>;
+            };
+            await agentExecutionContext.run(scope(true), () =>
+                internals.resolveCompileAdapter({
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    organizationUuid: 'organizationUuid',
+                    primary: { adapter: {} },
+                    manifestFetchAdapters: [],
+                }),
+            );
+            expect(projectModel.deleteMergedManifest).not.toHaveBeenCalled();
+        });
+
+        test('captures the connection on the admitted refresh queue and disables content sync', async () => {
+            await agentExecutionContext.run(scope(true), () =>
+                service.scheduleCompileProject(
+                    {
+                        ...user,
+                        organizationUuid: 'organizationUuid',
+                        ability: connectionAccount.user.ability,
+                    },
+                    projectUuid,
+                    RequestMethod.CLI,
+                    false,
+                    true,
+                    true,
+                ),
+            );
+            expect(schedulerClient.compileProject).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    agentConnectionExecution:
+                        scope(true).agentConnectionExecution,
+                    agentConnectionEffect: 'compileProject',
+                    syncContentAfterCompile: false,
+                }),
+            );
+        });
+        test('checks the connection again after reading the catalog and before saving explores', async () => {
+            const validator = vi
+                .fn()
+                .mockRejectedValue(new ForbiddenError('revoked before save'));
+            Object.assign(service, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution: validator,
+                }),
+            });
+            projectModel.getAllExploresFromCache.mockResolvedValueOnce({});
+            await expect(
+                agentExecutionContext.run(scope(true), () =>
+                    service.saveExploresToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        explores: [validExplore],
+                        compilationSource: 'cli_deploy',
+                    }),
+                ),
+            ).rejects.toThrow('revoked before save');
+            expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+            expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+        });
+        test.each(['direct', 'batch', 'finalize'] as const)(
+            'refuses recurring definitions through the admitted %s deployment operation',
+            async (operation) => {
+                projectModel.getAllExploresFromCache.mockResolvedValueOnce({});
+                const deployUser = {
+                    ...user,
+                    organizationUuid: 'organizationUuid',
+                    ability: connectionAccount.user.ability,
+                };
+                const addBatch = vi.fn();
+                const deployService = new DeployService({
+                    projectService: service,
+                    projectModel,
+                    schedulerClient,
+                    deploySessionModel: {
+                        getSession: vi.fn().mockResolvedValue({
+                            projectUuid,
+                            userUuid: user.userUuid,
+                            status: 'uploading',
+                        }),
+                        addBatch,
+                        updateStatus: vi.fn(),
+                        getDeployData: vi.fn().mockResolvedValue({
+                            explores: [exploreWithCron('0 2 * * *')],
+                            complete: true,
+                        }),
+                    },
+                } as unknown as ConstructorParameters<typeof DeployService>[0]);
+                const run = () => {
+                    if (operation === 'batch')
+                        return deployService.addDeployBatch(
+                            deployUser,
+                            projectUuid,
+                            'session',
+                            [exploreWithCron('0 2 * * *')],
+                            1,
+                        );
+                    if (operation === 'finalize')
+                        return deployService.finalizeDeploy(
+                            deployUser,
+                            projectUuid,
+                            'session',
+                        );
+                    return service.setExplores(deployUser, projectUuid, [
+                        exploreWithCron('0 2 * * *'),
+                    ]);
+                };
+                await expect(
+                    agentExecutionContext.run(scope(true), run),
+                ).rejects.toThrow(
+                    'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                );
+                expect(addBatch).not.toHaveBeenCalled();
+                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.generateValidation,
+                ).not.toHaveBeenCalled();
+                expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+            },
+        );
+        test('unchanged recurring definitions leave cron jobs untouched and bind immediate materializations', async () => {
+            const configured = getMockedProjectService({
+                ...lightdashConfigWithGoogleOAuthMock,
+                preAggregates: {
+                    ...lightdashConfigWithGoogleOAuthMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            Object.assign(configured, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution: vi
+                        .fn()
+                        .mockResolvedValue({ account: connectionAccount }),
+                }),
+            });
+            projectModel.getAllExploresFromCache.mockResolvedValue({
+                existing: exploreWithCron('0 2 * * *'),
+            });
+            vi.mocked(
+                preAggregateModel.getPreAggregateDefinitionsForProject,
+            ).mockResolvedValueOnce([
+                {
+                    preAggregateDefinitionUuid: 'definition',
+                    materializationMetricQuery: {},
+                    refreshCron: '0 2 * * *',
+                },
+            ] as never);
+            await agentExecutionContext.run(scope(true), () =>
+                configured.saveExploresToCacheAndIndexCatalog({
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [exploreWithCron('0 2 * * *')],
+                    compilationSource: 'cli_deploy',
+                }),
+            );
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    agentConnectionExecution:
+                        scope(true).agentConnectionExecution,
+                    agentConnectionEffect: 'materializePreAggregate',
+                }),
+            );
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).not.toHaveBeenCalled();
+        });
+        test.each(['new', 'changed', 'enabled'] as const)(
+            'refuses a %s recurring definition before deploy persistence',
+            async (kind) => {
+                const old =
+                    kind === 'new'
+                        ? {}
+                        : {
+                              existing: exploreWithCron(
+                                  kind === 'changed' ? '0 1 * * *' : null,
+                              ),
+                          };
+                vi.mocked(
+                    projectModel.getAllExploresFromCache,
+                ).mockResolvedValueOnce(old);
+                await expect(
+                    agentExecutionContext.run(scope(true), () =>
+                        service.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
+                            projectUuid,
+                            explores: [exploreWithCron('0 2 * * *')],
+                            compilationSource: 'cli_deploy',
+                        }),
+                    ),
+                ).rejects.toThrow(
+                    'Agent connections cannot add or change recurring pre-aggregate refreshes',
+                );
+                expect(projectModel.saveExploresToCache).not.toHaveBeenCalled();
+                expect(
+                    preAggregateModel.upsertPreAggregateDefinitions,
+                ).not.toHaveBeenCalled();
+                expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+                expect(
+                    schedulerClient.schedulePreAggregateCronJobs,
+                ).not.toHaveBeenCalled();
+            },
+        );
+        test.each([
+            'unchanged',
+            'removed',
+            'no-cron',
+            'ordinary-agent',
+            'person',
+        ] as const)(
+            'allows %s definitions through production persistence',
+            async (kind) => {
+                vi.mocked(
+                    projectModel.getAllExploresFromCache,
+                ).mockResolvedValueOnce({
+                    existing: exploreWithCron('0 2 * * *'),
+                });
+                const explores =
+                    kind === 'removed'
+                        ? []
+                        : [
+                              exploreWithCron(
+                                  kind === 'no-cron' ? null : '0 2 * * *',
+                              ),
+                          ];
+                const run = () =>
+                    service.saveExploresToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        explores,
+                        compilationSource: 'cli_deploy',
+                    });
+                await (kind === 'person'
+                    ? run()
+                    : agentExecutionContext.run(
+                          scope(kind !== 'ordinary-agent'),
+                          run,
+                      ));
+                expect(projectModel.saveExploresToCache).toHaveBeenCalledWith(
+                    projectUuid,
+                    explores,
+                    undefined,
+                    undefined,
+                );
+            },
+        );
+        test('refuses a late recurring definition before streaming refresh persistence', async () => {
+            vi.mocked(
+                projectModel.getAllExploresFromCache,
+            ).mockResolvedValueOnce({});
+            const saveStream = vi.spyOn(
+                projectModel,
+                'saveExploreStreamToCache',
+            );
+            const internals = service as unknown as {
+                saveExploreStreamToCacheAndIndexCatalog(args: {
+                    userUuid: string;
+                    projectUuid: string;
+                    compilationSource: 'refresh_dbt';
+                    exploreStream: AsyncIterable<Explore>;
+                    multiConnection: null;
+                }): Promise<unknown>;
+            };
+            await expect(
+                agentExecutionContext.run(scope(true), () =>
+                    internals.saveExploreStreamToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid,
+                        compilationSource: 'refresh_dbt',
+                        multiConnection: null,
+                        exploreStream:
+                            (async function* recurringExploreStream() {
+                                yield validExplore;
+                                yield exploreWithCron('0 2 * * *');
+                            })(),
+                    }),
+                ),
+            ).rejects.toThrow(
+                'Agent connections cannot add or change recurring pre-aggregate refreshes',
+            );
+            expect(saveStream).not.toHaveBeenCalled();
+            expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+        });
+    });
+
     describe('pre-aggregate refreshes', () => {
         const adminUser: SessionUser = {
             ...user,
@@ -13577,6 +14140,116 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectDbtSourcesModel,
         });
     };
+
+    it.each(['success', 'recurring', 'revoked'] as const)(
+        'bound refresh %s validates before configuration and cache effects',
+        async (outcome) => {
+            vi.clearAllMocks();
+            const connectionAccount = fromSession(compileUser);
+            const execution = {
+                grantUuid: 'grant',
+                revision: 1,
+                subjectUserUuid: compileUser.userUuid,
+                organizationUuid: 'organizationUuid',
+                clientId: 'lightdash-cli',
+                resource: 'https://example.com/api',
+                refreshFamilyUuid: 'family',
+                scopes: ['read', 'write'],
+                operation: {
+                    kind: 'rest' as const,
+                    key: 'ProjectController.refresh',
+                },
+            };
+            const scope = createAgentExecutionContext({
+                account: connectionAccount,
+                surface: AgentActorSurface.CLI,
+                clientId: execution.clientId,
+                agentUuid: null,
+                agentIdentityEnabled: true,
+                agentConnectionGrant: { grantUuid: 'grant', revision: 1 },
+                agentConnectionExecution: execution,
+            });
+            const assertActiveExecution = vi
+                .fn()
+                .mockResolvedValue({ account: connectionAccount, scope });
+            const compileExplores = vi.fn(async () => {
+                if (outcome === 'revoked')
+                    assertActiveExecution.mockRejectedValue(
+                        new ForbiddenError('revoked'),
+                    );
+                return [
+                    {
+                        ...validExplore,
+                        ...(outcome === 'recurring'
+                            ? {
+                                  preAggregates: [
+                                      {
+                                          name: 'new',
+                                          dimensions: [],
+                                          metrics: [],
+                                          refresh: { cron: '0 2 * * *' },
+                                      },
+                                  ],
+                              }
+                            : {}),
+                    },
+                ];
+            });
+            const configured = buildCompilationBoundaryService(compileExplores);
+            Object.assign(configured, {
+                getAgentConnectionGrantService: () => ({
+                    assertActiveExecution,
+                }),
+            });
+            projectModel.getAllExploresFromCache.mockResolvedValueOnce({});
+            const tags = vi.spyOn(
+                configured as unknown as {
+                    replaceYamlTagsWithoutPermissionCheck: (
+                        ...args: unknown[]
+                    ) => Promise<void>;
+                },
+                'replaceYamlTagsWithoutPermissionCheck',
+            );
+            const parameters = vi.spyOn(configured, 'replaceProjectParameters');
+            const run = () =>
+                agentExecutionContext.run(scope, () =>
+                    configured.compileProject(
+                        compileUser,
+                        'projectUuid',
+                        RequestMethod.CLI,
+                        'bound-job',
+                    ),
+                );
+            if (outcome === 'success') {
+                await run();
+                expect(
+                    projectModel.saveExploreStreamToCache,
+                ).toHaveBeenCalled();
+                expect(schedulerClient.indexCatalog).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: execution,
+                        agentConnectionEffect: 'indexCatalog',
+                    }),
+                );
+            } else {
+                await expect(run()).rejects.toThrow(
+                    outcome === 'recurring'
+                        ? 'Agent connections cannot add or change recurring pre-aggregate refreshes'
+                        : 'revoked',
+                );
+                expect(tags).not.toHaveBeenCalled();
+                expect(parameters).not.toHaveBeenCalled();
+                expect(projectModel.setTableGroups).not.toHaveBeenCalled();
+                expect(
+                    projectModel.saveExploreStreamToCache,
+                ).not.toHaveBeenCalled();
+                expect(
+                    projectModel.upsertMergedManifest,
+                ).not.toHaveBeenCalled();
+                expect(schedulerClient.indexCatalog).not.toHaveBeenCalled();
+            }
+        },
+    );
 
     it.each([false, true])(
         'the compile job releases its tunnel after adapter cleanup when compile fails %s',

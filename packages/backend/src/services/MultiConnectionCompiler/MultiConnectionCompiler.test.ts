@@ -503,3 +503,33 @@ describe('DuckLake extra compile credentials', () => {
         });
     });
 });
+
+test('rechecks a bound compile after cache persistence and before publishing connection artifacts', async () => {
+    const saveMultiConnectionExplores = vi
+        .fn()
+        .mockResolvedValue({ cachedExploreUuids: ['explore'] });
+    const compiler = new MultiConnectionCompiler({
+        projectModel: { saveMultiConnectionExplores },
+    } as unknown as ConstructorParameters<typeof MultiConnectionCompiler>[0]);
+    const publish = vi.fn();
+    const beforeEffect = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('connection expired'));
+    await expect(
+        compiler.save(
+            'project',
+            {
+                exploreStream: (async function* emptyExplores() {
+                    yield* [];
+                })(),
+                bindingOf: () => null,
+                carry: { kind: 'connections', warehouseConnectionUuids: [] },
+                persistArtifacts: publish,
+            },
+            beforeEffect,
+        ),
+    ).rejects.toThrow('connection expired');
+    expect(saveMultiConnectionExplores).toHaveBeenCalledOnce();
+    expect(publish).not.toHaveBeenCalled();
+});

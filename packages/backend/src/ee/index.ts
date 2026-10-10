@@ -1187,6 +1187,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    getAgentConnectionGrantService: () =>
+                        repository.getAgentConnectionGrantService(),
                     refreshTokenRotation: models.getRefreshTokenRotation(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,
@@ -1758,6 +1760,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
         ],
         schedulerWorkerFactory: (context) =>
             new CommercialSchedulerWorker({
+                getAgentConnectionGrantService: () =>
+                    context.serviceRepository.getAgentConnectionGrantService(),
                 agentActionLogModel: context.models.getAgentActionLogModel(),
                 usageDimensionsModel: context.models.getUsageDimensionsModel(),
                 featureFlagModel: context.models.getFeatureFlagModel(),

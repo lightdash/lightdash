@@ -68,3 +68,10 @@ export type AgentConnectionExecution = {
     scopes: string[];
     operation: { kind: 'rest'; key: string };
 };
+
+export type AgentConnectionTaskEffect =
+    | 'compileProject'
+    | 'indexCatalog'
+    | 'validateProject'
+    | 'replaceCustomFields'
+    | 'materializePreAggregate';

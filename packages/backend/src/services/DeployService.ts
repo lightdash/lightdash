@@ -9,6 +9,7 @@ import {
     NotFoundError,
     ProjectType,
     SessionUser,
+    type AgentConnectionTaskEffect,
     type ApiDeployExploresResults,
     type ProjectDefaults,
     type WeekDay,
@@ -16,6 +17,7 @@ import {
 import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
+import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
 
@@ -25,6 +27,14 @@ export type DeployExploreEnhancer = (
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
+    assertAgentConnectionEffect: (
+        projectUuid: string,
+        effect: AgentConnectionTaskEffect,
+    ) => Promise<unknown>;
+    assertConnectionPreAggregateRefresh: (
+        projectUuid: string,
+        explores: (Explore | ExploreError)[],
+    ) => Promise<void>;
     saveDeployExplores: (args: {
         userUuid: string;
         projectUuid: string;
@@ -169,6 +179,11 @@ export class DeployService extends BaseService {
                 );
             }
 
+            await this.projectService.assertConnectionPreAggregateRefresh(
+                projectUuid,
+                explores,
+            );
+
             // Add explores to the staging table
             await this.deploySessionModel.addBatch(
                 sessionUuid,
@@ -280,7 +295,15 @@ export class DeployService extends BaseService {
             });
 
             // Schedule validation (same as in original finalizeDeploy)
+            await this.projectService.assertAgentConnectionEffect(
+                projectUuid,
+                'validateProject',
+            );
             await this.schedulerClient.generateValidation({
+                ...captureAgentConnectionTask('validateProject', {
+                    userUuid: user.userUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
                 userUuid: user.userUuid,
                 projectUuid,
                 context: 'cli',

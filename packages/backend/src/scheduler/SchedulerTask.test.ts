@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     ChartType,
     DashboardTileTypes,
     DimensionType,
@@ -45,8 +46,14 @@ import {
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
+import { fromSession } from '../auth/account';
 import type { ExecutionContextInfo } from '../logging/winston';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../services/AiAccessService/agentExecutionContext';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
+import { user as projectUser } from '../services/ProjectService/ProjectService.mock';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 import SchedulerTask, {
     buildItemMapFromColumns,
@@ -4425,5 +4432,260 @@ describe('dashboard export download filenames', () => {
         expect(storageKey).not.toContain('/');
         expect(storageKey).toMatch(/\.xlsx$/);
         expect(storageKey).not.toBe(attachmentDownloadName);
+    });
+});
+
+describe('connection compile jobs', () => {
+    beforeEach(() => vi.stubEnv('IS_PULL_REQUEST', 'false'));
+    afterEach(() => vi.unstubAllEnvs());
+    const methods = [
+        'compileProject',
+        'indexCatalog',
+        'validateProject',
+        'replaceCustomFields',
+        'materializePreAggregate',
+    ] as const;
+    const setup = (method: (typeof methods)[number]) => {
+        const user = {
+            ...projectUser,
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        };
+        const account = fromSession(user);
+        const execution = {
+            grantUuid: 'grant-1',
+            revision: 1,
+            subjectUserUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            clientId: 'lightdash-cli',
+            resource: 'https://example.com/api',
+            refreshFamilyUuid: 'family-1',
+            scopes: ['read', 'write'],
+            operation: {
+                kind: 'rest' as const,
+                key: 'ProjectController.refresh',
+            },
+        };
+        const scope = createAgentExecutionContext({
+            account,
+            surface: AgentActorSurface.CLI,
+            clientId: execution.clientId,
+            agentUuid: null,
+            agentIdentityEnabled: true,
+            agentConnectionGrant: {
+                grantUuid: execution.grantUuid,
+                revision: execution.revision,
+            },
+            agentConnectionExecution: execution,
+        });
+        const assertActiveExecution = vi
+            .fn()
+            .mockResolvedValue({ account, scope });
+        const scopes: unknown[] = [];
+        const effect = vi.fn(async () => {
+            scopes.push(agentExecutionContext.getStore());
+            if (method === 'indexCatalog') return { catalogFieldMap: {} };
+            if (method === 'materializePreAggregate')
+                return {
+                    materializationUuid: 'materialization',
+                    status: 'active',
+                };
+            if (method === 'validateProject') return [];
+            return undefined;
+        });
+        const getSession = vi.fn().mockResolvedValue(user);
+        const getAccount = vi.fn().mockResolvedValue(account);
+        const children = {
+            generateValidation: vi.fn(),
+            replaceCustomFields: vi.fn(),
+        };
+        const storeValidation = vi.fn();
+        const findFields = vi.fn().mockResolvedValue({});
+        const task = new TestSchedulerTask({
+            ...({} as TaskDeps),
+            getAgentConnectionGrantService: () => ({ assertActiveExecution }),
+            analytics: { track: vi.fn() },
+            userService: {
+                getSessionByUserUuid: getSession,
+                getAccountByUserUuid: getAccount,
+            },
+            projectService: {
+                assertAgentConnectionEffect: vi.fn(),
+                compileProject: effect,
+                replaceCustomFields: effect,
+                findReplaceableCustomFields: findFields,
+                _markJobAsFailed: vi.fn(),
+            },
+            schedulerService: { logSchedulerJob: vi.fn() },
+            schedulerClient: children,
+            validationService: { generateValidation: effect, storeValidation },
+            catalogService: {
+                indexCatalog: effect,
+                migrateCatalogItemTags: vi.fn(),
+                migrateCatalogItemIcons: vi.fn(),
+                migrateMetricsTreeEdges: vi.fn(),
+                migrateMetricsTreeNodes: vi.fn(),
+                setChartUsages: vi.fn(),
+            },
+            preAggregateMaterializationService: {
+                materializePreAggregate: effect,
+            },
+        } as unknown as TaskDeps);
+        const payload = {
+            userUuid: user.userUuid,
+            createdByUserUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid: 'project-1',
+            jobUuid: 'compile-1',
+            requestMethod: RequestMethod.CLI,
+            isPreview: false,
+            syncContentAfterCompile: true,
+            validationTargets: [],
+            context: 'dbt_refresh',
+            preAggregateDefinitionUuid: 'definition',
+            trigger: 'compile',
+            agentConnectionExecution: execution,
+            agentConnectionEffect: method,
+        };
+        const run = (data: unknown = payload) =>
+            (
+                task as unknown as Record<
+                    (typeof methods)[number],
+                    (job: string, time: Date, data: unknown) => Promise<void>
+                >
+            )[method]('job-1', new Date(), data);
+        return {
+            run,
+            task,
+            payload,
+            account,
+            execution,
+            scope,
+            scopes,
+            effect,
+            getSession,
+            getAccount,
+            children,
+            assertActiveExecution,
+            storeValidation,
+            findFields,
+        };
+    };
+    test.each(methods)(
+        '%s restores a serialized connection and never reconstructs a session',
+        async (method) => {
+            const f = setup(method);
+            await f.run(structuredClone(f.payload));
+            expect(f.effect).toHaveBeenCalledOnce();
+            expect(f.scopes[0]).toEqual(f.scope);
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(f.assertActiveExecution).toHaveBeenCalledWith(
+                f.execution,
+                expect.objectContaining({
+                    projectUuid: 'project-1',
+                    recheckOperation: true,
+                }),
+            );
+            if (method === 'compileProject') {
+                expect(f.effect.mock.calls[0]).toEqual([
+                    expect.objectContaining({
+                        ability: f.account.user.ability,
+                    }),
+                    'project-1',
+                    RequestMethod.CLI,
+                    'compile-1',
+                    undefined,
+                ]);
+                expect(f.children.generateValidation).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: f.execution,
+                        agentConnectionEffect: 'validateProject',
+                    }),
+                );
+                expect(f.children.replaceCustomFields).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        agentConnectionExecution: f.execution,
+                        agentConnectionEffect: 'replaceCustomFields',
+                    }),
+                );
+            }
+            expect(agentExecutionContext.getStore()).toBeUndefined();
+        },
+    );
+    test.each(
+        methods.flatMap((method) =>
+            ['revoked', 'expired', 'revised', 'disabled'].map((reason) => ({
+                method,
+                reason,
+            })),
+        ),
+    )(
+        '$method stops $reason work without retrying as a session',
+        async ({ method, reason }) => {
+            const f = setup(method);
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError(reason),
+            );
+            await expect(
+                f.run(structuredClone(f.payload)),
+            ).resolves.toBeUndefined();
+            expect(f.effect).not.toHaveBeenCalled();
+            expect(f.getSession).not.toHaveBeenCalled();
+            expect(f.getAccount).not.toHaveBeenCalled();
+            expect(f.children.generateValidation).not.toHaveBeenCalled();
+            expect(f.children.replaceCustomFields).not.toHaveBeenCalled();
+        },
+    );
+    test('rechecks after compile before enqueuing either child', async () => {
+        const f = setup('compileProject');
+        f.effect.mockImplementation(async () => {
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError('revoked'),
+            );
+        });
+        await f.run();
+        expect(f.effect).toHaveBeenCalledOnce();
+        expect(f.children.generateValidation).not.toHaveBeenCalled();
+        expect(f.children.replaceCustomFields).not.toHaveBeenCalled();
+    });
+    test('rechecks after validation before storing its result', async () => {
+        const f = setup('validateProject');
+        f.effect.mockImplementation(async () => {
+            f.assertActiveExecution.mockRejectedValue(
+                new ForbiddenError('expired'),
+            );
+            return [];
+        });
+        await f.run();
+        expect(f.storeValidation).not.toHaveBeenCalled();
+    });
+    test('refuses a compile job whose envelope came from a read operation', async () => {
+        const f = setup('compileProject');
+        await f.run({
+            ...f.payload,
+            agentConnectionExecution: {
+                ...f.execution,
+                operation: {
+                    kind: 'rest',
+                    key: 'SqlRunnerController.getTables',
+                },
+            },
+        });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
+    });
+    test('refuses a typed connection effect with a missing envelope', async () => {
+        const f = setup('compileProject');
+        await f.run({ ...f.payload, agentConnectionExecution: null });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
+    });
+
+    test('refuses an effect substituted on a bound payload', async () => {
+        const f = setup('compileProject');
+        await f.run({ ...f.payload, agentConnectionEffect: 'indexCatalog' });
+        expect(f.effect).not.toHaveBeenCalled();
+        expect(f.getSession).not.toHaveBeenCalled();
     });
 });

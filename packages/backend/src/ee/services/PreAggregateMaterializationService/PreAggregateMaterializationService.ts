@@ -162,6 +162,7 @@ export class PreAggregateMaterializationService extends BaseService {
     }
 
     async materializePreAggregate(args: {
+        beforeEffect?: () => Promise<void>;
         account: Account;
         projectUuid: string;
         preAggregateDefinitionUuid: string;
@@ -198,6 +199,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 },
             );
 
+            await args.beforeEffect?.();
             const materializationRow =
                 await this.preAggregateModel.insertInProgress({
                     projectUuid: args.projectUuid,
@@ -237,6 +239,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 `Starting executeAsyncMetricQuery for pre-aggregate materialization for definition ${args.preAggregateDefinitionUuid}`,
             );
 
+            await args.beforeEffect?.();
             const { queryUuid } = await traceSpan(
                 {
                     op: 'preaggregate',
@@ -431,6 +434,7 @@ export class PreAggregateMaterializationService extends BaseService {
 
             // Get file size from S3 and promote to active — timed together
             const promoteStart = Date.now();
+            await args.beforeEffect?.();
             const totalBytes = await traceSpan(
                 {
                     op: 'preaggregate',
@@ -461,6 +465,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 warehouseExecutionTimeMs: queryHistory.warehouseExecutionTimeMs,
             });
 
+            await args.beforeEffect?.();
             await writeMaterializationProducer(
                 this.preAggregateResultsStorageClient,
                 {
@@ -477,6 +482,7 @@ export class PreAggregateMaterializationService extends BaseService {
                 ),
             );
 
+            await args.beforeEffect?.();
             const { status } = await traceSpan(
                 {
                     op: 'db',

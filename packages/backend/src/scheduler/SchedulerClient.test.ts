@@ -302,6 +302,45 @@ describe('SchedulerClient connection envelope storage', () => {
         expect(stored.scopes).not.toBe(execution.scopes);
     });
 
+    it.each([
+        'compileProject',
+        'indexCatalog',
+        'generateValidation',
+        'replaceCustomFields',
+        'materializePreAggregate',
+    ] as const)(
+        'serializes the connection and typed effect for %s',
+        async (method) => {
+            const effect =
+                method === 'generateValidation' ? 'validateProject' : method;
+            const client = makeClient(false, vi.fn());
+            await client[method]({
+                ...payload,
+                agentConnectionExecution: execution,
+                agentConnectionEffect: effect,
+                context: 'dbt_refresh',
+                prevCatalogItemsWithTags: [],
+                prevCatalogItemsWithIcons: [],
+                prevMetricTreeEdges: [],
+                prevMetricsTreeNodes: [],
+                preAggregateDefinitionUuid: 'definition',
+                trigger: 'compile',
+            } as never);
+            expect(graphileAddJob).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    agentConnectionExecution: execution,
+                    agentConnectionEffect: effect,
+                }),
+                expect.anything(),
+            );
+            expect(
+                structuredClone(graphileAddJob.mock.calls[0][1])
+                    .agentConnectionExecution,
+            ).toEqual(execution);
+        },
+    );
+
     it('keeps legacy unbound payloads without connection metadata', async () => {
         await makeClient(false, vi.fn()).compileProject(payload);
         expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(

@@ -1122,6 +1122,8 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    getAgentConnectionGrantService: () =>
+                        this.getAgentConnectionGrantService(),
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),
                     aiAccessService: this.getAiAccessService(),
                     lightdashConfig: this.context.lightdashConfig,
