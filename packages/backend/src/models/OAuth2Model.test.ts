@@ -42,6 +42,151 @@ describe('OAuth2Model.validateRedirectUri', () => {
         ],
     };
 
+    it.each([
+        ['http://localhost:53682/callback', true],
+        ['http://localhost:80/callback', true],
+        ['http://localhost/callback', false],
+        ['http://localhost:/callback', false],
+        ['http://localhost:53682/other', false],
+        ['http://localhost:8080@evil.example/callback', false],
+        ['http://user:pass@localhost:8080/callback', false],
+        ['http://@localhost:8080/callback', false],
+        ['http://localhost:8080\\@evil.example/callback', false],
+        ['http:\\\\evil.example/callback', false],
+        ['http://localhost.evil.example:8080/callback', false],
+        ['http://evil.example:8080/callback', false],
+        ['https://localhost:53682/callback', false],
+        ['http://localhost:99999/callback', false],
+    ])('validates CLI redirect %s as %s', async (candidate, expected) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: [cliRedirectUri],
+            } as AnyType),
+        ).toBe(expected);
+    });
+
+    it.each([
+        ['https://app.example.com/a/b/c?x=1', true],
+        ['https://APP.EXAMPLE.COM/a/b/c?x=1', true],
+        ['https://evil.example/a', false],
+        ['https://app.example.com.evil.example/a', false],
+        ['https://app.example.com@evil.example/a', false],
+        ['http://app.example.com/a', false],
+    ])('validates wildcard path %s as %s', async (candidate, expected) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: ['https://app.example.com/*'],
+            } as AnyType),
+        ).toBe(expected);
+    });
+
+    it.each([
+        ['https://app.example.com/callback', true],
+        ['https://app.example.com/callback/', false],
+        ['https://APP.EXAMPLE.COM/callback', false],
+        ['https://app.example.com/Callback', false],
+        ['https://app.example.com/callback?x=1', false],
+    ])('validates exact redirect %s as %s', async (candidate, expected) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: ['https://app.example.com/callback'],
+            } as AnyType),
+        ).toBe(expected);
+    });
+
+    it.each([
+        ['https://app.example.com/callback', true],
+        ['https://APP-1.Example.com/callback', true],
+        ['https://a.b.example.com/callback', false],
+        ['https://evil.com/.example.com/callback', false],
+        ['https://example.com/callback', false],
+        ['https://app.example.com@evil.com/callback', false],
+        ['https://app.example.com.evil.com/callback', false],
+        ['http://app.example.com/callback', false],
+        ['https://app.example.com/other', false],
+        ['https://app_1.example.com/callback', false],
+        ['https://.example.com/callback', false],
+        ['https://app.example.com:8443/callback', false],
+        ['https://app.example.com\\@evil.com/callback', false],
+    ])('validates wildcard host %s as %s', async (candidate, expected) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: ['https://*.example.com/callback'],
+            } as AnyType),
+        ).toBe(expected);
+    });
+
+    it.each([
+        ['https://a*.example.com/callback', 'https://ab.example.com/callback'],
+        [
+            'https://app.*.example.com/callback',
+            'https://app.x.example.com/callback',
+        ],
+        ['https://*example.com/callback', 'https://evilexample.com/callback'],
+        ['https://*/callback', 'https://evil.com/callback'],
+        ['*://app.example.com/cb', 'https://app.example.com/cb'],
+        ['https://*@app.example.com/cb', 'https://user@app.example.com/cb'],
+        ['https://app.example.com/cb#*', 'https://app.example.com/cb#value'],
+    ])(
+        'rejects unsupported wildcard pattern %s',
+        async (registered, candidate) => {
+            expect(
+                await model.validateRedirectUri(candidate, {
+                    redirectUris: [registered],
+                } as AnyType),
+            ).toBe(false);
+        },
+    );
+
+    it.each([
+        'com.lightdash.mobile:/oauth/callback',
+        mobileRedirectUri,
+        'cursor://anysphere.cursor-retrieval/oauth/callback',
+    ])('accepts exact custom scheme redirect %s', async (candidate) => {
+        expect(
+            await model.validateRedirectUri(candidate, {
+                redirectUris: [candidate],
+            } as AnyType),
+        ).toBe(true);
+    });
+
+    it.each([
+        'not a URL',
+        'http:@localhost/callback',
+        'http:////@localhost/callback',
+        'http://user:pass@localhost:8080/callback',
+        'http://@localhost:8080/callback',
+        'http://localhost:8080\\@evil.example/callback',
+        'http:\\\\evil.example/callback',
+    ])(
+        'rejects unsafe candidates even when registered exactly: %s',
+        async (candidate) => {
+            expect(
+                await model.validateRedirectUri(candidate, {
+                    redirectUris: [candidate],
+                } as AnyType),
+            ).toBe(false);
+        },
+    );
+
+    it('matches query wildcards without treating regex characters as wildcards', async () => {
+        const queryClient = {
+            redirectUris: ['https://app.example.com/callback?next=*'],
+        } as AnyType;
+        expect(
+            await model.validateRedirectUri(
+                'https://app.example.com/callback?next=/a/b',
+                queryClient,
+            ),
+        ).toBe(true);
+        expect(
+            await model.validateRedirectUri(
+                'https://app.example.com/callbackXnext=/a/b',
+                queryClient,
+            ),
+        ).toBe(false);
+    });
+
     it('returns true for exact match', async () => {
         const result = await model.validateRedirectUri(
             'http://localhost:8100/callback',

@@ -24,6 +24,7 @@ import {
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
+import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -453,28 +454,12 @@ export class OAuth2Model implements AuthorizationCodeModel {
         redirectUri: string,
         client: Client,
     ): Promise<boolean> {
-        const escapeRegExp = (string: string) =>
-            string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-        const wildcardToRegExp = (wildcard: string) =>
-            new RegExp(`^${escapeRegExp(wildcard).replace(/\\\*/g, '.*')}$`);
-
-        if (!client.redirectUris) {
-            return false;
-        }
-
-        const isValidRedirectUri =
+        return (
             Array.isArray(client.redirectUris) &&
-            client.redirectUris.some((uri) => {
-                const regex = wildcardToRegExp(uri);
-                return regex.test(redirectUri);
-            });
-
-        if (isValidRedirectUri) {
-            return true;
-        }
-
-        return false;
+            client.redirectUris.some((uri) =>
+                matchesRegisteredRedirectUri(redirectUri, uri),
+            )
+        );
     }
 
     async createClient({

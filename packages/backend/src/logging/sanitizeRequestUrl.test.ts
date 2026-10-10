@@ -112,3 +112,38 @@ it('preserves dotted names that the app query parser treats as literal keys', ()
     });
     expect(sanitizeRequestUrl(url)).toBe(url);
 });
+
+it.each(['access_token', 'refresh_token'])(
+    'redacts OAuth %s query parameters',
+    (name) => {
+        const names = [
+            name,
+            name.toUpperCase(),
+            name.replace('token', 'ToKeN'),
+            `%${name.charCodeAt(0).toString(16)}${name.slice(1)}`,
+            `${name}[0]`,
+            `${name}[]`,
+            `${name}[a][b]`,
+            `${name.toUpperCase()}%5B%5D`,
+            `[${name}]`,
+            `%5B${name}%5D`,
+        ];
+        const query = names.map((key) => `${key}=secret`).join('&');
+        const expected = names.map((key) => `${key}=[REDACTED]`).join('&');
+        expect(
+            sanitizeRequestUrl(`/callback?${query}&next=value#fragment`),
+        ).toBe(`/callback?${expected}&next=value#fragment`);
+        expect(
+            sanitizeRequestUrl(
+                `/callback?${name}_hint=value&${name}.value=ordinary`,
+            ),
+        ).toBe(`/callback?${name}_hint=value&${name}.value=ordinary`);
+        expect(
+            JSON.stringify(
+                qs.parse(
+                    sanitizeRequestUrl(`/callback?${query}`).split('?')[1],
+                ),
+            ),
+        ).not.toContain('secret');
+    },
+);
