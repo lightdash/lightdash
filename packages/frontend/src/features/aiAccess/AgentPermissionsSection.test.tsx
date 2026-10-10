@@ -114,6 +114,7 @@ const pick = async (label: string, option: string) => {
 };
 beforeEach(() => {
     vi.clearAllMocks();
+    apiMock.mockReset();
     mocks.enabled = true;
     mocks.canManage = true;
     policy = legacy();
@@ -512,6 +513,360 @@ describe('Agent permissions', () => {
         ).toBeChecked();
     });
 
+    it.each(['save', 'reset'])(
+        'reloads after a stale save so the next %s uses the fresh version',
+        async (nextAction) => {
+            policy = { ...legacy(), mode: 'managed', version: 1 };
+            renderSection();
+            fireEvent.click(
+                await screen.findByRole('checkbox', {
+                    name: 'Admin: Delete content',
+                }),
+            );
+            const conflictError = {
+                error: {
+                    message:
+                        'Agent permissions changed. Reload the latest permissions before saving.',
+                },
+            };
+            policy = { ...policy, version: 2, allowedUserUuids: ['person'] };
+            apiMock.mockRejectedValueOnce(conflictError);
+            await save();
+            expect(
+                await screen.findByText('Agent permissions changed'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    'Someone changed the saved permissions. Reload the latest permissions before making more changes. This will discard your unsaved changes.',
+                ),
+            ).toBeInTheDocument();
+            expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
+                title: 'Could not save agent permissions.',
+                apiError: conflictError.error,
+            });
+            expect(JSON.parse(String(mutations()[0][0].body)).version).toBe(1);
+            expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+            policy = {
+                ...policy,
+                version: 3,
+                allowedProjectUuids: ['project'],
+            };
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Reload latest' }),
+            );
+            await waitFor(() =>
+                expect(
+                    screen.queryByText('Agent permissions changed'),
+                ).not.toBeInTheDocument(),
+            );
+            expect(
+                screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+            ).not.toBeChecked();
+            expect(
+                screen.getByRole('radio', { name: 'Only these projects' }),
+            ).toBeChecked();
+            expect(
+                screen.getByRole('radio', { name: 'Only these people' }),
+            ).toBeChecked();
+            expect(
+                screen.queryByText('Unsaved changes'),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+            );
+            if (nextAction === 'save') {
+                await save();
+            } else {
+                fireEvent.click(
+                    screen.getByRole('button', { name: 'Discard changes' }),
+                );
+                fireEvent.click(
+                    screen.getByRole('switch', {
+                        name: 'Limit what agents can do',
+                    }),
+                );
+                fireEvent.click(
+                    within(screen.getByRole('dialog')).getByRole('button', {
+                        name: 'Turn off limits',
+                    }),
+                );
+            }
+            await waitFor(() => expect(mutations()).toHaveLength(2));
+            expect(JSON.parse(String(mutations()[1][0].body)).version).toBe(3);
+            await waitFor(() =>
+                expect(
+                    screen.queryByText('Unsaved changes'),
+                ).not.toBeInTheDocument(),
+            );
+            if (nextAction === 'reset') {
+                await waitFor(() =>
+                    expect(
+                        screen.getByRole('switch', {
+                            name: 'Limit what agents can do',
+                        }),
+                    ).not.toBeChecked(),
+                );
+            }
+            expect(mocks.errorToast).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it('turns off limits with the fresh version after a stale save and discard', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        );
+        policy = { ...policy, version: 2, allowedUserUuids: ['person'] };
+        apiMock.mockRejectedValueOnce({ error: { message: 'Conflict' } });
+        await save();
+        expect(
+            await screen.findByText('Agent permissions changed'),
+        ).toBeInTheDocument();
+        expect(JSON.parse(String(mutations()[0][0].body)).version).toBe(1);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        );
+        const toggle = screen.getByRole('switch', {
+            name: 'Limit what agents can do',
+        });
+        expect(toggle).toBeEnabled();
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('radio', { name: 'Only these people' }),
+        ).toBeChecked();
+        fireEvent.click(toggle);
+        fireEvent.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Turn off limits',
+            }),
+        );
+        await waitFor(() => expect(toggle).not.toBeChecked());
+        expect(mutations()).toHaveLength(2);
+        expect(mutations()[1][0]).toMatchObject({
+            url: '/org/agent-permissions/reset',
+            method: 'POST',
+            body: JSON.stringify({ version: 2 }),
+        });
+        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
+            title: 'Could not save agent permissions.',
+            apiError: { message: 'Conflict' },
+        });
+    });
+
+    it('shows a conflict after a stale reset of a clean form and closes the modal on reload', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('switch', {
+                name: 'Limit what agents can do',
+            }),
+        );
+        policy = { ...policy, version: 2 };
+        apiMock.mockRejectedValueOnce({ error: { message: 'Conflict' } });
+        fireEvent.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Turn off limits',
+            }),
+        );
+        expect(
+            await screen.findByText('Agent permissions changed'),
+        ).toBeInTheDocument();
+        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
+            title: 'Could not turn off limits.',
+            apiError: { message: 'Conflict' },
+        });
+        expect(
+            screen.getByText(
+                'Someone changed the saved permissions. Reload the latest permissions before making more changes.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(/This will discard your unsaved changes\./),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Agent permissions changed'),
+            ).not.toBeInTheDocument(),
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        fireEvent.click(
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
+        );
+        fireEvent.click(
+            within(screen.getByRole('dialog')).getByRole('button', {
+                name: 'Turn off limits',
+            }),
+        );
+        await waitFor(() =>
+            expect(
+                screen.getByRole('switch', {
+                    name: 'Limit what agents can do',
+                }),
+            ).not.toBeChecked(),
+        );
+        expect(JSON.parse(String(mutations()[1][0].body))).toEqual({
+            version: 2,
+        });
+    });
+
+    it('keeps edits without a conflict when a failed save refetches the same version', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        renderSection();
+        fireEvent.click(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        );
+        apiMock.mockRejectedValueOnce({ error: { message: 'Save failed' } });
+        await save();
+        await waitFor(() =>
+            expect(
+                apiMock.mock.calls.filter(
+                    ([request]) => request.method === 'GET',
+                ),
+            ).toHaveLength(2),
+        );
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
+        );
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).toBeChecked();
+        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
+            title: 'Could not save agent permissions.',
+            apiError: { message: 'Save failed' },
+        });
+    });
+
+    it('recovers controls and keeps edits when the automatic reload fails, then retries save', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        renderSection();
+        const checkbox = await screen.findByRole('checkbox', {
+            name: 'Admin: Delete content',
+        });
+        fireEvent.click(checkbox);
+        let failReload: (error: unknown) => void = () => {};
+        apiMock.mockRejectedValueOnce({ error: { message: 'Save failed' } });
+        apiMock.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, reject) => {
+                    failReload = reject;
+                }),
+        );
+        await save();
+        await waitFor(() =>
+            expect(
+                apiMock.mock.calls.filter(
+                    ([request]) => request.method === 'GET',
+                ),
+            ).toHaveLength(2),
+        );
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(checkbox).toBeDisabled();
+        await act(async () =>
+            failReload({ error: { message: 'Reload failed' } }),
+        );
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled(),
+        );
+        expect(checkbox).toBeEnabled();
+        expect(checkbox).toBeChecked();
+        expect(
+            screen.getByRole('switch', { name: 'Limit what agents can do' }),
+        ).toBeEnabled();
+        expect(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        ).toBeEnabled();
+        expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+        expect(
+            screen.queryByText('Agent permissions changed'),
+        ).not.toBeInTheDocument();
+        expect(mocks.errorToast).toHaveBeenCalledTimes(2);
+        expect(mocks.errorToast).toHaveBeenNthCalledWith(1, {
+            title: 'Could not save agent permissions.',
+            apiError: { message: 'Save failed' },
+        });
+        expect(mocks.errorToast).toHaveBeenNthCalledWith(2, {
+            title: 'Could not reload agent permissions.',
+            apiError: { message: 'Reload failed' },
+        });
+        await save();
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Unsaved changes'),
+            ).not.toBeInTheDocument(),
+        );
+        expect(mutations()).toHaveLength(2);
+        expect(JSON.parse(String(mutations()[1][0].body))).toMatchObject({
+            version: 1,
+            systemRoleMatrix: {
+                ...matrix([]),
+                admin: [AgentCapability.Delete],
+            },
+        });
+        expect(checkbox).toBeChecked();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+        expect(mocks.errorToast).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the conflict and draft when reloading fails and allows a retry', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        const client = renderSection();
+        fireEvent.click(
+            await screen.findByRole('checkbox', {
+                name: 'Admin: Delete content',
+            }),
+        );
+        policy = { ...policy, version: 2 };
+        await act(() => client.invalidateQueries(['ai-access']));
+        const reload = await screen.findByRole('button', {
+            name: 'Reload latest',
+        });
+        let failReload: (error: unknown) => void = () => {};
+        apiMock.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, reject) => {
+                    failReload = reject;
+                }),
+        );
+        fireEvent.click(reload);
+        await waitFor(() => expect(reload).toBeDisabled());
+        await act(async () =>
+            failReload({ error: { message: 'Reload failed' } }),
+        );
+        await waitFor(() => expect(reload).toBeEnabled());
+        expect(
+            screen.getByText('Agent permissions changed'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).toBeChecked();
+        expect(mocks.errorToast).toHaveBeenCalledExactlyOnceWith({
+            title: 'Could not reload agent permissions.',
+            apiError: { message: 'Reload failed' },
+        });
+        fireEvent.click(reload);
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Agent permissions changed'),
+            ).not.toBeInTheDocument(),
+        );
+        expect(
+            screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
+        ).not.toBeChecked();
+    });
+
     it('blocks a dirty draft on a newer version and reload discards it', async () => {
         policy = { ...legacy(), mode: 'managed', version: 1 };
         const client = renderSection();
@@ -530,9 +885,14 @@ describe('Agent permissions', () => {
         expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
         expect(mutations()).toHaveLength(0);
         fireEvent.click(screen.getByRole('button', { name: 'Reload latest' }));
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Agent permissions changed'),
+            ).not.toBeInTheDocument(),
+        );
         expect(
-            screen.queryByText('Agent permissions changed'),
-        ).not.toBeInTheDocument();
+            apiMock.mock.calls.filter(([request]) => request.method === 'GET'),
+        ).toHaveLength(3);
         expect(
             screen.getByRole('checkbox', { name: 'Admin: Delete content' }),
         ).not.toBeChecked();
