@@ -1,3 +1,10 @@
+## [2.547.3](https://github.com/lightdash/lightdash/compare/2.547.2...2.547.3) (2026-10-10)
+
+
+### Bug Fixes
+
+* **agent-identity:** add the settings link to MCP and CLI agent refusals ([#30879](https://github.com/lightdash/lightdash/issues/30879)) ([6c06a09](https://github.com/lightdash/lightdash/commit/6c06a09fa860d73c646519747582c0802a18cfa2))
+
 ## [2.547.2](https://github.com/lightdash/lightdash/compare/2.547.1...2.547.2) (2026-10-10)
 
 
