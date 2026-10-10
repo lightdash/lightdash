@@ -451,7 +451,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 stream.on('error', reject);
             });
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 
@@ -486,7 +488,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 },
             );
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
 
         return catalogToSchema(results);
@@ -586,7 +590,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 format: 'JSON',
             });
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            const translatedError = new WarehouseConnectionError(
+                getErrorMessage(e),
+            );
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 }
