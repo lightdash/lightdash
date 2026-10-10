@@ -120,6 +120,16 @@ const credentialCases: {
     observed: AiServiceAccountTestResult['observed'];
 }[] = [
     {
+        name: 'Postgres',
+        credentials: {
+            type: WarehouseTypes.POSTGRES,
+            user: 'ai_agents',
+            password: 'secret-value',
+        },
+        method: 'password',
+        observed: { currentUser: 'principal-id' },
+    },
+    {
         name: 'Databricks',
         credentials: {
             type: WarehouseTypes.DATABRICKS as const,

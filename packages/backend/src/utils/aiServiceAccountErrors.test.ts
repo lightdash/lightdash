@@ -4,9 +4,11 @@ import {
 } from '@lightdash/common';
 import {
     getAthenaServiceAccountTestErrorMessage,
+    getPostgresServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
     isDatabricksServiceAccountAuthError,
+    isPostgresServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
 } from './aiServiceAccountErrors';
 
@@ -262,6 +264,93 @@ describe('Athena authentication failures', () => {
         error.cause = error;
         expect(isAthenaServiceAccountAuthError(error)).toBe(false);
         expect(getAthenaServiceAccountTestErrorMessage(error)).toContain(
+            'Could not verify',
+        );
+    });
+});
+
+describe('Postgres AI service account errors', () => {
+    it.each(['28P01', '28000'])(
+        'recognizes SQLSTATE %s through the warehouse cause',
+        (code) => {
+            const error = new WarehouseQueryError('Query failed');
+            error.cause = Object.assign(new Error('rejected'), { code });
+            expect(isPostgresServiceAccountAuthError(error)).toBe(true);
+        },
+    );
+    it.each([
+        'password authentication failed for user "ai_agents"',
+        'role "ai_agents" does not exist',
+        'role "ai_agents" is not permitted to log in',
+        'no pg_hba.conf entry for host "10.0.0.1", user "ai_agents", database "analytics"',
+    ])('recognizes an anchored authentication message: %s', (message) => {
+        expect(
+            isPostgresServiceAccountAuthError(new WarehouseQueryError(message)),
+        ).toBe(true);
+    });
+    it.each([
+        {
+            code: '42501',
+            message: 'password authentication failed for user "ai_agents"',
+        },
+        {
+            code: '42601',
+            message: 'syntax error at or near "password authentication failed"',
+        },
+        {
+            message: `query failed: SELECT 'password authentication failed for user "ai_agents"'`,
+        },
+        { message: 'permission denied for database "analytics"' },
+        { code: '3D000' },
+        { code: 'ECONNRESET' },
+        null,
+    ])(
+        'keeps query, permission and network failures unchanged: %j',
+        (error) => {
+            expect(isPostgresServiceAccountAuthError(error)).toBe(false);
+        },
+    );
+    it.each([
+        [{ code: '28P01' }, 'rejected'],
+        [
+            {
+                code: '28000',
+                message: 'role "ai_agents" is not permitted to log in',
+            },
+            'Add LOGIN',
+        ],
+        [
+            { code: '28000', message: 'no pg_hba.conf entry for host "host"' },
+            'pg_hba.conf',
+        ],
+        [
+            {
+                code: '42501',
+                message: 'permission denied for database "analytics"',
+            },
+            'Grant CONNECT',
+        ],
+        [{ code: '3D000' }, 'database does not exist'],
+        [
+            { code: '42501', message: 'permission denied for table "orders"' },
+            'Could not verify',
+        ],
+        [{ message: 'secret password bytes' }, 'Could not verify'],
+    ])('returns safe test guidance for %j', (error, message) => {
+        const wrapper = new WarehouseQueryError('secret password bytes');
+        wrapper.cause = error;
+        expect(getPostgresServiceAccountTestErrorMessage(wrapper)).toContain(
+            message,
+        );
+        expect(
+            getPostgresServiceAccountTestErrorMessage(wrapper),
+        ).not.toContain('secret password bytes');
+    });
+    it('handles cycles', () => {
+        const error = new Error('network');
+        error.cause = error;
+        expect(isPostgresServiceAccountAuthError(error)).toBe(false);
+        expect(getPostgresServiceAccountTestErrorMessage(error)).toContain(
             'Could not verify',
         );
     });

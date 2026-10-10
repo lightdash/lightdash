@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import {
     athenaSecrets,
+    postgresConnection,
+    postgresSecrets,
     snowflakeEncryptedKey,
     snowflakePassphrase,
     snowflakeSecrets,
@@ -84,6 +86,7 @@ it('removes inherited auth fields and preserves tunnel configuration', () => {
 it.each(
     Object.values(WarehouseTypes).filter(
         (type) =>
+            type !== WarehouseTypes.POSTGRES &&
             type !== WarehouseTypes.BIGQUERY &&
             type !== WarehouseTypes.ATHENA &&
             type !== WarehouseTypes.DATABRICKS &&
@@ -308,4 +311,33 @@ it('replaces Athena bundles and clears omitted optional fields', () => {
             athenaSecrets,
         ),
     ).toThrow('complete');
+});
+
+it('requires a complete Postgres replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...postgresSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                postgresSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...postgresSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(
+        mergeAiServiceAccountCredentials(replacement, postgresSecrets),
+    ).toEqual(replacement);
+    expect(
+        applyAiServiceAccountCredentials(postgresConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
+        sshTunnelPrivateKey: 'tunnel-private',
+        requireUserCredentials: false,
+    });
 });

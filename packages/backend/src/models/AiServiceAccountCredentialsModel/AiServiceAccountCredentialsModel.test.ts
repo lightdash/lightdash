@@ -15,6 +15,8 @@ import {
 import {
     athenaSecrets,
     athenaVerification,
+    postgresSecrets,
+    postgresVerification,
     snowflakeEncryptedKey,
     snowflakeKeyPair,
     snowflakePassphrase,
@@ -791,6 +793,225 @@ describe('Athena credential payloads', () => {
             sessionToken: 'temporary',
             s3DataDir: 's3://agent-data/path',
         };
+        expect(parseAiServiceAccountSecrets(input)).toEqual(input);
+    });
+});
+describe('Postgres encrypted observations', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    let tracker: Tracker;
+    const decrypt = vi.fn();
+    const encrypt = vi.fn().mockReturnValue(Buffer.from('new-ciphertext'));
+    const model = new AiServiceAccountCredentialsModel({
+        database,
+        encryptionUtil: { decrypt, encrypt } as unknown as EncryptionUtil,
+    });
+    const postgresRow = {
+        ...row,
+        warehouse_type: WarehouseTypes.POSTGRES,
+        authentication_method: 'password',
+    };
+    beforeEach(() => {
+        tracker = getTracker();
+        tracker.reset();
+        encrypt.mockClear();
+        decrypt.mockReset().mockReturnValue(
+            JSON.stringify({
+                ...postgresSecrets,
+                verification: postgresVerification,
+            }),
+        );
+    });
+    afterAll(async () => database.destroy());
+    it('keeps observations out of execution secrets and metadata', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([postgresRow]);
+        expect(await model.getSecrets('project', null)).toEqual(
+            postgresSecrets,
+        );
+        expect(
+            await model.getVerification('project', null, 'generation'),
+        ).toEqual(postgresVerification);
+        const metadata = await model.getSlot('project', null);
+        expect(metadata).toMatchObject({ method: 'password' });
+        expect(JSON.stringify(metadata)).not.toMatch(
+            /agent-password|ai_agents|verification/,
+        );
+    });
+    it.each([
+        { warehouse_type: WarehouseTypes.BIGQUERY },
+        { authentication_method: 'iam_role' },
+    ])('rejects mismatched metadata %j', async (override) => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([{ ...postgresRow, ...override }]);
+        await expect(model.getSecrets('project', null)).rejects.toThrow(
+            'could not be read',
+        );
+        expect(
+            await model.getCredentialsReadable('project', null, 'generation'),
+        ).toBe(false);
+    });
+    it('accepts legacy slots without a verification', async () => {
+        decrypt.mockReturnValue(JSON.stringify(postgresSecrets));
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([postgresRow]);
+        expect(
+            await model.getVerification('project', null, 'generation'),
+        ).toBeNull();
+        expect(await model.getSecrets('project', null)).toEqual(
+            postgresSecrets,
+        );
+    });
+    it.each([
+        { ...postgresVerification, ok: false },
+        { ...postgresVerification, principal: 'different' },
+        {
+            ...postgresVerification,
+            observed: {
+                currentUser: postgresVerification.principal,
+                token: 'secret',
+            },
+        },
+        {
+            ...postgresVerification,
+            observed: { currentUser: ' ' },
+            principal: ' ',
+        },
+        { ...postgresVerification, checkedAt: 'invalid' },
+        { ...postgresVerification, token: 'secret' },
+    ])(
+        'rejects corrupt observations without exposing secrets',
+        async (observation) => {
+            decrypt.mockReturnValue(
+                JSON.stringify({
+                    ...postgresSecrets,
+                    verification: observation,
+                }),
+            );
+            tracker.on
+                .select('ai_service_account_credentials')
+                .response([postgresRow]);
+            expect(
+                await model.getVerification('project', null, 'generation'),
+            ).toBeNull();
+            expect(
+                await model.getReplaceableSecrets('project', null),
+            ).toBeNull();
+            await expect(model.getSecrets('project', null)).rejects.toThrow(
+                'could not be read',
+            );
+        },
+    );
+    it.each([{}, { user: 'replacement' }, { password: 'replacement' }])(
+        'changes the generation only when the bundle changes: %j',
+        async (change) => {
+            tracker.on
+                .select('projects')
+                .response([{ project_uuid: 'project' }]);
+            tracker.on
+                .select('ai_service_account_credentials')
+                .response([postgresRow]);
+            tracker.on
+                .insert('ai_service_account_credentials')
+                .response([postgresRow]);
+            await model.upsert(
+                'project',
+                null,
+                {
+                    ...postgresSecrets,
+                    ...change,
+                },
+                'actor',
+                postgresVerification,
+            );
+            const { bindings } = tracker.history.insert[0];
+            expect(bindings.includes('generation')).toBe(
+                Object.keys(change).length === 0,
+            );
+            expect(bindings).not.toContain(postgresSecrets.password);
+            expect(JSON.parse(encrypt.mock.calls[0][0])).toMatchObject({
+                verification: { principal: postgresVerification.principal },
+            });
+        },
+    );
+    it('updates only ciphertext under the expected generation row lock', async () => {
+        tracker.on
+            .select('ai_service_account_credentials')
+            .response([postgresRow]);
+        tracker.on.update('ai_service_account_credentials').response(1);
+        await model.updateVerification(
+            'project',
+            null,
+            'generation',
+            postgresVerification,
+        );
+        expect(tracker.history.select[0].sql).toContain('for update');
+        expect(tracker.history.select[0].bindings).toContain('generation');
+        expect(tracker.history.update[0].sql).toContain(
+            'set "encrypted_credentials" = $1',
+        );
+        expect(tracker.history.update[0].sql).not.toMatch(
+            /"identity_uuid" = \$\d,|"updated_at" =/,
+        );
+        expect(tracker.history.update[0].bindings).toContain('generation');
+    });
+    it('ignores a late Test after replacement and a status read for an old generation', async () => {
+        tracker.on.select('ai_service_account_credentials').response([]);
+        await model.updateVerification(
+            'project',
+            null,
+            'old-generation',
+            postgresVerification,
+        );
+        expect(
+            await model.getVerification('project', null, 'old-generation'),
+        ).toBeNull();
+        expect(encrypt).not.toHaveBeenCalled();
+        expect(decrypt).not.toHaveBeenCalled();
+        expect(tracker.history.update).toHaveLength(0);
+        expect(tracker.history.select[0].bindings).toContain('old-generation');
+    });
+    it('does not persist a failed verification', async () => {
+        await expect(
+            model.updateVerification('project', null, 'generation', {
+                ...postgresVerification,
+                ok: false,
+            }),
+        ).rejects.toThrow();
+        await expect(
+            model.upsert('project', null, postgresSecrets, 'actor', {
+                ...postgresVerification,
+                ok: false,
+            }),
+        ).rejects.toThrow();
+        expect(encrypt).not.toHaveBeenCalled();
+        expect(tracker.history.select).toHaveLength(0);
+    });
+});
+
+describe('Postgres credential payloads', () => {
+    it.each([
+        { user: '' },
+        { user: ' ' },
+        { password: '' },
+        { role: 'role' },
+        { sslcert: 'cert' },
+        { sslkey: 'key' },
+        { sslmode: 'require' },
+        { sslrootcert: 'cert' },
+        { host: 'host' },
+        { sshTunnelPrivateKey: 'key' },
+        { verification: postgresVerification },
+        { authenticationType: 'password' },
+    ])('rejects invalid or extra fields: %j', (override) => {
+        expect(() =>
+            parseAiServiceAccountSecrets({ ...postgresSecrets, ...override }),
+        ).toThrow(ParameterError);
+    });
+    it('preserves password bytes', () => {
+        const input = { ...postgresSecrets, password: ' password bytes ' };
         expect(parseAiServiceAccountSecrets(input)).toEqual(input);
     });
 });

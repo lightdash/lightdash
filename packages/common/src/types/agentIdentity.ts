@@ -117,7 +117,10 @@ export const AGENT_IDENTITY_SOURCES: Record<
         person: ['marked_person', 'ai_service_account'],
         service_account: ['marked_person', 'ai_service_account'],
     },
-    [WarehouseTypes.POSTGRES]: markedOnly,
+    [WarehouseTypes.POSTGRES]: {
+        person: ['marked_person', 'ai_service_account'],
+        service_account: ['marked_person', 'ai_service_account'],
+    },
     [WarehouseTypes.REDSHIFT]: markedOnly,
     [WarehouseTypes.DATABRICKS]: {
         person: ['marked_person', 'ai_service_account'],
@@ -253,7 +256,14 @@ export interface AthenaAiServiceAccountCredentialInput {
     s3DataDir?: string;
 }
 
+export interface PostgresAiServiceAccountCredentialInput {
+    type: WarehouseTypes.POSTGRES;
+    user: string;
+    password: string;
+}
+
 export type AiServiceAccountCredentialInput =
+    | PostgresAiServiceAccountCredentialInput
     | AthenaAiServiceAccountCredentialInput
     | BigqueryAiServiceAccountCredentialInput
     | DatabricksAiServiceAccountCredentialInput

@@ -294,3 +294,36 @@ export const buildAthenaAiServiceAccountCommands = ({
         ),
     };
 };
+
+export interface PostgresAiServiceAccountCommands {
+    createRole: string;
+    grantReadAccess: string;
+    rowLevelSecurity: string;
+}
+
+export const buildPostgresAiServiceAccountCommands = ({
+    dbname,
+    schema,
+}: {
+    dbname: string | null;
+    schema: string | null;
+}): PostgresAiServiceAccountCommands => {
+    const quoteIdentifier = (value: string): string =>
+        `"${value.replaceAll('"', '""')}"`;
+    const databaseIdentifier = quoteIdentifier(dbname || '<database>');
+    const schemaIdentifier = quoteIdentifier(schema || '<schema>');
+    const role = quoteIdentifier('ai_agents');
+    const table = `${schemaIdentifier}.${quoteIdentifier('<table>')}`;
+    return {
+        createRole: `CREATE ROLE ${role} LOGIN PASSWORD '<choose-a-strong-password>'
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+ALTER ROLE ${role} SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE ${databaseIdentifier} TO ${role};`,
+        grantReadAccess: `GRANT USAGE ON SCHEMA ${schemaIdentifier} TO ${role};
+GRANT SELECT ON ALL TABLES IN SCHEMA ${schemaIdentifier} TO ${role};
+ALTER DEFAULT PRIVILEGES IN SCHEMA ${schemaIdentifier} GRANT SELECT ON TABLES TO ${role};`,
+        rowLevelSecurity: `ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ai_agents_rows" ON ${table}
+  FOR SELECT TO ${role} USING (<condition>);`,
+    };
+};

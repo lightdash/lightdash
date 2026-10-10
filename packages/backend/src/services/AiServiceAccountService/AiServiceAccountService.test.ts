@@ -21,6 +21,9 @@ import {
     athenaConnection,
     athenaSecrets,
     athenaVerification,
+    postgresConnection,
+    postgresSecrets,
+    postgresVerification,
     snowflakeSecrets,
     snowflakeVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
@@ -199,6 +202,7 @@ describe.each(operations)('%s boundaries', (operation) => {
     it.each(
         Object.values(WarehouseTypes).filter(
             (type) =>
+                type !== WarehouseTypes.POSTGRES &&
                 type !== WarehouseTypes.BIGQUERY &&
                 type !== WarehouseTypes.ATHENA &&
                 type !== WarehouseTypes.DATABRICKS &&
@@ -1792,6 +1796,214 @@ describe('Athena identity verification', () => {
                 f.service[operation](f.account, 'project', null, athenaSecrets),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(STSClient).not.toHaveBeenCalled();
+        },
+    );
+});
+
+const postgresFixture = (preview = false) => {
+    const f = preview ? previewFixture() : setup();
+    f.load.mockResolvedValue(postgresConnection);
+    f.getExtra.mockResolvedValue(postgresConnection);
+    f.model.getReplaceableSecrets.mockResolvedValue(postgresSecrets);
+    f.model.getSecrets.mockImplementation(async (uuid: string) =>
+        preview && uuid !== 'parent'
+            ? null
+            : {
+                  slot: {
+                      uuid: `${uuid}-slot`,
+                      identityUuid: `${uuid}-generation`,
+                  },
+                  secrets: postgresSecrets,
+              },
+    );
+    f.runQuery.mockResolvedValue({
+        rows: [{ principal: 'ai_agents', session_principal: 'ai_agents' }],
+    });
+    return f;
+};
+
+describe('Postgres identity verification', () => {
+    it.each([null, 'extra-connection'])(
+        'tests and saves the separate login through the factory for %s',
+        async (connectionUuid) => {
+            const f = postgresFixture();
+            const result = await f.service.upsert(
+                f.account,
+                'project',
+                connectionUuid,
+                postgresSecrets,
+            );
+            expect(f.runQuery).toHaveBeenCalledExactlyOnceWith(
+                'SELECT current_user AS principal, session_user AS session_principal',
+                {},
+            );
+            const ref = f.withWarehouseClient.mock.calls[0][0];
+            expect(ref).toMatchObject({
+                kind: 'bypass',
+                mode: 'connection_test',
+                agentSession: true,
+                credentials: {
+                    ...postgresSecrets,
+                    host: 'warehouse.internal',
+                    port: 5432,
+                    useSshTunnel: true,
+                    sshTunnelPrivateKey: 'tunnel-private',
+                    requireUserCredentials: false,
+                    sslrootcert: 'root-cert',
+                },
+            });
+            for (const field of ['role', 'sslcert', 'sslkey'])
+                expect(ref.credentials).not.toHaveProperty(field);
+            expect(result.verification).toEqual({
+                ...postgresVerification,
+                checkedAt: expect.any(Date),
+            });
+            expect(f.model.upsert).toHaveBeenCalledExactlyOnceWith(
+                'project',
+                connectionUuid,
+                postgresSecrets,
+                f.account.user.id,
+                result.verification,
+            );
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toMatch(/agent-password|project-password|tunnel-private/);
+        },
+    );
+    it.each([
+        { rows: [{ principal: 'other', session_principal: 'ai_agents' }] },
+        { rows: [{ principal: 'ai_agents', session_principal: 'other' }] },
+        { rows: [{ principal: 'ai_agents' }] },
+        { rows: [{ session_principal: 'ai_agents' }] },
+        { rows: [] },
+    ])(
+        'refuses mismatched or missing session identities %j',
+        async ({ rows }) => {
+            const f = postgresFixture();
+            f.runQuery.mockResolvedValue({ rows });
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result).toMatchObject({
+                ok: false,
+                principal: null,
+                observed: {},
+                message: 'Postgres signed in as a different user.',
+            });
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+            await expect(
+                f.service.upsert(f.account, 'project', null, postgresSecrets),
+            ).rejects.toThrow('signed in as a different user');
+            expect(f.model.upsert).not.toHaveBeenCalled();
+        },
+    );
+    it.each([false, true])(
+        'records only the saved generation after Test, inherited=%s',
+        async (preview) => {
+            const f = postgresFixture(preview);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                null,
+            );
+            expect(result.ok).toBe(true);
+            expect(f.model.updateVerification).toHaveBeenCalledExactlyOnceWith(
+                preview ? 'parent' : 'project',
+                null,
+                preview ? 'parent-generation' : 'project-generation',
+                result,
+            );
+        },
+    );
+    it('does not persist an observation for submitted credentials', async () => {
+        const f = postgresFixture();
+        await f.service.test(f.account, 'project', null, postgresSecrets);
+        expect(f.model.updateVerification).not.toHaveBeenCalled();
+    });
+    it.each([false, true])(
+        'returns safe status without credentials, inherited=%s',
+        async (preview) => {
+            const f = postgresFixture(preview);
+            f.model.getVerification.mockResolvedValue(postgresVerification);
+            const status = await f.service.getStatus(
+                f.account,
+                'project',
+                null,
+            );
+            expect(status.verification).toEqual(postgresVerification);
+            if (preview)
+                expect(status.parent?.verification).toEqual(
+                    postgresVerification,
+                );
+            expect(JSON.stringify(status)).not.toMatch(
+                /password|tunnel-private|project-user/,
+            );
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['28P01', '28000', '42501', '3D000'])(
+        'does not save or expose driver secrets after %s',
+        async (code) => {
+            const f = postgresFixture();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            f.runQuery.mockRejectedValue(
+                Object.assign(new Error('agent-password'), { code }),
+            );
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                postgresSecrets,
+            );
+            expect(result.ok).toBe(false);
+            expect(
+                JSON.stringify([result, f.analytics.track.mock.calls]),
+            ).not.toContain('agent-password');
+            await expect(
+                f.service.upsert(f.account, 'project', null, postgresSecrets),
+            ).rejects.toThrow(ParameterError);
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                postgresSecrets.password,
+            );
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({ errorCode: code }),
+            );
+            expect(f.model.upsert).not.toHaveBeenCalled();
+            expect(f.model.updateVerification).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['upsert', 'test'] as const)(
+        'gates %s before credentials and factory access',
+        async (operation) => {
+            const f = postgresFixture();
+            f.flag.mockResolvedValue({ enabled: false });
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    postgresSecrets,
+                ),
+            ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
+            f.flag.mockResolvedValue({ enabled: true });
+            f.account.user.ability = new Ability<PossibleAbilities>([]);
+            await expect(
+                f.service[operation](
+                    f.account,
+                    'project',
+                    null,
+                    postgresSecrets,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(f.withWarehouseClient).not.toHaveBeenCalled();
         },
     );
 });

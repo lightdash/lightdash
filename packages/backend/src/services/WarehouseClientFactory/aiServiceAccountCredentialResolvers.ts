@@ -11,14 +11,17 @@ import { CredentialResolverRegistry } from './CredentialResolverRegistry';
 import { AthenaAiServiceAccountCredentialResolver } from './resolvers/AthenaAiServiceAccountCredentialResolver';
 import { BigqueryAiServiceAccountCredentialResolver } from './resolvers/BigqueryAiServiceAccountCredentialResolver';
 import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/DatabricksAiServiceAccountCredentialResolver';
+import { PostgresAiServiceAccountCredentialResolver } from './resolvers/PostgresAiServiceAccountCredentialResolver';
 import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/SnowflakeAiServiceAccountCredentialResolver';
 
+const postgresResolver = new PostgresAiServiceAccountCredentialResolver();
 const athenaResolver = new AthenaAiServiceAccountCredentialResolver();
 const snowflakeResolver = new SnowflakeAiServiceAccountCredentialResolver();
 const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
 const entries = [
+    { warehouseType: WarehouseTypes.POSTGRES, resolver: postgresResolver },
     { warehouseType: WarehouseTypes.ATHENA, resolver: athenaResolver },
     {
         warehouseType: WarehouseTypes.SNOWFLAKE,
@@ -63,6 +66,8 @@ export const buildAiServiceAccountCredentials = (
     secrets: AiServiceAccountSecrets,
 ): CreateWarehouseCredentials => {
     switch (connection.type) {
+        case WarehouseTypes.POSTGRES:
+            return postgresResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.SNOWFLAKE:
             return snowflakeResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.BIGQUERY:
@@ -73,7 +78,6 @@ export const buildAiServiceAccountCredentials = (
             return athenaResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.DUCKDB:
-        case WarehouseTypes.POSTGRES:
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.TRINO:
             throw new ParameterError(

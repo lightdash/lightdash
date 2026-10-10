@@ -182,6 +182,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                     WarehouseTypes.ATHENA,
                     WarehouseTypes.BIGQUERY,
                     WarehouseTypes.DATABRICKS,
+                    WarehouseTypes.POSTGRES,
                     WarehouseTypes.SNOWFLAKE,
                 ].sort(),
             );
@@ -212,13 +213,26 @@ describe.skipIf(!hasBigqueryCredentials())(
             await putRule('marked_person');
         });
 
-        it('rejects an AI service account slot on the Postgres seed project', async () => {
-            const response = await admin.get(
-                `/api/v2/projects/${SEED_PROJECT.project_uuid}/ai-access/service-account`,
-                { failOnStatusCode: false },
-            );
-            expect(response.status).toBeGreaterThanOrEqual(400);
-            expect(response.status).toBeLessThan(500);
+        it('rejects BigQuery keys for the AI service account slot on the Postgres seed project', async () => {
+            const seedSlotUrl = `/api/v2/projects/${SEED_PROJECT.project_uuid}/ai-access/service-account`;
+            const getSeedSlot = async () => {
+                const response =
+                    await admin.get<ApiAiServiceAccountSlotResponse>(
+                        seedSlotUrl,
+                        { failOnStatusCode: false },
+                    );
+                expectNoSecrets(response.body);
+                expect(response.status).toBe(200);
+                return response.body.results;
+            };
+            expect(await getSeedSlot()).toBeNull();
+            const rejected = await admin.put(seedSlotUrl, credentials, {
+                failOnStatusCode: false,
+            });
+            expectNoSecrets(rejected.body);
+            expect(rejected.status).toBeGreaterThanOrEqual(400);
+            expect(rejected.status).toBeLessThan(500);
+            expect(await getSeedSlot()).toBeNull();
         });
 
         it('creates a dedicated BigQuery project with an empty slot', async () => {

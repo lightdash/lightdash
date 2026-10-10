@@ -12,6 +12,7 @@ import { BigQueryKeyFileInput } from '../../components/ProjectConnection/Warehou
 import { useSaveAiServiceAccount, useTestAiServiceAccount } from './api';
 import { AthenaAiServiceAccountForm } from './AthenaAiServiceAccountForm';
 import { DatabricksAiServiceAccountForm } from './DatabricksAiServiceAccountForm';
+import { PostgresAiServiceAccountForm } from './PostgresAiServiceAccountForm';
 import { SnowflakeAiServiceAccountForm } from './SnowflakeAiServiceAccountForm';
 
 interface AiServiceAccountFormProps {
@@ -118,12 +119,15 @@ export const AiServiceAccountForm = ({
     ...props
 }: AiServiceAccountFormProps & {
     warehouseType:
+        | WarehouseTypes.POSTGRES
         | WarehouseTypes.ATHENA
         | WarehouseTypes.BIGQUERY
         | WarehouseTypes.DATABRICKS
         | WarehouseTypes.SNOWFLAKE;
 }) => {
     switch (warehouseType) {
+        case WarehouseTypes.POSTGRES:
+            return <PostgresAiServiceAccountForm {...props} />;
         case WarehouseTypes.ATHENA:
             return <AthenaAiServiceAccountForm {...props} />;
         case WarehouseTypes.BIGQUERY:

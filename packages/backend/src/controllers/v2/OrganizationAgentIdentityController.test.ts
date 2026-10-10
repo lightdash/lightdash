@@ -225,6 +225,7 @@ test.each([
     [WarehouseTypes.SNOWFLAKE, 'ai_service_account'],
     [WarehouseTypes.BIGQUERY, 'ai_service_account'],
     [WarehouseTypes.DATABRICKS, 'ai_service_account'],
+    [WarehouseTypes.POSTGRES, 'ai_service_account'],
     [WarehouseTypes.ATHENA, 'ai_service_account'],
 ] as const)('returns the updated %s rule', async (warehouseType, source) => {
     const { controller, rules, account, req } = setup();
@@ -292,6 +293,7 @@ describe('projects without an AI service account', () => {
     test.each([
         WarehouseTypes.BIGQUERY,
         WarehouseTypes.DATABRICKS,
+        WarehouseTypes.POSTGRES,
         WarehouseTypes.ATHENA,
     ])(
         'returns the missing projects for an admin on %s without saving',
@@ -351,7 +353,7 @@ describe('projects without an AI service account', () => {
         await expect(
             controller.getProjectsWithoutAiServiceAccount(
                 req,
-                WarehouseTypes.POSTGRES,
+                WarehouseTypes.REDSHIFT,
             ),
         ).rejects.toBeInstanceOf(ParameterError);
         expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();

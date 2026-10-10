@@ -10,6 +10,7 @@ import {
     type CredentialResolver,
     type CredentialSaveInput,
     type CredentialSelection,
+    type MaterializedCredential,
     type MaterializedCredentials,
     type PreparedCredentials,
     type ValidatedCredential,
@@ -29,6 +30,9 @@ type Dispatcher = {
 };
 
 export class CredentialResolverRegistry {
+    private readonly transportedResolutions =
+        new WeakSet<MaterializedCredential>();
+
     private readonly resolvers = new Map<string, Dispatcher>();
 
     register<T extends WarehouseTypes, S = CredentialsFor<NoInfer<T>>>(
@@ -168,19 +172,26 @@ export class CredentialResolverRegistry {
             | 'ai_service_account'
             | 'agent_identity' = 'connection',
     ): Promise<MaterializedCredentials> {
+        const materialized = (selection.connection as MaterializedCredentials)[
+            credentialResolution
+        ];
         if (
-            (selection.connection as MaterializedCredentials)[
-                credentialResolution
-            ]
+            materialized &&
+            (this.transportedResolutions.has(materialized) ||
+                !this.transports.some(({ matches }) =>
+                    matches(selection.connection),
+                ))
         )
             return selection.connection;
         const { [preparedCredentials]: prepared, ...unprepared } =
             selection.connection as PreparedCredentials;
-        const resolver = prepared
-            ? undefined
-            : this.get(selection.connection, mode);
+        const resolver =
+            prepared || materialized
+                ? undefined
+                : this.get(selection.connection, mode);
         let credentials: MaterializedCredentials;
-        if (resolver) credentials = await resolver.resolve(selection);
+        if (materialized) credentials = selection.connection;
+        else if (resolver) credentials = await resolver.resolve(selection);
         else if (prepared) credentials = unprepared;
         else credentials = await legacyResolve();
         const transport = this.transports.find(({ matches }) =>
@@ -195,7 +206,7 @@ export class CredentialResolverRegistry {
         });
         const resolved = transported[credentialResolution]!;
         let disposal: Promise<void> | null = null;
-        return {
+        const result: MaterializedCredentials = {
             ...transported,
             [credentialResolution]: {
                 agentSignIn: modeResolution?.agentSignIn ?? null,
@@ -221,5 +232,7 @@ export class CredentialResolverRegistry {
                 },
             },
         };
+        this.transportedResolutions.add(result[credentialResolution]!);
+        return result;
     }
 }

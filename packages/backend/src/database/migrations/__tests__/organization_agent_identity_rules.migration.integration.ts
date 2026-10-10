@@ -181,6 +181,11 @@ test('defaults every missing actor and type and lists only enforceable warehouse
             projectsMissingAiServiceAccount: null,
         },
         {
+            warehouseType: WarehouseTypes.POSTGRES,
+            source: 'marked_person',
+            projectsMissingAiServiceAccount: null,
+        },
+        {
             warehouseType: WarehouseTypes.DATABRICKS,
             source: 'marked_person',
             projectsMissingAiServiceAccount: null,
@@ -500,6 +505,11 @@ test.each([true, false])(
                 {
                     warehouseType: WarehouseTypes.BIGQUERY,
                     source: 'ai_service_account',
+                    projectsMissingAiServiceAccount: null,
+                },
+                {
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    source: 'marked_person',
                     projectsMissingAiServiceAccount: null,
                 },
                 {

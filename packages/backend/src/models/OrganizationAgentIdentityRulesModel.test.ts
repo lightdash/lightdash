@@ -15,7 +15,6 @@ test.each([
     [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
     [WarehouseTypes.ATHENA, 'agent_sign_in'],
     [WarehouseTypes.POSTGRES, 'agent_sign_in'],
-    [WarehouseTypes.POSTGRES, 'ai_service_account'],
 ] as const)(
     'rejects %s source %s before opening a transaction',
     async (type, source) => {
@@ -26,49 +25,48 @@ test.each([
     },
 );
 
-test.each([WarehouseTypes.DATABRICKS, WarehouseTypes.ATHENA])(
-    'persists the %s source for both actor kinds',
-    async (warehouseType) => {
-        const db = knex({ client: MockClient, dialect: 'pg' });
-        const tracker = getTracker();
+test.each([
+    WarehouseTypes.POSTGRES,
+    WarehouseTypes.DATABRICKS,
+    WarehouseTypes.ATHENA,
+])('persists the %s source for both actor kinds', async (warehouseType) => {
+    const db = knex({ client: MockClient, dialect: 'pg' });
+    const tracker = getTracker();
+    tracker.reset();
+    try {
+        tracker.on
+            .select('organizations')
+            .response([{ organization_uuid: 'org' }]);
+        tracker.on.select('organization_agent_identity_rules').response([]);
+        tracker.on.insert('organization_agent_identity_rules').response([]);
+        const rules = new OrganizationAgentIdentityRulesModel({
+            database: db,
+        });
+        expect(
+            await rules.set('org', warehouseType, {
+                source: 'ai_service_account',
+            }),
+        ).toEqual({ previousSource: 'marked_person', changed: true });
+        tracker.on.select('organization_agent_identity_settings').response([]);
+        expect(
+            (await rules.list('org')).find(
+                (rule) => rule.warehouseType === warehouseType,
+            )?.source,
+        ).toBe('marked_person');
+        const { bindings } = tracker.history.insert[0];
+        expect(bindings).toContain('person');
+        expect(bindings).toContain('service_account');
+        expect(
+            bindings.filter((value) => value === warehouseType),
+        ).toHaveLength(2);
+        expect(
+            bindings.filter((value) => value === 'ai_service_account'),
+        ).toHaveLength(3);
+    } finally {
         tracker.reset();
-        try {
-            tracker.on
-                .select('organizations')
-                .response([{ organization_uuid: 'org' }]);
-            tracker.on.select('organization_agent_identity_rules').response([]);
-            tracker.on.insert('organization_agent_identity_rules').response([]);
-            const rules = new OrganizationAgentIdentityRulesModel({
-                database: db,
-            });
-            expect(
-                await rules.set('org', warehouseType, {
-                    source: 'ai_service_account',
-                }),
-            ).toEqual({ previousSource: 'marked_person', changed: true });
-            tracker.on
-                .select('organization_agent_identity_settings')
-                .response([]);
-            expect(
-                (await rules.list('org')).find(
-                    (rule) => rule.warehouseType === warehouseType,
-                )?.source,
-            ).toBe('marked_person');
-            const { bindings } = tracker.history.insert[0];
-            expect(bindings).toContain('person');
-            expect(bindings).toContain('service_account');
-            expect(
-                bindings.filter((value) => value === warehouseType),
-            ).toHaveLength(2);
-            expect(
-                bindings.filter((value) => value === 'ai_service_account'),
-            ).toHaveLength(3);
-        } finally {
-            tracker.reset();
-            await db.destroy();
-        }
-    },
-);
+        await db.destroy();
+    }
+});
 
 describe('Snowflake persisted rules', () => {
     const db = knex({ client: MockClient, dialect: 'pg' });

@@ -195,6 +195,45 @@ describe('transport composition', () => {
         ).toEqual([]);
         expect(resolved).toMatchObject({ password: 'transport' });
     });
+
+    it('applies transport once to an identity resolved by another registry and preserves disposal', async () => {
+        const { registry, selection, mode, transport, legacy, registerMode } =
+            transportFixture();
+        const identityRegistry = new CredentialResolverRegistry();
+        identityRegistry.register(
+            WarehouseTypes.REDSHIFT,
+            'ai_service_account',
+            mode,
+        );
+        registerMode();
+        const identity = await identityRegistry.resolveCredentialSelection(
+            selection,
+            legacy,
+            'ai_service_account',
+        );
+        const resolved = await registry.resolveCredentialSelection(
+            { ...selection, connection: identity },
+            legacy,
+        );
+        expect(mode.resolve).toHaveBeenCalledOnce();
+        expect(transport.resolve).toHaveBeenCalledOnce();
+        expect(legacy).not.toHaveBeenCalled();
+        expect(resolved[credentialResolution]?.cacheKeyIdentity).toEqual([
+            'mode',
+            'transport',
+        ]);
+        expect(
+            await registry.resolveCredentialSelection(
+                { ...selection, connection: resolved },
+                legacy,
+            ),
+        ).toBe(resolved);
+        expect(transport.resolve).toHaveBeenCalledOnce();
+        await resolved[credentialResolution]?.dispose();
+        await resolved[credentialResolution]?.dispose();
+        expect(mode.dispose).toHaveBeenCalledOnce();
+        expect(transport.dispose).toHaveBeenCalledOnce();
+    });
     it('runs a transport after legacy resolution and preserves stored input', async () => {
         const { registry, selection, transport, legacy } = transportFixture();
         const resolved = await registry.resolveCredentialSelection(

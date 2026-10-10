@@ -65,7 +65,15 @@ const athenaCredentialsSchema = z
         s3DataDir: s3UriSchema.optional(),
     })
     .strict();
+const postgresCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.POSTGRES),
+        user: nonEmptyIdentifier,
+        password: z.string().min(1),
+    })
+    .strict();
 const credentialsSchema = z.discriminatedUnion('type', [
+    postgresCredentialsSchema,
     athenaCredentialsSchema,
     bigqueryCredentialsSchema,
     databricksCredentialsSchema,
@@ -84,6 +92,15 @@ const verificationBaseSchema = z
         checkedAt: z.coerce.date(),
     })
     .strict();
+const postgresVerificationSchema = verificationBaseSchema.refine(
+    (value) => value.principal === value.observed.currentUser,
+);
+const postgresPayloadSchema = postgresCredentialsSchema
+    .extend({
+        verification: postgresVerificationSchema.optional(),
+    })
+    .strict();
+
 const databricksVerificationSchema = verificationBaseSchema.refine(
     (value) => value.principal === value.observed.currentUser,
 );
@@ -130,10 +147,13 @@ const parseVerification = (
     warehouseType:
         | WarehouseTypes.SNOWFLAKE
         | WarehouseTypes.DATABRICKS
-        | WarehouseTypes.ATHENA,
+        | WarehouseTypes.ATHENA
+        | WarehouseTypes.POSTGRES,
     verification: AiServiceAccountTestResult,
 ) => {
     switch (warehouseType) {
+        case WarehouseTypes.POSTGRES:
+            return postgresVerificationSchema.parse(verification);
         case WarehouseTypes.SNOWFLAKE:
             return snowflakeVerificationSchema.parse(verification);
         case WarehouseTypes.DATABRICKS:
@@ -182,6 +202,7 @@ export const parseAiServiceAccountSecrets = (
                 );
             }
             return credentials;
+        case WarehouseTypes.POSTGRES:
         case WarehouseTypes.DATABRICKS:
         case WarehouseTypes.ATHENA:
             return credentials;
@@ -269,6 +290,8 @@ export class AiServiceAccountCredentialsModel {
             );
             const payload = (() => {
                 switch (row.warehouse_type) {
+                    case WarehouseTypes.POSTGRES:
+                        return postgresPayloadSchema.parse(value);
                     case WarehouseTypes.DATABRICKS:
                         return databricksPayloadSchema.parse(value);
                     case WarehouseTypes.SNOWFLAKE:
@@ -278,7 +301,6 @@ export class AiServiceAccountCredentialsModel {
                     case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.POSTGRES:
                     case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.TRINO:
                         return null;
@@ -297,7 +319,9 @@ export class AiServiceAccountCredentialsModel {
             );
             if (
                 secrets.type !== row.warehouse_type ||
-                secrets.authenticationType !== row.authentication_method
+                (secrets.type === WarehouseTypes.POSTGRES
+                    ? 'password'
+                    : secrets.authenticationType) !== row.authentication_method
             ) {
                 throw new ParameterError('Credential metadata does not match.');
             }
@@ -357,6 +381,7 @@ export class AiServiceAccountCredentialsModel {
         verification: AiServiceAccountTestResult,
     ): Promise<void> {
         z.union([
+            postgresVerificationSchema,
             athenaVerificationSchema,
             databricksVerificationSchema,
             snowflakeVerificationSchema,
@@ -526,7 +551,10 @@ export class AiServiceAccountCredentialsModel {
             const values = {
                 identity_uuid: identityUuid,
                 warehouse_type: secrets.type,
-                authentication_method: secrets.authenticationType,
+                authentication_method:
+                    secrets.type === WarehouseTypes.POSTGRES
+                        ? ('password' as const)
+                        : secrets.authenticationType,
                 encrypted_credentials: this.args.encryptionUtil.encrypt(
                     JSON.stringify(payload),
                 ),

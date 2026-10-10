@@ -589,7 +589,9 @@ export class PostgresClient<
                     throw e;
                 }
                 const error = e as pg.DatabaseError;
-                throw this.parseError(error, sql);
+                const translatedError = this.parseError(error, sql);
+                translatedError.cause = error;
+                throw translatedError;
             })
             .finally(async () => {
                 if (clientTimeout) {
