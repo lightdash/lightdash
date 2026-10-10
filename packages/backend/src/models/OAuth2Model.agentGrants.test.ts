@@ -4,6 +4,7 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
 import { grantFixture } from '../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import oauthRouter from '../routers/oauthRouter';
 import { OAuthService } from '../services/OAuthService/OAuthService';
 import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { OAuth2Model } from './OAuth2Model';
@@ -499,5 +500,63 @@ it('rejects an unsupported grant contract on refresh', async () => {
     getTracker().on.select('oauth2_refresh_tokens').response(row());
     await expect(model.getRefreshToken('refresh')).rejects.toMatchObject({
         name: 'invalid_grant',
+    });
+});
+
+it('refuses bound access-token authentication with the flag off', async () => {
+    flags.get.mockResolvedValue({ enabled: false });
+    getTracker().on.select('oauth2_access_tokens').response(row());
+    await expect(model.getAccessToken('access')).rejects.toMatchObject({
+        name: 'invalid_token',
+    });
+});
+it('reports a disabled bound token as inactive through introspection', async () => {
+    flags.get.mockResolvedValue({ enabled: false });
+    getTracker().on.select('oauth2_access_tokens').response(row());
+    const service = new OAuthService({
+        userModel: {} as UserModel,
+        oauthModel: model,
+        lightdashConfig: lightdashConfigMock,
+    });
+    const handler = oauthRouter.stack.find(
+        (layer) => layer.route?.path === '/introspect',
+    )!.route.stack[0].handle;
+    const req = {
+        method: 'POST',
+        query: {},
+        headers: { authorization: 'Bearer access' },
+        body: { token: 'access' },
+        user,
+        services: { getOauthService: () => service },
+    };
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+    await handler(req, res, vi.fn());
+    expect(res.json).toHaveBeenCalledWith({ active: false });
+});
+it.each(['inactive', 'subject', 'org', 'client', 'resource', 'family'])(
+    'refuses access-token authentication with a %s binding',
+    async (mismatch) => {
+        const active = grant();
+        if (mismatch === 'subject') active.subjectUserUuid = 'other';
+        if (mismatch === 'org') active.organizationUuid = 'other';
+        if (mismatch === 'client') active.clientId = 'other';
+        if (mismatch === 'resource') active.resource = 'other';
+        if (mismatch === 'family') active.refreshFamilyUuid = 'other';
+        vi.mocked(
+            AgentConnectionGrantModel.prototype.findActive,
+        ).mockResolvedValue(mismatch === 'inactive' ? null : active);
+        getTracker().on.select('oauth2_access_tokens').response(row());
+        await expect(model.getAccessToken('access')).rejects.toMatchObject({
+            name: 'invalid_token',
+        });
+    },
+);
+it('refuses a known bound token if lifecycle validation fails', async () => {
+    vi.mocked(AgentConnectionGrantModel.prototype.findActive).mockRejectedValue(
+        new Error('Grant storage unavailable'),
+    );
+    getTracker().on.select('oauth2_access_tokens').response(row());
+    await expect(model.getAccessToken('access')).rejects.toMatchObject({
+        name: 'invalid_token',
     });
 });

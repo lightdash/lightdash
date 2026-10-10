@@ -11,17 +11,10 @@ import {
     type AgentCapabilityOperationKind,
 } from '../agentPermissions/capabilityMap';
 import { HUMAN_ONLY_IN_MANAGED } from '../agentPermissions/humanOnlyInManaged';
-
-const ORG_DISCOVERY_OPERATIONS: ReadonlySet<string> = new Set([
-    'UserController.getAuthenticatedUser',
-    'OrganizationController.getOrganization',
-    'apiV1Router GET /health',
-]);
-
-const RESOURCE_CREATION_OPERATIONS: ReadonlySet<string> = new Set([
-    'ProjectController.createPreview',
-    'organizationRouter POST /projects/precompiled',
-]);
+import {
+    getGrantOperationContract,
+    GRANT_MCP_TOOL_CONTRACTS,
+} from './operationContracts';
 
 export const evaluateGrant = ({
     grant,
@@ -30,6 +23,7 @@ export const evaluateGrant = ({
     projectUuids,
     now,
     deploymentOverrides = null,
+    additionalCapabilities = [],
 }: {
     grant: Pick<
         OAuthAgentConnectionGrant,
@@ -43,6 +37,7 @@ export const evaluateGrant = ({
     key: string;
     projectUuids: readonly string[];
     now: Date;
+    additionalCapabilities?: readonly AgentCapability[];
     deploymentOverrides?: { target?: unknown; sourceUuid?: unknown } | null;
 }): string | null => {
     if (
@@ -53,31 +48,30 @@ export const evaluateGrant = ({
         return 'This agent connection has an unsupported grant contract.';
     if (grant.expiresAt.getTime() <= now.getTime())
         return 'This agent connection has expired.';
+    if (HUMAN_ONLY_IN_MANAGED.has(key))
+        return 'This operation requires a person.';
+    const contract = kind === 'rest' ? getGrantOperationContract(key) : null;
+    if (
+        (kind === 'rest' && contract === null) ||
+        (kind === 'mcp' &&
+            !Object.prototype.hasOwnProperty.call(
+                GRANT_MCP_TOOL_CONTRACTS,
+                key,
+            ))
+    )
+        return "This agent connection can't use this operation.";
     const required = getRequiredAgentCapabilities(kind, key);
     if (required === null)
         return "This agent connection can't use this operation.";
-    if (kind === 'mcp' && key === 'list_projects')
-        return "This agent connection can't list organization projects.";
-    if (HUMAN_ONLY_IN_MANAGED.has(key))
-        return 'This operation requires a person.';
-    if (RESOURCE_CREATION_OPERATIONS.has(key))
-        return "This agent connection can't create projects or previews.";
-    if (
-        kind === 'rest' &&
-        /^(Organization|UserController|organizationRouter|apiV1Router)/.test(
-            key,
-        ) &&
-        !ORG_DISCOVERY_OPERATIONS.has(key)
-    )
-        return "This agent connection can't use this organization operation.";
-    const upload =
-        kind === 'rest' &&
-        /^ProjectCoderController\.(legacyUpsert|upsert|pullContentAsCodeFromGit)/.test(
-            key,
-        );
-    const capabilities = upload
-        ? [...new Set([...required, AgentCapability.DeployUpload])]
-        : required;
+    const capabilities = [
+        ...new Set([
+            ...required,
+            ...additionalCapabilities,
+            ...(contract?.kind === 'content_upload'
+                ? [AgentCapability.DeployUpload]
+                : []),
+        ]),
+    ];
     const missing = capabilities.find(
         (capability) => !grant.approvedCapabilities.includes(capability),
     );
@@ -89,12 +83,9 @@ export const evaluateGrant = ({
                         AGENT_CAPABILITY_DEFINITIONS[capability].name,
                 )
                 .join(', ') || 'none';
-        return `This agent connection can't ${AGENT_CAPABILITY_DEFINITIONS[missing].name}. Allowed: ${allowed}.`;
+        return `This agent connection is not approved for ${AGENT_CAPABILITY_DEFINITIONS[missing].name}. Approved: ${allowed}.`;
     }
-    if (
-        projectUuids.length === 0 &&
-        !(kind === 'rest' && ORG_DISCOVERY_OPERATIONS.has(key))
-    )
+    if (projectUuids.length === 0 && contract?.kind !== 'org_discovery')
         return "This agent connection can't use an unresolved project.";
     if (projectUuids.some((uuid) => !grant.approvedProjectUuids.includes(uuid)))
         return "This agent connection can't use this project.";

@@ -2,10 +2,7 @@ import {
     AGENT_CAPABILITY_DEFINITIONS,
     AgentCapability,
 } from '@lightdash/common';
-import {
-    getRequiredAgentCapabilities,
-    REST_OPERATION_CAPABILITIES,
-} from '../agentPermissions/capabilityMap';
+import { getRequiredAgentCapabilities } from '../agentPermissions/capabilityMap';
 import { HUMAN_ONLY_IN_MANAGED } from '../agentPermissions/humanOnlyInManaged';
 import { evaluateGrant } from './evaluateGrant';
 import { grantFixture } from './grant.mock';
@@ -29,32 +26,27 @@ const evaluate = (
         projectUuids: projects,
     });
 
-it.each(Object.values(AgentCapability))(
-    'requires %s independently of other capabilities',
-    (capability) => {
-        const operation = Object.keys(REST_OPERATION_CAPABILITIES).find(
-            (key) => {
-                const required = getRequiredAgentCapabilities('rest', key);
-                return (
-                    required?.length === 1 &&
-                    required[0] === capability &&
-                    !HUMAN_ONLY_IN_MANAGED.has(key) &&
-                    !key.includes('createPreview')
-                );
-            },
-        );
-        expect(operation).toBeDefined();
-        expect(evaluate(operation!, Object.values(AgentCapability))).toBeNull();
+it.each([
+    'ProjectController.getProject',
+    'QueryController.executeAsyncMetricQuery',
+    'QueryController.executeAsyncSqlQuery',
+    'ProjectCoderController.upsertChartAsCode',
+    'SqlRunnerController.deleteSqlChart',
+    'ExploreController.SetExplores',
+    'ParametersController.replaceParameters',
+])('requires mapped capabilities for registered %s', (operation) => {
+    const required = getRequiredAgentCapabilities('rest', operation)!;
+    expect(evaluate(operation, Object.values(AgentCapability))).toBeNull();
+    for (const capability of required)
         expect(
             evaluate(
-                operation!,
+                operation,
                 Object.values(AgentCapability).filter(
                     (value) => value !== capability,
                 ),
             ),
         ).toContain(AGENT_CAPABILITY_DEFINITIONS[capability].name);
-    },
-);
+});
 it.each(['allowed', 'other', 'empty'])('checks every project: %s', (choice) => {
     const projectCases: Record<string, string[]> = {
         allowed: [projectUuid],

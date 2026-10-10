@@ -784,13 +784,13 @@ describe('bound MCP grant in legacy mode', () => {
             service['assertAgentToolAllowed'](extra, 'run_metric_query', {
                 projectUuid: 'other',
             }),
-        ).rejects.toThrow('project');
+        ).rejects.toThrow('operation');
     });
-    test('allows the intersection with the org permissions', async () => {
+    test('refuses all tools until MCP consent contracts exist', async () => {
         const { service, extra, assertOperation } = bound();
         await expect(
             service['assertAgentToolAllowed'](extra, 'run_metric_query', {}),
-        ).resolves.toBeUndefined();
+        ).rejects.toThrow('operation');
         expect(assertOperation).not.toHaveBeenCalled();
     });
 });
