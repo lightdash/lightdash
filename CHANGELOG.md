@@ -1,3 +1,10 @@
+## [2.547.5](https://github.com/lightdash/lightdash/compare/2.547.4...2.547.5) (2026-10-10)
+
+
+### Bug Fixes
+
+* **oauth:** return 400 for refused client registration metadata ([#30882](https://github.com/lightdash/lightdash/issues/30882)) ([796506c](https://github.com/lightdash/lightdash/commit/796506cc980ba538f9fd2d59a27727cf47f975aa))
+
 ## [2.547.4](https://github.com/lightdash/lightdash/compare/2.547.3...2.547.4) (2026-10-10)
 
 
