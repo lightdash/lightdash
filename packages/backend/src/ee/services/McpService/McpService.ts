@@ -3,6 +3,7 @@ import {
     Account,
     AgentActorSurface,
     AgentIdentityConnectEntryPoint,
+    AiAccessRefusal,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AiAgentWithContext,
@@ -33,6 +34,7 @@ import {
     ForbiddenError,
     generateDataAppToolDefinition,
     generateHashesToolDefinition,
+    getAiAccessRefusalSettingsUrl,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
     getContextToolDefinition,
@@ -881,9 +883,24 @@ export class McpService extends BaseService {
         if (Symbol.asyncIterator in result) {
             let out = '';
             for await (const chunk of result) {
-                out += chunk.result;
+                out += McpService.getToolResultText(chunk);
             }
             return out;
+        }
+        return McpService.getToolResultText(result);
+    }
+
+    private static getToolResultText(result: { result: string }): string {
+        const parsed = z
+            .object({
+                structuredContent: z.object({
+                    refusal: z.custom<AiAccessRefusal>(isAiAccessRefusal),
+                }),
+            })
+            .safeParse(result);
+        if (parsed.success) {
+            const { refusal } = parsed.data.structuredContent;
+            throw new AiAccessRefusedError(refusal.reason, refusal);
         }
         return result.result;
     }
@@ -1585,6 +1602,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiAccessRefusedError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -1654,6 +1672,7 @@ export class McpService extends BaseService {
                 args.agentUuid,
             );
         } catch (e) {
+            if (e instanceof AiAccessRefusedError) throw e;
             const errorMessage = getErrorMessage(e);
             this.logger.error(
                 `[McpService] ${errorLogContext}: ${errorMessage}`,
@@ -1870,6 +1889,7 @@ export class McpService extends BaseService {
                         projectUuid,
                     );
                 } catch (e) {
+                    if (e instanceof AiAccessRefusedError) throw e;
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
                     this.logger.error(
@@ -2317,11 +2337,54 @@ export class McpService extends BaseService {
         );
     }
 
-    private static formatToolError(error: unknown, prefix: string): string {
-        if (error instanceof AiAccessRefusedError && error.refusal.connectUrl) {
-            return `${error.refusal.message}\n\nConnect your agent (once per person): ${error.refusal.connectUrl}\nThen run the same call again.`;
+    private withAbsoluteRefusalSettingsUrl(
+        refusal: AiAccessRefusal,
+        projectUuid: string | null,
+    ): AiAccessRefusal {
+        const settingsUrl =
+            refusal.settingsUrl ??
+            getAiAccessRefusalSettingsUrl(refusal.reason, projectUuid);
+        return {
+            ...refusal,
+            settingsUrl: settingsUrl
+                ? new URL(settingsUrl, this.lightdashConfig.siteUrl).href
+                : null,
+        };
+    }
+
+    private buildToolError(
+        error: unknown,
+        prefix: string | null,
+        projectUuid: string | null,
+    ): CallToolResult {
+        if (error instanceof AiAccessRefusedError) {
+            const refusal = this.withAbsoluteRefusalSettingsUrl(
+                error.refusal,
+                projectUuid,
+            );
+            const message = refusal.connectUrl
+                ? `${refusal.message}\n\nConnect your agent (once per person): ${refusal.connectUrl}\nThen run the same call again.`
+                : `${prefix && !refusal.settingsUrl ? `${prefix}: ` : ''}${refusal.message}`;
+            return {
+                isError: true,
+                content: [
+                    {
+                        type: 'text',
+                        text: `${message}${refusal.settingsUrl ? `\n\n${refusal.settingsUrl}` : ''}`,
+                    },
+                ],
+                structuredContent: { refusal },
+            };
         }
-        return `${prefix}: ${error instanceof Error ? error.message : String(error)}`;
+        return {
+            isError: true,
+            content: [
+                {
+                    type: 'text',
+                    text: `${prefix}: ${error instanceof Error ? error.message : String(error)}`,
+                },
+            ],
+        };
     }
 
     private async getAgentConnectionStatus(
@@ -2351,6 +2414,7 @@ export class McpService extends BaseService {
                 status: 'connected' as const,
                 message: 'Your agent is connected to the warehouse.',
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: access.expiresAt?.toISOString() ?? null,
             };
         }
@@ -2363,6 +2427,7 @@ export class McpService extends BaseService {
                 message:
                     "Agents run as the project's shared agent account. Nothing to connect.",
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
@@ -2381,6 +2446,7 @@ export class McpService extends BaseService {
                 status: 'needs_sign_in' as const,
                 message: access.refusal.message,
                 connectUrl: connectUrl?.href ?? null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
@@ -2389,6 +2455,7 @@ export class McpService extends BaseService {
                 status: 'not_required' as const,
                 message: 'Agent sign-in is not required for this project.',
                 connectUrl: null,
+                settingsUrl: null,
                 expiresAt: null,
             };
         }
@@ -2398,6 +2465,12 @@ export class McpService extends BaseService {
                 access.refusal?.message ??
                 'Agent sign-in is not available for this project.',
             connectUrl: null,
+            settingsUrl: access.refusal
+                ? this.withAbsoluteRefusalSettingsUrl(
+                      access.refusal,
+                      projectUuid,
+                  ).settingsUrl
+                : null,
             expiresAt: null,
         };
     }
@@ -2437,7 +2510,7 @@ export class McpService extends BaseService {
                         args.projectUuid,
                     );
                     return mcpConnectAgentTool.result.structured(
-                        `${status.status}: ${status.message}${status.connectUrl ? ` ${status.connectUrl}` : ''}`,
+                        `${status.status}: ${status.message}${status.connectUrl ? ` ${status.connectUrl}` : ''}${status.settingsUrl ? ` ${status.settingsUrl}` : ''}`,
                         status,
                     );
                 },
@@ -2653,6 +2726,7 @@ export class McpService extends BaseService {
                             args.agentUuid,
                         );
                     } catch (error) {
+                        if (error instanceof AiAccessRefusedError) throw error;
                         return mcpGrepFieldsTool.result.error(
                             `Error grepping fields: ${getErrorMessage(error)}`,
                         );
@@ -2701,6 +2775,7 @@ export class McpService extends BaseService {
                             args.agentUuid,
                         );
                     } catch (error) {
+                        if (error instanceof AiAccessRefusedError) throw error;
                         return mcpGetMetadataTool.result.error(
                             `Error getting metadata: ${getErrorMessage(error)}`,
                         );
@@ -3640,18 +3715,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in run_metric_query tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error running metric query',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error running metric query',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -3756,18 +3824,11 @@ export class McpService extends BaseService {
                             this.logger.error(
                                 `[McpService] Error in render_chart tool: ${errorMessage}`,
                             );
-                            return {
-                                content: [
-                                    {
-                                        type: 'text' as const,
-                                        text: McpService.formatToolError(
-                                            e,
-                                            'Error rendering chart',
-                                        ),
-                                    },
-                                ],
-                                isError: true,
-                            };
+                            return this.buildToolError(
+                                e,
+                                'Error rendering chart',
+                                projectUuid,
+                            );
                         }
                     },
                 ),
@@ -3832,25 +3893,14 @@ export class McpService extends BaseService {
                     if (
                         'structuredContent' in result &&
                         'refusal' in result.structuredContent &&
-                        isAiAccessRefusal(result.structuredContent.refusal) &&
-                        result.structuredContent.refusal.connectUrl
+                        isAiAccessRefusal(result.structuredContent.refusal)
                     ) {
                         const { refusal } = result.structuredContent;
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        new AiAccessRefusedError(
-                                            refusal.reason,
-                                            refusal,
-                                        ),
-                                        'Error searching field values',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            new AiAccessRefusedError(refusal.reason, refusal),
+                            'Error searching field values',
+                            projectUuid,
+                        );
                     }
 
                     return this.buildScopedResponse(
@@ -3962,18 +4012,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in run_sql tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error running SQL query',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error running SQL query',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -4145,18 +4188,11 @@ export class McpService extends BaseService {
                         this.logger.error(
                             `[McpService] Error in get_query_result tool: ${errorMessage}`,
                         );
-                        return {
-                            content: [
-                                {
-                                    type: 'text' as const,
-                                    text: McpService.formatToolError(
-                                        e,
-                                        'Error getting query result',
-                                    ),
-                                },
-                            ],
-                            isError: true,
-                        };
+                        return this.buildToolError(
+                            e,
+                            'Error getting query result',
+                            projectUuid,
+                        );
                     }
                 },
             );
@@ -5518,30 +5554,7 @@ export class McpService extends BaseService {
                 if (user) {
                     assertOAuthMcpToolAllowed(user.ability, toolName);
                 }
-                try {
-                    await this.assertAgentToolAllowed(
-                        context,
-                        toolName,
-                        toolArgs,
-                    );
-                } catch (error) {
-                    if (!(error instanceof AiAccessRefusedError)) throw error;
-                    this.recordToolCall({
-                        toolName,
-                        toolArgs: {},
-                        extra,
-                        durationMs: Date.now() - startedAt,
-                        status: 'error',
-                        errorMessage: error.refusal.message,
-                    });
-                    return {
-                        isError: true,
-                        content: [
-                            { type: 'text', text: error.refusal.message },
-                        ],
-                        structuredContent: { refusal: error.refusal },
-                    };
-                }
+                await this.assertAgentToolAllowed(context, toolName, toolArgs);
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =
                     context.authInfo?.extra.legacyContextInjected === true;
@@ -5581,6 +5594,22 @@ export class McpService extends BaseService {
                 });
                 return response;
             } catch (error) {
+                if (error instanceof AiAccessRefusedError) {
+                    const context = getMcpContext(extra);
+                    const scope = mcpToolScopeArgsSchema.safeParse(toolArgs);
+                    const projectUuid = scope.success
+                        ? scope.data.projectUuid
+                        : (context.authInfo?.extra.headerProjectUuid ?? null);
+                    this.recordToolCall({
+                        toolName,
+                        toolArgs: {},
+                        extra,
+                        durationMs: Date.now() - startedAt,
+                        status: 'error',
+                        errorMessage: error.refusal.message,
+                    });
+                    return this.buildToolError(error, null, projectUuid);
+                }
                 const target = McpService.agentWriteTarget(toolName);
                 if (target && isAgentActionForbiddenError(error)) {
                     const { user, organizationUuid } = McpService.getAccount(

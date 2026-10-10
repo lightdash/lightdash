@@ -36,6 +36,37 @@ afterEach(() => {
 });
 
 describe('agent status', () => {
+    it.each([
+        '/generalSettings/projectManagement/project-uuid/agentIdentity',
+        'https://settings.example/generalSettings/projectManagement/project-uuid/agentIdentity',
+    ])('prints the admin settings URL for %s', async (settingsUrl) => {
+        vi.mocked(getConfig).mockResolvedValue({
+            context: {
+                project: agentProjectUuid,
+                serverUrl: 'https://lightdash.example',
+            },
+        });
+        const message = 'Ask a project admin to add a shared agent account.';
+        vi.mocked(lightdashApi).mockResolvedValue({
+            ...agentAccess,
+            refusal: {
+                ...agentAccess.refusal!,
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+                action: AiAccessRefusalAction.ASK_ADMIN,
+                message,
+                connectUrl: null,
+                settingsUrl,
+            },
+        });
+        await agentStatusHandler({ verbose: false });
+        expect(vi.mocked(console.error).mock.calls).toEqual([
+            [message],
+            [new URL(settingsUrl, 'https://lightdash.example').href],
+        ]);
+        expect(process.exitCode).toBe(1);
+        expect(openBrowser).not.toHaveBeenCalled();
+    });
+
     it('reports a connected person', async () => {
         vi.mocked(lightdashApi).mockResolvedValue(connectedAgentAccess);
         await agentStatusHandler({ verbose: false });

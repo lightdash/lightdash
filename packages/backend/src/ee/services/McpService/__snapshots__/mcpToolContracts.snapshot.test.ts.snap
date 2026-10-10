@@ -125,6 +125,16 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
           "message": {
             "type": "string",
           },
+          "settingsUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "status": {
             "enum": [
               "connected",
@@ -139,6 +149,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
           "status",
           "message",
           "connectUrl",
+          "settingsUrl",
           "expiresAt",
         ],
         "type": "object",

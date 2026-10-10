@@ -60,7 +60,10 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         };
         const getAgentPermissionService = vi.fn(() => permissions);
         const service = Object.assign(Object.create(McpService.prototype), {
-            lightdashConfig: { mcp: { enabled: true } },
+            lightdashConfig: {
+                mcp: { enabled: true },
+                siteUrl: 'https://lightdash.example',
+            },
             createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
             getLegacyToolScope: vi
                 .fn()
@@ -118,7 +121,13 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         if (authentication === 'oauth') {
             expect(result).toMatchObject({
                 isError: true,
-                structuredContent: { refusal: refusal.refusal },
+                structuredContent: {
+                    refusal: {
+                        ...refusal.refusal,
+                        settingsUrl:
+                            'https://lightdash.example/generalSettings/agentIdentity',
+                    },
+                },
             });
             expect(handler).not.toHaveBeenCalled();
             expect(getAgentPermissionService).toHaveBeenCalledOnce();

@@ -2204,6 +2204,126 @@ it('returns an AI access refusal as an MCP tool error', async () => {
 });
 
 describe('agent connection over MCP', () => {
+    describe.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('admin settings for %s', (reason) => {
+        const settingsPath = `/generalSettings/projectManagement/${projectUuid}/agentIdentity`;
+        const settingsUrl = `https://lightdash.example${settingsPath}`;
+        const identityRefusal = new AiAccessRefusedError(reason);
+
+        it.each([
+            McpToolName.RUN_METRIC_QUERY,
+            McpToolName.RUN_SQL,
+            McpToolName.GET_QUERY_RESULT,
+            McpToolName.RENDER_CHART,
+            McpToolName.SEARCH_FIELD_VALUES,
+        ])(
+            'preserves the typed refusal and settings URL in %s',
+            async (name) => {
+                const { asyncQueryService, projectService } = makeMcpService({
+                    agentIdentityEnabled: true,
+                });
+                asyncQueryService.executeAsyncMetricQuery.mockRejectedValue(
+                    identityRefusal,
+                );
+                asyncQueryService.executeAsyncSqlQuery.mockRejectedValue(
+                    identityRefusal,
+                );
+                asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+                    makeQueryHistory(
+                        QueryHistoryStatus.READY,
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                    ),
+                );
+                asyncQueryService.getRawAsyncQueryResults.mockRejectedValue(
+                    identityRefusal,
+                );
+                projectService.searchFieldUniqueValues.mockRejectedValue(
+                    identityRefusal,
+                );
+                const result = await getToolCallback(name)(
+                    {
+                        projectUuid,
+                        queryUuid,
+                        sql: 'select 1',
+                        table: 'orders',
+                        fieldId: 'orders_status',
+                        query: 'complete',
+                        filters: null,
+                        title: 'Orders',
+                        description: 'Orders count',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: [],
+                            metrics: ['orders_orders_count'],
+                            sorts: [],
+                            limit: 10,
+                            customMetrics: null,
+                            tableCalculations: null,
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                    extra,
+                );
+                expect(result).toMatchObject({
+                    isError: true,
+                    structuredContent: {
+                        refusal: { ...identityRefusal.refusal, settingsUrl },
+                    },
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(
+                                identityRefusal.message,
+                            ),
+                        },
+                    ],
+                });
+                expect(result).toMatchObject({
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(settingsUrl),
+                        },
+                    ],
+                });
+            },
+        );
+
+        it.each([null, settingsPath, settingsUrl])(
+            'includes the admin link from %s in connect_agent',
+            async (url) => {
+                const { aiAccessService } = makeMcpService({
+                    agentIdentityEnabled: true,
+                });
+                aiAccessService.getMyAccess.mockResolvedValue({
+                    requirementSource: 'organization',
+                    identity: 'ai_service_account',
+                    refusal: { ...identityRefusal.refusal, settingsUrl: url },
+                });
+                const result = await getToolCallback(McpToolName.CONNECT_AGENT)(
+                    { projectUuid },
+                    extra,
+                );
+                expect(result).toMatchObject({
+                    structuredContent: {
+                        status: 'unavailable',
+                        connectUrl: null,
+                        settingsUrl,
+                    },
+                    content: [
+                        {
+                            type: 'text',
+                            text: expect.stringContaining(settingsUrl),
+                        },
+                    ],
+                });
+            },
+        );
+    });
+
     const connectUrl =
         'https://lightdash.example/agent/connect?project=project-uuid&redirect=%2Fagent-connected&entryPoint=mcp_connect_link';
     const refusal = new AiAccessRefusedError(
@@ -2246,6 +2366,7 @@ describe('agent connection over MCP', () => {
                 status: 'needs_sign_in',
                 message: signInRefusal.message,
                 connectUrl,
+                settingsUrl: null,
                 expiresAt: null,
             };
             expect(
@@ -2314,6 +2435,7 @@ describe('agent connection over MCP', () => {
                             message:
                                 'Your agent is connected to the warehouse.',
                             connectUrl: null,
+                            settingsUrl: null,
                             expiresAt: '2030-01-01T00:00:00.000Z',
                         }),
                     },
@@ -2458,7 +2580,9 @@ describe('agent connection over MCP', () => {
                 },
             ],
         });
-        expect(result).not.toHaveProperty('structuredContent');
+        expect(result).toMatchObject({
+            structuredContent: { refusal: refusal.refusal },
+        });
     });
 
     it('includes the connect link in field-value search refusals', async () => {
@@ -2485,7 +2609,9 @@ describe('agent connection over MCP', () => {
                 },
             ],
         });
-        expect(result).not.toHaveProperty('structuredContent');
+        expect(result).toMatchObject({
+            structuredContent: { refusal: refusal.refusal },
+        });
     });
 
     it('ends a SQL refusal with the connect link', async () => {
