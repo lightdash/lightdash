@@ -20,12 +20,14 @@ const oauthService = new OAuthService({
     oauthModel: new OAuth2Model(
         knex({ client: MockClient, dialect: 'pg' }),
         config,
-        { get: vi.fn() },
+        { get: vi.fn().mockResolvedValue({ enabled: false }) },
     ),
 });
 
-const callHandler = (
-    handler: typeof oauthAuthorizationServerHandler,
+const callHandler = async (
+    handler:
+        | typeof oauthAuthorizationServerHandler
+        | typeof oauthProtectedResourceHandler,
     headers: Record<string, string>,
 ) => {
     const request = {
@@ -33,13 +35,13 @@ const callHandler = (
         services: { getOauthService: () => oauthService },
     } as unknown as Request;
     const json = vi.fn();
-    handler(request, { json } as unknown as Response);
+    await handler(request, { json } as unknown as Response);
     expect(json).toHaveBeenCalledOnce();
     return json.mock.calls[0][0] as Record<string, unknown>;
 };
 
-it('uses the configured site URL as the authorization server issuer', () => {
-    const metadata = callHandler(oauthAuthorizationServerHandler, {});
+it('uses the configured site URL as the authorization server issuer', async () => {
+    const metadata = await callHandler(oauthAuthorizationServerHandler, {});
     expect(metadata).toEqual(oauthConfig(siteUrl));
     expect(metadata.issuer).toBe(siteUrl);
     const endpoints = Object.entries(metadata).filter(([key]) =>
@@ -52,13 +54,13 @@ it('uses the configured site URL as the authorization server issuer', () => {
     });
 });
 
-it('advertises only S256 for PKCE', () => {
-    const metadata = callHandler(oauthAuthorizationServerHandler, {});
+it('advertises only S256 for PKCE', async () => {
+    const metadata = await callHandler(oauthAuthorizationServerHandler, {});
     expect(metadata.code_challenge_methods_supported).toEqual(['S256']);
 });
 
-it('uses the configured site URL for protected resource metadata', () => {
-    const metadata = callHandler(oauthProtectedResourceHandler, {});
+it('uses the configured site URL for protected resource metadata', async () => {
+    const metadata = await callHandler(oauthProtectedResourceHandler, {});
     expect(metadata).toEqual(oauthProtectedResourceConfig(siteUrl));
     expect(metadata.resource).toBe(`${siteUrl}/api/v1/mcp`);
     expect(metadata.authorization_servers).toEqual([siteUrl]);
@@ -77,15 +79,38 @@ it.each([
     ],
 ] as const)(
     'ignores hostile %s headers in both discovery handlers',
-    (_name, headers) => {
-        [
+    async (_name, headers) => {
+        const handlers = [
             oauthAuthorizationServerHandler,
             oauthProtectedResourceHandler,
-        ].forEach((handler) => {
-            const baseline = callHandler(handler, {
-                host: 'configured.lightdash.example',
-            });
-            expect(callHandler(handler, headers)).toEqual(baseline);
-        });
+        ];
+        await Promise.all(
+            handlers.map(async (handler) => {
+                const baseline = await callHandler(handler, {
+                    host: 'configured.lightdash.example',
+                });
+                expect(await callHandler(handler, headers)).toEqual(baseline);
+            }),
+        );
     },
 );
+
+it('advertises strict security from the instance flag', async () => {
+    vi.spyOn(oauthService, 'isSecurityStrict').mockResolvedValueOnce(true);
+    const metadata = await callHandler(oauthAuthorizationServerHandler, {});
+    expect(metadata).toMatchObject({
+        pkce_required: true,
+        authorization_response_iss_parameter_supported: true,
+    });
+    expect(metadata.grant_types_supported).toEqual([
+        'authorization_code',
+        'refresh_token',
+    ]);
+    expect(metadata.token_endpoint_auth_methods_supported).toEqual([
+        'client_secret_basic',
+        'client_secret_post',
+        'none',
+    ]);
+    expect(oauthService.isSecurityStrict).toHaveBeenCalledExactlyOnceWith(null);
+    vi.restoreAllMocks();
+});

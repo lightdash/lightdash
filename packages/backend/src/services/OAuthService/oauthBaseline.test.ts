@@ -55,7 +55,7 @@ const setScopeMode = async (mode: OAuthScopeMode | null) => {
     await expect(model.getScopeMode(user)).resolves.toBe(mode);
 };
 
-const authorize = (overrides: Record<string, string> = {}) =>
+const authorize = (overrides: Record<string, unknown> = {}) =>
     service.authorize(
         new OAuth2Server.Request({
             method: 'GET',
@@ -78,7 +78,7 @@ const authorize = (overrides: Record<string, string> = {}) =>
 
 const exchange = (
     code: OAuth2Server.AuthorizationCode,
-    overrides: Record<string, string> = {},
+    overrides: Record<string, unknown> = {},
 ) =>
     service.token(
         new OAuth2Server.Request({
@@ -192,10 +192,12 @@ it.each(modes)(
     'rejects a verifier for a code issued without a challenge in %s mode',
     async (mode) => {
         await setScopeMode(mode);
+        await setScopeMode(null);
         const code = await authorize({
             code_challenge: '',
             code_challenge_method: '',
         });
+        await setScopeMode(mode);
         expect(code.codeChallenge).toBeUndefined();
         await expect(exchange(code)).rejects.toBeInstanceOf(
             OAuth2Server.InvalidGrantError,
@@ -318,3 +320,194 @@ it.each(modes)(
         expect(codes.has(code.authorizationCode)).toBe(false);
     },
 );
+
+const apiResource = lightdashConfig.siteUrl.replace(/\/$/, '');
+const mcpResource = `${apiResource}/api/v1/mcp`;
+
+it.each(['log', 'enforce'] as const)(
+    'requires PKCE in strict %s mode',
+    async (mode) => {
+        await setScopeMode(mode);
+        await expect(
+            authorize({ code_challenge: '', code_challenge_method: '' }),
+        ).rejects.toMatchObject({ name: 'invalid_request' });
+        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+    },
+);
+
+it.each(['log', 'enforce'] as const)(
+    'rejects legacy challenge-less codes in strict %s mode',
+    async (mode) => {
+        await setScopeMode(null);
+        const code = await authorize({
+            code_challenge: '',
+            code_challenge_method: '',
+        });
+        await setScopeMode(mode);
+        await expect(
+            exchange(code, { code_verifier: '' }),
+        ).rejects.toMatchObject({ name: 'invalid_grant' });
+        expect(model.saveToken).not.toHaveBeenCalled();
+        expect(codes.has(code.authorizationCode)).toBe(false);
+    },
+);
+
+it.each([
+    'https://foreign.example',
+    `${apiResource}/other`,
+    `${apiResource}?query=1`,
+    `${apiResource}#fragment`,
+    [apiResource, mcpResource],
+])('rejects invalid authorize resource %j under strict', async (resource) => {
+    await setScopeMode('log');
+    await expect(authorize({ resource })).rejects.toMatchObject({
+        name: 'invalid_target',
+        status: 400,
+    });
+    expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+});
+
+it('rejects a resource switch at code exchange', async () => {
+    await setScopeMode('log');
+    const code = await authorize({ resource: mcpResource });
+    await expect(
+        exchange(code, { resource: apiResource }),
+    ).rejects.toMatchObject({ name: 'invalid_target' });
+    expect(model.saveToken).not.toHaveBeenCalled();
+});
+
+it.each([
+    null,
+    `${apiResource}/`,
+    `${mcpResource}/`,
+    `${mcpResource}/projects/11111111-1111-4111-8111-111111111111/`,
+])('binds canonical resource %s to codes and tokens', async (resource) => {
+    await setScopeMode('log');
+    const expected = resource?.startsWith(mcpResource)
+        ? mcpResource
+        : apiResource;
+    const code = await authorize(resource === null ? {} : { resource });
+    expect(code.resource).toBe(expected);
+    expect(await exchange(code)).toMatchObject({ resource: expected });
+    expect(model.saveToken).toHaveBeenCalledWith(
+        expect.objectContaining({ resource: expected }),
+        client,
+        user,
+    );
+});
+
+it('keeps challenge-less authorization and ignores resource with the flag off', async () => {
+    await setScopeMode(null);
+    const code = await authorize({
+        code_challenge: '',
+        code_challenge_method: '',
+        resource: ['foreign', 'other'],
+    });
+    expect(code.resource).toBeNull();
+    const token = await exchange(code, {
+        code_verifier: '',
+        resource: 'foreign',
+    });
+    expect(token.resource).toBeNull();
+});
+
+it('defaults an omitted PKCE method to S256 under strict', async () => {
+    await setScopeMode('log');
+    const code = await authorize({ code_challenge_method: '' });
+    expect(code.codeChallengeMethod).toBe('S256');
+    await expect(exchange(code)).resolves.toMatchObject({
+        resource: apiResource,
+    });
+});
+it('binds a legacy challenged code to the requested resource after strict enablement', async () => {
+    await setScopeMode(null);
+    const code = await authorize();
+    expect(code.resource).toBeNull();
+    await setScopeMode('log');
+    await expect(
+        exchange(code, { resource: `${mcpResource}/` }),
+    ).resolves.toMatchObject({ resource: mcpResource });
+});
+it.each([
+    { resource: 'https://foreign.example' },
+    { resource: [apiResource, apiResource] },
+])(
+    'refuses invalid token exchange resource $resource',
+    async ({ resource }) => {
+        await setScopeMode('log');
+        const code = await authorize();
+        await expect(exchange(code, { resource })).rejects.toMatchObject({
+            name: 'invalid_target',
+            status: 400,
+        });
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
+it('rejects duplicate authorize resources even when they are identical', async () => {
+    await setScopeMode('log');
+    await expect(
+        authorize({ resource: [apiResource, apiResource] }),
+    ).rejects.toMatchObject({ name: 'invalid_target' });
+    expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+});
+it.each([null, 'log', 'enforce'] as const)(
+    'authenticates query tokens only with strict off in %s mode',
+    async (mode) => {
+        await setScopeMode(mode);
+        const token = {
+            accessToken: 'query-token',
+            accessTokenExpiresAt: new Date(Date.now() + 60000),
+            client,
+            user,
+            resource: null,
+        };
+        vi.spyOn(model, 'getAccessToken').mockResolvedValue(token);
+        const result = service.authenticate(
+            new OAuth2Server.Request({
+                method: 'GET',
+                headers: {},
+                body: {},
+                query: { access_token: token.accessToken },
+            }),
+            new OAuth2Server.Response({}),
+        );
+        if (mode === null) await expect(result).resolves.toEqual(token);
+        else
+            await expect(result).rejects.toMatchObject({
+                name: 'invalid_token',
+            });
+    },
+);
+it('refuses a strict header token when a query token would make library authentication fail', async () => {
+    await setScopeMode('log');
+    vi.spyOn(model, 'getAccessToken').mockImplementation(async (accessToken) =>
+        accessToken === 'header-token'
+            ? { accessToken, client, user, resource: null }
+            : false,
+    );
+    await expect(
+        service.authenticate(
+            new OAuth2Server.Request({
+                method: 'GET',
+                headers: { authorization: 'Bearer header-token' },
+                body: {},
+                query: { access_token: 'unknown' },
+            }),
+            new OAuth2Server.Response({}),
+        ),
+    ).rejects.toMatchObject({ name: 'invalid_token' });
+});
+
+it('keeps concurrent API and MCP grant resource bindings separate', async () => {
+    await setScopeMode('log');
+    const [apiCode, mcpCode] = await Promise.all([
+        authorize(),
+        authorize({ resource: mcpResource }),
+    ]);
+    const [apiToken, mcpToken] = await Promise.all([
+        exchange(apiCode),
+        exchange(mcpCode),
+    ]);
+    expect(apiToken.resource).toBe(apiResource);
+    expect(mcpToken.resource).toBe(mcpResource);
+});

@@ -821,3 +821,85 @@ describe('OAuth2Model.validateScope', () => {
         expect(warn).toHaveBeenCalledTimes(3);
     });
 });
+
+describe('OAuth2Model resource storage', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    afterEach(() => getTracker().reset());
+
+    it.each([null, 'https://server.example/api/v1/mcp'])(
+        'persists resource %s on codes and both tokens',
+        async (resource) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_authorization_codes').response([]);
+            tracker.on.insert('oauth2_access_tokens').response([]);
+            tracker.on.insert('oauth2_refresh_tokens').response([]);
+            tracker.on.delete('oauth2_refresh_tokens').response(0);
+            const client = { id: 'client', grants: ['authorization_code'] };
+            const user = { userId: 42, organizationUuid: 'org' };
+            const code = await model.saveAuthorizationCode(
+                {
+                    authorizationCode: 'code',
+                    expiresAt: new Date(),
+                    redirectUri: 'https://client.example',
+                    resource,
+                },
+                client,
+                user,
+            );
+            expect(code.resource).toBe(resource);
+            await model.saveToken(
+                {
+                    accessToken: 'access',
+                    refreshToken: 'refresh',
+                    client,
+                    user,
+                    resource,
+                },
+                client,
+                user,
+            );
+            expect(tracker.history.insert).toHaveLength(3);
+            tracker.history.insert.forEach((query) => {
+                expect(query.sql).toContain('"resource"');
+                expect(query.bindings).toContain(resource);
+                if (!query.sql.includes('authorization_codes')) {
+                    expect(query.sql).toContain('"family_uuid"');
+                    expect(query.bindings).toContain(null);
+                }
+            });
+        },
+    );
+
+    it.each([null, 'https://server.example/api/v1/mcp'])(
+        'returns stored resource %s from all credential lookups',
+        async (resource) => {
+            const tracker = getTracker();
+            const row = {
+                authorization_code: 'code',
+                access_token: 'access',
+                refresh_token: 'refresh',
+                expires_at: new Date(Date.now() + 60000),
+                revoked_at: null,
+                redirect_uri: 'https://client.example',
+                client_id: 'client',
+                user_id: 42,
+                organization_uuid: 'org',
+                resource,
+                family_uuid: null,
+            };
+            tracker.on.select('oauth2_authorization_codes').response(row);
+            tracker.on.select('oauth2_access_tokens').response(row);
+            tracker.on.select('oauth2_refresh_tokens').response(row);
+            expect(await model.getAuthorizationCode('code')).toMatchObject({
+                resource,
+            });
+            expect(await model.getAccessToken('access')).toMatchObject({
+                resource,
+            });
+            expect(await model.getRefreshToken('refresh')).toMatchObject({
+                resource,
+            });
+        },
+    );
+});

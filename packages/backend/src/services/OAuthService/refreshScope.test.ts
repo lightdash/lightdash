@@ -6,6 +6,7 @@ import {
 import OAuth2Server from '@node-oauth/oauth2-server';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
+import { createHash } from 'node:crypto';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
 import { OAuth2Model } from '../../models/OAuth2Model';
@@ -35,7 +36,7 @@ const service = new OAuthService({
     userModel: {} as UserModel,
     lightdashConfig,
 });
-const refresh = (scope?: string) =>
+const refresh = (scope?: string, resource?: unknown) =>
     service.token(
         new OAuth2Server.Request({
             method: 'POST',
@@ -49,6 +50,7 @@ const refresh = (scope?: string) =>
                 client_id: 'client',
                 refresh_token: 'refresh',
                 ...(scope === undefined ? {} : { scope }),
+                ...(resource === undefined ? {} : { resource }),
             },
         }),
         new OAuth2Server.Response({}),
@@ -206,6 +208,10 @@ it.each([null, 'log', 'enforce'] as const)(
             expiresAt: new Date(Date.now() + 60000),
             redirectUri: 'https://example.test/callback',
             scope: ['write'],
+            codeChallenge: createHash('sha256')
+                .update('a'.repeat(43))
+                .digest('base64url'),
+            codeChallengeMethod: 'S256',
             client: codeClient,
             user,
         });
@@ -214,6 +220,7 @@ it.each([null, 'log', 'enforce'] as const)(
             tokenRequest({
                 grant_type: 'authorization_code',
                 code: 'code',
+                code_verifier: 'a'.repeat(43),
                 redirect_uri: 'https://example.test/callback',
             }),
             new OAuth2Server.Response({}),
@@ -379,5 +386,71 @@ it.each([null, 'log', 'enforce'] as const)(
         await expect(refresh()).resolves.toMatchObject({ scope: undefined });
         expect(model.revokeToken).toHaveBeenCalledOnce();
         expect(Logger.warn).not.toHaveBeenCalled();
+    },
+);
+
+it.each(['log', 'enforce'] as const)(
+    'rejects refresh resource switches in strict %s mode before rotation',
+    async (mode) => {
+        flags.get.mockImplementation(async ({ featureFlagId }) => ({
+            enabled:
+                featureFlagId === FeatureFlags.AgentIdentity ||
+                mode === 'enforce',
+        }));
+        const api = lightdashConfig.siteUrl.replace(/\/$/, '');
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            scope: ['read'],
+            client,
+            user,
+            resource: `${api}/api/v1/mcp`,
+        });
+        await expect(refresh(undefined, api)).rejects.toMatchObject({
+            name: 'invalid_target',
+        });
+        expect(model.revokeToken).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
+
+it.each(['https://foreign.example', ['one', 'two']])(
+    'rejects invalid refresh resource %j',
+    async (resource) => {
+        flags.get.mockResolvedValue({ enabled: true });
+        await expect(refresh('read', resource)).rejects.toMatchObject({
+            name: 'invalid_target',
+        });
+        expect(model.revokeToken).not.toHaveBeenCalled();
+    },
+);
+
+it.each([
+    [true, null, null],
+    [true, null, 'mcp'],
+    [true, 'mcp', null],
+    [true, 'mcp', 'mcp'],
+    [false, null, 'foreign'],
+])(
+    'propagates refresh resource strict=%s parent=%s requested=%s',
+    async (strict, parent, requested) => {
+        flags.get.mockResolvedValue({ enabled: strict });
+        const api = lightdashConfig.siteUrl.replace(/\/$/, '');
+        const mcp = `${api}/api/v1/mcp`;
+        vi.mocked(model.getRefreshToken).mockResolvedValue({
+            accessToken: '',
+            refreshToken: 'refresh',
+            scope: ['read'],
+            client,
+            user,
+            resource: parent === 'mcp' ? mcp : null,
+        });
+        let requestResource: string | undefined;
+        if (requested === 'mcp') requestResource = `${mcp}/`;
+        if (requested === 'foreign') requestResource = requested;
+        const token = await refresh(undefined, requestResource);
+        const expectedResource =
+            parent === 'mcp' || requested === 'mcp' ? mcp : api;
+        expect(token.resource).toBe(strict ? expectedResource : null);
     },
 );

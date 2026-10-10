@@ -21,6 +21,8 @@ import {
     resolveOAuthScopeMode,
     scopesForOAuthRecord,
 } from '../auth/oauthScopes/mode';
+import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
+import { resolveOAuthSecurityStrict } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
@@ -126,7 +128,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
             | 'scope'
             | 'codeChallenge'
             | 'codeChallengeMethod'
-        >,
+        > &
+            OAuthResourceBinding,
         client: Client,
         user: UserWithOrganizationUuid,
     ): Promise<AuthorizationCode> {
@@ -142,6 +145,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             organization_uuid: user.organizationUuid,
             code_challenge: code.codeChallenge,
             code_challenge_method: code.codeChallengeMethod,
+            resource: code.resource ?? null,
         });
 
         return {
@@ -153,6 +157,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             user,
             codeChallenge: code.codeChallenge,
             codeChallengeMethod: code.codeChallengeMethod,
+            resource: code.resource ?? null,
         };
     }
 
@@ -193,6 +198,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             scope: result.scope,
             codeChallenge: result.code_challenge,
             codeChallengeMethod: result.code_challenge_method,
+            resource: result.resource ?? null,
             client: {
                 id: result.client_id,
                 scopes: result.scopes ?? [],
@@ -221,6 +227,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
     ): Promise<Token> {
         await this.database('oauth2_access_tokens').insert({
             access_token: token.accessToken,
+            resource: token.resource ?? null,
+            family_uuid: null,
             expires_at: token.accessTokenExpiresAt,
             scope: Array.isArray(token.scope)
                 ? token.scope
@@ -233,6 +241,8 @@ export class OAuth2Model implements AuthorizationCodeModel {
         if (token.refreshToken) {
             await this.database('oauth2_refresh_tokens').insert({
                 refresh_token: token.refreshToken,
+                resource: token.resource ?? null,
+                family_uuid: null,
                 expires_at: token.refreshTokenExpiresAt,
                 scope: Array.isArray(token.scope)
                     ? token.scope
@@ -286,6 +296,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
 
         return {
             accessToken: result.access_token,
+            resource: result.resource ?? null,
             accessTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
@@ -367,6 +378,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return {
             accessToken: '',
             refreshToken: result.refresh_token,
+            resource: result.resource ?? null,
             refreshTokenExpiresAt: new Date(result.expires_at),
             scope: result.scope,
             client: {
@@ -412,6 +424,22 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return resolveOAuthScopeMode(this.featureFlagModel, {
             organizationUuid: user.organizationUuid,
             userUuid: storedUser.user_uuid,
+        });
+    }
+
+    async isSecurityStrict(
+        user: UserWithOrganizationUuid | null,
+    ): Promise<boolean> {
+        if (user === null)
+            return resolveOAuthSecurityStrict(this.featureFlagModel, null);
+        const storedUser = await this.database('users')
+            .select('user_uuid')
+            .where('user_id', user.userId)
+            .first();
+        if (!storedUser) throw new AuthorizationError('OAuth user not found');
+        return resolveOAuthSecurityStrict(this.featureFlagModel, {
+            userUuid: storedUser.user_uuid,
+            organizationUuid: user.organizationUuid,
         });
     }
 

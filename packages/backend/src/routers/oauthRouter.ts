@@ -13,6 +13,7 @@ import OAuth2Server from '@node-oauth/oauth2-server';
 import express, { type Router } from 'express';
 import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
+    acceptAnyOAuthAudience,
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
@@ -61,11 +62,21 @@ const sendInvalidRedirectResponse = (res: express.Response) =>
         error_description: 'Invalid client_id or redirect_uri',
     });
 
-const sendOAuthRedirectResponse = (
+const sendOAuthRedirectResponse = async (
+    req: express.Request,
     res: express.Response,
     redirectUrl: URL,
     message: string,
 ) => {
+    const user =
+        req.user?.userId && req.user.organizationUuid
+            ? {
+                  userId: req.user.userId,
+                  organizationUuid: req.user.organizationUuid,
+              }
+            : null;
+    if (await getOAuthService(req).isSecurityStrict(user))
+        redirectUrl.searchParams.set('iss', getOAuthService(req).getSiteUrl());
     res.set('Content-Type', 'text/html');
     return res.send(
         generateOAuthRedirectPage({
@@ -127,7 +138,7 @@ const sendMissingOrganizationResponse = async (
     if (typeof params.state === 'string' && params.state !== '') {
         redirectUrl.searchParams.set('state', params.state);
     }
-    return sendOAuthRedirectResponse(res, redirectUrl, message);
+    return sendOAuthRedirectResponse(req, res, redirectUrl, message);
 };
 
 // Get authorization - use OAuth2Server
@@ -158,6 +169,34 @@ oauthRouter.get('/authorize', async (req, res, next) => {
             redirectUri: redirect_uri,
             state,
         });
+    }
+
+    let resource: string | null;
+    try {
+        resource = await getOAuthService(req).getAuthorizationResource(
+            new OAuth2Server.Request(req),
+            identity,
+        );
+    } catch (error) {
+        const redirectUrl = await getValidatedRedirectUrl(req, {
+            clientId: client_id,
+            redirectUri: redirect_uri,
+        });
+        if (!redirectUrl) return sendInvalidRedirectResponse(res);
+        redirectUrl.searchParams.set(
+            'error',
+            error instanceof OAuth2Server.OAuthError
+                ? error.name
+                : 'server_error',
+        );
+        if (typeof state === 'string' && state !== '')
+            redirectUrl.searchParams.set('state', state);
+        return sendOAuthRedirectResponse(
+            req,
+            res,
+            redirectUrl,
+            'An error occurred. Redirecting you back to your application...',
+        );
     }
 
     // Render authorize page using Handlebars template
@@ -212,6 +251,9 @@ oauthRouter.get('/authorize', async (req, res, next) => {
                   }
                 : null,
             hiddenInputs: [
+                ...(resource === null
+                    ? []
+                    : [{ name: 'resource', value: resource }]),
                 {
                     name: 'response_type',
                     value: (req.query.response_type ||
@@ -275,6 +317,7 @@ oauthRouter.post('/authorize', async (req, res) => {
             redirectUrl.searchParams.set('state', req.body.state);
         }
         return sendOAuthRedirectResponse(
+            req,
             res,
             redirectUrl,
             'Access denied. Redirecting you back to your application...',
@@ -309,7 +352,8 @@ oauthRouter.post('/authorize', async (req, res) => {
             redirectUrl.searchParams.set('state', req.body.state);
         }
 
-        return sendOAuthRedirectResponse(
+        return await sendOAuthRedirectResponse(
+            req,
             res,
             redirectUrl,
             'Redirecting you back to your application...',
@@ -317,11 +361,18 @@ oauthRouter.post('/authorize', async (req, res) => {
     } catch (error) {
         Logger.error(`Authorization error: ${error}`);
         const errorUrl = new URL(req.body.redirect_uri);
-        errorUrl.searchParams.set('error', 'server_error');
+        const strict = await oauthService.isSecurityStrict(identity);
+        errorUrl.searchParams.set(
+            'error',
+            strict && error instanceof OAuth2Server.OAuthError
+                ? error.name
+                : 'server_error',
+        );
         if (req.body.state) {
             errorUrl.searchParams.set('state', req.body.state);
         }
         return sendOAuthRedirectResponse(
+            req,
             res,
             errorUrl,
             'An error occurred. Redirecting you back to your application...',
@@ -358,12 +409,15 @@ oauthRouter.post('/token', async (req, res, next) => {
             error instanceof Error ? error.message : 'Unknown error';
 
         // Return 401 for authentication errors, 400 for other errors
-        const statusCode =
+        const isAuthenticationError =
+            !(
+                error instanceof OAuth2Server.OAuthError &&
+                error.name === 'invalid_target'
+            ) &&
             !isManagedSignInError(errorMessage) &&
             (errorMessage.includes('Invalid') ||
-                errorMessage.includes('required'))
-                ? 401
-                : 400;
+                errorMessage.includes('required'));
+        const statusCode = isAuthenticationError ? 401 : 400;
         res.status(statusCode).json(
             error instanceof OAuth2Server.OAuthError
                 ? { error: error.name, error_description: errorMessage }
@@ -489,6 +543,7 @@ oauthRouter.post('/register', async (req, res) => {
 // UserInfo endpoint (OpenID Connect)
 oauthRouter.get(
     '/userinfo',
+    acceptAnyOAuthAudience,
     allowApiKeyAuthentication,
     requireOAuthScopeOperation('oauthRouter GET /userinfo'),
     isAuthenticated,
@@ -585,7 +640,7 @@ oauthRouter.delete(
 
 // OAuth2 Discovery endpoint
 // This endpoint is used by MCP clients and other OAuth clients to discover the OAuth2 server
-export function oauthConfig(baseUrl: string) {
+export function oauthConfig(baseUrl: string, strict = false) {
     return {
         issuer: baseUrl,
         authorization_endpoint: `${baseUrl}/api/v1/oauth/authorize`,
@@ -598,11 +653,12 @@ export function oauthConfig(baseUrl: string) {
         grant_types_supported: [
             'authorization_code',
             'refresh_token',
-            'client_credentials',
+            ...(strict ? [] : ['client_credentials']),
         ],
         token_endpoint_auth_methods_supported: [
             'client_secret_basic',
             'client_secret_post',
+            ...(strict ? ['none'] : []),
         ],
         code_challenge_methods_supported: ['S256'],
         scopes_supported: [
@@ -611,17 +667,22 @@ export function oauthConfig(baseUrl: string) {
             OAuthScope.MCP_READ,
             OAuthScope.MCP_WRITE,
         ],
-        pkce_required: false, // PKCE is optional but recommended
+        pkce_required: strict,
+        ...(strict
+            ? { authorization_response_iss_parameter_supported: true }
+            : {}),
     };
 }
 
 // Export the handler for reuse at root level
-export const oauthAuthorizationServerHandler = (
+export const oauthAuthorizationServerHandler = async (
     req: express.Request,
     res: express.Response,
 ) => {
     const baseUrl = getOAuthService(req).getSiteUrl();
-    res.json(oauthConfig(baseUrl));
+    res.json(
+        oauthConfig(baseUrl, await getOAuthService(req).isSecurityStrict(null)),
+    );
 };
 
 oauthRouter.get(

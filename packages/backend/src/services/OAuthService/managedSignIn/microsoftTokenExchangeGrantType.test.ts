@@ -35,7 +35,9 @@ const createGrant = ({
         user,
     })),
     validateScope,
+    strict = false,
 }: {
+    strict?: boolean;
     exchangeIdToken?: ManagedSignInService['exchangeIdToken'];
     recordSignInAllowed?: ManagedSignInService['recordSignInAllowed'];
     saveToken?: OAuth2Server.AuthorizationCodeModel['saveToken'];
@@ -47,6 +49,8 @@ const createGrant = ({
     } as unknown as ManagedSignInService;
     const GrantType = createMicrosoftTokenExchangeGrantType(
         () => managedSignInService,
+        async () => strict,
+        'https://server.example',
     );
     const model = {
         saveToken,
@@ -230,3 +234,19 @@ describe('MicrosoftTokenExchangeGrantType', () => {
         ).rejects.toBeInstanceOf(OAuth2Server.InvalidScopeError);
     });
 });
+
+it.each([true, false])(
+    'binds managed sign-in tokens to API only under strict=%s',
+    async (strict) => {
+        const { grant, saveToken } = createGrant({ strict });
+        const token = await grant.handle(createRequest(validBody), client);
+        expect(token.resource).toBe(strict ? 'https://server.example' : null);
+        expect(saveToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                resource: strict ? 'https://server.example' : null,
+            }),
+            client,
+            sessionUser,
+        );
+    },
+);

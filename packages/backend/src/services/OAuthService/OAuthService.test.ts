@@ -27,6 +27,7 @@ describe('OAuthService edge cases', () => {
         } as AnyType;
         mockOAuthModel = {
             getAccessToken: vi.fn(),
+            isSecurityStrict: vi.fn().mockResolvedValue(false),
             getClient: vi.fn(),
             getRefreshToken: vi.fn(),
             revokeToken: vi.fn(),
