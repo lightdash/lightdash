@@ -260,7 +260,7 @@ test('adds nullable OAuth bindings, valid indexes and validated cascading foreig
     });
 });
 
-test('preserves existing OAuth rows through down, re-up and a partial retry', async () => {
+test('preserves unbound OAuth rows and removes bound rows through down, re-up and a partial retry', async () => {
     const { database } = migrated;
     await downBindings(database);
     await database.transaction(downGrants);
@@ -308,7 +308,32 @@ test('preserves existing OAuth rows through down, re-up and a partial retry', as
             ).rejects.toMatchObject({ code: '23503' });
         }),
     );
+    const [grant] = await database('agent_connection_grants')
+        .insert(data.grantInput)
+        .returning('*');
+    const boundToken = await insertTokens(
+        data,
+        grant.agent_connection_grant_uuid,
+    );
     await downBindings(database);
+    await downBindings(database);
+    const tokenColumns = {
+        oauth2_access_tokens: 'access_token',
+        oauth2_refresh_tokens: 'refresh_token',
+        oauth2_authorization_codes: 'authorization_code',
+    } as const;
+    await Promise.all(
+        oauthTables.map(async (table) => {
+            expect(
+                await database(table).where('client_id', data.clientId),
+            ).toHaveLength(1);
+            expect(
+                await database(table)
+                    .where(tokenColumns[table], boundToken)
+                    .first(),
+            ).toBeUndefined();
+        }),
+    );
     await database.transaction(downGrants);
     await database.transaction(upGrants);
     await upBindings(database);
@@ -320,6 +345,43 @@ test('preserves existing OAuth rows through down, re-up and a partial retry', as
         }),
     );
 });
+
+test.each(oauthTables)(
+    'resumes down after the %s binding column is gone',
+    async (completedTable) => {
+        const { database } = migrated;
+        const data = await fixture();
+        const [grant] = await database('agent_connection_grants')
+            .insert(data.grantInput)
+            .returning('*');
+        await insertTokens(data, null);
+        await insertTokens(data, grant.agent_connection_grant_uuid);
+        await database(completedTable)
+            .whereNotNull('agent_connection_grant_uuid')
+            .delete();
+        await database.schema.alterTable(completedTable, (table) =>
+            table.dropColumn('agent_connection_grant_uuid'),
+        );
+        try {
+            await downBindings(database);
+            await Promise.all(
+                oauthTables.map(async (table) => {
+                    expect(
+                        await database.schema.hasColumn(
+                            table,
+                            'agent_connection_grant_uuid',
+                        ),
+                    ).toBe(false);
+                    expect(
+                        await database(table).where('client_id', data.clientId),
+                    ).toHaveLength(1);
+                }),
+            );
+        } finally {
+            await upBindings(database);
+        }
+    },
+);
 
 test.each(['organizations', 'users', 'oauth2_clients'] as const)(
     'cascades grants and bound tokens when deleting from %s',

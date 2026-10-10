@@ -3,7 +3,7 @@ import { type Knex } from 'knex';
 export const config = { transaction: false };
 export const classification = {
     kind: 'safe',
-    reason: 'Adds nullable grant bindings and concurrent indexes to OAuth tables without changing existing credentials. Foreign keys apply only to new bound tokens.',
+    reason: 'Adds nullable grant bindings and concurrent indexes to OAuth tables without changing existing credentials. Foreign keys apply only to new bound tokens. Rollback removes bound credentials and preserves unbound credentials.',
 } as const;
 
 export async function up(knex: Knex): Promise<void> {
@@ -92,26 +92,37 @@ export async function up(knex: Knex): Promise<void> {
 }
 
 export async function down(knex: Knex): Promise<void> {
+    const removeBinding = async (
+        table:
+            | 'oauth2_refresh_tokens'
+            | 'oauth2_access_tokens'
+            | 'oauth2_authorization_codes',
+    ) => {
+        await knex.transaction(async (transaction) => {
+            await transaction.raw("SET LOCAL lock_timeout = '5s'");
+            await transaction.raw(
+                `LOCK TABLE ${table} IN ACCESS EXCLUSIVE MODE`,
+            );
+            if (
+                await transaction.schema.hasColumn(
+                    table,
+                    'agent_connection_grant_uuid',
+                )
+            ) {
+                await transaction(table)
+                    .whereNotNull('agent_connection_grant_uuid')
+                    .delete();
+                await transaction.raw(
+                    `ALTER TABLE ${table} DROP COLUMN IF EXISTS agent_connection_grant_uuid`,
+                );
+            }
+        });
+    };
     await knex.raw("SET lock_timeout = '5s'");
     try {
-        await knex.raw(
-            'DROP INDEX CONCURRENTLY IF EXISTS oauth2_refresh_tokens_agent_grant_idx',
-        );
-        await knex.raw(
-            'ALTER TABLE oauth2_refresh_tokens DROP COLUMN IF EXISTS agent_connection_grant_uuid',
-        );
-        await knex.raw(
-            'DROP INDEX CONCURRENTLY IF EXISTS oauth2_access_tokens_agent_grant_idx',
-        );
-        await knex.raw(
-            'ALTER TABLE oauth2_access_tokens DROP COLUMN IF EXISTS agent_connection_grant_uuid',
-        );
-        await knex.raw(
-            'DROP INDEX CONCURRENTLY IF EXISTS oauth2_authorization_codes_agent_grant_idx',
-        );
-        await knex.raw(
-            'ALTER TABLE oauth2_authorization_codes DROP COLUMN IF EXISTS agent_connection_grant_uuid',
-        );
+        await removeBinding('oauth2_refresh_tokens');
+        await removeBinding('oauth2_access_tokens');
+        await removeBinding('oauth2_authorization_codes');
     } finally {
         await knex.raw('RESET lock_timeout');
     }

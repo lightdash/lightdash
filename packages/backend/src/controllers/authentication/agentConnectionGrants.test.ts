@@ -439,6 +439,11 @@ describe('revoked bound bearer lifecycle with a live session', () => {
         'replace',
         'refresh_reuse',
         'refresh_race',
+        'revoke_access',
+        'revoke_access_after_grant',
+        'revoke_refresh',
+        'revoke_expired_access',
+        'revoke_unbound_access',
     ] as const;
     const middlewares = [
         allowApiKeyAuthentication,
@@ -483,18 +488,25 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                 created_at: grant.createdAt,
                 last_used_at: null,
             };
+            const originalExpiry =
+                lifecycle === 'revoke_expired_access'
+                    ? new Date(Date.now() - 60000)
+                    : grant.expiresAt;
             const tokenRow = {
                 access_token: 'token',
                 refresh_token: 'refresh',
-                expires_at: grant.expiresAt,
-                revoked_at: new Date(),
+                expires_at: originalExpiry,
+                revoked_at: lifecycle === 'revoke_refresh' ? null : new Date(),
                 client_id: grant.clientId,
                 user_id: 42,
                 user_uuid: user.userUuid,
                 organization_uuid: user.organizationUuid,
                 resource: grant.resource,
                 family_uuid: grant.refreshFamilyUuid,
-                agent_connection_grant_uuid: grant.grantUuid,
+                agent_connection_grant_uuid:
+                    lifecycle === 'revoke_unbound_access'
+                        ? null
+                        : grant.grantUuid,
                 scope: ['read'],
             };
             let accessStored = true;
@@ -523,10 +535,26 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                 .response(({ sql }) =>
                     sql.includes('"revoked_at" is null') ? 0 : 1,
                 );
-            tracker.on.select('oauth2_refresh_tokens').response(tokenRow);
+            tracker.on
+                .select('oauth2_refresh_tokens')
+                .response(({ bindings }) =>
+                    bindings.includes('refresh') ? tokenRow : undefined,
+                );
+            tracker.on.delete('oauth2_refresh_tokens').response(1);
+            tracker.on.update('oauth2_access_tokens').response(({ sql }) => {
+                if (tokenRow.agent_connection_grant_uuid === null) return 0;
+                if (sql.includes('least(expires_at, now())'))
+                    tokenRow.expires_at = new Date(
+                        Math.min(tokenRow.expires_at.getTime(), Date.now()),
+                    );
+                return 1;
+            });
             tracker.on.any(/pg_advisory/).response([]);
             tracker.on.delete('oauth2_access_tokens').response(({ sql }) => {
-                if (!sql.includes('"agent_connection_grant_uuid" is null'))
+                if (
+                    !sql.includes('"agent_connection_grant_uuid" is null') ||
+                    tokenRow.agent_connection_grant_uuid === null
+                )
                     accessStored = false;
                 if (sql.includes('"family_uuid" ='))
                     unboundFamilyStored = false;
@@ -573,7 +601,10 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                 { value: 'UserController_createPersonalAccessToken' },
             );
             try {
-                if (lifecycle === 'revoke') {
+                if (
+                    lifecycle === 'revoke' ||
+                    lifecycle === 'revoke_access_after_grant'
+                ) {
                     await grants.revoke({
                         organizationUuid: grant.organizationUuid,
                         grantUuid: grant.grantUuid,
@@ -604,7 +635,7 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                     expect(await oauthModel.getRefreshToken('refresh')).toBe(
                         false,
                     );
-                } else {
+                } else if (lifecycle === 'refresh_race') {
                     await expect(
                         oauthModel.saveToken(
                             {
@@ -639,7 +670,39 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                         ),
                     ).rejects.toMatchObject({ name: 'invalid_grant' });
                 }
-                expect(grantRow.revoked_at).toBeInstanceOf(Date);
+                if (lifecycle === 'revoke_unbound_access') {
+                    expect(await oauthService.revokeToken('token')).toBe(true);
+                    expect(accessStored).toBe(false);
+                    expect(await run(middleware)).toEqual({
+                        status: 200,
+                        error: undefined,
+                    });
+                    expect(downstream).toHaveBeenCalledOnce();
+                    expect(grantRow.revoked_at).toBeNull();
+                    return;
+                }
+                if (
+                    lifecycle === 'revoke_access' ||
+                    lifecycle === 'revoke_expired_access' ||
+                    lifecycle === 'revoke_access_after_grant'
+                ) {
+                    expect(await oauthService.revokeToken('token')).toBe(true);
+                    expect(tokenRow.expires_at.getTime()).toBeLessThanOrEqual(
+                        Date.now(),
+                    );
+                } else if (lifecycle === 'revoke_refresh') {
+                    expect(await oauthService.revokeToken('refresh')).toBe(
+                        true,
+                    );
+                }
+                if (
+                    lifecycle === 'revoke_access' ||
+                    lifecycle === 'revoke_expired_access'
+                ) {
+                    expect(grantRow.revoked_at).toBeNull();
+                } else {
+                    expect(grantRow.revoked_at).toBeInstanceOf(Date);
+                }
                 expect(await run(middleware)).toEqual({
                     status: 401,
                     body: { error: 'invalid_token' },
@@ -648,7 +711,13 @@ describe('revoked bound bearer lifecycle with a live session', () => {
                 expect(
                     await oauthModel.isAccessTokenBoundToGrant('token'),
                 ).toBe(true);
-                expect(unboundFamilyStored).toBe(false);
+                expect(unboundFamilyStored).toBe(
+                    lifecycle === 'revoke_access' ||
+                        lifecycle === 'revoke_expired_access',
+                );
+                expect(tokenRow.expires_at.getTime()).toBeLessThanOrEqual(
+                    originalExpiry.getTime(),
+                );
                 expect(passport.authenticate).not.toHaveBeenCalled();
                 expect(authenticateServiceAccount).not.toHaveBeenCalled();
             } finally {

@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
     ApiAlertAsCodeListResponse,
@@ -54,10 +55,12 @@ import {
     friendlyName,
     generateSlug,
     getContentAsCodePathFromLtreePath,
+    getCustomSqlFieldKey,
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     hasChartsInDashboard,
     isChartScheduler,
+    isCustomSqlDimension,
     isDashboardChartTileType,
     isDashboardScheduler,
     isEmailTarget,
@@ -68,6 +71,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    isSqlTableCalculation,
     normalizeContentAsCodePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
@@ -4013,6 +4017,61 @@ export class CoderService extends BaseService {
             );
         }
         const [chart] = existingCharts;
+        const grantAccount =
+            options.account?.authentication.type === 'oauth' &&
+            options.account.authentication.agentConnectionGrant
+                ? options.account
+                : null;
+        const currentChart =
+            chart && grantAccount
+                ? await this.savedChartModel.get(chart.uuid)
+                : undefined;
+        if (grantAccount) {
+            if (!this.projectService) {
+                throw new Error(
+                    'ProjectService is required to check agent chart uploads',
+                );
+            }
+            const currentQuery = currentChart?.metricQuery;
+            await this.projectService.assertAgentCustomSqlAuthorizedForQuery({
+                account: grantAccount,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                metricQuery: {
+                    tableCalculations: metricQuery.tableCalculations.filter(
+                        (calculation) =>
+                            isSqlTableCalculation(calculation) &&
+                            !(currentQuery?.tableCalculations ?? []).some(
+                                (current) =>
+                                    isSqlTableCalculation(current) &&
+                                    current.name === calculation.name &&
+                                    current.sql === calculation.sql,
+                            ),
+                    ),
+                    customDimensions: metricQuery.customDimensions?.filter(
+                        (dimension) =>
+                            isCustomSqlDimension(dimension) &&
+                            !(currentQuery?.customDimensions ?? []).some(
+                                (current) =>
+                                    isCustomSqlDimension(current) &&
+                                    current.id === dimension.id &&
+                                    current.sql === dimension.sql,
+                            ),
+                    ),
+                    additionalMetrics: metricQuery.additionalMetrics?.filter(
+                        (metric) =>
+                            !(currentQuery?.additionalMetrics ?? []).some(
+                                (current) =>
+                                    current.name === metric.name &&
+                                    getCustomSqlFieldKey(current) ===
+                                        getCustomSqlFieldKey(metric) &&
+                                    current.baseDimensionName ===
+                                        metric.baseDimensionName,
+                            ),
+                    ),
+                },
+            });
+        }
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -4274,11 +4333,11 @@ export class CoderService extends BaseService {
         });
 
         if (!canUploadAnyContent) {
-            const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
-                    currentChart,
+                    currentChart ??
+                        (await this.savedChartModel.get(chart.uuid)),
                 ),
                 auditedAbility,
                 project,
@@ -4585,6 +4644,20 @@ export class CoderService extends BaseService {
                   })
                 : [];
         const existingSqlChart = sqlChartRows[0];
+        const grant =
+            options.account?.authentication.type === 'oauth'
+                ? options.account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grant.approvedCapabilities.includes(AgentCapability.RawSql) &&
+            (existingSqlChart === undefined ||
+                existingSqlChart.sql !== sqlChartAsCode.sql)
+        ) {
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
+        }
 
         // SQL chart uploads mirror SavedSqlService. Check CustomSql before
         // resolving the space so a rejection cannot orphan a new space.

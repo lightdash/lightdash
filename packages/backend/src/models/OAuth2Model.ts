@@ -693,19 +693,42 @@ export class OAuth2Model implements AuthorizationCodeModel {
     }
 
     async deleteRefreshToken(refreshToken: string): Promise<boolean> {
+        const boundToken = await this.database('oauth2_refresh_tokens')
+            .where('refresh_token', refreshToken)
+            .whereNotNull('agent_connection_grant_uuid')
+            .first();
+        if (boundToken?.agent_connection_grant_uuid != null) {
+            await new AgentConnectionGrantModel({
+                database: this.database,
+            }).revoke({
+                grantUuid: boundToken.agent_connection_grant_uuid,
+                organizationUuid: boundToken.organization_uuid,
+                revokedByUserUuid: null,
+                reason: 'refresh_token_revoked',
+            });
+            return true;
+        }
         const result = await this.database('oauth2_refresh_tokens')
             .where('refresh_token', refreshToken)
+            .whereNull('agent_connection_grant_uuid')
             .del();
 
         return result > 0;
     }
 
     async deleteAccessToken(accessToken: string): Promise<boolean> {
+        const expired = await this.database('oauth2_access_tokens')
+            .where('access_token', accessToken)
+            .whereNotNull('agent_connection_grant_uuid')
+            .update({
+                expires_at: this.database.raw('least(expires_at, now())'),
+            });
         const result = await this.database('oauth2_access_tokens')
             .where('access_token', accessToken)
+            .whereNull('agent_connection_grant_uuid')
             .del();
 
-        return result > 0;
+        return expired > 0 || result > 0;
     }
 
     async getRefreshToken(refreshToken: string): Promise<Token | false> {

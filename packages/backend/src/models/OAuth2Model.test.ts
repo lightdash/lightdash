@@ -394,7 +394,8 @@ describe('OAuth2Model refresh token rotation', () => {
         expect(token).toBe(false);
     });
 
-    it('deletes a refresh token outright when a user revokes it', async () => {
+    it('deletes an unbound refresh token outright when a user revokes it', async () => {
+        tracker.on.select('oauth2_refresh_tokens').responseOnce(undefined);
         tracker.on.delete('oauth2_refresh_tokens').responseOnce(1);
 
         const deleted = await model.deleteRefreshToken('refresh-token');
@@ -404,7 +405,8 @@ describe('OAuth2Model refresh token rotation', () => {
         expect(tracker.history.delete[0].bindings).toContain('refresh-token');
     });
 
-    it('deletes an access token outright when a user revokes it', async () => {
+    it('deletes an unbound access token outright when a user revokes it', async () => {
+        tracker.on.update('oauth2_access_tokens').responseOnce(0);
         tracker.on.delete('oauth2_access_tokens').responseOnce(1);
 
         const deleted = await model.deleteAccessToken('access-token');
