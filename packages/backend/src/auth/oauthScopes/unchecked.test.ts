@@ -107,3 +107,15 @@ it('preserves anonymous access on routes with optional authentication', () => {
     expect(next).toHaveBeenCalledExactlyOnceWith();
     expect(Logger.warn).not.toHaveBeenCalled();
 });
+
+it.each(['read', 'mcp:read'])(
+    'keeps completed query downloads available with %s',
+    (scope) => {
+        expect(() =>
+            assertOAuthScopeOperation(
+                actor('enforce', [scope]),
+                'QueryController.downloadResults',
+            ),
+        ).not.toThrow();
+    },
+);

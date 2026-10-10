@@ -8,6 +8,8 @@ import { RequestHandler } from 'express';
 import { getOAuthScopeContext } from './scopedAbility';
 
 export const OAUTH_UNCHECKED_OPERATIONS = {
+    'ProjectCoderController.rebaseContentDraft': 'write',
+    'ProjectCoderController.reopenContentDraft': 'write',
     'ExploreController.GetExplore': 'read',
     'ProjectController.CompileMergeQuery': 'read',
     'ProjectController.RunMergeQuery': 'read',
@@ -16,7 +18,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'QueryController.executeAsyncComposeMergeQuery': 'read',
     'QueryController.executeAsyncDashboardChartQuery': 'read',
     'QueryController.getResultsStream': 'read',
-    'QueryController.downloadResults': 'write',
+    'QueryController.downloadResults': 'read',
     'QueryController.scheduleDownloadResults': 'read',
     'DocumentController.executeChartQuery': 'read',
     'DocumentController.verify': 'write',
@@ -111,7 +113,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'DirectAccessController.resetDirectAccessAssignments': 'write',
     'OrganizationAgentIdentityController.getSettings': 'read',
     'ProjectDashboardControllerV2.update': 'write',
-    'QueryController.cancelAsyncQuery': 'write',
+    'QueryController.cancelAsyncQuery': 'read',
     'QueryController.executeAsyncMetricQuery': 'read',
     'QueryController.executeAsyncFieldValueSearch': 'read',
     'QueryController.executeAsyncSavedChartQuery': 'read',

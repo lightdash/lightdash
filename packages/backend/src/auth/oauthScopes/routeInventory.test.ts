@@ -1,23 +1,26 @@
 import path from 'node:path';
 import { OAUTH_CASL_CHECKED_ROUTES } from './caslCheckedRoutes';
+import { classifyOAuthOperation } from './scopeMap';
 import {
     collectOAuthRoutes,
+    collectOAuthRoutesFromSources,
     parseSource,
     sourceFiles,
 } from './testing/routeInventory';
 import { OAUTH_UNCHECKED_OPERATIONS } from './unchecked';
 
 const root = path.resolve(__dirname, '../..');
-const routes = [
-    'controllers',
-    'ee/controllers',
-    'routers',
-    'ee/routers',
-].flatMap((directory) =>
-    sourceFiles(path.join(root, directory)).flatMap((file) =>
-        collectOAuthRoutes(parseSource(file)),
+const routes = collectOAuthRoutesFromSources([
+    ...['controllers', 'ee/controllers', 'routers', 'ee/routers'].flatMap(
+        (directory) =>
+            sourceFiles(path.join(root, directory)).map((file) =>
+                parseSource(file),
+            ),
     ),
-);
+    parseSource(path.join(root, 'App.ts')),
+    parseSource(path.join(root, 'index.ts')),
+    parseSource(path.join(root, 'ee/index.ts')),
+]);
 
 it('requires a reviewed authorization boundary for every OAuth route', () => {
     expect(routes.length).toBeGreaterThan(100);
@@ -154,3 +157,58 @@ it('keeps route identities and authorization inventories unambiguous', () => {
             .map((route) => route.id),
     ).toEqual([]);
 });
+
+it.each([
+    ['QueryController.downloadResults', 'view', 'Project'],
+    ['QueryController.scheduleDownloadResults', 'view', 'Project'],
+    ['QueryController.cancelAsyncQuery', 'view', 'Project'],
+    ['QueryController.getAsyncQueryResults', 'view', 'Project'],
+    ['QueryController.getResultsStream', 'view', 'Project'],
+    ['QueryController.executeAsyncMetricQuery', 'view', 'Explore'],
+    ['QueryController.executeAsyncFieldValueSearch', 'view', 'Explore'],
+    ['QueryController.executeAsyncSavedChartQuery', 'view', 'SavedChart'],
+    ['QueryController.executeAsyncUnderlyingDataQuery', 'view', 'Explore'],
+    ['QueryController.executeAsyncDashboardChartQuery', 'view', 'Dashboard'],
+    ['QueryController.executeAsyncDashboardSqlChartQuery', 'view', 'Dashboard'],
+    ['QueryController.executeAsyncMergeQuery', 'view', 'Explore'],
+    ['QueryController.executeAsyncComposeMergeQuery', 'view', 'Explore'],
+    ['ProjectController.CompileMergeQuery', 'view', 'Explore'],
+    ['ProjectController.RunMergeQuery', 'view', 'Explore'],
+    ['ExploreController.CompileQuery', 'view', 'Explore'],
+    ['SavedChartController.postChartResults', 'view', 'SavedChart'],
+    ['SavedChartController.postDashboardTile', 'view', 'Dashboard'],
+    ['SavedChartController.getChartVersionResults', 'view', 'SavedChart'],
+    ['SavedChartController.calculateTotalFromSavedChart', 'view', 'SavedChart'],
+    ['SavedChartController.exportSavedChartImage', 'view', 'SavedChart'],
+    ['DocumentController.executeChartQuery', 'view', 'Document'],
+    ['DocumentController.exportPdf', 'view', 'Document'],
+    ['DashboardControllerV2.exportDashboardContent', 'view', 'Dashboard'],
+    ['dashboardRouter POST /:dashboardUuid/export', 'view', 'Dashboard'],
+    ['SqlRunnerController.getSavedSqlResultsJob', 'view', 'Space'],
+    ['SqlRunnerController.getSavedSqlResultsJobByUuid', 'view', 'Space'],
+    ['RunViewChartQueryController.postUnderlyingData', 'view', 'Explore'],
+    ['MetricsExplorerController.runMetricTotal', 'view', 'Explore'],
+    ['MetricsExplorerController.runMetricSeries', 'view', 'Explore'],
+    ['MetricsExplorerController.compileMetricTotalQuery', 'view', 'Explore'],
+    ['UserActivityController.exportUserActivityCsv', 'view', 'Analytics'],
+] as const)(
+    'keeps the %s guard no stricter than its CASL boundary',
+    (id, action, subject) => {
+        expect(routes.find((route) => route.id === id)?.guards).toContain(id);
+        const classification = classifyOAuthOperation(action, subject);
+        expect(classification).not.toBeNull();
+        expect(
+            OAUTH_UNCHECKED_OPERATIONS[id] === 'read' ||
+                classification === 'write',
+        ).toBe(true);
+    },
+);
+
+it.each(['rebaseContentDraft', 'reopenContentDraft'] as const)(
+    'requires write scope for the %s mutation behind a view-only CASL check',
+    (method) => {
+        const id = `ProjectCoderController.${method}` as const;
+        expect(routes.find((route) => route.id === id)?.guards).toContain(id);
+        expect(OAUTH_UNCHECKED_OPERATIONS[id]).toBe('write');
+    },
+);
