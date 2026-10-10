@@ -368,11 +368,10 @@ export class WarehouseClientFactory {
         owner: CredentialOwner | null,
         aiPlan: AiExecutionPlan | null,
     ): Promise<MaterializedCredentials> {
-        if (credentials[credentialResolution]) return credentials;
         let selectionSource: CredentialSelectionSource;
         if (owner?.kind === 'user') {
             const { person } = context.actor;
-            if (person === null)
+            if (person === null && !credentials[credentialResolution])
                 throw new ForbiddenError(
                     'Personal credentials require a connection person',
                 );
@@ -390,7 +389,10 @@ export class WarehouseClientFactory {
                     personalCredentialPolicy:
                         await resolvePersonalCredentialPolicy(
                             this.featureFlagModel,
-                            { organizationUuid, userUuid: person.userUuid },
+                            {
+                                organizationUuid,
+                                userUuid: person?.userUuid ?? '',
+                            },
                         ),
                 },
             };
