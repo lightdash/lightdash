@@ -17,7 +17,9 @@ import { DatabricksAiServiceAccountCredentialResolver } from './resolvers/Databr
 import { PostgresAiServiceAccountCredentialResolver } from './resolvers/PostgresAiServiceAccountCredentialResolver';
 import { RedshiftAiServiceAccountCredentialResolver } from './resolvers/RedshiftAiServiceAccountCredentialResolver';
 import { SnowflakeAiServiceAccountCredentialResolver } from './resolvers/SnowflakeAiServiceAccountCredentialResolver';
+import { TrinoAiServiceAccountCredentialResolver } from './resolvers/TrinoAiServiceAccountCredentialResolver';
 
+const trinoResolver = new TrinoAiServiceAccountCredentialResolver();
 const redshiftResolver = new RedshiftAiServiceAccountCredentialResolver();
 const postgresResolver = new PostgresAiServiceAccountCredentialResolver();
 const athenaResolver = new AthenaAiServiceAccountCredentialResolver();
@@ -26,6 +28,7 @@ const bigqueryResolver = new BigqueryAiServiceAccountCredentialResolver();
 const databricksResolver = new DatabricksAiServiceAccountCredentialResolver();
 
 const entries = [
+    { warehouseType: WarehouseTypes.TRINO, resolver: trinoResolver },
     { warehouseType: WarehouseTypes.REDSHIFT, resolver: redshiftResolver },
     { warehouseType: WarehouseTypes.POSTGRES, resolver: postgresResolver },
     { warehouseType: WarehouseTypes.ATHENA, resolver: athenaResolver },
@@ -72,6 +75,8 @@ export const buildAiServiceAccountCredentials = (
     secrets: AiServiceAccountSecrets,
 ): CreateWarehouseCredentials => {
     switch (connection.type) {
+        case WarehouseTypes.TRINO:
+            return trinoResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.REDSHIFT:
             return redshiftResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.POSTGRES:
@@ -86,7 +91,6 @@ export const buildAiServiceAccountCredentials = (
             return athenaResolver.buildCredentials(connection, secrets);
         case WarehouseTypes.CLICKHOUSE:
         case WarehouseTypes.DUCKDB:
-        case WarehouseTypes.TRINO:
             throw new ParameterError(
                 'This warehouse does not support an AI service account.',
             );

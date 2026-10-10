@@ -65,6 +65,7 @@ type Dependencies = {
 const verifiedWarehouseTypes = new Set<WarehouseTypes>([
     WarehouseTypes.POSTGRES,
     WarehouseTypes.REDSHIFT,
+    WarehouseTypes.TRINO,
     WarehouseTypes.ATHENA,
     WarehouseTypes.DATABRICKS,
     WarehouseTypes.SNOWFLAKE,
@@ -555,13 +556,14 @@ export class AiServiceAccountService extends BaseService {
                                 return 'SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role"';
                             case WarehouseTypes.ATHENA:
                                 return 'SELECT 1 AS connection_check';
+                            case WarehouseTypes.TRINO:
+                                return 'SELECT current_user AS principal';
                             case WarehouseTypes.REDSHIFT:
                             case WarehouseTypes.POSTGRES:
                                 return 'SELECT current_user AS principal, session_user AS session_principal';
                             case WarehouseTypes.BIGQUERY:
                             case WarehouseTypes.CLICKHOUSE:
                             case WarehouseTypes.DUCKDB:
-                            case WarehouseTypes.TRINO:
                                 return 'SELECT SESSION_USER() AS principal';
                             default:
                                 return assertUnreachable(
@@ -599,7 +601,10 @@ export class AiServiceAccountService extends BaseService {
             throw new ParameterError(
                 'The session did not return its current user and role.',
             );
-        if (databricks && !principal?.trim())
+        if (
+            (databricks || connection.type === WarehouseTypes.TRINO) &&
+            !principal?.trim()
+        )
             throw new ParameterError(
                 'The session did not return its current user.',
             );
@@ -638,6 +643,7 @@ export class AiServiceAccountService extends BaseService {
                 switch (connection.type) {
                     case WarehouseTypes.SNOWFLAKE:
                         return { currentUser: principal, currentRole: role };
+                    case WarehouseTypes.TRINO:
                     case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.POSTGRES:
                     case WarehouseTypes.DATABRICKS:
@@ -647,7 +653,6 @@ export class AiServiceAccountService extends BaseService {
                     case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.TRINO:
                         return { principal };
                     default:
                         return assertUnreachable(
@@ -746,7 +751,8 @@ export class AiServiceAccountService extends BaseService {
                 reason: failureReason,
                 ...redactCredentialError(error),
                 ...(connection.type === WarehouseTypes.POSTGRES ||
-                connection.type === WarehouseTypes.REDSHIFT
+                connection.type === WarehouseTypes.REDSHIFT ||
+                connection.type === WarehouseTypes.TRINO
                     ? {
                           errorMessage:
                               getUserPasswordServiceAccountTestErrorMessage(
@@ -762,6 +768,7 @@ export class AiServiceAccountService extends BaseService {
                 observed: {},
                 message: (() => {
                     switch (connection.type) {
+                        case WarehouseTypes.TRINO:
                         case WarehouseTypes.REDSHIFT:
                         case WarehouseTypes.POSTGRES:
                             return getUserPasswordServiceAccountTestErrorMessage(

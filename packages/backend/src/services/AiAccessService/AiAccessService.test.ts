@@ -53,6 +53,8 @@ import {
     redshiftConnection,
     redshiftSecrets,
     snowflakeSecrets,
+    trinoConnection,
+    trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationAgentIdentityRulesModel } from '../../models/OrganizationAgentIdentityRulesModel';
@@ -2325,7 +2327,7 @@ describe('organization agent identity rules', () => {
             await expect(
                 service.getProjectsWithoutAiServiceAccount(
                     manager(),
-                    WarehouseTypes.TRINO,
+                    WarehouseTypes.CLICKHOUSE,
                 ),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(slots.findProjectsMissingSlot).not.toHaveBeenCalled();
@@ -2474,9 +2476,9 @@ describe('organization agent identity rules', () => {
         [WarehouseTypes.BIGQUERY, 'agent_sign_in'],
         [WarehouseTypes.DATABRICKS, 'agent_sign_in'],
         [WarehouseTypes.ATHENA, 'agent_sign_in'],
-        [WarehouseTypes.TRINO, 'marked_person'],
+        [WarehouseTypes.CLICKHOUSE, 'marked_person'],
         [WarehouseTypes.POSTGRES, 'agent_sign_in'],
-        [WarehouseTypes.TRINO, 'ai_service_account'],
+        [WarehouseTypes.CLICKHOUSE, 'ai_service_account'],
     ] as const)(
         'rejects %s source %s without writing',
         async (type, source) => {
@@ -5656,6 +5658,173 @@ it('refuses anonymous Redshift agent execution before reading the slot', async (
         f.service.resolvePlan({
             ...args,
             connection: redshiftConnection,
+            isRegisteredUser: false,
+            isServiceAccount: false,
+        }),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.EMBED_NOT_SUPPORTED },
+    });
+    expect(f.slots.getSecrets).not.toHaveBeenCalled();
+});
+
+describe('Trino AI service account runtime', () => {
+    test.each(actorCases.slice(0, 2))(
+        'resolves only slot user and password credentials for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot: {
+                    ...slot,
+                    warehouseType: WarehouseTypes.TRINO,
+                    method: 'password',
+                },
+                secrets: trinoSecrets,
+            });
+            const plan = await f.service.resolvePlan({
+                ...args,
+                ...actor,
+                connection: trinoConnection,
+            });
+            expect(plan).toMatchObject({
+                identity: 'ai_service_account',
+                identityUuid: slot.identityUuid,
+                credentials: {
+                    ...trinoSecrets,
+                    host: 'warehouse.internal',
+                    requireUserCredentials: false,
+                },
+            });
+            if (plan?.identity !== 'ai_service_account')
+                throw new Error('Expected slot plan');
+            expect(plan.credentials).not.toHaveProperty('refreshToken');
+            expect(plan.credentials).not.toHaveProperty('personalAccessToken');
+            expect(plan.credentials).not.toHaveProperty('role');
+            expect(plan.credentials).not.toHaveProperty('sslcert');
+            expect(plan.credentials).not.toHaveProperty('sslkey');
+            expect(plan.credentials).not.toHaveProperty('webIdentityAudience');
+            expect(plan.credentials).not.toHaveProperty('sessionToken');
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(actorCases.slice(0, 2))(
+        'flag off skips stored Trino rules and slots for $actor',
+        async (actor) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue({
+                slot,
+                secrets: trinoSecrets,
+            });
+            f.flags.get.mockResolvedValue({ enabled: false });
+            expect(
+                await f.service.resolvePlan({
+                    ...args,
+                    ...actor,
+                    connection: trinoConnection,
+                }),
+            ).toBeNull();
+            expect(f.organizationRules.get).not.toHaveBeenCalled();
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        },
+    );
+    test.each(['missing', 'unreadable', 'mismatch', 'method'] as const)(
+        'refuses %s slots without falling back',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSecrets.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          slot,
+                          secrets:
+                              failure === 'mismatch' ? secrets : trinoSecrets,
+                      },
+            );
+            if (failure === 'unreadable')
+                f.slots.getSecrets.mockRejectedValue(new Error('slot-secret'));
+            if (failure === 'method')
+                f.slots.getSecrets.mockResolvedValue({
+                    slot,
+                    secrets: {
+                        ...trinoSecrets,
+                        authenticationType: 'iam_role',
+                    } as never,
+                });
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: trinoConnection,
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.provider.mint).not.toHaveBeenCalled();
+            expect(JSON.stringify(f.analytics.track.mock.calls)).not.toContain(
+                'slot-secret',
+            );
+        },
+    );
+});
+describe('Trino slot availability', () => {
+    test.each(['missing', 'method', 'type'] as const)(
+        'refuses %s metadata without reading keys',
+        async (failure) => {
+            const f = setup();
+            f.organizationRules.get.mockResolvedValue({
+                source: 'ai_service_account',
+            });
+            f.slots.getSlot.mockResolvedValue(
+                failure === 'missing'
+                    ? null
+                    : {
+                          ...slot,
+                          warehouseType:
+                              failure === 'type'
+                                  ? WarehouseTypes.BIGQUERY
+                                  : WarehouseTypes.TRINO,
+                          method:
+                              failure === 'method' ? 'iam_role' : 'password',
+                      },
+            );
+            expect(
+                await f.service.getAiAccessForUser({
+                    ...args,
+                    connection: trinoConnection,
+                }),
+            ).toMatchObject({
+                refusal: {
+                    reason:
+                        failure === 'missing'
+                            ? AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING
+                            : AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+        },
+    );
+});
+
+it('refuses anonymous Trino agent execution before reading the slot', async () => {
+    const f = setup();
+    f.organizationRules.get.mockResolvedValue({ source: 'ai_service_account' });
+    await expect(
+        f.service.resolvePlan({
+            ...args,
+            connection: trinoConnection,
             isRegisteredUser: false,
             isServiceAccount: false,
         }),

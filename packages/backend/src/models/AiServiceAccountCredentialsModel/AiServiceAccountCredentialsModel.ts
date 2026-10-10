@@ -79,7 +79,15 @@ const redshiftCredentialsSchema = z
         password: z.string().min(1),
     })
     .strict();
+const trinoCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.TRINO),
+        user: z.string().trim().min(1),
+        password: z.string().min(1),
+    })
+    .strict();
 const credentialsSchema = z.discriminatedUnion('type', [
+    trinoCredentialsSchema,
     redshiftCredentialsSchema,
     postgresCredentialsSchema,
     athenaCredentialsSchema,
@@ -115,6 +123,15 @@ const redshiftVerificationSchema = verificationBaseSchema.refine(
 const redshiftPayloadSchema = redshiftCredentialsSchema
     .extend({
         verification: redshiftVerificationSchema.optional(),
+    })
+    .strict();
+
+const trinoVerificationSchema = verificationBaseSchema.refine(
+    (value) => value.principal === value.observed.currentUser,
+);
+const trinoPayloadSchema = trinoCredentialsSchema
+    .extend({
+        verification: trinoVerificationSchema.optional(),
     })
     .strict();
 
@@ -166,10 +183,13 @@ const parseVerification = (
         | WarehouseTypes.DATABRICKS
         | WarehouseTypes.ATHENA
         | WarehouseTypes.POSTGRES
-        | WarehouseTypes.REDSHIFT,
+        | WarehouseTypes.REDSHIFT
+        | WarehouseTypes.TRINO,
     verification: AiServiceAccountTestResult,
 ) => {
     switch (warehouseType) {
+        case WarehouseTypes.TRINO:
+            return trinoVerificationSchema.parse(verification);
         case WarehouseTypes.REDSHIFT:
             return redshiftVerificationSchema.parse(verification);
         case WarehouseTypes.POSTGRES:
@@ -222,6 +242,7 @@ export const parseAiServiceAccountSecrets = (
                 );
             }
             return credentials;
+        case WarehouseTypes.TRINO:
         case WarehouseTypes.REDSHIFT:
         case WarehouseTypes.POSTGRES:
         case WarehouseTypes.DATABRICKS:
@@ -311,6 +332,8 @@ export class AiServiceAccountCredentialsModel {
             );
             const payload = (() => {
                 switch (row.warehouse_type) {
+                    case WarehouseTypes.TRINO:
+                        return trinoPayloadSchema.parse(value);
                     case WarehouseTypes.REDSHIFT:
                         return redshiftPayloadSchema.parse(value);
                     case WarehouseTypes.POSTGRES:
@@ -324,7 +347,6 @@ export class AiServiceAccountCredentialsModel {
                     case WarehouseTypes.BIGQUERY:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.DUCKDB:
-                    case WarehouseTypes.TRINO:
                         return null;
                     default:
                         return assertUnreachable(
@@ -342,7 +364,8 @@ export class AiServiceAccountCredentialsModel {
             if (
                 secrets.type !== row.warehouse_type ||
                 (secrets.type === WarehouseTypes.POSTGRES ||
-                secrets.type === WarehouseTypes.REDSHIFT
+                secrets.type === WarehouseTypes.REDSHIFT ||
+                secrets.type === WarehouseTypes.TRINO
                     ? 'password'
                     : secrets.authenticationType) !== row.authentication_method
             ) {
@@ -404,6 +427,7 @@ export class AiServiceAccountCredentialsModel {
         verification: AiServiceAccountTestResult,
     ): Promise<void> {
         z.union([
+            trinoVerificationSchema,
             redshiftVerificationSchema,
             postgresVerificationSchema,
             athenaVerificationSchema,
@@ -577,7 +601,8 @@ export class AiServiceAccountCredentialsModel {
                 warehouse_type: secrets.type,
                 authentication_method:
                     secrets.type === WarehouseTypes.POSTGRES ||
-                    secrets.type === WarehouseTypes.REDSHIFT
+                    secrets.type === WarehouseTypes.REDSHIFT ||
+                    secrets.type === WarehouseTypes.TRINO
                         ? ('password' as const)
                         : secrets.authenticationType,
                 encrypted_credentials: this.args.encryptionUtil.encrypt(

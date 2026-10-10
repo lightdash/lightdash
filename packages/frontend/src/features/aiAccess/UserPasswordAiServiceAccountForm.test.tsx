@@ -28,6 +28,7 @@ const verification: AiServiceAccountTestResult = {
 describe.each([
     [WarehouseTypes.POSTGRES, 'The Postgres login role for agents'],
     [WarehouseTypes.REDSHIFT, 'The Redshift database user for agents'],
+    [WarehouseTypes.TRINO, 'The Trino login for agents'],
 ] as const)('%s AI service account form', (warehouseType, userDescription) => {
     const slot: AiServiceAccountSlot = {
         uuid: 'slot',

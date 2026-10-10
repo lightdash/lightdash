@@ -118,6 +118,7 @@ interface WarehouseAiServiceAccountFormProps extends AiServiceAccountFormProps {
     warehouseType:
         | WarehouseTypes.POSTGRES
         | WarehouseTypes.REDSHIFT
+        | WarehouseTypes.TRINO
         | WarehouseTypes.ATHENA
         | WarehouseTypes.BIGQUERY
         | WarehouseTypes.DATABRICKS
@@ -129,6 +130,14 @@ export const AiServiceAccountForm = ({
     ...props
 }: WarehouseAiServiceAccountFormProps) => {
     switch (warehouseType) {
+        case WarehouseTypes.TRINO:
+            return (
+                <UserPasswordAiServiceAccountForm
+                    {...props}
+                    warehouseType={warehouseType}
+                    userDescription="The Trino login for agents"
+                />
+            );
         case WarehouseTypes.REDSHIFT:
             return (
                 <UserPasswordAiServiceAccountForm

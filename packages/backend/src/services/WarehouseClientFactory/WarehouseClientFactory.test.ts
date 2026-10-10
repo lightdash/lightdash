@@ -42,6 +42,7 @@ import {
     ListDatabasesCommand,
     StartQueryExecutionCommand,
 } from '../../../../warehouses/node_modules/@aws-sdk/client-athena';
+import { Trino } from '../../../../warehouses/node_modules/trino-client';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import Logger from '../../logging/logger';
@@ -53,6 +54,8 @@ import {
     redshiftConnection,
     redshiftSecrets,
     snowflakeSecrets,
+    trinoConnection,
+    trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -2669,6 +2672,307 @@ describe('AI service account factory scopes', () => {
             const oldClient = await oldQuery;
             expect(oldClient).not.toBe(newClient);
             expect(oldClient.credentials).toMatchObject(redshiftSecrets);
+        } finally {
+            finish.resolve();
+            await oldQuery;
+        }
+    });
+
+    const trinoPlan = async (connection = trinoConnection) => ({
+        ...slotPlan,
+        credentials: await resolveAiServiceAccountCredentials({
+            connection,
+            stored: trinoSecrets,
+            owner: {
+                kind: 'aiServiceAccount' as const,
+                uuid: 'slot-row',
+                identityUuid: 'generation-a',
+                sourceProjectUuid: 'project',
+            },
+            context: contextFor(QueryExecutionContext.AI),
+            projectUuid: 'project-uuid',
+            warehouseConnectionUuid: null,
+        }),
+    });
+
+    test.each([
+        [{ status: 401 }, true],
+        [{ errorName: 'PERMISSION_DENIED' }, false],
+        [{ status: 403 }, false],
+        [{ status: 404 }, false],
+    ] as const)(
+        'attributes only Trino authentication failure %s',
+        async (cause, refused) => {
+            const {
+                factory,
+                aiAccessService,
+                projectModel,
+                credentialSource,
+                logger,
+            } = buildFixture();
+            aiAccessService.resolvePlan.mockResolvedValue(await trinoPlan());
+            const error = new WarehouseQueryError('Trino request failed');
+            error.cause = cause;
+            const client =
+                projectModel.getWarehouseClientFromCredentials(credentials);
+            vi.spyOn(client, 'runQuery').mockRejectedValue(error);
+            projectModel.getWarehouseClientFromCredentials.mockReturnValue(
+                client,
+            );
+            const operation = factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            );
+            if (refused) {
+                await expect(operation).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                    },
+                });
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).toHaveBeenCalledOnce();
+            } else {
+                await expect(operation).rejects.toBe(error);
+                expect(
+                    aiAccessService.trackQueryRefusal,
+                ).not.toHaveBeenCalled();
+            }
+            expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(
+                trinoSecrets.password,
+            );
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+            expect(disconnect).toHaveBeenCalledOnce();
+        },
+    );
+    test.each([401, 403, 404, 'PERMISSION_DENIED'] as const)(
+        'attributes the real Trino client wrapper for %s without driver secrets',
+        async (failure) => {
+            const f = buildFixture();
+            const trinoSlotPlan = await trinoPlan();
+            const query = vi.fn();
+            const passwordSentinel = 'trino-password-sentinel';
+            const headerSentinel = 'trino-authorization-sentinel';
+            const expectNoSecrets = (
+                value: unknown,
+                seen = new Set<unknown>(),
+            ) => {
+                if (typeof value === 'string') {
+                    expect(value).not.toContain(passwordSentinel);
+                    expect(value).not.toContain(headerSentinel);
+                }
+                if (
+                    typeof value !== 'object' ||
+                    value === null ||
+                    seen.has(value)
+                )
+                    return;
+                seen.add(value);
+                for (const key of Object.getOwnPropertyNames(value)) {
+                    expect(key).not.toMatch(/password|header|config|auth/i);
+                    if (key !== 'cause')
+                        expectNoSecrets(
+                            (value as Record<string, unknown>)[key],
+                            seen,
+                        );
+                }
+                if ('cause' in value) expectNoSecrets(value.cause, seen);
+            };
+            const expectedCause =
+                typeof failure === 'number'
+                    ? { status: failure }
+                    : {
+                          errorName: failure,
+                          errorCode: 4,
+                          errorType: 'USER_ERROR',
+                      };
+            if (typeof failure === 'number')
+                query.mockRejectedValue(
+                    Object.assign(
+                        new Error(`Request failed with status code ${failure}`),
+                        {
+                            isAxiosError: true,
+                            response: {
+                                status: failure,
+                                headers: { Authorization: headerSentinel },
+                            },
+                            config: {
+                                auth: { password: passwordSentinel },
+                            },
+                        },
+                    ),
+                );
+            else
+                query.mockResolvedValue({
+                    next: vi.fn().mockResolvedValue({
+                        done: true,
+                        value: {
+                            error: {
+                                message:
+                                    'Access Denied: Cannot select from table',
+                                ...expectedCause,
+                            },
+                        },
+                    }),
+                });
+            const create = vi
+                .spyOn(Trino, 'create')
+                .mockReturnValue({ query } as unknown as Trino);
+            try {
+                f.projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                    warehouseClientFromCredentials,
+                );
+                f.aiAccessService.resolvePlan.mockResolvedValue(trinoSlotPlan);
+                await f.factory.withWarehouseClient(
+                    bindingRef,
+                    contextFor(QueryExecutionContext.AI),
+                    async ({ warehouseClient, deriveClient }) => {
+                        const clients = [
+                            warehouseClient,
+                            deriveClient(trinoSlotPlan.credentials),
+                        ];
+                        await Promise.all(
+                            clients.map(async (client) => {
+                                const error = await client
+                                    .runQuery('SELECT current_user', {})
+                                    .catch((e: unknown) => e);
+                                if (failure === 401) {
+                                    expect(error).toMatchObject({
+                                        refusal: {
+                                            reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                                        },
+                                    });
+                                    expect(
+                                        ((error as Error).cause as Error).cause,
+                                    ).toStrictEqual({ status: 401 });
+                                } else {
+                                    expect(error).toBeInstanceOf(
+                                        WarehouseQueryError,
+                                    );
+                                    expect(
+                                        (error as Error).cause,
+                                    ).toStrictEqual(expectedCause);
+                                }
+                                expectNoSecrets(error);
+                            }),
+                        );
+                    },
+                );
+                expect(
+                    f.aiAccessService.trackQueryRefusal,
+                ).toHaveBeenCalledTimes(failure === 401 ? 1 : 0);
+                expect(f.credentialSource.finish).not.toHaveBeenCalled();
+            } finally {
+                create.mockRestore();
+            }
+        },
+    );
+    test.each(['binding', 'resolved'] as const)(
+        'keeps Trino slot controls on %s and derived clients',
+        async (kind) => {
+            const { factory, aiAccessService, projectModel, credentialSource } =
+                buildFixture();
+            const slot = await trinoPlan();
+            aiAccessService.resolvePlan.mockResolvedValue(slot);
+            const ref: WarehouseClientRef =
+                kind === 'binding'
+                    ? bindingRef
+                    : {
+                          kind: 'resolved',
+                          projectUuid: 'project-uuid',
+                          credentials: slot.credentials,
+                          aiPlan: slot,
+                          warehouseConnectionUuid: 'extra-connection',
+                          connectionRoute: {
+                              route: 'single',
+                              originalWarehouseConnectionUuid: null,
+                          },
+                      };
+            await factory.withWarehouseClient(
+                ref,
+                contextFor(QueryExecutionContext.AI),
+                async ({ deriveClient, connectionCredentials }) => {
+                    deriveClient({
+                        ...connectionCredentials,
+                        schema: 'another_schema',
+                    } as CreateWarehouseCredentials);
+                },
+            );
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            for (const [clientCredentials, options] of projectModel
+                .getWarehouseClientFromCredentials.mock.calls) {
+                expect(clientCredentials).toMatchObject({
+                    ...trinoSecrets,
+                });
+                expect(options).toMatchObject({
+                    agentSession: true,
+                    agentJobControls: true,
+                });
+                expect(clientCredentials).not.toHaveProperty('accessKeyId');
+                expect(clientCredentials).not.toHaveProperty('secretAccessKey');
+            }
+            expect(credentialSource.finish).not.toHaveBeenCalled();
+        },
+    );
+
+    test('isolates overlapping Trino slot generations without replacing an active client', async () => {
+        const { factory, aiAccessService, projectModel } = buildFixture();
+        const connection = trinoConnection;
+        const oldPlan = await trinoPlan(connection);
+        aiAccessService.resolvePlan.mockResolvedValue(oldPlan);
+        const started = Promise.withResolvers<void>();
+        const finish = Promise.withResolvers<void>();
+        const oldQuery = factory.withWarehouseClient(
+            bindingRef,
+            contextFor(QueryExecutionContext.AI),
+            async ({ warehouseClient }) => {
+                started.resolve();
+                await finish.promise;
+                return warehouseClient;
+            },
+        );
+        await started.promise;
+        const newPlan = {
+            ...oldPlan,
+            identityUuid: 'generation-b',
+            credentials: await resolveAiServiceAccountCredentials({
+                connection,
+                stored: {
+                    ...trinoSecrets,
+                    password: 'replacement-password',
+                },
+                owner: {
+                    kind: 'aiServiceAccount',
+                    uuid: 'slot-row',
+                    identityUuid: 'generation-b',
+                    sourceProjectUuid: 'project',
+                },
+                context: contextFor(QueryExecutionContext.AI),
+                projectUuid: 'project-uuid',
+                warehouseConnectionUuid: null,
+            }),
+        };
+        aiAccessService.resolvePlan.mockResolvedValue(newPlan);
+        try {
+            const newClient = await factory.withWarehouseClient(
+                bindingRef,
+                contextFor(QueryExecutionContext.AI),
+                async ({ warehouseClient }) => warehouseClient,
+            );
+            expect(newClient.credentials).toMatchObject({
+                password: 'replacement-password',
+            });
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledTimes(2);
+            finish.resolve();
+            const oldClient = await oldQuery;
+            expect(oldClient).not.toBe(newClient);
+            expect(oldClient.credentials).toMatchObject(trinoSecrets);
         } finally {
             finish.resolve();
             await oldQuery;

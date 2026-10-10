@@ -7,6 +7,7 @@ import {
     getAthenaServiceAccountTestErrorMessage,
     getPostgresServiceAccountTestErrorMessage,
     getRedshiftServiceAccountTestErrorMessage,
+    getTrinoServiceAccountTestErrorMessage,
     getUserPasswordServiceAccountTestErrorMessage,
     isAthenaServiceAccountAuthError,
     isBigqueryServiceAccountAuthError,
@@ -14,6 +15,7 @@ import {
     isPostgresServiceAccountAuthError,
     isRedshiftServiceAccountAuthError,
     isSnowflakeServiceAccountAuthError,
+    isTrinoServiceAccountAuthError,
 } from './aiServiceAccountErrors';
 
 describe('User-password AI service account test errors', () => {
@@ -446,6 +448,62 @@ describe('Redshift AI service account errors', () => {
         error.cause = error;
         expect(isRedshiftServiceAccountAuthError(error)).toBe(false);
         expect(getRedshiftServiceAccountTestErrorMessage(error)).toBe(
+            'Could not verify the AI service account. Check the credentials and connection settings.',
+        );
+    });
+});
+
+describe('Trino service account errors', () => {
+    it.each([
+        [{ status: 401 }, true],
+        [{ response: { status: 401 } }, true],
+        [{ cause: { cause: { status: 401 } } }, true],
+        [{ status: 403 }, false],
+        [{ status: 404 }, false],
+        [{ code: 'ERR_BAD_REQUEST' }, false],
+        [{ message: 'Request failed with status code 401' }, false],
+        [{ errorName: 'PERMISSION_DENIED', errorCode: 4 }, false],
+        [null, false],
+        ['401', false],
+    ])('classifies only structured HTTP 401: %j', (error, expected) => {
+        expect(isTrinoServiceAccountAuthError(error)).toBe(expected);
+    });
+    it('handles cyclic causes and responses', () => {
+        const error: { cause?: unknown; response?: unknown } = {};
+        error.cause = error;
+        error.response = error;
+        expect(isTrinoServiceAccountAuthError(error)).toBe(false);
+        expect(getTrinoServiceAccountTestErrorMessage(error)).toBe(
+            'Could not verify the AI service account. Check the credentials and connection settings.',
+        );
+        error.response = { status: 401 };
+        expect(isTrinoServiceAccountAuthError(error)).toBe(true);
+    });
+    it('provides safe credential guidance through wrapped causes', () => {
+        const error = new WarehouseQueryError('secret-password');
+        error.cause = { status: 401 };
+        expect(getTrinoServiceAccountTestErrorMessage(error)).toBe(
+            'Trino rejected the AI service account credentials. Check the user and password.',
+        );
+    });
+    it('keeps permission failures separate from invalid credentials', () => {
+        const error = new WarehouseQueryError('Access Denied: secret-password');
+        error.cause = {
+            errorName: 'PERMISSION_DENIED',
+            errorCode: 4,
+            errorType: 'USER_ERROR',
+        };
+        expect(isTrinoServiceAccountAuthError(error)).toBe(false);
+        expect(
+            getTrinoServiceAccountTestErrorMessage(
+                new Error('wrapper', { cause: error }),
+            ),
+        ).toBe(
+            'The Trino AI service account lacks access. Ask an admin to check its access control rules.',
+        );
+    });
+    it.each([403, 404, 500])('uses generic guidance for HTTP %s', (status) => {
+        expect(getTrinoServiceAccountTestErrorMessage({ status })).toBe(
             'Could not verify the AI service account. Check the credentials and connection settings.',
         );
     });

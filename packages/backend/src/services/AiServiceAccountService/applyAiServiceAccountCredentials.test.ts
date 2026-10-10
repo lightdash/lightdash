@@ -14,6 +14,8 @@ import {
     snowflakeEncryptedKey,
     snowflakePassphrase,
     snowflakeSecrets,
+    trinoConnection,
+    trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
     applyAiServiceAccountCredentials,
@@ -90,6 +92,7 @@ it.each(
         (type) =>
             type !== WarehouseTypes.POSTGRES &&
             type !== WarehouseTypes.REDSHIFT &&
+            type !== WarehouseTypes.TRINO &&
             type !== WarehouseTypes.BIGQUERY &&
             type !== WarehouseTypes.ATHENA &&
             type !== WarehouseTypes.DATABRICKS &&
@@ -370,6 +373,34 @@ it('requires a complete Redshift replacement and never keeps a blank password', 
     ).toMatchObject({
         ...replacement,
         sshTunnelPrivateKey: 'tunnel-private',
+        requireUserCredentials: false,
+    });
+});
+
+it('requires a complete Trino replacement and never keeps a blank password', () => {
+    for (const password of ['', undefined]) {
+        expect(() =>
+            mergeAiServiceAccountCredentials(
+                {
+                    ...trinoSecrets,
+                    password,
+                } as AiServiceAccountCredentialInput,
+                trinoSecrets,
+            ),
+        ).toThrow('complete');
+    }
+    const replacement = {
+        ...trinoSecrets,
+        user: 'new_user',
+        password: 'new-password',
+    };
+    expect(mergeAiServiceAccountCredentials(replacement, trinoSecrets)).toEqual(
+        replacement,
+    );
+    expect(
+        applyAiServiceAccountCredentials(trinoConnection, replacement),
+    ).toMatchObject({
+        ...replacement,
         requireUserCredentials: false,
     });
 });

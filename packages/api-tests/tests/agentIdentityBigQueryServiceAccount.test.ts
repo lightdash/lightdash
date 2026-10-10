@@ -184,6 +184,7 @@ describe.skipIf(!hasBigqueryCredentials())(
                     WarehouseTypes.DATABRICKS,
                     WarehouseTypes.POSTGRES,
                     WarehouseTypes.REDSHIFT,
+                    WarehouseTypes.TRINO,
                     WarehouseTypes.SNOWFLAKE,
                 ].sort(),
             );

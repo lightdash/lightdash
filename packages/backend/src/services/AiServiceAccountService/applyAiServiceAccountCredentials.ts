@@ -13,6 +13,7 @@ export const mergeAiServiceAccountCredentials = (
     saved: AiServiceAccountSecrets | null,
 ): AiServiceAccountSecrets => {
     if (
+        input.type === WarehouseTypes.TRINO ||
         input.type === WarehouseTypes.POSTGRES ||
         input.type === WarehouseTypes.REDSHIFT ||
         input.type === WarehouseTypes.DATABRICKS ||

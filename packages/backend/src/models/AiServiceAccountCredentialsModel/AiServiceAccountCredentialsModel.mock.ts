@@ -6,6 +6,7 @@ import {
     type CreateAthenaCredentials,
     type CreatePostgresCredentials,
     type CreateRedshiftCredentials,
+    type CreateTrinoCredentials,
 } from '@lightdash/common';
 import { generateKeyPairSync } from 'node:crypto';
 
@@ -161,6 +162,35 @@ export const redshiftVerification = {
     ok: true,
     principal: 'ai_agents',
     observed: { currentUser: 'ai_agents' },
+    message: 'AI service account connection checked.',
+    checkedAt: new Date('2026-10-10T00:00:00Z'),
+};
+
+export const trinoSecrets = {
+    type: WarehouseTypes.TRINO,
+    user: 'ai_agents',
+    password: 'agent-password',
+} as const;
+
+export const trinoConnection: CreateTrinoCredentials = {
+    type: WarehouseTypes.TRINO,
+    host: 'warehouse.internal',
+    port: 8443,
+    dbname: 'analytics',
+    schema: 'reporting',
+    http_scheme: 'https',
+    source: 'project-source',
+    startOfWeek: 1,
+    dataTimezone: 'Europe/London',
+    user: 'project-user',
+    password: 'project-password',
+    requireUserCredentials: true,
+};
+
+export const trinoVerification = {
+    ok: true,
+    principal: 'MappedAgent/RestrictedRole',
+    observed: { currentUser: 'MappedAgent/RestrictedRole' },
     message: 'AI service account connection checked.',
     checkedAt: new Date('2026-10-10T00:00:00Z'),
 };

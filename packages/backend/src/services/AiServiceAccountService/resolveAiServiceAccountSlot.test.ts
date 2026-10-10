@@ -14,6 +14,7 @@ import {
     athenaSecrets,
     redshiftSecrets,
     snowflakeSecrets,
+    trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
     AiServiceAccountSlotResolutionError,
@@ -23,6 +24,7 @@ import {
 
 describe.each([
     WarehouseTypes.REDSHIFT,
+    WarehouseTypes.TRINO,
     WarehouseTypes.BIGQUERY,
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.DATABRICKS,
@@ -36,6 +38,8 @@ describe.each([
         } as AiServiceAccountSlot,
         secrets: ((): AiServiceAccountSecrets => {
             switch (warehouseType) {
+                case WarehouseTypes.TRINO:
+                    return trinoSecrets;
                 case WarehouseTypes.REDSHIFT:
                     return redshiftSecrets;
                 case WarehouseTypes.SNOWFLAKE:
@@ -54,7 +58,6 @@ describe.each([
                 case WarehouseTypes.CLICKHOUSE:
                 case WarehouseTypes.DUCKDB:
                 case WarehouseTypes.POSTGRES:
-                case WarehouseTypes.TRINO:
                     return {
                         type: WarehouseTypes.BIGQUERY,
                         authenticationType:
