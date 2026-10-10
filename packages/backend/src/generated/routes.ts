@@ -76683,6 +76683,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            allowedUserUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
             defaults: { ref: 'AgentSystemRoleMatrix', required: true },
             pilotPreset: {
@@ -76740,6 +76748,14 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            allowedUserUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'array', array: { dataType: 'string' } },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
         },
         additionalProperties: true,
@@ -76757,6 +76773,7 @@ const models: TsoaRoute.Models = {
     AgentCapabilityCeiling: {
         dataType: 'refObject',
         properties: {
+            version: { dataType: 'double' },
             allowedProjectUuids: {
                 dataType: 'union',
                 subSchemas: [
@@ -76767,6 +76784,16 @@ const models: TsoaRoute.Models = {
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
+            },
+            allowedUserUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'UUID' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
             },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
         },
@@ -76776,6 +76803,7 @@ const models: TsoaRoute.Models = {
     PilotPresetRequest: {
         dataType: 'refObject',
         properties: {
+            version: { dataType: 'double' },
             allowedProjectUuids: {
                 dataType: 'union',
                 subSchemas: [
@@ -76787,6 +76815,24 @@ const models: TsoaRoute.Models = {
                 ],
                 required: true,
             },
+            allowedUserUuids: {
+                dataType: 'union',
+                subSchemas: [
+                    {
+                        dataType: 'array',
+                        array: { dataType: 'refAlias', ref: 'UUID' },
+                    },
+                    { dataType: 'enum', enums: [null] },
+                ],
+            },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ResetPolicyRequest: {
+        dataType: 'refObject',
+        properties: {
+            version: { dataType: 'double' },
         },
         additionalProperties: true,
     },
@@ -143638,6 +143684,7 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: { in: 'body', name: 'body', ref: 'ResetPolicyRequest' },
     };
     app.post(
         '/api/v2/org/agent-permissions/reset',

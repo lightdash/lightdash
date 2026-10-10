@@ -71810,6 +71810,13 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "allowedUserUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "systemRoleMatrix": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     },
@@ -71833,6 +71840,7 @@
                     "mode",
                     "version",
                     "allowedProjectUuids",
+                    "allowedUserUuids",
                     "systemRoleMatrix",
                     "defaults",
                     "pilotPreset"
@@ -71884,6 +71892,13 @@
                         "type": "array",
                         "nullable": true
                     },
+                    "allowedUserUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "systemRoleMatrix": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
                     }
@@ -71892,6 +71907,7 @@
                     "mode",
                     "version",
                     "allowedProjectUuids",
+                    "allowedUserUuids",
                     "systemRoleMatrix"
                 ],
                 "type": "object",
@@ -71914,7 +71930,18 @@
             },
             "AgentCapabilityCeiling": {
                 "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "allowedProjectUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "allowedUserUuids": {
                         "items": {
                             "$ref": "#/components/schemas/UUID"
                         },
@@ -71931,7 +71958,18 @@
             },
             "PilotPresetRequest": {
                 "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "allowedProjectUuids": {
+                        "items": {
+                            "$ref": "#/components/schemas/UUID"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "allowedUserUuids": {
                         "items": {
                             "$ref": "#/components/schemas/UUID"
                         },
@@ -71940,6 +71978,16 @@
                     }
                 },
                 "required": ["allowedProjectUuids"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "ResetPolicyRequest": {
+                "properties": {
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
                 "type": "object",
                 "additionalProperties": true
             },
@@ -72055,7 +72103,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.544.0",
+        "version": "2.545.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -115732,7 +115780,17 @@
                 },
                 "tags": ["v2", "Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ResetPolicyRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v2/org/agent-permissions/projects/{projectUuid}/warehouse-confirmation": {

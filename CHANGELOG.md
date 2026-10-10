@@ -1,3 +1,10 @@
+# [2.545.0](https://github.com/lightdash/lightdash/compare/2.544.0...2.545.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** add the agent permissions admin UI ([#30875](https://github.com/lightdash/lightdash/issues/30875)) ([8415e1c](https://github.com/lightdash/lightdash/commit/8415e1cbad9925eb7bcdb9b7c91c820be4d05e9f))
+
 # [2.544.0](https://github.com/lightdash/lightdash/compare/2.543.0...2.544.0) (2026-10-10)
 
 
