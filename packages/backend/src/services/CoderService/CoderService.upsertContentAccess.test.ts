@@ -13,10 +13,12 @@ import {
     DimensionType,
     FilterOperator,
     ForbiddenError,
+    MergeJoinType,
     MetricType,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
+    SavedMergeDefinition,
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
@@ -2096,6 +2098,409 @@ describe('bound grant upload effects', () => {
                         ? service.savedChartModel.create
                         : service.promoteService.upsertCharts,
                 ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    const configureSqlApproval = (
+        approval: 'denied' | 'approved' | 'unbound',
+    ) => {
+        const context = setupBound(true, approval !== 'unbound');
+        if (approval === 'denied') {
+            context.account.authentication.agentConnectionGrant!.approvedCapabilities =
+                [AgentCapability.ContentWrite, AgentCapability.DeployUpload];
+        }
+        return context;
+    };
+    const expectNoChartWrites = (context: ReturnType<typeof setupBound>) => {
+        expect(context.space).not.toHaveBeenCalled();
+        expect(context.apply).not.toHaveBeenCalled();
+        expect(context.service.savedChartModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.upsertCharts,
+        ).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.getChartChanges,
+        ).not.toHaveBeenCalled();
+        expect(context.service.dashboardModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.contentAsCodeSnapshotModel.upsert,
+        ).not.toHaveBeenCalled();
+    };
+    const mergeWithQuery = (
+        query: ChartAsCode['metricQuery'],
+    ): SavedMergeDefinition => ({
+        queries: {
+            extra: {
+                explore: query.exploreName,
+                dimensions: query.dimensions,
+                metrics: query.metrics,
+                tableCalculations: query.tableCalculations,
+                customDimensions: query.customDimensions,
+                additionalMetrics: query.additionalMetrics,
+            },
+        },
+        join: MergeJoinType.FULL,
+        keys: { orders_amount: ['extra.orders_amount'] },
+        limit: 500,
+    });
+    const sqlMerge = (
+        kind: 'calculation' | 'dimension' | 'metric' | 'outer calculation',
+        sql: string,
+    ): SavedMergeDefinition =>
+        kind === 'outer calculation'
+            ? {
+                  ...mergeWithQuery(chartAsCode.metricQuery),
+                  tableCalculations: [
+                      { name: 'custom', displayName: 'Custom', sql },
+                  ],
+              }
+            : mergeWithQuery(sqlQuery(kind, sql));
+    it.each(
+        (['calculation', 'dimension', 'metric'] as const).flatMap((kind) =>
+            (['item fields', 'tableName', 'exploreName'] as const).flatMap(
+                (change) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, change, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval chart $kind with changed $change checks the whole item and explore',
+        async ({ kind, change, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const metricQuery = sqlQuery(kind, '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                metricQuery,
+            } as AnyType);
+            const changedQuery = {
+                ...metricQuery,
+                ...(change === 'exploreName'
+                    ? { exploreName: 'payments' }
+                    : {}),
+                ...(change === 'item fields' && kind === 'calculation'
+                    ? {
+                          tableCalculations: metricQuery.tableCalculations.map(
+                              (item) => ({ ...item, displayName: 'Changed' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'dimension'
+                    ? {
+                          customDimensions: metricQuery.customDimensions?.map(
+                              (item) => ({ ...item, table: 'payments' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'metric'
+                    ? {
+                          additionalMetrics: metricQuery.additionalMetrics?.map(
+                              (item) => ({ ...item, type: MetricType.AVERAGE }),
+                          ),
+                      }
+                    : {}),
+            };
+            const upload = call('chart', {
+                metricQuery: changedQuery,
+                ...(change === 'tableName' ? { tableName: 'payments' } : {}),
+            });
+            if (approval === 'denied') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(
+        (
+            ['calculation', 'dimension', 'metric', 'outer calculation'] as const
+        ).flatMap((kind) =>
+            (['create', 'add', 'change', 'unchanged'] as const).flatMap(
+                (mode) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, mode, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval merge $mode with SQL $kind checks Raw SQL before writes',
+        async ({ kind, mode, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(
+                service,
+                'chart',
+                mode === 'create' ? 'create' : 'update',
+                undefined,
+            );
+            if (mode !== 'create') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                    ...chartAsCode,
+                    merge:
+                        mode === 'add'
+                            ? undefined
+                            : sqlMerge(
+                                  kind,
+                                  mode === 'unchanged'
+                                      ? 'select 2'
+                                      : 'select 1',
+                              ),
+                } as AnyType);
+            }
+            const upload = call('chart', { merge: sqlMerge(kind, 'select 2') });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedChartModel.create
+                        : service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(['item table', 'query explore', 'chart explore'] as const)(
+        'refuses unchanged merge SQL with changed %s without Raw SQL',
+        async (change) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const merge = sqlMerge('dimension', '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                merge,
+            } as AnyType);
+            const incomingMerge = {
+                ...merge,
+                queries: {
+                    extra: {
+                        ...merge.queries.extra,
+                        ...(change === 'query explore'
+                            ? { explore: 'payments' }
+                            : {}),
+                        ...(change === 'item table'
+                            ? {
+                                  customDimensions:
+                                      merge.queries.extra.customDimensions?.map(
+                                          (item) => ({
+                                              ...item,
+                                              table: 'payments',
+                                          }),
+                                      ),
+                              }
+                            : {}),
+                    },
+                },
+            };
+            await expect(
+                call('chart', {
+                    merge: incomingMerge,
+                    ...(change === 'chart explore'
+                        ? {
+                              tableName: 'payments',
+                              metricQuery: {
+                                  ...chartAsCode.metricQuery,
+                                  exploreName: 'payments',
+                              },
+                          }
+                        : {}),
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('compares persisted merge metric UUIDs as part of the whole item', async () => {
+        const context = configureSqlApproval('denied');
+        const { service, call } = context;
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const query = sqlQuery('metric', 'select 1');
+        const storedMerge = mergeWithQuery({
+            ...query,
+            additionalMetrics: query.additionalMetrics?.map((metric) => ({
+                ...metric,
+                uuid: 'stored-uuid',
+            })),
+        });
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            ...chartAsCode,
+            merge: storedMerge,
+        } as AnyType);
+        await expect(
+            call('chart', { merge: mergeWithQuery(query) }),
+        ).rejects.toThrow('not approved for Raw SQL');
+        expectNoChartWrites(context);
+    });
+    it.each([
+        'calculation',
+        'dimension',
+        'metric',
+        'outer calculation',
+    ] as const)(
+        'checks legacy merge SQL %s after normalization',
+        async (kind) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            await expect(
+                call('chart', {
+                    merge: {
+                        primarySourceId: 'orders',
+                        sources: [
+                            { id: 'orders', kind: 'chart' },
+                            {
+                                id: 'extra',
+                                kind: 'query',
+                                metricQuery:
+                                    kind === 'outer calculation'
+                                        ? chartAsCode.metricQuery
+                                        : sqlQuery(kind, 'select 1'),
+                            },
+                        ],
+                        joinType: MergeJoinType.FULL,
+                        joinKey: [
+                            {
+                                name: 'orders_amount',
+                                fieldIdBySourceId: {
+                                    orders: 'orders_amount',
+                                    extra: 'orders_amount',
+                                },
+                            },
+                        ],
+                        tableCalculations:
+                            kind === 'outer calculation'
+                                ? [
+                                      {
+                                          name: 'outer',
+                                          displayName: 'Outer',
+                                          sql: 'select 1',
+                                      },
+                                  ]
+                                : [],
+                    },
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('allows a downloaded chart with unchanged SQL in every component without Raw SQL', async () => {
+        const { service, call } = configureSqlApproval('denied');
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const metricQuery = {
+            ...sqlQuery('dimension', '${amount}'),
+            tableCalculations: [
+                {
+                    name: 'custom',
+                    displayName: 'Custom',
+                    sql: 'select 1',
+                    format: undefined,
+                    type: undefined,
+                    template: undefined,
+                    formula: undefined,
+                    totalMode: undefined,
+                },
+            ],
+            additionalMetrics: sqlQuery(
+                'metric',
+                'select 1',
+            ).additionalMetrics?.map((item) => ({
+                ...item,
+                uuid: 'stored-metric-uuid',
+                label: undefined,
+                description: undefined,
+            })),
+        };
+        const storedChart = {
+            ...chartAsCode,
+            uuid: 'chart-uuid',
+            spaceUuid: SPACE_UUID,
+            metricQuery,
+            merge: {
+                ...mergeWithQuery(metricQuery),
+                tableCalculations: [
+                    { name: 'outer', displayName: 'Outer', sql: 'select 1' },
+                ],
+            },
+        };
+        vi.mocked(service.savedChartModel.get).mockResolvedValue(
+            storedChart as AnyType,
+        );
+        Object.assign(service.contentVerificationModel, {
+            getByContentUuids: vi.fn().mockResolvedValue(new Map()),
+        });
+        const downloaded = await service.getCurrentChartAsCode('chart-uuid');
+        expect(
+            downloaded.metricQuery.additionalMetrics?.[0],
+        ).not.toHaveProperty('uuid');
+        let payload: ChartAsCode;
+        try {
+            payload = JSON.parse(JSON.stringify(downloaded));
+        } catch (error) {
+            throw new Error('Could not serialize chart download', {
+                cause: error,
+            });
+        }
+        await expect(call('chart', payload)).resolves.toBeDefined();
+        expect(service.promoteService.upsertCharts).toHaveBeenCalledOnce();
+    });
+    it.each(['formula', 'template', 'modelled metric'] as const)(
+        'allows merge %s without Raw SQL using the source explore',
+        async (kind) => {
+            const { service, call } = configureSqlApproval('denied');
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            const query =
+                kind === 'modelled metric'
+                    ? sqlQuery('metric', '${orders.amount}')
+                    : {
+                          ...chartAsCode.metricQuery,
+                          tableCalculations: [
+                              {
+                                  name: 'custom',
+                                  displayName: 'Custom',
+                                  ...(kind === 'formula'
+                                      ? { formula: 'SUM(A:A)' }
+                                      : {
+                                            template: {
+                                                type: 'percent_of_column_total',
+                                                fieldId: 'orders_amount',
+                                            },
+                                        }),
+                              },
+                          ],
+                      };
+            const merge = {
+                ...mergeWithQuery({
+                    ...query,
+                    exploreName: 'payments',
+                } as ChartAsCode['metricQuery']),
+                tableCalculations: [
+                    {
+                        name: 'outer',
+                        displayName: 'Outer',
+                        sql: '',
+                        formula: 'SUM(A:A)',
+                    },
+                ],
+            };
+            await expect(call('chart', { merge })).resolves.toBeDefined();
+            expect(service.savedChartModel.create).toHaveBeenCalledOnce();
+            if (kind === 'modelled metric') {
+                expect(service.projectService!.getExplore).toHaveBeenCalledWith(
+                    expect.anything(),
+                    PROJECT_UUID,
+                    'payments',
+                );
             }
         },
     );
