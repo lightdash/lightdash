@@ -43,6 +43,7 @@ import { timeFrameConfigs } from './utils/timeFrames';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export * from './authorization/agentCapabilityScopes';
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
@@ -115,6 +116,7 @@ export * from './types/account';
 export * from './types/adminNotifications';
 export * from './types/agentIdentity';
 export * from './types/agentPermissions';
+export * from './types/agentCapabilityPolicy';
 export * from './types/aiPrincipal';
 export * from './types/analytics';
 export * from './types/any';

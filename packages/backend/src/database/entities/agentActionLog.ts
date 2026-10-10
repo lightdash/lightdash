@@ -4,6 +4,9 @@ import { type Knex } from 'knex';
 export const AgentActionLogTableName = 'agent_action_log';
 
 export type AgentActionPolicyLayer =
+    | 'org_ceiling'
+    | 'project_scope'
+    | 'unmapped'
     | 'casl'
     | 'agent_scope'
     | 'organization_setting'

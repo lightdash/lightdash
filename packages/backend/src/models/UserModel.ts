@@ -873,6 +873,67 @@ export class UserModel {
         }));
     }
 
+    async getAgentRoleAssignments(
+        userUuid: string,
+        organizationUuid: string,
+        projectUuid: string | null,
+    ): Promise<{
+        systemRoles: (OrganizationMemberRole | ProjectMemberRole)[];
+        customRoles: { roleUuid: string; scopes: string[] }[];
+    }> {
+        const user = await userDetailsQueryBuilder(this.database)
+            .where('users.user_uuid', userUuid)
+            .andWhere('organizations.organization_uuid', organizationUuid)
+            .select('*', 'organizations.created_at as organization_created_at')
+            .first();
+        if (!user)
+            throw new ForbiddenError(
+                'Your account does not belong to this organization',
+            );
+        const [direct, groups, extraOrgRoles] = await Promise.all([
+            projectUuid === null ? [] : this.getUserProjectRoles(userUuid),
+            projectUuid === null
+                ? []
+                : this.getUserGroupProjectRoles(
+                      user.user_id,
+                      user.organization_id,
+                      userUuid,
+                  ),
+            this.getOrganizationExtraRoleUuids(
+                user.user_id,
+                user.organization_id,
+            ),
+        ]);
+        const profiles = [...direct, ...groups].filter(
+            (profile) => profile.projectUuid === projectUuid,
+        );
+        const roleUuids = [
+            ...new Set(
+                [
+                    user.role_uuid,
+                    ...extraOrgRoles,
+                    ...profiles.flatMap((profile) => [
+                        profile.roleUuid,
+                        ...(profile.extraRoleUuids ?? []),
+                    ]),
+                ].filter((roleUuid): roleUuid is string => Boolean(roleUuid)),
+            ),
+        ];
+        const scopes = await this.customRoleScopes(roleUuids);
+        return {
+            systemRoles: [
+                ...(user.role_uuid ? [] : [user.role]),
+                ...profiles
+                    .filter((profile) => !profile.roleUuid)
+                    .map((profile) => profile.role),
+            ],
+            customRoles: roleUuids.map((roleUuid) => ({
+                roleUuid,
+                scopes: scopes[roleUuid] ?? [],
+            })),
+        };
+    }
+
     private async customRoleScopes(
         roleUuids: string[],
         trx: Knex = this.database,

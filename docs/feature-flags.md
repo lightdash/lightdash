@@ -229,6 +229,24 @@ page to update the UI. ENV and OAuth configuration changes need a process
 restart. Disabling the flag preserves saved credentials and restores normal query
 identity. It does not cancel queries in progress or revoke Snowflake tokens.
 
+### Agent capability policy
+
+The capability-policy API and `AgentPermissionService` resolve `agent-identity`
+for the target organization only, without a user override. A missing policy starts
+in `legacy` mode. Saving a ceiling or applying the pilot preset activates
+`managed` mode; resetting restores `legacy`. Disabling the flag preserves the
+saved policy and makes the permission service return `off` without new checks.
+
+Managed policy resolution unions system-role matrix grants with custom-role
+capability scopes. The pilot changes the system-role matrix and allowed projects;
+it leaves custom roles unchanged. The organization agent switch bounds all
+managed agent operations, and the content-write switch bounds content writes.
+Raw SQL additionally needs an admin confirmation for the current warehouse
+binding. The binding fingerprint uses non-secret routing and identity metadata,
+credential generations and database row versions. Credential refreshes can also
+invalidate a confirmation. This records an admin assurance, not a verification
+of warehouse-side permissions. Entry-point enforcement is integrated separately.
+
 ### Snowflake silent agent refresh
 
 `agent-identity-silent-refresh` is a default-on defect-fix kill switch. The

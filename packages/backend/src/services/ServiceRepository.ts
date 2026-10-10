@@ -12,6 +12,7 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import { type AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -22,6 +23,7 @@ import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import type { UtilRepository } from '../utils/UtilRepository';
 import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
+import { AgentPermissionService } from './AgentPermissionService/AgentPermissionService';
 import { AiAccessService } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
@@ -157,6 +159,7 @@ interface ServiceManifest {
     pinningService: PinningService;
     pivotTableService: PivotTableService;
     aiAccessService: AiAccessService;
+    agentPermissionService: AgentPermissionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
     analyticsProjectService: AnalyticsProjectService;
@@ -982,6 +985,29 @@ export class ServiceRepository
                     warehouseConnectionModel:
                         this.models.getWarehouseConnectionModel(),
                     projectService: this.getProjectService(),
+                }),
+        );
+    }
+
+    public getAgentPermissionService(): AgentPermissionService {
+        return this.getService(
+            'agentPermissionService',
+            () =>
+                new AgentPermissionService({
+                    isCustomRolesLicensed: () =>
+                        this.getLicenseService().getLicenseStatus().valid,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    agentCapabilityPolicyModel:
+                        this.models.getAgentCapabilityPolicyModel(),
+                    agentWarehouseRestrictionConfirmationModel:
+                        this.models.getAgentWarehouseRestrictionConfirmationModel(),
+                    userModel: this.models.getUserModel(),
+                    projectModel: this.models.getProjectModel(),
+                    getOrganizationSettings: (organizationUuid) =>
+                        this.models
+                            .getAiOrganizationSettingsModel<AiOrganizationSettingsModel>()
+                            .findByOrganizationUuid(organizationUuid),
+                    agentActionLogModel: this.models.getAgentActionLogModel(),
                 }),
         );
     }
