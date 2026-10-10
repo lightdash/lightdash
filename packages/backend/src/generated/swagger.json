@@ -71491,6 +71491,22 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "AgentCapability": {
+                "enum": [
+                    "read_discover",
+                    "query",
+                    "raw_sql",
+                    "content_write",
+                    "delete",
+                    "publish",
+                    "deploy_upload",
+                    "dbt_writeback",
+                    "export",
+                    "administration",
+                    "external_tools"
+                ],
+                "type": "string"
+            },
             "AiAccessRefusalReason": {
                 "enum": [
                     "agent_access_disabled",
@@ -71517,28 +71533,99 @@
                 ],
                 "type": "string"
             },
+            "NonNullable_AiAccessRefusal-at-policyLayer_": {
+                "allOf": [
+                    {
+                        "type": "string",
+                        "enum": [
+                            "org_ceiling",
+                            "project_scope",
+                            "organization_setting",
+                            "warehouse_identity",
+                            "unmapped"
+                        ]
+                    },
+                    {
+                        "properties": {},
+                        "type": "object"
+                    }
+                ],
+                "description": "Exclude null and undefined from T"
+            },
+            "PolicyLayer": {
+                "$ref": "#/components/schemas/NonNullable_AiAccessRefusal-at-policyLayer_"
+            },
+            "AgentPermissionBlocker": {
+                "properties": {
+                    "settingsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "policyLayer": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PolicyLayer"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "capability": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentCapability"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "reason": {
+                        "$ref": "#/components/schemas/AiAccessRefusalReason"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["refused", "setup_needed"]
+                    },
+                    "checkId": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "settingsUrl",
+                    "message",
+                    "policyLayer",
+                    "capability",
+                    "reason",
+                    "status",
+                    "checkId"
+                ],
+                "type": "object"
+            },
             "AiAccessRefusalAction": {
                 "enum": ["sign_in", "ask_admin"],
                 "type": "string"
             },
-            "AgentCapability": {
-                "enum": [
-                    "read_discover",
-                    "query",
-                    "raw_sql",
-                    "content_write",
-                    "delete",
-                    "publish",
-                    "deploy_upload",
-                    "dbt_writeback",
-                    "export",
-                    "administration",
-                    "external_tools"
-                ],
-                "type": "string"
-            },
             "AiAccessRefusal": {
                 "properties": {
+                    "requiredCapabilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentCapability"
+                        },
+                        "type": "array"
+                    },
+                    "blockers": {
+                        "items": {
+                            "$ref": "#/components/schemas/AgentPermissionBlocker"
+                        },
+                        "type": "array"
+                    },
+                    "blockersComplete": {
+                        "type": "boolean"
+                    },
+                    "explanationUrl": {
+                        "type": "string"
+                    },
                     "code": {
                         "type": "string",
                         "enum": ["ai_access_refused"],
@@ -72065,7 +72152,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.550.0",
+        "version": "2.551.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

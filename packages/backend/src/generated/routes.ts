@@ -76360,6 +76360,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentCapability: {
+        dataType: 'refEnum',
+        enums: [
+            'read_discover',
+            'query',
+            'raw_sql',
+            'content_write',
+            'delete',
+            'publish',
+            'deploy_upload',
+            'dbt_writeback',
+            'export',
+            'administration',
+            'external_tools',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAccessRefusalReason: {
         dataType: 'refEnum',
         enums: [
@@ -76387,31 +76404,98 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'NonNullable_AiAccessRefusal-at-policyLayer_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['org_ceiling'] },
+                        { dataType: 'enum', enums: ['project_scope'] },
+                        { dataType: 'enum', enums: ['organization_setting'] },
+                        { dataType: 'enum', enums: ['warehouse_identity'] },
+                        { dataType: 'enum', enums: ['unmapped'] },
+                    ],
+                },
+                { dataType: 'nestedObjectLiteral', nestedProperties: {} },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PolicyLayer: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'NonNullable_AiAccessRefusal-at-policyLayer_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentPermissionBlocker: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                settingsUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                message: { dataType: 'string', required: true },
+                policyLayer: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PolicyLayer' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                capability: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentCapability' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                reason: { ref: 'AiAccessRefusalReason', required: true },
+                status: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['refused'] },
+                        { dataType: 'enum', enums: ['setup_needed'] },
+                    ],
+                    required: true,
+                },
+                checkId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAccessRefusalAction: {
         dataType: 'refEnum',
         enums: ['sign_in', 'ask_admin'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    AgentCapability: {
-        dataType: 'refEnum',
-        enums: [
-            'read_discover',
-            'query',
-            'raw_sql',
-            'content_write',
-            'delete',
-            'publish',
-            'deploy_upload',
-            'dbt_writeback',
-            'export',
-            'administration',
-            'external_tools',
-        ],
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAccessRefusal: {
         dataType: 'refObject',
         properties: {
+            requiredCapabilities: {
+                dataType: 'array',
+                array: { dataType: 'refEnum', ref: 'AgentCapability' },
+            },
+            blockers: {
+                dataType: 'array',
+                array: { dataType: 'refAlias', ref: 'AgentPermissionBlocker' },
+            },
+            blockersComplete: { dataType: 'boolean' },
+            explanationUrl: { dataType: 'string' },
             code: {
                 dataType: 'enum',
                 enums: ['ai_access_refused'],

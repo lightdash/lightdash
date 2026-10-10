@@ -1,3 +1,10 @@
+# [2.551.0](https://github.com/lightdash/lightdash/compare/2.550.0...2.551.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** list every blocker in agent permission refusals ([#30886](https://github.com/lightdash/lightdash/issues/30886)) ([9e78f01](https://github.com/lightdash/lightdash/commit/9e78f01d67df17610c03780b34b43deee635b40b))
+
 # [2.550.0](https://github.com/lightdash/lightdash/compare/2.549.0...2.550.0) (2026-10-10)
 
 
