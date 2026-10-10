@@ -19,6 +19,10 @@ import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlag
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -709,7 +713,7 @@ describe('composer pipelines return the standard results interface', () => {
         },
     );
 
-    it('carries the artifact actor through semantic and planned DuckDB merge nodes', async () => {
+    it('keeps one trusted scope through semantic and planned DuckDB nodes and ignores a forged actor', async () => {
         const agentActor = {
             surface: AgentActorSurface.IN_APP_AGENT,
             clientId: 'lightdash-chat',
@@ -723,44 +727,76 @@ describe('composer pipelines return the standard results interface', () => {
         };
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);
-        await service.submitQueries({
-            ...executionContext,
+        const scope = createAgentExecutionContext({
             account,
-            projectUuid,
-            context: QueryExecutionContext.AI,
-            querySurface: QuerySurface.APP,
-            agentActor,
-            queries: [
-                {
-                    nodeId: 'metric',
-                    sourceType: QuerySourceType.SEMANTIC_LAYER,
-                    exploreName: 'orders',
-                    dimensions: [],
-                    metrics: [],
-                },
-                {
-                    nodeId: 'join',
-                    sourceType: QuerySourceType.DUCKDB,
-                    sql: 'select * from metric',
-                    references: ['metric'],
-                },
-            ],
-            plans: { join: plan },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'trusted-artifact-agent',
+            agentIdentityEnabled: true,
         });
+        const claims: unknown[] = [];
+        asyncQueryService.executeAsyncMetricQuery.mockImplementation(
+            async () => {
+                claims.push(agentExecutionContext.getStore()?.claim);
+                return {
+                    queryUuid: 'metric-query-uuid',
+                    cacheMetadata: { cacheHit: true },
+                };
+            },
+        );
+        asyncQueryService.executeAsyncDuckdbSourceQuery.mockImplementation(
+            async () => {
+                claims.push(agentExecutionContext.getStore()?.claim);
+                return { queryUuid: 'planned-query-uuid' };
+            },
+        );
+        await agentExecutionContext.run(scope, () =>
+            service.submitQueries({
+                ...executionContext,
+                account,
+                projectUuid,
+                context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.APP,
+                ...{ agentActor },
+                queries: [
+                    {
+                        nodeId: 'metric',
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        exploreName: 'orders',
+                        dimensions: [],
+                        metrics: [],
+                    },
+                    {
+                        nodeId: 'join',
+                        sourceType: QuerySourceType.DUCKDB,
+                        sql: 'select * from metric',
+                        references: ['metric'],
+                    },
+                ],
+                plans: { join: plan },
+            }),
+        );
         expect(
             asyncQueryService.executeAsyncMetricQuery,
         ).toHaveBeenCalledExactlyOnceWith(
-            expect.objectContaining({ agentActor }),
+            expect.objectContaining({ context: QueryExecutionContext.AI }),
         );
         expect(
             asyncQueryService.executeAsyncDuckdbSourceQuery,
         ).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
-                agentActor,
                 plan,
                 references: { metric: 'metric-query-uuid' },
             }),
         );
+        expect(claims).toEqual([scope.claim, scope.claim]);
+        expect(agentExecutionContext.getStore()).toBeUndefined();
+        expect(
+            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
+        ).not.toHaveProperty('agentActor');
+        expect(
+            asyncQueryService.executeAsyncDuckdbSourceQuery.mock.calls[0][0],
+        ).not.toHaveProperty('agentActor');
         expect(
             asyncQueryService.executeAsyncComposeSqlQuery,
         ).not.toHaveBeenCalled();

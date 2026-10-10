@@ -25,6 +25,8 @@ import {
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
     type QueryHistory,
+    type QueryResultProducer,
+    type QueryResultReader,
     type QuerySourceTableName,
     type QuerySurface,
     type QueryUsageMetadata,
@@ -46,12 +48,10 @@ import type {
     QueryComposer,
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
-import type { QueryAgentActor } from '../AiAccessService/agentExecutionContext';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
-    agentActor?: QueryAgentActor | null;
     account: Account;
     projectUuid: string;
     invalidateCache?: boolean;
@@ -68,6 +68,7 @@ export type GetAsyncQueryResultsArgs = Omit<
     ResultsPaginationArgs & {
         queryUuid: string;
         aiAccessOnly?: boolean;
+        reader?: QueryResultReader;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<
@@ -290,6 +291,8 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 };
 
 export type RunAsyncWarehouseQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    resultEntitlementFingerprint?: string | null;
     agentIdentity?: AgentIdentityClaim | null;
     projectUuid: string;
     userUuid: string;
@@ -324,6 +327,7 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     RunAsyncWarehouseQueryArgs,
     'query'
 > & {
+    resultProducer?: QueryResultProducer;
     preAggregateQuery: string;
     warehouseQuery: string;
     preAggregateExecution: PreAggregateExecutionEngine;
@@ -445,6 +449,10 @@ export type BoundDuckdbQueryReferences = {
 };
 
 export type RunDuckdbQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    identityEnabled?: boolean | null;
+    resultEntitlementFingerprint?: string | null;
+    agentIdentity: AgentIdentityClaim | null;
     actor: QueryHistoryActor;
     /** Skip the lookup by result files and run regardless. */
     invalidateCache: boolean;

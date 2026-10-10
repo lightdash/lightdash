@@ -22,12 +22,16 @@ import {
     SnowflakeAuthenticationType,
     UnexpectedServerError,
     WarehouseTypes,
+    type AgentIdentityClaim,
+    type AiExecutionPlan,
     type AiIdentitySource,
     type AiServiceAccountSlot,
+    type AuthType,
     type CreateWarehouseCredentials,
     type OrganizationAgentIdentityRule,
     type PossibleAbilities,
     type QueryHistory,
+    type QueryResultProducer,
     type SessionUser,
     type UpdateOrganizationAgentIdentityRule,
 } from '@lightdash/common';
@@ -75,6 +79,8 @@ import {
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
+import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
 import {
     credentialResolution,
@@ -82,12 +88,14 @@ import {
 } from '../WarehouseClientFactory/CredentialResolver';
 import { AgentCredentialResolutionError } from '../WarehouseClientFactory/resolvers/AgentCredentialResolutionError';
 import { AgentSignInResolverHarness } from '../WarehouseClientFactory/resolvers/SnowflakeAgentSignInCredentialResolver.mock';
+import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
     agentActionTestCases,
     withAgentActionScope,
 } from './agentActionTestUtils.mock';
 import {
     agentExecutionContext,
+    buildResultReader,
     createAgentExecutionContext,
 } from './agentExecutionContext';
 import {
@@ -108,24 +116,27 @@ import {
 } from './AiAccessService.mock';
 import { snowflakeAgentClientMock } from './SnowflakeAgentClientResolver.mock';
 
-const connection: CreateWarehouseCredentials = {
-    type: WarehouseTypes.POSTGRES,
-    host: 'localhost',
-    port: 5432,
-    user: 'connection',
-    password: 'test',
-    dbname: 'test',
-    schema: 'public',
-};
-const snowflake: CreateWarehouseCredentials = {
-    type: WarehouseTypes.SNOWFLAKE,
-    account: 'account',
-    user: 'person',
-    password: 'test',
-    database: 'test',
-    warehouse: 'test',
-    schema: 'public',
-};
+const connection: CreateWarehouseCredentials =
+    withNewWarehouseCredentialVersion({
+        type: WarehouseTypes.POSTGRES,
+        host: 'localhost',
+        port: 5432,
+        user: 'connection',
+        password: 'test',
+        dbname: 'test',
+        schema: 'public',
+    });
+const snowflake: CreateWarehouseCredentials = withNewWarehouseCredentialVersion(
+    {
+        type: WarehouseTypes.SNOWFLAKE,
+        account: 'account',
+        user: 'person',
+        password: 'test',
+        database: 'test',
+        warehouse: 'test',
+        schema: 'public',
+    },
+);
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
@@ -133,6 +144,11 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const args: ResolvePlanArgs = {
+    agentIdentity: buildAgentIdentityClaim({
+        subject: { type: 'user', uuid: 'user' },
+        surface: AgentActorSurface.IN_APP_AGENT,
+        clientId: 'lightdash-chat',
+    }),
     evaluation: { kind: 'query', surface: QuerySurface.APP },
     projectUuid: 'project',
     organizationUuid: 'org',
@@ -156,6 +172,66 @@ const viewer = {
         ]),
     },
 };
+
+const agentReader = agentExecutionContext.run(
+    createAgentExecutionContext({
+        account,
+        surface: AgentActorSurface.IN_APP_AGENT,
+        clientId: 'lightdash-chat',
+        agentUuid: 'test-agent',
+        agentIdentityEnabled: true,
+    }),
+    () => buildResultReader(account, QueryExecutionContext.AI),
+);
+const agentProducer = (
+    generation: string | null = null,
+    warehouseConnectionUuid: string | null = null,
+    serviceAccount: { uuid: string; sourceProjectUuid: string } | null = null,
+): QueryResultProducer => {
+    let credentialOwner: QueryResultProducer['credentialOwner'] = {
+        kind: 'shared_connection',
+        identityFingerprint: getWarehouseIdentityFingerprint(connection),
+    };
+    if (serviceAccount)
+        credentialOwner = {
+            kind: 'ai_service_account',
+            credentialUuid: serviceAccount.uuid,
+            generation: generation!,
+            sourceProjectUuid: serviceAccount.sourceProjectUuid,
+        };
+    else if (generation)
+        credentialOwner = {
+            kind: 'agent_sign_in',
+            userUuid: account.user.id,
+            generation,
+        };
+    return {
+        version: 1,
+        authMethod: 'session',
+        agentIdentity: agentReader.kind === 'agent' ? agentReader.claim : null,
+        warehouseConnectionUuid,
+        credentialOwner,
+    };
+};
+const readAgentResults = (
+    service: AiAccessService,
+    ...[readerAccount, projectUuid, history, options]: Parameters<
+        AiAccessService['assertCanReadResults']
+    >
+) =>
+    service.assertCanReadResults(readerAccount, projectUuid, history, {
+        reader: agentExecutionContext.run(
+            createAgentExecutionContext({
+                account: readerAccount,
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-chat',
+                agentUuid: 'test-agent',
+                agentIdentityEnabled: true,
+            }),
+            () => buildResultReader(readerAccount, QueryExecutionContext.AI),
+        ),
+        ...options,
+    });
 
 const setup = (agentResultIdentityCheckEnabled = true) => {
     const provider = {
@@ -300,8 +376,17 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
             email: 'a.b+tag@example.test',
         })),
     };
+    const resolveWarehouseCredentials = vi.fn(async () => ({
+        warehouseCredentials: connection as CreateWarehouseCredentials,
+        aiPlan: null,
+        warehouseConnectionUuid: null,
+    }));
     const service = new AiAccessService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
+        getWarehouseClientFactory: () =>
+            ({
+                resolveWarehouseCredentials,
+            }) as unknown as WarehouseClientFactory,
         organizationSnowflakeAgentClientModel: {
             getWithSecret: vi.fn().mockResolvedValue({
                 organizationUuid: 'org',
@@ -342,6 +427,7 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         ),
     });
     return {
+        resolveWarehouseCredentials,
         users,
         analytics,
         service,
@@ -356,6 +442,11 @@ const setup = (agentResultIdentityCheckEnabled = true) => {
         projects,
         connections,
     };
+};
+
+const testAuthMethod = (claim: AgentIdentityClaim | null): AuthType => {
+    if (claim?.act.surface !== AgentActorSurface.MCP) return 'session';
+    return claim.act.client_id === null ? 'pat' : 'oauth';
 };
 
 describe('AiAccessService', () => {
@@ -426,16 +517,37 @@ describe('AiAccessService', () => {
                 oauthClientId,
                 isServiceAccount,
                 serviceAccountUuid: isServiceAccount ? 'service-account' : null,
+                agentIdentity:
+                    surface === QuerySurface.CLI
+                        ? null
+                        : buildAgentIdentityClaim({
+                              subject: {
+                                  type: isServiceAccount
+                                      ? 'service_account'
+                                      : 'user',
+                                  uuid: isServiceAccount
+                                      ? 'service-account'
+                                      : 'user',
+                              },
+                              surface: actorSurface,
+                              clientId,
+                          }),
             });
-            expect(plan?.agentIdentity).toEqual(
-                buildAgentIdentityClaim({
-                    subject: {
-                        type: isServiceAccount ? 'service_account' : 'user',
-                        uuid: isServiceAccount ? 'service-account' : 'user',
-                    },
-                    surface: actorSurface,
-                    clientId,
-                }),
+            expect(plan?.agentIdentity ?? null).toEqual(
+                surface === QuerySurface.CLI
+                    ? null
+                    : buildAgentIdentityClaim({
+                          subject: {
+                              type: isServiceAccount
+                                  ? 'service_account'
+                                  : 'user',
+                              uuid: isServiceAccount
+                                  ? 'service-account'
+                                  : 'user',
+                          },
+                          surface: actorSurface,
+                          clientId,
+                      }),
             );
         },
     );
@@ -457,10 +569,15 @@ describe('AiAccessService', () => {
                     agentIdentityEnabled: true,
                 }),
                 async () => {
-                    const plan = await service.resolvePlan(args);
+                    const scope = agentExecutionContext.getStore()!;
+                    const plan = await service.resolvePlan({
+                        ...args,
+                        userUuid: scope.writerUuid,
+                        agentIdentity: scope.claim,
+                    });
                     expect(plan?.agentIdentity).toEqual(
                         buildAgentIdentityClaim({
-                            subject: { type: 'user', uuid: 'user' },
+                            subject: { type: 'user', uuid: scope.writerUuid },
                             surface,
                             clientId,
                         }),
@@ -478,6 +595,7 @@ describe('AiAccessService', () => {
         expect(
             await service.resolvePlan({
                 ...args,
+                agentIdentity: null,
                 context: QueryExecutionContext.CLI,
                 evaluation: { kind: 'query', surface: QuerySurface.CLI },
             }),
@@ -506,6 +624,11 @@ describe('AiAccessService', () => {
             ...args,
             isServiceAccount: true,
             serviceAccountUuid: 'service-account',
+            agentIdentity: buildAgentIdentityClaim({
+                subject: { type: 'service_account', uuid: 'service-account' },
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-chat',
+            }),
         });
         expect(plan?.agentIdentity?.subject).toEqual({
             type: 'service_account',
@@ -581,7 +704,14 @@ describe('AiAccessService', () => {
             surface: AgentActorSurface.MCP,
             clientId: 'oauth-client',
         };
-        const plan = await service.resolvePlan({ ...args, agentActor });
+        const plan = await service.resolvePlan({
+            ...args,
+            agentActor,
+            agentIdentity: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: args.userUuid },
+                ...agentActor,
+            }),
+        });
         expect(plan?.agentIdentity?.act).toEqual({
             sub: 'mcp:oauth-client',
             surface: AgentActorSurface.MCP,
@@ -619,8 +749,7 @@ describe('AiAccessService', () => {
     test('does not misidentify an unknown service account as its backing user', async () => {
         const { service } = setup();
         expect(
-            (await service.resolvePlan({ ...args, isServiceAccount: true }))
-                ?.agentIdentity,
+            await service.resolvePlan({ ...args, isServiceAccount: true }),
         ).toBeNull();
     });
     test('preserves an explicitly unknown refusal actor', () => {
@@ -686,6 +815,24 @@ describe('AiAccessService', () => {
             await expect(
                 service.resolvePlan({
                     ...queryArgs,
+                    serviceAccountUuid:
+                        reason === AiAccessRefusalReason.SERVICE_ACCOUNT
+                            ? 'service-account'
+                            : null,
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: {
+                            type:
+                                reason === AiAccessRefusalReason.SERVICE_ACCOUNT
+                                    ? 'service_account'
+                                    : 'user',
+                            uuid:
+                                reason === AiAccessRefusalReason.SERVICE_ACCOUNT
+                                    ? 'service-account'
+                                    : 'user',
+                        },
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        clientId: 'lightdash-chat',
+                    }),
                     isServiceAccount:
                         reason === AiAccessRefusalReason.SERVICE_ACCOUNT,
                     isRegisteredUser:
@@ -748,6 +895,11 @@ describe('AiAccessService', () => {
                     ...queryArgs,
                     warehouseConnectionUuid: 'extra',
                     evaluation: { kind: 'query', surface: QuerySurface.SLACK },
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: 'user' },
+                        surface: AgentActorSurface.SLACK_AGENT,
+                        clientId: null,
+                    }),
                 }),
             ).rejects.toBeInstanceOf(AiAccessRefusedError);
             expect(analytics.track).toHaveBeenCalledExactlyOnceWith({
@@ -848,7 +1000,7 @@ describe('AiAccessService', () => {
                     queryUuid: 'result',
                     status: QueryHistoryStatus.READY,
                     context: QueryExecutionContext.AI,
-                    requestParameters: {},
+                    requestParameters: { resultProducer: agentProducer() },
                     warehouseConnectionUuid: null,
                 } as QueryHistory;
                 if (composed) {
@@ -871,11 +1023,7 @@ describe('AiAccessService', () => {
                 }
                 const read = () =>
                     expect(
-                        service.assertCanReadResults(
-                            account,
-                            'project',
-                            history,
-                        ),
+                        readAgentResults(service, account, 'project', history),
                     ).rejects.toBeInstanceOf(AiAccessRefusedError);
                 await read();
                 await read();
@@ -1304,7 +1452,10 @@ describe('AiAccessService', () => {
                 status: QueryHistoryStatus.READY,
                 context,
                 warehouseConnectionUuid: null,
-                requestParameters: { aiSignInCredentialUuid: credential },
+                requestParameters: {
+                    aiSignInCredentialUuid: credential,
+                    resultProducer: agentProducer(credential ?? null),
+                },
             }) as QueryHistory;
 
         test.each([undefined, 'agent-credential'])(
@@ -1322,12 +1473,23 @@ describe('AiAccessService', () => {
                     ...history(credential),
                     queryUuid: 'source',
                     warehouseConnectionUuid: 'extra',
+                    requestParameters: {
+                        aiSignInCredentialUuid: credential,
+                        resultProducer: agentProducer(
+                            credential ?? null,
+                            'extra',
+                        ),
+                    },
                 });
-                const reading = service.assertCanReadResults(
-                    account,
-                    'project',
-                    { ...history(credential), queryUuid: 'composed' },
-                );
+                const reading = readAgentResults(service, account, 'project', {
+                    ...history(credential),
+                    queryUuid: 'composed',
+                    requestParameters: {
+                        sql: 'SELECT 1',
+                        aiSignInCredentialUuid: credential,
+                        resultProducer: agentProducer(),
+                    },
+                });
                 if (credential) {
                     await expect(reading).resolves.toMatchObject({
                         identity: 'connected_person',
@@ -1357,21 +1519,34 @@ describe('AiAccessService', () => {
                     ...history('agent-credential', QueryExecutionContext.AI),
                     queryUuid: 'source',
                     warehouseConnectionUuid: 'extra',
+                    requestParameters: {
+                        aiSignInCredentialUuid: 'agent-credential',
+                        resultProducer: agentProducer(
+                            'agent-credential',
+                            'extra',
+                        ),
+                    },
                 });
                 const root: QueryHistoryWithLineage = {
                     ...history('agent-credential', QueryExecutionContext.AI),
                     queryUuid: 'composed',
+                    requestParameters: {
+                        sql: 'SELECT 1',
+                        aiSignInCredentialUuid: 'agent-credential',
+                        resultProducer: agentProducer(),
+                    },
                     duckdbExecutionReferences: { source: 'source' },
                 };
                 await expect(
-                    service.assertCanReadResults(account, 'project', root),
+                    readAgentResults(service, account, 'project', root),
                 ).resolves.toMatchObject({ identity: 'connected_person' });
 
                 organizationRules.get.mockResolvedValue({
                     source: 'marked_person',
                 });
                 trackRefusal.mockClear();
-                const reading = service.assertCanReadResults(
+                const reading = readAgentResults(
+                    service,
                     account,
                     'project',
                     root,
@@ -1443,7 +1618,8 @@ describe('AiAccessService', () => {
                 organizationRules.get.mockResolvedValue({
                     source: 'marked_person',
                 });
-                const reading = service.assertCanReadResults(
+                const reading = readAgentResults(
+                    service,
                     account,
                     'project',
                     root,
@@ -1507,20 +1683,13 @@ describe('AiAccessService', () => {
                 organizationRules.get.mockResolvedValue({
                     source: 'marked_person',
                 });
-                const reading = service.assertCanReadResults(
-                    account,
-                    'project',
-                    {
-                        ...history(
-                            'agent-credential',
-                            QueryExecutionContext.AI,
-                        ),
-                        queryUuid: 'composed',
-                        duckdbExecutionReferences: {
-                            source: warehouseSource.queryUuid,
-                        },
+                const reading = readAgentResults(service, account, 'project', {
+                    ...history('agent-credential', QueryExecutionContext.AI),
+                    queryUuid: 'composed',
+                    duckdbExecutionReferences: {
+                        source: warehouseSource.queryUuid,
                     },
-                );
+                });
                 if (enabled) {
                     await expect(reading).rejects.toMatchObject({
                         refusal: {
@@ -1557,11 +1726,16 @@ describe('AiAccessService', () => {
                         uuid === 'composed' ? { references } : null,
                 );
                 await expect(
-                    service.assertCanReadResults(account, 'project', {
+                    readAgentResults(service, account, 'project', {
                         ...history(
                             'agent-credential',
                             QueryExecutionContext.AI,
                         ),
+                        requestParameters: {
+                            sql: 'SELECT 1',
+                            aiSignInCredentialUuid: 'agent-credential',
+                            resultProducer: agentProducer(),
+                        },
                         queryUuid: 'composed',
                         duckdbExecutionReferences: projected
                             ? references
@@ -1590,7 +1764,7 @@ describe('AiAccessService', () => {
                 warehouseConnectionUuid: 'extra',
             });
             await expect(
-                service.assertCanReadResults(account, 'project', {
+                readAgentResults(service, account, 'project', {
                     ...history(),
                     queryUuid: 'composed',
                 }),
@@ -1609,7 +1783,8 @@ describe('AiAccessService', () => {
                     snowflake,
                 );
                 await expect(
-                    service.assertCanReadResults(
+                    readAgentResults(
+                        service,
                         account,
                         'project',
                         history(credential),
@@ -1628,7 +1803,8 @@ describe('AiAccessService', () => {
                 snowflake,
             );
             await expect(
-                service.assertCanReadResults(
+                readAgentResults(
+                    service,
                     account,
                     'project',
                     history('agent-credential', QueryExecutionContext.AI),
@@ -1646,7 +1822,8 @@ describe('AiAccessService', () => {
                 snowflake,
             );
             await service.resolvePlan({ ...args, connection: snowflake });
-            await service.assertCanReadResults(
+            await readAgentResults(
+                service,
                 account,
                 'project',
                 history('agent-credential', QueryExecutionContext.AI),
@@ -1660,7 +1837,8 @@ describe('AiAccessService', () => {
                 refusal: { reason: AiAccessRefusalReason.NEEDS_SIGN_IN },
             });
             await expect(
-                service.assertCanReadResults(
+                readAgentResults(
+                    service,
                     account,
                     'project',
                     history('agent-credential', QueryExecutionContext.AI),
@@ -1685,7 +1863,7 @@ describe('AiAccessService', () => {
                     source: 'marked_person',
                 });
                 await expect(
-                    service.assertCanReadResults(account, 'project', history()),
+                    readAgentResults(service, account, 'project', history()),
                 ).resolves.toMatchObject({ identity: 'marked_person' });
                 expect(provider.mint).not.toHaveBeenCalled();
             },
@@ -1695,7 +1873,7 @@ describe('AiAccessService', () => {
             const { service, connections } = setup();
             connections.getCredentials.mockResolvedValue(snowflake);
             await expect(
-                service.assertCanReadResults(account, 'project', {
+                readAgentResults(service, account, 'project', {
                     ...history(),
                     warehouseConnectionUuid: 'extra',
                 }),
@@ -1864,11 +2042,9 @@ describe('AiAccessService', () => {
             ...args,
             isRegisteredUser: false,
             userUuid: 'external-person',
+            agentIdentity: null,
         });
-        expect(plan).toMatchObject({
-            identity: 'marked_person',
-            audit: { personUuid: 'external-person', userUuid: null },
-        });
+        expect(plan).toBeNull();
     });
     test('reports marked identity for non-Snowflake connections', async () => {
         const { service } = setup();
@@ -2086,6 +2262,17 @@ describe('AiAccessService', () => {
                     ...args,
                     connection: snowflake,
                     evaluation: { kind: 'query', surface },
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: args.userUuid },
+                        surface: {
+                            [QuerySurface.MCP]: AgentActorSurface.MCP,
+                            [QuerySurface.SLACK]: AgentActorSurface.SLACK_AGENT,
+                            [QuerySurface.API]: AgentActorSurface.API,
+                            [QuerySurface.CLI]: AgentActorSurface.CLI,
+                            [QuerySurface.APP]: AgentActorSurface.IN_APP_AGENT,
+                        }[surface],
+                        clientId: null,
+                    }),
                 }),
             ).rejects.toMatchObject({
                 refusal: {
@@ -2250,11 +2437,12 @@ describe('AiAccessService', () => {
             );
         },
     );
-    test('ignores non-AI contexts before checking flags', async () => {
+    test('ignores unscoped person queries before checking flags', async () => {
         const { service, flags } = setup();
         expect(
             await service.resolvePlan({
                 ...args,
+                agentIdentity: null,
                 context: QueryExecutionContext.SQL_RUNNER,
             }),
         ).toBeNull();
@@ -2759,6 +2947,12 @@ const actorCases = [
     { actor: 'person', isRegisteredUser: true, isServiceAccount: false },
     {
         actor: 'service_account',
+        serviceAccountUuid: 'service-account',
+        agentIdentity: buildAgentIdentityClaim({
+            subject: { type: 'service_account', uuid: 'service-account' },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+        }),
         isRegisteredUser: false,
         isServiceAccount: true,
     },
@@ -2825,6 +3019,15 @@ describe('per-type execution identity resolution', () => {
                 context,
                 isServiceAccount,
                 isRegisteredUser: !isServiceAccount,
+                serviceAccountUuid: isServiceAccount ? 'service-account' : null,
+                agentIdentity: buildAgentIdentityClaim({
+                    subject: {
+                        type: isServiceAccount ? 'service_account' : 'user',
+                        uuid: isServiceAccount ? 'service-account' : 'user',
+                    },
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                }),
             };
             await expect(service.resolvePlan(request)).rejects.toMatchObject({
                 refusal: {
@@ -3183,6 +3386,17 @@ describe('per-type execution identity resolution', () => {
                     ...args,
                     connection: bigquery,
                     evaluation: { kind: 'query', surface },
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: args.userUuid },
+                        surface:
+                            surface === QuerySurface.MCP
+                                ? AgentActorSurface.MCP
+                                : AgentActorSurface.IN_APP_AGENT,
+                        clientId:
+                            surface === QuerySurface.MCP
+                                ? null
+                                : 'lightdash-chat',
+                    }),
                 }),
             ).rejects.toMatchObject({
                 refusal: {
@@ -3243,6 +3457,10 @@ describe('per-type execution identity resolution', () => {
                 status: QueryHistoryStatus.READY,
                 requestParameters: {
                     aiSignInCredentialUuid: slot.identityUuid,
+                    resultProducer: agentProducer(slot.identityUuid, null, {
+                        uuid: slot.uuid,
+                        sourceProjectUuid: 'project',
+                    }),
                 },
             } as QueryHistory;
             if (composed) {
@@ -3258,7 +3476,7 @@ describe('per-type execution identity resolution', () => {
                 });
             }
             await expect(
-                service.assertCanReadResults(account, 'project', history),
+                readAgentResults(service, account, 'project', history),
             ).resolves.toMatchObject({
                 identity: 'ai_service_account',
                 identityUuid: slot.identityUuid,
@@ -3268,7 +3486,7 @@ describe('per-type execution identity resolution', () => {
                 secrets,
             });
             await expect(
-                service.assertCanReadResults(account, 'project', history),
+                readAgentResults(service, account, 'project', history),
             ).rejects.toMatchObject({
                 refusal: {
                     reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
@@ -3277,7 +3495,7 @@ describe('per-type execution identity resolution', () => {
             expect(analytics.track).not.toHaveBeenCalled();
             slots.getSecrets.mockRejectedValue(new Error('cannot decrypt'));
             await expect(
-                service.assertCanReadResults(account, 'project', history),
+                readAgentResults(service, account, 'project', history),
             ).rejects.toMatchObject({
                 refusal: {
                     reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
@@ -3320,11 +3538,15 @@ describe('slot result composition and identity validation', () => {
             requestParameters: { aiSignInCredentialUuid: 'other-generation' },
         });
         await expect(
-            service.assertCanReadResults(account, 'project', {
+            readAgentResults(service, account, 'project', {
                 queryUuid: 'composed',
                 status: QueryHistoryStatus.READY,
                 requestParameters: {
                     aiSignInCredentialUuid: slot.identityUuid,
+                    resultProducer: agentProducer(slot.identityUuid, null, {
+                        uuid: slot.uuid,
+                        sourceProjectUuid: 'project',
+                    }),
                 },
             } as QueryHistory),
         ).rejects.toMatchObject({
@@ -3466,7 +3688,7 @@ describe('bounded stored result lineage', () => {
                     organizationUuid: 'org',
                     context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
                     status: QueryHistoryStatus.READY,
-                    requestParameters: {},
+                    requestParameters: { resultProducer: agentProducer() },
                 } as QueryHistory,
             ]),
         );
@@ -3577,18 +3799,15 @@ describe('bounded stored result lineage', () => {
                     undefined,
                     QueryExecutionContext.AI,
                 );
-            const result =
-                actor.surface === AgentActorSurface.AI_SUMMARY
-                    ? agentExecutionContext.run(
-                          createAgentExecutionContext({
-                              account: submittingAccount,
-                              ...actor,
-                              agentUuid: null,
-                              agentIdentityEnabled: true,
-                          }),
-                          submit,
-                      )
-                    : submit();
+            const result = agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: submittingAccount,
+                    ...actor,
+                    agentUuid: 'test-agent',
+                    agentIdentityEnabled: true,
+                }),
+                submit,
+            );
             await expect(result).rejects.toMatchObject({
                 refusal: {
                     reason:
@@ -3615,7 +3834,7 @@ describe('bounded stored result lineage', () => {
         },
     );
 
-    test('keeps each source identity separate on a mixed-actor compose and stored read', async () => {
+    test('refuses a mixed-actor lineage instead of adopting the stored actor', async () => {
         const { service, rows, batch } = buildGraph({
             root: ['chat', 'mcp'],
             chat: [],
@@ -3639,46 +3858,17 @@ describe('bounded stored result lineage', () => {
             surface: AgentActorSurface.SLACK_AGENT,
             clientId: 'A123',
         });
-        const plans = await service.assertCanReadResultsForQueries(
-            account,
-            'project',
-            [{ queryHistory: rows.root, agentProducedOnly: false }],
-        );
-        expect(plans.get('root')?.agentIdentity).toEqual(
-            rows.root.agentIdentity,
-        );
-        expect(plans.get('root')?.sourceIdentities).toEqual([
-            { queryUuid: 'chat', agentIdentity: rows.chat.agentIdentity },
-            { queryUuid: 'mcp', agentIdentity: rows.mcp.agentIdentity },
-        ]);
-        expect(plans.get('chat')?.agentIdentity).toEqual(
-            rows.chat.agentIdentity,
-        );
-        expect(plans.get('mcp')?.agentIdentity).toEqual(rows.mcp.agentIdentity);
-        expect(info).toHaveBeenCalledWith(
-            'Agent result lineage',
-            expect.objectContaining({
-                queryUuid: 'root',
-                agentIdentity: rows.root.agentIdentity,
-                sourceIdentities: [
-                    {
-                        queryUuid: 'chat',
-                        agentIdentity: rows.chat.agentIdentity,
-                    },
-                    { queryUuid: 'mcp', agentIdentity: rows.mcp.agentIdentity },
-                ],
-            }),
-        );
-        info.mockRestore();
+        for (const row of Object.values(rows)) {
+            row.requestParameters.resultProducer = {
+                ...agentProducer(),
+                agentIdentity: row.agentIdentity,
+            };
+        }
+        await expect(
+            readAgentResults(service, account, 'project', rows.root),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
         expect(batch).toHaveBeenCalledOnce();
-        expect(
-            (
-                await service.assertCanReadResults(account, 'project', {
-                    ...rows.mcp,
-                    duckdbExecutionReferences: {},
-                })
-            )?.agentIdentity,
-        ).toEqual(rows.mcp.agentIdentity);
+        info.mockRestore();
     });
 
     test.each([
@@ -3722,7 +3912,7 @@ describe('bounded stored result lineage', () => {
                     });
             }
             await expect(
-                f.service.assertCanReadResults(account, 'project', f.rows.root),
+                readAgentResults(f.service, account, 'project', f.rows.root),
             ).rejects.toBeInstanceOf(AiAccessRefusedError);
             expect(f.logger.warn).toHaveBeenCalledWith(
                 'Agent result lineage refused',
@@ -3760,7 +3950,7 @@ describe('bounded stored result lineage', () => {
             const f = buildGraph({ root: ['source'], source: [] });
             f.batch.mockRejectedValue(error);
             await expect(
-                f.service.assertCanReadResults(account, 'project', f.rows.root),
+                readAgentResults(f.service, account, 'project', f.rows.root),
             ).rejects.toBe(error);
             expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
                 'Agent result lineage refused',
@@ -3784,7 +3974,7 @@ describe('bounded stored result lineage', () => {
         );
         f.batch.mockRejectedValue(error);
         await expect(
-            f.service.assertCanReadResults(account, 'project', f.rows.root),
+            readAgentResults(f.service, account, 'project', f.rows.root),
         ).rejects.toBe(error);
         expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
             'Agent result lineage refused',
@@ -3805,7 +3995,7 @@ describe('bounded stored result lineage', () => {
         const error = new ForbiddenError();
         f.batch.mockRejectedValue(error);
         await expect(
-            f.service.assertCanReadResults(account, 'project', f.rows.root),
+            readAgentResults(f.service, account, 'project', f.rows.root),
         ).rejects.toBe(error);
         expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
             'Agent result lineage refused',
@@ -3823,7 +4013,7 @@ describe('bounded stored result lineage', () => {
             const f = buildGraph({ root: [] });
             f.historyModel.getDuckdbExecution.mockRejectedValue(error);
             await expect(
-                f.service.assertCanReadResults(account, 'project', f.rows.root),
+                readAgentResults(f.service, account, 'project', f.rows.root),
             ).rejects.toBe(error);
             expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
                 'Agent result lineage refused',
@@ -3846,7 +4036,7 @@ describe('bounded stored result lineage', () => {
             f.rows.source.warehouseConnectionUuid = 'extra';
             f.connections.getCredentials.mockRejectedValue(error);
             await expect(
-                f.service.assertCanReadResults(account, 'project', f.rows.root),
+                readAgentResults(f.service, account, 'project', f.rows.root),
             ).rejects.toBe(error);
             expect(f.logger.warn).toHaveBeenCalledExactlyOnceWith(
                 'Agent result lineage refused',
@@ -3872,7 +4062,7 @@ describe('bounded stored result lineage', () => {
                     error,
                 );
             await expect(
-                f.service.assertCanReadResults(account, 'project', f.rows.root),
+                readAgentResults(f.service, account, 'project', f.rows.root),
             ).rejects.toBe(error);
             expect(f.logger.warn).not.toHaveBeenCalled();
         },
@@ -3890,7 +4080,7 @@ describe('bounded stored result lineage', () => {
             references: { source: 'source' },
         };
         await expect(
-            service.assertCanReadResults(account, 'project', rows.root),
+            readAgentResults(service, account, 'project', rows.root),
         ).resolves.toBeNull();
         expect(historyModel.get).not.toHaveBeenCalled();
         expect(historyModel.getDuckdbExecution).not.toHaveBeenCalled();
@@ -3945,9 +4135,14 @@ describe('bounded stored result lineage', () => {
                 row.requestParameters = {
                     ...row.requestParameters,
                     aiSignInCredentialUuid: slot.identityUuid,
+                    resultProducer: agentProducer(
+                        slot.identityUuid,
+                        row.warehouseConnectionUuid,
+                        { uuid: slot.uuid, sourceProjectUuid: 'project' },
+                    ),
                 };
             }
-            await service.assertCanReadResults(account, 'project', rows['19']);
+            await readAgentResults(service, account, 'project', rows['19']);
             const rowReads = [
                 ...historyModel.get.mock.calls.map(([uuid]) => uuid),
                 ...batch.mock.calls.flatMap(([uuids]) => uuids),
@@ -4015,7 +4210,8 @@ describe('bounded stored result lineage', () => {
             rows.root.requestParameters = {
                 sql: 'SELECT secret_column FROM private_table',
             };
-            const read = service.assertCanReadResults(
+            const read = readAgentResults(
+                service,
                 account,
                 'project',
                 rows.root,
@@ -4080,7 +4276,7 @@ describe('bounded stored result lineage', () => {
                       };
             const { service, rows } = buildGraph(edges);
             await expect(
-                service.assertCanReadResults(account, 'project', rows.root),
+                readAgentResults(service, account, 'project', rows.root),
             ).resolves.toMatchObject({ identity: 'marked_person' });
         },
     );
@@ -4097,7 +4293,7 @@ describe('bounded stored result lineage', () => {
         };
         const { service, rows } = buildGraph(edges);
         await expect(
-            service.assertCanReadResults(account, 'project', rows.root),
+            readAgentResults(service, account, 'project', rows.root),
         ).rejects.toBeInstanceOf(AiAccessRefusedError);
     });
 
@@ -4112,7 +4308,7 @@ describe('bounded stored result lineage', () => {
             sql: 'SELECT secret_column FROM private_table',
         };
         await expect(
-            service.assertCanReadResults(account, 'project', rows.root),
+            readAgentResults(service, account, 'project', rows.root),
         ).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
@@ -4380,7 +4576,13 @@ describe('current identity transitions', () => {
         queryUuid: 'query',
         status: QueryHistoryStatus.READY,
         context: QueryExecutionContext.AI,
-        requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+        requestParameters: {
+            aiSignInCredentialUuid: slot.identityUuid,
+            resultProducer: agentProducer(slot.identityUuid, null, {
+                uuid: slot.uuid,
+                sourceProjectUuid: 'project',
+            }),
+        },
         duckdbExecutionReferences: null,
     } as QueryHistoryWithLineage;
 
@@ -4401,7 +4603,7 @@ describe('current identity transitions', () => {
         expect(
             getAiExecutionCredentialUuid(await service.resolvePlan(bqArgs)),
         ).toBe(slot.identityUuid);
-        await service.assertCanReadResults(account, 'project', readyResult);
+        await readAgentResults(service, account, 'project', readyResult);
         slots.getSecrets.mockResolvedValue({
             slot: { ...slot, identityUuid: 'new-generation' },
             secrets,
@@ -4410,7 +4612,7 @@ describe('current identity transitions', () => {
             getAiExecutionCredentialUuid(await service.resolvePlan(bqArgs)),
         ).toBe('new-generation');
         await expect(
-            service.assertCanReadResults(account, 'project', readyResult),
+            readAgentResults(service, account, 'project', readyResult),
         ).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
@@ -4430,7 +4632,7 @@ describe('current identity transitions', () => {
             },
         });
         await expect(
-            service.assertCanReadResults(account, 'project', readyResult),
+            readAgentResults(service, account, 'project', readyResult),
         ).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
@@ -4455,7 +4657,7 @@ describe('current identity transitions', () => {
             flags.get.mockResolvedValue({ enabled: false });
             await expect(service.resolvePlan(bqArgs)).resolves.toBeNull();
             await expect(
-                service.assertCanReadResults(account, 'project', readyResult),
+                readAgentResults(service, account, 'project', readyResult),
             ).resolves.toBeNull();
             expect(organizationRules.get).not.toHaveBeenCalled();
             expect(organizationSettings.get).not.toHaveBeenCalled();
@@ -4514,10 +4716,24 @@ describe('retained results after identity rule changes', () => {
                 context: QueryExecutionContext.AI,
                 requestParameters: {
                     aiSignInCredentialUuid: getAiExecutionCredentialUuid(plan),
+                    resultProducer:
+                        selectedConnection.type === WarehouseTypes.SNOWFLAKE
+                            ? agentProducer(getAiExecutionCredentialUuid(plan))
+                            : WarehouseClientFactory.getResultProducer(
+                                  {
+                                      warehouseCredentials: selectedConnection,
+                                      aiPlan: plan,
+                                      warehouseConnectionUuid: null,
+                                  },
+                                  account.user.id,
+                                  agentProducer().agentIdentity,
+                                  null,
+                                  testAuthMethod(agentProducer().agentIdentity),
+                              ),
                 },
                 duckdbExecutionReferences: null,
             } as QueryHistoryWithLineage;
-            await service.assertCanReadResults(account, 'project', source);
+            await readAgentResults(service, account, 'project', source);
             organizationRules.get.mockResolvedValue({
                 source: 'marked_person',
             });
@@ -4539,7 +4755,7 @@ describe('retained results after identity rule changes', () => {
                       },
                   } as QueryHistory)
                 : source;
-            const read = service.assertCanReadResults(account, 'project', root);
+            const read = readAgentResults(service, account, 'project', root);
             if (enabled) {
                 await expect(read).rejects.toMatchObject({
                     refusal: {
@@ -4562,11 +4778,14 @@ describe('retained results after identity rule changes', () => {
                 source: 'marked_person',
             });
             await expect(
-                service.assertCanReadResults(account, 'project', {
+                readAgentResults(service, account, 'project', {
                     queryUuid: 'person-query',
                     status: QueryHistoryStatus.READY,
                     context: QueryExecutionContext.AI,
-                    requestParameters: { aiSignInCredentialUuid: credential },
+                    requestParameters: {
+                        aiSignInCredentialUuid: credential,
+                        resultProducer: agentProducer(credential ?? null),
+                    },
                 } as QueryHistory),
             ).resolves.toMatchObject({ identity: 'marked_person' });
         },
@@ -4790,10 +5009,16 @@ describe('preview AI service account inheritance', () => {
             queryUuid: 'query',
             context: QueryExecutionContext.AI,
             status: QueryHistoryStatus.READY,
-            requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+            requestParameters: {
+                aiSignInCredentialUuid: slot.identityUuid,
+                resultProducer: agentProducer(slot.identityUuid, null, {
+                    uuid: slot.uuid,
+                    sourceProjectUuid: 'parent',
+                }),
+            },
         } as QueryHistory;
         expect(
-            await f.service.assertCanReadResults(account, 'project', history),
+            await readAgentResults(f.service, account, 'project', history),
         ).toMatchObject({
             identityUuid: slot.identityUuid,
             sourceProjectUuid: 'parent',
@@ -4804,7 +5029,7 @@ describe('preview AI service account inheritance', () => {
                 : null,
         );
         await expect(
-            f.service.assertCanReadResults(account, 'project', history),
+            readAgentResults(f.service, account, 'project', history),
         ).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
@@ -5008,7 +5233,11 @@ describe('Snowflake slot provenance and refusals', () => {
                 connection: snowflake,
                 context,
                 evaluation: { kind: 'query', surface },
-                agentActor: { surface: actorSurface, clientId: 'client' },
+                agentIdentity: buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: args.userUuid },
+                    surface: actorSurface,
+                    clientId: 'client',
+                }),
             });
             expect(plan).toMatchObject({
                 identity: 'ai_service_account',
@@ -6171,10 +6400,16 @@ describe('preview ClickHouse AI service account inheritance', () => {
             queryUuid: 'query',
             context: QueryExecutionContext.AI,
             status: QueryHistoryStatus.READY,
-            requestParameters: { aiSignInCredentialUuid: slot.identityUuid },
+            requestParameters: {
+                aiSignInCredentialUuid: slot.identityUuid,
+                resultProducer: agentProducer(slot.identityUuid, null, {
+                    uuid: slot.uuid,
+                    sourceProjectUuid: 'parent',
+                }),
+            },
         } as QueryHistory;
         expect(
-            await f.service.assertCanReadResults(account, 'project', history),
+            await readAgentResults(f.service, account, 'project', history),
         ).toMatchObject({
             identityUuid: slot.identityUuid,
             sourceProjectUuid: 'parent',
@@ -6188,11 +6423,759 @@ describe('preview ClickHouse AI service account inheritance', () => {
                 : null,
         );
         await expect(
-            f.service.assertCanReadResults(account, 'project', history),
+            readAgentResults(f.service, account, 'project', history),
         ).rejects.toMatchObject({
             refusal: {
                 reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
             },
         });
+    });
+});
+
+describe('result producer compatibility', () => {
+    const personOwner: QueryResultProducer['credentialOwner'] = {
+        kind: 'person',
+        identityFingerprint: getWarehouseIdentityFingerprint(connection),
+        userUuid: account.user.id,
+        userWarehouseCredentialsUuid: 'personal-credential',
+    };
+    const owners: QueryResultProducer['credentialOwner'][] = [
+        {
+            kind: 'shared_connection',
+            identityFingerprint: getWarehouseIdentityFingerprint(connection),
+        },
+        personOwner,
+        { ...personOwner, userUuid: 'other-person' },
+        { ...personOwner, userWarehouseCredentialsUuid: 'replacement' },
+        {
+            kind: 'ai_service_account',
+            credentialUuid: 'slot',
+            generation: 'generation',
+            sourceProjectUuid: 'project',
+        },
+        {
+            kind: 'agent_sign_in',
+            userUuid: account.user.id,
+            generation: 'generation',
+        },
+    ];
+    const claim = buildAgentIdentityClaim({
+        subject: { type: 'user', uuid: account.user.id },
+        surface: AgentActorSurface.MCP,
+        clientId: 'client',
+    });
+    const ready = (
+        producer: QueryResultProducer | undefined,
+    ): QueryHistoryWithLineage =>
+        ({
+            queryUuid: 'result',
+            projectUuid: 'project',
+            organizationUuid: 'org',
+            status: QueryHistoryStatus.READY,
+            context: QueryExecutionContext.EXPLORE,
+            warehouseConnectionUuid: null,
+            requestParameters: { resultProducer: producer },
+            duckdbExecutionReferences: null,
+        }) as QueryHistoryWithLineage;
+    const producerFor = (
+        owner: QueryResultProducer['credentialOwner'],
+        agentIdentity: QueryResultProducer['agentIdentity'] = null,
+    ): QueryResultProducer => ({
+        version: 1,
+        warehouseConnectionUuid: null,
+        credentialOwner: owner,
+        authMethod: testAuthMethod(agentIdentity),
+        agentIdentity,
+    });
+    const fixture = (
+        owner: QueryResultProducer['credentialOwner'],
+        enabled = true,
+    ) => {
+        const f = setup(enabled);
+        let plan: AiExecutionPlan = markedPersonPlanMock;
+        if (owner.kind === 'ai_service_account')
+            plan = {
+                ...aiServiceAccountPlanMock,
+                credentialUuid: owner.credentialUuid,
+                identityUuid: owner.generation,
+                sourceProjectUuid: owner.sourceProjectUuid,
+            };
+        else if (owner.kind === 'agent_sign_in')
+            plan = {
+                ...aiExecutionPlanMock,
+                identityUuid: owner.generation,
+                audit: {
+                    ...aiExecutionPlanMock.audit,
+                    personUuid: owner.userUuid,
+                },
+            };
+        const resolvePlan = vi.fn(async () => plan);
+        Object.assign(f.service, { resolveEnabledPlan: resolvePlan });
+        f.resolveWarehouseCredentials.mockResolvedValue({
+            warehouseCredentials: {
+                ...connection,
+                ...(owner.kind === 'person'
+                    ? {
+                          userWarehouseCredentialsUuid:
+                              owner.userWarehouseCredentialsUuid,
+                      }
+                    : {}),
+            },
+            aiPlan: null,
+            warehouseConnectionUuid: null,
+        });
+        return { ...f, resolvePlan };
+    };
+    test.each(
+        [
+            AgentActorSurface.IN_APP_AGENT,
+            AgentActorSurface.SLACK_AGENT,
+            AgentActorSurface.MCP,
+        ].flatMap((surface) =>
+            [
+                'same',
+                'other-agent',
+                'other-surface',
+                'missing-producer-agent',
+                'missing-reader-agent',
+                'legacy-producer',
+            ].map((change) => ({ surface, change })),
+        ),
+    )(
+        'per-agent compatibility for $surface with $change',
+        async ({ surface, change }) => {
+            const f = fixture(owners[0]);
+            const readerClaim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: account.user.id },
+                surface,
+                clientId: 'client',
+                agentUuid: surface === AgentActorSurface.MCP ? null : 'agent',
+            });
+            const storedClaim = structuredClone(readerClaim);
+            if (change === 'other-agent') {
+                if (surface === AgentActorSurface.MCP) {
+                    storedClaim.act.client_id = 'other-client';
+                    storedClaim.act.sub = `${surface}:other-client`;
+                } else storedClaim.act.agent_uuid = 'other-agent';
+            }
+            if (change === 'other-surface')
+                storedClaim.act.surface =
+                    surface === AgentActorSurface.SLACK_AGENT
+                        ? AgentActorSurface.IN_APP_AGENT
+                        : AgentActorSurface.SLACK_AGENT;
+            if (change === 'missing-producer-agent')
+                storedClaim.act.agent_uuid = null;
+            if (change === 'missing-reader-agent')
+                readerClaim.act.agent_uuid = null;
+            if (change === 'legacy-producer')
+                Reflect.deleteProperty(storedClaim.act, 'agent_uuid');
+            const allowed =
+                change === 'same' ||
+                (surface === AgentActorSurface.MCP &&
+                    [
+                        'missing-producer-agent',
+                        'missing-reader-agent',
+                        'legacy-producer',
+                    ].includes(change));
+            const read = f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor(owners[0], storedClaim)),
+                {
+                    reader: {
+                        kind: 'agent',
+                        authMethod: testAuthMethod(readerClaim),
+                        claim: readerClaim,
+                    },
+                },
+            );
+            if (allowed) await expect(read).resolves.not.toBeNull();
+            else
+                await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+    test.each(
+        [
+            AgentActorSurface.IN_APP_AGENT,
+            AgentActorSurface.SLACK_AGENT,
+            AgentActorSurface.MCP,
+        ].flatMap((surface) =>
+            ['flag-off', 'kill-switch'].map((gate) => ({ surface, gate })),
+        ),
+    )(
+        '$gate disables per-agent producer comparison for $surface',
+        async ({ surface, gate }) => {
+            const f = fixture(owners[0], gate !== 'kill-switch');
+            if (gate === 'flag-off')
+                f.flags.get.mockResolvedValue({ enabled: false });
+            const readerClaim = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface,
+                clientId: 'client',
+                agentUuid: 'reader-agent',
+            });
+            const storedClaim = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface,
+                clientId: 'other-client',
+                agentUuid: null,
+            });
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    ready(producerFor(owners[0], storedClaim)),
+                    {
+                        reader: {
+                            kind: 'agent',
+                            authMethod: testAuthMethod(readerClaim),
+                            claim: readerClaim,
+                        },
+                    },
+                ),
+            ).resolves.toBeDefined();
+        },
+    );
+    test.each(
+        [owners[0], personOwner].flatMap((readerOwner) =>
+            owners.flatMap((producerOwner) =>
+                [null, claim].map((agentIdentity) => ({
+                    readerOwner,
+                    producerOwner,
+                    agentIdentity,
+                })),
+            ),
+        ),
+    )(
+        'person $readerOwner.kind reads producer $producerOwner.kind with claim $agentIdentity',
+        async ({ readerOwner, producerOwner, agentIdentity }) => {
+            const f = fixture(readerOwner);
+            const read = f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor(producerOwner, agentIdentity)),
+                {
+                    reader: { kind: 'person', authMethod: 'session' },
+                    agentProducedOnly: true,
+                },
+            );
+            if (readerOwner === producerOwner && agentIdentity === null)
+                await expect(read).resolves.toBeNull();
+            else
+                await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(f.resolvePlan).not.toHaveBeenCalled();
+        },
+    );
+    test.each(
+        [owners[0], personOwner, owners[4], owners[5]].flatMap((owner) =>
+            [
+                'same',
+                'other-client',
+                'other-subject',
+                'missing-claim',
+                'pat-producer',
+                'other-owner',
+                'other-connection',
+                'missing-descriptor',
+                'other-generation',
+                'other-source',
+            ].map((change) => ({ owner, change })),
+        ),
+    )('agent $owner.kind checks $change', async ({ owner, change }) => {
+        const f = fixture(owner);
+        let producer: QueryResultProducer | undefined = producerFor(
+            owner,
+            claim,
+        );
+        if (change === 'other-client')
+            producer.agentIdentity = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface: claim.act.surface,
+                clientId: 'other-client',
+            });
+        if (change === 'other-subject')
+            producer.agentIdentity = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'other' },
+                surface: claim.act.surface,
+                clientId: claim.act.client_id,
+            });
+        if (change === 'missing-claim') producer.agentIdentity = null;
+        if (change === 'pat-producer')
+            producer.agentIdentity = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface: claim.act.surface,
+                clientId: null,
+            });
+        if (change === 'other-owner')
+            producer.credentialOwner =
+                owner.kind === 'shared_connection' ? personOwner : owners[0];
+        if (change === 'other-connection')
+            producer.warehouseConnectionUuid = 'other';
+        if (change === 'missing-descriptor') producer = undefined;
+        if (change === 'other-generation' && producer)
+            producer.credentialOwner =
+                owner.kind === 'ai_service_account' ||
+                owner.kind === 'agent_sign_in'
+                    ? { ...owner, generation: 'replacement' }
+                    : {
+                          ...personOwner,
+                          userWarehouseCredentialsUuid: 'replacement',
+                      };
+        if (change === 'other-source' && producer)
+            producer.credentialOwner =
+                owner.kind === 'ai_service_account'
+                    ? { ...owner, sourceProjectUuid: 'other' }
+                    : { ...personOwner, userUuid: 'other' };
+        const row = ready(producer);
+        if (
+            owner.kind === 'ai_service_account' ||
+            owner.kind === 'agent_sign_in'
+        )
+            row.requestParameters.aiSignInCredentialUuid = owner.generation;
+        const read = f.service.assertCanReadResults(account, 'project', row, {
+            reader: { kind: 'agent', claim, authMethod: testAuthMethod(claim) },
+        });
+        if (change === 'same') await expect(read).resolves.not.toBeNull();
+        else await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+    test.each(
+        [owners[0], personOwner, owners[4], owners[5]].flatMap((owner) =>
+            ['own', 'human', 'oauth-producer', 'oauth-reader'].map(
+                (scenario) => ({ owner, scenario }),
+            ),
+        ),
+    )(
+        'PAT MCP result compatibility with $owner.kind: $scenario',
+        async ({ owner, scenario }) => {
+            const f = fixture(owner);
+            const pat = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            });
+            let producerClaim = pat;
+            if (scenario === 'oauth-producer') producerClaim = claim;
+            const row = ready(
+                producerFor(owner, scenario === 'human' ? null : producerClaim),
+            );
+            if (
+                owner.kind === 'ai_service_account' ||
+                owner.kind === 'agent_sign_in'
+            )
+                row.requestParameters.aiSignInCredentialUuid = owner.generation;
+            const read = f.service.assertCanReadResults(
+                account,
+                'project',
+                row,
+                {
+                    reader: {
+                        kind: 'agent',
+                        authMethod:
+                            scenario === 'oauth-reader' ? 'oauth' : 'pat',
+                        claim: scenario === 'oauth-reader' ? claim : pat,
+                    },
+                },
+            );
+            if (scenario === 'own') await expect(read).resolves.toBeDefined();
+            else
+                await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+    test.each(['derived', 'no_warehouse_data'] as const)(
+        'PAT MCP reads its own %s root and refuses an OAuth root',
+        async (kind) => {
+            const f = fixture(owners[0]);
+            const pat = buildAgentIdentityClaim({
+                subject: claim.subject,
+                surface: AgentActorSurface.MCP,
+                clientId: null,
+            });
+            const row = ready(producerFor({ kind }, pat));
+            if (kind === 'derived') {
+                row.duckdbExecutionReferences = { source: 'source' };
+                f.historyModel.get.mockResolvedValue({
+                    ...ready(producerFor(owners[0], pat)),
+                    queryUuid: 'source',
+                });
+            }
+            const options = {
+                reader: {
+                    kind: 'agent' as const,
+                    authMethod: 'pat' as const,
+                    claim: pat,
+                },
+                authorizeNode: vi.fn(async () => undefined),
+            };
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    row,
+                    options,
+                ),
+            ).resolves.toBeDefined();
+            expect(options.authorizeNode).toHaveBeenCalledTimes(
+                kind === 'derived' ? 2 : 1,
+            );
+            row.requestParameters.resultProducer!.agentIdentity = claim;
+            await expect(
+                f.service.assertCanReadResults(
+                    account,
+                    'project',
+                    row,
+                    options,
+                ),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+    test.each([false, true])(
+        'kill switch keeps legacy AI generation protection for person readers, derived=%s',
+        async (derived) => {
+            const f = fixture(owners[4], false);
+            const row = ready(undefined);
+            row.context = QueryExecutionContext.AI;
+            row.requestParameters.aiSignInCredentialUuid = 'old-generation';
+            if (derived) row.duckdbExecutionReferences = {};
+            const authorizeNode = vi.fn(async () => undefined);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', row, {
+                    reader: { kind: 'person', authMethod: 'session' },
+                    authorizeNode,
+                    agentProducedOnly: true,
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(f.resolvePlan).toHaveBeenCalledOnce();
+            expect(authorizeNode).toHaveBeenCalledOnce();
+        },
+    );
+
+    test.each(['person', 'agent'] as const)(
+        'kill switch disables producer comparisons for a %s but still authorizes the node',
+        async (kind) => {
+            const f = fixture(owners[0], false);
+            const row = ready(producerFor(personOwner));
+            const authorizeNode = vi.fn(async () => undefined);
+            await f.service.assertCanReadResults(account, 'project', row, {
+                reader:
+                    kind === 'person'
+                        ? { kind, authMethod: 'session' }
+                        : { kind, claim, authMethod: testAuthMethod(claim) },
+                authorizeNode,
+            });
+            expect(authorizeNode).toHaveBeenCalledWith(row);
+            expect(f.resolveWarehouseCredentials).not.toHaveBeenCalled();
+        },
+    );
+
+    test.each(['shared_connection', 'person'] as const)(
+        'an in-place warehouse identity replacement invalidates %s results',
+        async (kind) => {
+            const owner = kind === 'person' ? personOwner : owners[0];
+            const f = fixture(owner);
+            const credentials = {
+                ...connection,
+                userWarehouseCredentialsUuid:
+                    kind === 'person' ? 'personal-credential' : undefined,
+            };
+            f.resolveWarehouseCredentials.mockResolvedValue({
+                warehouseCredentials: credentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+            });
+            const row = ready(producerFor(owner));
+            await expect(
+                f.service.assertCanReadResults(account, 'project', row, {
+                    reader: { kind: 'person', authMethod: 'session' },
+                }),
+            ).resolves.toBeNull();
+            credentials.user = 'restricted-user';
+            await expect(
+                f.service.assertCanReadResults(account, 'project', row, {
+                    reader: { kind: 'person', authMethod: 'session' },
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(
+                row.requestParameters.resultProducer!.warehouseConnectionUuid,
+            ).toBeNull();
+            if (owner.kind === 'person')
+                expect(owner.userWarehouseCredentialsUuid).toBe(
+                    credentials.userWarehouseCredentialsUuid,
+                );
+        },
+    );
+
+    test.each(['shared_connection', 'person'] as const)(
+        'opaque %s results survive token refresh but refuse an in-place edit',
+        async (kind) => {
+            const f = fixture(kind === 'person' ? personOwner : owners[0]);
+            let credentials = {
+                ...withNewWarehouseCredentialVersion({
+                    type: WarehouseTypes.DATABRICKS,
+                    serverHostName: 'warehouse',
+                    httpPath: 'path',
+                    database: 'db',
+                    personalAccessToken: 'private-token',
+                    token: 'access-token',
+                    refreshToken: 'refresh-token',
+                } as CreateWarehouseCredentials),
+                userWarehouseCredentialsUuid:
+                    kind === 'person' ? 'personal-credential' : undefined,
+            };
+            const resolved = () => ({
+                warehouseCredentials: credentials,
+                aiPlan: null,
+                warehouseConnectionUuid: null,
+            });
+            f.resolveWarehouseCredentials.mockImplementation(async () =>
+                resolved(),
+            );
+            const row = ready(
+                WarehouseClientFactory.getResultProducer(
+                    resolved(),
+                    account.user.id,
+                    null,
+                    'entitlement',
+                    testAuthMethod(null),
+                ),
+            );
+            const read = () =>
+                f.service.assertCanReadResults(account, 'project', row, {
+                    reader: { kind: 'person', authMethod: 'session' },
+                });
+            await expect(read()).resolves.toBeNull();
+            credentials = {
+                ...credentials,
+                ...{ token: 'new-access', refreshToken: 'new-refresh' },
+            };
+            await expect(read()).resolves.toBeNull();
+            credentials = withNewWarehouseCredentialVersion(credentials);
+            await expect(read()).rejects.toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+
+    test.each(['derived', 'no_warehouse_data'] as const)(
+        '%s roots require their own agent claim even when all leaves match',
+        async (kind) => {
+            const f = fixture(owners[0]);
+            const root = ready(producerFor({ kind }));
+            if (kind === 'derived') {
+                root.duckdbExecutionReferences = { leaf: 'leaf' };
+                f.historyModel.get.mockResolvedValue({
+                    ...ready(producerFor(owners[0], claim)),
+                    queryUuid: 'leaf',
+                });
+            }
+            await [
+                null,
+                { ...claim, act: { ...claim.act, client_id: 'other-client' } },
+            ].reduce(async (previous, rootClaim) => {
+                await previous;
+                root.requestParameters.resultProducer!.agentIdentity =
+                    rootClaim;
+                await expect(
+                    f.service.assertCanReadResults(account, 'project', root, {
+                        reader: {
+                            kind: 'agent',
+                            claim,
+                            authMethod: testAuthMethod(claim),
+                        },
+                    }),
+                ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            }, Promise.resolve());
+            root.requestParameters.resultProducer!.agentIdentity = claim;
+            root.requestParameters.resultProducer!.authMethod =
+                testAuthMethod(claim);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', root, {
+                    reader: {
+                        kind: 'agent',
+                        claim,
+                        authMethod: testAuthMethod(claim),
+                    },
+                }),
+            ).resolves.toBeNull();
+        },
+    );
+
+    test.each([true, false])(
+        'entitlement comparison remains active with producer checks=%s',
+        async (checks) => {
+            const f = fixture(owners[0]);
+            Object.assign(f.service, {
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    ai: {
+                        ...lightdashConfigMock.ai,
+                        agentResultIdentityCheckEnabled: checks,
+                    },
+                },
+            });
+            const row = ready({
+                ...producerFor({ kind: 'no_warehouse_data' }),
+                entitlementFingerprint: 'before',
+            });
+            const authorizeNode = vi.fn(async () => undefined);
+            await expect(
+                f.service.assertCanReadResults(account, 'project', row, {
+                    reader: { kind: 'person', authMethod: 'session' },
+                    authorizeNode,
+                    entitlementFingerprint: async () => 'after',
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(authorizeNode).toHaveBeenCalledOnce();
+        },
+    );
+
+    test('a derived descriptor without sources fails closed', async () => {
+        const f = fixture(owners[0]);
+        await expect(
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(producerFor({ kind: 'derived' })),
+                { reader: { kind: 'person', authMethod: 'session' } },
+            ),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
+    });
+
+    test('kill switch keeps a refused AI plan refused for a person reader', async () => {
+        const f = fixture(owners[4], false);
+        f.resolvePlan.mockRejectedValue(
+            new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+            ),
+        );
+        const row = ready(undefined);
+        row.requestParameters.aiSignInCredentialUuid = 'generation';
+        await expect(
+            f.service.assertCanReadResults(account, 'project', row, {
+                reader: { kind: 'person', authMethod: 'session' },
+                agentProducedOnly: true,
+            }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+            },
+        });
+    });
+
+    test.each(['shared_connection', 'person'] as const)(
+        'derived results check every source owner: %s',
+        async (kind) => {
+            const f = fixture(owners[0]);
+            const root = ready(producerFor({ kind: 'derived' }));
+            root.warehouseConnectionUuid = 'unrelated-connection';
+            root.duckdbExecutionReferences = {
+                first: 'first',
+                second: 'second',
+            };
+            f.historyModel.get.mockImplementation(async (uuid: string) => ({
+                ...ready(
+                    producerFor(
+                        uuid === 'first' || kind === 'shared_connection'
+                            ? owners[0]
+                            : personOwner,
+                    ),
+                ),
+                queryUuid: uuid,
+            }));
+            const authorizeNode = vi.fn(async () => undefined);
+            const read = f.service.assertCanReadResults(
+                account,
+                'project',
+                root,
+                {
+                    reader: { kind: 'person', authMethod: 'session' },
+                    authorizeNode,
+                },
+            );
+            if (kind === 'shared_connection')
+                await expect(read).resolves.toBeNull();
+            else
+                await expect(read).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(authorizeNode).toHaveBeenCalledTimes(3);
+        },
+    );
+
+    test('static results need current access without resolving warehouse credentials', async () => {
+        const f = fixture(owners[0]);
+        const row = ready(producerFor({ kind: 'no_warehouse_data' }));
+        const authorizeNode = vi.fn(async () => undefined);
+        await expect(
+            f.service.assertCanReadResults(account, 'project', row, {
+                reader: { kind: 'person', authMethod: 'session' },
+                authorizeNode,
+            }),
+        ).resolves.toBeNull();
+        expect(authorizeNode).toHaveBeenCalledOnce();
+        expect(f.resolveWarehouseCredentials).not.toHaveBeenCalled();
+        expect(f.resolvePlan).not.toHaveBeenCalled();
+    });
+
+    test('caller-declared MCP context does not establish an agent reader', () => {
+        expect(
+            buildResultReader(
+                account,
+                QueryExecutionContext.MCP_RUN_SQL,
+                QuerySurface.MCP,
+            ),
+        ).toEqual({ kind: 'person', authMethod: 'session' });
+    });
+    test.each([true, false])(
+        'missing provenance with rollout enabled=%s',
+        async (enabled) => {
+            const f = fixture(owners[0]);
+            f.flags.get.mockResolvedValue({ enabled });
+            const read = f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(undefined),
+                { agentProducedOnly: true },
+            );
+            if (enabled)
+                await expect(read).rejects.toMatchObject({
+                    refusal: {
+                        reason: AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED,
+                        message: expect.stringContaining('Run the query again'),
+                    },
+                });
+            else await expect(read).resolves.toBeNull();
+        },
+    );
+    test('the kill switch bypasses comparisons but cannot bypass access', async () => {
+        const f = fixture(owners[0], false);
+        await expect(
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(undefined),
+            ),
+        ).resolves.toBeNull();
+        const authorizeNode = vi.fn(async () => {
+            throw new ForbiddenError();
+        });
+        await expect(
+            f.service.assertCanReadResults(
+                account,
+                'project',
+                ready(undefined),
+                { authorizeNode },
+            ),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(authorizeNode).toHaveBeenCalledOnce();
+    });
+    test('checks person provenance on every ancestor despite agentProducedOnly', async () => {
+        const f = fixture(owners[0]);
+        const root = ready(producerFor(owners[0]));
+        root.duckdbExecutionReferences = { source: 'ancestor' };
+        f.historyModel.get.mockResolvedValue({
+            ...ready(producerFor(personOwner)),
+            queryUuid: 'ancestor',
+        });
+        await expect(
+            f.service.assertCanReadResults(account, 'project', root, {
+                agentProducedOnly: true,
+            }),
+        ).rejects.toBeInstanceOf(AiAccessRefusedError);
     });
 });

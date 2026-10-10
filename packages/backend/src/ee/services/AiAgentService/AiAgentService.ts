@@ -76,6 +76,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
+    buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
     ConflictError,
@@ -193,11 +194,14 @@ import {
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
+    type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
     type DataAppVizChart,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
+    type QueryResultReader,
+    type RegisteredAccount,
     type SessionUser,
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
@@ -299,9 +303,8 @@ import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
+    buildResultReader,
     createAgentExecutionContext,
-    resolveQueryAgentActor,
-    type QueryAgentActor,
 } from '../../../services/AiAccessService/agentExecutionContext';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
@@ -1911,7 +1914,10 @@ export class AiAgentService extends BaseService {
     private async prepareSlackArtifactImageDelivery(
         promptUuid: string,
         signal?: AbortSignal,
-    ): Promise<SlackArtifactDeliveryRuntime | null> {
+    ): Promise<
+        | (SlackArtifactDeliveryRuntime & { resultReader: QueryResultReader })
+        | null
+    > {
         const prompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (
             !prompt ||
@@ -1958,11 +1964,22 @@ export class AiAgentService extends BaseService {
         const botUserId = installation?.bot?.userId;
         const botId = installation?.bot?.id;
         if (!botUserId) return null;
+        const resultReader: QueryResultReader = {
+            kind: 'agent',
+            authMethod: 'session',
+            claim: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: user.userUuid },
+                surface: AgentActorSurface.SLACK_AGENT,
+                clientId: installation?.appId ?? null,
+                agentUuid: agent.uuid,
+            }),
+        };
         const client = await this.slackClient.getWebClient(
             prompt.organizationUuid,
         );
         const artifacts = new Map<string, AiArtifact>();
         return {
+            resultReader,
             findMessage: async (messageTs, versions) => {
                 const wanted = new Set(versions);
                 let cursor: string | undefined;
@@ -2048,6 +2065,7 @@ export class AiAgentService extends BaseService {
                 );
                 await this.asyncQueryService.getAsyncQueryHistory({
                     account: fromSession(user),
+                    reader: resultReader,
                     projectUuid: prompt.projectUuid,
                     queryUuid: input.queryUuid,
                 });
@@ -2075,6 +2093,7 @@ export class AiAgentService extends BaseService {
                 const queryResults =
                     await this.asyncQueryService.getRawAsyncQueryResults({
                         account: fromSession(user),
+                        reader: resultReader,
                         projectUuid: prompt.projectUuid,
                         queryUuid: input.queryUuid,
                         aiAccessOnly: true,
@@ -3016,7 +3035,11 @@ export class AiAgentService extends BaseService {
         // ground empty-state chips in the indexed warehouse schema instead.
         const warehouseTables =
             explores.length === 0 && canRunSql
-                ? await this.getSuggestionWarehouseTables(user, projectUuid)
+                ? await this.getSuggestionWarehouseTables(
+                      user,
+                      projectUuid,
+                      agent.uuid,
+                  )
                 : [];
 
         const verifiedQuestionsData =
@@ -3295,13 +3318,29 @@ export class AiAgentService extends BaseService {
     private async getSuggestionWarehouseTables(
         user: SessionUser,
         projectUuid: string,
+        agentUuid: string,
     ): Promise<string[]> {
         try {
-            const catalog = await this.projectService.getWarehouseTables(
-                user,
-                projectUuid,
-                QueryExecutionContext.AI,
-                QuerySurface.APP,
+            const { enabled: agentIdentityEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+            const catalog = await agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account: fromSession(user),
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+                    agentUuid,
+                    agentIdentityEnabled,
+                }),
+                () =>
+                    this.projectService.getWarehouseTables(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.AI,
+                        QuerySurface.APP,
+                    ),
             );
             const tables: string[] = [];
             for (const [database, schemas] of Object.entries(catalog)) {
@@ -3617,22 +3656,6 @@ export class AiAgentService extends BaseService {
         return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
     }
 
-    private async getArtifactQueryActor(
-        promptUuid: string | null,
-        agentUuid: string,
-    ) {
-        const querySurface = await this.getArtifactQuerySurface(promptUuid);
-        const actor = resolveQueryAgentActor({
-            context: QueryExecutionContext.AI,
-            querySurface,
-            oauthClientId: null,
-        });
-        return {
-            querySurface,
-            agentActor: actor ? { ...actor, agentUuid } : null,
-        };
-    }
-
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
@@ -3640,7 +3663,6 @@ export class AiAgentService extends BaseService {
         vizConfig: AiAgentVizConfig['config'],
         parameters: ParametersValuesMap | null,
         querySurface: QuerySurface,
-        agentActor: QueryAgentActor | null,
         // Set for custom chart type answers (built from the artifact
         // envelope): pivot derivation follows the type's schema instead of
         // the builtin groupBy path.
@@ -3712,7 +3734,6 @@ export class AiAgentService extends BaseService {
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
                 querySurface,
-                agentActor,
                 pivotConfiguration,
                 parameters: parameters ?? undefined,
                 userAttributeOverrides,
@@ -3756,7 +3777,6 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         toolArgs: ToolRunQueryArgsTransformed,
         querySurface: QuerySurface,
-        agentActor: QueryAgentActor | null,
         userAttributeOverrides?: UserAttributeValueMap,
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
@@ -3770,7 +3790,6 @@ export class AiAgentService extends BaseService {
             mergeQuery,
             context: QueryExecutionContext.AI,
             querySurface,
-            agentActor,
             parameters: toolArgs.queryConfig.parameters ?? undefined,
             mode: { type: 'interactive' },
             userAttributeOverrides,
@@ -9144,7 +9163,307 @@ export class AiAgentService extends BaseService {
         return readinessScore;
     }
 
+    private async getCachedSlackArtifactExecution(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            artifact,
+            queryUuid,
+            runtimeOptions,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            artifact: AiArtifact;
+            queryUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
+        account: RegisteredAccount = fromSession(user),
+    ) {
+        if (!artifact.promptUuid)
+            throw new ForbiddenError(
+                'Cached artifact execution is unavailable',
+            );
+        const delivery = await this.aiAgentModel.slackArtifactDeliveries.get(
+            artifact.promptUuid,
+        );
+        const input = delivery?.render_inputs[versionUuid];
+        const prompt = await this.aiAgentModel.findSlackPrompt(
+            artifact.promptUuid,
+        );
+        if (
+            runtimeOptions ||
+            !delivery ||
+            delivery.finished_at ||
+            !input ||
+            input.queryUuid !== queryUuid ||
+            input.artifactUuid !== artifactUuid ||
+            input.versionUuid !== versionUuid ||
+            artifact.chartConfig?.source !== 'customChartType' ||
+            prompt?.createdByUserUuid !== user.userUuid ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.projectUuid !== projectUuid ||
+            prompt.agentUuid !== agentUuid ||
+            prompt.threadUuid !== artifact.threadUuid
+        ) {
+            throw new ForbiddenError(
+                'Cached artifact execution is unavailable',
+            );
+        }
+        const runtime = await this.prepareSlackArtifactImageDelivery(
+            artifact.promptUuid,
+        );
+        if (!runtime)
+            throw new ForbiddenError('Slack image delivery is unavailable');
+        await runtime.authorize(input);
+        const reader = {
+            ...runtime.resultReader,
+            authMethod: account.authentication.type,
+        };
+        const history = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        if (
+            history.status !== QueryHistoryStatus.READY ||
+            !history.resultsFileName ||
+            history.totalRowCount !== input.rowLimit ||
+            (history.resultsExpiresAt && history.resultsExpiresAt <= new Date())
+        ) {
+            throw new NotFoundError('Original chart results are unavailable');
+        }
+        return { history, reader };
+    }
+
+    private async getArtifactOwnerResultReader(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        artifact: AiArtifact,
+        authMethod: QueryResultReader['authMethod'],
+    ): Promise<QueryResultReader> {
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid: user.organizationUuid!,
+            agentUuid,
+            threadUuid: artifact.threadUuid,
+        });
+        if (thread.user.uuid !== user.userUuid || !artifact.promptUuid)
+            return { kind: 'person', authMethod };
+        const prompt =
+            (await this.aiAgentModel.findSlackPrompt(artifact.promptUuid)) ??
+            (await this.aiAgentModel.findWebAppPrompt(artifact.promptUuid));
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        if (
+            prompt?.createdByUserUuid !== user.userUuid ||
+            prompt.agentUuid !== agent.uuid ||
+            prompt.projectUuid !== projectUuid ||
+            prompt.organizationUuid !== user.organizationUuid ||
+            prompt.threadUuid !== artifact.threadUuid ||
+            !agent.enableDataAccess
+        )
+            throw new ForbiddenError('Artifact results are unavailable');
+        const surface =
+            querySurfaceFromPrompt(prompt) === QuerySurface.SLACK
+                ? AgentActorSurface.SLACK_AGENT
+                : AgentActorSurface.IN_APP_AGENT;
+        const installation =
+            surface === AgentActorSurface.SLACK_AGENT
+                ? await this.slackAuthenticationModel.getRawInstallationFromOrganizationUuid(
+                      user.organizationUuid!,
+                  )
+                : null;
+        return {
+            kind: 'agent',
+            authMethod,
+            claim: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: user.userUuid },
+                surface,
+                clientId:
+                    surface === AgentActorSurface.SLACK_AGENT
+                        ? (installation?.appId ?? null)
+                        : AGENT_CLIENT_IDS[AgentActorSurface.IN_APP_AGENT],
+                agentUuid: agent.uuid,
+            }),
+        };
+    }
+
+    async getArtifactQueryResults(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            queryUuid,
+            cached,
+            page,
+            pageSize,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            queryUuid: string;
+            cached: boolean;
+            page: number | null;
+            pageSize: number | null;
+        },
+        account: RegisteredAccount = fromSession(user),
+    ): Promise<ApiGetAsyncQueryResults> {
+        if (!(await this.getIsCopilotEnabled(user)))
+            throw new ForbiddenError('Copilot is not enabled');
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        let reader: QueryResultReader = {
+            kind: 'person',
+            authMethod: account.authentication.type,
+        };
+        if (cached) {
+            ({ reader } = await this.getCachedSlackArtifactExecution(
+                user,
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    artifact,
+                    queryUuid,
+                    runtimeOptions: null,
+                },
+                account,
+            ));
+        } else {
+            if (artifact.chartConfig?.source === 'composer') {
+                const config = artifact.chartConfig;
+                if (
+                    queryUuid !== config.lastQueryUuid &&
+                    !Object.values(config.nodeResults ?? {}).some(
+                        (result) => result.queryUuid === queryUuid,
+                    )
+                )
+                    throw new ForbiddenError(
+                        'Artifact results are unavailable',
+                    );
+            }
+            if (enabled)
+                reader = await this.getArtifactOwnerResultReader(
+                    user,
+                    projectUuid,
+                    agentUuid,
+                    artifact,
+                    account.authentication.type,
+                );
+        }
+        const args = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        if (!cached && artifact.chartConfig?.source !== 'composer' && enabled)
+            return this.asyncQueryService.getArtifactBoundQueryResults(args, {
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+            });
+        return this.asyncQueryService.getAsyncQueryResults(args);
+    }
+
+    private async executeArtifactQueryAsOwner<
+        T extends { query: { queryUuid: string } },
+    >(
+        user: SessionUser,
+        options: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+        },
+        execute: () => Promise<T>,
+    ): Promise<T> {
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled) return execute();
+        const { projectUuid, agentUuid, artifactUuid, versionUuid } = options;
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        const account = fromSession(user);
+        const reader = await this.getArtifactOwnerResultReader(
+            user,
+            projectUuid,
+            agentUuid,
+            artifact,
+            account.authentication.type,
+        );
+        const result =
+            reader.kind === 'agent'
+                ? await agentExecutionContext.run(
+                      createAgentExecutionContext({
+                          account,
+                          surface: reader.claim.act.surface,
+                          clientId: reader.claim.act.client_id,
+                          agentUuid: reader.claim.act.agent_uuid ?? null,
+                          agentIdentityEnabled: true,
+                      }),
+                      execute,
+                  )
+                : await execute();
+        await this.asyncQueryService.bindQueryToArtifact(
+            account,
+            projectUuid,
+            result.query.queryUuid,
+            {
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+            },
+        );
+        return result;
+    }
+
     async getArtifactVizQuery(
+        user: SessionUser,
+        options: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            cachedQueryUuid?: string;
+        },
+    ): Promise<ApiAiAgentArtifactVizQuery> {
+        if (options.cachedQueryUuid !== undefined || options.runtimeOptions)
+            return this.executeArtifactVizQuery(user, options);
+        return this.executeArtifactQueryAsOwner(user, options, () =>
+            this.executeArtifactVizQuery(user, options),
+        );
+    }
+
+    private async executeArtifactVizQuery(
         user: SessionUser,
         {
             projectUuid,
@@ -9204,56 +9523,18 @@ export class AiAgentService extends BaseService {
         }
 
         if (cachedQueryUuid !== undefined) {
-            // Headless Slack delivery is the only cached-view path. A caller
-            // cannot substitute another execution or use this for embed views.
-            if (!artifact.promptUuid)
-                throw new ForbiddenError(
-                    'Cached artifact execution is unavailable',
-                );
-            const delivery =
-                await this.aiAgentModel.slackArtifactDeliveries.get(
-                    artifact.promptUuid,
-                );
-            const input = delivery?.render_inputs[versionUuid];
-            const prompt = await this.aiAgentModel.findSlackPrompt(
-                artifact.promptUuid,
+            const { history } = await this.getCachedSlackArtifactExecution(
+                user,
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    artifact,
+                    queryUuid: cachedQueryUuid,
+                    runtimeOptions: runtimeOptions ?? null,
+                },
             );
-            if (
-                runtimeOptions ||
-                !delivery ||
-                delivery.finished_at ||
-                !input ||
-                input.queryUuid !== cachedQueryUuid ||
-                input.artifactUuid !== artifactUuid ||
-                artifact.chartConfig.source !== 'customChartType' ||
-                prompt?.createdByUserUuid !== user.userUuid
-            ) {
-                throw new ForbiddenError(
-                    'Cached artifact execution is unavailable',
-                );
-            }
-            const runtime = await this.prepareSlackArtifactImageDelivery(
-                artifact.promptUuid,
-            );
-            if (!runtime)
-                throw new ForbiddenError('Slack image delivery is unavailable');
-            await runtime.authorize(input);
-            const history = await this.asyncQueryService.getAsyncQueryHistory({
-                account: fromSession(user),
-                projectUuid,
-                queryUuid: cachedQueryUuid,
-            });
-            if (
-                history.status !== QueryHistoryStatus.READY ||
-                !history.resultsFileName ||
-                history.totalRowCount !== input.rowLimit ||
-                (history.resultsExpiresAt &&
-                    history.resultsExpiresAt <= new Date())
-            ) {
-                throw new NotFoundError(
-                    'Original chart results are unavailable',
-                );
-            }
             return {
                 source: 'semantic',
                 type: AiResultType.QUERY_RESULT,
@@ -9292,18 +9573,11 @@ export class AiAgentService extends BaseService {
             if (!parsed?.mergeConfig) {
                 throw new ParameterError('Invalid merge visualization config');
             }
-            const { querySurface, agentActor } =
-                await this.getArtifactQueryActor(
-                    artifact.promptUuid,
-                    agent.uuid,
-                );
-
             const { query, mergeQuery } = await this.executeAsyncAiMergeQuery(
                 user,
                 projectUuid,
                 parsed,
-                querySurface,
-                agentActor,
+                await this.getArtifactQuerySurface(artifact.promptUuid),
                 runtimeOptions?.userAttributeOverrides,
             );
             this.analytics.track({
@@ -9352,20 +9626,15 @@ export class AiAgentService extends BaseService {
             }
 
             // Re-executes as the viewer — same trust model as viewing a saved SQL chart.
-            const { querySurface, agentActor } =
-                await this.getArtifactQueryActor(
-                    artifact.promptUuid,
-                    agent.uuid,
-                );
-
             const query = await this.asyncQueryService.executeAsyncSqlQuery({
                 account: fromSession(user),
                 projectUuid,
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
                 context: QueryExecutionContext.AI,
-                querySurface,
-                agentActor,
+                querySurface: await this.getArtifactQuerySurface(
+                    artifact.promptUuid,
+                ),
             });
 
             this.analytics.track({
@@ -9417,19 +9686,13 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('Could not generate a visualization');
         }
 
-        const { querySurface, agentActor } = await this.getArtifactQueryActor(
-            artifact.promptUuid,
-            agent.uuid,
-        );
-
         const query = await this.executeAsyncAiMetricQuery(
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
             artifactChartConfig.config,
             parsedVizConfig.parameters,
-            querySurface,
-            agentActor,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             customChartType,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -9470,6 +9733,23 @@ export class AiAgentService extends BaseService {
     }
 
     async getDashboardArtifactChartVizQuery(
+        user: SessionUser,
+        options: {
+            projectUuid: string;
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+            chartIndex: number;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
+        },
+    ): Promise<ApiAiAgentThreadMessageVizQuery> {
+        const execute = () =>
+            this.executeDashboardArtifactChartVizQuery(user, options);
+        if (options.runtimeOptions) return execute();
+        return this.executeArtifactQueryAsOwner(user, options, execute);
+    }
+
+    private async executeDashboardArtifactChartVizQuery(
         user: SessionUser,
         {
             projectUuid,
@@ -9564,18 +9844,13 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const { querySurface, agentActor } = await this.getArtifactQueryActor(
-            artifact.promptUuid,
-            agent.uuid,
-        );
         const query = await this.executeAsyncAiMetricQuery(
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
             parsedVizConfig.parameters,
-            querySurface,
-            agentActor,
+            await this.getArtifactQuerySurface(artifact.promptUuid),
             undefined,
             runtimeOptions?.userAttributeOverrides,
         );
@@ -13486,7 +13761,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const search = (term: string, limit: number) =>
             this.projectService
                 .searchFieldUniqueValues(
-                    user,
+                    fromSession(user),
                     projectUuid,
                     exploreName,
                     fieldId,
@@ -14061,6 +14336,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const results =
                     await this.asyncQueryService.getAsyncQueryResults({
                         account: fromSession(user),
+                        reader: buildResultReader(
+                            fromSession(user),
+                            QueryExecutionContext.AI,
+                        ),
                         projectUuid: prompt.projectUuid,
                         queryUuid: vizQuery.query.queryUuid,
                         aiAccessOnly: true,
@@ -16928,6 +17207,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
                   )
                 : undefined;
         const selection = parseSlackVisualizationSelection(response);
+        const slackResultReader: QueryResultReader = {
+            kind: 'agent',
+            authMethod: 'session',
+            claim: buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: user.userUuid },
+                surface: AgentActorSurface.SLACK_AGENT,
+                clientId: slackSettings?.appId ?? null,
+                agentUuid: agent?.uuid ?? null,
+            }),
+        };
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -16941,6 +17230,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 const history =
                     await this.asyncQueryService.getAsyncQueryHistory({
                         account: fromSession(user),
+                        reader: slackResultReader,
                         projectUuid: slackPrompt.projectUuid,
                         queryUuid,
                     });
@@ -16967,6 +17257,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             getResults: ({ queryUuid, maxRows }) =>
                 this.asyncQueryService.getRawAsyncQueryResults({
                     account: fromSession(user),
+                    reader: slackResultReader,
                     projectUuid: slackPrompt.projectUuid,
                     queryUuid,
                     aiAccessOnly: true,

@@ -34,6 +34,7 @@ import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
@@ -138,6 +139,8 @@ const AiArtifactPanelContent: FC<
         );
         const { user } = useApp();
         const isEmbed = useIsEmbedded();
+        const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+        const identityEnabled = identityFlag.data?.enabled === true;
         const canManageAgent = useAiAgentPermission({
             action: 'manage',
             projectUuid: artifact.projectUuid,
@@ -191,7 +194,21 @@ const AiArtifactPanelContent: FC<
 
         const queryResults = useInfiniteQueryResults(
             artifact.projectUuid,
-            queryUuid,
+            isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+            undefined,
+            identityEnabled &&
+                !isEmbed &&
+                queryUuid &&
+                artifactData?.artifactType === 'chart'
+                ? getAiAgentArtifactResultsUrl({
+                      projectUuid: artifact.projectUuid,
+                      agentUuid: artifact.agentUuid,
+                      artifactUuid: artifact.artifactUuid,
+                      versionUuid: artifact.versionUuid,
+                      queryUuid,
+                      cached: false,
+                  })
+                : null,
         );
 
         const compiledSqlQuery = useAiArtifactCompiledSql({

@@ -1036,6 +1036,8 @@ export class ServiceRepository
             () =>
                 new AiAccessService({
                     agentActionLogModel: this.models.getAgentActionLogModel(),
+                    getWarehouseClientFactory: () =>
+                        this.getProjectService().warehouseClientFactory,
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,

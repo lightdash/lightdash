@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type QueryResultProducer } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -9,6 +9,7 @@ import type {
     ICacheService,
 } from '../../services/CacheService/ICacheService';
 import { type CacheHitCacheResult } from '../../services/CacheService/types';
+import { isSameResultProducer } from '../../utils/queryResultProducer';
 
 type CacheServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -61,6 +62,8 @@ export class CommercialCacheService implements ICacheService {
         projectUuid: string,
         cacheKey: string,
         user: CacheServiceUser,
+        requesterProducer: QueryResultProducer | null = null,
+        resolvedIdentityEnabled: boolean | null = null,
     ): Promise<CacheHitCacheResult | null> {
         // Self-protect: gate every cache lookup on the FF, regardless of how
         // the caller arrived here. Belt-and-suspenders for embed and any
@@ -69,19 +72,47 @@ export class CommercialCacheService implements ICacheService {
             return null;
         }
 
+        const identityEnabled =
+            resolvedIdentityEnabled ??
+            (
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                })
+            ).enabled;
+        if (
+            identityEnabled &&
+            (!requesterProducer || requesterProducer.agentIdentity !== null)
+        )
+            return null;
+
         // Find recent query with matching cache key
         const [latestMatchingQuery, staleTimeSeconds] = await Promise.all([
             this.queryHistoryModel.findMostRecentByCacheKey(
                 cacheKey,
                 projectUuid,
                 {
+                    ...(identityEnabled ? { excludeAgentClaims: true } : {}),
                     excludeAgentProduced:
+                        identityEnabled ||
                         this.lightdashConfig?.ai
                             ?.agentResultIdentityCheckEnabled !== false,
                 },
             ),
             this.projectModel.getEffectiveResultsCacheTtlSeconds(projectUuid),
         ]);
+
+        if (
+            identityEnabled &&
+            (!latestMatchingQuery?.resultProducer ||
+                latestMatchingQuery.resultProducer.agentIdentity !== null ||
+                !requesterProducer ||
+                !isSameResultProducer(
+                    latestMatchingQuery.resultProducer,
+                    requesterProducer,
+                ))
+        )
+            return null;
 
         const staleTimeMilliseconds = staleTimeSeconds * 1000;
 
@@ -116,6 +147,9 @@ export class CommercialCacheService implements ICacheService {
         ) {
             return {
                 cacheHit: true,
+                queryUuid: latestMatchingQuery.queryUuid,
+                queryHistory: latestMatchingQuery.queryHistory,
+                resultProducer: latestMatchingQuery.resultProducer ?? null,
                 cacheKey: latestMatchingQuery.cacheKey,
                 fileName: latestMatchingQuery.resultsFileName,
                 createdAt: latestMatchingQuery.resultsCreatedAt,

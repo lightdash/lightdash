@@ -427,7 +427,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     aiDeepResearchRunModel,
                     userService: repository.getUserService(),
-                    buildEvidencePack: (run) => service.buildEvidencePack(run),
+                    buildEvidencePack: (run, sourceForRun) =>
+                        service.buildEvidencePack(run, 0, sourceForRun),
                 }).execute;
                 return service;
             },
@@ -1013,6 +1014,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
+                    featureFlagModel: models.getFeatureFlagModel(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     projectModel: models.getProjectModel(),
                     warehouseConnectionModel:

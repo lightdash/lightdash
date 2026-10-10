@@ -125,7 +125,6 @@ export class DuckdbQuerySource implements QuerySourceClient {
         projectUuid,
         context,
         querySurface,
-        agentActor,
         query,
         resolvedReferences,
         parameters,
@@ -164,7 +163,6 @@ export class DuckdbQuerySource implements QuerySourceClient {
                 ? await this.asyncQueryService.executeAsyncComposeSqlQuery(args)
                 : await this.asyncQueryService.executeAsyncDuckdbSourceQuery({
                       ...args,
-                      agentActor,
                       plan: DuckdbQuerySource.resolvePlanReferences(
                           plan,
                           resolvedReferences,

@@ -139,7 +139,7 @@ projectRouter.post(
             const results = await req.services
                 .getProjectService()
                 .searchFieldUniqueValues(
-                    req.user!,
+                    req.account!,
                     getObjectValue(req.params, 'projectUuid'),
                     req.body.table,
                     getObjectValue(req.params, 'fieldId'),

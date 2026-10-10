@@ -24,6 +24,7 @@ import {
     QueryHistoryStatus,
     QueryHistoryWindow,
     QueryLanguage,
+    QueryResultProducer,
     QueryTrigger,
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
@@ -134,6 +135,10 @@ export class QueryHistoryModel {
             externalSourceSalt?: string;
             warehouseConnectionUuid?: string;
             aiPrincipalUuid?: string;
+            resultIdentity?: {
+                organizationUuid: string;
+                producer: QueryResultProducer;
+            } | null;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
@@ -170,6 +175,9 @@ export class QueryHistoryModel {
             queryHashKey += `.principal:${resultsIdentifiers.aiPrincipalUuid}`;
         }
 
+        if (resultsIdentifiers.resultIdentity) {
+            queryHashKey += `.result-identity-v1:${JSON.stringify(resultsIdentifiers.resultIdentity)}`;
+        }
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
 
@@ -269,6 +277,79 @@ export class QueryHistoryModel {
         return {
             queryUuid: result.query_uuid,
         };
+    }
+
+    async recordResultProducer(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        producer: NonNullable<
+            QueryHistory['requestParameters']['resultProducer']
+        >,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultProducer}', ?::jsonb, true)",
+                    [JSON.stringify(producer)],
+                ),
+            );
+    }
+
+    async recordResultArtifact(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        artifact: NonNullable<
+            QueryHistory['requestParameters']['resultArtifact']
+        >,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultArtifact}', ?::jsonb, true)",
+                    [JSON.stringify(artifact)],
+                ),
+            );
+    }
+
+    async recordResultResearchRun(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        runUuid: string,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultResearchRunUuid}', ?::jsonb, true)",
+                    [JSON.stringify(runUuid)],
+                ),
+            );
     }
 
     async recordAiSignInCredential(
@@ -427,12 +508,19 @@ export class QueryHistoryModel {
     async findMostRecentByCacheKey(
         cacheKey: string,
         projectUuid: string,
-        { excludeAgentProduced }: { excludeAgentProduced: boolean },
+        {
+            excludeAgentProduced,
+            excludeAgentClaims = false,
+        }: {
+            excludeAgentProduced: boolean;
+            excludeAgentClaims?: boolean;
+        },
     ) {
         const result = await this.database(QueryHistoryTableName)
             .where('cache_key', cacheKey)
             .andWhere('project_uuid', projectUuid)
             .modify((query) => {
+                if (excludeAgentClaims) void query.whereNull('agent_identity');
                 if (excludeAgentProduced) {
                     void query.whereRaw(
                         "request_parameters->>'aiSignInCredentialUuid' is null",
@@ -448,6 +536,9 @@ export class QueryHistoryModel {
         }
 
         return {
+            queryUuid: result.query_uuid,
+            queryHistory: convertDbQueryHistoryToQueryHistory(result),
+            resultProducer: result.request_parameters?.resultProducer ?? null,
             totalRowCount: result.total_row_count,
             cacheKey: result.cache_key,
             pivotValuesColumns: result.pivot_values_columns,
@@ -493,6 +584,7 @@ export class QueryHistoryModel {
         queryUuids: string[],
         projectUuid: string,
         account: Account,
+        internalLookup = false,
     ): Promise<
         {
             queryHistory: QueryHistory;
@@ -500,9 +592,13 @@ export class QueryHistoryModel {
         }[]
     > {
         if (queryUuids.length === 0) return [];
-        const rows = await this.getAccountScopedQuery(
-            projectUuid,
-            account,
+        const rows = await (
+            internalLookup
+                ? this.database(QueryHistoryTableName).where(
+                      'project_uuid',
+                      projectUuid,
+                  )
+                : this.getAccountScopedQuery(projectUuid, account)
         ).whereIn('query_uuid', queryUuids);
         const rowsByUuid = new Map(rows.map((row) => [row.query_uuid, row]));
         return [...new Set(queryUuids)].map((queryUuid) => {
@@ -513,7 +609,9 @@ export class QueryHistoryModel {
                 );
             }
             return {
-                queryHistory: this.convertAccountScopedRow(row, account),
+                queryHistory: internalLookup
+                    ? convertDbQueryHistoryToQueryHistory(row)
+                    : this.convertAccountScopedRow(row, account),
                 execution: row.duckdb_execution ?? null,
             };
         });

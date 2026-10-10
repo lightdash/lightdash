@@ -20,6 +20,11 @@ import {
 } from '../database/entities/organizationWarehouseCredentials';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseCredentialsEqual } from '../utils/warehouseCredentialsEqual';
+import {
+    stripWarehouseCredentialVersion,
+    withNewWarehouseCredentialVersion,
+    withWarehouseCredentialVersion,
+} from '../utils/warehouseCredentialVersion';
 
 type OrganizationWarehouseCredentialsModelArguments = {
     database: Knex;
@@ -48,7 +53,9 @@ export class OrganizationWarehouseCredentialsModel {
     public static stripSensitiveCredentials(
         credentials: CreateWarehouseCredentials,
     ): WarehouseCredentials {
-        const strippedCredentials: Record<string, unknown> = { ...credentials };
+        const strippedCredentials: Record<string, unknown> = {
+            ...stripWarehouseCredentialVersion(credentials),
+        };
         sensitiveCredentialsFieldNames.forEach((field) => {
             delete strippedCredentials[field];
         });
@@ -135,12 +142,15 @@ export class OrganizationWarehouseCredentialsModel {
                 this.convertToOrganizationWarehouseCredentials(result);
             return {
                 ...baseData,
-                credentials: normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            result.warehouse_connection,
-                        ),
-                    ) as CreateWarehouseCredentials,
+                credentials: withWarehouseCredentialVersion(
+                    normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                result.warehouse_connection,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    ),
+                    `organization:${result.organization_warehouse_credentials_uuid}`,
                 ),
             };
         }
@@ -195,12 +205,15 @@ export class OrganizationWarehouseCredentialsModel {
                 this.convertToOrganizationWarehouseCredentials(result);
             return {
                 ...baseData,
-                credentials: normalizeWarehouseCredentials(
-                    JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            result.warehouse_connection,
-                        ),
-                    ) as CreateWarehouseCredentials,
+                credentials: withWarehouseCredentialVersion(
+                    normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                result.warehouse_connection,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    ),
+                    `organization:${result.organization_warehouse_credentials_uuid}`,
                 ),
             };
         }
@@ -237,7 +250,7 @@ export class OrganizationWarehouseCredentialsModel {
     ): Promise<OrganizationWarehouseCredentials> {
         const encryptedCredentials = this.encryptionUtil.encrypt(
             OrganizationWarehouseCredentialsModel.stringifyCredentials(
-                data.credentials,
+                withNewWarehouseCredentialVersion(data.credentials),
             ),
         );
 
@@ -328,22 +341,27 @@ export class OrganizationWarehouseCredentialsModel {
             }
 
             if (data.credentials) {
-                let current: CreateWarehouseCredentials | null;
+                let storedCredentials: CreateWarehouseCredentials;
                 try {
-                    current = normalizeWarehouseCredentials(
-                        JSON.parse(
-                            this.encryptionUtil.decrypt(
-                                existing.warehouse_connection,
-                            ),
+                    storedCredentials = withWarehouseCredentialVersion(
+                        normalizeWarehouseCredentials(
+                            JSON.parse(
+                                this.encryptionUtil.decrypt(
+                                    existing.warehouse_connection,
+                                ),
+                            ) as CreateWarehouseCredentials,
                         ),
+                        `organization:${uuid}`,
                     );
                 } catch {
-                    current = null;
+                    throw new UnexpectedServerError(
+                        'Could not load warehouse credentials',
+                    );
                 }
                 if (
                     existing.warehouse_type !== data.credentials.type ||
                     !warehouseCredentialsEqual(
-                        current,
+                        storedCredentials,
                         normalizeWarehouseCredentials(data.credentials),
                     )
                 ) {
@@ -353,7 +371,10 @@ export class OrganizationWarehouseCredentialsModel {
                 updateData.warehouse_type = data.credentials.type;
                 updateData.warehouse_connection = this.encryptionUtil.encrypt(
                     OrganizationWarehouseCredentialsModel.stringifyCredentials(
-                        data.credentials,
+                        withNewWarehouseCredentialVersion(
+                            data.credentials,
+                            storedCredentials,
+                        ),
                     ),
                 );
             }

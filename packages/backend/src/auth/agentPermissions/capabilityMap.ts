@@ -318,6 +318,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getAiAgentMemory': [AgentCapability.ReadDiscover],
     'AiAgentController.getArtifact': [AgentCapability.ReadDiscover],
+    'AiAgentController.getArtifactQueryResults': [AgentCapability.ReadDiscover],
     'AiAgentController.getArtifactVersion': [AgentCapability.ReadDiscover],
     'AiAgentController.getArtifactVizQuery': [AgentCapability.Query],
     'AiAgentController.getDashboardArtifactChartVizQuery': [
@@ -470,6 +471,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiDeepResearchController.cancelRun': [AgentCapability.Administration],
     'AiDeepResearchController.createRun': [AgentCapability.Query],
     'AiDeepResearchController.getChart': [AgentCapability.ReadDiscover],
+    'AiDeepResearchController.getChartQueryResults': [
+        AgentCapability.ReadDiscover,
+    ],
     'AiDeepResearchController.getRun': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listEvents': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listRuns': [AgentCapability.ReadDiscover],

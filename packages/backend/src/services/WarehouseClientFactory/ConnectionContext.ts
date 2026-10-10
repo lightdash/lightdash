@@ -6,7 +6,9 @@ import {
     QueryExecutionContext,
     QuerySurface,
     type Account,
+    type AgentIdentityClaim,
 } from '@lightdash/common';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 
 export enum ConnectionSurface {
     APP = 'app',
@@ -40,6 +42,7 @@ export type ConnectionAiClient = {
     kind: 'agent' | 'mcp' | 'data_app';
     surface?: AgentActorSurface;
     clientId?: string | null;
+    agentUuid?: string | null;
 };
 
 const agentSurfaces: Partial<Record<ConnectionSurface, AgentActorSurface>> = {
@@ -55,6 +58,7 @@ export const getAgentActor = (
 ): {
     surface: AgentActorSurface;
     clientId: string | null;
+    agentUuid?: string | null;
 } | null => {
     const surface = actor.aiClient?.surface ?? agentSurfaces[actor.surface];
     if (surface === undefined) return null;
@@ -62,7 +66,13 @@ export const getAgentActor = (
         actor.aiClient?.clientId !== undefined
             ? actor.aiClient.clientId
             : AGENT_CLIENT_IDS[surface];
-    return { surface, clientId };
+    return {
+        surface,
+        clientId,
+        ...(actor.aiClient?.agentUuid !== undefined
+            ? { agentUuid: actor.aiClient.agentUuid }
+            : {}),
+    };
 };
 
 export type ConnectionActor = {
@@ -77,6 +87,7 @@ export type ConnectionContext = {
     queryContext: QueryExecutionContext | null;
     purpose: 'query' | 'compile';
     aiAccess: 'enforce' | 'diagnostic';
+    agentIdentity?: AgentIdentityClaim | null;
 };
 
 export const querySurfaceFromConnectionSurface = (
@@ -156,6 +167,28 @@ export const surfaceFromQueryContext = (
     }
 };
 
+export const connectionSurfaceFromAgentSurface = (
+    surface: AgentActorSurface,
+): ConnectionSurface => {
+    switch (surface) {
+        case AgentActorSurface.API:
+            return ConnectionSurface.API;
+        case AgentActorSurface.MCP:
+            return ConnectionSurface.MCP;
+        case AgentActorSurface.SLACK_AGENT:
+            return ConnectionSurface.SLACK_AGENT;
+        case AgentActorSurface.CLI:
+            return ConnectionSurface.CLI;
+        case AgentActorSurface.DATA_APP:
+            return ConnectionSurface.DATA_APP;
+        case AgentActorSurface.IN_APP_AGENT:
+        case AgentActorSurface.AI_SUMMARY:
+            return ConnectionSurface.IN_APP_AGENT;
+        default:
+            return assertUnreachable(surface, 'Unknown agent surface');
+    }
+};
+
 export const connectionSurfaceFromQuerySurface = (
     surface: QuerySurface,
     queryContext: QueryExecutionContext | null,
@@ -206,8 +239,13 @@ type ConnectionContextOptions = {
     queryContext: QueryExecutionContext | null;
     purpose?: 'query' | 'compile';
     aiAccess?: ConnectionContext['aiAccess'];
+    agentIdentity?: AgentIdentityClaim | null;
     surface?: ConnectionSurface;
-    agentActor?: { surface: AgentActorSurface; clientId: string | null };
+    agentActor?: {
+        surface: AgentActorSurface;
+        clientId: string | null;
+        agentUuid?: string | null;
+    };
 };
 
 export const connectionContextFromUser = (
@@ -231,9 +269,14 @@ export const connectionContextFromUser = (
         aiAccess = 'enforce',
         surface = surfaceFromQueryContext(queryContext),
         agentActor,
+        agentIdentity,
     }: ConnectionContextOptions,
 ): ConnectionContext => ({
     organizationUuid,
+    agentIdentity:
+        agentIdentity === undefined
+            ? getContentWriteAgentIdentity({ userUuid, organizationUuid })
+            : agentIdentity,
     actor: {
         surface,
         person: {

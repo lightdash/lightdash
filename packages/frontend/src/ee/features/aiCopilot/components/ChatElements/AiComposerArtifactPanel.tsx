@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ChartKind,
     DimensionType,
     getComposerVizPanelOptions,
@@ -19,6 +20,9 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
 import { useUpdateComposerVizConfig } from '../../hooks/useAiAgentArtifacts';
 import styles from './AiArtifactPanel.module.css';
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
@@ -89,6 +93,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     canEdit,
     onClose,
 }) => {
+    const isEmbed = useIsEmbedded();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
     const [displayedNodeId, setDisplayedNodeId] = useState(
         config.terminalNodeId,
     );
@@ -111,7 +118,21 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         ? config.lastQueryUuid
         : config.nodeResults?.[displayedNodeId]?.queryUuid;
 
-    const results = useInfiniteQueryResults(projectUuid, queryUuid);
+    const results = useInfiniteQueryResults(
+        projectUuid,
+        isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+        undefined,
+        identityEnabled && !isEmbed && queryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+                  queryUuid,
+                  cached: false,
+              })
+            : null,
+    );
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const storedVizConfig = isTerminalDisplayed
         ? (config.vizConfig ?? null)

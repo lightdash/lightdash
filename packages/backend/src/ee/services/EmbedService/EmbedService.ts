@@ -115,6 +115,7 @@ import { SpacePermissionService } from '../../../services/SpaceService/SpacePerm
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { withVersionAgentIdentity } from '../../../services/VersionAgentIdentity';
 import { connectionContextFromUser } from '../../../services/WarehouseClientFactory/ConnectionContext';
+import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { wrapSentryTransaction } from '../../../utils';
 import {
     redactExploreSql,
@@ -123,6 +124,7 @@ import {
 } from '../../../utils/embedCompiledSql';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
+import { getResultEntitlementFingerprint } from '../../../utils/queryResultProducer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -1165,7 +1167,12 @@ export class EmbedService extends BaseService {
                     queryContext: QueryExecutionContext.EMBED,
                 },
             ),
-            async ({ warehouseClient }) => {
+            async ({
+                warehouseClient,
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                aiPlan,
+            }) => {
                 const { userAttributes, intrinsicUserAttributes } =
                     this.getAccessControls(account);
 
@@ -1216,6 +1223,25 @@ export class EmbedService extends BaseService {
                         },
                         context: QueryExecutionContext.EMBED,
                         warehouseClient,
+                        resultProducer:
+                            WarehouseClientFactory.getResultProducer(
+                                {
+                                    warehouseCredentials,
+                                    warehouseConnectionUuid,
+                                    aiPlan: aiPlan ?? null,
+                                },
+                                account.user.id,
+                                null,
+                                getResultEntitlementFingerprint(
+                                    {
+                                        userAttributes,
+                                        intrinsicUserAttributes,
+                                    },
+                                    explore,
+                                    metricQuery,
+                                ),
+                                account.authentication.type,
+                            ),
                         metricQuery,
                         resolvedTimezone: timezone,
                         query: compiledQuery.query,

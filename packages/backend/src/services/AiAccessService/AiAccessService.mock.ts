@@ -3,6 +3,7 @@ import {
     WarehouseTypes,
     type AiExecutionPlan,
 } from '@lightdash/common';
+import { withWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { describeAgentMarker } from './agentMarker';
 
 export const aiExecutionPlanMock: Extract<
@@ -11,15 +12,18 @@ export const aiExecutionPlanMock: Extract<
 > = {
     identity: 'connected_person',
     identityUuid: 'connected-person-uuid',
-    credentials: {
-        type: WarehouseTypes.POSTGRES,
-        host: 'localhost',
-        port: 5432,
-        user: 'ai_shared',
-        password: 'test',
-        dbname: 'test',
-        schema: 'public',
-    },
+    credentials: withWarehouseCredentialVersion(
+        {
+            type: WarehouseTypes.POSTGRES,
+            host: 'localhost',
+            port: 5432,
+            user: 'ai_shared',
+            password: 'test',
+            dbname: 'test',
+            schema: 'public',
+        },
+        'fixture-person-version',
+    ),
     assurances: [],
     audit: {
         actorKind: 'person',

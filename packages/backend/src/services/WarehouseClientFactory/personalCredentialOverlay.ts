@@ -19,6 +19,7 @@ import {
 } from '@lightdash/common';
 import { pick } from 'lodash';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
 export const PERSONAL_CREDENTIAL_RECONNECT_MESSAGE =
     'Your saved warehouse credentials can no longer be used with this connection. Reconnect your credentials and try again.';
@@ -372,10 +373,10 @@ export const projectPersonalWarehouseCredentials = (
     const parsed =
         strictPersonalWarehouseCredentialsSchema.safeParse(projected);
     if (!parsed.success) throw refusedPersonalCredentials(stored.type);
-    return parsed.data;
+    return copyWarehouseCredentialVersions(parsed.data, stored);
 };
 
-export const composePersonalWarehouseCredentials = (
+const composePersonalWarehouseCredentialsWithoutVersions = (
     connection: CreateWarehouseCredentials,
     personal: StrictPersonalWarehouseCredentials,
 ): CreateWarehouseCredentials => {
@@ -537,3 +538,16 @@ export const composePersonalWarehouseCredentials = (
     }
     throw refusedPersonalCredentials(connection.type);
 };
+
+export const composePersonalWarehouseCredentials = (
+    connection: CreateWarehouseCredentials,
+    personal: StrictPersonalWarehouseCredentials,
+): CreateWarehouseCredentials =>
+    copyWarehouseCredentialVersions(
+        composePersonalWarehouseCredentialsWithoutVersions(
+            connection,
+            personal,
+        ),
+        connection,
+        personal,
+    );

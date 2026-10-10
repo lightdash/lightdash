@@ -1,4 +1,5 @@
 import {
+    AgentActorSurface,
     FeatureFlags,
     ForbiddenError,
     QueryHistoryStatus,
@@ -69,6 +70,7 @@ describe('Slack image delivery scope', () => {
             slackAuthenticationModel: {
                 getInstallationFromOrganizationUuid: async () => settings,
                 getRawInstallationFromOrganizationUuid: async () => ({
+                    appId: 'installed-app',
                     bot: { id: 'our-bot-id', userId: 'our-bot' },
                 }),
             },
@@ -236,6 +238,18 @@ describe('Slack image delivery scope', () => {
             expect.objectContaining({
                 projectUuid: 'project',
                 queryUuid: 'execution',
+                reader: {
+                    kind: 'agent',
+                    authMethod: 'session',
+                    claim: expect.objectContaining({
+                        act: {
+                            sub: 'slack_agent:installed-app',
+                            surface: AgentActorSurface.SLACK_AGENT,
+                            client_id: 'installed-app',
+                            agent_uuid: 'agent',
+                        },
+                    }),
+                },
             }),
         );
         expect(getRawAsyncQueryResults).not.toHaveBeenCalled();

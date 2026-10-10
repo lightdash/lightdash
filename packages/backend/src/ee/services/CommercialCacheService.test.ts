@@ -1,3 +1,9 @@
+import {
+    AgentActorSurface,
+    buildAgentIdentityClaim,
+    FeatureFlags,
+    type QueryResultProducer,
+} from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CommercialCacheService } from './CommercialCacheService';
 
@@ -8,29 +14,44 @@ const makeService = (
     const getEffectiveResultsCacheTtlSeconds = vi
         .fn()
         .mockResolvedValue(effectiveTtlSeconds);
+    const candidate = {
+        cacheKey: 'cache-key',
+        resultsFileName: 'results.jsonl',
+        resultsCreatedAt: resultsUpdatedAt,
+        resultsUpdatedAt,
+        resultsExpiresAt: new Date('2026-09-01T00:00:00.000Z'),
+        totalRowCount: 1,
+        columns: { value: { type: 'number' } },
+        originalColumns: null,
+        pivotValuesColumns: null,
+        pivotTotalColumnCount: null,
+        resultProducer: null as QueryResultProducer | null,
+    };
+    const findMostRecentByCacheKey = vi.fn(async () => candidate);
+    const getFlag = vi.fn(async ({ featureFlagId }) => ({
+        enabled: featureFlagId === FeatureFlags.ResultsCacheEnabled,
+    }));
+    const config = {
+        ...lightdashConfigMock,
+        ai: { ...lightdashConfigMock.ai },
+    };
     const service = new CommercialCacheService({
-        lightdashConfig: lightdashConfigMock,
-        queryHistoryModel: {
-            findMostRecentByCacheKey: vi.fn().mockResolvedValue({
-                cacheKey: 'cache-key',
-                resultsFileName: 'results.jsonl',
-                resultsCreatedAt: resultsUpdatedAt,
-                resultsUpdatedAt,
-                resultsExpiresAt: new Date('2026-09-01T00:00:00.000Z'),
-                totalRowCount: 1,
-                columns: { value: { type: 'number' } },
-                originalColumns: null,
-                pivotValuesColumns: null,
-                pivotTotalColumnCount: null,
-            }),
-        } as never,
+        lightdashConfig: config,
+        queryHistoryModel: { findMostRecentByCacheKey } as never,
         projectModel: { getEffectiveResultsCacheTtlSeconds } as never,
         storageClient: {} as never,
         featureFlagModel: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
+            get: getFlag,
         } as never,
     });
-    return { service, getEffectiveResultsCacheTtlSeconds };
+    return {
+        service,
+        getEffectiveResultsCacheTtlSeconds,
+        candidate,
+        findMostRecentByCacheKey,
+        getFlag,
+        config,
+    };
 };
 
 describe('CommercialCacheService', () => {
@@ -41,6 +62,129 @@ describe('CommercialCacheService', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+    });
+
+    test('a resolved flag-off cache lookup does not resolve identity again', async () => {
+        const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+        await expect(
+            f.service.findCachedResultsFile(
+                'project',
+                'cache',
+                { userUuid: 'reader' },
+                null,
+                false,
+            ),
+        ).resolves.toMatchObject({ cacheHit: true });
+        expect(
+            f.getFlag.mock.calls.filter(
+                ([args]) => args.featureFlagId === FeatureFlags.AgentIdentity,
+            ),
+        ).toHaveLength(0);
+    });
+
+    const sharedProducer: QueryResultProducer = {
+        entitlementFingerprint: 'entitlement',
+        version: 1,
+        warehouseConnectionUuid: 'connection',
+        credentialOwner: {
+            kind: 'shared_connection',
+            identityFingerprint: 'identity',
+        },
+        agentIdentity: null,
+    };
+    test.each([true, false])(
+        'isolates cache with identity checks enabled=%s',
+        async (checksEnabled) => {
+            const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+            f.getFlag.mockResolvedValue({ enabled: true });
+            f.config.ai.agentResultIdentityCheckEnabled = checksEnabled;
+            const user = { userUuid: 'reader' };
+            await expect(
+                f.service.findCachedResultsFile(
+                    'project',
+                    'cache',
+                    user,
+                    sharedProducer,
+                ),
+            ).resolves.toBeNull();
+            f.candidate.resultProducer = {
+                ...sharedProducer,
+                warehouseConnectionUuid: 'other',
+            };
+            await expect(
+                f.service.findCachedResultsFile(
+                    'project',
+                    'cache',
+                    user,
+                    sharedProducer,
+                ),
+            ).resolves.toBeNull();
+            f.candidate.resultProducer = {
+                ...sharedProducer,
+                credentialOwner: {
+                    kind: 'person',
+                    userUuid: 'other',
+                    userWarehouseCredentialsUuid: 'credential',
+                },
+            };
+            await expect(
+                f.service.findCachedResultsFile(
+                    'project',
+                    'cache',
+                    user,
+                    sharedProducer,
+                ),
+            ).resolves.toBeNull();
+            f.candidate.resultProducer = {
+                ...sharedProducer,
+                agentIdentity: buildAgentIdentityClaim({
+                    subject: { type: 'user', uuid: 'reader' },
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                    clientId: 'lightdash-chat',
+                }),
+            };
+            await expect(
+                f.service.findCachedResultsFile(
+                    'project',
+                    'cache',
+                    user,
+                    sharedProducer,
+                ),
+            ).resolves.toBeNull();
+            f.candidate.resultProducer = { ...sharedProducer };
+            const hit = await f.service.findCachedResultsFile(
+                'project',
+                'cache',
+                user,
+                sharedProducer,
+            );
+            expect(hit?.resultProducer).toBe(f.candidate.resultProducer);
+            expect(hit?.cacheHit).toBe(true);
+            expect(f.findMostRecentByCacheKey).toHaveBeenLastCalledWith(
+                'cache',
+                'project',
+                { excludeAgentClaims: true, excludeAgentProduced: true },
+            );
+        },
+    );
+
+    test('all agent claims bypass the cache, including marked people', async () => {
+        const f = makeService(new Date('2026-07-31T11:00:00.000Z'));
+        f.getFlag.mockResolvedValue({ enabled: true });
+        const agentIdentity = buildAgentIdentityClaim({
+            subject: { type: 'user', uuid: 'reader' },
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+        });
+        await expect(
+            f.service.findCachedResultsFile(
+                'project',
+                'cache',
+                { userUuid: 'reader' },
+                { ...sharedProducer, agentIdentity },
+            ),
+        ).resolves.toBeNull();
+        expect(f.findMostRecentByCacheKey).not.toHaveBeenCalled();
     });
 
     it('reads agent result exclusion config at lookup time', async () => {
@@ -62,7 +206,9 @@ describe('CommercialCacheService', () => {
             } as never,
             storageClient: {} as never,
             featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    enabled: featureFlagId === FeatureFlags.ResultsCacheEnabled,
+                })),
             } as never,
         });
         await service.findCachedResultsFile('project', 'cache', {

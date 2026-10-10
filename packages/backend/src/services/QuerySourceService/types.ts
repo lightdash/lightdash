@@ -9,7 +9,6 @@ import type {
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import type { QueryAgentActor } from '../AiAccessService/agentExecutionContext';
 import type { DuckdbQueryPlan } from '../AsyncQueryService/types';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 
@@ -23,7 +22,6 @@ export type ScanSchemaArgs = {
  */
 export type SourceQueryExecutionContext = {
     querySurface?: QuerySurface;
-    agentActor?: QueryAgentActor | null;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
     /**

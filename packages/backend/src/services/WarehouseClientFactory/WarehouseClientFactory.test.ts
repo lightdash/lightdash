@@ -1,15 +1,18 @@
 import {
+    AgentActorSurface,
     AiAccessRefusalReason,
     AiAgentMarkerLevel,
     applyWarehouseLocation,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     BigqueryTokenError,
+    buildAgentIdentityClaim,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
     FeatureFlags,
+    getAgentClientLabel,
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
@@ -33,6 +36,10 @@ import {
     SshTunnel,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
+import knex, { type Knex } from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import pg from 'pg';
+import { PassThrough } from 'stream';
 import { expectTypeOf } from 'vitest';
 import {
     AthenaClient,
@@ -60,10 +67,17 @@ import {
     trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { ProjectModel as PersistedProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
+import {
+    copyWarehouseCredentialVersions,
+    getWarehouseCredentialVersion,
+} from '../../utils/warehouseCredentialVersion';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from '../AiAccessService/SnowflakeAgentClientResolver';
 import { createAnalyticsClient } from '../ProjectService/analyticsProject/analyticsProjectClient';
@@ -1182,6 +1196,7 @@ describe('WarehouseClientFactory', () => {
         );
         expect(credentialSource.finish).not.toHaveBeenCalled();
         expect(aiAccessService.resolvePlan).toHaveBeenCalledExactlyOnceWith({
+            agentIdentity: null,
             oauthClientId: null,
             serviceAccountUuid: null,
             evaluation: { kind: 'query', surface: QuerySurface.APP },
@@ -4606,12 +4621,26 @@ describe('Snowflake revocation with a warm agent client', () => {
             });
             const first = await factory.withWarehouseClient(
                 bindingRef,
-                contextFor(QueryExecutionContext.AI),
+                {
+                    ...contextFor(QueryExecutionContext.AI),
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: 'user-uuid' },
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        clientId: 'lightdash-chat',
+                    }),
+                },
                 async ({ warehouseClient }) => warehouseClient,
             );
             const second = await factory.withWarehouseClient(
                 bindingRef,
-                contextFor(QueryExecutionContext.AI),
+                {
+                    ...contextFor(QueryExecutionContext.AI),
+                    agentIdentity: buildAgentIdentityClaim({
+                        subject: { type: 'user', uuid: 'user-uuid' },
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        clientId: 'lightdash-chat',
+                    }),
+                },
                 async ({ warehouseClient }) => warehouseClient,
             );
             expect(second).toBe(first);
@@ -4642,7 +4671,14 @@ describe('Snowflake revocation with a warm agent client', () => {
             await expect(
                 factory.withWarehouseClient(
                     bindingRef,
-                    contextFor(QueryExecutionContext.AI),
+                    {
+                        ...contextFor(QueryExecutionContext.AI),
+                        agentIdentity: buildAgentIdentityClaim({
+                            subject: { type: 'user', uuid: 'user-uuid' },
+                            surface: AgentActorSurface.IN_APP_AGENT,
+                            clientId: 'lightdash-chat',
+                        }),
+                    },
                     query,
                 ),
             ).rejects.toMatchObject({ refusal: { reason } });
@@ -5577,4 +5613,636 @@ describe('Snowflake AI service account factory integration', () => {
             );
         },
     );
+});
+
+describe('stored result producer descriptor', () => {
+    const resultCredentials: CreatePostgresCredentials = {
+        type: WarehouseTypes.POSTGRES,
+        host: 'warehouse',
+        port: 5432,
+        dbname: 'db',
+        schema: 'public',
+        user: 'warehouse-user',
+        password: 'private-password',
+    };
+    test.each([null, 'user-credential'])(
+        'records the selected normal owner %s without credentials',
+        (userWarehouseCredentialsUuid) => {
+            const producer = WarehouseClientFactory.getResultProducer(
+                {
+                    warehouseCredentials: {
+                        ...resultCredentials,
+                        ...(userWarehouseCredentialsUuid
+                            ? { userWarehouseCredentialsUuid }
+                            : {}),
+                    },
+                    aiPlan: null,
+                    warehouseConnectionUuid: 'connection',
+                },
+                'person',
+                null,
+            );
+            expect(producer).toEqual({
+                version: 1,
+                authMethod: null,
+                warehouseConnectionUuid: 'connection',
+                agentIdentity: null,
+                entitlementFingerprint: null,
+                credentialOwner: userWarehouseCredentialsUuid
+                    ? {
+                          kind: 'person',
+                          identityFingerprint:
+                              getWarehouseIdentityFingerprint(
+                                  resultCredentials,
+                              ),
+                          userUuid: 'person',
+                          userWarehouseCredentialsUuid,
+                      }
+                    : {
+                          kind: 'shared_connection',
+                          identityFingerprint:
+                              getWarehouseIdentityFingerprint(
+                                  resultCredentials,
+                              ),
+                      },
+            });
+            expect(JSON.stringify(producer)).not.toContain('private-password');
+        },
+    );
+    test.each(['ai_service_account', 'connected_person'] as const)(
+        'records the %s generation and owner without secrets',
+        (identity) => {
+            const audit = {
+                actorKind: 'person' as const,
+                personUuid: 'person',
+                userUuid: 'person',
+                principalRef: 'principal',
+                queryTags: {},
+            };
+            const resultPlan: AiExecutionPlan =
+                identity === 'ai_service_account'
+                    ? {
+                          identity,
+                          credentialUuid: 'slot',
+                          identityUuid: 'generation',
+                          sourceProjectUuid: 'parent',
+                          inheritedFromProjectUuid: 'parent',
+                          credentials: resultCredentials,
+                          assurances: [],
+                          audit,
+                      }
+                    : {
+                          identity,
+                          identityUuid: 'generation',
+                          credentials: resultCredentials,
+                          assurances: [],
+                          audit,
+                      };
+            const producer = WarehouseClientFactory.getResultProducer(
+                {
+                    warehouseCredentials: resultCredentials,
+                    aiPlan: resultPlan,
+                    warehouseConnectionUuid: 'connection',
+                },
+                'person',
+                null,
+            );
+            expect(producer.credentialOwner).toEqual(
+                identity === 'ai_service_account'
+                    ? {
+                          kind: 'ai_service_account',
+                          credentialUuid: 'slot',
+                          generation: 'generation',
+                          sourceProjectUuid: 'parent',
+                      }
+                    : {
+                          kind: 'agent_sign_in',
+                          userUuid: 'person',
+                          generation: 'generation',
+                      },
+            );
+            expect(JSON.stringify(producer)).not.toContain('private-password');
+        },
+    );
+});
+
+describe('credential version isolation from clients and public projects', () => {
+    test('an unchanged flag-off save keeps the real factory client and GET omits the stored marker', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        let stored: CreateWarehouseCredentials = credentials;
+        const row = () => ({
+            project_id: 1,
+            warehouse_credentials_id: 9,
+            encrypted_credentials: Buffer.from(JSON.stringify(stored)),
+            organization_warehouse_credentials_uuid: null,
+            organization_uuid: 'org-uuid',
+            playground_bundle_version: null,
+        });
+        tracker.on.select('warehouse_credentials').response(() => [row()]);
+        tracker.on.insert('warehouse_credentials').response(({ bindings }) => {
+            const encrypted = bindings.find(Buffer.isBuffer);
+            if (encrypted) {
+                try {
+                    stored = JSON.parse(
+                        encrypted.toString(),
+                    ) as CreateWarehouseCredentials;
+                } catch {
+                    throw new Error('Invalid test credentials');
+                }
+            }
+            return [];
+        });
+        const model = new PersistedProjectModel({
+            database,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: {
+                encrypt: (value: string) => Buffer.from(value),
+                decrypt: (value: Buffer) => value.toString(),
+            } as EncryptionUtil,
+        });
+        const { factory, credentialSource, projectModel } = buildFixture();
+        credentialSource.finish.mockImplementation(async () => {
+            const loaded =
+                await model.getWarehouseCredentialsForProjectUncached(
+                    'project-uuid',
+                );
+            return copyWarehouseCredentialVersions(
+                { ...loaded, userWarehouseCredentialsUuid: undefined },
+                loaded,
+            );
+        });
+        const acquire = () =>
+            factory.withWarehouseClient(
+                bindingRef,
+                contextFor(),
+                async (connection) => connection,
+            );
+        try {
+            const first = await acquire();
+            const firstProducer = WarehouseClientFactory.getResultProducer(
+                first,
+                'user-uuid',
+                null,
+            );
+            await model['upsertWarehouseConnection'](
+                database as Knex.Transaction,
+                1,
+                { ...credentials, role: undefined },
+                { actorUserUuid: null, inheritFromProjectId: null },
+            );
+            const second = await acquire();
+            expect(second.warehouseClient).toBe(first.warehouseClient);
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).toHaveBeenCalledOnce();
+            expect(
+                WarehouseClientFactory.getResultProducer(
+                    second,
+                    'user-uuid',
+                    null,
+                ),
+            ).toEqual(firstProducer);
+            expect(second.warehouseClient.credentials).not.toHaveProperty(
+                'resultIdentityVersion',
+            );
+            const decrypted = model['decryptWarehouseCredentials'](
+                row().encrypted_credentials,
+            );
+            if (!decrypted) throw new Error('Missing test credentials');
+            vi.spyOn(model, 'getWithSensitiveFields').mockResolvedValue({
+                warehouseConnection: decrypted,
+                dbtConnection: { type: 'none' },
+            } as never);
+            expect(
+                (await model.get('project-uuid')).warehouseConnection,
+            ).not.toHaveProperty('resultIdentityVersion');
+            await model['upsertWarehouseConnection'](
+                database as Knex.Transaction,
+                1,
+                { ...credentials, password: 'replacement' },
+                { actorUserUuid: null, inheritFromProjectId: null },
+            );
+            const edited = await acquire();
+            expect(edited.warehouseClient).not.toBe(first.warehouseClient);
+            expect(
+                WarehouseClientFactory.getResultProducer(
+                    edited,
+                    'user-uuid',
+                    null,
+                ),
+            ).not.toEqual(firstProducer);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});
+
+describe('opaque credential version materialization', () => {
+    test('keeps a stored version when the resolver returns refreshed credentials', async () => {
+        const { factory, credentialSource } = buildFixture();
+        const stored = {
+            type: WarehouseTypes.DATABRICKS,
+            serverHostName: 'warehouse',
+            httpPath: 'path',
+            database: 'db',
+            personalAccessToken: 'secret',
+            resultIdentityVersion: 'edit-version',
+            userWarehouseCredentialsUuid: undefined,
+        } as const;
+        credentialSource.finish.mockResolvedValue(stored);
+        vi.spyOn(factory, 'materializeCredentials').mockResolvedValue({
+            type: WarehouseTypes.DATABRICKS,
+            serverHostName: 'warehouse',
+            httpPath: 'path',
+            database: 'db',
+            personalAccessToken: 'refreshed-secret',
+        });
+        const result = await factory.resolveWarehouseCredentials(
+            bindingRef,
+            contextFor(null, 'query'),
+        );
+        expect(result.warehouseCredentials).toMatchObject({
+            personalAccessToken: 'refreshed-secret',
+        });
+        expect(result.warehouseCredentials).not.toHaveProperty(
+            'resultIdentityVersion',
+        );
+        expect(getWarehouseCredentialVersion(result.warehouseCredentials)).toBe(
+            'edit-version',
+        );
+        const producer = WarehouseClientFactory.getResultProducer(
+            result,
+            'user',
+            null,
+        );
+        expect(producer.credentialOwner).toMatchObject({
+            kind: 'shared_connection',
+            identityFingerprint: expect.any(String),
+        });
+    });
+});
+
+describe('trusted execution warehouse tags', () => {
+    test.each(
+        [false, true].flatMap((enabled) =>
+            [false, true].map((agent) => ({ enabled, agent })),
+        ),
+    )(
+        'flag=$enabled agent=$agent uses trusted identity for every row execution method',
+        async ({ enabled, agent }) => {
+            const { factory, featureFlagModel, projectModel } = buildFixture();
+            vi.mocked(featureFlagModel.get).mockResolvedValue({
+                id: FeatureFlags.AgentIdentity,
+                enabled,
+            });
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: 'user-uuid' },
+                surface: AgentActorSurface.MCP,
+                clientId: 'trusted-client',
+            });
+            const identity = agent ? claim : null;
+            const context = connectionContextFromUser(
+                { userUuid: 'user-uuid' },
+                {
+                    organizationUuid: 'org-uuid',
+                    queryContext: QueryExecutionContext.MCP_RUN_SQL,
+                    agentIdentity: identity,
+                },
+            );
+            const tags = {
+                query_context: QueryExecutionContext.MCP_RUN_SQL,
+                agent: 'true',
+                agent_surface: 'forged',
+                agent_client: 'forged',
+            };
+            const run = vi.fn().mockResolvedValue({ rows: [], fields: {} });
+            const stream = vi.fn().mockResolvedValue(undefined);
+            const execute = vi.fn().mockResolvedValue({ totalRows: 0 });
+            projectModel.getWarehouseClientFromCredentials.mockImplementation(
+                (creds) => ({
+                    ...warehouseClientMock,
+                    credentials: creds,
+                    runQuery: run,
+                    streamQuery: stream,
+                    executeAsyncQuery: execute,
+                }),
+            );
+            factory.warehouseClients = {};
+            await factory.withWarehouseClient(
+                bindingRef,
+                context,
+                async ({ warehouseClient, deriveClient }) => {
+                    await warehouseClient.runQuery('SELECT 1', tags);
+                    await warehouseClient.streamQuery('SELECT 1', vi.fn(), {
+                        tags,
+                    });
+                    await warehouseClient.executeAsyncQuery({
+                        sql: 'SELECT 1',
+                        tags,
+                    });
+                    await deriveClient(credentials).runQuery('SELECT 1', tags);
+                },
+            );
+            const actual = [
+                run.mock.calls[0][1],
+                stream.mock.calls[0][2].tags,
+                execute.mock.calls[0][0].tags,
+                run.mock.calls[1][1],
+            ];
+            for (const recorded of actual) {
+                if (!enabled) expect(recorded).toEqual(tags);
+                else if (identity)
+                    expect(recorded).toMatchObject({
+                        agent: 'true',
+                        agent_surface: 'mcp',
+                        agent_client: getAgentClientLabel(
+                            identity.act.client_id,
+                        ),
+                    });
+                else {
+                    expect(recorded).not.toHaveProperty('agent');
+                    expect(recorded).not.toHaveProperty('agent_surface');
+                    expect(recorded).not.toHaveProperty('agent_client');
+                }
+            }
+            expect(tags.agent_surface).toBe('forged');
+        },
+    );
+});
+
+const sessionMarkerCases = [
+    {
+        enabled: false,
+        agent: false,
+        context: QueryExecutionContext.MCP_RUN_SQL,
+    },
+    { enabled: false, agent: true, context: QueryExecutionContext.SQL_RUNNER },
+    { enabled: true, agent: false, context: QueryExecutionContext.MCP_RUN_SQL },
+    { enabled: true, agent: true, context: QueryExecutionContext.SQL_RUNNER },
+];
+
+test.each(
+    sessionMarkerCases.flatMap((entry) =>
+        ['binding', 'resolved', 'bypass'].map((kind) => ({ ...entry, kind })),
+    ),
+)(
+    'round 18 real Trino $kind flag=$enabled agent=$agent uses trusted session headers',
+    async ({ enabled, agent, context: queryContext, kind }) => {
+        const { factory, featureFlagModel, projectModel, credentialSource } =
+            buildFixture();
+        vi.mocked(featureFlagModel.get).mockResolvedValue({ enabled } as never);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        credentialSource.finish.mockResolvedValue({
+            ...trinoConnection,
+            userWarehouseCredentialsUuid: undefined,
+        });
+        const query = vi.fn(
+            async (_input: { extraHeaders?: Record<string, string> }) => ({
+                next: vi.fn(async () => ({
+                    done: true,
+                    value: { columns: [], data: [] },
+                })),
+            }),
+        );
+        const create = vi
+            .spyOn(Trino, 'create')
+            .mockReturnValue({ query } as never);
+        const claim = agent
+            ? buildAgentIdentityClaim({
+                  subject: { type: 'user', uuid: 'user-uuid' },
+                  surface: AgentActorSurface.MCP,
+                  clientId: 'client',
+              })
+            : null;
+        const context = connectionContextFromUser(
+            { userUuid: 'user-uuid' },
+            {
+                organizationUuid: 'org-uuid',
+                queryContext,
+                agentIdentity: claim,
+            },
+        );
+        let ref: WarehouseClientRef;
+        if (kind === 'binding') ref = bindingRef;
+        else if (kind === 'resolved')
+            ref = {
+                kind: 'resolved',
+                projectUuid: 'project-uuid',
+                credentials: {
+                    ...trinoConnection,
+                    [credentialResolution]: {
+                        agentSignIn: null,
+                        clientOptions: { agentSession: !agent },
+                        cacheable: true,
+                        cacheKeyIdentity: [],
+                        toDbtTarget: () => ({
+                            kind: 'none' as const,
+                            reason: 'Test',
+                        }),
+                        dispose: async () => undefined,
+                    },
+                } as MaterializedCredentials,
+                warehouseConnectionUuid: null,
+                connectionRoute: null,
+                aiPlan: claim ? { ...markedPlan, agentIdentity: claim } : null,
+            };
+        else
+            ref = {
+                kind: 'bypass',
+                mode: 'connection_test',
+                projectUuid: 'project-uuid',
+                credentials: trinoConnection,
+                agentSession: !agent,
+            };
+        try {
+            await factory.withWarehouseClient(
+                ref,
+                context,
+                async ({ warehouseClient, deriveClient }) => {
+                    await warehouseClient.runQuery('SELECT 1', {
+                        query_context: queryContext,
+                    });
+                    await deriveClient(trinoConnection).runQuery('SELECT 1', {
+                        query_context: queryContext,
+                    });
+                },
+            );
+            expect(query).toHaveBeenCalledTimes(2);
+            const expected = enabled
+                ? agent
+                : queryContext === QueryExecutionContext.MCP_RUN_SQL;
+            for (const [input] of query.mock.calls) {
+                expect(
+                    input.extraHeaders?.['X-Trino-Extra-Credential'] ?? null,
+                ).toBe(expected ? 'agent=true' : null);
+                expect(input.extraHeaders?.['User-Agent'] ?? null).toBe(
+                    expected ? 'lightdash-ai' : null,
+                );
+            }
+        } finally {
+            create.mockRestore();
+        }
+    },
+);
+
+test.each(
+    sessionMarkerCases.flatMap((entry) =>
+        [WarehouseTypes.POSTGRES, WarehouseTypes.REDSHIFT].map((type) => ({
+            ...entry,
+            type,
+        })),
+    ),
+)(
+    'round 18 real $type flag=$enabled agent=$agent sets the trusted session and application name',
+    async ({ enabled, agent, context: queryContext, type }) => {
+        const { factory, featureFlagModel, projectModel } = buildFixture();
+        vi.mocked(featureFlagModel.get).mockResolvedValue({ enabled } as never);
+        projectModel.getWarehouseClientFromCredentials.mockImplementation(
+            warehouseClientFromCredentials,
+        );
+        const statements: string[] = [];
+        const poolConfigs: pg.PoolConfig[] = [];
+        const query = vi.fn((statement: unknown) => {
+            if (typeof statement === 'string') {
+                statements.push(statement);
+                return Promise.resolve({ rows: [], fields: [] });
+            }
+            const stream = new PassThrough();
+            setTimeout(() => stream.end(), 0);
+            return stream;
+        });
+        class MockPool {
+            constructor(config?: pg.PoolConfig) {
+                poolConfigs.push(config ?? {});
+            }
+            connect = vi.fn(
+                (
+                    callback: (
+                        error: null,
+                        client: unknown,
+                        release: () => void,
+                    ) => void,
+                ) => callback(null, { query, on: vi.fn() }, vi.fn()),
+            );
+            on = vi.fn();
+            end = vi.fn(async () => undefined);
+        }
+        const pool = vi
+            .spyOn(pg, 'Pool')
+            .mockImplementation(MockPool as unknown as typeof pg.Pool);
+        const claim = agent
+            ? buildAgentIdentityClaim({
+                  subject: { type: 'user', uuid: 'user-uuid' },
+                  surface: AgentActorSurface.MCP,
+                  clientId: 'client',
+              })
+            : null;
+        const context = connectionContextFromUser(
+            { userUuid: 'user-uuid' },
+            {
+                organizationUuid: 'org-uuid',
+                queryContext,
+                agentIdentity: claim,
+            },
+        );
+        const creds: CreateWarehouseCredentials =
+            type === WarehouseTypes.POSTGRES
+                ? credentials
+                : {
+                      ...credentials,
+                      type: WarehouseTypes.REDSHIFT,
+                      authenticationType: RedshiftAuthenticationType.PASSWORD,
+                  };
+        const ref: WarehouseClientRef = {
+            kind: 'resolved',
+            projectUuid: 'project-uuid',
+            credentials: creds,
+            warehouseConnectionUuid: null,
+            connectionRoute: null,
+            aiPlan: claim ? { ...markedPlan, agentIdentity: claim } : null,
+        };
+        try {
+            await factory.withWarehouseClient(
+                ref,
+                context,
+                async ({ warehouseClient, deriveClient }) => {
+                    await warehouseClient.runQuery('SELECT 1', {});
+                    await deriveClient(creds).runQuery('SELECT 1', {});
+                },
+            );
+            const expected = enabled
+                ? agent
+                : queryContext === QueryExecutionContext.MCP_RUN_SQL;
+            expect(poolConfigs).toHaveLength(2);
+            for (const config of poolConfigs)
+                expect(config.application_name).toBe(
+                    expected ? 'lightdash-ai' : undefined,
+                );
+            const markers = statements.filter((statement) =>
+                statement.includes('lightdash.agent'),
+            );
+            expect(markers).toEqual(
+                expected
+                    ? Array(2).fill(
+                          type === WarehouseTypes.POSTGRES
+                              ? "SET lightdash.agent = 'true'"
+                              : "SELECT set_config('lightdash.agent', 'true', false)",
+                      )
+                    : [],
+            );
+        } finally {
+            pool.mockRestore();
+        }
+    },
+);
+
+test('round 18 cached client sessions separate person and agent leases across flag toggles', async () => {
+    const { factory, featureFlagModel, projectModel } = buildFixture();
+    const options: { agentSession?: boolean }[] = [];
+    projectModel.getWarehouseClientFromCredentials.mockImplementation(
+        (creds, config) => {
+            options.push(config ?? {});
+            return { ...warehouseClientMock, credentials: creds };
+        },
+    );
+    const claim = buildAgentIdentityClaim({
+        subject: { type: 'user', uuid: 'user-uuid' },
+        surface: AgentActorSurface.MCP,
+        clientId: 'client',
+    });
+    const acquire = (
+        identity: typeof claim | null,
+        queryContext: QueryExecutionContext,
+    ) =>
+        factory.withWarehouseClient(
+            bindingRef,
+            connectionContextFromUser(
+                { userUuid: 'user-uuid' },
+                {
+                    organizationUuid: 'org-uuid',
+                    queryContext,
+                    agentIdentity: identity,
+                },
+            ),
+            async (connection) => connection,
+        );
+    vi.mocked(featureFlagModel.get).mockResolvedValue({
+        enabled: true,
+    } as never);
+    const person = await acquire(null, QueryExecutionContext.MCP_RUN_SQL);
+    const agent = await acquire(claim, QueryExecutionContext.SQL_RUNNER);
+    const secondAgent = await acquire(claim, QueryExecutionContext.EXPLORE);
+    vi.mocked(featureFlagModel.get).mockResolvedValue({
+        enabled: false,
+    } as never);
+    const off = await acquire(null, QueryExecutionContext.MCP_RUN_SQL);
+    expect(options.map((option) => option.agentSession)).toEqual([false, true]);
+    expect(off.warehouseClient).not.toBe(person.warehouseClient);
+    expect(secondAgent.warehouseClient).toBeDefined();
+    expect(agent.warehouseClient).toBeDefined();
 });

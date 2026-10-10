@@ -153,6 +153,8 @@ export class SqlRunnerController extends BaseController {
                     projectUuid,
                     body.sql,
                     body.limit,
+                    QueryExecutionContext.SQL_RUNNER,
+                    req.account,
                 ),
         };
     }
@@ -193,6 +195,7 @@ export class SqlRunnerController extends BaseController {
                     projectUuid,
                     body,
                     getContextFromQueryOrHeader(req),
+                    req.account,
                 ),
         };
     }
@@ -229,7 +232,12 @@ export class SqlRunnerController extends BaseController {
 
         const readStream = await this.services
             .getProjectService()
-            .getFileStream(toSessionUser(req.account), projectUuid, fileId);
+            .getFileStream(
+                toSessionUser(req.account),
+                projectUuid,
+                fileId,
+                req.account,
+            );
 
         const { res } = req;
         if (res) {
@@ -337,6 +345,7 @@ export class SqlRunnerController extends BaseController {
                     slug,
                     undefined,
                     getContextFromQueryOrHeader(req),
+                    req.account,
                 ),
         };
     }
@@ -382,6 +391,7 @@ export class SqlRunnerController extends BaseController {
                     undefined,
                     uuid,
                     getContextFromQueryOrHeader(req),
+                    req.account,
                 ),
         };
     }

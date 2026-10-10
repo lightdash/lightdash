@@ -12,8 +12,10 @@ import {
     SupportedDbtAdapter,
     UserAccessControls,
     WarehouseClient,
+    type ActiveMaterializationDetails,
     type CreateWarehouseCredentials,
     type DateZoom,
+    type Explore,
     type RunQueryTags,
 } from '@lightdash/common';
 import {
@@ -55,6 +57,7 @@ type PreAggregationDuckDbClientArgs = {
 };
 
 export type ResolvePreAggregationDuckDbArgs = {
+    executionExplore?: (name: string) => Promise<Explore>;
     projectUuid: string;
     queryUuid?: string;
     queryTags?: RunQueryTags;
@@ -69,6 +72,9 @@ export type ResolvePreAggregationDuckDbArgs = {
     userAccessControls: UserAccessControls;
     availableParameterDefinitions: ParameterDefinitions;
     useTimezoneAwareDateTrunc?: boolean;
+    authorizeMaterialization?: (
+        materialization: ActiveMaterializationDetails,
+    ) => Promise<boolean>;
 };
 
 export type PreAggregationDuckDbResolution =
@@ -81,6 +87,7 @@ export enum PreAggregationDuckDbResolveReason {
     MISSING_DUCKDB_RUNTIME_CONFIG = 'missing_duckdb_runtime_config',
     NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
     RESOLVE_ERROR = 'resolve_error',
+    INCOMPATIBLE_PRODUCER = 'incompatible_producer',
 }
 
 export class PreAggregationDuckDbClient {
@@ -179,6 +186,8 @@ export class PreAggregationDuckDbClient {
                 return 'Pre-aggregate DuckDB routing is unavailable: missing DuckDB runtime configuration';
             case PreAggregationDuckDbResolveReason.PRE_AGGREGATES_DISABLED:
                 return 'Pre-aggregate DuckDB routing is unavailable: pre-aggregates are disabled';
+            case PreAggregationDuckDbResolveReason.INCOMPATIBLE_PRODUCER:
+                return 'This pre-aggregate has no compatible producer provenance. Run a warehouse query instead.';
             case PreAggregationDuckDbResolveReason.RESOLVE_ERROR:
                 return `Failed to resolve pre-aggregate explore "${preAggregateExploreName}" in DuckDB`;
             default:
@@ -285,6 +294,16 @@ export class PreAggregationDuckDbClient {
             };
         }
 
+        if (
+            args.authorizeMaterialization &&
+            !(await args.authorizeMaterialization(activeMaterialization))
+        ) {
+            return {
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.INCOMPATIBLE_PRODUCER,
+            };
+        }
+
         Logger.info('DuckDB pre-agg materialization selected', {
             queryUuid: args.queryUuid,
             projectUuid: args.projectUuid,
@@ -323,10 +342,12 @@ export class PreAggregationDuckDbClient {
                 },
             },
             () =>
-                this.projectModel.getExploreFromCache(
-                    args.projectUuid,
-                    preAggExploreName,
-                ),
+                args.executionExplore
+                    ? args.executionExplore(preAggExploreName)
+                    : this.projectModel.getExploreFromCache(
+                          args.projectUuid,
+                          preAggExploreName,
+                      ),
         );
 
         if (isExploreError(preAggExplore)) {

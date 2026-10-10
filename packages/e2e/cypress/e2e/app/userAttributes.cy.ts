@@ -1,191 +1,317 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    SEED_PROJECT,
+    type ApiCreateUserAttributeResponse,
+    type ApiUserAttributesResponse,
+    type CreateUserAttribute,
+    type UserAttribute,
+} from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
-// todo: just have 1 test to cover list/create/edit/delete and don't run queries
-describe('User attributes sql_filter', () => {
-    beforeEach(() => {
-        cy.login();
-    });
-    it('Delete customer_id attribute', () => {
-        cy.request(`${apiUrl}/org/attributes`).then((resp) => {
-            expect(resp.status).to.eq(200);
-            const customerIdAttr = resp.body.results.find(
-                (attr) => attr.name === 'customer_id',
-            );
-            if (customerIdAttr)
-                cy.request({
-                    url: `${apiUrl}/org/attributes/${customerIdAttr.uuid}`,
-                    method: 'DELETE',
-                }).then((r) => {
-                    expect(r.status).to.eq(200);
-                });
-        });
-    });
-    it('Error on runquery if user attribute does not exist', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+describe('User attributes', () => {
+    const email = `user-attributes-${Date.now()}-${Cypress._.random(1_000_000)}@lightdash.com`;
+    let userUuid: string | null = null;
+    const createdAttributeUuids = new Set<string>();
+    const attributeNames = ['customer_id', 'is_admin'];
 
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('First name').click();
-
-        // run query
-        cy.get('button').contains('Run query').click();
-
-        cy.contains('Error loading results');
-
-        cy.contains(
-            // eslint-disable-next-line no-template-curly-in-string
-            'Missing user attribute "customer_id": "customer_id = ${ld.attr.customer_id}"',
-        );
+    const toAttributeBody = (
+        attribute: UserAttribute,
+    ): CreateUserAttribute => ({
+        name: attribute.name,
+        description: attribute.description,
+        attributeDefaults: attribute.attributeDefaults,
+        users: attribute.users.map(({ userUuid: uuid, values }) => ({
+            userUuid: uuid,
+            values,
+        })),
+        groups: attribute.groups.map(({ groupUuid, values }) => ({
+            groupUuid,
+            values,
+        })),
     });
 
-    it('Create user attribute', () => {
-        cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add attribute').click();
+    const setUserAttribute = (name: string, values: string[]) =>
+        cy
+            .request<ApiUserAttributesResponse>(`${apiUrl}/org/attributes`)
+            .then(({ body }) => {
+                const attribute = body.results.find(
+                    (attr) => attr.name === name,
+                );
+                expect(attribute, `${name} definition`).not.to.eq(undefined);
+                expect(userUuid, 'dedicated user').to.be.a('string');
+                const payload = toAttributeBody(attribute!);
+                payload.users = payload.users.filter(
+                    (user) => user.userUuid !== userUuid,
+                );
+                if (values.length > 0) {
+                    payload.users.push({ userUuid: userUuid!, values });
+                }
+                return cy
+                    .request({
+                        url: `${apiUrl}/org/attributes/${attribute!.uuid}`,
+                        method: 'PUT',
+                        body: payload,
+                    })
+                    .its('status')
+                    .should('eq', 201);
+            });
 
-        cy.get('input[name="name"]').type('customer_id');
-        cy.findByText('Add user').click();
-        cy.findByPlaceholderText('E.g. test@lightdash.com').type('demo');
-        cy.findByText('demo@lightdash.com').click();
-        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
-            '20{enter}',
-        );
-        cy.findByText('Add').click();
-        cy.contains('Success', { timeout: 10000 });
-    });
-
-    it('Should return results with user attribute', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
-
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('First name').click();
-
-        // run query
-        cy.get('button').contains('Run query').click();
-        cy.contains('Anna');
-    });
-
-    it('Edit user attribute', () => {
-        cy.visit(`/generalSettings/userAttributes`);
-
-        cy.contains('customer_id').parents('tr').find('button').first().click();
+    const openAttribute = (name: string) => {
+        cy.visit('/generalSettings/userAttributes');
+        cy.findByText(name, { exact: true })
+            .parents('tr')
+            .find('button')
+            .first()
+            .click();
         cy.findByText('Edit').click();
-        // Remove the existing value pill, then add the new value
-        cy.get('.mantine-Pill-remove').first().click();
-        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
-            '30{enter}',
-        );
-        cy.findByText('Update').click();
+    };
+
+    const getUserAttributeRow = () =>
+        cy
+            .get(`input[name$=".userUuid"][value="${userUuid}"]`)
+            .closest('.mantine-Group-root');
+
+    const saveAttribute = () => {
+        cy.findByRole('button', { name: 'Update' }).click();
         cy.contains('Success', { timeout: 10000 });
-    });
-    it('Should return results with new user attribute', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+    };
 
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('First name').click();
-
-        // run query
-        cy.get('button').contains('Run query').click();
-        cy.contains('Christina', { timeout: 30000 });
-    });
-});
-
-// todo: combine into 1 test
-describe('User attributes dimension required_attribute', () => {
-    beforeEach(() => {
+    before(() => {
         cy.login();
-    });
-
-    it('Create customer_id attribute', () => {
-        // This could fail if the attribute already exists
         cy.request({
-            url: `${apiUrl}/org/attributes`,
-            headers: { 'Content-type': 'application/json' },
+            url: `${apiUrl}/invite-links`,
             method: 'POST',
             body: {
-                name: 'customer_id',
-                users: [
-                    {
-                        userUuid: 'b264d83a-9000-426a-85ec-3f9c20f368ce',
-                        values: ['30'],
-                    },
-                ],
-                attributeDefault: undefined,
+                email,
+                role: 'admin',
+                expiresAt: new Date(
+                    Date.now() + 24 * 60 * 60 * 1000,
+                ).toISOString(),
             },
-            failOnStatusCode: false,
+        }).then(({ status, body }) => {
+            expect(status).to.eq(201);
+            userUuid = body.results.userUuid;
+            cy.registerWithCode(body.results.inviteCode);
+            cy.verifyEmail();
+        });
+        cy.loginWithEmail(email);
+        cy.request({
+            url: `${apiUrl}/user/me/complete`,
+            method: 'PATCH',
+            body: {
+                jobTitle: 'Engineering',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: false,
+                isTrackingAnonymized: false,
+            },
+        })
+            .its('status')
+            .should('eq', 200);
+        attributeNames.forEach((name) => {
+            cy.request<ApiUserAttributesResponse>(
+                `${apiUrl}/org/attributes`,
+            ).then(({ body }) => {
+                const attribute = body.results.find(
+                    (attr) => attr.name === name,
+                );
+                if (attribute) {
+                    expect(
+                        attribute.attributeDefaults ?? [],
+                        `${name} must have no default for missing-value tests`,
+                    ).to.deep.eq([]);
+                } else {
+                    cy.request<ApiCreateUserAttributeResponse>({
+                        url: `${apiUrl}/org/attributes`,
+                        method: 'POST',
+                        body: {
+                            name,
+                            attributeDefaults: null,
+                            users: [],
+                            groups: [],
+                        },
+                    }).then((response) => {
+                        expect(response.status).to.eq(201);
+                        createdAttributeUuids.add(response.body.results.uuid);
+                    });
+                }
+            });
         });
     });
-    it('Delete is_admin attribute', () => {
-        cy.request(`${apiUrl}/org/attributes`).then((resp) => {
-            expect(resp.status).to.eq(200);
-            const customerIdAttr = resp.body.results.find(
-                (attr) => attr.name === 'is_admin',
+
+    beforeEach(() => {
+        cy.loginWithEmail(email);
+    });
+
+    after(() => {
+        if (!userUuid) return;
+        cy.login();
+        attributeNames.forEach((name) => {
+            cy.request<ApiUserAttributesResponse>(
+                `${apiUrl}/org/attributes`,
+            ).then(({ body }) => {
+                const attribute = body.results.find(
+                    (attr) => attr.name === name,
+                );
+                if (!attribute) return;
+                const payload = toAttributeBody(attribute);
+                payload.users = payload.users.filter(
+                    (user) => user.userUuid !== userUuid,
+                );
+                if (
+                    createdAttributeUuids.has(attribute.uuid) &&
+                    payload.users.length === 0 &&
+                    payload.groups.length === 0 &&
+                    (payload.attributeDefaults ?? []).length === 0 &&
+                    !payload.description
+                ) {
+                    cy.request(
+                        'DELETE',
+                        `${apiUrl}/org/attributes/${attribute.uuid}`,
+                    )
+                        .its('status')
+                        .should('eq', 200);
+                } else if (payload.users.length !== attribute.users.length) {
+                    cy.request({
+                        url: `${apiUrl}/org/attributes/${attribute.uuid}`,
+                        method: 'PUT',
+                        body: payload,
+                    })
+                        .its('status')
+                        .should('eq', 201);
+                }
+            });
+        });
+        cy.request('DELETE', `${apiUrl}/org/user/${userUuid}`)
+            .its('status')
+            .should('eq', 200);
+    });
+
+    describe('User attributes sql_filter', () => {
+        before(() => {
+            cy.loginWithEmail(email);
+            setUserAttribute('customer_id', []);
+        });
+        it('Error on runquery if user attribute has no value', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('First name').click();
+
+            cy.get('button').contains('Run query').click();
+
+            cy.contains('Error loading results');
+
+            cy.contains(
+                'Invalid or missing user attribute "customer_id": "customer_id = $' +
+                    '{ld.attr.customer_id}"',
             );
-            if (customerIdAttr)
-                cy.request({
-                    url: `${apiUrl}/org/attributes/${customerIdAttr.uuid}`,
-                    method: 'DELETE',
-                }).then((r) => {
-                    expect(r.status).to.eq(200);
-                });
+        });
+
+        it('Add a value for the dedicated user', () => {
+            openAttribute('customer_id');
+            cy.findByText('Add user').click();
+            cy.findAllByPlaceholderText('E.g. test@lightdash.com')
+                .last()
+                .type(email);
+            cy.findByRole('option', { name: email }).click();
+            getUserAttributeRow().within(() => {
+                cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+                    '20{enter}',
+                );
+            });
+            saveAttribute();
+        });
+
+        it('Should return results with user attribute', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('First name').click();
+
+            cy.get('button').contains('Run query').click();
+            cy.contains('Anna');
+        });
+
+        it('Edit the dedicated user value', () => {
+            openAttribute('customer_id');
+            getUserAttributeRow().within(() => {
+                cy.get('.mantine-Pill-remove').click();
+                cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+                    '30{enter}',
+                );
+            });
+            saveAttribute();
+        });
+        it('Should return results with new user attribute', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('First name').click();
+
+            cy.get('button').contains('Run query').click();
+            cy.contains('Christina', { timeout: 30000 });
         });
     });
-    it('Should not see last_name dimension', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('Last name').should('not.exist');
-    });
+    describe('User attributes dimension required_attribute', () => {
+        before(() => {
+            cy.loginWithEmail(email);
+            setUserAttribute('customer_id', ['30']);
+            setUserAttribute('is_admin', []);
+        });
+        it('Should not see last_name dimension', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-    it('Create user attribute', () => {
-        cy.visit(`/generalSettings/userAttributes`);
-        cy.findByText('Add attribute').click();
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('Last name').should('not.exist');
+        });
 
-        cy.get('input[name="name"]').type('is_admin');
-        cy.findByText('Add user').click();
-        cy.findByPlaceholderText('E.g. test@lightdash.com').type('demo');
-        cy.findByText('demo@lightdash.com').click();
-        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
-            'true{enter}',
-        );
-        cy.findByText('Add').click();
-        cy.contains('Success', { timeout: 10000 });
-    });
+        it('Add a value for the dedicated user', () => {
+            openAttribute('is_admin');
+            cy.findByText('Add user').click();
+            cy.findAllByPlaceholderText('E.g. test@lightdash.com')
+                .last()
+                .type(email);
+            cy.findByRole('option', { name: email }).click();
+            getUserAttributeRow().within(() => {
+                cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+                    'true{enter}',
+                );
+            });
+            saveAttribute();
+        });
 
-    it('Should see last_name attribute', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
+        it('Should see last_name attribute', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('Last name').click();
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('Last name').click();
 
-        // run query
-        cy.get('button').contains('Run query').click();
-        cy.contains('W.', { timeout: 30000 });
-    });
+            cy.get('button').contains('Run query').click();
+            cy.contains('W.', { timeout: 30000 });
+        });
 
-    it('Edit user attribute', () => {
-        cy.visit(`/generalSettings/userAttributes`);
+        it('Edit the dedicated user value', () => {
+            openAttribute('is_admin');
+            getUserAttributeRow().within(() => {
+                cy.get('.mantine-Pill-remove').click();
+                cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
+                    'false{enter}',
+                );
+            });
+            saveAttribute();
+        });
+        it('Should not see last_name dimension', () => {
+            cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
-        cy.contains('is_admin').parents('tr').find('button').first().click();
-        cy.findByText('Edit').click();
-        // Remove the existing value pill, then add the new value
-        cy.get('.mantine-Pill-remove').first().click();
-        cy.findByPlaceholderText('E.g. US (press Enter to add)').type(
-            'false{enter}',
-        );
-        cy.findByText('Update').click();
-        cy.contains('Success', { timeout: 10000 });
-    });
-    it('Should not see last_name dimension', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
-
-        cy.findByPlaceholderText('Search tables').type('Users');
-        cy.findByText('Users').click();
-        cy.findByText('Last name').should('not.exist');
+            cy.findByPlaceholderText('Search tables').type('Users');
+            cy.findByText('Users').click();
+            cy.findByText('Last name').should('not.exist');
+        });
     });
 });

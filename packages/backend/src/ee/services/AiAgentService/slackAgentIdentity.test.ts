@@ -1,8 +1,12 @@
 import {
     AgentActorSurface,
+    QueryHistoryStatus,
     type AiAgent,
+    type AiArtifact,
+    type AiWebAppPrompt,
     type SlackPrompt,
 } from '@lightdash/common';
+import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import {
     agentActionTestCases,
@@ -10,8 +14,14 @@ import {
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import {
     agentExecutionContext,
+    buildResultReader,
+    createAgentExecutionContext,
     getContentWriteAgentIdentity,
 } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    buildAccount,
+    validExplore,
+} from '../../../services/ProjectService/ProjectService.mock';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { AiAgentService } from './AiAgentService';
 
@@ -87,6 +97,16 @@ describe('Slack agent identity', () => {
                     'editPlaceholderOrPost',
                 )
                 .mockImplementation(async () => {
+                    expect(buildResultReader(fromSession(user))).toMatchObject({
+                        kind: 'agent',
+                        claim: {
+                            act: {
+                                surface: AgentActorSurface.SLACK_AGENT,
+                                client_id: slackAppId ?? 'installed-app',
+                                agent_uuid: 'stored-agent',
+                            },
+                        },
+                    });
                     expect(
                         getContentWriteAgentIdentity({
                             userUuid: user.userUuid,
@@ -106,6 +126,25 @@ describe('Slack agent identity', () => {
             expect(agentExecutionContext.getStore()).toBeUndefined();
         },
     );
+    test('a Slack scope with no loaded app id retains an agent reader', () => {
+        const account = buildAccount();
+        agentExecutionContext.run(
+            createAgentExecutionContext({
+                account,
+                surface: AgentActorSurface.SLACK_AGENT,
+                clientId: null,
+                agentUuid: 'agent',
+                agentIdentityEnabled: true,
+            }),
+            () => {
+                expect(buildResultReader(account)).toMatchObject({
+                    kind: 'agent',
+                    authMethod: 'session',
+                    claim: { act: { client_id: null, agent_uuid: 'agent' } },
+                });
+            },
+        );
+    });
 });
 
 test.each(agentActionTestCases)(
@@ -191,3 +230,165 @@ test.each(agentActionTestCases)(
         );
     },
 );
+
+test('in-app single-value reads carry the runtime agent UUID', async () => {
+    const user = defaultSessionUser;
+    const account = fromSession(user);
+    const getAsyncQueryResults = vi
+        .fn()
+        .mockResolvedValue({ status: QueryHistoryStatus.READY, rows: [] });
+    const assertOperation = vi.fn().mockResolvedValue(undefined);
+    const service = new AiAgentService({
+        asyncQueryService: { getAsyncQueryResults },
+        agentPermissionService: { assertOperation },
+        lightdashConfig: { ai: {} },
+    } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    vi.spyOn(service, 'getArtifactVizQuery').mockResolvedValue({
+        query: { queryUuid: 'query' },
+    } as Awaited<ReturnType<AiAgentService['getArtifactVizQuery']>>);
+    await agentExecutionContext.run(
+        createAgentExecutionContext({
+            account,
+            surface: AgentActorSurface.IN_APP_AGENT,
+            clientId: 'lightdash-chat',
+            agentUuid: 'runtime-agent',
+            agentIdentityEnabled: true,
+        }),
+        () =>
+            service['describeSingleValue']({
+                user,
+                prompt: { projectUuid: 'project' } as AiWebAppPrompt,
+                agent: { uuid: 'runtime-agent' } as AiAgent,
+                artifact: {
+                    artifactUuid: 'artifact',
+                    versionUuid: 'version',
+                } as AiArtifact,
+                config: {
+                    source: 'semantic',
+                    config: {
+                        title: 'Metric',
+                        description: 'Single metric',
+                        chartConfig: null,
+                        mergeConfig: null,
+                        queryConfig: {
+                            exploreName: 'a',
+                            dimensions: [],
+                            metrics: ['a_metric'],
+                            sorts: [],
+                            limit: 1,
+                            parameters: null,
+                            customMetrics: null,
+                            tableCalculations: null,
+                            filters: null,
+                        },
+                    },
+                },
+                explore: validExplore,
+            }),
+    );
+    expect(assertOperation).toHaveBeenCalledExactlyOnceWith({
+        account: expect.objectContaining({
+            authentication: account.authentication,
+            organization: account.organization,
+            user: account.user,
+        }),
+        organizationUuid: user.organizationUuid,
+        projectUuid: 'project',
+        kind: 'agent_tool',
+        key: 'generateVisualization',
+        surface: AgentActorSurface.IN_APP_AGENT,
+    });
+    expect(getAsyncQueryResults).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            reader: {
+                kind: 'agent',
+                authMethod: 'session',
+                claim: expect.objectContaining({
+                    act: {
+                        sub: 'in_app_agent:lightdash-chat',
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        client_id: 'lightdash-chat',
+                        agent_uuid: 'runtime-agent',
+                    },
+                }),
+            },
+        }),
+    );
+});
+
+test('Slack table reads carry the loaded agent UUID and installed app id', async () => {
+    const user = defaultSessionUser;
+    const getAsyncQueryHistory = vi
+        .fn()
+        .mockResolvedValue({ status: QueryHistoryStatus.READY });
+    const getRawAsyncQueryResults = vi
+        .fn()
+        .mockResolvedValue({ rows: [], fields: {}, truncated: false });
+    const service = new AiAgentService({
+        asyncQueryService: { getAsyncQueryHistory, getRawAsyncQueryResults },
+        lightdashConfig: {
+            siteUrl: 'https://lightdash.example',
+            ai: { copilot: { maxQueryLimit: 500 } },
+        },
+        aiAgentModel: {
+            findThreadReferencedArtifacts: vi.fn().mockResolvedValue(new Map()),
+            findArtifactsByThreadUuid: vi.fn().mockResolvedValue([]),
+            findArtifactVersionsByPromptUuid: vi.fn().mockResolvedValue([]),
+            getToolCallsForPrompt: vi.fn().mockResolvedValue([
+                {
+                    tool_call_id: 'call',
+                    tool_name: 'runQuery',
+                    tool_args: { queryConfig: { exploreName: 'a' } },
+                },
+            ]),
+            getToolResultsForPrompt: vi.fn().mockResolvedValue([
+                {
+                    toolType: 'built-in',
+                    toolCallId: 'call',
+                    toolName: 'runQuery',
+                    metadata: { status: 'success', queryUuid: 'query' },
+                },
+            ]),
+        },
+        slackAuthenticationModel: {
+            getInstallationFromOrganizationUuid: vi
+                .fn()
+                .mockResolvedValue({ appId: 'installed-app' }),
+        },
+    } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    vi.spyOn(service, 'getDecisionClient').mockResolvedValue(undefined);
+    vi.spyOn(
+        service as unknown as { getExplore: () => Promise<unknown> },
+        'getExplore',
+    ).mockResolvedValue(validExplore);
+    await service['getSlackAgentFinalBlocks']({
+        user,
+        slackPrompt: {
+            promptUuid: 'prompt',
+            projectUuid: 'project',
+            threadUuid: 'thread',
+            organizationUuid: user.organizationUuid,
+        } as SlackPrompt,
+        agent: { uuid: 'loaded-agent', enableDataAccess: true } as AiAgent,
+        response: '<slack-table queryUuid="query" />',
+        runtimeTableResults: new Map(),
+        accessRefusal: null,
+    });
+    for (const read of [getAsyncQueryHistory, getRawAsyncQueryResults])
+        expect(read).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                reader: {
+                    kind: 'agent',
+                    authMethod: 'session',
+                    claim: expect.objectContaining({
+                        act: {
+                            sub: 'slack_agent:installed-app',
+                            surface: AgentActorSurface.SLACK_AGENT,
+                            client_id: 'installed-app',
+                            agent_uuid: 'loaded-agent',
+                        },
+                    }),
+                },
+            }),
+        );
+});

@@ -22,7 +22,7 @@ export const agentStatusHandler = async (
     }
     if (isUsingSharedAgentAccount(access)) {
         console.error(
-            'Not needed: agents on this project use the shared agent account',
+            'The CLI runs as you until agent connect issues an agent credential.',
         );
         return;
     }

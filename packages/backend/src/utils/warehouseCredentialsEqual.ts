@@ -6,9 +6,12 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import { stripWarehouseCredentialVersion } from './warehouseCredentialVersion';
 
 const bindingCredentials = (credentials: CreateWarehouseCredentials) => {
-    const normalized = normalizeWarehouseCredentials(credentials);
+    const normalized = normalizeWarehouseCredentials(
+        stripWarehouseCredentialVersion(credentials),
+    );
     if (
         (normalized.type === WarehouseTypes.SNOWFLAKE &&
             normalized.authenticationType ===

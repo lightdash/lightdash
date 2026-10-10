@@ -27,12 +27,16 @@ import {
     WarehouseTables,
     WarehouseTypes,
 } from '@lightdash/common';
+import { withWarehouseCredentialVersion } from '../warehouseCredentialVersion';
 
 export const warehouseClientMock: WarehouseClient = {
     getSessionTimezone: async () => null,
-    credentials: {
-        type: WarehouseTypes.POSTGRES,
-    } as CreateWarehouseCredentials,
+    credentials: withWarehouseCredentialVersion(
+        {
+            type: WarehouseTypes.POSTGRES,
+        } as CreateWarehouseCredentials,
+        'fixture-warehouse-version',
+    ),
     getCatalog: async () => ({
         default: {
             public: {

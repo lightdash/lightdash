@@ -22,6 +22,7 @@ import {
     applyWarehouseLocation,
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
+    assertRegisteredAccount,
     assertUnreachable,
     assertValidBigqueryKeyfile,
     AthenaAuthenticationType,
@@ -292,6 +293,7 @@ import {
     type ParameterDefinitions,
     type ParameterFallbackSources,
     type ParametersValuesMap,
+    type QueryResultProducer,
     type RunQueryTags,
     type SharedSignInStatus,
     type SignInSubject,
@@ -327,6 +329,11 @@ import {
     type OnboardingFlow,
 } from '../../analytics/LightdashAnalytics';
 import { trackSafely } from '../../analytics/trackSafely';
+import {
+    fromServiceAccount,
+    fromSession,
+    toSessionUser,
+} from '../../auth/account/account';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -432,10 +439,21 @@ import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBu
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
+import {
+    getResultEntitlementFingerprint,
+    isSameResultProducer,
+    isSameResultReader,
+} from '../../utils/queryResultProducer';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { assertHumanManagedMutation } from '../AgentPermissionService/assertHumanManagedMutation';
+import {
+    buildQueryAgentIdentity,
+    buildResultReader,
+    getContentWriteAgentIdentity,
+} from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
 import { BaseService } from '../BaseService';
 import {
@@ -467,6 +485,7 @@ import {
     connectionContextFromAccount,
     connectionContextFromUser,
     ConnectionSurface,
+    connectionSurfaceFromAgentSurface,
     connectionSurfaceFromQuerySurface,
     surfaceFromQueryContext,
     WarehouseCredentialKind,
@@ -767,6 +786,11 @@ export class ProjectService
     extends BaseService
     implements WarehouseCredentialSource
 {
+    protected readonly unfilteredExploreSnapshots = new WeakMap<
+        Explore,
+        Explore
+    >();
+
     static CREATE_PROJECT_JOB_ENQUEUE_GRACE_MS = 15 * 60 * 1000;
 
     lightdashConfig: LightdashConfig;
@@ -1992,7 +2016,10 @@ export class ProjectService
                     'Repaired a stale preview SSO credential from its upstream project',
                     { projectUuid, upstreamProjectUuid },
                 );
-                return repair.credentials;
+                return copyWarehouseCredentialVersions(
+                    repair.credentials,
+                    credentials,
+                );
             }
             default:
                 return assertUnreachable(repair, 'Unknown preview repair');
@@ -2203,13 +2230,17 @@ export class ProjectService
                 'Local analytics cannot run on an extra warehouse connection',
             );
         }
-        const credentials = {
-            ...source.credentials,
-            requireUserCredentials: getExtraConnectionRequireUserCredentials(
-                originalCredentials,
-                source,
-            ),
-        } as CreateWarehouseCredentials;
+        const credentials = copyWarehouseCredentialVersions(
+            {
+                ...source.credentials,
+                requireUserCredentials:
+                    getExtraConnectionRequireUserCredentials(
+                        originalCredentials,
+                        source,
+                    ),
+            } as CreateWarehouseCredentials,
+            source.credentials,
+        );
 
         return {
             kind: 'extra',
@@ -2252,20 +2283,22 @@ export class ProjectService
     ): Promise<CreateWarehouseCredentials> {
         const selectionSource =
             ProjectService.getCredentialSelectionSource(source);
-        return this.warehouseClientFactory.materializeCredentials(
-            credentials,
-            context,
-            base.projectUuid,
-            base.warehouseConnectionUuid,
-            selectionSource,
-            null,
-            () =>
-                this.refreshCredentialsAndPersistRotation(
-                    credentials,
-                    userUuid,
-                    source,
-                ),
-        );
+        const materialized =
+            await this.warehouseClientFactory.materializeCredentials(
+                credentials,
+                context,
+                base.projectUuid,
+                base.warehouseConnectionUuid,
+                selectionSource,
+                null,
+                () =>
+                    this.refreshCredentialsAndPersistRotation(
+                        credentials,
+                        userUuid,
+                        source,
+                    ),
+            );
+        return copyWarehouseCredentialVersions(materialized, credentials);
     }
 
     private async finishExtraConnectionCredentials(
@@ -2435,10 +2468,13 @@ export class ProjectService
             );
         }
 
-        return {
-            ...credentials,
-            userWarehouseCredentialsUuid,
-        };
+        return copyWarehouseCredentialVersions(
+            {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+            },
+            credentials,
+        );
     }
 
     /*
@@ -2733,6 +2769,10 @@ export class ProjectService
     ): Promise<ResolvedWarehouseCredentials> {
         return this.warehouseClientFactory.resolveLoadedCredentials(base, {
             organizationUuid: base.organizationUuid,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: userId,
+                organizationUuid: base.organizationUuid,
+            }),
             actor: {
                 surface:
                     querySurface === undefined
@@ -2812,10 +2852,13 @@ export class ProjectService
         }
         switch (base.kind) {
             case 'final':
-                return {
-                    ...base.credentials,
-                    userWarehouseCredentialsUuid: undefined,
-                };
+                return copyWarehouseCredentialVersions(
+                    {
+                        ...base.credentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
+                    base.credentials,
+                );
             case 'original':
                 return this.finishSingleRouteCredentials(base, context);
             case 'extra':
@@ -2927,13 +2970,18 @@ export class ProjectService
                         fallback: credentials,
                         personalCredentialPolicy: policy,
                     };
-                    credentials = {
-                        ...credentials,
-                        refreshToken: userCredentials.credentials.refreshToken,
-                        oauthClientId:
-                            userCredentials.credentials.oauthClientId ||
-                            credentials.oauthClientId,
-                    };
+                    credentials = copyWarehouseCredentialVersions(
+                        {
+                            ...credentials,
+                            refreshToken:
+                                userCredentials.credentials.refreshToken,
+                            oauthClientId:
+                                userCredentials.credentials.oauthClientId ||
+                                credentials.oauthClientId,
+                        },
+                        credentials,
+                        userCredentials.credentials,
+                    );
                     userWarehouseCredentialsUuid = userCredentials.uuid;
                     source = {
                         kind: 'user',
@@ -2943,16 +2991,17 @@ export class ProjectService
                 }
             }
         }
-        return {
-            ...(await this.materializeSelectedCredentials(
-                base,
-                context,
-                credentials,
-                person.userUuid,
-                source,
-            )),
-            userWarehouseCredentialsUuid,
-        };
+        const materialized = await this.materializeSelectedCredentials(
+            base,
+            context,
+            credentials,
+            person.userUuid,
+            source,
+        );
+        return copyWarehouseCredentialVersions(
+            { ...materialized, userWarehouseCredentialsUuid },
+            materialized,
+        );
     }
 
     protected async getWarehouseCredentialsWithConnection({
@@ -2972,17 +3021,21 @@ export class ProjectService
         };
         switch (target.kind) {
             case 'original': {
-                const { aiPlan, ...warehouseCredentials } =
+                const resolvedCredentials =
                     await this.getSingleRouteWarehouseCredentials(args);
+                const { aiPlan, ...warehouseCredentials } = resolvedCredentials;
                 return {
-                    warehouseCredentials,
+                    warehouseCredentials: copyWarehouseCredentialVersions(
+                        warehouseCredentials,
+                        resolvedCredentials,
+                    ),
                     warehouseConnectionUuid: null,
                     connectionRoute,
                     aiPlan: aiPlan ?? null,
                 };
             }
             case 'extra': {
-                const { aiPlan, ...warehouseCredentials } =
+                const resolvedCredentials =
                     await this.getExtraConnectionWarehouseCredentials({
                         projectUuid: args.projectUuid,
                         warehouseConnectionUuid: target.warehouseConnectionUuid,
@@ -2994,8 +3047,12 @@ export class ProjectService
                         context: args.context,
                         querySurface: args.querySurface,
                     });
+                const { aiPlan, ...warehouseCredentials } = resolvedCredentials;
                 return {
-                    warehouseCredentials,
+                    warehouseCredentials: copyWarehouseCredentialVersions(
+                        warehouseCredentials,
+                        resolvedCredentials,
+                    ),
                     warehouseConnectionUuid: target.warehouseConnectionUuid,
                     connectionRoute,
                     aiPlan: aiPlan ?? null,
@@ -3428,10 +3485,13 @@ export class ProjectService
             );
         }
 
-        return {
-            ...credentials,
-            userWarehouseCredentialsUuid,
-        };
+        return copyWarehouseCredentialVersions(
+            {
+                ...credentials,
+                userWarehouseCredentialsUuid,
+            },
+            credentials,
+        );
     }
 
     async getSharedSignInStatus(
@@ -10448,6 +10508,7 @@ export class ProjectService
         queryTags,
         invalidateCache,
         bypassResultsCache = false,
+        resultProducer = null,
     }: {
         projectUuid: string;
         userUuid: string | null;
@@ -10463,6 +10524,7 @@ export class ProjectService
         queryTags: Omit<RunQueryTags, 'query_context'>; // We already have context in the context parameter
         invalidateCache?: boolean;
         bypassResultsCache?: boolean;
+        resultProducer?: QueryResultProducer | null;
     }): Promise<{
         rows: Record<string, AnyType>[];
         cacheMetadata: CacheMetadata;
@@ -10480,7 +10542,26 @@ export class ProjectService
                     query,
                     resolvedTimezone,
                 ];
-                const queryHash = buildCacheHash(hashParts);
+                const { enabled: identityEnabled } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    });
+                const bypassCache =
+                    bypassResultsCache ||
+                    (identityEnabled &&
+                        (!user.organizationUuid ||
+                            resultProducer === null ||
+                            resultProducer.agentIdentity !== null));
+                const queryHash = buildCacheHash(
+                    hashParts,
+                    identityEnabled && resultProducer && user.organizationUuid
+                        ? {
+                              organizationUuid: user.organizationUuid,
+                              producer: resultProducer,
+                          }
+                        : null,
+                );
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
@@ -10491,11 +10572,7 @@ export class ProjectService
                         featureFlagId: FeatureFlags.ResultsCacheEnabled,
                     });
 
-                if (
-                    resultsCacheEnabled &&
-                    !bypassResultsCache &&
-                    !invalidateCache
-                ) {
+                if (resultsCacheEnabled && !bypassCache && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
@@ -10525,15 +10602,31 @@ export class ProjectService
                             await cacheEntry.Body?.transformToString();
                         if (stringResults) {
                             try {
-                                span.setAttribute('cacheHit', true);
-                                return {
-                                    rows: JSON.parse(stringResults).rows,
-                                    cacheMetadata: {
-                                        cacheHit: true,
-                                        cacheUpdatedTime:
-                                            cacheEntryMetadata?.LastModified,
-                                    },
-                                };
+                                const cached = JSON.parse(stringResults);
+                                if (
+                                    !identityEnabled ||
+                                    (resultProducer &&
+                                        cached.resultProducer &&
+                                        cached.resultProducer.agentIdentity ===
+                                            null &&
+                                        isSameResultProducer(
+                                            cached.resultProducer,
+                                            resultProducer,
+                                        ))
+                                ) {
+                                    span.setAttribute('cacheHit', true);
+                                    return {
+                                        rows: (identityEnabled
+                                            ? cached.payload
+                                            : cached
+                                        ).rows,
+                                        cacheMetadata: {
+                                            cacheHit: true,
+                                            cacheUpdatedTime:
+                                                cacheEntryMetadata?.LastModified,
+                                        },
+                                    };
+                                }
                             } catch (e) {
                                 this.logger.error(
                                     'Error parsing cache results:',
@@ -10586,12 +10679,16 @@ export class ProjectService
                     },
                 );
 
-                if (resultsCacheEnabled && !bypassResultsCache) {
+                if (resultsCacheEnabled && !bypassCache) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
                     const buffer = Buffer.from(
-                        JSON.stringify(warehouseResults),
+                        JSON.stringify(
+                            identityEnabled
+                                ? { resultProducer, payload: warehouseResults }
+                                : warehouseResults,
+                        ),
                     );
                     // fire and forget
                     this.s3CacheClient
@@ -10911,6 +11008,30 @@ export class ProjectService
                                     query,
                                     queryTags,
                                     invalidateCache,
+                                    resultProducer:
+                                        WarehouseClientFactory.getResultProducer(
+                                            {
+                                                warehouseCredentials,
+                                                warehouseConnectionUuid,
+                                                aiPlan: aiPlan ?? null,
+                                            },
+                                            account.user.id,
+                                            buildQueryAgentIdentity(
+                                                account,
+                                                context,
+                                                null,
+                                            ),
+                                            getResultEntitlementFingerprint(
+                                                {
+                                                    userAttributes:
+                                                        mergedUserAttributes,
+                                                    intrinsicUserAttributes,
+                                                },
+                                                explore,
+                                                metricQueryWithLimit,
+                                            ),
+                                            account.authentication.type,
+                                        ),
                                     bypassResultsCache:
                                         aiPlan?.identity ===
                                         'ai_service_account',
@@ -11078,6 +11199,7 @@ export class ProjectService
         limit,
         sqlChartUuid,
         context,
+        authMethod = null,
     }: SqlRunnerPayload): Promise<{
         fileUrl: string;
         columns: VizColumn[];
@@ -11140,9 +11262,44 @@ export class ProjectService
 
                 const columns: VizColumn[] = [];
 
+                const { enabled: identityEnabled } =
+                    await this.featureFlagModel.get({
+                        user: { userUuid, organizationUuid },
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    });
+                const resultEntitlementFingerprint = identityEnabled
+                    ? getResultEntitlementFingerprint(
+                          await this.getUserAttributes({
+                              user: await this.userModel.findSessionUserAndOrgByUuid(
+                                  userUuid,
+                                  organizationUuid,
+                              ),
+                          }),
+                      )
+                    : null;
                 const fileUrl = await this.downloadFileModel.streamFunction(
                     this.fileStorageClient,
                     projectUuid,
+                    identityEnabled
+                        ? {
+                              version: 1,
+                              userUuid,
+                              organizationUuid,
+                              projectUuid,
+                              resultProducer:
+                                  WarehouseClientFactory.getResultProducer(
+                                      {
+                                          warehouseCredentials,
+                                          warehouseConnectionUuid,
+                                          aiPlan: aiPlan ?? null,
+                                      },
+                                      userUuid,
+                                      null,
+                                      resultEntitlementFingerprint,
+                                      authMethod,
+                                  ),
+                          }
+                        : null,
                 )(
                     `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
                     async (writer) => {
@@ -11186,6 +11343,7 @@ export class ProjectService
         valuesColumns,
         groupByColumns,
         sortBy,
+        authMethod = null,
     }: SqlRunnerPivotQueryPayload): Promise<
         Omit<PivotChartData, 'results' | 'columns'>
     > {
@@ -11271,9 +11429,44 @@ export class ProjectService
 
                 let columnCount: undefined | number;
 
+                const { enabled: identityEnabled } =
+                    await this.featureFlagModel.get({
+                        user: { userUuid, organizationUuid },
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    });
+                const resultEntitlementFingerprint = identityEnabled
+                    ? getResultEntitlementFingerprint(
+                          await this.getUserAttributes({
+                              user: await this.userModel.findSessionUserAndOrgByUuid(
+                                  userUuid,
+                                  organizationUuid,
+                              ),
+                          }),
+                      )
+                    : null;
                 const fileUrl = await this.downloadFileModel.streamFunction(
                     this.fileStorageClient,
                     projectUuid,
+                    identityEnabled
+                        ? {
+                              version: 1,
+                              userUuid,
+                              organizationUuid,
+                              projectUuid,
+                              resultProducer:
+                                  WarehouseClientFactory.getResultProducer(
+                                      {
+                                          warehouseCredentials,
+                                          warehouseConnectionUuid,
+                                          aiPlan: aiPlan ?? null,
+                                      },
+                                      userUuid,
+                                      null,
+                                      resultEntitlementFingerprint,
+                                      authMethod,
+                                  ),
+                          }
+                        : null,
                 )(
                     `${this.lightdashConfig.siteUrl}/api/v1/projects/${projectUuid}/sqlRunner/results`,
                     async (writer) => {
@@ -11412,6 +11605,7 @@ export class ProjectService
         user: SessionUser,
         projectUuid: string,
         fileId: string,
+        authenticatedAccount: RegisteredAccount | null = null,
     ): Promise<Readable> {
         const project = await this.projectModel.getSummary(projectUuid);
         await this.assertAnalyticsProjectAccess(user, project);
@@ -11434,6 +11628,135 @@ export class ProjectService
             await this.downloadFileModel.getDownloadFile(fileId);
         if (downloadFile.projectUuid !== projectUuid) {
             throw new NotFoundError('Cannot find file');
+        }
+        const { enabled: identityEnabled } = await this.featureFlagModel.get({
+            user: { userUuid: user.userUuid, organizationUuid },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (identityEnabled) {
+            const provenance = await this.downloadFileModel.getProvenance(
+                downloadFile,
+                this.fileStorageClient,
+            );
+            if (!provenance) {
+                throw new ForbiddenError(
+                    'These results are not compatible with your current access. Run the query again.',
+                );
+            }
+            if (
+                provenance.organizationUuid !== organizationUuid ||
+                provenance.projectUuid !== projectUuid
+            ) {
+                throw new ForbiddenError();
+            }
+            let currentUser = await this.userModel.findSessionUserAndOrgByUuid(
+                user.userUuid,
+                organizationUuid,
+            );
+            if (user.serviceAccount) {
+                const serviceAccount =
+                    await this.userModel.findServiceAccountByUserUuid(
+                        user.userUuid,
+                    );
+                if (
+                    !serviceAccount ||
+                    serviceAccount.uuid !== user.serviceAccount.uuid ||
+                    serviceAccount.organizationUuid !== organizationUuid ||
+                    (serviceAccount.expiresAt &&
+                        serviceAccount.expiresAt <= new Date())
+                )
+                    throw new ForbiddenError();
+                currentUser = { ...currentUser, serviceAccount };
+            }
+            await this.assertAnalyticsProjectAccess(currentUser, project);
+            if (
+                this.createAuditedAbility(currentUser).cannot(
+                    'view',
+                    subject('Project', { organizationUuid, projectUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            const refreshedAccount = currentUser.serviceAccount
+                ? fromServiceAccount(currentUser, '')
+                : fromSession(currentUser);
+            const account: Account = authenticatedAccount
+                ? {
+                      ...authenticatedAccount,
+                      user: {
+                          ...authenticatedAccount.user,
+                          email: currentUser.email,
+                          ability: refreshedAccount.user.ability,
+                          abilityRules: refreshedAccount.user.abilityRules,
+                      },
+                  }
+                : refreshedAccount;
+            const reader = buildResultReader(account);
+            const controls = await this.getUserAttributes({ account });
+            const entitlementFingerprint =
+                getResultEntitlementFingerprint(controls);
+            if (
+                provenance.resultProducer.entitlementFingerprint !==
+                entitlementFingerprint
+            )
+                throw new ForbiddenError(
+                    'These results are not compatible with your current access. Run the query again.',
+                );
+            if (
+                this.lightdashConfig.ai.agentResultIdentityCheckEnabled !==
+                false
+            ) {
+                const connection =
+                    await this.warehouseClientFactory.resolveWarehouseCredentials(
+                        {
+                            kind: 'binding',
+                            projectUuid,
+                            binding: {
+                                kind: 'connection',
+                                warehouseConnectionUuid:
+                                    provenance.resultProducer
+                                        .warehouseConnectionUuid,
+                            },
+                        },
+                        connectionContextFromAccount(account, {
+                            organizationUuid,
+                            queryContext:
+                                reader.kind === 'agent'
+                                    ? QueryExecutionContext.AI
+                                    : null,
+                            surface:
+                                reader.kind === 'agent'
+                                    ? connectionSurfaceFromAgentSurface(
+                                          reader.claim.act.surface,
+                                      )
+                                    : undefined,
+                            agentActor:
+                                reader.kind === 'agent'
+                                    ? {
+                                          surface: reader.claim.act.surface,
+                                          clientId: reader.claim.act.client_id,
+                                      }
+                                    : undefined,
+                        }),
+                    );
+                const producer = WarehouseClientFactory.getResultProducer(
+                    connection,
+                    user.userUuid,
+                    reader.kind === 'agent' ? reader.claim : null,
+                    entitlementFingerprint,
+                    account.authentication.type,
+                );
+                if (
+                    !isSameResultProducer(
+                        provenance.resultProducer,
+                        producer,
+                    ) ||
+                    !isSameResultReader(provenance.resultProducer, reader)
+                )
+                    throw new ForbiddenError(
+                        'These results are not compatible with your current access. Run the query again.',
+                    );
+            }
         }
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
@@ -11494,7 +11817,7 @@ export class ProjectService
     }
 
     async searchFieldUniqueValues(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         table: string,
         initialFieldId: string,
@@ -11507,6 +11830,8 @@ export class ProjectService
         context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
         querySurface?: QuerySurface,
     ) {
+        assertRegisteredAccount(account);
+        const user = toSessionUser(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
@@ -11603,7 +11928,12 @@ export class ProjectService
                               ),
                 },
             ),
-            async ({ warehouseClient, warehouseCredentials, aiPlan }) => {
+            async ({
+                warehouseClient,
+                warehouseCredentials,
+                warehouseConnectionUuid,
+                aiPlan,
+            }) => {
                 const timezone = resolveQueryTimezone({
                     sessionTimezone: null,
                     metricQuery,
@@ -11636,10 +11966,39 @@ export class ProjectService
                           featureFlagId: FeatureFlags.AiAccessSkipResultsCache,
                       })
                     : { enabled: false };
+                const { enabled: identityEnabled } =
+                    await this.featureFlagModel.get({
+                        user: { userUuid: user.userUuid, organizationUuid },
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    });
+                const resultProducer = WarehouseClientFactory.getResultProducer(
+                    {
+                        warehouseCredentials,
+                        warehouseConnectionUuid,
+                        aiPlan: aiPlan ?? null,
+                    },
+                    user.userUuid,
+                    buildQueryAgentIdentity(
+                        account,
+                        context,
+                        querySurface ?? null,
+                    ),
+                    getResultEntitlementFingerprint(
+                        {
+                            userAttributes: mergedUserAttributes,
+                            intrinsicUserAttributes,
+                        },
+                        explore,
+                        metricQuery,
+                    ),
+                    account.authentication.type,
+                );
                 const isUserCacheEnabled =
                     this.lightdashConfig.results.autocompleteEnabled &&
                     !!user.userUuid &&
                     !skipAiAccessCache &&
+                    (!identityEnabled ||
+                        resultProducer.agentIdentity === null) &&
                     getAiExecutionCredentialUuid(aiPlan ?? null) === null;
 
                 const userUuid = getCacheUserUuid(
@@ -11654,7 +12013,12 @@ export class ProjectService
                     query,
                     timezone,
                 ];
-                const queryHash = buildCacheHash(hashParts);
+                const queryHash = buildCacheHash(
+                    hashParts,
+                    identityEnabled
+                        ? { organizationUuid, producer: resultProducer }
+                        : null,
+                );
 
                 if (!forceRefresh && isUserCacheEnabled) {
                     const stringResults = await this.s3CacheClient
@@ -11665,7 +12029,19 @@ export class ProjectService
                         .catch(() => undefined);
                     if (stringResults) {
                         try {
-                            return JSON.parse(stringResults);
+                            const cached = JSON.parse(stringResults);
+                            if (!identityEnabled) return cached;
+                            if (
+                                cached.payload &&
+                                cached.resultProducer &&
+                                cached.resultProducer.agentIdentity === null &&
+                                isSameResultProducer(
+                                    cached.resultProducer,
+                                    resultProducer,
+                                )
+                            ) {
+                                return cached.payload;
+                            }
                         } catch (e) {
                             this.logger.error(
                                 'Error parsing autocomplete cache results:',
@@ -11723,7 +12099,13 @@ export class ProjectService
                         refreshedAt: new Date(),
                         cached: true,
                     };
-                    const buffer = Buffer.from(JSON.stringify(searchResults));
+                    const buffer = Buffer.from(
+                        JSON.stringify(
+                            identityEnabled
+                                ? { resultProducer, payload: searchResults }
+                                : searchResults,
+                        ),
+                    );
                     this.s3CacheClient
                         .uploadResults(queryHash, buffer, queryTags)
                         .catch(() => undefined);
@@ -12870,6 +13252,15 @@ export class ProjectService
                             acc[explore.name] = getFilteredExplore(
                                 explore,
                                 userAccessControls.userAttributes,
+                            );
+                        }
+                    }
+                    if (!isExploreError(explore)) {
+                        const filtered = acc[explore.name];
+                        if (filtered && !isExploreError(filtered)) {
+                            this.unfilteredExploreSnapshots.set(
+                                filtered,
+                                explore,
                             );
                         }
                     }

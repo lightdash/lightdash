@@ -873,6 +873,7 @@ export class SavedSqlService
         sql: string,
         limit?: number,
         context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -897,6 +898,7 @@ export class SavedSqlService
         }
 
         const jobId = await this.schedulerClient.runSql({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             userUuid: user.userUuid,
             organizationUuid,
             projectUuid,
@@ -914,6 +916,7 @@ export class SavedSqlService
         projectUuid: string,
         body: SqlRunnerPivotQueryBody,
         context?: QueryExecutionContext,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         const { savedSqlUuid } = body;
         const { organizationUuid } =
@@ -957,6 +960,7 @@ export class SavedSqlService
             }
         }
         const jobId = await this.schedulerClient.runSqlPivotQuery({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             savedSqlUuid: savedChart?.savedSqlUuid,
             sql: savedChart?.sql || body.sql,
             limit: savedChart?.limit || body.limit,
@@ -980,6 +984,7 @@ export class SavedSqlService
         slug?: string,
         chartUuid?: string,
         context?: QueryExecutionContext,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         let savedChart;
         if (chartUuid) {
@@ -999,6 +1004,7 @@ export class SavedSqlService
         }
 
         const jobId = await this.schedulerClient.runSql({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             userUuid: user.userUuid,
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,

@@ -3,18 +3,10 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     MergeJoinType,
-    QueryExecutionContext,
-    QuerySurface,
     type AnonymousAccount,
     type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
-import {
-    agentExecutionContext,
-    buildQueryAgentIdentity,
-    withQueryAgentUuid,
-} from '../../../services/AiAccessService/agentExecutionContext';
-import type { CommonAsyncQueryArgs } from '../../../services/AsyncQueryService/types';
 import {
     metricQueryMock,
     validExplore,
@@ -92,19 +84,6 @@ const redactedQuery = {
     fields: { a_dim1: expect.objectContaining({ sql: '', compiledSql: '' }) },
 };
 
-const expectArtifactClaim = (args: CommonAsyncQueryArgs) => {
-    const baseline = buildQueryAgentIdentity(
-        args.account,
-        QueryExecutionContext.AI,
-        args.querySurface ?? QuerySurface.APP,
-    );
-    expect(withQueryAgentUuid(baseline, args.agentActor)).toEqual({
-        ...baseline,
-        act: { ...baseline!.act, agent_uuid: 'agent-uuid' },
-    });
-    expect(agentExecutionContext.getStore()).toBeUndefined();
-};
-
 const buildService = () => {
     const aiAgentModel = {
         findSlackPrompt: vi.fn().mockResolvedValue(undefined),
@@ -130,6 +109,7 @@ const buildService = () => {
         getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space-uuid'),
     };
     const asyncQueryService = {
+        bindQueryToArtifact: vi.fn(),
         executeAsyncMetricQuery: vi.fn().mockResolvedValue(query),
         executeAsyncMergeQuery: vi
             .fn()
@@ -213,9 +193,6 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expectArtifactClaim(
-                    asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
-                );
                 expect(result.query).toEqual(embedded ? redactedQuery : query);
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
@@ -272,9 +249,6 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expectArtifactClaim(
-                asyncQueryService.executeAsyncMergeQuery.mock.calls[0][0],
-            );
             expect(result.query).toEqual(embedded ? redactedQuery : query);
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
@@ -335,19 +309,6 @@ describe('artifact visualization identity refusals', () => {
 });
 
 describe('artifact visualization agent ownership', () => {
-    it('uses the resolved agent row rather than the path value', async () => {
-        const { service, asyncQueryService } = buildService();
-        await service.getArtifactVizQuery(user, {
-            projectUuid: 'project-uuid',
-            agentUuid: 'request-agent-value',
-            artifactUuid: 'artifact-uuid',
-            versionUuid: 'version-uuid',
-        });
-        expectArtifactClaim(
-            asyncQueryService.executeAsyncMetricQuery.mock.calls[0][0],
-        );
-    });
-
     it.each(['chart', 'dashboard'] as const)(
         'rejects a mismatched path agent before executing a %s query',
         async (artifactType) => {

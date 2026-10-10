@@ -154,7 +154,10 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
-import { getContentWriteAgentIdentity } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    buildResultReader,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import {
     isAgentActionForbiddenError,
@@ -1482,6 +1485,11 @@ export class McpService extends BaseService {
         const { account } = McpService.getAccount(ctx);
         const result = await this.asyncQueryService.getAsyncQueryResults({
             account,
+            reader: buildResultReader(
+                account,
+                QueryExecutionContext.MCP_RUN_SQL,
+                QuerySurface.MCP,
+            ),
             projectUuid,
             queryUuid,
             page: 1,
@@ -3690,6 +3698,11 @@ export class McpService extends BaseService {
                             await this.asyncQueryService.getRawAsyncQueryResults(
                                 {
                                     account,
+                                    reader: buildResultReader(
+                                        account,
+                                        QueryExecutionContext.MCP_RUN_SQL,
+                                        QuerySurface.MCP,
+                                    ),
                                     projectUuid,
                                     queryUuid,
                                     aiAccessOnly: true,
@@ -3765,6 +3778,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getAsyncQueryHistory(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: renderTool.queryUuid,
                                     },
@@ -3806,6 +3824,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getRawAsyncQueryResults(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: renderTool.queryUuid,
                                         aiAccessOnly: true,
@@ -4050,6 +4073,11 @@ export class McpService extends BaseService {
                         let queryHistory =
                             await this.asyncQueryService.getAsyncQueryHistory({
                                 account,
+                                reader: buildResultReader(
+                                    account,
+                                    QueryExecutionContext.MCP_RUN_SQL,
+                                    QuerySurface.MCP,
+                                ),
                                 projectUuid,
                                 queryUuid: args.queryUuid,
                             });
@@ -4158,6 +4186,11 @@ export class McpService extends BaseService {
                                 await this.asyncQueryService.getRawAsyncQueryResults(
                                     {
                                         account,
+                                        reader: buildResultReader(
+                                            account,
+                                            QueryExecutionContext.MCP_RUN_SQL,
+                                            QuerySurface.MCP,
+                                        ),
                                         projectUuid,
                                         queryUuid: args.queryUuid,
                                         aiAccessOnly: true,

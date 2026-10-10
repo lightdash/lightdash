@@ -6,6 +6,7 @@ import {
     type CreateWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
 // Extra security measure, we remove the "secrets" from the project/org credentials
 // and let the user override that token/password later on
@@ -173,13 +174,17 @@ export function mergePersonalWarehouseCredentials(
                 secretAccessKey?: string;
                 sessionToken?: string;
             };
-        return {
-            ...credentials,
-            accessKeyId: accessKeyId ?? '',
-            secretAccessKey: secretAccessKey ?? '',
-            ...(sessionToken ? { sessionToken } : {}),
-            requireUserCredentials: credentials.requireUserCredentials,
-        };
+        return copyWarehouseCredentialVersions(
+            {
+                ...credentials,
+                accessKeyId: accessKeyId ?? '',
+                secretAccessKey: secretAccessKey ?? '',
+                ...(sessionToken ? { sessionToken } : {}),
+                requireUserCredentials: credentials.requireUserCredentials,
+            },
+            projectCredentials,
+            userWarehouseCredentials.credentials,
+        );
     }
 
     // User has credentials - use them
@@ -191,5 +196,9 @@ export function mergePersonalWarehouseCredentials(
             ('requireUserCredentials' in userWarehouseCredentials.credentials &&
                 userWarehouseCredentials.credentials.requireUserCredentials),
     } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-    return credentials;
+    return copyWarehouseCredentialVersions(
+        credentials,
+        projectCredentials,
+        userWarehouseCredentials.credentials,
+    );
 }

@@ -24,3 +24,20 @@ export const getEmbedAiAgentDashboardPath = (
 /** The thread on a full-page thread route, or null elsewhere. */
 export const getThreadUuidFromPathname = (pathname: string): string | null =>
     pathname.match(/\/ai-agents\/[^/]+\/threads\/([^/]+)/)?.[1] ?? null;
+
+export const getAiAgentArtifactResultsUrl = ({
+    projectUuid,
+    agentUuid,
+    artifactUuid,
+    versionUuid,
+    queryUuid,
+    cached,
+}: {
+    projectUuid: string;
+    agentUuid: string;
+    artifactUuid: string;
+    versionUuid: string;
+    queryUuid: string;
+    cached: boolean;
+}) =>
+    `${getAiAgentApiBase(projectUuid)}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/query-results?${new URLSearchParams({ queryUuid, cached: String(cached) })}`;
