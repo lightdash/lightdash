@@ -144,6 +144,25 @@ describe('MCP settings navigation', () => {
     });
 });
 
+describe('Agents settings navigation', () => {
+    it('indexes the Identity and Permissions sections on the Agents page', () => {
+        const agents = organizationNavigation({
+            isAgentIdentityEnabled: true,
+            user: {
+                ability: new Ability([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            } as SettingsContext['user'],
+        })?.find((item) => item.label === 'Agents');
+
+        expect(agents?.to).toBe('/generalSettings/agentIdentity');
+        expect(agents?.pageSections?.map(({ title }) => title)).toEqual([
+            'Identity',
+            'Permissions',
+        ]);
+    });
+});
+
 describe('Data apps settings navigation', () => {
     const dataAppsChildren = (
         rules: { action: string; subject: string }[],

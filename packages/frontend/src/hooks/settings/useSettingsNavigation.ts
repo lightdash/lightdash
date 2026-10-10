@@ -681,6 +681,16 @@ export const useSettingsNavigation = (
                             'agent sign-in',
                         ],
                     },
+                    {
+                        title: 'Permissions',
+                        keywords: [
+                            'limit what agents can do',
+                            'who can use agents',
+                            'agent permissions',
+                            'allowed projects',
+                            'raw sql',
+                        ],
+                    },
                 ],
                 children: [],
                 exact: true,
