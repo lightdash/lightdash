@@ -60,7 +60,10 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         };
         const getAgentPermissionService = vi.fn(() => permissions);
         const service = Object.assign(Object.create(McpService.prototype), {
-            lightdashConfig: { mcp: { enabled: true } },
+            lightdashConfig: {
+                mcp: { enabled: true },
+                siteUrl: 'https://lightdash.example',
+            },
             createServer: vi.fn().mockResolvedValue({ connect: vi.fn() }),
             getLegacyToolScope: vi
                 .fn()
@@ -118,9 +121,18 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         if (authentication === 'oauth') {
             expect(result).toMatchObject({
                 isError: true,
-                structuredContent: { refusal: refusal.refusal },
+                structuredContent: {
+                    refusal: {
+                        ...refusal.refusal,
+                        settingsUrl:
+                            'https://lightdash.example/generalSettings/agentIdentity',
+                    },
+                },
             });
             expect(handler).not.toHaveBeenCalled();
+            expect(service['recordToolCall']).toHaveBeenCalledWith(
+                expect.objectContaining({ toolArgs: {}, status: 'error' }),
+            );
             expect(getAgentPermissionService).toHaveBeenCalledOnce();
             expect(permissions.assertOperation).toHaveBeenCalledWith({
                 account,
@@ -137,3 +149,73 @@ test.each(['oauth', 'pat', 'service-account'] as const)(
         }
     },
 );
+
+test('records handler identity refusals against the explicit project instead of stored context', async () => {
+    const storedProjectUuid = '11111111-1111-4111-8111-111111111111';
+    const toolArgs = {
+        projectUuid: '22222222-2222-4222-8222-222222222222',
+        agentUuid: '33333333-3333-4333-8333-333333333333',
+        queryUuid: '44444444-4444-4444-8444-444444444444',
+    };
+    const refusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+    );
+    const permissions = {
+        isManaged: vi.fn().mockResolvedValue(true),
+        assertOperation: vi.fn().mockResolvedValue(undefined),
+    };
+    const mcpToolCallModel = {
+        createToolCall: vi.fn().mockResolvedValue(undefined),
+    };
+    const analytics = { track: vi.fn() };
+    const service = Object.assign(Object.create(McpService.prototype), {
+        lightdashConfig: { siteUrl: 'https://lightdash.example' },
+        mcpContextModel: {
+            getContext: vi.fn().mockResolvedValue({
+                context: { projectUuid: storedProjectUuid, agentUuid: null },
+            }),
+        },
+        mcpToolCallModel,
+        analytics,
+        logger: { warn: vi.fn() },
+    }) as McpService;
+    const recordToolCall = vi.fn(service['recordToolCall'].bind(service));
+    service['recordToolCall'] = recordToolCall;
+    const handler = vi.fn().mockRejectedValue(refusal);
+    const callback = service['wrapToolCallback']('get_query_result', handler);
+    const extra = {
+        authInfo: {
+            extra: {
+                user,
+                account: accounts.oauth(),
+                getAgentPermissionService: () => permissions,
+            },
+        },
+    };
+
+    const result = await callback(toolArgs, extra);
+
+    expect(result).toMatchObject({ isError: true });
+    expect(handler).toHaveBeenCalledWith(toolArgs, extra);
+    expect(recordToolCall).toHaveBeenCalledOnce();
+    expect(recordToolCall.mock.calls[0][0].toolArgs).toEqual(toolArgs);
+    await vi.waitFor(() => {
+        expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+            expect.objectContaining({
+                project_uuid: toolArgs.projectUuid,
+                agent_uuid: toolArgs.agentUuid,
+                tool_args: toolArgs,
+                status: 'error',
+            }),
+        );
+    });
+    expect(analytics.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+            properties: expect.objectContaining({
+                projectId: toolArgs.projectUuid,
+                agentId: toolArgs.agentUuid,
+                queryId: toolArgs.queryUuid,
+            }),
+        }),
+    );
+});

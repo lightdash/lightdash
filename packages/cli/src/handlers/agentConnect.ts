@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import * as http from 'http';
 import type { Ora } from 'ora';
+import { getConfig } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
@@ -64,6 +65,15 @@ export const agentConnectHandler = async (
     }
     if (access.refusal?.action !== 'sign_in' || !access.refusal.connectUrl) {
         console.error(access.refusal?.message ?? 'Agent not connected');
+        if (access.refusal?.settingsUrl) {
+            const config = await getConfig();
+            const serverUrl = config.context?.serverUrl;
+            console.error(
+                serverUrl
+                    ? new URL(access.refusal.settingsUrl, serverUrl).href
+                    : access.refusal.settingsUrl,
+            );
+        }
         process.exitCode = 1;
         return;
     }

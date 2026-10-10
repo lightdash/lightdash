@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     AgentCapability,
     AiAccessRefusalReason,
+    AiAccessRefusedError,
     ForbiddenError,
     OrganizationMemberRole,
     type AgentCapabilityPolicy,
@@ -98,6 +99,7 @@ const setup = (
     const assertOperation = vi.spyOn(permissions, 'assertOperation');
     const getContext = vi.fn().mockResolvedValue({ context: { projectUuid } });
     const service = Object.assign(Object.create(McpService.prototype), {
+        lightdashConfig: { siteUrl: 'https://lightdash.example' },
         recordToolCall: vi.fn(),
         agentActionLogModel: deps.agentActionLogModel,
         mcpContextModel: { getContext },
@@ -156,12 +158,13 @@ describe.each(['oauth', 'session'] as const)(
                             reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
                             operation: name,
                             projectUuid,
-                            settingsUrl: '/generalSettings/agentIdentity',
+                            settingsUrl:
+                                'https://lightdash.example/generalSettings/agentIdentity',
                         },
                     },
                 });
                 expect(result.content[0].text).toBe(
-                    result.structuredContent.refusal.message,
+                    `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}`,
                 );
                 expect(handler).not.toHaveBeenCalled();
                 expect(assertOperation).toHaveBeenCalledExactlyOnceWith(
@@ -589,3 +592,61 @@ describe('MCP resource protocol permissions', () => {
         },
     );
 });
+
+test('wraps an identity refusal thrown after the permission check', async () => {
+    const { call, handler, deps, service } = setup();
+    deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+    );
+    handler.mockRejectedValue(error);
+    const settingsUrl = `https://lightdash.example/generalSettings/projectManagement/${projectUuid}/agentIdentity`;
+    expect(await call('run_sql', { projectUuid })).toMatchObject({
+        isError: true,
+        structuredContent: { refusal: { ...error.refusal, settingsUrl } },
+        content: [{ type: 'text', text: `${error.message}\n\n${settingsUrl}` }],
+    });
+    expect(service['recordToolCall']).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ status: 'error', toolArgs: { projectUuid } }),
+    );
+});
+
+test.each([false, true])(
+    'preserves a shared-tool refusal before flattening its result (streamed: %s)',
+    async (streamed) => {
+        const { call, handler, deps } = setup();
+        deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+            { projectUuid },
+        );
+        const result = {
+            result: error.message,
+            structuredContent: { refusal: error.refusal },
+        };
+        async function* results() {
+            yield result;
+        }
+        handler.mockImplementation(async () => ({
+            content: [
+                {
+                    type: 'text',
+                    text: await McpService.streamToolResult(
+                        streamed ? results() : result,
+                    ),
+                },
+            ],
+        }));
+        const settingsUrl = `https://lightdash.example/generalSettings/projectManagement/${projectUuid}/agentIdentity`;
+        expect(await call('run_sql', { projectUuid })).toMatchObject({
+            isError: true,
+            structuredContent: { refusal: { ...error.refusal, settingsUrl } },
+            content: [
+                { type: 'text', text: `${error.message}\n\n${settingsUrl}` },
+            ],
+        });
+        expect(error.refusal.settingsUrl).toBe(
+            `/generalSettings/projectManagement/${projectUuid}/agentIdentity`,
+        );
+    },
+);

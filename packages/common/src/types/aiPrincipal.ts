@@ -283,12 +283,15 @@ export const getAiAccessRefusalSettingsUrl = (
             return projectUuid === null
                 ? AGENT_IDENTITY_SETTINGS_PATH
                 : getProjectAgentIdentitySettingsPath(projectUuid);
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
+            return projectUuid === null
+                ? null
+                : getProjectAgentIdentitySettingsPath(projectUuid);
         case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
-        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
-        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
         case AiAccessRefusalReason.SIGN_IN_EXPIRED:
         case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:

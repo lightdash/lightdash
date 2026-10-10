@@ -1675,6 +1675,7 @@ const connectAgentOutputSchema = z.object({
     ]),
     message: z.string(),
     connectUrl: z.string().nullable(),
+    settingsUrl: z.string().nullable(),
     expiresAt: z.string().nullable(),
 });
 
