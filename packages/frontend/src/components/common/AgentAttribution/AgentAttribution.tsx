@@ -18,6 +18,8 @@ const surfaceKey = (surface: AgentActorSurface): UiStringKey => {
             return 'agentAttribution.slack';
         case AgentActorSurface.CLI:
             return 'agentAttribution.cli';
+        case AgentActorSurface.API:
+            return 'agentAttribution.api';
         case AgentActorSurface.DATA_APP:
             return 'agentAttribution.dataApp';
         case AgentActorSurface.AI_SUMMARY:
