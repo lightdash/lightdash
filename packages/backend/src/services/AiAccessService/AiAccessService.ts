@@ -1362,7 +1362,10 @@ export class AiAccessService extends BaseService {
         projectUuid: string,
         entryPoint: AgentIdentityConnectEntryPoint,
     ): Promise<AiAccessRefusedError> {
-        if (error.refusal.action === AiAccessRefusalAction.SIGN_IN) {
+        if (
+            error.refusal.reason === AiAccessRefusalReason.NEEDS_SIGN_IN ||
+            error.refusal.reason === AiAccessRefusalReason.SIGN_IN_EXPIRED
+        ) {
             const connectUrl = new URL(
                 '/agent/connect',
                 this.lightdashConfig.siteUrl,

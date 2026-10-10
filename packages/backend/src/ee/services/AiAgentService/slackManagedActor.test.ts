@@ -20,7 +20,7 @@ const setup = (
             throw new AiAccessRefusedError(
                 AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
                 {
-                    settingsUrl: '/generalSettings/agentIdentity',
+                    settingsUrl: null,
                 },
             );
     });
@@ -40,6 +40,9 @@ const setup = (
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
         },
         slackAuthenticationModel: {
+            getRawInstallationFromOrganizationUuid: vi
+                .fn()
+                .mockResolvedValue({ team: { id: 'team' } }),
             getInstallationFromOrganizationUuid: vi
                 .fn()
                 .mockResolvedValue({ aiRequireOAuth: requireOAuth }),
@@ -50,7 +53,7 @@ const setup = (
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },
-        lightdashConfig: { ai: {} },
+        lightdashConfig: { ai: {}, siteUrl: 'https://example.com' },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const modelStart = vi.fn().mockRejectedValue(new Error('model started'));
     Object.assign(service, {
@@ -72,6 +75,9 @@ const setup = (
                 aiCreditCheck: null,
                 prompt: {
                     slackUserId: 'sender',
+                    slackChannelId: 'channel',
+                    promptSlackTs: 'message',
+                    slackThreadTs: 'thread',
                     projectUuid: 'agent-project',
                 } as SlackPrompt,
                 stream: false,
@@ -93,7 +99,10 @@ test('managed Slack refuses installer fallback before starting the prompt', asyn
     await expect(h.run()).rejects.toMatchObject({
         refusal: {
             reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
-            settingsUrl: '/generalSettings/agentIdentity',
+            settingsUrl: null,
+            action: 'sign_in',
+            connectUrl:
+                'https://example.com/api/v1/auth/slack?team=team&channel=channel&message=message&trigger=app_mention&thread_ts=thread',
         },
     });
     expect(h.modelStart).not.toHaveBeenCalled();
@@ -162,5 +171,13 @@ test('managed Slack reports a turn admission refusal before starting decisions',
         expect.objectContaining({
             reason: AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
         }),
+    );
+});
+
+test('managed linked Slack passes actor verification with OAuth requirement off', async () => {
+    const h = setup(true, false, defaultSessionUser.userUuid);
+    await expect(h.run()).rejects.toThrow('model started');
+    expect(h.assertActorVerified).toHaveBeenCalledWith(
+        expect.objectContaining({ actorVerified: true }),
     );
 });

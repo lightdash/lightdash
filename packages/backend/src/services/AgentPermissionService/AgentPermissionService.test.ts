@@ -364,7 +364,8 @@ test.each(['off', 'legacy', 'managed'] as const)(
             await expect(result).rejects.toMatchObject({
                 refusal: {
                     reason: AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
-                    settingsUrl: '/generalSettings/agentIdentity',
+                    action: 'sign_in',
+                    settingsUrl: null,
                 },
             });
             expect(deps.agentActionLogModel.insert).toHaveBeenCalledWith(

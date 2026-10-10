@@ -1,11 +1,10 @@
-import { AiAccessRefusalReason } from './aiPrincipal';
+import { AiAccessRefusalAction, AiAccessRefusalReason } from './aiPrincipal';
 import { AiAccessRefusedError } from './errors';
 
 test.each([
     AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
     AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
     AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-    AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
     AiAccessRefusalReason.AGENT_SETTING_DENIED,
     AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
     AiAccessRefusalReason.AGENT_GRANT_DENIED,
@@ -40,4 +39,16 @@ test('existing identity refusals preserve their default URL', () => {
         new AiAccessRefusedError(AiAccessRefusalReason.NEEDS_SIGN_IN).refusal
             .settingsUrl,
     ).toBeNull();
+});
+
+test('an unverified Slack actor needs account linking, not admin settings', () => {
+    expect(
+        new AiAccessRefusedError(AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED)
+            .refusal,
+    ).toMatchObject({
+        action: AiAccessRefusalAction.SIGN_IN,
+        settingsUrl: null,
+        connectUrl: null,
+        message: 'Connect your Slack account so agents can run as you.',
+    });
 });

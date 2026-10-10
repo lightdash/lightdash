@@ -127,14 +127,16 @@ describe.each([false, true])(
                 },
                 'getDecisionClient',
             ).mockResolvedValue(undefined);
-            vi.spyOn(
-                service as unknown as {
-                    getChatHistoryFromThreadMessages: () => Promise<
-                        ModelMessage[]
-                    >;
-                },
-                'getChatHistoryFromThreadMessages',
-            ).mockResolvedValue([]);
+            const getChatHistory = vi
+                .spyOn(
+                    service as unknown as {
+                        getChatHistoryFromThreadMessages: () => Promise<
+                            ModelMessage[]
+                        >;
+                    },
+                    'getChatHistoryFromThreadMessages',
+                )
+                .mockResolvedValue([]);
             vi.spyOn(
                 service as unknown as {
                     getPromptErrorMessage: () => Promise<string>;
@@ -175,6 +177,7 @@ describe.each([false, true])(
                 updateSlackResponseTs,
                 updateModelResponse,
                 generate,
+                getChatHistory,
                 getDeliveredBlocks,
                 getPendingSqlApprovalForPrompt,
                 appendAgentStream,
@@ -223,6 +226,71 @@ describe.each([false, true])(
                         );
                         expect(harness.finalBlocks).not.toHaveBeenCalled();
                         expect(harness.generate).toHaveBeenCalledOnce();
+                    },
+                );
+
+                it.each([
+                    AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED,
+                    AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+                    AiAccessRefusalReason.AGENT_PROJECT_DENIED,
+                ])(
+                    'delivers a thrown pre-stream refusal without failure copy: %s',
+                    async (reason) => {
+                        const error = new AiAccessRefusedError(reason, {
+                            connectUrl:
+                                reason ===
+                                AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+                                    ? `${siteUrl}/api/v1/auth/slack?team=team&channel=channel-1&message=prompt-ts&trigger=app_mention&thread_ts=thread-ts`
+                                    : null,
+                        });
+                        const harness = setup({ card, refusals: [], error });
+                        await expect(
+                            harness.service.replyToSlackPrompt('prompt-1'),
+                        ).resolves.toBeUndefined();
+                        const title =
+                            reason ===
+                            AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+                                ? 'Needs your sign-in'
+                                : 'Needs an admin';
+                        expect(harness.getDeliveredBlocks()).toEqual([
+                            ...(card
+                                ? []
+                                : [
+                                      {
+                                          type: 'header',
+                                          text: {
+                                              type: 'plain_text',
+                                              text: title,
+                                          },
+                                      },
+                                  ]),
+                            ...getAiAccessRefusalBlocks(error.refusal, siteUrl),
+                        ]);
+                        const calls = JSON.stringify([
+                            harness.postMessage.mock.calls,
+                            harness.stopAgentStream.mock.calls,
+                        ]);
+                        expect(calls).not.toMatch(
+                            /🔴|Generation failed|Reference:|Please try again/,
+                        );
+                        expect(
+                            harness.postMessage.mock.calls.length +
+                                harness.stopAgentStream.mock.calls.length,
+                        ).toBe(1);
+                        if (card)
+                            expect(
+                                harness.appendAgentStream,
+                            ).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    chunks: [{ type: 'plan_update', title }],
+                                }),
+                            );
+                        else
+                            expect(harness.postMessage).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    text: expect.stringContaining(title),
+                                }),
+                            );
                     },
                 );
 
@@ -464,6 +532,33 @@ describe.each([false, true])(
                 });
             },
         );
+
+        it('delivers an admission refusal before response generation starts', async () => {
+            const error = new AiAccessRefusedError(
+                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
+            );
+            const h = setup({ card: false, refusals: [] });
+            h.getChatHistory.mockRejectedValue(error);
+            await expect(
+                h.service.replyToSlackPrompt('prompt-1'),
+            ).resolves.toBeUndefined();
+            expect(h.generate).not.toHaveBeenCalled();
+            expect(h.postMessage).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    text: expect.stringContaining('Needs an admin'),
+                    blocks: [
+                        {
+                            type: 'header',
+                            text: {
+                                type: 'plain_text',
+                                text: 'Needs an admin',
+                            },
+                        },
+                        ...getAiAccessRefusalBlocks(error.refusal, siteUrl),
+                    ],
+                }),
+            );
+        });
 
         describe('Slack task-card size fallback', () => {
             it.each([signIn, askAdmin])(

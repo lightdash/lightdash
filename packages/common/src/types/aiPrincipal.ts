@@ -187,7 +187,7 @@ export const getAiAccessRefusalMessage = (
         case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
             return 'This operation has no agent permission mapping. Contact an admin for support.';
         case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
-            return 'Connect your account before using this agent.';
+            return 'Connect your Slack account so agents can run as you.';
         case AiAccessRefusalReason.AGENT_SETTING_DENIED:
             return 'Agent content writes are disabled. Ask an organization admin to enable them.';
         case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
@@ -236,7 +236,6 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
         case AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED:
         case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
-        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.AGENT_SETTING_DENIED:
         case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
         case AiAccessRefusalReason.AGENT_GRANT_DENIED:
@@ -244,6 +243,7 @@ export const getAiAccessRefusalAction = (
         case AiAccessRefusalReason.AGENT_CHANNEL_DENIED:
         case AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED:
             return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.SIGN_IN_EXPIRED:
         case AiAccessRefusalReason.NEEDS_SIGN_IN:
             return AiAccessRefusalAction.SIGN_IN;
@@ -272,7 +272,6 @@ export const getAiAccessRefusalSettingsUrl = (
         case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
         case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
         case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
-        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.AGENT_SETTING_DENIED:
         case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
         case AiAccessRefusalReason.AGENT_GRANT_DENIED:
@@ -284,6 +283,7 @@ export const getAiAccessRefusalSettingsUrl = (
             return projectUuid === null
                 ? AGENT_IDENTITY_SETTINGS_PATH
                 : getProjectAgentIdentitySettingsPath(projectUuid);
+        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
         case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
         case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
         case AiAccessRefusalReason.PRINCIPAL_FAILED:
