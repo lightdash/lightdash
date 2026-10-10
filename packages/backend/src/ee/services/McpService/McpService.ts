@@ -5548,6 +5548,7 @@ export class McpService extends BaseService {
             const [toolArgs, extra] =
                 cbArgs.length > 1 ? [cbArgs[0], cbArgs[1]] : [{}, cbArgs[0]];
             const startedAt = Date.now();
+            let toolAllowed = false;
             try {
                 const context = getMcpContext(extra);
                 const user = context.authInfo?.extra.user;
@@ -5555,6 +5556,7 @@ export class McpService extends BaseService {
                     assertOAuthMcpToolAllowed(user.ability, toolName);
                 }
                 await this.assertAgentToolAllowed(context, toolName, toolArgs);
+                toolAllowed = true;
                 const result = await handler(...cbArgs);
                 const legacyContextInjected =
                     context.authInfo?.extra.legacyContextInjected === true;
@@ -5602,7 +5604,7 @@ export class McpService extends BaseService {
                         : (context.authInfo?.extra.headerProjectUuid ?? null);
                     this.recordToolCall({
                         toolName,
-                        toolArgs: {},
+                        toolArgs: toolAllowed ? toolArgs : {},
                         extra,
                         durationMs: Date.now() - startedAt,
                         status: 'error',
