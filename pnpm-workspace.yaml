@@ -102,8 +102,8 @@ minimumReleaseAgeExclude:
   - "@hapi/content@6.0.2"
   # Renovate security update: vitest@4.1.11
   - vitest@4.1.11
-  # Renovate security update: sharp@0.35.4
-  - sharp@0.35.4
+  # Renovate security update: sharp@0.35.4 || 0.35.5
+  - sharp@0.35.4 || 0.35.5
   # Renovate security update: csv-parse@7.0.2
   - csv-parse@7.0.2
   # Renovate security update: scim-patch@0.9.3
