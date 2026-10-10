@@ -331,6 +331,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             });
         await database('oauth2_access_tokens')
             .where('family_uuid', familyUuid)
+            .whereNull('agent_connection_grant_uuid')
             .del();
         Logger.warn('oauth_refresh_token_reuse', {
             clientId: token.client.id,

@@ -4,7 +4,7 @@ import {
     LightdashMode,
 } from '@lightdash/common';
 import { type Request, type RequestHandler, type Response } from 'express';
-import knex from 'knex';
+import knex, { type Knex } from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import passport from 'passport';
 import { fromApiKey } from '../../auth/account/account';
@@ -13,7 +13,11 @@ import { AgentConnectionGrantService } from '../../auth/agentConnectionGrants/Ag
 import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { authenticateServiceAccount } from '../../ee/authentication';
+import { AgentConnectionGrantModel } from '../../models/AgentConnectionGrantModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { OAuth2Model } from '../../models/OAuth2Model';
+import { type UserModel } from '../../models/UserModel';
+import { OAuthService } from '../../services/OAuthService/OAuthService';
 import {
     allowApiKeyAuthentication,
     allowApiKeyAuthenticationIfPresent,
@@ -95,6 +99,7 @@ const setup = () => {
             getAgentConnectionGrantService: () => service,
         },
     } as unknown as Request;
+    const downstream = vi.fn();
     let status = 200;
     const run = (middleware: RequestHandler) =>
         new Promise<{ status: number; body?: unknown; error?: unknown }>(
@@ -110,10 +115,23 @@ const setup = () => {
                     set: vi.fn(),
                 } as unknown as Response;
                 req.res = res;
-                middleware(req, res, (error) => resolve({ status, error }));
+                middleware(req, res, (error) => {
+                    if (error === undefined) downstream();
+                    resolve({ status, error });
+                });
             },
         );
-    return { grant, user, token, deps, permissions, req, run, oauth };
+    return {
+        grant,
+        user,
+        token,
+        deps,
+        permissions,
+        req,
+        run,
+        oauth,
+        downstream,
+    };
 };
 beforeEach(() => vi.clearAllMocks());
 it.each([allowApiKeyAuthentication, allowOauthAuthentication])(
@@ -413,4 +431,231 @@ it('does no binding lookup on an OAuth failure without a session', async () => {
     oauth.authenticate.mockRejectedValue(new Error('Invalid token'));
     await run(allowOauthAuthentication);
     expect(oauth.isAccessTokenBoundToGrant).not.toHaveBeenCalled();
+});
+
+describe('revoked bound bearer lifecycle with a live session', () => {
+    const cases = [
+        'revoke',
+        'replace',
+        'refresh_reuse',
+        'refresh_race',
+    ] as const;
+    const middlewares = [
+        allowApiKeyAuthentication,
+        allowOauthAuthentication,
+        allowApiKeyAuthenticationIfPresent,
+    ];
+    it.each(
+        cases.flatMap((lifecycle) =>
+            middlewares.map((middleware) => ({ lifecycle, middleware })),
+        ),
+    )(
+        'refuses $lifecycle before the downstream handler through $middleware.name',
+        async ({ lifecycle, middleware }) => {
+            const { req, user, grant, deps, run, downstream } = setup();
+            const database = knex({ client: MockClient, dialect: 'pg' });
+            const tracker = getTracker();
+            const grantRow = {
+                agent_connection_grant_uuid: grant.grantUuid,
+                organization_uuid: grant.organizationUuid,
+                subject_user_uuid: grant.subjectUserUuid,
+                client_id: grant.clientId,
+                credential_kind: grant.credentialKind,
+                actor_kind: grant.actorKind,
+                name: grant.name,
+                resource: grant.resource,
+                refresh_family_uuid: grant.refreshFamilyUuid,
+                approved_capabilities: grant.approvedCapabilities,
+                approved_project_uuids: grant.approvedProjectUuids,
+                resource_constraints: grant.resourceConstraints,
+                grant_contract_version: grant.grantContractVersion,
+                grant_revision: grant.grantRevision,
+                approval_policy_version: grant.approvalPolicyVersion,
+                approved_by_user_uuid: grant.approvedByUserUuid,
+                approval_method: grant.approvalMethod,
+                approved_at: grant.approvedAt,
+                approval_request_uuid: grant.approvalRequestUuid,
+                expires_at: grant.expiresAt,
+                revoked_at: null as Date | null,
+                revoked_by_user_uuid: null,
+                revocation_reason: null,
+                replaced_by_grant_uuid: null,
+                created_at: grant.createdAt,
+                last_used_at: null,
+            };
+            const tokenRow = {
+                access_token: 'token',
+                refresh_token: 'refresh',
+                expires_at: grant.expiresAt,
+                revoked_at: new Date(),
+                client_id: grant.clientId,
+                user_id: 42,
+                user_uuid: user.userUuid,
+                organization_uuid: user.organizationUuid,
+                resource: grant.resource,
+                family_uuid: grant.refreshFamilyUuid,
+                agent_connection_grant_uuid: grant.grantUuid,
+                scope: ['read'],
+            };
+            let accessStored = true;
+            let unboundFamilyStored = true;
+            tracker.on
+                .select('agent_connection_grants')
+                .response(() => grantRow);
+            tracker.on.update('agent_connection_grants').response(({ sql }) => {
+                if (sql.includes('revoked_at'))
+                    grantRow.revoked_at = new Date();
+                return [grantRow];
+            });
+            tracker.on.select('projects').response(
+                grant.approvedProjectUuids.map((project_uuid) => ({
+                    project_uuid,
+                })),
+            );
+            tracker.on
+                .insert('agent_connection_grants')
+                .response([
+                    { ...grantRow, agent_connection_grant_uuid: 'replacement' },
+                ]);
+            tracker.on.delete('oauth2_authorization_codes').response(1);
+            tracker.on
+                .update('oauth2_refresh_tokens')
+                .response(({ sql }) =>
+                    sql.includes('"revoked_at" is null') ? 0 : 1,
+                );
+            tracker.on.select('oauth2_refresh_tokens').response(tokenRow);
+            tracker.on.any(/pg_advisory/).response([]);
+            tracker.on.delete('oauth2_access_tokens').response(({ sql }) => {
+                if (!sql.includes('"agent_connection_grant_uuid" is null'))
+                    accessStored = false;
+                if (sql.includes('"family_uuid" ='))
+                    unboundFamilyStored = false;
+                return 1;
+            });
+            tracker.on
+                .select('oauth2_access_tokens')
+                .response(() => (accessStored ? tokenRow : undefined));
+            tracker.on.select('users').response({ user_uuid: user.userUuid });
+            const transaction = database.transaction.bind(database);
+            const transactionSpy = vi
+                .spyOn(database, 'transaction')
+                .mockImplementation((async (
+                    callback: (trx: Knex.Transaction) => Promise<unknown>,
+                ) =>
+                    transaction(async (trx) => {
+                        Object.defineProperty(trx, 'transaction', {
+                            configurable: true,
+                            value: async (
+                                nested: (
+                                    inner: Knex.Transaction,
+                                ) => Promise<unknown>,
+                            ) => nested(trx),
+                        });
+                        return callback(trx);
+                    })) as typeof database.transaction);
+            const grants = new AgentConnectionGrantModel({ database });
+            const oauthModel = new OAuth2Model(
+                database,
+                lightdashConfigMock,
+                deps.featureFlags,
+            );
+            const oauthService = new OAuthService({
+                oauthModel,
+                userModel: {} as UserModel,
+                lightdashConfig: lightdashConfigMock,
+            });
+            req.services.getOauthService = () => oauthService;
+            req.account = fromApiKey(user, 'pat');
+            req.isAuthenticated = (() => true) as Request['isAuthenticated'];
+            req.route.stack[0].handle = Object.defineProperty(
+                () => {},
+                'name',
+                { value: 'UserController_createPersonalAccessToken' },
+            );
+            try {
+                if (lifecycle === 'revoke') {
+                    await grants.revoke({
+                        organizationUuid: grant.organizationUuid,
+                        grantUuid: grant.grantUuid,
+                        revokedByUserUuid: user.userUuid,
+                        reason: 'user_request',
+                    });
+                } else if (lifecycle === 'replace') {
+                    await grants.replace({
+                        organizationUuid: grant.organizationUuid,
+                        oldGrantUuid: grant.grantUuid,
+                        actorUserUuid: user.userUuid,
+                        newGrantInput: {
+                            organizationUuid: grant.organizationUuid,
+                            subjectUserUuid: user.userUuid,
+                            clientId: grant.clientId,
+                            name: grant.name,
+                            resource: grant.resource,
+                            approvedCapabilities: grant.approvedCapabilities,
+                            approvedProjectUuids: grant.approvedProjectUuids,
+                            resourceConstraints: grant.resourceConstraints,
+                            approvalPolicyVersion: null,
+                            approvedByUserUuid: user.userUuid,
+                            approvalRequestUuid: null,
+                            expiresAt: grant.expiresAt,
+                        },
+                    });
+                } else if (lifecycle === 'refresh_reuse') {
+                    expect(await oauthModel.getRefreshToken('refresh')).toBe(
+                        false,
+                    );
+                } else {
+                    await expect(
+                        oauthModel.saveToken(
+                            {
+                                accessToken: 'rotated',
+                                refreshToken: 'rotated-refresh',
+                                parentRefreshToken: 'refresh',
+                                agentConnectionGrantUuid: grant.grantUuid,
+                                familyUuid: grant.refreshFamilyUuid,
+                                resource: grant.resource,
+                                scope: ['read'],
+                                client: {
+                                    id: grant.clientId,
+                                    grants: [
+                                        'authorization_code',
+                                        'refresh_token',
+                                    ],
+                                },
+                                user: {
+                                    userId: 42,
+                                    userUuid: user.userUuid,
+                                    organizationUuid: grant.organizationUuid,
+                                },
+                            },
+                            {
+                                id: grant.clientId,
+                                grants: ['authorization_code', 'refresh_token'],
+                            },
+                            {
+                                userId: 42,
+                                organizationUuid: grant.organizationUuid,
+                            },
+                        ),
+                    ).rejects.toMatchObject({ name: 'invalid_grant' });
+                }
+                expect(grantRow.revoked_at).toBeInstanceOf(Date);
+                expect(await run(middleware)).toEqual({
+                    status: 401,
+                    body: { error: 'invalid_token' },
+                });
+                expect(downstream).not.toHaveBeenCalled();
+                expect(
+                    await oauthModel.isAccessTokenBoundToGrant('token'),
+                ).toBe(true);
+                expect(unboundFamilyStored).toBe(false);
+                expect(passport.authenticate).not.toHaveBeenCalled();
+                expect(authenticateServiceAccount).not.toHaveBeenCalled();
+            } finally {
+                transactionSpy.mockRestore();
+                tracker.reset();
+                await database.destroy();
+            }
+        },
+    );
 });

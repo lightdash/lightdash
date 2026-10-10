@@ -174,6 +174,11 @@ it('revokes the connection on reuse even with the ordinary flag off', async () =
     getTracker().on.update('oauth2_refresh_tokens').response(1);
     getTracker().on.delete('oauth2_access_tokens').response(1);
     expect(await model.getRefreshToken('refresh')).toBe(false);
+    expect(
+        getTracker().history.delete.find((query) =>
+            query.sql.includes('oauth2_access_tokens'),
+        )?.sql,
+    ).toContain('"agent_connection_grant_uuid" is null');
     expect(AgentConnectionGrantModel.prototype.revoke).toHaveBeenCalledWith({
         grantUuid: 'grant',
         organizationUuid: 'org',
@@ -475,6 +480,11 @@ it('commits grant and family revocation when a bound refresh loses the rotation 
             user,
         ),
     ).rejects.toMatchObject({ name: 'invalid_grant' });
+    expect(
+        getTracker().history.delete.find((query) =>
+            query.sql.includes('oauth2_access_tokens'),
+        )?.sql,
+    ).toContain('"agent_connection_grant_uuid" is null');
     expect(AgentConnectionGrantModel.prototype.revoke).toHaveBeenCalledWith({
         grantUuid: 'grant',
         organizationUuid: 'org',
@@ -483,6 +493,9 @@ it('commits grant and family revocation when a bound refresh loses the rotation 
     });
     expect(tracker.history.update.at(-1)?.bindings).toContain('family');
     expect(tracker.history.delete.at(-1)?.bindings).toContain('family');
+    expect(tracker.history.delete.at(-1)?.sql).toContain(
+        '"agent_connection_grant_uuid" is null',
+    );
     expect(
         tracker.history.transactions.every(
             (transaction) => transaction.state === 'committed',

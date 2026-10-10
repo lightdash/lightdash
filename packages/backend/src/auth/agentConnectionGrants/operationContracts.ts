@@ -34,7 +34,11 @@ export type GrantOperationContract =
           bodySchema: z.ZodType;
       }
     | { kind: 'refresh'; param: 'projectUuid'; bodySchema: z.ZodType }
-    | { kind: 'content_upload'; param: 'projectUuid'; bodySchema: z.ZodType }
+    | {
+          kind: 'content_upload';
+          param: 'projectUuid';
+          bodySchema: z.ZodType<z.infer<typeof grantUploadBodySchema>>;
+      }
     | {
           kind: 'source_queries';
           param: 'projectUuid';
@@ -51,8 +55,13 @@ export const grantUploadBodySchema = z
     .object({
         access: z.never().optional(),
         spaceSlug: z.string().min(1).optional(),
+        verified: z.boolean().optional(),
     })
     .passthrough();
+export const uploadEffectCapabilities = (
+    body: z.infer<typeof grantUploadBodySchema>,
+): AgentCapability[] =>
+    body.verified !== undefined ? [AgentCapability.Publish] : [];
 const upload = {
     kind: 'content_upload',
     param: 'projectUuid',
