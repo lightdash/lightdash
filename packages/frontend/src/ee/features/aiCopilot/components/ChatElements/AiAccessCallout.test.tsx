@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
     AGENT_IDENTITY_SETTINGS_PATH,
+    AgentCapability,
+    AiAccessRefusedError,
     AiAccessRefusalAction,
     AiAccessRefusalReason,
     getAiAccessRefusalSettingsUrl,
@@ -480,4 +482,57 @@ describe('AI access callout', () => {
             screen.queryByRole('button', { name: 'Connect agent' }),
         ).not.toBeInTheDocument();
     });
+});
+
+it('shows other blockers and See why to the person, including structured extraction', () => {
+    const { refusal: detailedRefusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const parsed = getAiAccessRefusal({
+        structuredContent: { refusal: detailedRefusal },
+    });
+    expect(parsed).toEqual(detailedRefusal);
+    renderWithProviders(
+        <MemoryRouter>
+            <AiAccessCallout projectUuid="project" refusal={parsed!} />
+        </MemoryRouter>,
+    );
+    expect(screen.getByText(detailedRefusal.message)).toBeInTheDocument();
+    expect(
+        screen.getByText('Also needed: Publish and share'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'See why' })).toHaveAttribute(
+        'href',
+        '/generalSettings/myAgentConnections',
+    );
 });

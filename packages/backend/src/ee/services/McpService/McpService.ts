@@ -34,6 +34,7 @@ import {
     ForbiddenError,
     generateDataAppToolDefinition,
     generateHashesToolDefinition,
+    getAgentPermissionRefusalDetails,
     getAiAccessRefusalSettingsUrl,
     getAiWritebackStatusToolDefinition,
     getAiWritebackTaskStatusMessage,
@@ -2361,6 +2362,27 @@ export class McpService extends BaseService {
             settingsUrl: settingsUrl
                 ? new URL(settingsUrl, this.lightdashConfig.siteUrl).href
                 : null,
+            ...(refusal.explanationUrl
+                ? {
+                      explanationUrl: new URL(
+                          refusal.explanationUrl,
+                          this.lightdashConfig.siteUrl,
+                      ).href,
+                  }
+                : {}),
+            ...(refusal.blockers
+                ? {
+                      blockers: refusal.blockers.map((blocker) => ({
+                          ...blocker,
+                          settingsUrl: blocker.settingsUrl
+                              ? new URL(
+                                    blocker.settingsUrl,
+                                    this.lightdashConfig.siteUrl,
+                                ).href
+                              : null,
+                      })),
+                  }
+                : {}),
         };
     }
 
@@ -2377,12 +2399,13 @@ export class McpService extends BaseService {
             const message = refusal.connectUrl
                 ? `${refusal.message}\n\nConnect your agent (once per person): ${refusal.connectUrl}\nThen run the same call again.`
                 : `${prefix && !refusal.settingsUrl ? `${prefix}: ` : ''}${refusal.message}`;
+            const details = getAgentPermissionRefusalDetails(refusal);
             return {
                 isError: true,
                 content: [
                     {
                         type: 'text',
-                        text: `${message}${refusal.settingsUrl ? `\n\n${refusal.settingsUrl}` : ''}`,
+                        text: `${message}${refusal.settingsUrl ? `\n\n${refusal.settingsUrl}` : ''}${details ? `\n\n${details}` : ''}`,
                     },
                 ],
                 structuredContent: { refusal },

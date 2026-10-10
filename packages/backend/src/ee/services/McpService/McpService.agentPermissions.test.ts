@@ -170,7 +170,7 @@ describe.each(['oauth', 'session'] as const)(
                     },
                 });
                 expect(result.content[0].text).toBe(
-                    `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}`,
+                    `${result.structuredContent.refusal.message}\n\n${result.structuredContent.refusal.settingsUrl}\n\n${name === 'run_sql' ? 'Also needed: warehouse confirmation for this project\n' : ''}See why: https://lightdash.example/generalSettings/myAgentConnections`,
                 );
                 expect(handler).not.toHaveBeenCalled();
                 expect(assertOperation).toHaveBeenCalledExactlyOnceWith(
@@ -206,7 +206,9 @@ describe.each(['oauth', 'session'] as const)(
             const settingsUrl =
                 'https://lightdash.example/generalSettings/agentIdentity';
             const result = await call('create_content');
-            expect(result.content[0].text).toBe(`${message}\n\n${settingsUrl}`);
+            expect(result.content[0].text).toBe(
+                `${message}\n\n${settingsUrl}\n\nSee why: https://lightdash.example/generalSettings/myAgentConnections`,
+            );
             expect(result.structuredContent.refusal).toMatchObject({
                 message,
                 settingsUrl,
@@ -670,3 +672,81 @@ test.each([false, true])(
         );
     },
 );
+
+test('adds every other blocker and absolute explanation links to MCP refusals', async () => {
+    const { call, handler, deps } = setup();
+    deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.RawSql,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [AgentCapability.RawSql],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/agentIdentity#test-agent-access',
+            blockers: [
+                {
+                    checkId: 'capability:raw_sql',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.RawSql,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+                {
+                    checkId: 'warehouse_confirmation',
+                    status: 'setup_needed',
+                    reason: AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
+                    capability: AgentCapability.RawSql,
+                    policyLayer: 'warehouse_identity',
+                    message: 'Confirm restrictions',
+                    settingsUrl:
+                        '/generalSettings/projectManagement/project/agentIdentity',
+                },
+            ],
+        },
+    );
+    handler.mockRejectedValue(error);
+    const result = await call('run_sql', { projectUuid });
+    const explanationUrl =
+        'https://lightdash.example/generalSettings/agentIdentity#test-agent-access';
+    expect(result.content[0].text).toBe(
+        `${error.message}\n\nhttps://lightdash.example/generalSettings/agentIdentity\n\nAlso needed: warehouse confirmation for this project\nSee why: ${explanationUrl}`,
+    );
+    expect(result.structuredContent.refusal).toMatchObject({
+        requiredCapabilities: [AgentCapability.RawSql],
+        blockersComplete: true,
+        explanationUrl,
+        blockers: [
+            {
+                checkId: 'capability:raw_sql',
+                settingsUrl:
+                    'https://lightdash.example/generalSettings/agentIdentity',
+            },
+            {
+                checkId: 'warehouse_confirmation',
+                settingsUrl:
+                    'https://lightdash.example/generalSettings/projectManagement/project/agentIdentity',
+            },
+        ],
+    });
+    expect(error.refusal.explanationUrl).toBe(
+        '/generalSettings/agentIdentity#test-agent-access',
+    );
+});
+
+test('keeps the existing connect URL instructions unchanged', async () => {
+    const { call, handler, deps } = setup();
+    deps.featureFlagModel.get.mockResolvedValue({ enabled: false });
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.NEEDS_SIGN_IN,
+        { connectUrl: 'https://lightdash.example/connect' },
+    );
+    handler.mockRejectedValue(error);
+    const result = await call('run_sql', { projectUuid });
+    expect(result.content[0].text).toBe(
+        `${error.message}\n\nConnect your agent (once per person): https://lightdash.example/connect\nThen run the same call again.`,
+    );
+    expect(result.structuredContent.refusal).toEqual(error.refusal);
+});

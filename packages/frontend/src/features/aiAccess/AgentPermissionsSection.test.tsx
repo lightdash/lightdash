@@ -16,6 +16,7 @@ import {
     within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi } from '../../api';
 import { AgentPermissionsSection } from './AgentPermissionsSection';
@@ -86,7 +87,9 @@ const renderSection = () => {
     render(
         <MantineProvider env="test">
             <QueryClientProvider client={client}>
-                <AgentPermissionsSection />
+                <MemoryRouter>
+                    <AgentPermissionsSection />
+                </MemoryRouter>
             </QueryClientProvider>
         </MantineProvider>,
     );
@@ -126,6 +129,68 @@ beforeEach(() => {
     });
 });
 describe('Agent permissions', () => {
+    it('renders the preview in legacy and passes unsaved changes to it', async () => {
+        renderSection();
+        expect(
+            await screen.findByRole('heading', { name: 'Test agent access' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByText(
+                'This test uses saved permissions. Save your changes to test them.',
+            ),
+        ).not.toBeInTheDocument();
+        await enableLimits();
+        expect(
+            screen.getByText(
+                'This test uses saved permissions. Save your changes to test them.',
+            ),
+        ).toBeInTheDocument();
+        expect(mutations()).toHaveLength(0);
+    });
+    it('clears an existing preview as saved permissions refetch', async () => {
+        policy = { ...legacy(), mode: 'managed', version: 1 };
+        const client = renderSection();
+        await screen.findByRole('heading', { name: 'Test agent access' });
+        await pick('Person', 'Sam Smith');
+        await pick('Project', 'Sales');
+        await pick('Action', 'Run raw SQL');
+        apiMock.mockResolvedValueOnce({
+            mode: 'managed',
+            policyVersion: 1,
+            actionId: 'run_raw_sql',
+            requiredCapabilities: [],
+            result: 'allowed',
+            allowedByCheckedPermissionsOnly: true,
+            mainReason: null,
+            policyMainReason: null,
+            checks: [],
+            blockers: [],
+            coverage: 'checked_permissions_only',
+            warehouseAccess: 'not_verified',
+            connectionGrant: 'not_checked_yet',
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+        await screen.findByText('Allowed by checked permissions.');
+        let finish!: (value: typeof policy) => void;
+        apiMock.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        act(() => {
+            void client.invalidateQueries(['ai-access']);
+        });
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Allowed by checked permissions.'),
+            ).not.toBeInTheDocument(),
+        );
+        await act(async () => finish({ ...policy, version: 2 }));
+        expect(
+            screen.queryByText('Allowed by checked permissions.'),
+        ).not.toBeInTheDocument();
+    });
     it('shows the backend starting limits in legacy before saving', async () => {
         renderSection();
         expect(
@@ -915,6 +980,9 @@ describe('Agent permissions', () => {
         mocks.canManage = gate !== 'permission';
         renderSection();
         expect(screen.queryByText('Permissions')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Test agent access' }),
+        ).not.toBeInTheDocument();
         expect(lightdashApi).not.toHaveBeenCalled();
     });
 });

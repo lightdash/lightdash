@@ -1,4 +1,8 @@
-import { isAiAccessRefusal, type AiAccessRefusal } from '@lightdash/common';
+import {
+    getAdditionalAgentPermissionRequirements,
+    isAiAccessRefusal,
+    type AiAccessRefusal,
+} from '@lightdash/common';
 export const getAiAccessRefusal = (output: unknown): AiAccessRefusal | null => {
     if (
         !output ||
@@ -10,4 +14,11 @@ export const getAiAccessRefusal = (output: unknown): AiAccessRefusal | null => {
     if (!content || typeof content !== 'object' || !('refusal' in content))
         return null;
     return isAiAccessRefusal(content.refusal) ? content.refusal : null;
+};
+
+export const getAiAccessRefusalRequirements = (
+    refusal: AiAccessRefusal,
+): string | null => {
+    const requirements = getAdditionalAgentPermissionRequirements(refusal);
+    return requirements.length ? requirements.join(', ') : null;
 };

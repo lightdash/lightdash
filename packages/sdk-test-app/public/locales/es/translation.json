@@ -100,6 +100,8 @@
         }
     },
     "uiOverrides": {
+        "aiAccess.alsoNeeded": "También se necesita: {requirements}",
+        "aiAccess.seeWhy": "Ver por qué",
         "aiAccess.projectSettings": "Abrir la configuración del agente del proyecto",
         "parameters.is": "es",
         "parameters.clear": "Borrar parámetro",

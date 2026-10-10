@@ -24,6 +24,8 @@ export const DEFAULT_UI_STRINGS = {
     'agentAttribution.dataApp': 'Data app',
     'agentAttribution.aiSummary': 'AI summary',
 
+    'aiAccess.alsoNeeded': 'Also needed: {requirements}',
+    'aiAccess.seeWhy': 'See why',
     'aiAccess.settings': 'Review agent identity',
     'aiAccess.projectSettings': 'Open project agent settings',
     'aiAccess.loadError': 'Could not load agent identity',

@@ -597,14 +597,18 @@ export class AgentPermissionService extends BaseService {
                   message:
                       'Person permissions for this action are checked when the agent acts.',
               };
-        checks.unshift(
-            permissionCheck(
+        checks.unshift({
+            ...permissionCheck(
                 'person_permission',
                 "Person's permissions",
                 personPermission.status,
                 personPermission.message,
             ),
-        );
+            settingsUrl:
+                args.projectUuid === null
+                    ? '/generalSettings/userManagement'
+                    : `/generalSettings/projectManagement/${args.projectUuid}/projectAccess`,
+        });
         checks.push(
             permissionCheck(
                 'connection_grant',

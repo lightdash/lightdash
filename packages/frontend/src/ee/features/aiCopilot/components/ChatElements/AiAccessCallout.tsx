@@ -5,6 +5,7 @@ import {
     AiAccessRefusalAction,
     AiAccessRefusalReason,
     getProjectAgentIdentitySettingsPath,
+    interpolateUiString,
     type AiAccessRefusal,
 } from '@lightdash/common';
 import {
@@ -23,6 +24,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useSnowflakeAiLoginPopup } from '../../../../../hooks/useSnowflake';
 import useApp from '../../../../../providers/App/useApp';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { getAiAccessRefusalRequirements } from './aiAccessRefusal';
 
 const getRefusalSettings = (
     refusal: AiAccessRefusal,
@@ -99,6 +101,8 @@ export const AiAccessCallout = ({
     projectUuid: string;
     variant?: 'card' | 'inline';
 }) => {
+    const t = useUiStrings();
+    const requirements = getAiAccessRefusalRequirements(refusal);
     const login = useSnowflakeAiLoginPopup({
         entryPoint: AgentIdentityConnectEntryPoint.CHAT_CARD,
         projectUuid,
@@ -123,6 +127,22 @@ export const AiAccessCallout = ({
                                 : 'Connect once so the agent can query Snowflake as you, in a session your warehouse can verify.'
                             : refusal.message}
                     </Text>
+                    {requirements && (
+                        <Text size="sm" c="dimmed">
+                            {interpolateUiString(t('aiAccess.alsoNeeded'), {
+                                requirements,
+                            })}
+                        </Text>
+                    )}
+                    {refusal.explanationUrl && (
+                        <Anchor
+                            component={Link}
+                            to={refusal.explanationUrl}
+                            size="sm"
+                        >
+                            {t('aiAccess.seeWhy')}
+                        </Anchor>
+                    )}
                     {refusal.action === AiAccessRefusalAction.SIGN_IN && (
                         <Group>
                             <Button
