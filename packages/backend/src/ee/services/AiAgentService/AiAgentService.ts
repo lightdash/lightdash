@@ -4416,6 +4416,7 @@ export class AiAgentService extends BaseService {
         switch (toolName) {
             case 'runSql':
             case 'runComposerQueries':
+            case 'runContentQuery':
                 if (
                     ability.cannot(
                         'manage',

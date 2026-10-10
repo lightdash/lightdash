@@ -1,4 +1,5 @@
 import {
+    DEFAULT_RUN_SQL_LIMIT,
     getItemLabelWithoutTableName,
     getValidAiQueryLimit,
     runContentQueryToolDefinition,
@@ -11,25 +12,49 @@ import {
     type ToolRunContentQueryStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { stringify } from 'csv-stringify/sync';
 import { type QueryReviewer } from '../decisions/queryReview';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
+    RunSqlJobFn,
     UpdateProgressFn,
     ValidateContentFn,
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getContextTruncationNote } from '../utils/queryResultSummary';
 import { serializeData } from '../utils/serializeData';
-import type {
-    ExecuteStructuredToolResult,
-    ExecuteToolErrorResult,
+import {
+    findSqlScopeViolations,
+    formatSqlScopeError,
+    type SqlScope,
+} from '../utils/sqlScope';
+import {
+    toolFailure,
+    type ExecuteStructuredToolResult,
+    type ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 import { buildSavedChartHeader } from './runSavedChart';
+import { validateSelectOnly } from './runSql';
+import {
+    createSqlApprovalGate,
+    type SqlApprovalCopy,
+    type SqlApprovalDependencies,
+} from './sqlApprovalGate';
+import { RUN_SQL_REJECTED_RESULT, SqlNotApprovedError } from './sqlApprovals';
+
+// Null when SQL mode is off for the agent.
+export type ContentSqlQuerying = {
+    runSqlJob: RunSqlJobFn;
+    approval: SqlApprovalDependencies;
+    maxLimit: number;
+    sqlScope: SqlScope | null;
+    hyphenatedIdentifiers: boolean;
+};
 
 type Dependencies = {
     reviewQuery?: QueryReviewer;
@@ -41,6 +66,7 @@ type Dependencies = {
     maxLimit: number;
     maxContextRows: number;
     enableDataAccess: boolean;
+    sqlQuerying: ContentSqlQuerying | null;
 };
 
 const toolDefinition = runContentQueryToolDefinition.for('agent');
@@ -53,6 +79,32 @@ type RowsOutcome = Extract<
     ToolRunContentQueryStructuredContent,
     { outcome: 'rows' }
 >;
+
+/** A run pinned to a tool allowlist without runSql (data-app investigations) gets no raw SQL here either. */
+export const canRunContentQuerySql = ({
+    canRunSql,
+    toolAllowlist,
+}: {
+    canRunSql: boolean;
+    toolAllowlist: ReadonlySet<string> | null;
+}): boolean =>
+    canRunSql && (toolAllowlist === null || toolAllowlist.has('runSql'));
+
+export const CONTENT_SQL_DISABLED_RESULT =
+    'Running SQL is not available in this conversation. Query an explore with source.type "metricQuery" instead.';
+
+const CONTENT_SQL_APPROVAL_COPY: SqlApprovalCopy = {
+    slackText: 'SQL execution',
+    pendingProgress: 'Awaiting approval to run SQL...',
+    approvedProgress: 'Running SQL query...',
+    rejectedResult: RUN_SQL_REJECTED_RESULT,
+    timeoutResult:
+        'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
+    previousTimeoutResult:
+        'A previous SQL approval timed out in this response. Do not run SQL again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+};
+
+const RUN_CONTENT_SQL_APPROVAL_HEADING = 'Awaiting approval to run SQL';
 
 const describeSavedChartStructure = (
     chartUuid: string,
@@ -120,10 +172,154 @@ export const getRunContentQuery = ({
     maxLimit,
     maxContextRows,
     enableDataAccess,
-}: Dependencies) =>
-    tool({
+    sqlQuerying,
+}: Dependencies) => {
+    const approvalGate = sqlQuerying
+        ? createSqlApprovalGate(
+              sqlQuerying.approval,
+              'runContentQuery',
+              CONTENT_SQL_APPROVAL_COPY,
+          )
+        : null;
+
+    const runSqlSource = async (
+        source: { sql: string; limit: number | null },
+        toolCallId: string,
+    ): Promise<RunContentQueryResult> => {
+        if (!sqlQuerying || !approvalGate) {
+            return toolFailure(CONTENT_SQL_DISABLED_RESULT);
+        }
+        const { sql } = source;
+        // Every return goes through persistIfResumed so a resumed call stores its result.
+        const { approveSql, persistIfResumed } = await approvalGate.forToolCall(
+            toolCallId,
+            { sql },
+        );
+
+        try {
+            const scopeViolations = findSqlScopeViolations(
+                sql,
+                sqlQuerying.sqlScope,
+                { hyphenatedIdentifiers: sqlQuerying.hyphenatedIdentifiers },
+            );
+            if (scopeViolations.length > 0 && sqlQuerying.sqlScope) {
+                return await persistIfResumed(
+                    toolFailure(
+                        formatSqlScopeError(
+                            scopeViolations,
+                            sqlQuerying.sqlScope,
+                        ),
+                    ),
+                );
+            }
+            validateSelectOnly(sql);
+
+            try {
+                await approveSql({
+                    sql,
+                    heading: RUN_CONTENT_SQL_APPROVAL_HEADING,
+                });
+            } catch (e) {
+                if (e instanceof SqlNotApprovedError) {
+                    return await persistIfResumed(toolFailure(e.message));
+                }
+                throw e;
+            }
+
+            const limit = Math.min(
+                source.limit ?? DEFAULT_RUN_SQL_LIMIT,
+                sqlQuerying.maxLimit,
+            );
+            const [{ rows, columns, rowCount }, review] = await Promise.all([
+                sqlQuerying.runSqlJob({ sql, limit }),
+                enableDataAccess
+                    ? (reviewQuery?.({ kind: 'sql', sql, limit }) ?? '')
+                    : '',
+            ]);
+
+            if (!enableDataAccess) {
+                return await persistIfResumed({
+                    result: `Data access is disabled for this agent. The SQL ran and returned ${rowCount} rows. Columns: ${columns.join(
+                        ', ',
+                    )}.`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'dataAccessDisabled' as const,
+                        chart: null,
+                    },
+                });
+            }
+
+            if (rowCount === 0) {
+                const result = reviewQuery
+                    ? await reviewQuery(
+                          { kind: 'sql', sql, limit },
+                          { emptyResult: true, review },
+                      )
+                    : NO_RESULTS_RETRY_PROMPT;
+                return await persistIfResumed({
+                    result: `Query returned 0 rows.${
+                        columns.length > 0
+                            ? ` Columns: ${columns.join(', ')}.`
+                            : ''
+                    } ${result}`,
+                    metadata: { status: 'success' as const },
+                    structuredContent: {
+                        outcome: 'noResults' as const,
+                        review: reviewQuery ? result : null,
+                    },
+                });
+            }
+
+            const shownRows = rows.slice(0, maxContextRows);
+            const truncationNote = getContextTruncationNote({
+                rowCount,
+                maxContextRows,
+            });
+            const csv = stringify(
+                shownRows.map((row) => columns.map((column) => row[column])),
+                { header: true, columns },
+            );
+            return await persistIfResumed({
+                result: `${truncationNote}${serializeData(csv, 'csv')}${review}`,
+                metadata: { status: 'success' as const },
+                structuredContent: {
+                    outcome: 'rows' as const,
+                    chart: null,
+                    rowCount,
+                    shownRowCount: shownRows.length,
+                    columns: columns.map((label) => ({
+                        fieldId: null,
+                        label,
+                    })),
+                    rows: shownRows.map((row) =>
+                        columns.map((column) => row[column]),
+                    ),
+                    review: review === '' ? null : review,
+                    truncationNote:
+                        truncationNote === '' ? null : truncationNote,
+                },
+            });
+        } catch (error) {
+            return persistIfResumed(
+                toolErrorOutput(error, 'Error running SQL query.'),
+            );
+        }
+    };
+
+    return tool({
         ...toolDefinition,
-        execute: async ({ source }) => {
+        needsApproval: async ({ source }, { toolCallId }) =>
+            source.type === 'sql' && approvalGate !== null
+                ? approvalGate.needsNativeApproval({
+                      toolCallId,
+                      sql: source.sql,
+                  })
+                : false,
+        execute: async ({ source }, { toolCallId }) => {
+            if (source.type === 'sql') {
+                return runSqlSource(source, toolCallId);
+            }
             try {
                 await updateProgress('Running content query...');
 
@@ -391,3 +587,4 @@ export const getRunContentQuery = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};

@@ -125,13 +125,17 @@ import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunComposerQueries } from '../tools/runComposerQueries';
-import { getRunContentQuery } from '../tools/runContentQuery';
+import {
+    canRunContentQuerySql,
+    getRunContentQuery,
+} from '../tools/runContentQuery';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
     type TrackSqlApprovalTimeoutFn,
@@ -2073,26 +2077,23 @@ export const getAgentTools = (
           })
         : null;
 
+    const sqlApproval: SqlApprovalDependencies = {
+        getPrompt: dependencies.getPrompt,
+        updateProgress: dependencies.updateProgress,
+        updateSlackMessage: dependencies.updateSlackMessage,
+        siteUrl: args.siteUrl,
+        waitForSqlApproval: dependencies.waitForSqlApproval,
+        recordSqlApproval: dependencies.recordSqlApproval,
+        isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
+        listSqlApprovalDecisions: dependencies.listSqlApprovalDecisions,
+        trackSqlApprovalTimeout,
+        storeToolResults: dependencies.storeToolResults,
+        autoApproveSql: args.autoApproveSql ?? false,
+        autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
+        useSlackStreamCard: args.useSlackStreamCard,
+    };
     const sqlChartSaving: SqlChartSaving = args.canRunSql
-        ? {
-              mode: 'thread_approval',
-              approval: {
-                  getPrompt: dependencies.getPrompt,
-                  updateProgress: dependencies.updateProgress,
-                  updateSlackMessage: dependencies.updateSlackMessage,
-                  siteUrl: args.siteUrl,
-                  waitForSqlApproval: dependencies.waitForSqlApproval,
-                  recordSqlApproval: dependencies.recordSqlApproval,
-                  isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
-                  listSqlApprovalDecisions:
-                      dependencies.listSqlApprovalDecisions,
-                  trackSqlApprovalTimeout,
-                  storeToolResults: dependencies.storeToolResults,
-                  autoApproveSql: args.autoApproveSql ?? false,
-                  autoApproveSqlUserUuid: args.autoApproveSqlUserUuid ?? null,
-                  useSlackStreamCard: args.useSlackStreamCard,
-              },
-          }
+        ? { mode: 'thread_approval', approval: sqlApproval }
         : { mode: 'disabled' };
     sqlChartSaving.recordRefusal = dependencies.recordSqlChartRefusal;
     const editContent = getEditContent({
@@ -2110,6 +2111,13 @@ export const getAgentTools = (
     const createScheduledDelivery = getCreateScheduledDelivery({
         createScheduledDelivery: dependencies.createScheduledDelivery,
     });
+    const canRunContentSql = canRunContentQuerySql({
+        canRunSql: args.canRunSql,
+        toolAllowlist:
+            args.execution.mode === 'standard'
+                ? (args.execution.toolAllowlist ?? null)
+                : null,
+    });
     const runContentQuery = getRunContentQuery({
         reviewQuery,
         updateProgress: dependencies.updateProgress,
@@ -2120,6 +2128,15 @@ export const getAgentTools = (
         maxLimit: args.maxQueryLimit,
         maxContextRows: args.maxContextRows,
         enableDataAccess: args.enableDataAccess,
+        sqlQuerying: canRunContentSql
+            ? {
+                  runSqlJob: queryDependencies.runSqlJob,
+                  approval: sqlApproval,
+                  maxLimit: args.runSqlMaxLimit,
+                  sqlScope: args.sqlScope ?? null,
+                  hyphenatedIdentifiers: args.hyphenatedIdentifiers,
+              }
+            : null,
     });
 
     const generateDataApp = args.enableGenerateDataApp
