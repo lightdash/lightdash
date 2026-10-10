@@ -76693,17 +76693,6 @@ const models: TsoaRoute.Models = {
             },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
             defaults: { ref: 'AgentSystemRoleMatrix', required: true },
-            pilotPreset: {
-                dataType: 'nestedObjectLiteral',
-                nestedProperties: {
-                    systemRoleMatrix: {
-                        ref: 'AgentSystemRoleMatrix',
-                        required: true,
-                    },
-                    description: { dataType: 'string', required: true },
-                },
-                required: true,
-            },
         },
         additionalProperties: true,
     },
@@ -76796,35 +76785,6 @@ const models: TsoaRoute.Models = {
                 ],
             },
             systemRoleMatrix: { ref: 'AgentSystemRoleMatrix', required: true },
-        },
-        additionalProperties: true,
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PilotPresetRequest: {
-        dataType: 'refObject',
-        properties: {
-            version: { dataType: 'double' },
-            allowedProjectUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UUID' },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-                required: true,
-            },
-            allowedUserUuids: {
-                dataType: 'union',
-                subSchemas: [
-                    {
-                        dataType: 'array',
-                        array: { dataType: 'refAlias', ref: 'UUID' },
-                    },
-                    { dataType: 'enum', enums: [null] },
-                ],
-            },
         },
         additionalProperties: true,
     },
@@ -143606,67 +143566,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'saveCeiling',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: undefined,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAgentPermissionController_applyPilotPreset: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'PilotPresetRequest',
-        },
-    };
-    app.post(
-        '/api/v2/org/agent-permissions/pilot-preset',
-        ...fetchMiddlewares<RequestHandler>(AgentPermissionController),
-        ...fetchMiddlewares<RequestHandler>(
-            AgentPermissionController.prototype.applyPilotPreset,
-        ),
-
-        async function AgentPermissionController_applyPilotPreset(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsAgentPermissionController_applyPilotPreset,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<AgentPermissionController>(
-                        AgentPermissionController,
-                    );
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'applyPilotPreset',
                     controller,
                     response,
                     next,

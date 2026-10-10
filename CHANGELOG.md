@@ -1,3 +1,10 @@
+# [2.549.0](https://github.com/lightdash/lightdash/compare/2.548.0...2.549.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** remove the agent permissions pilot preset ([#30887](https://github.com/lightdash/lightdash/issues/30887)) ([85f301f](https://github.com/lightdash/lightdash/commit/85f301f7d7d8b770f94f1423ecad036c811d7bbd))
+
 # [2.548.0](https://github.com/lightdash/lightdash/compare/2.547.6...2.548.0) (2026-10-10)
 
 

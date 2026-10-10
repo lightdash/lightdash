@@ -71822,18 +71822,6 @@
                     },
                     "defaults": {
                         "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                    },
-                    "pilotPreset": {
-                        "properties": {
-                            "systemRoleMatrix": {
-                                "$ref": "#/components/schemas/AgentSystemRoleMatrix"
-                            },
-                            "description": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["systemRoleMatrix", "description"],
-                        "type": "object"
                     }
                 },
                 "required": [
@@ -71842,8 +71830,7 @@
                     "allowedProjectUuids",
                     "allowedUserUuids",
                     "systemRoleMatrix",
-                    "defaults",
-                    "pilotPreset"
+                    "defaults"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -71953,31 +71940,6 @@
                     }
                 },
                 "required": ["allowedProjectUuids", "systemRoleMatrix"],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "PilotPresetRequest": {
-                "properties": {
-                    "version": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "allowedProjectUuids": {
-                        "items": {
-                            "$ref": "#/components/schemas/UUID"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "allowedUserUuids": {
-                        "items": {
-                            "$ref": "#/components/schemas/UUID"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    }
-                },
-                "required": ["allowedProjectUuids"],
                 "type": "object",
                 "additionalProperties": true
             },
@@ -72103,7 +72065,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.548.0",
+        "version": "2.549.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -115707,46 +115669,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/AgentCapabilityCeiling"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v2/org/agent-permissions/pilot-preset": {
-            "post": {
-                "operationId": "applyAgentCapabilityPilotPreset",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/AgentPolicyResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "tags": ["v2", "Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PilotPresetRequest"
                             }
                         }
                     }
