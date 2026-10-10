@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, WarehouseTypes, type Project } from '@lightdash/common';
+import {
+    FeatureFlags,
+    supportsAiServiceAccount,
+    type Project,
+} from '@lightdash/common';
 import { Text } from '@mantine/core';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
@@ -40,11 +44,8 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
     )
         return null;
     if (
-        project.warehouseConnection?.type !== WarehouseTypes.POSTGRES &&
-        project.warehouseConnection?.type !== WarehouseTypes.ATHENA &&
-        project.warehouseConnection?.type !== WarehouseTypes.BIGQUERY &&
-        project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE &&
-        project.warehouseConnection?.type !== WarehouseTypes.DATABRICKS
+        !project.warehouseConnection ||
+        !supportsAiServiceAccount(project.warehouseConnection.type)
     )
         return (
             <Text size="sm" c="dimmed">

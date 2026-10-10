@@ -9,7 +9,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { lightdashApi, lightdashApiResponse } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
-import { PostgresAiServiceAccountForm } from './PostgresAiServiceAccountForm';
+import { AiServiceAccountForm } from './AiServiceAccountForm';
 
 vi.mock('../../api', () => ({
     lightdashApi: vi.fn(),
@@ -25,53 +25,57 @@ const verification: AiServiceAccountTestResult = {
     message: 'Connection works.',
     checkedAt: new Date('2026-10-09T12:00:00Z'),
 };
-const slot: AiServiceAccountSlot = {
-    uuid: 'slot',
-    identityUuid: 'new-identity',
-    projectUuid: 'project',
-    warehouseConnectionUuid: null,
-    kind: 'ai_service_account',
-    scope: 'connection',
-    warehouseType: WarehouseTypes.POSTGRES,
-    method: 'password',
-    createdByUserUuid: null,
-    updatedByUserUuid: null,
-    credentialSubjectUserUuid: null,
-    createdAt: new Date('2026-10-09T12:00:00Z'),
-    updatedAt: new Date('2026-10-09T12:00:00Z'),
-};
-const credentials = {
-    type: WarehouseTypes.POSTGRES,
-    user: 'application-id',
-    password: ' secret bytes ',
-};
-const setup = () => {
-    const client = new QueryClient({
-        defaultOptions: { mutations: { retry: false } },
-    });
-    const onSaved = vi.fn();
-    const onClose = vi.fn();
-    const rendered = renderWithProviders(
-        <QueryClientProvider client={client}>
-            <PostgresAiServiceAccountForm
-                projectUuid="project"
-                onSaved={onSaved}
-                onClose={onClose}
-            />
-        </QueryClientProvider>,
-    );
-    return { ...rendered, client, onSaved, onClose };
-};
-const fill = () => {
-    fireEvent.change(screen.getByLabelText('User', { exact: false }), {
-        target: { value: `  ${credentials.user}  ` },
-    });
-    fireEvent.change(screen.getByLabelText(/^Password/), {
-        target: { value: credentials.password },
-    });
-};
+describe.each([
+    [WarehouseTypes.POSTGRES, 'The Postgres login role for agents'],
+    [WarehouseTypes.REDSHIFT, 'The Redshift database user for agents'],
+] as const)('%s AI service account form', (warehouseType, userDescription) => {
+    const slot: AiServiceAccountSlot = {
+        uuid: 'slot',
+        identityUuid: 'new-identity',
+        projectUuid: 'project',
+        warehouseConnectionUuid: null,
+        kind: 'ai_service_account',
+        scope: 'connection',
+        warehouseType: warehouseType,
+        method: 'password',
+        createdByUserUuid: null,
+        updatedByUserUuid: null,
+        credentialSubjectUserUuid: null,
+        createdAt: new Date('2026-10-09T12:00:00Z'),
+        updatedAt: new Date('2026-10-09T12:00:00Z'),
+    };
+    const credentials = {
+        type: warehouseType,
+        user: 'application-id',
+        password: ' secret bytes ',
+    };
+    const setup = () => {
+        const client = new QueryClient({
+            defaultOptions: { mutations: { retry: false } },
+        });
+        const onSaved = vi.fn();
+        const onClose = vi.fn();
+        const rendered = renderWithProviders(
+            <QueryClientProvider client={client}>
+                <AiServiceAccountForm
+                    warehouseType={warehouseType}
+                    projectUuid="project"
+                    onSaved={onSaved}
+                    onClose={onClose}
+                />
+            </QueryClientProvider>,
+        );
+        return { ...rendered, client, onSaved, onClose };
+    };
+    const fill = () => {
+        fireEvent.change(screen.getByLabelText('User', { exact: false }), {
+            target: { value: `  ${credentials.user}  ` },
+        });
+        fireEvent.change(screen.getByLabelText(/^Password/), {
+            target: { value: credentials.password },
+        });
+    };
 
-describe('Postgres AI service account form', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(lightdashApi).mockResolvedValue(verification);
@@ -95,7 +99,7 @@ describe('Postgres AI service account form', () => {
         expect(screen.getByLabelText('User', { exact: false })).toBeRequired();
         expect(
             screen.getByLabelText('User', { exact: false }),
-        ).toHaveAccessibleDescription('The Postgres login role for agents');
+        ).toHaveAccessibleDescription(userDescription);
         fill();
         expect(screen.getByRole('button', { name: 'Test' })).toBeEnabled();
         expect(

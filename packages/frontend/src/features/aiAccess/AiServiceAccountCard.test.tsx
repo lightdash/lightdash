@@ -232,6 +232,7 @@ describe('AI service account card', () => {
     });
     describe.each([
         [WarehouseTypes.POSTGRES, 'Postgres', 'User and password'],
+        [WarehouseTypes.REDSHIFT, 'Redshift', 'User and password'],
         [WarehouseTypes.ATHENA, 'Athena', 'Access keys'],
         [WarehouseTypes.BIGQUERY, 'BigQuery', 'Key file'],
         [WarehouseTypes.SNOWFLAKE, 'Snowflake', 'Key pair'],
@@ -1417,6 +1418,240 @@ describe('AI service account card', () => {
             },
         );
     });
+    describe('Redshift', () => {
+        const redshiftProject = {
+            ...project,
+            warehouseConnection: {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'warehouse.internal',
+                port: 5432,
+                dbname: 'analytics',
+                schema: 'reporting',
+            },
+        } as Project;
+        const recorded: AiServiceAccountTestResult = {
+            ok: true,
+            principal: 'ai_agents',
+            observed: {
+                currentUser: 'ai_agents',
+            },
+            message: 'Connection works.',
+            checkedAt: new Date('2026-10-09T12:00:00Z'),
+        };
+        beforeEach(() => {
+            warehouseType = WarehouseTypes.REDSHIFT;
+            slot = { ...savedSlot, warehouseType, method: 'password' };
+            verification = recorded;
+        });
+        it('shows recorded verification on the project page and replaces it with a fresh Test', async () => {
+            setup(redshiftProject, false, true);
+            expect(
+                await screen.findByText('Signs in as ai_agents'),
+            ).toBeVisible();
+            expect(screen.getByText('User and password')).toBeVisible();
+            expect(screen.getByText(/Tested/)).toHaveTextContent('Added');
+            expect(
+                screen.getAllByRole('button', { name: 'Test' }),
+            ).toHaveLength(1);
+            fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+            expect(
+                await screen.findByText('Signs in as tested-principal'),
+            ).toBeVisible();
+            expect(
+                screen.queryByText('Signs in as ai_agents'),
+            ).not.toBeInTheDocument();
+        });
+        it('does not invent a principal for an unverified slot', async () => {
+            verification = null;
+            setup(redshiftProject);
+            expect(
+                await screen.findByText(
+                    'Not tested yet. Select Test to see who it signs in as.',
+                ),
+            ).toBeVisible();
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        });
+        it('marks the recorded observation as historical after a failed Test', async () => {
+            setup(redshiftProject);
+            const button = await screen.findByRole('button', { name: 'Test' });
+            vi.mocked(lightdashApi).mockResolvedValueOnce({
+                ...recorded,
+                ok: false,
+                principal: null,
+                message: 'Access denied.',
+            });
+            fireEvent.click(button);
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'Access denied.',
+            );
+            expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
+            expect(
+                screen.getByText(
+                    'The principal above is from the last successful check.',
+                ),
+            ).toBeVisible();
+        });
+        it('drops a Test result after the slot generation changes', async () => {
+            const { client } = setup(redshiftProject);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Test' }),
+            );
+            await screen.findByText('Signs in as tested-principal');
+            slot = { ...slot!, identityUuid: 'replacement' };
+            verification = null;
+            await client.invalidateQueries(['ai-access']);
+            expect(
+                await screen.findByText(
+                    'Not tested yet. Select Test to see who it signs in as.',
+                ),
+            ).toBeVisible();
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        });
+        it('shows parent verification and permits a preview override with warehouse-correct copy', async () => {
+            slot = null;
+            parent = {
+                ...parentAccount,
+                principal: null,
+                verification: recorded,
+            };
+            setup({ ...redshiftProject, type: ProjectType.PREVIEW });
+            expect(
+                await screen.findByText('Signs in as ai_agents'),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('link', { name: 'Production' }),
+            ).toHaveAttribute(
+                'href',
+                '/generalSettings/projectManagement/parent-project/agentIdentity',
+            );
+            expect(
+                screen.queryByText(/key file|different key|could not be read/),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: "Add this preview's own account",
+                }),
+            );
+            expect(await screen.findByLabelText(/^Password/)).toBeVisible();
+            expect(screen.getByLabelText(/^User/)).toHaveValue('');
+            expect(
+                screen.getByRole('button', { name: 'Test and save' }),
+            ).toBeDisabled();
+        });
+        it('restores the parent credentials after confirmation', async () => {
+            parent = {
+                ...parentAccount,
+                principal: recorded.principal,
+                verification: recorded,
+            };
+            setup({ ...redshiftProject, type: ProjectType.PREVIEW });
+            fireEvent.click(
+                await screen.findByRole('button', {
+                    name: "Use the parent's account",
+                }),
+            );
+            const dialog = await screen.findByRole('dialog');
+            expect(dialog).not.toHaveTextContent('key');
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'DELETE' }),
+            );
+            fireEvent.click(
+                within(dialog).getByRole('button', {
+                    name: "Use the parent's account",
+                }),
+            );
+            expect(
+                await screen.findByText(/Uses the AI service account from/),
+            ).toBeVisible();
+            expect(screen.getByText('Signs in as ai_agents')).toBeVisible();
+        });
+        it('replaces credentials without prefill and removes them only after confirmation', async () => {
+            const handler = vi.mocked(lightdashApi).getMockImplementation()!;
+            const replacement = {
+                ...recorded,
+                principal: 'replacement_user',
+                observed: {
+                    currentUser: 'replacement_user',
+                },
+            };
+            vi.mocked(lightdashApi).mockImplementation(async (request) => {
+                if (request.method === 'PUT') {
+                    slot = {
+                        ...savedSlot,
+                        warehouseType,
+                        method: 'password',
+                        identityUuid: 'replacement-generation',
+                    };
+                    verification = replacement;
+                    return { status: 'ok', results: slot, verification };
+                }
+                return handler(request);
+            });
+            setup(redshiftProject);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Replace' }),
+            );
+            const dialog = await screen.findByRole('dialog');
+            for (const [label, value] of [
+                [/^User/, 'replacement-user'],
+                [/^Password/, 'replacement-password'],
+            ] as const) {
+                const input = within(dialog).getByLabelText(label, {
+                    exact: false,
+                });
+                expect(input).toHaveValue('');
+                fireEvent.change(input, { target: { value } });
+            }
+            fireEvent.click(
+                within(dialog).getByRole('button', { name: 'Test and save' }),
+            );
+            expect(
+                await screen.findByText(`Signs in as ${replacement.principal}`),
+            ).toBeVisible();
+            expect(
+                screen.queryByText(`Signs in as ${recorded.principal}`),
+            ).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+            const confirmation = await screen.findByRole('dialog', {
+                name: 'Remove AI service account',
+            });
+            expect(lightdashApi).not.toHaveBeenCalledWith(
+                expect.objectContaining({ method: 'DELETE' }),
+            );
+            fireEvent.click(
+                within(confirmation).getByRole('button', { name: 'Remove' }),
+            );
+            await screen.findByRole('button', {
+                name: 'Add AI service account',
+            });
+            expect(screen.queryByText(/Signs in as/)).not.toBeInTheDocument();
+        });
+        it('warns about required missing credentials and offers Add', async () => {
+            slot = null;
+            source = 'ai_service_account';
+            setup(redshiftProject);
+            expect(await screen.findByRole('alert')).toHaveTextContent(
+                'Agents are refused on this project until you add an AI service account.',
+            );
+            expect(
+                screen.getByRole('button', {
+                    name: 'Add AI service account',
+                }),
+            ).toBeVisible();
+        });
+        it.each(['flag', 'permission'])(
+            'hides the Redshift page with no requests for %s',
+            (reason) => {
+                mocks.enabled = reason !== 'flag';
+                mocks.canManage = reason !== 'permission';
+                setup(redshiftProject, false, true);
+                expect(
+                    screen.queryByText('AI service account'),
+                ).not.toBeInTheDocument();
+                expect(lightdashApi).not.toHaveBeenCalled();
+            },
+        );
+    });
     it('shows an inherited key and opens the form for a different key', async () => {
         source = 'ai_service_account';
         parent = parentAccount;
@@ -1628,7 +1863,7 @@ describe('AI service account card', () => {
                 warehouseConnection: {
                     type:
                         reason === 'warehouse'
-                            ? WarehouseTypes.REDSHIFT
+                            ? WarehouseTypes.TRINO
                             : WarehouseTypes.BIGQUERY,
                 },
             } as Project);
@@ -2102,7 +2337,7 @@ describe('AI service account card', () => {
         setup(
             {
                 ...project,
-                warehouseConnection: { type: WarehouseTypes.REDSHIFT },
+                warehouseConnection: { type: WarehouseTypes.TRINO },
             } as Project,
             false,
             true,

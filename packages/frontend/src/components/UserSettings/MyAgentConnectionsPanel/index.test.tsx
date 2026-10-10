@@ -17,6 +17,7 @@ let warehouses: (WarehouseTypes | undefined)[] = [
     WarehouseTypes.BIGQUERY,
 ];
 let postgresSource: AiIdentitySource = 'marked_person';
+let redshiftSource: AiIdentitySource = 'marked_person';
 let athenaSource: AiIdentitySource = 'marked_person';
 let databricksSource: AiIdentitySource = 'marked_person';
 let configured = true;
@@ -29,6 +30,10 @@ vi.mock('../../../features/aiAccess/api', () => ({
         data: {
             snowflakeConfigured: configured,
             rules: [
+                {
+                    warehouseType: WarehouseTypes.REDSHIFT,
+                    source: redshiftSource,
+                },
                 {
                     warehouseType: WarehouseTypes.POSTGRES,
                     source: postgresSource,
@@ -82,6 +87,7 @@ describe('MyAgentConnectionsPanel', () => {
         bigquerySource = 'ai_service_account';
         databricksSource = 'marked_person';
         postgresSource = 'marked_person';
+        redshiftSource = 'marked_person';
         athenaSource = 'marked_person';
         warehouses = [WarehouseTypes.SNOWFLAKE, WarehouseTypes.BIGQUERY];
         configured = true;
@@ -195,6 +201,31 @@ describe('MyAgentConnectionsPanel', () => {
                 expect(
                     screen.getByText(
                         /Agents on PostgreSQL projects run as the AI service account your admin set up/,
+                    ),
+                ).toBeVisible();
+        },
+    );
+    it.each([
+        ['ai_service_account', [WarehouseTypes.REDSHIFT], true],
+        ['marked_person', [WarehouseTypes.REDSHIFT], false],
+        ['ai_service_account', [WarehouseTypes.BIGQUERY], false],
+        ['ai_service_account', [], false],
+    ] satisfies [AiIdentitySource, WarehouseTypes[], boolean][])(
+        'gates Redshift on rule %s and projects %j without a personal connection',
+        (source, projectWarehouses, visible) => {
+            redshiftSource = source;
+            warehouses = projectWarehouses;
+            renderWithProviders(<MyAgentConnectionsPanel />);
+            expect(
+                screen.queryByRole('heading', { name: 'Redshift' }) !== null,
+            ).toBe(visible);
+            expect(
+                screen.queryByRole('button', { name: /Connect/ }),
+            ).not.toBeInTheDocument();
+            if (visible)
+                expect(
+                    screen.getByText(
+                        /Agents on Redshift projects run as the AI service account your admin set up/,
                     ),
                 ).toBeVisible();
         },
