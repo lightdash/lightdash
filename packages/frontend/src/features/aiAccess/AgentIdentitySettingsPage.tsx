@@ -2,6 +2,7 @@ import { Anchor } from '@mantine/core';
 import { Link } from 'react-router';
 import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import { useSettingsContext } from '../../hooks/settings/useSettingsContext';
+import { AgentPermissionsSection } from './AgentPermissionsSection';
 import OrganizationAgentIdentitySection from './OrganizationAgentIdentitySection';
 
 export const AgentIdentitySettingsPage = () => {
@@ -35,6 +36,7 @@ export const AgentIdentitySettingsPage = () => {
                 </>
             }
         >
+            <AgentPermissionsSection />
             <OrganizationAgentIdentitySection />
         </SettingsPage>
     );

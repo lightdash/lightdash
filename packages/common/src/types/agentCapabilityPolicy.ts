@@ -28,3 +28,26 @@ export interface AgentWarehouseRestrictionConfirmation {
     confirmedByUserUuid: string | null;
     confirmedAt: Date;
 }
+
+export interface AgentCapabilityPolicyOverview extends AgentCapabilityPolicy {
+    defaults: AgentSystemRoleMatrix;
+    pilotPreset: {
+        description: string;
+        systemRoleMatrix: AgentSystemRoleMatrix;
+    };
+}
+
+export type AgentCapabilityCeiling = Pick<
+    AgentCapabilityPolicy,
+    'systemRoleMatrix' | 'allowedProjectUuids' | 'allowedUserUuids'
+>;
+
+export type AgentPilotSelection = Pick<
+    AgentCapabilityCeiling,
+    'allowedProjectUuids' | 'allowedUserUuids'
+>;
+
+export interface AgentWarehouseConfirmationStatus {
+    confirmation: AgentWarehouseRestrictionConfirmation | null;
+    confirmed: boolean;
+}

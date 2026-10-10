@@ -4,11 +4,12 @@ import {
     supportsAiServiceAccount,
     type Project,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import InlineErrorState from '../../components/common/InlineErrorState';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { AgentWarehouseConfirmationCard } from './AgentWarehouseConfirmationCard';
 import { AiServiceAccountCard } from './AiServiceAccountCard';
 import { useOrganizationAgentIdentitySettings } from './api';
 
@@ -53,9 +54,15 @@ export const ProjectAgentIdentityPage = ({ project }: { project: Project }) => {
             </Text>
         );
     return (
-        <ProjectAgentIdentityContent
-            key={project.projectUuid}
-            project={project}
-        />
+        <Stack gap="lg">
+            <AgentWarehouseConfirmationCard
+                key={project.projectUuid}
+                projectUuid={project.projectUuid}
+            />
+            <ProjectAgentIdentityContent
+                key={project.projectUuid}
+                project={project}
+            />
+        </Stack>
     );
 };

@@ -127,6 +127,12 @@ import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { PivotValuesColumn } from '../visualizations/types';
+import {
+    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
+    type AgentWarehouseConfirmationStatus,
+    type AgentWarehouseRestrictionConfirmation,
+} from './agentCapabilityPolicy';
 import type {
     ApiAiServiceAccountSlotResponse,
     ApiAiServiceAccountTestResponse,
@@ -1363,6 +1369,10 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | AgentCapabilityPolicy
+    | AgentCapabilityPolicyOverview
+    | AgentWarehouseRestrictionConfirmation
+    | AgentWarehouseConfirmationStatus
     | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
