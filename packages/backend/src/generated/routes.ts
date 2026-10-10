@@ -18689,6 +18689,78 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentSubjectRef: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                uuid: { dataType: 'string', required: true },
+                type: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['user'] },
+                        { dataType: 'enum', enums: ['service_account'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentActorSurface: {
+        dataType: 'refEnum',
+        enums: [
+            'in_app_agent',
+            'mcp',
+            'slack_agent',
+            'cli',
+            'data_app',
+            'ai_summary',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentActorClaim: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                agent_uuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                client_id: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                surface: { ref: 'AgentActorSurface', required: true },
+                sub: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AgentIdentityClaim: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                act: { ref: 'AgentActorClaim', required: true },
+                subject: { ref: 'AgentSubjectRef', required: true },
+                sub: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_SpaceSummary.uuid-or-name-or-userAccess_': {
         dataType: 'refAlias',
         type: {
@@ -18814,6 +18886,13 @@ const models: TsoaRoute.Models = {
                 },
                 name: { dataType: 'string', required: true },
                 savedSqlUuid: { dataType: 'string', required: true },
+                agentIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentIdentityClaim' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },
@@ -21153,6 +21232,13 @@ const models: TsoaRoute.Models = {
                 threadNumber: { dataType: 'double', required: true },
                 threadUuid: { dataType: 'string', required: true },
                 version: { dataType: 'double', required: true },
+                agentIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentIdentityClaim' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },
@@ -54372,33 +54458,42 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                createdAt: { dataType: 'datetime', required: true },
-                versionUuid: { dataType: 'string', required: true },
-                chartUuid: { dataType: 'string', required: true },
-                createdBy: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            ref: 'Pick_LightdashUser.userUuid-or-firstName-or-lastName_',
-                        },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
+    'Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy-or-agentIdentity_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    createdAt: { dataType: 'datetime', required: true },
+                    versionUuid: { dataType: 'string', required: true },
+                    chartUuid: { dataType: 'string', required: true },
+                    createdBy: {
+                        dataType: 'union',
+                        subSchemas: [
+                            {
+                                ref: 'Pick_LightdashUser.userUuid-or-firstName-or-lastName_',
+                            },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
+                    agentIdentity: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'AgentIdentityClaim' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ChartVersionSummary: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_',
+            ref: 'Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy-or-agentIdentity_',
             validators: {},
         },
     },
@@ -54449,6 +54544,13 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 chartUuid: { dataType: 'string', required: true },
+                agentIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentIdentityClaim' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },
@@ -63615,6 +63717,13 @@ const models: TsoaRoute.Models = {
                 createdAt: { dataType: 'datetime', required: true },
                 versionUuid: { dataType: 'string', required: true },
                 dashboardUuid: { dataType: 'string', required: true },
+                agentIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentIdentityClaim' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },
@@ -65872,6 +65981,13 @@ const models: TsoaRoute.Models = {
                 schemaVersion: { dataType: 'enum', enums: [2], required: true },
                 versionNumber: { dataType: 'double', required: true },
                 versionUuid: { dataType: 'string', required: true },
+                agentIdentity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AgentIdentityClaim' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
             },
             validators: {},
         },
@@ -66052,18 +66168,27 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                createdAt: { dataType: 'datetime', required: true },
-                versionUuid: { dataType: 'string', required: true },
-                versionNumber: { dataType: 'double', required: true },
+    'Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt-or-agentIdentity_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    createdAt: { dataType: 'datetime', required: true },
+                    versionUuid: { dataType: 'string', required: true },
+                    versionNumber: { dataType: 'double', required: true },
+                    agentIdentity: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'AgentIdentityClaim' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DocumentVersionSummary: {
         dataType: 'refAlias',
@@ -66071,7 +66196,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_',
+                    ref: 'Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt-or-agentIdentity_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',

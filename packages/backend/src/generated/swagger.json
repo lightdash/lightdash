@@ -19837,6 +19837,65 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "AgentSubjectRef": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["user", "service_account"]
+                    }
+                },
+                "required": ["uuid", "type"],
+                "type": "object"
+            },
+            "AgentActorSurface": {
+                "enum": [
+                    "in_app_agent",
+                    "mcp",
+                    "slack_agent",
+                    "cli",
+                    "data_app",
+                    "ai_summary"
+                ],
+                "type": "string"
+            },
+            "AgentActorClaim": {
+                "properties": {
+                    "agent_uuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "surface": {
+                        "$ref": "#/components/schemas/AgentActorSurface"
+                    },
+                    "sub": {
+                        "type": "string"
+                    }
+                },
+                "required": ["agent_uuid", "client_id", "surface", "sub"],
+                "type": "object"
+            },
+            "AgentIdentityClaim": {
+                "properties": {
+                    "act": {
+                        "$ref": "#/components/schemas/AgentActorClaim"
+                    },
+                    "subject": {
+                        "$ref": "#/components/schemas/AgentSubjectRef"
+                    },
+                    "sub": {
+                        "type": "string"
+                    }
+                },
+                "required": ["act", "subject", "sub"],
+                "type": "object"
+            },
             "Pick_SpaceSummary.uuid-or-name-or-userAccess_": {
                 "properties": {
                     "name": {
@@ -19978,6 +20037,14 @@
                     },
                     "savedSqlUuid": {
                         "type": "string"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -22475,6 +22542,14 @@
                     "version": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -52792,7 +52867,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
+            "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy-or-agentIdentity_": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -52811,6 +52886,14 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -52823,7 +52906,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "ChartVersionSummary": {
-                "$ref": "#/components/schemas/Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_"
+                "$ref": "#/components/schemas/Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy-or-agentIdentity_"
             },
             "ChartHistory": {
                 "properties": {
@@ -52873,6 +52956,14 @@
                     },
                     "chartUuid": {
                         "type": "string"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -62086,6 +62177,14 @@
                     },
                     "dashboardUuid": {
                         "type": "string"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -64363,6 +64462,14 @@
                     },
                     "versionUuid": {
                         "type": "string"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -64541,7 +64648,7 @@
                 "required": ["content", "baseVersionUuid"],
                 "type": "object"
             },
-            "Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_": {
+            "Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt-or-agentIdentity_": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
@@ -64553,6 +64660,14 @@
                     "versionNumber": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "agentIdentity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AgentIdentityClaim"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": ["createdAt", "versionUuid", "versionNumber"],
@@ -64562,7 +64677,7 @@
             "DocumentVersionSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt_"
+                        "$ref": "#/components/schemas/Pick_DocumentVersion.versionUuid-or-versionNumber-or-createdAt-or-agentIdentity_"
                     },
                     {
                         "properties": {
@@ -70947,7 +71062,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.536.0",
+        "version": "2.537.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

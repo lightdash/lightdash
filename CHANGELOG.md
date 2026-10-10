@@ -1,3 +1,10 @@
+# [2.537.0](https://github.com/lightdash/lightdash/compare/2.536.0...2.537.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** record agent content writes and refusals ([#30862](https://github.com/lightdash/lightdash/issues/30862)) ([e7ef7a1](https://github.com/lightdash/lightdash/commit/e7ef7a121957271cb89ceb3f412a07a3f5c4a90d))
+
 # [2.536.0](https://github.com/lightdash/lightdash/compare/2.535.0...2.536.0) (2026-10-10)
 
 
