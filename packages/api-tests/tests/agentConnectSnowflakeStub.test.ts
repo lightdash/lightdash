@@ -351,7 +351,7 @@ describe.skipIf(!stubUrl)(
                 AiAccessRefusalReason.NEEDS_SIGN_IN,
             );
             const authorizePath =
-                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read';
+                '/api/v1/oauth/authorize?client_id=lightdash-cli&redirect_uri=http%3A%2F%2Flocalhost%3A4321%2Fcallback&response_type=code&state=s&scope=read&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256';
             const refusedPage = await client.get<string>(authorizePath);
             expect(refusedPage.status).toBe(200);
             expect(refusedPage.body).toContain('Connect your warehouse agent');
