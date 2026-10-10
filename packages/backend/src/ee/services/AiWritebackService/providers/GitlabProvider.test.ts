@@ -129,6 +129,40 @@ describe('GitlabProvider.openPullRequest', () => {
         );
     });
 
+    it.each(['open', 'update'] as const)(
+        'reuses the inspected staging for %s without resolving paths again',
+        async (action) => {
+            mockCreatePullRequest.mockResolvedValue({
+                html_url:
+                    'https://gitlab.com/acme/analytics/-/merge_requests/42',
+                title: 'Add metric',
+                number: 42,
+            });
+            const sandbox = { ...fakeSandbox(), files: { read: vi.fn() } };
+            const args = {
+                sandbox: sandbox as never,
+                connection: { ...connection, projectSubPath: 'analytics/dbt' },
+                installation,
+                title: 'Add metric',
+                description: 'Adds revenue.',
+                user: { userUuid: 'u1' } as never,
+                setStage: vi.fn(),
+                onRemoteCommitted: vi.fn().mockResolvedValue(undefined),
+                changesStaged: true,
+            };
+            if (action === 'open') await provider.openPullRequest(args);
+            else
+                await provider.updatePullRequest({
+                    ...args,
+                    prUrl: openMr.webUrl,
+                });
+            expect(sandbox.git.add).not.toHaveBeenCalled();
+            expect(sandbox.files.read).not.toHaveBeenCalled();
+            expect(sandbox.git.commit).toHaveBeenCalledOnce();
+            expect(sandbox.git.push).toHaveBeenCalledOnce();
+        },
+    );
+
     it('credits the triggering user as a commit co-author', async () => {
         mockCreatePullRequest.mockResolvedValue({
             html_url: 'https://gitlab.com/acme/analytics/-/merge_requests/42',

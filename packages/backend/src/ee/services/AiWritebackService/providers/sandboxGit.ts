@@ -1,10 +1,11 @@
+import { PullRequestProvider } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
 import type { SandboxHandle } from '../../SandboxRuntime';
 import { CWD } from '../constants';
 import { DeniedPathError, findDeniedCommitPaths } from '../deniedPaths';
-import type { GitCommitAuthor } from '../types';
+import type { GitCommitAuthor, GitConnection } from '../types';
 import { parseGitNameStatus, quoteShellArgument } from '../utils';
 
 // Default dbt package install directory, relative to the project dir. Overridable
@@ -200,6 +201,23 @@ export const stageChanges = async (
         CWD,
         scopedToProject ? { files: paths } : { all: true },
     );
+};
+
+export const stageConnectionChanges = async (
+    sandbox: SandboxHandle,
+    connection: GitConnection,
+    logger: Logger,
+): Promise<void> => {
+    const paths =
+        connection.provider !== PullRequestProvider.GITLAB &&
+        connection.semanticLayer === 'lightdash'
+            ? [connection.projectSubPath]
+            : await resolveDbtProjectPaths(
+                  sandbox,
+                  connection.projectSubPath,
+                  logger,
+              );
+    await stageChanges(sandbox, paths, logger);
 };
 
 /**

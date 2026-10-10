@@ -56,8 +56,7 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
-    resolveDbtProjectPaths,
-    stageChanges,
+    stageConnectionChanges,
 } from './sandboxGit';
 
 const asGitlabConnection = (connection: GitConnection): GitlabConnection => {
@@ -244,6 +243,7 @@ export class GitlabProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
+            changesStaged: args.changesStaged,
         });
 
         setStage('pull_request');
@@ -285,6 +285,7 @@ export class GitlabProvider implements GitProvider {
             user,
             setStage,
             onRemoteCommitted: args.onRemoteCommitted,
+            changesStaged: args.changesStaged,
         });
 
         setStage('pull_request');
@@ -424,8 +425,10 @@ export class GitlabProvider implements GitProvider {
         user,
         setStage,
         onRemoteCommitted,
+        changesStaged,
     }: {
         sandbox: SandboxHandle;
+        changesStaged?: boolean;
         connection: GitlabConnection;
         installation: GitlabInstallation;
         branch: string;
@@ -435,12 +438,9 @@ export class GitlabProvider implements GitProvider {
         onRemoteCommitted: () => Promise<void>;
     }): Promise<LandedCommit> {
         setStage('commit');
-        const projectPaths = await resolveDbtProjectPaths(
-            sandbox,
-            connection.projectSubPath,
-            this.logger,
-        );
-        await stageChanges(sandbox, projectPaths, this.logger);
+        if (!changesStaged) {
+            await stageConnectionChanges(sandbox, connection, this.logger);
+        }
         // Host-side denied-path gate (GitLab pushes via git, so check the staged
         // paths here rather than in collectFileChanges). Reject the whole commit
         // before any commit or push reaches the remote.
