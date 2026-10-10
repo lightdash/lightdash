@@ -47,10 +47,14 @@ const setup = ({
     const postMessage = vi.fn().mockResolvedValue({ ok: true, ts: 'reply' });
     const postEphemeral = vi.fn().mockResolvedValue({ ok: true });
     const history = vi.fn().mockResolvedValue({
-        messages: [{ text: 'question', ts: 'message', user: 'sender' }],
+        messages: [
+            { text: 'question', ts: 'message', user: 'sender', team: 'team' },
+        ],
     });
     const replies = vi.fn().mockResolvedValue({
-        messages: [{ text: 'question', ts: 'message', user: 'sender' }],
+        messages: [
+            { text: 'question', ts: 'message', user: 'sender', team: 'team' },
+        ],
     });
     const findIdentityByUserUuid = vi.fn().mockResolvedValue({
         subject: 'sender',
@@ -159,7 +163,7 @@ const setup = ({
     };
 };
 
-test.each([undefined, 'thread'])(
+test.each([undefined, 'message', 'thread'])(
     'unlinked managed Slack asks for sign-in before storing a prompt (%s)',
     async (threadTs) => {
         const h = setup();
@@ -171,7 +175,7 @@ test.each([undefined, 'thread'])(
             expect.objectContaining({
                 channel: 'channel',
                 user: 'sender',
-                thread_ts: threadTs ?? 'message',
+                ...(threadTs === 'thread' ? { thread_ts: threadTs } : {}),
                 text: expect.stringContaining('Needs your sign-in'),
                 blocks: [
                     {
@@ -198,13 +202,18 @@ test.each([undefined, 'thread'])(
                                     type: 'plain_text',
                                     text: 'Connect your Slack account',
                                 },
-                                url: `${siteUrl}/api/v1/auth/slack?team=team&channel=channel&message=message&trigger=app_mention${threadTs ? '&thread_ts=thread' : ''}`,
+                                url: `${siteUrl}/api/v1/auth/slack?team=team&channel=channel&message=message&trigger=app_mention${threadTs ? `&thread_ts=${threadTs}` : ''}`,
                             },
                         ],
                     },
                 ],
             }),
         );
+        if (threadTs !== 'thread') {
+            expect(h.postEphemeral.mock.calls[0][0]).not.toHaveProperty(
+                'thread_ts',
+            );
+        }
         expect(JSON.stringify(h.postEphemeral.mock.calls)).not.toMatch(
             /🔴|failed|Reference:|Please try again/,
         );
@@ -242,7 +251,6 @@ test('managed linked Slack rejects a requester outside the organization', async 
     expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
         channel: 'channel',
         user: 'sender',
-        thread_ts: 'message',
         text: 'Your account is not a member of this organization. Ask an admin for access.',
     });
 });
@@ -381,7 +389,6 @@ test.each([
         expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
             channel: 'channel',
             user: 'clicker',
-            thread_ts: 'message',
             text: 'You can only resume your own message.',
         });
         expect(h.createPrompt).not.toHaveBeenCalled();
@@ -389,22 +396,63 @@ test.each([
     },
 );
 
-test.each(['enterprise', undefined])(
-    'replay resumes the author when the stored team is %s',
-    async (teamId) => {
+test.each([
+    { messageTeam: 'other-team', identityTeam: 'team' },
+    { messageTeam: undefined, identityTeam: 'team' },
+    { messageTeam: 'team', identityTeam: undefined },
+    { messageTeam: undefined, identityTeam: undefined },
+])(
+    'replay asks for a fresh mention when the author workspace cannot be confirmed: %j',
+    async ({ messageTeam, identityTeam }) => {
         const h = prepareReplay();
+        h.history.mockResolvedValue({
+            messages: [
+                {
+                    text: 'question',
+                    ts: 'message',
+                    user: 'sender',
+                    team: messageTeam,
+                },
+            ],
+        });
         h.findIdentityByUserUuid.mockResolvedValue({
             subject: 'sender',
             userUuid: 'requester',
-            teamId,
+            teamId: identityTeam,
         });
         await h.replay();
-        expect(h.createPrompt).toHaveBeenCalledOnce();
+        expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+            channel: 'channel',
+            user: 'sender',
+            text: "You're connected. Mention me again to continue.",
+        });
+        expect(h.createPrompt).not.toHaveBeenCalled();
+        expect(h.schedule).not.toHaveBeenCalled();
     },
 );
 
+test('replay refuses a message without an author', async () => {
+    const h = prepareReplay();
+    h.history.mockResolvedValue({
+        messages: [{ text: 'question', ts: 'message', team: 'team' }],
+    });
+    await h.replay();
+    expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
+        channel: 'channel',
+        user: 'sender',
+        text: 'You can only resume your own message.',
+    });
+    expect(h.createPrompt).not.toHaveBeenCalled();
+    expect(h.schedule).not.toHaveBeenCalled();
+});
+
 test('replay resumes the right clicker using the exact original message', async () => {
     const h = prepareReplay();
+    h.findIdentityByUserUuid.mockResolvedValue({
+        subject: 'sender',
+        userUuid: 'requester',
+        teamId: 'author-team',
+    });
     h.history.mockResolvedValue({
         messages: [
             {
@@ -412,7 +460,12 @@ test('replay resumes the right clicker using the exact original message', async 
                 ts: 'other-message',
                 user: 'someone-else',
             },
-            { text: 'question', ts: 'message', user: 'sender' },
+            {
+                text: 'question',
+                ts: 'message',
+                user: 'sender',
+                team: 'author-team',
+            },
         ],
     });
     await h.replay();
@@ -440,7 +493,6 @@ test.each([false, true])(
         expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
             channel: 'channel',
             user: 'sender',
-            thread_ts: 'message',
             text: 'Your account is not a member of this organization. Ask an admin for access.',
         });
         expect(h.createPrompt).not.toHaveBeenCalled();
@@ -453,7 +505,12 @@ test('replay finds the exact reply in its thread', async () => {
     h.replies.mockResolvedValue({
         messages: [
             { text: 'root question', ts: 'thread', user: 'another-user' },
-            { text: 'reply question', ts: 'message', user: 'sender' },
+            {
+                text: 'reply question',
+                ts: 'message',
+                user: 'sender',
+                team: 'team',
+            },
         ],
     });
     await h.replay('thread');
@@ -471,9 +528,16 @@ test('replay finds the exact reply in its thread', async () => {
     expect(h.schedule).toHaveBeenCalledOnce();
 });
 
-test.each(['missing', 'error'])(
-    'replay gives a visible fallback when a threaded message is %s',
-    async (failure) => {
+test.each([
+    { failure: 'missing', threadTs: undefined },
+    { failure: 'error', threadTs: undefined },
+    { failure: 'missing', threadTs: 'message' },
+    { failure: 'error', threadTs: 'message' },
+    { failure: 'missing', threadTs: 'thread' },
+    { failure: 'error', threadTs: 'thread' },
+])(
+    'replay gives a visible fallback when the original message cannot be fetched: %j',
+    async ({ failure, threadTs }) => {
         const h = prepareReplay();
         if (failure === 'error') {
             h.history.mockRejectedValue(new Error('Slack unavailable'));
@@ -482,11 +546,11 @@ test.each(['missing', 'error'])(
             h.history.mockResolvedValue({ messages: [] });
             h.replies.mockResolvedValue({ messages: [] });
         }
-        await h.replay('thread');
+        await h.replay(threadTs);
         expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
             channel: 'channel',
             user: 'sender',
-            thread_ts: 'thread',
+            ...(threadTs === 'thread' ? { thread_ts: threadTs } : {}),
             text: "Couldn't find your message. Ask again.",
         });
         expect(h.createPrompt).not.toHaveBeenCalled();
@@ -500,7 +564,6 @@ test('multi-agent replay asks for a new mention instead of picking the first pro
     expect(h.postEphemeral).toHaveBeenCalledExactlyOnceWith({
         channel: 'channel',
         user: 'sender',
-        thread_ts: 'message',
         text: "You're connected. Mention me again to continue.",
     });
     expect(h.createPrompt).not.toHaveBeenCalled();

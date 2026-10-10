@@ -21302,7 +21302,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         organizationUuid: string;
         slackUserId: string;
         channelId: string;
-        threadTs: string;
+        threadTs: string | null;
         client: WebClient;
     }): Promise<boolean> {
         try {
@@ -21316,7 +21316,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             await client.chat.postEphemeral({
                 channel: channelId,
                 user: slackUserId,
-                thread_ts: threadTs,
+                ...(threadTs ? { thread_ts: threadTs } : {}),
                 text: 'Your account is not a member of this organization. Ask an admin for access.',
             });
             return false;
@@ -21342,6 +21342,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         },
         client: WebClient,
     ): Promise<{ userUuid: string } | null> {
+        const ephemeralThreadTs =
+            threadTs && threadTs !== messageId ? threadTs : null;
         let result:
             | 'oauth_not_required'
             | 'authenticated'
@@ -21407,7 +21409,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         await client.chat.postEphemeral({
                             channel: channelId,
                             user: userId,
-                            thread_ts: threadTs ?? messageId,
+                            ...(ephemeralThreadTs
+                                ? { thread_ts: ephemeralThreadTs }
+                                : {}),
                             text: reply.text,
                             blocks: [reply.titleBlock, ...reply.blocks],
                         });
@@ -21459,7 +21463,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     organizationUuid,
                     slackUserId: userId,
                     channelId,
-                    threadTs: threadTs ?? messageId,
+                    threadTs: ephemeralThreadTs,
                     client,
                 }))
             ) {
@@ -21547,6 +21551,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
 
         const slackUserId = openIdIdentity.subject;
+        const ephemeralThreadTs =
+            threadTs && threadTs !== messageTs ? threadTs : null;
 
         let originalMessage: MessageElement | undefined;
         if (trigger !== 'vote') {
@@ -21587,18 +21593,38 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: slackUserId,
-                    thread_ts: threadTs ?? messageTs,
+                    ...(ephemeralThreadTs
+                        ? { thread_ts: ephemeralThreadTs }
+                        : {}),
                     text: "Couldn't find your message. Ask again.",
                 });
                 return;
             }
 
-            if (originalMessage.user !== slackUserId) {
+            if (!originalMessage.user || originalMessage.user !== slackUserId) {
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: slackUserId,
-                    thread_ts: threadTs ?? messageTs,
+                    ...(ephemeralThreadTs
+                        ? { thread_ts: ephemeralThreadTs }
+                        : {}),
                     text: 'You can only resume your own message.',
+                });
+                return;
+            }
+
+            if (
+                !originalMessage.team ||
+                !openIdIdentity.teamId ||
+                originalMessage.team !== openIdIdentity.teamId
+            ) {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: slackUserId,
+                    ...(ephemeralThreadTs
+                        ? { thread_ts: ephemeralThreadTs }
+                        : {}),
+                    text: "You're connected. Mention me again to continue.",
                 });
                 return;
             }
@@ -21609,7 +21635,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     organizationUuid,
                     slackUserId,
                     channelId,
-                    threadTs: threadTs ?? messageTs,
+                    threadTs: ephemeralThreadTs,
                     client,
                 }))
             ) {
@@ -21717,7 +21743,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: slackUserId,
-                    thread_ts: threadTs ?? messageTs,
+                    ...(ephemeralThreadTs
+                        ? { thread_ts: ephemeralThreadTs }
+                        : {}),
                     text: "You're connected. Mention me again to continue.",
                 });
                 return;
