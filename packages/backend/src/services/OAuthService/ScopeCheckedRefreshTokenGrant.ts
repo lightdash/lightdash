@@ -1,11 +1,12 @@
 import OAuth2Server from '@node-oauth/oauth2-server';
 import RefreshTokenGrantType from '@node-oauth/oauth2-server/lib/grant-types/refresh-token-grant-type';
+import { randomUUID } from 'node:crypto';
 import { OAuthScopeMode } from '../../auth/oauthScopes/mode';
+import { resolveGrantedOAuthResource } from '../../auth/oauthScopes/oauthResources';
 import {
-    OAuthResourceBinding,
-    resolveGrantedOAuthResource,
-    withOAuthResourceBinding,
-} from '../../auth/oauthScopes/oauthResources';
+    OAuthTokenBinding,
+    withOAuthTokenBinding,
+} from '../../auth/oauthScopes/oauthTokenBinding';
 
 export const createScopeCheckedRefreshTokenGrant = (
     resolveMode: (user: OAuth2Server.User) => Promise<OAuthScopeMode | null>,
@@ -13,20 +14,31 @@ export const createScopeCheckedRefreshTokenGrant = (
     siteUrl: string,
 ) =>
     class ScopeCheckedRefreshTokenGrant extends RefreshTokenGrantType {
-        private binding: OAuthResourceBinding;
+        private binding: OAuthTokenBinding;
 
         constructor(
             options: OAuth2Server.TokenOptions & {
                 model: OAuth2Server.AuthorizationCodeModel;
             },
         ) {
-            const binding: OAuthResourceBinding = { resource: null };
+            const binding: OAuthTokenBinding = {
+                resource: null,
+                familyUuid: null,
+                parentRefreshToken: null,
+            };
             const boundOptions = {
                 ...options,
-                model: withOAuthResourceBinding(options.model, binding),
+                model: withOAuthTokenBinding(options.model, binding),
             };
             super(boundOptions);
             this.binding = binding;
+        }
+
+        async revokeToken(
+            token: OAuth2Server.Token,
+        ): Promise<OAuth2Server.Token> {
+            if (this.binding.parentRefreshToken !== null) return token;
+            return super.revokeToken(token);
         }
 
         async getRefreshToken(
@@ -35,6 +47,8 @@ export const createScopeCheckedRefreshTokenGrant = (
         ): Promise<OAuth2Server.Token> {
             const token = await super.getRefreshToken(request, client);
             if (await resolveStrict(token.user)) {
+                this.binding.familyUuid = token.familyUuid ?? randomUUID();
+                this.binding.parentRefreshToken = token.refreshToken ?? null;
                 this.binding.resource = resolveGrantedOAuthResource(
                     siteUrl,
                     request,

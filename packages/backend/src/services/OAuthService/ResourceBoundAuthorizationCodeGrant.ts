@@ -1,17 +1,18 @@
 import OAuth2Server from '@node-oauth/oauth2-server';
 import AuthorizationCodeGrantType from '@node-oauth/oauth2-server/lib/grant-types/authorization-code-grant-type';
+import { randomUUID } from 'node:crypto';
+import { resolveGrantedOAuthResource } from '../../auth/oauthScopes/oauthResources';
 import {
-    OAuthResourceBinding,
-    resolveGrantedOAuthResource,
-    withOAuthResourceBinding,
-} from '../../auth/oauthScopes/oauthResources';
+    OAuthTokenBinding,
+    withOAuthTokenBinding,
+} from '../../auth/oauthScopes/oauthTokenBinding';
 
 export const createResourceBoundAuthorizationCodeGrant = (
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
 ) =>
     class ResourceBoundAuthorizationCodeGrant extends AuthorizationCodeGrantType {
-        private binding: OAuthResourceBinding;
+        private binding: OAuthTokenBinding;
 
         private strict = false;
 
@@ -20,10 +21,14 @@ export const createResourceBoundAuthorizationCodeGrant = (
                 model: OAuth2Server.AuthorizationCodeModel;
             },
         ) {
-            const binding: OAuthResourceBinding = { resource: null };
+            const binding: OAuthTokenBinding = {
+                resource: null,
+                familyUuid: null,
+                parentRefreshToken: null,
+            };
             const boundOptions = {
                 ...options,
-                model: withOAuthResourceBinding(options.model, binding),
+                model: withOAuthTokenBinding(options.model, binding),
             };
             super(boundOptions);
             this.binding = binding;
@@ -36,6 +41,7 @@ export const createResourceBoundAuthorizationCodeGrant = (
             const code = await super.getAuthorizationCode(request, client);
             this.strict = await resolveStrict(code.user);
             if (this.strict) {
+                this.binding.familyUuid = randomUUID();
                 this.binding.resource = resolveGrantedOAuthResource(
                     siteUrl,
                     request,

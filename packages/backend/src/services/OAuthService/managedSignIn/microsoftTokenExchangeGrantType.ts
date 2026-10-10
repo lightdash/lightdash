@@ -4,6 +4,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { randomUUID } from 'node:crypto';
 import { oauthApiResource } from '../../../auth/oauthScopes/oauthResources';
 import { ManagedSignInRejection } from './ManagedSignInRejection';
 import type { ManagedSignInService } from './ManagedSignInService';
@@ -85,11 +86,11 @@ export const createMicrosoftTokenExchangeGrantType = (
             const accessTokenExpiresAt = await this.getAccessTokenExpiresAt();
             const refreshTokenExpiresAt = await this.getRefreshTokenExpiresAt();
 
+            const strict = await resolveStrict(user);
             const saved = await this.model.saveToken(
                 {
-                    resource: (await resolveStrict(user))
-                        ? oauthApiResource(siteUrl)
-                        : null,
+                    familyUuid: strict ? randomUUID() : null,
+                    resource: strict ? oauthApiResource(siteUrl) : null,
                     accessToken,
                     accessTokenExpiresAt,
                     refreshToken,
