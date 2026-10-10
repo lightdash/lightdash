@@ -71955,6 +71955,16 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PostgresAiServiceAccountCredentialInput: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'WarehouseTypes.POSTGRES', required: true },
+            user: { dataType: 'string', required: true },
+            password: { dataType: 'string', required: true },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'AthenaAuthenticationType.ACCESS_KEY': {
         dataType: 'refEnum',
         enums: ['access_key'],
@@ -72052,6 +72062,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { ref: 'PostgresAiServiceAccountCredentialInput' },
                 { ref: 'AthenaAiServiceAccountCredentialInput' },
                 { ref: 'BigqueryAiServiceAccountCredentialInput' },
                 { ref: 'DatabricksAiServiceAccountCredentialInput' },

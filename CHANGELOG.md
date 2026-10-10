@@ -1,3 +1,10 @@
+# [2.538.0](https://github.com/lightdash/lightdash/compare/2.537.1...2.538.0) (2026-10-10)
+
+
+### Features
+
+* **agent-identity:** let Postgres agents run as a separate database user (AI service account) ([#30865](https://github.com/lightdash/lightdash/issues/30865)) ([a534090](https://github.com/lightdash/lightdash/commit/a534090642496fa6aacbffb52a2758acce23ce2f))
+
 ## [2.537.1](https://github.com/lightdash/lightdash/compare/2.537.0...2.537.1) (2026-10-10)
 
 

@@ -70591,6 +70591,22 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "PostgresAiServiceAccountCredentialInput": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user", "password"],
+                "type": "object",
+                "additionalProperties": true
+            },
             "AthenaAuthenticationType.ACCESS_KEY": {
                 "enum": ["access_key"],
                 "type": "string"
@@ -70726,6 +70742,9 @@
             },
             "AiServiceAccountCredentialInput": {
                 "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/PostgresAiServiceAccountCredentialInput"
+                    },
                     {
                         "$ref": "#/components/schemas/AthenaAiServiceAccountCredentialInput"
                     },
@@ -71062,7 +71081,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "2.537.1",
+        "version": "2.538.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
