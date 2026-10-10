@@ -223,6 +223,9 @@ describe('AI service account card', () => {
                         },
                     ],
                 };
+            if (url.endsWith('/warehouse-confirmation'))
+                return { confirmation: null, confirmed: false };
+            if (url === '/org/users') return { data: [] };
             if (url.endsWith('/test'))
                 return warehouseType === WarehouseTypes.SNOWFLAKE
                     ? snowflakeVerification
@@ -2799,6 +2802,207 @@ describe('AI service account card', () => {
             expect(lightdashApi).not.toHaveBeenCalled();
         },
     );
+    describe('identity page loading', () => {
+        const settingsUrl = '/org/agent-identity';
+        const statusUrl = '/projects/project/ai-access/service-account';
+        const settingsKey = ['ai-access', 'org', 'agent-identity'];
+        const statusKey = ['ai-access', 'project', null, 'service-account'];
+        const deferResponse = () => {
+            let resolve!: (
+                value: Awaited<ReturnType<typeof lightdashApi>>,
+            ) => void;
+            const promise = new Promise<
+                Awaited<ReturnType<typeof lightdashApi>>
+            >((resolvePromise) => {
+                resolve = resolvePromise;
+            });
+            return { promise, resolve };
+        };
+        const deferRequests = () => {
+            const request = vi.mocked(lightdashApi).getMockImplementation()!;
+            const settings = deferResponse();
+            const status = deferResponse();
+            vi.mocked(lightdashApi).mockImplementation((args) => {
+                if (args.url === settingsUrl) return settings.promise;
+                if (args.url === statusUrl) return status.promise;
+                return request(args);
+            });
+            const resolveSettings = async () => {
+                settings.resolve(
+                    await request({
+                        url: settingsUrl,
+                        method: 'GET',
+                        body: undefined,
+                    }),
+                );
+            };
+            const resolveStatus = async () => {
+                status.resolve(
+                    await request({
+                        url: statusUrl,
+                        method: 'GET',
+                        body: undefined,
+                    }),
+                );
+            };
+            return { resolveSettings, resolveStatus };
+        };
+        const expectLoading = (container: HTMLElement) => {
+            expect(
+                container.querySelectorAll('.mantine-Loader-root'),
+            ).toHaveLength(1);
+            expect(
+                screen.queryByRole('heading', { name: 'Shared agent account' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: 'Add shared agent account',
+                }),
+            ).not.toBeInTheDocument();
+        };
+
+        it.each(['settings', 'status'] as const)(
+            'starts both requests together and keeps one loader when %s resolves first',
+            async (first) => {
+                const { resolveSettings, resolveStatus } = deferRequests();
+                const { container, client } = setup(project, false, true);
+                await waitFor(() => {
+                    for (const url of [settingsUrl, statusUrl])
+                        expect(lightdashApi).toHaveBeenCalledWith(
+                            expect.objectContaining({ url, method: 'GET' }),
+                        );
+                    expectLoading(container);
+                });
+                await act(async () => {
+                    await (first === 'settings'
+                        ? resolveSettings()
+                        : resolveStatus());
+                });
+                await waitFor(() =>
+                    expect(
+                        client.getQueryState(
+                            first === 'settings' ? settingsKey : statusKey,
+                        )?.status,
+                    ).toBe('success'),
+                );
+                expectLoading(container);
+                await act(async () => {
+                    await (first === 'settings'
+                        ? resolveStatus()
+                        : resolveSettings());
+                });
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Shared agent account',
+                    }),
+                ).toBeVisible();
+                expect(
+                    container.querySelectorAll('.mantine-Loader-root'),
+                ).toHaveLength(0);
+            },
+        );
+
+        it.each(['settings', 'status', 'missing rule'] as const)(
+            'shows a retryable account error for %s and retries both requests',
+            async (failure) => {
+                const request = vi
+                    .mocked(lightdashApi)
+                    .getMockImplementation()!;
+                vi.mocked(lightdashApi).mockImplementation(async (args) => {
+                    if (failure === 'missing rule' && args.url === settingsUrl)
+                        return {
+                            requireVerifiedAgentSessions: false,
+                            rules: [],
+                        };
+                    if (
+                        args.url ===
+                            (failure === 'settings'
+                                ? settingsUrl
+                                : statusUrl) &&
+                        failure !== 'missing rule'
+                    )
+                        throw { error: { message: 'Unavailable' } };
+                    return request(args);
+                });
+                const { container } = setup(project, false, true);
+                expect(
+                    await screen.findByText(
+                        'Could not load the shared agent account.',
+                    ),
+                ).toBeVisible();
+                expect(
+                    container.querySelectorAll('.mantine-Loader-root'),
+                ).toHaveLength(0);
+                vi.mocked(lightdashApi).mockImplementation(request);
+                vi.mocked(lightdashApi).mockClear();
+                fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+                expect(
+                    await screen.findByRole('heading', {
+                        name: 'Shared agent account',
+                    }),
+                ).toBeVisible();
+                for (const url of [settingsUrl, statusUrl])
+                    expect(lightdashApi).toHaveBeenCalledWith(
+                        expect.objectContaining({ url, method: 'GET' }),
+                    );
+            },
+        );
+
+        it('keeps content, the open form and unsaved input during a background refetch', async () => {
+            warehouseType = WarehouseTypes.POSTGRES;
+            const { container, client } = setup(
+                {
+                    ...project,
+                    warehouseConnection: { type: WarehouseTypes.POSTGRES },
+                } as Project,
+                false,
+                true,
+            );
+            const dialog = await openForm();
+            const user = within(dialog).getByLabelText(/^User/);
+            fireEvent.change(user, { target: { value: 'unsaved-agent' } });
+            const { resolveSettings, resolveStatus } = deferRequests();
+            let refetch!: Promise<void>;
+            act(() => {
+                refetch = client.invalidateQueries(['ai-access']);
+            });
+            await waitFor(() => {
+                expect(client.getQueryState(settingsKey)?.fetchStatus).toBe(
+                    'fetching',
+                );
+                expect(client.getQueryState(statusKey)?.fetchStatus).toBe(
+                    'fetching',
+                );
+            });
+            expect(
+                container.querySelectorAll('.mantine-Loader-root'),
+            ).toHaveLength(0);
+            expect(
+                screen.getByRole('heading', {
+                    name: 'Shared agent account',
+                    level: 5,
+                }),
+            ).toBeInTheDocument();
+            expect(dialog).toBeVisible();
+            expect(user).toHaveValue('unsaved-agent');
+            await act(async () => {
+                await resolveSettings();
+                await resolveStatus();
+                await refetch;
+            });
+            expect(
+                container.querySelectorAll('.mantine-Loader-root'),
+            ).toHaveLength(0);
+            expect(
+                screen.getByRole('heading', {
+                    name: 'Shared agent account',
+                    level: 5,
+                }),
+            ).toBeInTheDocument();
+            expect(dialog).toBeVisible();
+            expect(user).toHaveValue('unsaved-agent');
+        });
+    });
     it('shows the read-only organization rule, card and single Test button on the identity page', async () => {
         slot = savedSlot;
         setup(project, false, true);
@@ -2824,14 +3028,19 @@ describe('AI service account card', () => {
         (gate) => {
             mocks.enabled = gate !== 'flag';
             mocks.canManage = gate !== 'permission';
-            setup(project, false, true);
+            const { container } = setup(project, false, true);
+            expect(
+                container.querySelector(
+                    ':scope > :not(style):not(.mantine-Notifications-root)',
+                ),
+            ).toBeNull();
             expect(lightdashApi).not.toHaveBeenCalled();
             expect(
                 screen.queryByText('Organization rule for this warehouse'),
             ).not.toBeInTheDocument();
         },
     );
-    it('shows an unsupported warehouse state without fetching rules', () => {
+    it('shows an unsupported warehouse state without fetching rules or account status', () => {
         setup(
             {
                 ...project,
@@ -2847,6 +3056,11 @@ describe('AI service account card', () => {
         ).toBeVisible();
         expect(lightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ url: '/org/agent-identity' }),
+        );
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: '/projects/project/ai-access/service-account',
+            }),
         );
     });
     it('keeps the form open and reports a failed save', async () => {
