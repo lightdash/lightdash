@@ -5095,6 +5095,7 @@ export class ProjectService
                         'project_create',
                         method,
                         null,
+                        null,
                     );
                     cleanup.adapter = tested.adapter;
                     cleanup.lease = tested.lease;
@@ -6126,6 +6127,7 @@ export class ProjectService
                         'project_update',
                         method,
                         projectUuid,
+                        updatedProject.organizationUuid,
                     );
                     cleanup.adapter = tested.adapter;
                     cleanup.lease = tested.lease;
@@ -6445,6 +6447,7 @@ export class ProjectService
         context: 'project_create' | 'project_update',
         method: RequestMethod,
         projectUuid: string | null,
+        projectOrganizationUuid: string | null,
     ): Promise<{
         adapter: ProjectAdapter;
         lease: WarehouseConnectionLease;
@@ -6540,10 +6543,7 @@ export class ProjectService
                 projectUuid !== null &&
                 (await this.isDbtPartialParseEnabled(user));
             const dbtTargetPolicy = await this.getDbtTargetPolicy(
-                projectUuid === null
-                    ? user.organizationUuid
-                    : (await this.projectModel.getSummary(projectUuid))
-                          .organizationUuid,
+                projectOrganizationUuid ?? user.organizationUuid,
             );
             const resolvedLease = lease;
             adapter = await projectAdapterFromConfig(

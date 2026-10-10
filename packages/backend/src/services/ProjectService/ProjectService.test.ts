@@ -12855,6 +12855,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 context: 'project_create' | 'project_update',
                 method: RequestMethod,
                 projectUuid: string | null,
+                projectOrganizationUuid: string | null,
             ) => Promise<unknown>;
         };
         await expect(
@@ -12870,6 +12871,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 compileUser,
                 'project_create',
                 RequestMethod.WEB_APP,
+                null,
                 null,
             ),
         ).rejects.toThrow('adapter test failed');
@@ -12898,12 +12900,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             projectAdapterModule,
             'projectAdapterFromConfig',
         ).mockResolvedValueOnce(adapter);
+        projectModel.getSummary.mockClear();
         await projectService.testAndCompileProject(
             compileUser,
             'projectUuid',
             RequestMethod.WEB_APP,
             'none-job-uuid',
         );
+        expect(projectModel.getSummary).not.toHaveBeenCalled();
         const tunnel = vi.mocked(SshTunnel).mock.results.at(-1)?.value;
         expect(adapter.destroy).toHaveBeenCalledOnce();
         expect(tunnel.disconnect).toHaveBeenCalledOnce();
@@ -17072,6 +17076,7 @@ describe('compile adapter connection credentials', () => {
             context: 'project_create',
             method: RequestMethod,
             projectUuid: null,
+            projectOrganizationUuid: null,
         ) => Promise<{ lease: WarehouseConnectionLease }>;
     };
 
@@ -17179,6 +17184,7 @@ describe('compile adapter connection credentials', () => {
             caller,
             'project_create',
             RequestMethod.WEB_APP,
+            null,
             null,
         );
         try {

@@ -1247,6 +1247,7 @@ describe('factory dbt target handoff to the real local adapter', () => {
                     'project_update',
                     RequestMethod.WEB_APP,
                     f.project.projectUuid,
+                    f.project.organizationUuid,
                 );
                 try {
                     capture(tested.adapter);
@@ -1311,6 +1312,8 @@ describe('factory dbt target handoff to the real local adapter', () => {
             ...user,
             organizationUuid: 'actor-organization',
         });
+
+        expect(f.projectModel.getSummary).not.toHaveBeenCalled();
 
         expect(acquire).toHaveBeenCalledExactlyOnceWith(
             expect.anything(),
