@@ -22,6 +22,7 @@ export type OpenPullRequestArgs = {
     /** The Lightdash user who triggered the run, credited as a commit co-author. */
     user: SessionUser;
     setStage: SetStage;
+    onRemoteCommitted: () => Promise<void>;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {

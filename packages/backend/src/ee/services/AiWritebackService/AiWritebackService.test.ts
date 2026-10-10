@@ -10,6 +10,7 @@ import {
     getLatestSupportDbtVersion,
     ParameterError,
     PullRequestProvider,
+    PullRequestState,
     RequestMethod,
     SupportedDbtVersions,
     WarehouseTypes,
@@ -18,8 +19,10 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import * as BitbucketClient from '../../../clients/bitbucket/Bitbucket';
 import {
     createPullRequest,
+    createSignedCommitOnBranch,
     getAppBotIdentity,
     getAuthenticatedUser,
     getBranchHeadSha,
@@ -31,7 +34,10 @@ import {
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
     revokeInstallationToken,
+    updatePullRequest,
 } from '../../../clients/github/Github';
+import * as GitlabClient from '../../../clients/gitlab/Gitlab';
+import Logger from '../../../logging/logger';
 import {
     agentActionTestCases,
     withAgentActionScope,
@@ -69,6 +75,8 @@ import {
     WritebackThreadPrClosedError,
 } from './errors';
 import { BitbucketProvider } from './providers/BitbucketProvider';
+import type { GitProvider, OpenPullRequestArgs } from './providers/GitProvider';
+import type { GitConnection, GitInstallation } from './types';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -203,8 +211,18 @@ const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     resolveConnection: vi.fn(),
     resolveInstallation: vi.fn(),
     getCloneTarget: vi.fn(),
-    openPullRequest: vi.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
-    updatePullRequest: vi.fn().mockResolvedValue({ ...LANDED }),
+    openPullRequest: vi.fn(
+        async ({ onRemoteCommitted }: OpenPullRequestArgs) => {
+            await onRemoteCommitted();
+            return { prUrl: PR_7, ...LANDED };
+        },
+    ),
+    updatePullRequest: vi.fn(
+        async ({ onRemoteCommitted }: OpenPullRequestArgs) => {
+            await onRemoteCommitted();
+            return { ...LANDED };
+        },
+    ),
     adoptPullRequest: vi.fn(),
     ...overrides,
 });
@@ -2247,9 +2265,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         ),
                 ),
             ).rejects.toThrow(`${failure} unavailable`);
-            expect(insert).toHaveBeenCalledTimes(
-                failure === 'bookkeeping' ? 1 : 0,
-            );
+            expect(insert).toHaveBeenCalledTimes(1);
             expect(findOrCreate).toHaveBeenCalledTimes(
                 failure === 'bookkeeping' ? 1 : 0,
             );
@@ -5005,5 +5021,330 @@ test('a committed writeback run retains its initiating action when dispatch fail
             action: 'enqueue',
             outcome: 'allowed',
         }),
+    );
+});
+
+describe('AiWritebackService remote commit recording with real providers', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const setup = (
+        host: PullRequestProvider,
+        operation: 'open' | 'update',
+        failure:
+            | 'none'
+            | 'push'
+            | 'pr'
+            | 'bookkeeping'
+            | 'ledger'
+            | 'sha'
+            | 'cleanup',
+    ) => {
+        const events: string[] = [];
+        const insert = vi.fn(async () => {
+            await Promise.resolve();
+            events.push('ledger');
+            if (failure === 'ledger') throw new Error('ledger unavailable');
+        });
+        const service = buildService({ agentActionLogModel: { insert } });
+        const bookkeeping = vi
+            .spyOn(service as AnyType, 'recordWritebackPullRequest')
+            .mockImplementation(async () => {
+                events.push('bookkeeping');
+                if (failure === 'bookkeeping')
+                    throw new Error('bookkeeping unavailable');
+            });
+        const logError = vi
+            .spyOn(Logger, 'error')
+            .mockImplementation(() => Logger);
+        const commitAuthor = { name: 'Writer', email: 'writer@example.com' };
+        const baseConnection = {
+            owner: 'acme',
+            repo: 'analytics',
+            projectSubPath: '.',
+            branch: 'main',
+        };
+        const connections: Record<PullRequestProvider, GitConnection> = {
+            github: { ...baseConnection, provider: PullRequestProvider.GITHUB },
+            gitlab: {
+                ...baseConnection,
+                provider: PullRequestProvider.GITLAB,
+                hostDomain: 'gitlab.com',
+            },
+            bitbucket: {
+                ...baseConnection,
+                provider: PullRequestProvider.BITBUCKET,
+                projectUuid: 'p1',
+                projectDbtSourceUuid: null,
+                username: 'writer',
+            },
+        };
+        const installations: Record<PullRequestProvider, GitInstallation> = {
+            github: {
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'installation',
+                token: 'test-token',
+                userToken: null,
+                commitAuthor,
+                coAuthorTrailer: '',
+            },
+            gitlab: {
+                provider: PullRequestProvider.GITLAB,
+                token: 'test-token',
+                instanceUrl: 'https://gitlab.com',
+                commitAuthor,
+            },
+            bitbucket: {
+                provider: PullRequestProvider.BITBUCKET,
+                owner: 'acme',
+                repo: 'analytics',
+                token: 'test-token',
+                commitAuthor,
+            },
+        };
+        const urls = {
+            github: PR_7,
+            gitlab: 'https://gitlab.com/acme/analytics/-/merge_requests/7',
+            bitbucket: 'https://bitbucket.org/acme/analytics/pull-requests/7',
+        };
+        const prUrl = urls[host];
+        const pullRequest = {
+            number: 7,
+            title: 'Update model',
+            html_url: prUrl,
+            state: PullRequestState.OPEN,
+            head: 'feature/model',
+            base: 'main',
+            sourceRepository: 'acme/analytics',
+            destinationRepository: 'acme/analytics',
+        };
+        const remoteCommit = vi.fn(async () => {
+            events.push('push');
+            if (failure === 'push') throw new Error('push unavailable');
+            return { oid: 'sha-7', url: 'https://example.com/commit' };
+        });
+        const prMutation = vi.fn(async () => {
+            events.push('pr');
+            if (failure === 'pr') throw new Error('pr unavailable');
+            return pullRequest;
+        });
+        vi.mocked(getBranchHeadSha).mockResolvedValue('base-sha');
+        vi.mocked(createSignedCommitOnBranch).mockImplementation(remoteCommit);
+        const githubPrMutation = async () =>
+            (await prMutation()) as unknown as Awaited<
+                ReturnType<typeof createPullRequest>
+            >;
+        vi.mocked(createPullRequest).mockImplementation(githubPrMutation);
+        vi.mocked(updatePullRequest).mockImplementation(githubPrMutation);
+        vi.spyOn(GitlabClient, 'createPullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(GitlabClient, 'updateMergeRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'createPullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'updatePullRequest').mockImplementation(
+            prMutation,
+        );
+        vi.spyOn(BitbucketClient, 'getPullRequest').mockResolvedValue(
+            pullRequest,
+        );
+        const sandbox = {
+            sandboxId: 'sbx-1',
+            git: {
+                status: vi.fn().mockResolvedValue({
+                    currentBranch:
+                        operation === 'open' ? 'main' : 'feature/model',
+                }),
+                createBranch: vi.fn().mockResolvedValue(undefined),
+                add: vi.fn().mockResolvedValue(undefined),
+                commit: vi.fn().mockResolvedValue(undefined),
+                push: remoteCommit,
+            },
+            files: { read: vi.fn().mockResolvedValue('version: 2') },
+            commands: {
+                run: vi.fn(async (command: string) => {
+                    if (
+                        command.includes('--remove-section credential') &&
+                        events.includes('push')
+                    ) {
+                        events.push('cleanup');
+                        if (failure === 'cleanup')
+                            throw new Error('cleanup unavailable');
+                    }
+                    if (command.includes('rev-parse HEAD')) {
+                        events.push('sha');
+                        if (failure === 'sha')
+                            throw new Error('sha unavailable');
+                        return { exitCode: 0, stdout: 'sha-7\n' };
+                    }
+                    if (command.includes('--name-status'))
+                        return {
+                            exitCode: 0,
+                            stdout: 'M\0models/orders.yml\0',
+                        };
+                    if (command.includes('--numstat'))
+                        return {
+                            exitCode: 0,
+                            stdout: '5\t2\tmodels/orders.yml\n',
+                        };
+                    return { exitCode: 0, stdout: '' };
+                }),
+            },
+        };
+        const provider: GitProvider = (service as AnyType)[`${host}Provider`];
+        const user = { ...defaultSessionUser, organizationUuid: ORG };
+        const run = () =>
+            (service as AnyType).applyAgentChanges({
+                sandbox,
+                sandboxUuid: 'sbx-uuid',
+                installation: installations[host],
+                hasChanges: true,
+                adoptedPr:
+                    operation === 'update' ? adoptedPullRequest(prUrl) : null,
+                turn: turnContext({
+                    provider,
+                    gitConnection: connections[host],
+                }),
+                user,
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                setStage: vi.fn(),
+                prTitle: 'Update model',
+                prDescription: 'Update the model.',
+                prSummary: 'Updated model',
+                workstream: 'general',
+                aiWritebackRunUuid: 'run-1',
+            });
+        return {
+            run,
+            user,
+            insert,
+            events,
+            remoteCommit,
+            prMutation,
+            bookkeeping,
+            logError,
+        };
+    };
+
+    describe.each([
+        PullRequestProvider.GITHUB,
+        PullRequestProvider.GITLAB,
+        PullRequestProvider.BITBUCKET,
+    ])('%s', (host) => {
+        describe.each(['open', 'update'] as const)('%s', (operation) => {
+            describe.each([
+                ...agentActionTestCases,
+                ['in-app flag off', AgentActorSurface.IN_APP_AGENT, false, 0],
+                ['Slack flag off', AgentActorSurface.SLACK_AGENT, false, 0],
+            ] as const)('%s', (_, surface, enabled, count) => {
+                test.each([
+                    'none',
+                    'push',
+                    'pr',
+                    'bookkeeping',
+                    'ledger',
+                ] as const)('failure=%s', async (failure) => {
+                    const fixture = setup(host, operation, failure);
+                    const result = withAgentActionScope(
+                        fixture.user,
+                        surface,
+                        enabled,
+                        fixture.run,
+                    );
+                    if (failure === 'none' || failure === 'ledger') {
+                        await expect(result).resolves.toMatchObject({
+                            commitSha: 'sha-7',
+                        });
+                    } else if (
+                        failure === 'push' &&
+                        host === PullRequestProvider.BITBUCKET
+                    ) {
+                        await expect(result).rejects.toThrow(
+                            'Could not push the Bitbucket writeback branch',
+                        );
+                    } else {
+                        await expect(result).rejects.toThrow(
+                            `${failure} unavailable`,
+                        );
+                    }
+                    expect(fixture.remoteCommit).toHaveBeenCalledTimes(1);
+                    const expectedCount = failure === 'push' ? 0 : count;
+                    expect(fixture.insert).toHaveBeenCalledTimes(expectedCount);
+                    expect(fixture.prMutation).toHaveBeenCalledTimes(
+                        failure === 'push' ? 0 : 1,
+                    );
+                    expect(fixture.bookkeeping).toHaveBeenCalledTimes(
+                        failure === 'push' || failure === 'pr' ? 0 : 1,
+                    );
+                    expect(fixture.logError).toHaveBeenCalledTimes(
+                        failure === 'ledger' ? expectedCount : 0,
+                    );
+                    if (expectedCount) {
+                        expect(fixture.insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                organization_uuid: ORG,
+                                project_uuid: 'p1',
+                                object_type: 'ai_writeback_run',
+                                object_uuid: 'run-1',
+                                outcome: 'allowed',
+                                action: 'update',
+                                agent_identity: expect.objectContaining({
+                                    act: expect.objectContaining({
+                                        surface,
+                                        client_id:
+                                            surface === AgentActorSurface.MCP
+                                                ? null
+                                                : 'test-client',
+                                    }),
+                                }),
+                            }),
+                        );
+                        expect(
+                            fixture.events.indexOf('ledger'),
+                        ).toBeGreaterThan(fixture.events.indexOf('push'));
+                        expect(fixture.events.indexOf('ledger')).toBeLessThan(
+                            fixture.events.indexOf('pr'),
+                        );
+                    }
+                });
+            });
+        });
+    });
+
+    describe.each(['open', 'update'] as const)(
+        '%s post-push failures',
+        (operation) => {
+            test.each([
+                [PullRequestProvider.GITLAB, 'sha'],
+                [PullRequestProvider.BITBUCKET, 'sha'],
+                [PullRequestProvider.BITBUCKET, 'cleanup'],
+            ] as const)(
+                '%s records before post-push %s fails',
+                async (host, failure) => {
+                    const fixture = setup(host, operation, failure);
+                    const result = withAgentActionScope(
+                        fixture.user,
+                        AgentActorSurface.IN_APP_AGENT,
+                        true,
+                        fixture.run,
+                    );
+                    if (failure === 'cleanup')
+                        await expect(result).rejects.toBeInstanceOf(
+                            WritebackCredentialCleanupError,
+                        );
+                    else
+                        await expect(result).rejects.toThrow('sha unavailable');
+                    expect(fixture.insert).toHaveBeenCalledTimes(1);
+                    expect(fixture.prMutation).not.toHaveBeenCalled();
+                    expect(fixture.bookkeeping).not.toHaveBeenCalled();
+                    expect(fixture.events.indexOf('ledger')).toBeLessThan(
+                        fixture.events.indexOf(failure),
+                    );
+                },
+            );
+        },
     );
 });

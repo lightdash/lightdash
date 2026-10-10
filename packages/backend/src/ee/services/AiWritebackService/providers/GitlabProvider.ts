@@ -243,6 +243,7 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
         });
 
         setStage('pull_request');
@@ -283,6 +284,7 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            onRemoteCommitted: args.onRemoteCommitted,
         });
 
         setStage('pull_request');
@@ -421,6 +423,7 @@ export class GitlabProvider implements GitProvider {
         title,
         user,
         setStage,
+        onRemoteCommitted,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -429,6 +432,7 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
+        onRemoteCommitted: () => Promise<void>;
     }): Promise<LandedCommit> {
         setStage('commit');
         const projectPaths = await resolveDbtProjectPaths(
@@ -455,6 +459,7 @@ export class GitlabProvider implements GitProvider {
             password: installation.token,
             setUpstream: true,
         });
+        await onRemoteCommitted();
 
         const { stdout } = await sandbox.commands.run(
             `git -C ${CWD} rev-parse HEAD`,

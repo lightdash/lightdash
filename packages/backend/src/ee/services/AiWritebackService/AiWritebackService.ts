@@ -4964,7 +4964,7 @@ export class AiWritebackService extends BaseService {
             };
         }
 
-        const recordMutation = async () => {
+        const onRemoteCommitted = async () => {
             if (workstream !== 'general') return;
             await logAgentContentWrite({
                 model: this.agentActionLogModel,
@@ -5003,8 +5003,8 @@ export class AiWritebackService extends BaseService {
                     ),
                     user,
                     setStage,
+                    onRemoteCommitted,
                 });
-            await recordMutation();
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
             );
@@ -5049,8 +5049,8 @@ export class AiWritebackService extends BaseService {
                 ),
                 user,
                 setStage,
+                onRemoteCommitted,
             });
-        await recordMutation();
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
