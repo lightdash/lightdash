@@ -10,13 +10,12 @@ import {
     FeatureFlags,
     FeatureNotEnabledError,
     ForbiddenError,
-    getAgentCapabilityRefusalMessage,
-    getProjectAgentIdentitySettingsPath,
     OrganizationMemberRole,
     ParameterError,
     type Account,
     type AgentActorSurface,
     type AgentCapabilityPolicy,
+    type AgentPermissionCheck,
     type AgentSystemRoleMatrix,
     type AiAccessRefusal,
     type AiOrganizationSettings,
@@ -38,6 +37,12 @@ import {
 } from '../AiAccessService/agentExecutionContext';
 import { recordAgentRefusal } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import {
+    agentPermissionChecks,
+    permissionBlockers,
+    permissionRefusal,
+    type AgentPermissionEvaluationContext,
+} from './agentPermissionEvaluation';
 
 export interface ResolvedAgentPolicy {
     mode: 'off' | 'legacy' | 'managed';
@@ -64,80 +69,7 @@ export interface AgentPolicyDenial {
     settingsUrl: string | null;
 }
 
-export const evaluate = (
-    policy: ResolvedAgentPolicy,
-    operation: AgentPolicyEvaluation,
-): AgentPolicyDenial | null => {
-    if (policy.mode !== 'managed') return null;
-    const deny = (
-        reason: AiAccessRefusalReason,
-        policyLayer: AgentPolicyDenial['policyLayer'],
-        capability: AgentCapability | null = null,
-        settingsUrl: string | null = '/generalSettings/agentIdentity',
-    ): AgentPolicyDenial => ({ reason, policyLayer, capability, settingsUrl });
-    if (!operation.mcpAgentsEnabled)
-        return deny(
-            AiAccessRefusalReason.AGENT_ACCESS_DISABLED,
-            'organization_setting',
-        );
-    if (operation.requiredCapabilities === null)
-        return deny(
-            AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED,
-            'unmapped',
-            null,
-            null,
-        );
-    if (
-        policy.allowedProjectUuids !== null &&
-        (operation.projectUuid === null
-            ? !operation.isOrganizationDiscovery ||
-              operation.requiredCapabilities.some(
-                  (capability) => capability !== AgentCapability.ReadDiscover,
-              )
-            : !policy.allowedProjectUuids.includes(operation.projectUuid))
-    ) {
-        return deny(
-            AiAccessRefusalReason.AGENT_PROJECT_DENIED,
-            'project_scope',
-        );
-    }
-    const missing = operation.requiredCapabilities.find(
-        (capability) => !policy.capabilities?.has(capability),
-    );
-    if (missing)
-        return deny(
-            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-            'org_ceiling',
-            missing,
-            policy.editableCustomRoleUuid
-                ? `/generalSettings/customRoles/${policy.editableCustomRoleUuid}`
-                : '/generalSettings/agentIdentity',
-        );
-    if (
-        operation.requiredCapabilities.includes(AgentCapability.ContentWrite) &&
-        !operation.mcpContentWritesEnabled
-    ) {
-        return deny(
-            AiAccessRefusalReason.AGENT_SETTING_DENIED,
-            'organization_setting',
-            AgentCapability.ContentWrite,
-        );
-    }
-    if (
-        operation.requiredCapabilities.includes(AgentCapability.RawSql) &&
-        !operation.warehouseConfirmed
-    ) {
-        return deny(
-            AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED,
-            'warehouse_identity',
-            AgentCapability.RawSql,
-            operation.projectUuid === null
-                ? '/generalSettings/agentIdentity'
-                : getProjectAgentIdentitySettingsPath(operation.projectUuid),
-        );
-    }
-    return null;
-};
+export { evaluate } from './agentPermissionEvaluation';
 
 export type AgentPermissionOperationKind =
     | 'agent_turn'
@@ -409,92 +341,184 @@ export class AgentPermissionService extends BaseService {
         throw error;
     }
 
-    async assertOperation(args: AssertOperationArgs): Promise<void> {
-        const policy = await this.resolvePolicy(args);
-        if (policy.mode !== 'managed') return;
-        if (
-            policy.allowedUserUuids !== null &&
-            !policy.allowedUserUuids.includes(args.account.user.id)
-        ) {
-            const error = new AiAccessRefusedError(
-                AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED,
-                {
-                    policyLayer: 'organization_setting',
-                    policyVersion: policy.version,
-                    operation: args.key,
-                    projectUuid: args.projectUuid,
-                },
-            );
-            await this.recordRefusal(args, error);
-            throw error;
-        }
-        if (
-            args.kind === 'rest_operation' &&
-            HUMAN_ONLY_IN_MANAGED.has(args.key)
-        ) {
-            const error = new AiAccessRefusedError(
-                AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
-                {
-                    message:
-                        'Only a person can change access grants or identity settings.',
-                    capability: AgentCapability.Administration,
-                    settingsUrl: '/generalSettings/agentIdentity',
-                    policyLayer: 'organization_setting',
-                    policyVersion: policy.version,
-                    operation: args.key,
-                    projectUuid: args.projectUuid,
-                },
-            );
-            await this.recordRefusal(args, error);
-            throw error;
-        }
+    private createEvaluation(
+        policy: ResolvedAgentPolicy,
+        args: AssertOperationArgs,
+    ) {
         const requiredCapabilities = requiredCapabilitiesForOperation(
             args.kind,
             args.key,
             args.connectedTool,
         );
-        const settings = await this.deps.getOrganizationSettings(
-            args.organizationUuid,
-        );
-        const operation: AgentPolicyEvaluation = {
+        const operation: AgentPermissionEvaluationContext = {
             requiredCapabilities,
             projectUuid: args.projectUuid,
-            mcpAgentsEnabled: settings?.mcpAgentsEnabled ?? true,
-            mcpContentWritesEnabled: settings?.mcpContentWritesEnabled ?? true,
+            userUuid: args.account.user.id,
+            humanOnly:
+                args.kind === 'rest_operation' &&
+                HUMAN_ONLY_IN_MANAGED.has(args.key),
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: true,
             warehouseConfirmed: false,
             isOrganizationDiscovery: ORGANIZATION_DISCOVERY_OPERATIONS[
                 args.kind
             ].includes(args.key),
         };
-        let denial = evaluate(policy, operation);
-        if (
-            denial?.reason ===
-                AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED &&
-            args.projectUuid !== null
-        ) {
-            const [confirmation, fingerprint] = await Promise.all([
-                this.deps.agentWarehouseRestrictionConfirmationModel.get(
-                    args.projectUuid,
-                ),
-                this.deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint(
-                    args.projectUuid,
-                ),
-            ]);
-            operation.warehouseConfirmed =
-                confirmation?.bindingFingerprint === fingerprint;
-            denial = evaluate(policy, operation);
-        }
-        if (!denial) return;
-        const error = new AiAccessRefusedError(denial.reason, {
-            ...denial,
-            message: getAgentCapabilityRefusalMessage(
-                denial.reason,
-                denial.policyLayer,
-                denial.capability,
-            ),
+        const steps = agentPermissionChecks(policy, operation);
+        const checks: AgentPermissionCheck[] = [];
+        let settingsPromise: Promise<void> | undefined;
+        let confirmationPromise: Promise<void> | undefined;
+        const readCheck = async (step: (typeof steps)[number]) => {
+            if (step.kind === 'agent_enabled') {
+                settingsPromise ??= this.deps
+                    .getOrganizationSettings(args.organizationUuid)
+                    .then((settings) => {
+                        operation.mcpAgentsEnabled =
+                            settings?.mcpAgentsEnabled ?? true;
+                        operation.mcpContentWritesEnabled =
+                            settings?.mcpContentWritesEnabled ?? true;
+                    });
+                await settingsPromise;
+            }
+            if (
+                step.kind === 'warehouse_confirmation' &&
+                requiredCapabilities?.includes(AgentCapability.RawSql) &&
+                args.projectUuid !== null
+            ) {
+                confirmationPromise ??= Promise.all([
+                    this.deps.agentWarehouseRestrictionConfirmationModel.get(
+                        args.projectUuid,
+                    ),
+                    this.deps.agentWarehouseRestrictionConfirmationModel.getCurrentBindingFingerprint(
+                        args.projectUuid,
+                    ),
+                ]).then(([confirmation, fingerprint]) => {
+                    operation.warehouseConfirmed =
+                        confirmation != null &&
+                        confirmation.bindingFingerprint === fingerprint;
+                    operation.warehouseStale =
+                        confirmation != null && !operation.warehouseConfirmed;
+                });
+                await confirmationPromise;
+            }
+            const check = step.evaluate();
+            checks.push(check);
+            return check;
+        };
+        const readChecks = async (
+            stopAtRefusal: boolean,
+            options: {
+                signal?: AbortSignal;
+                skipWarehouseConfirmation?: boolean;
+            } = {},
+            index = checks.length,
+        ): Promise<AgentPermissionCheck | null> => {
+            options.signal?.throwIfAborted();
+            const step = steps[index];
+            if (!step) return null;
+            if (
+                options.skipWarehouseConfirmation &&
+                step.kind === 'warehouse_confirmation'
+            )
+                return readChecks(stopAtRefusal, options, index + 1);
+            const check = await readCheck(step);
+            if (stopAtRefusal && check.reason !== null) return check;
+            return readChecks(stopAtRefusal, options, index + 1);
+        };
+        return {
+            checks,
+            readChecks,
+            requiredCapabilities: [...(requiredCapabilities ?? [])],
+        };
+    }
+
+    async assertOperation(args: AssertOperationArgs): Promise<void> {
+        const policy = await this.resolvePolicy(args);
+        if (policy.mode !== 'managed') return;
+        const evaluation = this.createEvaluation(policy, args);
+        const primary = await evaluation.readChecks(true);
+        if (!primary) return;
+        const error = permissionRefusal(primary, {
             operation: args.key,
             policyVersion: policy.version,
             projectUuid: args.projectUuid,
+        });
+        const { ability } = args.account.user;
+        const hiddenProject =
+            args.projectUuid !== null &&
+            !ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: args.organizationUuid,
+                    projectUuid: args.projectUuid,
+                }),
+            );
+        const canManageOrganization = ability.can(
+            'manage',
+            subject('Organization', {
+                organizationUuid: args.organizationUuid,
+            }),
+        );
+        let blockersComplete = !hiddenProject;
+        let diagnosticTimeout: ReturnType<typeof setTimeout> | undefined;
+        const diagnosticAbort = new AbortController();
+        try {
+            await Promise.race([
+                evaluation.readChecks(false, {
+                    signal: diagnosticAbort.signal,
+                    skipWarehouseConfirmation: hiddenProject,
+                }),
+                new Promise<never>((_, reject) => {
+                    diagnosticTimeout = setTimeout(() => {
+                        diagnosticAbort.abort();
+                        reject(
+                            new Error('Agent permission diagnostics timed out'),
+                        );
+                    }, 2000);
+                }),
+            ]);
+        } catch {
+            blockersComplete = false;
+            this.logger.warn('Failed to collect agent permission blockers', {
+                reason: error.refusal.reason,
+                operation: args.key,
+            });
+        } finally {
+            clearTimeout(diagnosticTimeout);
+        }
+        Object.assign(error.refusal, {
+            requiredCapabilities: evaluation.requiredCapabilities,
+            blockers: permissionBlockers(evaluation.checks)
+                .filter(
+                    (blocker) =>
+                        !hiddenProject ||
+                        (blocker.checkId !== 'warehouse_confirmation' &&
+                            (blocker.checkId === primary.id ||
+                                (blocker.checkId !== 'project_scope' &&
+                                    !blocker.checkId.startsWith(
+                                        'capability:',
+                                    )))),
+                )
+                .map((blocker) => {
+                    if (blocker.checkId === primary.id) return blocker;
+                    if (
+                        (hiddenProject &&
+                            blocker.settingsUrl?.startsWith(
+                                '/generalSettings/projectManagement/',
+                            )) ||
+                        (!canManageOrganization &&
+                            blocker.settingsUrl?.startsWith(
+                                '/generalSettings/customRoles/',
+                            ))
+                    )
+                        return {
+                            ...blocker,
+                            settingsUrl: '/generalSettings/agentIdentity',
+                        };
+                    return blocker;
+                }),
+            blockersComplete,
+            explanationUrl: '/generalSettings/myAgentConnections',
         });
         await this.recordRefusal(args, error);
         throw error;

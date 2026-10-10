@@ -116,6 +116,8 @@ export * from './types/account';
 export * from './types/adminNotifications';
 export * from './types/agentIdentity';
 export * from './types/agentPermissions';
+export * from './types/agentPermissionExplanation';
+export * from './types/agentPermissionRefusalDetails';
 export * from './types/agentCapabilityPolicy';
 export * from './types/aiPrincipal';
 export * from './types/analytics';

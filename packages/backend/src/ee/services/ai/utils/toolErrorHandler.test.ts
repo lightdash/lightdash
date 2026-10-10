@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     ForbiddenError,
@@ -161,4 +162,50 @@ test('retains policy refusal in the metadata stored by the agent', () => {
     expect(
         toolErrorStructuredContentSchema.parse(output.structuredContent),
     ).toEqual(output.structuredContent);
+});
+
+test('appends plain additional requirements and See why without changing the first line', () => {
+    const error = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const output = toolErrorOutput(error, 'Error running tool.');
+    expect(output.result.split('\n')[0]).toBe(error.message);
+    expect(output.result).toContain(
+        'Also needed: Publish and share\nSee why: /generalSettings/myAgentConnections',
+    );
+    expect(output.result).toContain('Do not retry');
+    expect(output.structuredContent).toEqual({
+        error: output.result,
+        refusal: error.refusal,
+    });
 });

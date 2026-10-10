@@ -137,7 +137,7 @@ refused:
 - The person's own permissions: "Your roles do not allow …".
 - Anything else uses neutral text and never blames roles.
 
-Showing every check at once is step 2 of this work.
+A managed refusal also lists the other blockers in `requiredCapabilities`, `blockers`, and `blockersComplete`. A See why link opens My agent identity. Blockers about a project the caller cannot see are left out.
 
 ## What is not covered
 

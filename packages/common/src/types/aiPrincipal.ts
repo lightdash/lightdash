@@ -5,6 +5,7 @@ import {
     type AgentIdentityClaim,
     type AiActorKind,
 } from './agentIdentity';
+import { type AgentPermissionBlocker } from './agentPermissionExplanation';
 import {
     getAgentCapabilityName,
     type AgentCapability,
@@ -156,6 +157,10 @@ export enum AiAccessRefusalAction {
 export const AI_ACCESS_REFUSED_CODE = 'ai_access_refused';
 
 export interface AiAccessRefusal {
+    requiredCapabilities?: AgentCapability[];
+    blockers?: AgentPermissionBlocker[];
+    blockersComplete?: boolean;
+    explanationUrl?: string;
     code: 'ai_access_refused';
     reason: AiAccessRefusalReason;
     message: string;

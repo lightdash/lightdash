@@ -88,6 +88,10 @@ export class AiAccessRefusedError extends ForbiddenError {
             settingsUrl?: string | null;
             connectUrl?: string | null;
             inheritedFromProjectUuid?: string | null;
+            requiredCapabilities?: AiAccessRefusal['requiredCapabilities'];
+            blockers?: AiAccessRefusal['blockers'];
+            blockersComplete?: boolean;
+            explanationUrl?: string;
             capability?: AiAccessRefusal['capability'];
             policyLayer?: AiAccessRefusal['policyLayer'];
             operation?: string;
@@ -110,6 +114,18 @@ export class AiAccessRefusedError extends ForbiddenError {
                       )
                     : options.settingsUrl,
             connectUrl: options.connectUrl ?? null,
+            ...(options.requiredCapabilities === undefined
+                ? {}
+                : { requiredCapabilities: options.requiredCapabilities }),
+            ...(options.blockers === undefined
+                ? {}
+                : { blockers: options.blockers }),
+            ...(options.blockersComplete === undefined
+                ? {}
+                : { blockersComplete: options.blockersComplete }),
+            ...(options.explanationUrl === undefined
+                ? {}
+                : { explanationUrl: options.explanationUrl }),
             ...(options.capability === undefined
                 ? {}
                 : { capability: options.capability }),

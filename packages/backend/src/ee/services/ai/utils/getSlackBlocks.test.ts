@@ -1,4 +1,5 @@
 import {
+    AgentCapability,
     AiAccessRefusalReason,
     AiAccessRefusedError,
     ChartType,
@@ -2225,4 +2226,55 @@ test('offers Slack account linking for an unverified actor', () => {
             ],
         },
     ]);
+});
+
+it('keeps channel refusal text and its existing button unchanged with private diagnostics', () => {
+    const { refusal } = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        {
+            capability: AgentCapability.ContentWrite,
+            policyLayer: 'org_ceiling',
+            requiredCapabilities: [
+                AgentCapability.ContentWrite,
+                AgentCapability.Publish,
+            ],
+            blockersComplete: true,
+            explanationUrl: '/generalSettings/myAgentConnections',
+            blockers: [
+                {
+                    checkId: 'capability:content_write',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.ContentWrite,
+                    policyLayer: 'org_ceiling',
+                    message: 'Primary',
+                    settingsUrl: null,
+                },
+                {
+                    checkId: 'capability:publish',
+                    status: 'refused',
+                    reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    capability: AgentCapability.Publish,
+                    policyLayer: 'org_ceiling',
+                    message: 'Secondary',
+                    settingsUrl: null,
+                },
+            ],
+        },
+    );
+    const {
+        blockers,
+        requiredCapabilities,
+        blockersComplete,
+        explanationUrl,
+        ...oldRefusal
+    } = refusal;
+    const blocks = getAiAccessRefusalBlocks(refusal, 'https://example.com');
+    expect(blocks).toEqual(
+        getAiAccessRefusalBlocks(oldRefusal, 'https://example.com'),
+    );
+    expect(blocks).toHaveLength(2);
+    expect(JSON.stringify(blocks)).not.toContain('Also needed');
+    expect(JSON.stringify(blocks)).not.toContain('See why');
+    expect(JSON.stringify(blocks)).not.toContain('myAgentConnections');
 });
